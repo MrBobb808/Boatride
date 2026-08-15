@@ -53,10 +53,35 @@ belonging to the same person. Optional per-block fields:
 
 To correct the list, edit `BLOCKS` and reload. Ranges must not overlap.
 
-## State
+## Report
+
+The **Report** tab is the end-of-night document: headcount against tickets
+issued, turnout, a ranked "who brought the most", a full per-holder table of
+out / came / missing, the arrival window, and the numbers that were never
+presented. *Print this report* uses a dedicated print stylesheet — app chrome
+drops away and a dated header appears. *Download as a spreadsheet* emits CSV
+through the `downloads` capability, falling back to `.txt` where the extended
+type set is off, and to the clipboard when the page isn't running as a hosted
+Artifact.
+
+## State and moving it between devices
 
 Check-ins are kept in `localStorage` under `gangway-checkin-v1`, so closing the
-tab or losing signal doesn't lose the list. Use the same phone and the same
-browser all evening, and don't use private browsing. *Copy a summary* on the
-Manifest tab exports the current state as text — worth doing once mid-boarding
-as a backup.
+tab or losing signal doesn't lose the list.
+
+There is **no server and no live sync** — nothing reconciles two devices on its
+own. What exists instead is a portable state code: the board packs into 2 bits
+per ticket (checked, and whether it was claimed via a seller rather than by
+number), base64url'd with a checksum, giving a ~117-character string.
+
+- The URL hash rewrites itself on every change, so the address in the bar always
+  carries the current board. Open that address anywhere and the check-ins come
+  with it.
+- The **Sync** tab shows the code, copies it or a link, and takes a paste from
+  another device.
+
+Merging is a **union** — a check-in present on either side survives, and nothing
+is ever un-checked. So merging is idempotent, safe in either direction, and safe
+to repeat. Two people can work two doors on two phones and merge at the end.
+
+A link is a snapshot of the moment it was copied, not a live feed.

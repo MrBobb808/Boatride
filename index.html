@@ -185,24 +185,29 @@
 
   .tabs {
     display: flex;
-    gap: 4px;
+    gap: 3px;
     background: var(--surface-2);
     border: 1px solid var(--line);
     border-radius: 12px;
     padding: 4px;
     margin: 14px 0 16px;
+    overflow-x: auto;
+    scrollbar-width: none;
   }
 
+  .tabs::-webkit-scrollbar { display: none; }
+
   .tabs button {
-    flex: 1;
+    flex: 1 0 auto;
+    white-space: nowrap;
     border: 0;
     border-radius: 9px;
     background: transparent;
     color: var(--muted);
     font-family: inherit;
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 650;
-    padding: 9px 4px;
+    padding: 9px 7px;
     cursor: pointer;
   }
 
@@ -536,15 +541,160 @@
 
   .hidden { display: none !important; }
 
+  /* ---------- report ---------- */
+
+  .printhead { display: none; }
+
+  .headline {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 20px 18px;
+    margin-bottom: 12px;
+    text-align: center;
+  }
+
+  .headline b {
+    display: block;
+    font-family: var(--font-num);
+    font-variant-numeric: tabular-nums;
+    font-size: 62px;
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: -.04em;
+  }
+
+  .headline span { font-size: 14px; color: var(--muted); }
+
+  .rank { display: flex; flex-direction: column; gap: 2px; }
+
+  .rankrow {
+    display: grid;
+    grid-template-columns: 26px 1fr auto;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 12px;
+    border-radius: 10px;
+  }
+
+  .rankrow:nth-child(odd) { background: var(--surface-2); }
+
+  .rankrow .pos {
+    font-family: var(--font-num);
+    font-variant-numeric: tabular-nums;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--muted);
+    text-align: right;
+  }
+
+  .rankrow .nm { min-width: 0; font-size: 15px; font-weight: 600; }
+  .rankrow .nm small { display: block; font-weight: 400; font-size: 12px; color: var(--muted); }
+
+  .rankrow .qty {
+    font-family: var(--font-num);
+    font-variant-numeric: tabular-nums;
+    font-size: 17px;
+    font-weight: 700;
+  }
+
+  .bar {
+    grid-column: 2 / 4;
+    height: 6px;
+    border-radius: 99px;
+    background: var(--line);
+    overflow: hidden;
+  }
+
+  .bar i { display: block; height: 100%; background: var(--accent); border-radius: 99px; }
+  .rankrow.top .bar i { background: var(--aboard); }
+  .rankrow.top .qty { color: var(--aboard); }
+
+  table.rep {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+  }
+
+  table.rep th, table.rep td {
+    text-align: left;
+    padding: 9px 10px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  table.rep th {
+    font-size: 11.5px;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 700;
+  }
+
+  table.rep td.n, table.rep th.n {
+    text-align: right;
+    font-family: var(--font-num);
+    font-variant-numeric: tabular-nums;
+  }
+
+  table.rep tr.zero td { color: var(--muted); }
+  .tablewrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; }
+
+  /* ---------- sync ---------- */
+
+  .code {
+    font-family: var(--font-num);
+    font-size: 12.5px;
+    line-height: 1.6;
+    word-break: break-all;
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 12px;
+    color: var(--ink);
+    width: 100%;
+    min-height: 96px;
+    resize: vertical;
+  }
+
+  .code:focus { outline: 3px solid var(--accent); outline-offset: 1px; }
+
+  .warnbox {
+    background: var(--alert-soft);
+    border: 1px solid transparent;
+    border-left: 4px solid var(--alert);
+    border-radius: 10px;
+    padding: 13px 14px;
+    margin-bottom: 12px;
+    font-size: 14px;
+  }
+
+  .warnbox h3 { margin: 0 0 4px; font-size: 15px; font-weight: 700; color: var(--alert); }
+  .warnbox p { margin: 0; color: var(--ink); }
+
   @media (prefers-reduced-motion: reduce) {
     * { transition: none !important; }
   }
 
   @media print {
-    .topbar, .tabs, .footer-actions, .toast, .act { display: none !important; }
-    body { background: #fff; color: #000; }
-    .card, details.group { break-inside: avoid; box-shadow: none; }
+    .topbar, .tabs, .footer-actions, .toast, .act, .noprint { display: none !important; }
+    body { background: #fff; color: #000; font-size: 11pt; }
+    .wrap { max-width: none; padding: 0; }
+    .card, details.group, .headline, .tablewrap, .flag { break-inside: avoid; box-shadow: none; border-color: #bbb; }
+    .rankrow { break-inside: avoid; }
+    .rankrow:nth-child(odd) { background: #f2f2f2; }
     details.group > .nums { display: flex !important; }
+    .headline b { font-size: 44pt; }
+    table.rep th, table.rep td { border-bottom: 1px solid #ccc; padding: 5px 8px; }
+    .printhead {
+      display: block;
+      border-bottom: 2px solid #000;
+      padding-bottom: 8px;
+      margin-bottom: 16px;
+    }
+    .printhead h1 { margin: 0; font-size: 19pt; letter-spacing: -.01em; }
+    .printhead p { margin: 3px 0 0; font-size: 10pt; color: #444; }
+    .eyebrow { color: #444; margin-top: 18px; }
+    @page { margin: 14mm; }
   }
 </style>
 
@@ -567,11 +717,15 @@
   <div class="tabs" role="tablist">
     <button role="tab" aria-selected="true" data-view="checkin">Check in</button>
     <button role="tab" aria-selected="false" data-view="manifest">Manifest</button>
+    <button role="tab" aria-selected="false" data-view="report">Report</button>
+    <button role="tab" aria-selected="false" data-view="sync">Sync</button>
     <button role="tab" aria-selected="false" data-view="notes">Notes</button>
   </div>
 
   <section id="view-checkin"></section>
   <section id="view-manifest" class="hidden"></section>
+  <section id="view-report" class="hidden"></section>
+  <section id="view-sync" class="hidden"></section>
   <section id="view-notes" class="hidden"></section>
 </div>
 
@@ -806,9 +960,16 @@
   /* ---------------- check-in view ---------------- */
 
   var q = document.getElementById("q");
-  var viewCheckin = document.getElementById("view-checkin");
-  var viewManifest = document.getElementById("view-manifest");
-  var viewNotes = document.getElementById("view-notes");
+  var VIEWS = {
+    checkin: document.getElementById("view-checkin"),
+    manifest: document.getElementById("view-manifest"),
+    report: document.getElementById("view-report"),
+    sync: document.getElementById("view-sync"),
+    notes: document.getElementById("view-notes")
+  };
+  var viewCheckin = VIEWS.checkin;
+  var viewManifest = VIEWS.manifest;
+  var viewNotes = VIEWS.notes;
   var currentView = "checkin";
   var pinned = null;
 
@@ -1052,24 +1213,324 @@
 
   /* ---------------- render ---------------- */
 
+  /* ------------------------------------------------------------------
+     Portable state. The whole board packs into 2 bits per ticket —
+     checked, and whether it was claimed through a seller rather than by
+     number — so it travels as a short code in a link or a paste.
+     ------------------------------------------------------------------ */
+
+  var B64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+
+  function packState() {
+    var bytes = new Uint8Array(Math.ceil((MAX_T * 2) / 8));
+    for (var n = 1; n <= MAX_T; n++) {
+      var rec = state.checked[n];
+      if (!rec) continue;
+      var b = (n - 1) * 2;
+      bytes[b >> 3] |= 1 << (b & 7);
+      if (rec.how === "seller") bytes[(b + 1) >> 3] |= 1 << ((b + 1) & 7);
+    }
+    return bytes;
+  }
+
+  function toB64(bytes) {
+    var out = "";
+    for (var i = 0; i < bytes.length; i += 3) {
+      var a = bytes[i], b = bytes[i + 1], c = bytes[i + 2];
+      out += B64[a >> 2];
+      out += B64[((a & 3) << 4) | ((b === undefined ? 0 : b) >> 4)];
+      if (b === undefined) break;
+      out += B64[((b & 15) << 2) | ((c === undefined ? 0 : c) >> 6)];
+      if (c === undefined) break;
+      out += B64[c & 63];
+    }
+    return out;
+  }
+
+  var B64IDX = {};
+  for (var bi = 0; bi < 64; bi++) B64IDX[B64[bi]] = bi;
+
+  function fromB64(s) {
+    var bytes = [], acc = 0, bits = 0;
+    for (var i = 0; i < s.length; i++) {
+      var v = B64IDX[s[i]];
+      if (v === undefined) continue;
+      acc = (acc << 6) | v;
+      bits += 6;
+      if (bits >= 8) { bits -= 8; bytes.push((acc >> bits) & 255); }
+    }
+    return new Uint8Array(bytes);
+  }
+
+  function sumOf(bytes) {
+    var s = 0;
+    for (var i = 0; i < bytes.length; i++) s = (s + bytes[i] * (i + 1)) % 4093;
+    return s;
+  }
+
+  function makeCode() {
+    var bytes = packState();
+    return "G1" + toB64(bytes) + "." + sumOf(bytes).toString(36);
+  }
+
+  function readCode(input) {
+    var code = String(input || "").replace(/\s+/g, "");
+    if (code.indexOf("#") > -1) code = code.slice(code.lastIndexOf("=") + 1);
+    if (!code) return { error: "Nothing pasted yet." };
+    if (code.slice(0, 2) !== "G1") {
+      return { error: "That doesn’t look like a Gangway code — a real one starts with G1." };
+    }
+    var dot = code.lastIndexOf(".");
+    if (dot < 3) return { error: "The code looks cut off. Copy all of it, including the dot near the end." };
+    var bytes = fromB64(code.slice(2, dot));
+    if (sumOf(bytes).toString(36) !== code.slice(dot + 1)) {
+      return { error: "The code didn’t add up, so some of it went missing in the copying. Send it again." };
+    }
+    return { bytes: bytes };
+  }
+
+  /* Merging is a union: a check-in present on either side stays checked.
+     Nothing is ever un-checked by a merge, so it is safe to repeat. */
+  function mergeBytes(bytes) {
+    var added = 0, now = Date.now();
+    for (var n = 1; n <= MAX_T; n++) {
+      var b = (n - 1) * 2;
+      if ((b >> 3) >= bytes.length) break;
+      if (!((bytes[b >> 3] >> (b & 7)) & 1)) continue;
+      if (state.checked[n]) continue;
+      var viaSeller = (bytes[(b + 1) >> 3] >> ((b + 1) & 7)) & 1;
+      state.checked[n] = { at: now, how: viaSeller ? "seller" : "number", synced: true };
+      state.log.unshift(n);
+      added++;
+    }
+    if (state.log.length > 60) state.log.length = 60;
+    if (added) save();
+    return added;
+  }
+
+  var lastHash = null;
+
+  function writeHash() {
+    var code = aboardCount() ? makeCode() : "";
+    if (code === lastHash) return;
+    lastHash = code;
+    try {
+      history.replaceState(null, "", code ? "#s=" + code : location.pathname + location.search);
+    } catch (e) { /* file:// in some browsers */ }
+  }
+
+  function shareLink() {
+    return location.origin + location.pathname + location.search + "#s=" + makeCode();
+  }
+
+  /* ---------------- report ---------------- */
+
+  function reportRows() {
+    return people.map(function (p) {
+      return {
+        who: p.who, key: p.key, ev: p.ev, ranges: p.ranges,
+        issued: p.numbers.length, expected: p.expected, got: personChecked(p)
+      };
+    }).sort(function (a, b) {
+      return b.got - a.got || b.expected - a.expected || a.who.localeCompare(b.who);
+    });
+  }
+
+  function arrivalWindow() {
+    var times = [];
+    for (var k in state.checked) {
+      if (state.checked.hasOwnProperty(k)) times.push(state.checked[k].at);
+    }
+    if (!times.length) return null;
+    times.sort(function (a, b) { return a - b; });
+    return { first: times[0], last: times[times.length - 1] };
+  }
+
+  function renderReport() {
+    var aboard = aboardCount();
+    var rows = reportRows();
+    var brought = rows.filter(function (r) { return r.got > 0; });
+    var best = rows.length ? rows[0].got : 0;
+    var evAboard = rows.reduce(function (t, r) { return t + (r.ev ? r.got : 0); }, 0);
+    var turnout = TOTAL_EXPECTED ? Math.round((aboard / TOTAL_EXPECTED) * 100) : 0;
+    var win = arrivalWindow();
+    var now = new Date();
+
+    var h = '<div class="printhead"><h1>Boat Ride — Check-In Report</h1><p>' +
+      now.toLocaleDateString(undefined, { weekday: "long", year: "numeric", month: "long", day: "numeric" }) +
+      " · printed " + clock(now.getTime()) + "</p></div>";
+
+    h += '<div class="headline"><b>' + aboard + "</b><span>guests checked in, of " +
+      TOTAL_EXPECTED + " tickets out</span></div>";
+
+    h += '<div class="statgrid" style="margin-bottom:6px">' +
+      '<div class="stat"><b>' + turnout + '%</b><span>Turnout</span></div>' +
+      '<div class="stat"><b>' + Math.max(0, TOTAL_EXPECTED - aboard) + "</b><span>Didn’t show</span></div>" +
+      '<div class="stat"><b>' + brought.length + "</b><span>Sellers who brought someone</span></div>" +
+      '<div class="stat"><b>' + evAboard + "</b><span>Came via Eventbrite</span></div>" +
+      "</div>";
+
+    if (win) {
+      h += '<p class="lede" style="margin:10px 2px 0">First guest ' + clock(win.first) +
+        ", last guest " + clock(win.last) + ".</p>";
+    }
+
+    h += '<p class="eyebrow">Who brought the most</p>';
+    if (!brought.length) {
+      h += '<div class="empty">Nobody checked in yet, so there’s nothing to rank.</div>';
+    } else {
+      h += '<div class="rank">' + brought.map(function (r, i) {
+        var pct = best ? Math.round((r.got / best) * 100) : 0;
+        return '<div class="rankrow' + (i === 0 ? " top" : "") + '">' +
+          '<span class="pos">' + (i + 1) + "</span>" +
+          '<span class="nm">' + esc(r.who) + "<small>" + r.got + " of " + r.expected +
+          " tickets used" + (r.ev ? " · Eventbrite" : "") + "</small></span>" +
+          '<span class="qty">' + r.got + "</span>" +
+          '<span class="bar"><i style="width:' + pct + '%"></i></span>' +
+          "</div>";
+      }).join("") + "</div>";
+    }
+
+    h += '<p class="eyebrow">Everyone who held tickets</p>' +
+      '<div class="tablewrap"><table class="rep"><thead><tr>' +
+      "<th>Ticket holder</th><th class=\"n\">Out</th><th class=\"n\">Came</th><th class=\"n\">Missing</th>" +
+      "</tr></thead><tbody>" +
+      rows.map(function (r) {
+        return '<tr' + (r.got === 0 ? ' class="zero"' : "") + "><td>" + esc(r.who) +
+          (r.ev ? " <span class=\"pill pill-ev\">EV</span>" : "") +
+          '<br><small style="color:var(--muted)">' + r.ranges + "</small></td>" +
+          '<td class="n">' + r.expected + "</td>" +
+          '<td class="n">' + r.got + "</td>" +
+          '<td class="n">' + Math.max(0, r.expected - r.got) + "</td></tr>";
+      }).join("") +
+      "</tbody></table></div>";
+
+    var missing = [];
+    for (var n = MIN_T; n <= MAX_T; n++) {
+      var b = byNumber[n];
+      if (b && !b.unissued && !isOn(n)) missing.push(n);
+    }
+    h += '<p class="eyebrow">Tickets never presented (' + missing.length + ")</p>" +
+      '<div class="card"><p class="note" style="border:0">' +
+      (missing.length ? missing.join(", ") : "None — every ticket issued was used.") + "</p></div>";
+
+    h += '<div class="footer-actions noprint">' +
+      '<button type="button" id="printRep">Print this report</button>' +
+      '<button type="button" id="csvRep">Download as a spreadsheet</button>' +
+      "</div>";
+
+    VIEWS.report.innerHTML = h;
+  }
+
+  function reportCsv() {
+    var aboard = aboardCount();
+    var rows = reportRows();
+    var lines = [];
+    function q(v) { return '"' + String(v).replace(/"/g, '""') + '"'; }
+    lines.push(q("Boat ride check-in report"));
+    lines.push(q("Generated") + "," + q(new Date().toLocaleString()));
+    lines.push(q("Guests checked in") + "," + aboard);
+    lines.push(q("Tickets issued") + "," + TOTAL_EXPECTED);
+    lines.push(q("Did not show") + "," + Math.max(0, TOTAL_EXPECTED - aboard));
+    lines.push("");
+    lines.push(["Ticket holder", "Ticket numbers", "Tickets out", "Came", "Missing", "Eventbrite"].map(q).join(","));
+    rows.forEach(function (r) {
+      lines.push([r.who, r.ranges, r.expected, r.got, Math.max(0, r.expected - r.got), r.ev ? "yes" : ""]
+        .map(q).join(","));
+    });
+    return lines.join("\r\n");
+  }
+
+  function copyText(text, okMsg) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(function () { say(okMsg || "Copied"); },
+        function () { window.prompt("Copy this:", text); });
+    } else {
+      window.prompt("Copy this:", text);
+    }
+  }
+
+  function offerDownload(filename, text) {
+    var claudeApi = window.claude;
+    if (!claudeApi || typeof claudeApi.use !== "function") { copyText(text, "Copied — paste it into a spreadsheet"); return; }
+    Promise.resolve(claudeApi.use("downloads")).then(function (dl) {
+      if (!dl) { copyText(text, "Copied — paste it into a spreadsheet"); return; }
+      return dl.save({ filename: filename, data: text }).then(function () {
+        say("Report saved");
+      }, function (err) {
+        var code = err && err.code;
+        if (code === "declined") return;
+        if (code === "extension_not_enabled" || code === "rejected_extension") {
+          return dl.save({ filename: filename.replace(/\.[^.]+$/, ".txt"), data: text })
+            .then(function () { say("Report saved"); },
+                  function () { copyText(text, "Copied — paste it into a spreadsheet"); });
+        }
+        copyText(text, "Copied — paste it into a spreadsheet");
+      });
+    }).catch(function () { copyText(text, "Copied — paste it into a spreadsheet"); });
+  }
+
+  /* ---------------- sync ---------------- */
+
+  function renderSync() {
+    var code = makeCode();
+    var aboard = aboardCount();
+
+    var h = '<h1 class="title">Move the list to another device</h1>' +
+      '<p class="lede">Check-ins live on the device that made them. To carry them somewhere else — a second phone at the door, ' +
+      'Safari instead of the Claude app, a laptop at the end of the night — send this code across and merge it in.</p>';
+
+    h += '<div class="warnbox"><h3>Not automatic</h3><p>Nothing syncs on its own. Two devices only agree once you ' +
+      'carry a code from one to the other. Merging never removes a check-in, so it is safe to do as often as you like, ' +
+      'in either direction.</p></div>';
+
+    h += '<p class="eyebrow">This device’s code — ' + aboard + " check-in" + (aboard === 1 ? "" : "s") + "</p>" +
+      '<textarea class="code" id="outCode" readonly rows="4">' + code + "</textarea>" +
+      '<div class="footer-actions" style="margin-top:8px">' +
+      '<button type="button" id="copyCode">Copy the code</button>' +
+      '<button type="button" id="copyLink">Copy a link that carries it</button>' +
+      "</div>";
+
+    h += '<p class="eyebrow">Bring in another device’s list</p>' +
+      '<textarea class="code" id="inCode" rows="4" placeholder="Paste a code or a link here"></textarea>' +
+      '<div class="footer-actions" style="margin-top:8px">' +
+      '<button type="button" id="mergeCode">Merge it in</button>' +
+      "</div>";
+
+    h += '<p class="eyebrow">How the link works</p>' +
+      '<div class="card"><p class="note" style="border:0">The address in your browser bar updates itself as you check ' +
+      'people in, so it always carries the current list. Open that same address anywhere and the check-ins come with it. ' +
+      'A link is a snapshot of the moment you copied it, not a live feed — copy a fresh one when you want to hand over ' +
+      'an up-to-date list.</p></div>';
+
+    VIEWS.sync.innerHTML = h;
+  }
+
   function render() {
     paintHeader();
+    writeHash();
     if (currentView === "checkin") renderCheckin();
     else if (currentView === "manifest") renderManifest();
+    else if (currentView === "report") renderReport();
+    else if (currentView === "sync") renderSync();
     else renderNotes();
   }
 
   /* ---------------- events ---------------- */
 
-  document.querySelectorAll('.tabs button').forEach(function (btn) {
+  function showView(name) {
+    currentView = name;
+    document.querySelectorAll(".tabs button").forEach(function (b) {
+      b.setAttribute("aria-selected", b.getAttribute("data-view") === name ? "true" : "false");
+    });
+    Object.keys(VIEWS).forEach(function (k) {
+      VIEWS[k].classList.toggle("hidden", k !== name);
+    });
+  }
+
+  document.querySelectorAll(".tabs button").forEach(function (btn) {
     btn.addEventListener("click", function () {
-      currentView = btn.getAttribute("data-view");
-      document.querySelectorAll(".tabs button").forEach(function (b) {
-        b.setAttribute("aria-selected", b === btn ? "true" : "false");
-      });
-      viewCheckin.classList.toggle("hidden", currentView !== "checkin");
-      viewManifest.classList.toggle("hidden", currentView !== "manifest");
-      viewNotes.classList.toggle("hidden", currentView !== "notes");
+      showView(btn.getAttribute("data-view"));
       render();
       window.scrollTo(0, 0);
     });
@@ -1077,15 +1538,7 @@
 
   var typeTimer = null;
   q.addEventListener("input", function () {
-    if (currentView !== "checkin") {
-      currentView = "checkin";
-      document.querySelectorAll(".tabs button").forEach(function (b) {
-        b.setAttribute("aria-selected", b.getAttribute("data-view") === "checkin" ? "true" : "false");
-      });
-      viewCheckin.classList.remove("hidden");
-      viewManifest.classList.add("hidden");
-      viewNotes.classList.add("hidden");
-    }
+    if (currentView !== "checkin") showView("checkin");
     pinned = null;
     clearTimeout(typeTimer);
     typeTimer = setTimeout(render, 60);
@@ -1186,7 +1639,28 @@
       return;
     }
 
-    if (t.id === "printBtn") { window.print(); return; }
+    if (t.id === "printBtn" || t.id === "printRep") { window.print(); return; }
+
+    if (t.id === "csvRep") {
+      offerDownload("boat-ride-check-in-report.csv", reportCsv());
+      return;
+    }
+
+    if (t.id === "copyCode") { copyText(makeCode(), "Code copied"); return; }
+
+    if (t.id === "copyLink") { copyText(shareLink(), "Link copied"); return; }
+
+    if (t.id === "mergeCode") {
+      var box = document.getElementById("inCode");
+      var res = readCode(box ? box.value : "");
+      if (res.error) { say(res.error); return; }
+      var added = mergeBytes(res.bytes);
+      if (box) box.value = "";
+      render();
+      say(added ? "Added " + added + " check-in" + (added === 1 ? "" : "s") + " from the other device"
+                : "Nothing new — this device already had all of those");
+      return;
+    }
 
     if (t.id === "resetBtn") {
       if (window.confirm("Clear every check-in and start over? This cannot be undone.")) {
@@ -1210,13 +1684,7 @@
         if (bb && !bb.unissued && !isOn(n2)) missing.push(n2);
       }
       lines.push("", "Not yet checked in (" + missing.length + "): " + missing.join(", "));
-      var text = lines.join("\n");
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(text).then(function () { say("Summary copied"); },
-          function () { window.prompt("Copy this:", text); });
-      } else {
-        window.prompt("Copy this:", text);
-      }
+      copyText(lines.join("\n"), "Summary copied");
       return;
     }
   });
@@ -1253,6 +1721,19 @@
     }
   }
 
+  /* A link can carry a list. Merging it in is additive, so opening a
+     shared address never costs this device anything it already had. */
+  var bootMsg = "";
+  (function bootFromLink() {
+    var m = (location.hash || "").match(/[#&]s=([^&]+)/);
+    if (!m) return;
+    var res = readCode(m[1]);
+    if (res.error) { bootMsg = res.error; return; }
+    var added = mergeBytes(res.bytes);
+    if (added) bootMsg = "Picked up " + added + " check-in" + (added === 1 ? "" : "s") + " from the link";
+  })();
+
   render();
+  if (bootMsg) say(bootMsg);
 })();
 </script>
