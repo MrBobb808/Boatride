@@ -1323,6 +1323,32 @@
     return location.origin + location.pathname + location.search + "#s=" + makeCode();
   }
 
+  function markMoved() {
+    state.movedAt = Date.now();
+    state.movedCount = aboardCount();
+    save();
+  }
+
+  /* One tap to hand the list to another device: the phone's own share
+     sheet (AirDrop, Messages, Notes) where it exists, clipboard where
+     it doesn't or where the frame is not allowed to open it. */
+  function sendBoard() {
+    var url = shareLink();
+    var done = function () { markMoved(); if (currentView === "sync") renderSync(); };
+    if (navigator.share) {
+      navigator.share({ title: "Boat ride check-in", text: "Boat ride check-in — " + aboardCount() + " aboard", url: url })
+        .then(function () { done(); say("Sent"); },
+              function (err) {
+                if (err && err.name === "AbortError") return;
+                copyText(url, "Link copied");
+                done();
+              });
+      return;
+    }
+    copyText(url, "Link copied");
+    done();
+  }
+
   /* ---------------- report ---------------- */
 
   function reportRows() {
@@ -1475,33 +1501,62 @@
   function renderSync() {
     var code = makeCode();
     var aboard = aboardCount();
+    var behind = state.movedAt ? aboard - (state.movedCount || 0) : aboard;
 
-    var h = '<h1 class="title">Move the list to another device</h1>' +
-      '<p class="lede">Check-ins live on the device that made them. To carry them somewhere else — a second phone at the door, ' +
-      'Safari instead of the Claude app, a laptop at the end of the night — send this code across and merge it in.</p>';
+    var h = '<h1 class="title">Keeping the list safe</h1>';
 
-    h += '<div class="warnbox"><h3>Not automatic</h3><p>Nothing syncs on its own. Two devices only agree once you ' +
-      'carry a code from one to the other. Merging never removes a check-in, so it is safe to do as often as you like, ' +
-      'in either direction.</p></div>';
+    /* Where the list stands right now — the first thing to know. */
+    if (!aboard) {
+      h += '<div class="card"><p class="note" style="border:0">Nothing checked in yet. Once you start, this tab tells you ' +
+        'whether the list exists anywhere other than this browser.</p></div>';
+    } else if (!state.movedAt) {
+      h += '<div class="warnbox"><h3>This list exists in one place only</h3><p>All ' + aboard + ' check-in' +
+        (aboard === 1 ? " is" : "s are") + " saved in this browser and nowhere else. Send a copy to yourself and " +
+        "it survives anything that happens to this phone.</p></div>";
+    } else if (behind > 0) {
+      h += '<div class="warnbox"><h3>' + behind + " check-in" + (behind === 1 ? "" : "s") + " newer than your last copy</h3>" +
+        "<p>You last sent a copy at " + clock(state.movedAt) + ", with " + (state.movedCount || 0) +
+        " aboard. Send a fresh one to bring it up to date.</p></div>";
+    } else {
+      h += '<div class="card"><div class="stripe stripe-aboard"></div><p class="note" style="border:0">Copy sent at ' +
+        clock(state.movedAt) + " with all " + aboard + " check-ins. Nothing new since.</p></div>";
+    }
 
-    h += '<p class="eyebrow">This device’s code — ' + aboard + " check-in" + (aboard === 1 ? "" : "s") + "</p>" +
-      '<textarea class="code" id="outCode" readonly rows="4">' + code + "</textarea>" +
-      '<div class="footer-actions" style="margin-top:8px">' +
-      '<button type="button" id="copyCode">Copy the code</button>' +
-      '<button type="button" id="copyLink">Copy a link that carries it</button>' +
-      "</div>";
+    h += '<div class="act" style="padding:0 0 6px">' +
+      '<button class="big" type="button" id="sendBoard">Send this list to myself</button></div>' +
+      '<p class="lede" style="margin:0 0 6px">Opens your phone’s share sheet — AirDrop it, message it, or save it to Notes. ' +
+      'Opening that link anywhere brings the check-ins with it.</p>';
 
-    h += '<p class="eyebrow">Bring in another device’s list</p>' +
-      '<textarea class="code" id="inCode" rows="4" placeholder="Paste a code or a link here"></textarea>' +
+    /* Their two actual questions, answered where they will be asked. */
+    h += '<p class="eyebrow">If this phone turns off or the app closes</p>' +
+      '<div class="card"><p class="note" style="border:0"><b>Your list is still here.</b> It is written to this browser’s ' +
+      'storage the instant you tap a check-in, not held in memory, so powering off, running out of battery or the app ' +
+      'closing does not touch it. Come back to the same app on the same phone and carry on. The one thing that does lose ' +
+      'it is clearing your browsing data, or having opened the app in private browsing.</p></div>';
+
+    h += '<p class="eyebrow">If you switch to Safari, or another phone</p>' +
+      '<div class="card"><p class="note" style="border:0"><b>The list does not follow you on its own.</b> Every app and ' +
+      'every browser keeps its own separate storage, so Safari cannot see what the Claude app recorded, and neither can ' +
+      'a second phone. There is no server behind this page to join them up. Send yourself the link and open it there — ' +
+      'that carries the whole list across, and you can keep going where you left off.</p></div>';
+
+    h += '<p class="eyebrow">Bring in a list from somewhere else</p>' +
+      '<textarea class="code" id="inCode" rows="3" placeholder="Paste a link or a code here"></textarea>' +
       '<div class="footer-actions" style="margin-top:8px">' +
       '<button type="button" id="mergeCode">Merge it in</button>' +
-      "</div>";
+      "</div>" +
+      '<p class="lede" style="margin:10px 2px 0">Merging only ever adds. A check-in on either side stays checked and ' +
+      'nothing is removed, so it is safe to merge the same thing twice, or to merge in both directions after two of you ' +
+      'have worked separate doors.</p>';
 
-    h += '<p class="eyebrow">How the link works</p>' +
-      '<div class="card"><p class="note" style="border:0">The address in your browser bar updates itself as you check ' +
-      'people in, so it always carries the current list. Open that same address anywhere and the check-ins come with it. ' +
-      'A link is a snapshot of the moment you copied it, not a live feed — copy a fresh one when you want to hand over ' +
-      'an up-to-date list.</p></div>';
+    h += '<p class="eyebrow">The code by itself</p>' +
+      '<textarea class="code" id="outCode" readonly rows="3">' + code + "</textarea>" +
+      '<div class="footer-actions" style="margin-top:8px">' +
+      '<button type="button" id="copyCode">Copy the code</button>' +
+      '<button type="button" id="copyLink">Copy as a link</button>' +
+      "</div>" +
+      '<p class="lede" style="margin:10px 2px 0">The whole list in ' + code.length + ' characters. The address in your ' +
+      'browser bar also keeps itself up to date, so that address is always a working copy of where you are now.</p>';
 
     VIEWS.sync.innerHTML = h;
   }
@@ -1646,9 +1701,11 @@
       return;
     }
 
-    if (t.id === "copyCode") { copyText(makeCode(), "Code copied"); return; }
+    if (t.id === "sendBoard") { sendBoard(); return; }
 
-    if (t.id === "copyLink") { copyText(shareLink(), "Link copied"); return; }
+    if (t.id === "copyCode") { copyText(makeCode(), "Code copied"); markMoved(); renderSync(); return; }
+
+    if (t.id === "copyLink") { copyText(shareLink(), "Link copied"); markMoved(); renderSync(); return; }
 
     if (t.id === "mergeCode") {
       var box = document.getElementById("inCode");
@@ -1723,16 +1780,26 @@
 
   /* A link can carry a list. Merging it in is additive, so opening a
      shared address never costs this device anything it already had. */
-  var bootMsg = "";
-  (function bootFromLink() {
+  function takeFromHash() {
     var m = (location.hash || "").match(/[#&]s=([^&]+)/);
-    if (!m) return;
+    if (!m) return null;
+    if (m[1] === lastHash) return null;
     var res = readCode(m[1]);
-    if (res.error) { bootMsg = res.error; return; }
+    if (res.error) return res.error;
     var added = mergeBytes(res.bytes);
-    if (added) bootMsg = "Picked up " + added + " check-in" + (added === 1 ? "" : "s") + " from the link";
-  })();
+    return added ? "Picked up " + added + " check-in" + (added === 1 ? "" : "s") + " from the link" : null;
+  }
 
+  /* Pasting a link into a tab that already has the app open only changes
+     the hash — the browser does not reload, so listen for it directly. */
+  window.addEventListener("hashchange", function () {
+    var msg = takeFromHash();
+    lastHash = null;
+    render();
+    if (msg) say(msg);
+  });
+
+  var bootMsg = takeFromHash();
   render();
   if (bootMsg) say(bootMsg);
 })();
