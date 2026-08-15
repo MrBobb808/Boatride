@@ -1,0 +1,1258 @@
+<title>Gangway Check-In</title>
+<style>
+  :root {
+    --bg: #E9EEEC;
+    --surface: #FFFFFF;
+    --surface-2: #F3F7F5;
+    --ink: #0D1A1C;
+    --muted: #55696B;
+    --line: #CFDAD7;
+    --line-strong: #A9BBB7;
+    --accent: #C2410C;
+    --accent-ink: #FFFFFF;
+    --accent-soft: #FBE8DE;
+    --aboard: #0F6B4F;
+    --aboard-ink: #FFFFFF;
+    --aboard-soft: #DBEFE6;
+    --alert: #A8261A;
+    --alert-soft: #FBE4E1;
+    --ev: #47398C;
+    --ev-soft: #E9E5F8;
+    --header: #0B3D46;
+    --header-ink: #EAF3F2;
+    --shadow: 0 1px 2px rgba(13, 26, 28, .08), 0 8px 24px -12px rgba(13, 26, 28, .28);
+    --font-ui: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+    --font-num: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #091113;
+      --surface: #121E20;
+      --surface-2: #18272A;
+      --ink: #E7F0EE;
+      --muted: #90A5A5;
+      --line: #24383B;
+      --line-strong: #3A5457;
+      --accent: #F97316;
+      --accent-ink: #1A0D04;
+      --accent-soft: #2C1809;
+      --aboard: #34D399;
+      --aboard-ink: #04241A;
+      --aboard-soft: #0D2E25;
+      --alert: #F79A90;
+      --alert-soft: #3A1714;
+      --ev: #A99BF5;
+      --ev-soft: #1E1B36;
+      --header: #071F24;
+      --header-ink: #DCECEA;
+      --shadow: 0 1px 2px rgba(0, 0, 0, .5), 0 8px 24px -12px rgba(0, 0, 0, .8);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --bg: #091113;
+    --surface: #121E20;
+    --surface-2: #18272A;
+    --ink: #E7F0EE;
+    --muted: #90A5A5;
+    --line: #24383B;
+    --line-strong: #3A5457;
+    --accent: #F97316;
+    --accent-ink: #1A0D04;
+    --accent-soft: #2C1809;
+    --aboard: #34D399;
+    --aboard-ink: #04241A;
+    --aboard-soft: #0D2E25;
+    --alert: #F79A90;
+    --alert-soft: #3A1714;
+    --ev: #A99BF5;
+    --ev-soft: #1E1B36;
+    --header: #071F24;
+    --header-ink: #DCECEA;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .5), 0 8px 24px -12px rgba(0, 0, 0, .8);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--font-ui);
+    font-size: 16px;
+    line-height: 1.45;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  .wrap {
+    max-width: 640px;
+    margin: 0 auto;
+    padding: 0 14px 96px;
+  }
+
+  /* ---------- header ---------- */
+
+  .topbar {
+    position: sticky;
+    top: 0;
+    z-index: 40;
+    background: var(--header);
+    color: var(--header-ink);
+    padding: 10px 14px 12px;
+    border-bottom: 1px solid rgba(0, 0, 0, .25);
+  }
+
+  .topbar-inner { max-width: 640px; margin: 0 auto; }
+
+  .brandline {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  .brand {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: .13em;
+    text-transform: uppercase;
+    opacity: .82;
+  }
+
+  .tally {
+    font-family: var(--font-num);
+    font-variant-numeric: tabular-nums;
+    font-size: 14px;
+    letter-spacing: -.01em;
+  }
+
+  .tally b { font-size: 20px; font-weight: 700; }
+  .tally span { opacity: .6; }
+
+  .meter {
+    height: 5px;
+    border-radius: 99px;
+    background: rgba(255, 255, 255, .16);
+    overflow: hidden;
+    margin-top: 9px;
+  }
+
+  .meter i {
+    display: block;
+    height: 100%;
+    width: 0;
+    border-radius: 99px;
+    background: var(--accent);
+    transition: width .35s ease;
+  }
+
+  /* ---------- search ---------- */
+
+  .searchrow { display: flex; gap: 8px; margin-top: 11px; }
+
+  #q {
+    flex: 1;
+    min-width: 0;
+    font-family: var(--font-num);
+    font-size: 20px;
+    font-variant-numeric: tabular-nums;
+    padding: 13px 14px;
+    border-radius: 12px;
+    border: 1px solid transparent;
+    background: var(--surface);
+    color: var(--ink);
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, .12);
+  }
+
+  #q::placeholder { color: var(--muted); font-size: 15px; font-family: var(--font-ui); }
+  #q:focus { outline: 3px solid var(--accent); outline-offset: 1px; }
+
+  .clearbtn {
+    border: 0;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, .14);
+    color: var(--header-ink);
+    font-size: 15px;
+    font-weight: 600;
+    padding: 0 16px;
+    cursor: pointer;
+  }
+
+  .clearbtn:active { transform: scale(.97); }
+
+  /* ---------- tabs ---------- */
+
+  .tabs {
+    display: flex;
+    gap: 4px;
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 4px;
+    margin: 14px 0 16px;
+  }
+
+  .tabs button {
+    flex: 1;
+    border: 0;
+    border-radius: 9px;
+    background: transparent;
+    color: var(--muted);
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 650;
+    padding: 9px 4px;
+    cursor: pointer;
+  }
+
+  .tabs button[aria-selected="true"] {
+    background: var(--surface);
+    color: var(--ink);
+    box-shadow: var(--shadow);
+  }
+
+  .tabs button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+  /* ---------- cards ---------- */
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+    overflow: hidden;
+    margin-bottom: 12px;
+  }
+
+  .card-head {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 15px 16px;
+  }
+
+  .bignum {
+    font-family: var(--font-num);
+    font-variant-numeric: tabular-nums;
+    font-size: 40px;
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: -.03em;
+    flex-shrink: 0;
+  }
+
+  .who { min-width: 0; flex: 1; }
+
+  .who h2 {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 700;
+    line-height: 1.2;
+    text-wrap: balance;
+  }
+
+  .who p { margin: 3px 0 0; font-size: 13.5px; color: var(--muted); }
+
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11.5px;
+    font-weight: 700;
+    letter-spacing: .07em;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    border-radius: 99px;
+    white-space: nowrap;
+  }
+
+  .pill-aboard { background: var(--aboard-soft); color: var(--aboard); }
+  .pill-ev { background: var(--ev-soft); color: var(--ev); }
+  .pill-alert { background: var(--alert-soft); color: var(--alert); }
+  .pill-paid { background: var(--accent-soft); color: var(--accent); }
+
+  .stripe { height: 4px; }
+  .stripe-aboard { background: var(--aboard); }
+  .stripe-alert { background: var(--alert); }
+  .stripe-ev { background: var(--ev); }
+
+  .note {
+    margin: 0;
+    padding: 11px 16px;
+    font-size: 13.5px;
+    background: var(--surface-2);
+    border-top: 1px solid var(--line);
+    color: var(--muted);
+  }
+
+  .note b { color: var(--ink); }
+
+  .act { padding: 0 16px 16px; display: flex; flex-direction: column; gap: 8px; }
+
+  button.big {
+    width: 100%;
+    border: 0;
+    border-radius: 12px;
+    font-family: inherit;
+    font-size: 17px;
+    font-weight: 700;
+    padding: 16px;
+    cursor: pointer;
+    background: var(--accent);
+    color: var(--accent-ink);
+  }
+
+  button.big:active { transform: scale(.985); }
+  button.big:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
+  button.big.ghost { background: var(--surface-2); color: var(--ink); border: 1px solid var(--line-strong); }
+  button.big.evbtn { background: var(--ev); color: var(--surface); }
+
+  /* ---------- seller rows ---------- */
+
+  .seller {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    text-align: left;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+    padding: 13px 14px;
+    margin-bottom: 10px;
+    font-family: inherit;
+    color: var(--ink);
+    cursor: pointer;
+  }
+
+  .seller:focus-visible { outline: 3px solid var(--accent); outline-offset: 1px; }
+  .seller-main { flex: 1; min-width: 0; }
+  .seller-main h3 { margin: 0; font-size: 17px; font-weight: 700; }
+  .seller-main p { margin: 2px 0 0; font-size: 13px; color: var(--muted); }
+
+  .count {
+    font-family: var(--font-num);
+    font-variant-numeric: tabular-nums;
+    font-size: 15px;
+    font-weight: 700;
+    white-space: nowrap;
+    padding: 6px 10px;
+    border-radius: 9px;
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+  }
+
+  .count.done { background: var(--aboard-soft); color: var(--aboard); border-color: transparent; }
+
+  /* ---------- manifest ---------- */
+
+  details.group {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    margin-bottom: 10px;
+    overflow: hidden;
+  }
+
+  details.group > summary {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 13px 14px;
+    cursor: pointer;
+    list-style: none;
+  }
+
+  details.group > summary::-webkit-details-marker { display: none; }
+  details.group > summary:focus-visible { outline: 3px solid var(--accent); outline-offset: -3px; }
+
+  .nums {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 4px 14px 14px;
+    border-top: 1px solid var(--line);
+    padding-top: 12px;
+  }
+
+  .num {
+    font-family: var(--font-num);
+    font-variant-numeric: tabular-nums;
+    font-size: 14px;
+    font-weight: 600;
+    min-width: 52px;
+    padding: 9px 6px;
+    border-radius: 9px;
+    border: 1px solid var(--line-strong);
+    background: var(--surface-2);
+    color: var(--ink);
+    cursor: pointer;
+  }
+
+  .num[data-on="1"] {
+    background: var(--aboard);
+    color: var(--aboard-ink);
+    border-color: transparent;
+    text-decoration: line-through;
+    text-decoration-thickness: 2px;
+  }
+
+  .num:focus-visible { outline: 3px solid var(--accent); outline-offset: 1px; }
+
+  /* ---------- misc ---------- */
+
+  h1.title { font-size: 21px; margin: 18px 0 4px; font-weight: 750; letter-spacing: -.01em; }
+
+  .lede { margin: 0 0 16px; color: var(--muted); font-size: 14.5px; }
+
+  .eyebrow {
+    font-size: 11.5px;
+    font-weight: 700;
+    letter-spacing: .13em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 22px 0 9px;
+  }
+
+  .recent {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--line);
+    font-size: 14px;
+  }
+
+  .recent:last-child { border-bottom: 0; }
+  .recent .rn { font-family: var(--font-num); font-weight: 700; font-variant-numeric: tabular-nums; }
+  .recent .rw { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .recent .rt { color: var(--muted); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+
+  .undo {
+    border: 1px solid var(--line-strong);
+    background: var(--surface);
+    color: var(--ink);
+    font-family: inherit;
+    font-size: 12.5px;
+    font-weight: 650;
+    padding: 6px 10px;
+    border-radius: 8px;
+    cursor: pointer;
+  }
+
+  .empty {
+    text-align: center;
+    color: var(--muted);
+    font-size: 14.5px;
+    padding: 26px 16px;
+    border: 1px dashed var(--line-strong);
+    border-radius: 14px;
+  }
+
+  .flag {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-left: 4px solid var(--accent);
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-bottom: 10px;
+    font-size: 14px;
+  }
+
+  .flag h3 { margin: 0 0 4px; font-size: 15px; font-weight: 700; }
+  .flag p { margin: 0; color: var(--muted); }
+  .flag .k { font-family: var(--font-num); font-weight: 700; color: var(--ink); }
+
+  .statgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
+
+  .stat {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 12px 14px;
+  }
+
+  .stat b {
+    display: block;
+    font-family: var(--font-num);
+    font-variant-numeric: tabular-nums;
+    font-size: 27px;
+    font-weight: 700;
+    line-height: 1.1;
+  }
+
+  .stat span { font-size: 12.5px; color: var(--muted); }
+
+  .toast {
+    position: fixed;
+    left: 50%;
+    bottom: 18px;
+    transform: translate(-50%, 130%);
+    z-index: 90;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    max-width: calc(100% - 28px);
+    background: var(--header);
+    color: var(--header-ink);
+    padding: 12px 14px;
+    border-radius: 12px;
+    box-shadow: 0 10px 30px -8px rgba(0, 0, 0, .55);
+    font-size: 14.5px;
+    transition: transform .28s cubic-bezier(.2, .8, .3, 1);
+  }
+
+  .toast[data-show="1"] { transform: translate(-50%, 0); }
+  .toast button {
+    border: 1px solid rgba(255, 255, 255, .35);
+    background: transparent;
+    color: inherit;
+    font-family: inherit;
+    font-size: 13.5px;
+    font-weight: 700;
+    padding: 7px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+
+  .footer-actions { display: flex; gap: 8px; margin-top: 20px; flex-wrap: wrap; }
+
+  .footer-actions button {
+    flex: 1;
+    min-width: 130px;
+    border: 1px solid var(--line-strong);
+    background: var(--surface);
+    color: var(--ink);
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 650;
+    padding: 12px;
+    border-radius: 10px;
+    cursor: pointer;
+  }
+
+  .hidden { display: none !important; }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; }
+  }
+
+  @media print {
+    .topbar, .tabs, .footer-actions, .toast, .act { display: none !important; }
+    body { background: #fff; color: #000; }
+    .card, details.group { break-inside: avoid; box-shadow: none; }
+    details.group > .nums { display: flex !important; }
+  }
+</style>
+
+<div class="topbar">
+  <div class="topbar-inner">
+    <div class="brandline">
+      <div class="brand">Gangway</div>
+      <div class="tally"><b id="tAboard">0</b> <span>aboard of</span> <b id="tExp">0</b></div>
+    </div>
+    <div class="meter"><i id="meterFill"></i></div>
+    <div class="searchrow">
+      <input id="q" inputmode="search" autocomplete="off" autocapitalize="off" spellcheck="false"
+             placeholder="Ticket number, or who they bought from" aria-label="Ticket number or seller name">
+      <button class="clearbtn" id="clearBtn" type="button">Clear</button>
+    </div>
+  </div>
+</div>
+
+<div class="wrap">
+  <div class="tabs" role="tablist">
+    <button role="tab" aria-selected="true" data-view="checkin">Check in</button>
+    <button role="tab" aria-selected="false" data-view="manifest">Manifest</button>
+    <button role="tab" aria-selected="false" data-view="notes">Notes</button>
+  </div>
+
+  <section id="view-checkin"></section>
+  <section id="view-manifest" class="hidden"></section>
+  <section id="view-notes" class="hidden"></section>
+</div>
+
+<div class="toast" id="toast" data-show="0">
+  <span id="toastMsg"></span>
+  <button type="button" id="toastUndo">Undo</button>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  /* ------------------------------------------------------------------
+     The ticket book. Each block is a run of numbers given to one person.
+     returned = tickets in the block that came back and won't be used.
+     ------------------------------------------------------------------ */
+  var BLOCKS = [
+    { from: 1,   to: 5,   who: "Sis Dimples",    key: "dimples",   note: "Brought money for 4 of the 5." },
+    { from: 6,   to: 15,  who: "Darkim",         key: "darkim" },
+    { from: 16,  to: 20,  who: "Sis Tessa",      key: "tessa" },
+    { from: 21,  to: 25,  who: "Aunty Delly",    key: "delly" },
+    { from: 26,  to: 35,  who: "Sis Sharese",    key: "sharese" },
+    { from: 36,  to: 40,  who: "Sis Jessica",    key: "jessica" },
+    { from: 41,  to: 45,  who: "Sis Pam",        key: "pam",       paid: "Paid" },
+    { from: 46,  to: 50,  who: "Sis Joan",       key: "joan" },
+    { from: 51,  to: 55,  who: "Sis Jada",       key: "jada" },
+    { from: 56,  to: 60,  who: "Sis Wonita",     key: "wonita",    paid: "Paid in full" },
+    { from: 61,  to: 65,  who: "Bro Trevor",     key: "trevor" },
+    { from: 66,  to: 75,  who: "Sis Toby",       key: "toby" },
+    { from: 76,  to: 85,  who: "Sis Meredith",   key: "meredith" },
+    { from: 86,  to: 95,  who: "Bro Belle",      key: "belle" },
+    { from: 96,  to: 105, who: "Bro Hendricks",  key: "hendricks" },
+    { from: 106, to: 110, who: "Sis Piggot",     key: "piggot" },
+    { from: 111, to: 120, who: "Sis Karen",      key: "karen" },
+    { from: 121, to: 125, who: "Sis Pinnock",    key: "pinnock",   paid: "Paid" },
+    { from: 126, to: 126, who: "Sis Shirlene",   key: "shirlene",  paid: "Paid",
+      note: "126 sits inside Sis Pinnock's block but is listed separately to Sis Shirlene. If someone else turns up with 126, check with Sis Pinnock." },
+    { from: 127, to: 130, who: "Sis Pinnock",    key: "pinnock",   paid: "Paid", returned: 2,
+      note: "Sis Pinnock returned 3 tickets. 126 went to Sis Shirlene; 2 more of her numbers won't be used." },
+    { from: 131, to: 140, who: "Sis George",     key: "george" },
+    { from: 141, to: 144, who: "Bro Fraser",     key: "fraser" },
+    { from: 145, to: 145, who: "Devon Smith",    key: "devonsmith" },
+    { from: 146, to: 148, who: "Sis Shirley",    key: "shirley",   paid: "Paid" },
+    { from: 149, to: 158, who: "Sis Tiffany",    key: "tiffany" },
+    { from: 159, to: 168, who: "Sis Blossom",    key: "blossom" },
+    { from: 169, to: 173, who: "Sis Anita",      key: "anita" },
+    { from: 174, to: 178, who: "Sis Jess",       key: "jess",      paid: "Paid in full" },
+    { from: 179, to: 180, who: "Asuni & Naomi",  key: "asuninaomi" },
+    { from: 181, to: 185, who: "Sis Heather",    key: "heather" },
+    { from: 186, to: 187, who: "Bro Trevor",     key: "trevor",    note: "Written as “Bro Trever” on the list — same person." },
+    { from: 188, to: 193, who: "Aunty Delly",    key: "delly" },
+    { from: 194, to: 198, who: "Sis Adrienne",   key: "adrienne" },
+    { from: 199, to: 249, who: "Sis Meredith",   key: "meredith",  sub: "Churches" },
+    { from: 250, to: 253, who: "Bro Agustos",    key: "agustos",   paid: "Paid" },
+    { from: 254, to: 261, who: "Eventbrite",     key: "ev-unnamed", ev: true, evStart: 1,
+      note: "EV1 through EV8 — no name on the list. Check the Eventbrite app for the name." },
+    { from: 262, to: 263, who: "Sharon Thomas",  key: "sharonthomas", ev: true, evStart: 9 },
+    { from: 264, to: 265, who: "Sis Weinstein",  key: "weinstein" },
+    { from: 266, to: 266, who: "Sis Eugene",     key: "eugene",
+      note: "917-658-6095. Asked about the bus for transportation. Coming with her granddaughter (ticket 334)." },
+    { from: 267, to: 268, who: "Deuel Carter",   key: "deuelcarter", ev: true },
+    { from: 269, to: 271, who: "Sis Heather",    key: "heather" },
+    { from: 272, to: 273, who: "Jaycenth Duncan", key: "jaycenth", ev: true, evStart: 11 },
+    { from: 274, to: 275, who: "Sonia Ruiz",     key: "soniaruiz", ev: true, evStart: 13 },
+    { from: 276, to: 276, who: "Sis Shirley",    key: "shirley",   note: "Listed just as “Shirley”." },
+    { from: 277, to: 277, who: "Eugene Willie",  key: "eugenewillie" },
+    { from: 278, to: 278, who: "Machir",         key: "machir" },
+    { from: 279, to: 325, who: "Not issued",     key: "unissued",  unissued: true,
+      note: "These numbers were never given out. If someone shows one, it did not come from your book — check with them." },
+    { from: 326, to: 330, who: "Bro Trevor",     key: "trevor",    sub: "Kids tickets" },
+    { from: 331, to: 332, who: "Zion & Eden",    key: "zioneden" },
+    { from: 333, to: 333, who: "Sponsored",      key: "sponsored" },
+    { from: 334, to: 334, who: "Sis Eugene",     key: "eugene",    sub: "Granddaughter" },
+    { from: 335, to: 335, who: "Destinee Clarke", key: "destinee" }
+  ];
+
+  var MIN_T = 1, MAX_T = 335;
+
+  /* index: ticket number -> block */
+  var byNumber = {};
+  BLOCKS.forEach(function (b) {
+    for (var n = b.from; n <= b.to; n++) byNumber[n] = b;
+  });
+
+  /* index: person -> their blocks */
+  var people = [];
+  var peopleByKey = {};
+  BLOCKS.forEach(function (b) {
+    if (b.unissued) return;
+    var p = peopleByKey[b.key];
+    if (!p) {
+      p = { key: b.key, who: b.who, blocks: [], ev: false };
+      peopleByKey[b.key] = p;
+      people.push(p);
+    }
+    p.blocks.push(b);
+    if (b.ev) p.ev = true;
+  });
+
+  people.forEach(function (p) {
+    p.numbers = [];
+    p.returned = 0;
+    p.paid = "";
+    p.blocks.forEach(function (b) {
+      for (var n = b.from; n <= b.to; n++) p.numbers.push(n);
+      p.returned += b.returned || 0;
+      if (b.paid) p.paid = b.paid;
+    });
+    p.expected = p.numbers.length - p.returned;
+    p.ranges = p.blocks.map(function (b) {
+      return b.from === b.to ? String(b.from) : b.from + "–" + b.to;
+    }).join(", ");
+    p.search = (p.who + " " + (p.blocks.map(function (b) { return b.sub || ""; }).join(" "))).toLowerCase();
+  });
+
+  var TOTAL_ISSUED = 0, TOTAL_RETURNED = 0, TOTAL_EV = 0;
+  people.forEach(function (p) {
+    TOTAL_ISSUED += p.numbers.length;
+    TOTAL_RETURNED += p.returned;
+    if (p.ev) TOTAL_EV += p.expected;
+  });
+  var TOTAL_EXPECTED = TOTAL_ISSUED - TOTAL_RETURNED;
+
+  /* ---------------- state ---------------- */
+
+  var KEY = "gangway-checkin-v1";
+  var state = { checked: {}, log: [] };
+
+  try {
+    var raw = localStorage.getItem(KEY);
+    if (raw) {
+      var parsed = JSON.parse(raw);
+      if (parsed && parsed.checked) state = parsed;
+      if (!state.log) state.log = [];
+    }
+  } catch (e) { /* fresh start */ }
+
+  function save() {
+    try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) { /* private mode */ }
+  }
+
+  function isOn(n) { return !!state.checked[n]; }
+
+  function checkIn(n, how) {
+    if (isOn(n)) return false;
+    state.checked[n] = { at: Date.now(), how: how || "number" };
+    state.log.unshift(n);
+    if (state.log.length > 60) state.log.pop();
+    save();
+    return true;
+  }
+
+  function undo(n) {
+    delete state.checked[n];
+    var i = state.log.indexOf(n);
+    if (i > -1) state.log.splice(i, 1);
+    save();
+  }
+
+  function aboardCount() {
+    var c = 0;
+    for (var k in state.checked) if (state.checked.hasOwnProperty(k)) c++;
+    return c;
+  }
+
+  function personChecked(p) {
+    var c = 0;
+    p.numbers.forEach(function (n) { if (isOn(n)) c++; });
+    return c;
+  }
+
+  function nextFree(p) {
+    for (var i = 0; i < p.numbers.length; i++) if (!isOn(p.numbers[i])) return p.numbers[i];
+    return null;
+  }
+
+  function evLabel(b, n) {
+    if (!b.ev) return "";
+    if (!b.evStart) return "Eventbrite";
+    return "EV" + (b.evStart + (n - b.from));
+  }
+
+  function esc(s) {
+    return String(s).replace(/[&<>"]/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c];
+    });
+  }
+
+  function clock(ts) {
+    var d = new Date(ts);
+    var h = d.getHours(), m = d.getMinutes();
+    var ap = h >= 12 ? "pm" : "am";
+    h = h % 12; if (h === 0) h = 12;
+    return h + ":" + (m < 10 ? "0" : "") + m + ap;
+  }
+
+  /* ---------------- toast ---------------- */
+
+  var toast = document.getElementById("toast");
+  var toastMsg = document.getElementById("toastMsg");
+  var toastUndo = document.getElementById("toastUndo");
+  var toastTimer = null;
+  var toastAction = null;
+
+  function say(msg, undoFn) {
+    toastMsg.textContent = msg;
+    toastAction = undoFn || null;
+    toastUndo.style.display = undoFn ? "" : "none";
+    toast.setAttribute("data-show", "1");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { toast.setAttribute("data-show", "0"); }, undoFn ? 6000 : 3000);
+  }
+
+  toastUndo.addEventListener("click", function () {
+    if (toastAction) toastAction();
+    toast.setAttribute("data-show", "0");
+  });
+
+  /* ---------------- header ---------------- */
+
+  var tAboard = document.getElementById("tAboard");
+  var tExp = document.getElementById("tExp");
+  var meterFill = document.getElementById("meterFill");
+
+  function paintHeader() {
+    var a = aboardCount();
+    tAboard.textContent = a;
+    tExp.textContent = TOTAL_EXPECTED;
+    meterFill.style.width = Math.min(100, (a / TOTAL_EXPECTED) * 100) + "%";
+  }
+
+  /* ---------------- check-in view ---------------- */
+
+  var q = document.getElementById("q");
+  var viewCheckin = document.getElementById("view-checkin");
+  var viewManifest = document.getElementById("view-manifest");
+  var viewNotes = document.getElementById("view-notes");
+  var currentView = "checkin";
+  var pinned = null;
+
+  function ticketCard(n) {
+    var b = byNumber[n];
+    var on = isOn(n);
+    var rec = state.checked[n];
+
+    if (!b) {
+      return '<div class="card"><div class="stripe stripe-alert"></div>' +
+        '<div class="card-head"><div class="bignum">' + n + '</div><div class="who">' +
+        '<h2>Not in the book</h2><p>Your tickets run ' + MIN_T + '–' + MAX_T + '.</p></div></div>' +
+        '<p class="note">Nothing on your list carries this number. Ask who they bought from and look the seller up instead.</p></div>';
+    }
+
+    if (b.unissued) {
+      return '<div class="card"><div class="stripe stripe-alert"></div>' +
+        '<div class="card-head"><div class="bignum">' + n + '</div><div class="who">' +
+        '<h2>Never issued</h2><p>' + b.from + '–' + b.to + ' stayed in the book.</p></div></div>' +
+        '<p class="note">' + esc(b.note) + '</p></div>';
+    }
+
+    var stripe = on ? "stripe-aboard" : (b.ev ? "stripe-ev" : "");
+    var pills = [];
+    if (on) pills.push('<span class="pill pill-aboard">Aboard ' + clock(rec.at) + "</span>");
+    if (b.ev) pills.push('<span class="pill pill-ev">' + esc(evLabel(b, n)) + "</span>");
+    if (b.paid) pills.push('<span class="pill pill-paid">' + esc(b.paid) + "</span>");
+
+    var sub = [];
+    if (b.sub) sub.push(esc(b.sub));
+    sub.push("Block " + b.from + (b.from === b.to ? "" : "–" + b.to));
+
+    var h = '<div class="card">' +
+      (stripe ? '<div class="stripe ' + stripe + '"></div>' : "") +
+      '<div class="card-head"><div class="bignum">' + n + '</div><div class="who"><h2>' + esc(b.who) + "</h2>" +
+      "<p>" + sub.join(" · ") + "</p>" +
+      (pills.length ? '<p style="margin-top:7px;display:flex;gap:6px;flex-wrap:wrap">' + pills.join("") + "</p>" : "") +
+      "</div></div>";
+
+    if (b.note) h += '<p class="note">' + esc(b.note) + "</p>";
+
+    h += '<div class="act">';
+    if (on) {
+      h += '<button class="big ghost" type="button" data-undo="' + n + '">Undo check-in</button>';
+    } else if (b.ev) {
+      h += '<button class="big evbtn" type="button" data-in="' + n + '">Check in on Eventbrite, then tap here</button>';
+    } else {
+      h += '<button class="big" type="button" data-in="' + n + '">Check in ticket ' + n + "</button>";
+    }
+    h += "</div></div>";
+    return h;
+  }
+
+  function sellerRow(p) {
+    var done = personChecked(p);
+    var full = done >= p.expected;
+    return '<button class="seller" type="button" data-person="' + esc(p.key) + '">' +
+      '<div class="seller-main"><h3>' + esc(p.who) + (p.ev ? ' <span class="pill pill-ev">EV</span>' : "") + "</h3>" +
+      "<p>" + p.ranges + (p.returned ? " · " + p.returned + " returned" : "") + "</p></div>" +
+      '<div class="count' + (full ? " done" : "") + '">' + done + "/" + p.expected + "</div></button>";
+  }
+
+  function personCard(p) {
+    var done = personChecked(p);
+    var left = p.expected - done;
+    var nxt = nextFree(p);
+    var stripe = left <= 0 ? "stripe-aboard" : (p.ev ? "stripe-ev" : "");
+
+    var h = '<div class="card">' + (stripe ? '<div class="stripe ' + stripe + '"></div>' : "") +
+      '<div class="card-head"><div class="who"><h2>' + esc(p.who) + "</h2>" +
+      "<p>Tickets " + p.ranges + (p.returned ? " · " + p.returned + " returned, not expected" : "") + "</p>" +
+      '<p style="margin-top:7px;display:flex;gap:6px;flex-wrap:wrap">' +
+      '<span class="pill ' + (left <= 0 ? "pill-aboard" : "pill-paid") + '" id="pcPill">' + done + " of " + p.expected + " aboard</span>" +
+      (p.paid ? '<span class="pill pill-paid">' + esc(p.paid) + "</span>" : "") +
+      (p.ev ? '<span class="pill pill-ev">Eventbrite</span>' : "") +
+      "</p></div>" +
+      '<div class="bignum" id="pcLeft" data-pc="' + esc(p.key) + '" style="font-size:30px;color:var(--muted)">' + left + "</div></div>";
+
+    var notes = p.blocks.filter(function (b) { return b.note; }).map(function (b) { return b.note; });
+    if (notes.length) h += '<p class="note">' + esc(notes.join(" ")) + "</p>";
+
+    h += '<div class="act">';
+    if (nxt === null) {
+      h += '<p class="note" style="border:0;background:transparent;padding:0">Every number in this block is checked off.</p>';
+    } else if (left <= 0) {
+      h += '<button class="big ghost" type="button" data-claim="' + esc(p.key) + '">All ' + p.expected +
+           " are aboard — check in an extra anyway</button>";
+    } else {
+      h += '<button class="big" type="button" data-claim="' + esc(p.key) + '">Check off one of ' + esc(p.who) +
+           "'s tickets</button>";
+    }
+    h += '<button class="big ghost" type="button" data-expand="' + esc(p.key) + '">Show the numbers</button>';
+    h += "</div>";
+
+    h += '<div class="nums hidden" id="nums-' + esc(p.key) + '">' + numButtons(p) + "</div>";
+    h += "</div>";
+    return h;
+  }
+
+  function numButtons(p) {
+    return p.numbers.map(function (n) {
+      return '<button class="num" type="button" data-toggle="' + n + '" data-on="' + (isOn(n) ? "1" : "0") + '">' + n + "</button>";
+    }).join("");
+  }
+
+  function recentList() {
+    if (!state.log.length) {
+      return '<div class="empty">Nobody checked in yet. Type a ticket number above, or a seller’s name if the guest doesn’t have their number.</div>';
+    }
+    var h = '<div class="card">';
+    state.log.slice(0, 8).forEach(function (n) {
+      var b = byNumber[n], rec = state.checked[n];
+      if (!rec) return;
+      h += '<div class="recent"><span class="rn">' + n + '</span><span class="rw">' +
+        esc(b ? b.who : "Unknown") + (rec.how === "seller" ? " · no number" : "") +
+        '</span><span class="rt">' + clock(rec.at) + '</span>' +
+        '<button class="undo" type="button" data-undo="' + n + '">Undo</button></div>';
+    });
+    h += "</div>";
+    return h;
+  }
+
+  function renderCheckin() {
+    var term = q.value.trim();
+    var h = "";
+
+    if (pinned && peopleByKey[pinned]) {
+      viewCheckin.innerHTML =
+        '<button class="undo" type="button" data-unpin="1" style="margin-bottom:12px">← Back to results</button>' +
+        personCard(peopleByKey[pinned]);
+      return;
+    }
+
+    if (/^\d+$/.test(term)) {
+      h = ticketCard(parseInt(term, 10));
+    } else if (/^ev\s*\d+$/i.test(term)) {
+      var want = parseInt(term.replace(/[^\d]/g, ""), 10);
+      var hit = null;
+      BLOCKS.forEach(function (b) {
+        if (!b.ev || !b.evStart) return;
+        for (var n = b.from; n <= b.to; n++) if (evLabel(b, n).toLowerCase() === "ev" + want) hit = n;
+      });
+      h = hit ? ticketCard(hit) : '<div class="empty">No EV' + want + " on the list. EV numbers run EV1–EV14.</div>";
+    } else if (term.length) {
+      var needle = term.toLowerCase();
+      var hits = people.filter(function (p) { return p.search.indexOf(needle) > -1; });
+      if (!hits.length) {
+        h = '<div class="empty">No seller matching “' + esc(term) + '”. Try part of the name, or check the Manifest tab.</div>';
+      } else if (hits.length === 1) {
+        h = personCard(hits[0]);
+      } else {
+        h = '<p class="eyebrow" style="margin-top:0">' + hits.length + " sellers match</p>" +
+            hits.slice(0, 12).map(sellerRow).join("");
+      }
+    } else {
+      h = '<h1 class="title">Who’s at the gangway?</h1>' +
+        '<p class="lede">Type the ticket number. No number — type who they bought from, and check off one of that person’s tickets.</p>' +
+        '<p class="eyebrow">Just checked in</p>' + recentList();
+    }
+
+    viewCheckin.innerHTML = h;
+  }
+
+  /* ---------------- manifest view ---------------- */
+
+  function renderManifest() {
+    var aboard = aboardCount();
+    var h = '<div class="statgrid" style="margin-bottom:16px">' +
+      '<div class="stat"><b>' + aboard + "</b><span>Checked in</span></div>" +
+      '<div class="stat"><b>' + Math.max(0, TOTAL_EXPECTED - aboard) + "</b><span>Still to come</span></div>" +
+      '<div class="stat"><b>' + TOTAL_EXPECTED + "</b><span>Tickets out</span></div>" +
+      '<div class="stat"><b>' + TOTAL_EV + "</b><span>Eventbrite</span></div>" +
+      "</div>";
+
+    h += '<p class="eyebrow" style="margin-top:0">Everyone you gave tickets to</p>';
+
+    people.forEach(function (p) {
+      var done = personChecked(p);
+      var full = done >= p.expected;
+      h += '<details class="group" data-group="' + esc(p.key) + '"><summary>' +
+        '<div class="seller-main"><h3>' + esc(p.who) + (p.ev ? ' <span class="pill pill-ev">EV</span>' : "") + "</h3>" +
+        "<p>" + p.ranges + (p.returned ? " · " + p.returned + " returned" : "") + "</p></div>" +
+        '<div class="count' + (full ? " done" : "") + '">' + done + "/" + p.expected + "</div>" +
+        '</summary><div class="nums">' + numButtons(p) + "</div></details>";
+    });
+
+    var un = BLOCKS.filter(function (b) { return b.unissued; })[0];
+    h += '<p class="eyebrow">Still in the book</p>' +
+      '<div class="flag"><h3>' + un.from + "–" + un.to + " never issued</h3><p>" +
+      (un.to - un.from + 1) + " numbers. " + esc(un.note) + "</p></div>";
+
+    h += '<div class="footer-actions">' +
+      '<button type="button" id="copyBtn">Copy a summary</button>' +
+      '<button type="button" id="printBtn">Print the manifest</button>' +
+      '<button type="button" id="resetBtn">Reset all check-ins</button>' +
+      "</div>";
+
+    viewManifest.innerHTML = h;
+  }
+
+  /* ---------------- notes view ---------------- */
+
+  function renderNotes() {
+    var flags = [
+      ["Ticket 126 is claimed twice", "It falls inside Sis Pinnock's block <span class=\"k\">121–130</span> and is also written separately against Sis Shirlene, who paid. Sis Pinnock returned 3 tickets, so 126 was most likely resold to Sis Shirlene. The app treats 126 as Sis Shirlene's. If two people arrive with it, Sis Shirlene's claim is the stronger one."],
+      ["Sis Pinnock returned 3 of 10", "126 is accounted for above. The other 2 are unknown numbers somewhere in 121–125 and 127–130, so expect 7 people from her block, not 9."],
+      ["Sis Dimples: 5 tickets, money for 4", "Numbers <span class=\"k\">1–5</span> are all live on the door. One of them is unpaid — worth a word with her when she arrives."],
+      ["Bro Trevor appears three times", "<span class=\"k\">61–65</span>, <span class=\"k\">186–187</span> (written “Trever”), and <span class=\"k\">326–330</span> kids' tickets. All grouped under one name here, 12 tickets total."],
+      ["Sis Eugene wants the bus", "917-658-6095. Ticket <span class=\"k\">266</span> for her, <span class=\"k\">334</span> for her granddaughter."],
+      ["Eventbrite tickets check in twice", "EV1–EV14 plus Deuel Carter's two. Check them in on the Eventbrite app first, then tap the button here so your headcount stays right."],
+      ["279–325 were never given out", "47 numbers still in the book. Anyone holding one didn't get it from you."],
+      ["Your note says 70 remain", "The list accounts for " + TOTAL_ISSUED + " issued numbers and " + TOTAL_RETURNED +
+        " returned, so " + TOTAL_EXPECTED + " guests are expected. Between 279 and 325 there are 47 unissued numbers — that's 23 short of 70, so the rest are presumably numbers above 335. Worth a recount before you sail."]
+    ];
+
+    var h = '<h1 class="title">Things to watch</h1>' +
+      '<p class="lede">Read once before the first guest arrives.</p>' +
+      flags.map(function (f) {
+        return '<div class="flag"><h3>' + f[0] + "</h3><p>" + f[1] + "</p></div>";
+      }).join("");
+
+    h += '<p class="eyebrow">How the numbers add up</p>' +
+      '<div class="statgrid">' +
+      '<div class="stat"><b>' + TOTAL_ISSUED + "</b><span>Numbers handed out</span></div>" +
+      '<div class="stat"><b>' + TOTAL_RETURNED + "</b><span>Returned, won’t show</span></div>" +
+      '<div class="stat"><b>' + TOTAL_EXPECTED + "</b><span>Guests expected</span></div>" +
+      '<div class="stat"><b>' + people.length + "</b><span>People holding blocks</span></div>" +
+      "</div>";
+
+    h += '<p class="eyebrow">If someone has no number</p>' +
+      '<div class="card"><p class="note" style="border:0">Ask who they bought from, type that name in the search box, and tap ' +
+      "<b>Check off one of their tickets</b>. The app takes their lowest number that hasn’t been used yet and marks it. " +
+      "That keeps the seller’s count honest even though you never learn the guest’s name.</p></div>";
+
+    h += '<p class="eyebrow">Your check-ins are saved on this device</p>' +
+      '<div class="card"><p class="note" style="border:0">Everything is stored in this browser, so closing the tab or losing signal ' +
+      "won’t lose your list. Use the same phone and the same browser all night. Don’t use private browsing.</p></div>";
+
+    viewNotes.innerHTML = h;
+  }
+
+  /* ---------------- render ---------------- */
+
+  function render() {
+    paintHeader();
+    if (currentView === "checkin") renderCheckin();
+    else if (currentView === "manifest") renderManifest();
+    else renderNotes();
+  }
+
+  /* ---------------- events ---------------- */
+
+  document.querySelectorAll('.tabs button').forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      currentView = btn.getAttribute("data-view");
+      document.querySelectorAll(".tabs button").forEach(function (b) {
+        b.setAttribute("aria-selected", b === btn ? "true" : "false");
+      });
+      viewCheckin.classList.toggle("hidden", currentView !== "checkin");
+      viewManifest.classList.toggle("hidden", currentView !== "manifest");
+      viewNotes.classList.toggle("hidden", currentView !== "notes");
+      render();
+      window.scrollTo(0, 0);
+    });
+  });
+
+  var typeTimer = null;
+  q.addEventListener("input", function () {
+    if (currentView !== "checkin") {
+      currentView = "checkin";
+      document.querySelectorAll(".tabs button").forEach(function (b) {
+        b.setAttribute("aria-selected", b.getAttribute("data-view") === "checkin" ? "true" : "false");
+      });
+      viewCheckin.classList.remove("hidden");
+      viewManifest.classList.add("hidden");
+      viewNotes.classList.add("hidden");
+    }
+    pinned = null;
+    clearTimeout(typeTimer);
+    typeTimer = setTimeout(render, 60);
+  });
+
+  document.getElementById("clearBtn").addEventListener("click", function () {
+    q.value = "";
+    pinned = null;
+    render();
+    q.focus();
+  });
+
+  q.addEventListener("keydown", function (e) {
+    if (e.key !== "Enter") return;
+    e.preventDefault();
+    var term = q.value.trim();
+    if (/^\d+$/.test(term)) {
+      var n = parseInt(term, 10);
+      var b = byNumber[n];
+      if (b && !b.unissued && !isOn(n)) doCheckIn(n, "number");
+    }
+    q.blur();
+  });
+
+  function doCheckIn(n, how) {
+    if (!checkIn(n, how)) return;
+    var b = byNumber[n];
+    say("Ticket " + n + " · " + (b ? b.who : "") + " aboard", function () {
+      undo(n);
+      render();
+      say("Ticket " + n + " put back");
+    });
+    render();
+  }
+
+  document.body.addEventListener("click", function (e) {
+    var t = e.target.closest("button");
+    if (!t) return;
+
+    var inN = t.getAttribute("data-in");
+    if (inN) { doCheckIn(parseInt(inN, 10), "number"); return; }
+
+    var unN = t.getAttribute("data-undo");
+    if (unN) {
+      undo(parseInt(unN, 10));
+      render();
+      say("Ticket " + unN + " put back");
+      return;
+    }
+
+    var tog = t.getAttribute("data-toggle");
+    if (tog) {
+      var tn = parseInt(tog, 10);
+      if (isOn(tn)) { undo(tn); say("Ticket " + tn + " put back"); }
+      else { checkIn(tn, "number"); say("Ticket " + tn + " aboard"); }
+      /* repaint in place so an open <details> stays open */
+      t.setAttribute("data-on", isOn(tn) ? "1" : "0");
+      paintHeader();
+      document.querySelectorAll('[data-toggle="' + tn + '"]').forEach(function (el) {
+        el.setAttribute("data-on", isOn(tn) ? "1" : "0");
+      });
+      refreshCounts();
+      return;
+    }
+
+    var claim = t.getAttribute("data-claim");
+    if (claim) {
+      var p = peopleByKey[claim];
+      var n = nextFree(p);
+      if (n === null) { say("No numbers left in " + p.who + "'s block"); return; }
+      checkIn(n, "seller");
+      say("Ticket " + n + " · one of " + p.who + "'s", function () {
+        undo(n);
+        render();
+        say("Ticket " + n + " put back");
+      });
+      render();
+      return;
+    }
+
+    var pk = t.getAttribute("data-person");
+    if (pk && peopleByKey[pk]) {
+      pinned = pk;
+      render();
+      window.scrollTo(0, 0);
+      return;
+    }
+
+    if (t.getAttribute("data-unpin")) { pinned = null; render(); return; }
+
+    var exp = t.getAttribute("data-expand");
+    if (exp) {
+      var box = document.getElementById("nums-" + exp);
+      if (box) {
+        box.classList.toggle("hidden");
+        t.textContent = box.classList.contains("hidden") ? "Show the numbers" : "Hide the numbers";
+      }
+      return;
+    }
+
+    if (t.id === "printBtn") { window.print(); return; }
+
+    if (t.id === "resetBtn") {
+      if (window.confirm("Clear every check-in and start over? This cannot be undone.")) {
+        state = { checked: {}, log: [] };
+        save();
+        render();
+        say("Board cleared");
+      }
+      return;
+    }
+
+    if (t.id === "copyBtn") {
+      var lines = ["Boat ride check-in — " + aboardCount() + " of " + TOTAL_EXPECTED + " aboard", ""];
+      people.forEach(function (p) {
+        var d = personChecked(p);
+        lines.push(p.who + ": " + d + "/" + p.expected + " (" + p.ranges + ")");
+      });
+      var missing = [];
+      for (var n2 = MIN_T; n2 <= MAX_T; n2++) {
+        var bb = byNumber[n2];
+        if (bb && !bb.unissued && !isOn(n2)) missing.push(n2);
+      }
+      lines.push("", "Not yet checked in (" + missing.length + "): " + missing.join(", "));
+      var text = lines.join("\n");
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(function () { say("Summary copied"); },
+          function () { window.prompt("Copy this:", text); });
+      } else {
+        window.prompt("Copy this:", text);
+      }
+      return;
+    }
+  });
+
+  function refreshCounts() {
+    people.forEach(function (p) {
+      var done = personChecked(p);
+      document.querySelectorAll('[data-person="' + p.key + '"] .count').forEach(function (el) {
+        el.textContent = done + "/" + p.expected;
+        el.classList.toggle("done", done >= p.expected);
+      });
+    });
+    document.querySelectorAll("details.group").forEach(function (d) {
+      var p = peopleByKey[d.getAttribute("data-group")];
+      if (!p) return;
+      var done = personChecked(p);
+      var c = d.querySelector(".count");
+      if (!c) return;
+      c.textContent = done + "/" + p.expected;
+      c.classList.toggle("done", done >= p.expected);
+    });
+
+    /* the open person card's own running figures */
+    var pcLeft = document.getElementById("pcLeft");
+    var pcPill = document.getElementById("pcPill");
+    if (pcLeft && pcPill) {
+      var pc = peopleByKey[pcLeft.getAttribute("data-pc")];
+      if (pc) {
+        var d2 = personChecked(pc);
+        pcLeft.textContent = Math.max(0, pc.expected - d2);
+        pcPill.textContent = d2 + " of " + pc.expected + " aboard";
+        pcPill.className = "pill " + (d2 >= pc.expected ? "pill-aboard" : "pill-paid");
+      }
+    }
+  }
+
+  render();
+})();
+</script>
