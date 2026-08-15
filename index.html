@@ -701,7 +701,7 @@
 <div class="topbar">
   <div class="topbar-inner">
     <div class="brandline">
-      <div class="brand">Gangway</div>
+      <div class="brand" id="brand">Gangway</div>
       <div class="tally"><b id="tAboard">0</b> <span>aboard of</span> <b id="tExp">0</b></div>
     </div>
     <div class="meter"><i id="meterFill"></i></div>
@@ -714,6 +714,12 @@
 </div>
 
 <div class="wrap">
+  <div class="warnbox hidden" id="saveWarn" style="margin-top:14px">
+    <h3>This browser is not saving your list</h3>
+    <p>Check-ins are being held in memory only. If this page closes or reloads, they are gone. Use the Sync tab to keep
+      a copy as you go, or run the check-in somewhere else — Safari usually works when an in-app browser does not.</p>
+  </div>
+
   <div class="tabs" role="tablist">
     <button role="tab" aria-selected="true" data-view="checkin">Check in</button>
     <button role="tab" aria-selected="false" data-view="manifest">Manifest</button>
@@ -854,17 +860,41 @@
   var KEY = "gangway-checkin-v1";
   var state = { checked: {}, log: [] };
 
+  /* Some browsers hand out a localStorage that throws, and some hand out
+     one that accepts writes and drops them. Prove it round-trips before
+     trusting a whole evening's work to it. */
+  var storageOK = false;
+  var lastSave = null;
+
   try {
-    var raw = localStorage.getItem(KEY);
-    if (raw) {
-      var parsed = JSON.parse(raw);
-      if (parsed && parsed.checked) state = parsed;
-      if (!state.log) state.log = [];
-    }
-  } catch (e) { /* fresh start */ }
+    var probe = KEY + "-probe";
+    localStorage.setItem(probe, "ok");
+    storageOK = localStorage.getItem(probe) === "ok";
+    localStorage.removeItem(probe);
+  } catch (e) {
+    storageOK = false;
+  }
+
+  if (storageOK) {
+    try {
+      var raw = localStorage.getItem(KEY);
+      if (raw) {
+        var parsed = JSON.parse(raw);
+        if (parsed && parsed.checked) state = parsed;
+        if (!state.log) state.log = [];
+      }
+    } catch (e) { /* unreadable record — start clean rather than crash */ }
+  }
 
   function save() {
-    try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) { /* private mode */ }
+    try {
+      localStorage.setItem(KEY, JSON.stringify(state));
+      storageOK = true;
+      lastSave = Date.now();
+    } catch (e) {
+      storageOK = false;
+    }
+    paintSaveFlag();
   }
 
   function isOn(n) { return !!state.checked[n]; }
@@ -949,6 +979,22 @@
   var tAboard = document.getElementById("tAboard");
   var tExp = document.getElementById("tExp");
   var meterFill = document.getElementById("meterFill");
+
+  /* A quiet, always-visible answer to "is this actually being kept?" */
+  function paintSaveFlag() {
+    var brand = document.getElementById("brand");
+    var warn = document.getElementById("saveWarn");
+    if (!brand || !warn) return;
+    if (!storageOK) {
+      brand.textContent = "Not saving";
+      brand.style.color = "var(--alert)";
+      warn.classList.remove("hidden");
+      return;
+    }
+    warn.classList.add("hidden");
+    brand.style.color = "";
+    brand.textContent = lastSave ? "Saved " + clock(lastSave) : "Gangway";
+  }
 
   function paintHeader() {
     var a = aboardCount();
@@ -1528,11 +1574,21 @@
       'Opening that link anywhere brings the check-ins with it.</p>';
 
     /* Their two actual questions, answered where they will be asked. */
-    h += '<p class="eyebrow">If this phone turns off or the app closes</p>' +
-      '<div class="card"><p class="note" style="border:0"><b>Your list is still here.</b> It is written to this browser’s ' +
-      'storage the instant you tap a check-in, not held in memory, so powering off, running out of battery or the app ' +
-      'closing does not touch it. Come back to the same app on the same phone and carry on. The one thing that does lose ' +
-      'it is clearing your browsing data, or having opened the app in private browsing.</p></div>';
+    h += '<p class="eyebrow">If this phone turns off or the app closes</p>';
+    if (storageOK) {
+      h += '<div class="card"><div class="stripe stripe-aboard"></div><p class="note" style="border:0">' +
+        '<b>Your list is still here.</b> This browser has been tested and it is keeping the list: every check-in is ' +
+        'written to storage the moment you tap it, not held in memory. Powering off, running the battery flat, or the ' +
+        'app closing does not touch it — reopen the same app on this phone and carry on where you stopped. ' +
+        (lastSave ? "Last written at " + clock(lastSave) + ". " : "") +
+        'What does lose it: clearing your browsing data, or having opened this in private browsing.</p></div>' +
+        '<p class="lede" style="margin:10px 2px 0">Worth proving to yourself before the first guest: check one person ' +
+        'in, close the app completely, open it again. The count should still be there.</p>';
+    } else {
+      h += '<div class="warnbox"><h3>Not on this browser, no</h3><p>This one refuses to store anything, so the list ' +
+        'lives only as long as the page stays open. Copy the code below after every few guests, or move the whole ' +
+        'check-in to Safari, which usually works when an in-app browser will not.</p></div>';
+    }
 
     h += '<p class="eyebrow">If you switch to Safari, or another phone</p>' +
       '<div class="card"><p class="note" style="border:0"><b>The list does not follow you on its own.</b> Every app and ' +
@@ -1563,6 +1619,7 @@
 
   function render() {
     paintHeader();
+    paintSaveFlag();
     writeHash();
     if (currentView === "checkin") renderCheckin();
     else if (currentView === "manifest") renderManifest();
