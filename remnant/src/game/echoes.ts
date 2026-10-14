@@ -398,7 +398,7 @@ export class EchoUnit extends Entity {
     drawRibbon(ctx, this.cape, 11, 15, this.inst.stage >= 1 ? '#e8dcc0' : '#2a2420', '#0a0806');
     ctx.translate(this.x, this.y);
     ctx.scale(this.face, 1);
-    drawHumanoid(ctx, this.j, style, G.time + this.id, this.pose.rot);
+    drawHumanoid(ctx, this.j, style, G.time + this.id, this.pose.rot, this.body.vx * this.face, this.body.vy);
     ctx.restore();
     ctx.globalAlpha = 1;
     if (this.flash > 0) {

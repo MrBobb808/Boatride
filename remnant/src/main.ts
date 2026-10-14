@@ -10,6 +10,7 @@ import { audio } from './audio/audio';
 import { music } from './audio/music';
 import { G } from './game/ctx';
 import { World } from './game/world';
+import { setDetail } from './render/actors';
 import { fx } from './render/fx';
 import { initUI, blockingUI } from './ui/ui';
 import { installNav, layerCount } from './ui/dom';
@@ -33,8 +34,10 @@ async function boot() {
   G.renderer = renderer;
   G.camera = camera;
   fx.setTier(renderer.tier);
+  setDetail(renderer.tier);
   renderer.onResize(() => {
     fx.setTier(renderer.tier);
+    setDetail(renderer.tier);
     measureSafe();
     layoutTouch();
   });

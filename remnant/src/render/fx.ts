@@ -2,11 +2,11 @@
 // Everything is pooled and capped by the quality tier.
 
 import { rand, TAU, clamp } from '../core/math';
-import { glow, rgba, FONT_DISPLAY, type Ctx } from './draw';
+import { glow, glowSprite, rgba, FONT_DISPLAY, type Ctx } from './draw';
 import { settings } from '../core/settings';
 
 export const enum PK {
-  Spark, Ember, Smoke, Dust, Shard, Mote, Flame, Drop, Rune, Petal,
+  Spark, Ember, Smoke, Dust, Shard, Mote, Flame, Drop, Rune, Petal, Flare,
 }
 
 interface Particle {
@@ -75,6 +75,8 @@ export class FX {
       this.spawn(PK.Spark, x, y, Math.cos(a) * sp, Math.sin(a) * sp - 40, rand(0.12, 0.3), rand(1.2, 2.2), 0.3, color, 500, 4);
     }
     this.spawn(PK.Mote, x, y, 0, 0, 0.14, 18 * power, 4, color);
+    const f = this.spawn(PK.Flare, x, y, 0, 0, 0.12 + power * 0.03, 16 * power, 26 * power, color);
+    if (f) { f.rot = rand(-0.4, 0.4); f.vr = 0; }
   }
 
   veilBurst(x: number, y: number, n = 14, power = 1) {
@@ -185,11 +187,9 @@ export class FX {
       const t = 1 - p.life / p.max;
       const s = p.s0 + (p.s1 - p.s0) * t;
       if (p.k === PK.Smoke || p.k === PK.Dust) {
-        ctx.globalAlpha = (1 - t) * (p.k === PK.Smoke ? 0.55 : 0.4);
-        ctx.fillStyle = p.c;
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, s, 0, TAU);
-        ctx.fill();
+        // Soft-edged puff that swells and thins out.
+        const fade = t < 0.15 ? t / 0.15 : 1 - (t - 0.15) / 0.85;
+        glow(ctx, p.x, p.y, s * 1.7, p.c, fade * (p.k === PK.Smoke ? 0.85 : 0.6), 0.9);
       } else if (p.k === PK.Shard) {
         ctx.globalAlpha = Math.min(1, p.life / p.max * 2.5);
         ctx.fillStyle = p.c;
@@ -251,6 +251,23 @@ export class FX {
         case PK.Drop:
           glow(ctx, p.x, p.y, s * 3, p.c, (1 - t) * 0.8);
           break;
+        case PK.Flare: {
+          // Four-point impact star: two stretched glows crossing.
+          const k = 1 - t;
+          const spr = glowSprite(p.c, 64, 1.6);
+          ctx.save();
+          ctx.translate(p.x, p.y);
+          ctx.rotate(p.rot);
+          ctx.globalAlpha = k;
+          ctx.drawImage(spr, -s, -s * 0.09, s * 2, s * 0.18);
+          ctx.drawImage(spr, -s * 0.07, -s * 0.55, s * 0.14, s * 1.1);
+          ctx.globalAlpha = k * 0.9;
+          const w = glowSprite('#ffffff', 64, 1.6);
+          ctx.drawImage(w, -s * 0.5, -s * 0.05, s, s * 0.1);
+          ctx.drawImage(w, -s * 0.18, -s * 0.18, s * 0.36, s * 0.36);
+          ctx.restore();
+          break;
+        }
         case PK.Rune: {
           ctx.globalAlpha = Math.sin(t * Math.PI);
           ctx.strokeStyle = p.c;
@@ -267,7 +284,8 @@ export class FX {
       }
     }
     ctx.globalAlpha = 1;
-    // Slash arcs — crescent with a hot core.
+    // Slash smears: a crescent that fades from a transparent tail to a hot
+    // leading edge, with a bright rim where the blade's edge passed.
     for (const a of this.arcs) {
       const t = 1 - a.life / a.max;
       const alpha = 1 - t * t;
@@ -276,16 +294,19 @@ export class FX {
       if (a.face < 0) ctx.scale(-1, 1);
       ctx.rotate(a.tilt);
       const r = a.r * (1 + t * 0.12);
-      const w = a.w * 1.35 * (1 - t * 0.45);
-      const a0 = a.a0, a1 = a.a0 + (a.a1 - a.a0) * Math.min(1, 0.55 + t * 1.2);
-      ctx.globalAlpha = alpha * 0.35;
-      ctx.fillStyle = a.c2;
-      crescent(ctx, r + w * 0.25, w * 1.5, a0, a1);
-      ctx.globalAlpha = alpha * 0.9;
-      crescent(ctx, r, w, a0, a1);
+      const w = a.w * 1.2 * (1 - t * 0.5);
+      const a0 = a.a0 + (a.a1 - a.a0) * Math.min(0.6, t * 0.9);
+      const a1 = a.a0 + (a.a1 - a.a0) * Math.min(1, 0.55 + t * 1.2);
       ctx.globalAlpha = alpha;
-      ctx.fillStyle = a.c;
-      crescent(ctx, r - w * 0.12, w * 0.5, a0 + (a1 - a0) * 0.1, a1);
+      ctx.fillStyle = smearFill(ctx, a0, a1, a.c2, 0.45);
+      crescent(ctx, r + w * 0.3, w * 1.7, a0, a1);
+      ctx.fillStyle = smearFill(ctx, a0, a1, a.c, 0.95);
+      crescent(ctx, r, w, a0, a1);
+      ctx.fillStyle = smearFill(ctx, a0 + (a1 - a0) * 0.3, a1, '#ffffff', 1);
+      crescent(ctx, r + w * 0.05, w * 0.32, a0 + (a1 - a0) * 0.3, a1);
+      // Hot spot where the edge is now.
+      const tr = r - w * 0.35;
+      glow(ctx, Math.cos(a1) * tr, Math.sin(a1) * tr, w * 2.4, a.c2, alpha * 0.55);
       ctx.restore();
     }
     // Rings.
@@ -337,13 +358,42 @@ export class FX {
   }
 }
 
+const hasConic = typeof CanvasRenderingContext2D !== 'undefined' && 'createConicGradient' in CanvasRenderingContext2D.prototype;
+
+/** Angular fade along an arc from a0 (transparent) to a1 (full). Flat colour where conic gradients are missing. */
+function smearFill(ctx: Ctx, a0: number, a1: number, c: string, peak: number): string | CanvasGradient {
+  if (!hasConic) return rgba(c, peak * 0.7);
+  const span = Math.min(TAU - 0.01, Math.abs(a1 - a0));
+  const f = span / TAU;
+  const fwd = a1 >= a0;
+  const g = ctx.createConicGradient(fwd ? a0 : a1, 0, 0);
+  if (fwd) {
+    g.addColorStop(0, rgba(c, 0));
+    g.addColorStop(f * 0.55, rgba(c, peak * 0.35));
+    g.addColorStop(f * 0.92, rgba(c, peak));
+    g.addColorStop(f, rgba(c, peak));
+    g.addColorStop(Math.min(1, f + 0.002), rgba(c, 0));
+  } else {
+    g.addColorStop(0, rgba(c, peak));
+    g.addColorStop(f * 0.08, rgba(c, peak));
+    g.addColorStop(f * 0.45, rgba(c, peak * 0.35));
+    g.addColorStop(f, rgba(c, 0));
+  }
+  return g;
+}
+
+/** Smear shape: hair-thin at the tail (a0), swelling to its widest just behind a pointed leading edge (a1). */
 function crescent(ctx: Ctx, r: number, w: number, a0: number, a1: number) {
-  // Outer arc forward, inner arc (offset centre) back: thick in the middle, sharp ends.
   ctx.beginPath();
   ctx.arc(0, 0, r, a0, a1, a1 < a0);
-  const mid = (a0 + a1) / 2;
-  const ox = Math.cos(mid) * w, oy = Math.sin(mid) * w;
-  ctx.arc(-ox * 0.6, -oy * 0.6, r - w * 0.4, a1, a0, a1 >= a0);
+  const N = 12;
+  for (let i = N; i >= 0; i--) {
+    const u = i / N;
+    const ang = a0 + (a1 - a0) * u;
+    const th = w * Math.pow(u, 0.7) * (1 - Math.pow(u, 7) * 0.8);
+    const rr = r - th;
+    ctx.lineTo(Math.cos(ang) * rr, Math.sin(ang) * rr);
+  }
   ctx.closePath();
   ctx.fill();
 }

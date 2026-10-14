@@ -5,8 +5,8 @@
 import { Entity, type HitInfo } from './entity';
 import { moveBody, groundAhead, wallAhead, hazardAhead, los } from './physics';
 import { Animator, solve, newJoints, BASE_POSE, Chain, drawRibbon, type Clip, type Joints, type Pose, type RigDims } from '../render/skeleton';
-import { drawHumanoid, type HumanStyle } from '../render/actors';
-import { glow, rgba, circle, poly, limb, ellipse, type Ctx } from '../render/draw';
+import { drawHumanoid, flashStyle, type HumanStyle } from '../render/actors';
+import { glow, rgba, circle, poly, limb, ellipse, limbShaded, limbStroke, lineGrad, type Ctx } from '../render/draw';
 import { fx, PK } from '../render/fx';
 import { sfx } from '../audio/audio';
 import { G } from './ctx';
@@ -451,7 +451,12 @@ export abstract class Enemy extends Entity {
     ctx.translate(this.x, this.y);
     ctx.scale(this.face, 1);
     if (this.dying && !this.awaitingPurify) ctx.globalAlpha = clamp(1 - (this.deathT - 0.4) / 0.6, 0, 1);
-    drawHumanoid(ctx, this.j, this.style, G.time + this.id, this.pose.rot);
+    drawHumanoid(ctx, this.j, this.style, G.time + this.id, this.pose.rot, this.body.vx * this.face, this.body.vy);
+    if (this.flash > 0) {
+      // White-out on the frames right after a hit.
+      ctx.globalAlpha = Math.min(0.9, this.flash * 9);
+      drawHumanoid(ctx, this.j, flashStyle(this.style), G.time + this.id, this.pose.rot, this.body.vx * this.face, this.body.vy);
+    }
     ctx.restore();
     ctx.globalAlpha = 1;
     this.drawFlash(ctx);
@@ -721,8 +726,11 @@ export class Hound extends Enemy {
       const kx = hipX + Math.sin(a) * len1, ky = bodyY + 3 + Math.cos(a) * len1;
       const fa = a + (front ? -0.7 : 0.8) - (run ? Math.max(0, Math.cos(t * 2 + phase)) * 0.6 : 0);
       const fx2 = kx + Math.sin(fa) * len2, fy2 = Math.min(0, ky + Math.cos(fa) * len2);
-      limb(ctx, hipX, bodyY + 2, kx, ky, 2.6, 1.8, back ? '#0c0810' : '#18121e', o, 0.7);
-      limb(ctx, kx, ky, fx2, fy2, 1.8, 1.3, back ? '#0c0810' : '#18121e', o, 0.7);
+      const c = back ? '#0c0810' : '#221a2a';
+      limbStroke(ctx, hipX, bodyY + 2, kx, ky, 2.6, 1.8, o, 1.2);
+      limbStroke(ctx, kx, ky, fx2, fy2, 1.8, 1.3, o, 1.2);
+      limbShaded(ctx, kx, ky, fx2, fy2, 1.8, 1.3, c, null);
+      limbShaded(ctx, hipX, bodyY + 2, kx, ky, 2.6, 1.8, c, null);
     };
     legs(Math.PI, 7, true, true);
     legs(0, -8, false, true);
@@ -733,7 +741,7 @@ export class Hound extends Enemy {
     ctx.quadraticCurveTo(13, bodyY - 1, 10, bodyY + 4);
     ctx.quadraticCurveTo(0, bodyY + 7, -11, bodyY + 4);
     ctx.closePath();
-    ctx.fillStyle = '#1a1220';
+    ctx.fillStyle = lineGrad(ctx, 0, bodyY - 8, 0, bodyY + 7, '#241a2c', 0.22, -0.35);
     ctx.fill();
     ctx.lineWidth = 0.8;
     ctx.strokeStyle = o;
@@ -760,7 +768,13 @@ export class Hound extends Enemy {
     // head
     const hx = 12, hy = bodyY - 4 + crouch * 3;
     const open = this.state === 'bite' || this.state === 'pounce' ? 0.6 : crouch * 0.3;
-    poly(ctx, [hx - 3, hy - 3, hx + 3, hy - 5, hx + 10, hy - 2, hx + 10, hy, hx + 2, hy + 1], '#1e1624', o, 0.7);
+    poly(ctx, [hx - 3, hy - 3, hx + 3, hy - 5, hx + 10, hy - 2, hx + 10, hy, hx + 2, hy + 1], lineGrad(ctx, hx, hy - 5, hx, hy + 1, '#2a2032', 0.25, -0.3), o, 0.7);
+    // Fangs.
+    ctx.fillStyle = '#d8ccd8';
+    ctx.beginPath();
+    ctx.moveTo(hx + 7.5, hy + 0.6); ctx.lineTo(hx + 8.2, hy + 2.2 + open * 1.5); ctx.lineTo(hx + 8.8, hy + 0.6);
+    ctx.moveTo(hx + 4.5, hy + 0.9); ctx.lineTo(hx + 5.1, hy + 2.1 + open * 1.2); ctx.lineTo(hx + 5.7, hy + 0.9);
+    ctx.fill();
     poly(ctx, [hx + 1, hy + 1, hx + 9, hy + 1 + open * 2, hx + 8, hy + 3 + open * 4, hx, hy + 3], '#140e18', o, 0.6);
     // ears
     poly(ctx, [hx - 1, hy - 3, hx - 3, hy - 9, hx + 2, hy - 4], '#140e18', o, 0.5);

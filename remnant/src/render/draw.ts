@@ -47,6 +47,140 @@ export function limb(
   }
 }
 
+// ---------- Shaded fills ----------
+// Characters are lit from above and a little in front (in their own facing
+// space, so the light turns with them like a key light on a stage). Gradients
+// are built once per colour and size in a local frame and reused through
+// ctx transforms, so shading costs a transform rather than a new gradient.
+
+const LX = 0.36, LY = -0.93;
+const gradCache = new Map<string, CanvasGradient>();
+
+let shadingOn = true;
+/** Turned off on the lowest quality tier: every shaded fill falls back to flat colour. */
+export function setShading(on: boolean) {
+  shadingOn = on;
+}
+
+/** Only opaque colours are shaded; translucent ones (ghosts) stay flat. */
+export function shadeable(c: unknown): c is string {
+  return shadingOn && typeof c === 'string' && (c[0] === '#' || c.startsWith('rgb('));
+}
+
+function cached(key: string, make: () => CanvasGradient) {
+  let g = gradCache.get(key);
+  if (!g) {
+    if (gradCache.size > 700) gradCache.clear();
+    g = make();
+    gradCache.set(key, g);
+  }
+  return g;
+}
+
+/** Cylinder shading across local y in [-R, R]; the lit side is -y. */
+export function cylGrad(ctx: Ctx, color: string, R: number, metal = false): CanvasGradient {
+  const r = Math.round(R * 4) / 4;
+  return cached((metal ? 'm' : 'c') + color + r, () => {
+    const g = ctx.createLinearGradient(0, -r, 0, r);
+    if (metal) {
+      g.addColorStop(0, shade(color, 0.04));
+      g.addColorStop(0.24, shade(color, 0.36));
+      g.addColorStop(0.4, color);
+      g.addColorStop(0.75, shade(color, -0.3));
+      g.addColorStop(1, shade(color, -0.12));
+    } else {
+      g.addColorStop(0, shade(color, 0.06));
+      g.addColorStop(0.25, shade(color, 0.16));
+      g.addColorStop(0.52, color);
+      g.addColorStop(0.82, shade(color, -0.26));
+      g.addColorStop(1, shade(color, -0.4));
+    }
+    return g;
+  });
+}
+
+/** Vertical gradient in local space from y0 (lit) to y1 (shadow). */
+export function vGrad(ctx: Ctx, color: string, y0: number, y1: number, hi = 0.14, lo = -0.3): CanvasGradient {
+  return cached('v' + color + y0 + ',' + y1 + ',' + hi + ',' + lo, () => {
+    const g = ctx.createLinearGradient(0, y0, 0, y1);
+    g.addColorStop(0, shade(color, hi));
+    g.addColorStop(0.45, color);
+    g.addColorStop(1, shade(color, lo));
+    return g;
+  });
+}
+
+/** Radial highlight in local space (heads, domes). */
+export function rGrad(ctx: Ctx, color: string, cx: number, cy: number, r: number, hi = 0.16, lo = -0.22): CanvasGradient {
+  return cached('r' + color + cx + ',' + cy + ',' + r + ',' + hi + ',' + lo, () => {
+    const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+    g.addColorStop(0, shade(color, hi));
+    g.addColorStop(0.55, color);
+    g.addColorStop(1, shade(color, lo));
+    return g;
+  });
+}
+
+/** Linear gradient between two world points, built per call (for shapes that deform). */
+export function lineGrad(ctx: Ctx, x0: number, y0: number, x1: number, y1: number, color: string, hi = 0.14, lo = -0.3, metal = false): CanvasGradient {
+  const g = ctx.createLinearGradient(x0, y0, x1, y1);
+  if (metal) {
+    g.addColorStop(0, shade(color, 0.1));
+    g.addColorStop(0.3, shade(color, 0.5));
+    g.addColorStop(0.45, color);
+    g.addColorStop(1, shade(color, -0.32));
+  } else {
+    g.addColorStop(0, shade(color, hi));
+    g.addColorStop(0.5, color);
+    g.addColorStop(1, shade(color, lo));
+  }
+  return g;
+}
+
+/** A tapered limb with cylinder shading facing the key light. */
+export function limbShaded(
+  ctx: Ctx, ax: number, ay: number, bx: number, by: number, ra: number, rb: number,
+  fill: string, outline: string | null, lw = 1.1, metal = false,
+) {
+  if (!shadeable(fill)) {
+    limb(ctx, ax, ay, bx, by, ra, rb, fill, outline, lw);
+    return;
+  }
+  const dx = bx - ax, dy = by - ay;
+  const len = Math.hypot(dx, dy) || 0.0001;
+  const c = dx / len, s = dy / len;
+  // Local +y in world is (-s, c); flip it when it faces the light so the
+  // gradient's lit end (-y) always points toward the light.
+  const flip = -s * LX + c * LY > 0;
+  // Enter the limb's frame, draw, then apply the exact inverse (cheaper than save/restore).
+  if (flip) ctx.transform(c, s, s, -c, ax, ay);
+  else ctx.transform(c, s, -s, c, ax, ay);
+  ctx.beginPath();
+  capsulePath(ctx, 0, 0, len, 0, ra, rb);
+  ctx.fillStyle = cylGrad(ctx, fill, Math.max(ra, rb), metal);
+  ctx.fill();
+  if (outline) {
+    ctx.lineWidth = lw;
+    ctx.strokeStyle = outline;
+    ctx.stroke();
+  }
+  if (flip) ctx.transform(c, s, s, -c, -(c * ax + s * ay), -(s * ax - c * ay));
+  else ctx.transform(c, -s, s, c, -(c * ax + s * ay), s * ax - c * ay);
+}
+
+/**
+ * Outline-only pass for a capsule. Stroking every segment of a limb before
+ * filling any of them hides the seams at knees and elbows: each fill covers
+ * the neighbouring segment's inner outline, leaving one clean silhouette.
+ */
+export function limbStroke(ctx: Ctx, ax: number, ay: number, bx: number, by: number, ra: number, rb: number, outline: string, lw: number) {
+  ctx.beginPath();
+  capsulePath(ctx, ax, ay, bx, by, ra, rb);
+  ctx.lineWidth = lw;
+  ctx.strokeStyle = outline;
+  ctx.stroke();
+}
+
 /** A light stripe along a limb, offset toward the upper-left key light. */
 export function limbHighlight(ctx: Ctx, ax: number, ay: number, bx: number, by: number, r: number, color: string) {
   const dx = bx - ax, dy = by - ay;
@@ -174,8 +308,16 @@ export function mix(c1: string, c2: string, t: number) {
   return `rgb(${r},${g},${bl})`;
 }
 
+const shadeCache = new Map<string, string>();
 export function shade(c: string, amt: number) {
-  return amt >= 0 ? mix(c, '#ffffff', amt) : mix(c, '#000000', -amt);
+  const key = c + '|' + amt;
+  let out = shadeCache.get(key);
+  if (out === undefined) {
+    if (shadeCache.size > 2000) shadeCache.clear();
+    out = amt >= 0 ? mix(c, '#ffffff', amt) : mix(c, '#000000', -amt);
+    shadeCache.set(key, out);
+  }
+  return out;
 }
 
 /** Text with dark outline for legibility on any background. */

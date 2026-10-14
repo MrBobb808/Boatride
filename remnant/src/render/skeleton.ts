@@ -3,6 +3,7 @@
 // automatically, so crouches and lunges never float or sink.
 
 import { lerp, clamp } from '../core/math';
+import { shadeable, lineGrad } from './draw';
 
 export interface Pose {
   x: number; y: number;
@@ -291,16 +292,44 @@ export function drawRibbon(
     left.push(x - dy * w, y + dx * w);
     right.push(x + dy * w, y - dx * w);
   }
+  // Smooth edges: curve through the midpoints between chain links.
+  const edge = (e: number[], fwd: boolean) => {
+    const m = e.length / 2;
+    const at = (k: number) => (fwd ? k : m - 1 - k) * 2;
+    for (let k = 1; k < m - 1; k++) {
+      const a = at(k), b = at(k + 1);
+      ctx.quadraticCurveTo(e[a], e[a + 1], (e[a] + e[b]) / 2, (e[a + 1] + e[b + 1]) / 2);
+    }
+    const z = at(m - 1);
+    ctx.lineTo(e[z], e[z + 1]);
+  };
   ctx.beginPath();
   ctx.moveTo(left[0], left[1]);
-  for (let i = 2; i < left.length; i += 2) ctx.lineTo(left[i], left[i + 1]);
-  for (let i = right.length - 2; i >= 0; i -= 2) ctx.lineTo(right[i], right[i + 1]);
+  edge(left, true);
+  ctx.lineTo(right[right.length - 2], right[right.length - 1]);
+  edge(right, false);
   ctx.closePath();
-  ctx.fillStyle = fill;
+  // Cloth is lit near where it hangs and falls into shadow toward the hem.
+  const span = Math.hypot(ch.xs[n - 1] - ch.xs[0], ch.ys[n - 1] - ch.ys[0]);
+  ctx.fillStyle = typeof fill === 'string' && shadeable(fill) && span > 0.5
+    ? lineGrad(ctx, ch.xs[0], ch.ys[0], ch.xs[n - 1], ch.ys[n - 1], fill, 0.12, -0.38)
+    : fill;
   ctx.fill();
   if (stroke) {
     ctx.lineWidth = 0.9;
     ctx.strokeStyle = stroke;
+    ctx.stroke();
+  }
+  if (w0 > 5 && n > 3) {
+    // A fold running down the length of a wide cape.
+    ctx.beginPath();
+    ctx.moveTo(ch.xs[1], ch.ys[1]);
+    for (let i = 2; i < n; i++) {
+      const mx = (left[i * 2] * 0.4 + right[i * 2] * 0.6), my = (left[i * 2 + 1] * 0.4 + right[i * 2 + 1] * 0.6);
+      ctx.lineTo(mx, my);
+    }
+    ctx.strokeStyle = 'rgba(0,0,0,0.28)';
+    ctx.lineWidth = 0.7;
     ctx.stroke();
   }
 }

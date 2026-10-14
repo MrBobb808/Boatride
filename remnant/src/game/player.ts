@@ -86,6 +86,8 @@ export class Player extends Entity {
   style!: HumanStyle;
   styleKey = '';
   deadT = 0;
+  private drawnFace = 1;
+  private turnAt = -1;
   attackHeldFrom = 0;
   ceRegenDelay = 0;
   aura = 0;
@@ -192,7 +194,10 @@ export class Player extends Entity {
     const t = this.body.groundTile;
     const name = t === T.Wood || t === T.OneWay ? 'stepWood' : G.world.room.biome === 'village' ? 'stepAsh' : 'step';
     sfx(name, { vol: 0.55, pitch: rand(0.9, 1.1), gap: 60 });
-    if (G.world.room.biome === 'village' && Math.random() < 0.5) fx.dust(this.x - this.face * 4, this.y, 1, 0.4, '#6a6070');
+    // A puff of ash or stone dust kicked back from each stride.
+    const biome = G.world.room.biome;
+    const dust = biome === 'village' ? '#6a6070' : biome === 'crypt' ? '#4a4858' : biome === 'sanctum' ? '#7a6440' : '#6a5e54';
+    if (Math.random() < (biome === 'village' ? 0.7 : 0.45)) fx.dust(this.x - this.face * 4, this.y, 1, 0.4, dust);
   }
 
   // ---------------------------------------------------------------- update
@@ -1064,14 +1069,21 @@ export class Player extends Entity {
       glow(ctx, this.x, this.y - 20, 34, this.armorLight > 0 ? '#fff1c4' : '#ffb347', 0.45 * this.aura);
       ctx.globalCompositeOperation = 'source-over';
     }
+    // Turning around squashes the silhouette for a few frames instead of snapping.
+    if (this.face !== this.drawnFace) {
+      this.drawnFace = this.face;
+      this.turnAt = t;
+    }
+    const tu = Math.max(0, Math.min(1, (t - this.turnAt) / 0.1));
+    const turnS = this.state === 'free' ? 0.6 + 0.4 * (1 - (1 - tu) * (1 - tu)) : 1;
     ctx.save();
     ctx.translate(this.x, this.y);
-    ctx.scale(this.face, 1);
+    ctx.scale(this.face * turnS, 1);
     const blink = this.invuln > 0 && this.state !== 'execute' && Math.floor(t * 20) % 2 === 0 && this.flash <= 0;
     if (blink) ctx.globalAlpha = 0.55;
     const eye = this.state === 'cast' || this.lion > 0 || this.armorLight > 0 || this.state === 'execute' ? 0.9 : 0;
     s.eyeGlow = eye;
-    const w = drawHumanoid(ctx, this.j, s, t, this.pose.rot);
+    const w = drawHumanoid(ctx, this.j, s, t, this.pose.rot, this.body.vx * this.face, this.body.onGround ? 0 : this.body.vy);
     this.lastWpn.bx = w.bx; this.lastWpn.by = w.by; this.lastWpn.tx = w.tx; this.lastWpn.ty = w.ty;
     if (this.flash > 0) {
       ctx.globalCompositeOperation = 'lighter';
@@ -1126,7 +1138,7 @@ export class Player extends Entity {
 const GHOST: HumanStyle = {
   skin: 'rgba(255,214,140,0.5)', hair: 'rgba(255,214,140,0.5)', hairKind: 'spiky', coat: 'rgba(255,214,140,0.45)', coatDark: 'rgba(255,214,140,0.3)',
   skirt: 9, trim: null, pants: 'rgba(255,214,140,0.45)', boots: 'rgba(255,214,140,0.45)', glove: 'rgba(255,214,140,0.45)', belt: null,
-  plate: null, helm: 'none', eye: '#fff', eyeGlow: 0, outline: 'rgba(0,0,0,0)', weapon: 'none', offhand: 'none', bulk: 1,
+  plate: null, helm: 'none', eye: '#fff', eyeGlow: 0, outline: 'rgba(0,0,0,0)', weapon: 'none', offhand: 'none', bulk: 1, flat: true,
 };
 
 export function clampHp() {

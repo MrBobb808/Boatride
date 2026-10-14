@@ -159,7 +159,7 @@ export class Npc extends Entity implements Interactable {
       // traveller's pack
       poly(ctx, [this.j.shBX - 9, this.j.shBY - 2, this.j.shBX - 1, this.j.shBY - 4, this.j.hipX - 2, this.j.hipY + 2, this.j.hipX - 11, this.j.hipY + 1], '#5a4028', '#0a070c', 0.8);
     }
-    drawHumanoid(ctx, this.j, def.style, G.time + this.id, this.pose.rot);
+    drawHumanoid(ctx, this.j, def.style, G.time + this.id, this.pose.rot, this.body.vx * this.face, this.ghost ? 0 : this.body.vy);
     ctx.restore();
     ctx.globalAlpha = 1;
     if (this.ghost) {
