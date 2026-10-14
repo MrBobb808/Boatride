@@ -1,0 +1,347 @@
+// In-game HUD, drawn on the canvas in CSS-pixel space for crisp text.
+// Top-left: health, Covenant Energy, experience, Balm, status, Echoes.
+// Top-right: location, objective, silver, minimap. Bottom-centre: skills,
+// Echo stance and the Rally gauge (hidden on touch, where buttons show it).
+
+import { G, flag } from '../game/ctx';
+import { input } from '../core/input';
+import { settings } from '../core/settings';
+import { icon } from './icons';
+import { ABILITIES, ECHO_SPECIES, xpToNext } from '../game/data';
+import { QUESTS } from '../game/story';
+import { ROOMS } from '../game/rooms';
+import { FONT_DISPLAY, FONT_BODY, roundRect, glow, type Ctx } from '../render/draw';
+import { clamp, lerp } from '../core/math';
+import { safe } from './safe';
+
+let hpGhost = 1;
+let ceShown = 0;
+let bossName: string | null = null;
+let bossSub = '';
+let bossGhost = 1;
+let fps = 60;
+let fpsAcc = 0;
+let fpsN = 0;
+
+export function setBoss(name: string | null, sub = '') {
+  bossName = name;
+  bossSub = sub;
+  bossGhost = 1;
+}
+
+export function tickFps(dt: number) {
+  fpsAcc += dt;
+  fpsN++;
+  if (fpsAcc > 0.5) {
+    fps = fpsN / fpsAcc;
+    fpsAcc = 0;
+    fpsN = 0;
+  }
+}
+export const currentFps = () => fps;
+
+export function objectiveText(): string {
+  const s = G.save;
+  for (const q of QUESTS) {
+    if (q.kind !== 'main') continue;
+    const st = s.quests[q.id];
+    if (st && !st.done) return q.stages[Math.min(st.stage, q.stages.length - 1)];
+  }
+  if (flag('ch1_done')) return 'Chapter I complete. Explore, grow stronger, or begin New Game+ at an altar.';
+  return '';
+}
+
+export function drawHud(ctx: Ctx, dt: number) {
+  const r = G.renderer;
+  const s = G.save;
+  const d = G.d;
+  if (!s || !d) return;
+  const W = r.cssW, H = r.cssH;
+  const u = clamp(Math.min(H / 430, W / 900), 0.85, 1.6);
+  ctx.save();
+  ctx.setTransform(r.px, 0, 0, r.px, 0, 0);
+  const sat = safe.top, sal = safe.left, sar = safe.right, sab = safe.bottom;
+  const x0 = 12 + sal, y0 = 10 + sat;
+  const touch = input.lastDevice === 'touch';
+  ctx.globalAlpha = G.inCutscene ? 0.35 : 1;
+
+  // ----- level badge
+  const bx = x0 + 15 * u, by = y0 + 15 * u;
+  ctx.save();
+  ctx.translate(bx, by);
+  ctx.rotate(Math.PI / 4);
+  ctx.fillStyle = 'rgba(12,9,16,0.9)';
+  ctx.fillRect(-11 * u, -11 * u, 22 * u, 22 * u);
+  ctx.strokeStyle = '#e2b85a';
+  ctx.lineWidth = 1.4;
+  ctx.strokeRect(-11 * u, -11 * u, 22 * u, 22 * u);
+  ctx.restore();
+  text(ctx, String(s.level), bx, by + 0.5, `700 ${12 * u}px ${FONT_DISPLAY}`, '#f6dea0', 'center');
+
+  // ----- health
+  const hx = x0 + 34 * u, hy = y0 + 6 * u, hw = 196 * u, hh = 10 * u;
+  const frac = clamp(s.hp / d.maxHp, 0, 1);
+  hpGhost = frac > hpGhost ? frac : lerp(hpGhost, frac, Math.min(1, dt * 2.5));
+  bar(ctx, hx, hy, hw, hh, frac, hpGhost, ['#5a1218', '#b0303a', '#e0606a']);
+  text(ctx, `${Math.ceil(s.hp)} / ${d.maxHp}`, hx + hw - 4, hy + hh / 2 + 0.5, `600 ${8.5 * u}px ${FONT_DISPLAY}`, '#f4e8e0', 'right');
+  // ----- covenant energy
+  let cy = hy + hh + 4 * u;
+  if (flag('relic_taken')) {
+    const cf = clamp(s.ce / d.maxCe, 0, 1);
+    ceShown = lerp(ceShown, cf, Math.min(1, dt * 8));
+    bar(ctx, hx, cy, hw * 0.82, 6 * u, ceShown, ceShown, ['#3a2a10', '#c9a04a', '#fff3c4']);
+    cy += 6 * u + 3 * u;
+  }
+  // ----- xp
+  const xf = clamp(s.xp / xpToNext(s.level), 0, 1);
+  ctx.fillStyle = 'rgba(255,255,255,0.08)';
+  ctx.fillRect(hx, cy, hw * 0.82, 2 * u);
+  ctx.fillStyle = '#9fc4ff';
+  ctx.fillRect(hx, cy, hw * 0.82 * xf, 2 * u);
+  cy += 2 * u + 5 * u;
+  // ----- balm + points
+  let vx = hx;
+  for (let i = 0; i < s.balmMax; i++) {
+    ctx.globalAlpha = (G.inCutscene ? 0.35 : 1) * (i < s.balm ? 1 : 0.28);
+    ctx.drawImage(icon('vial', i < s.balm ? '#d04a5a' : '#8a7a8a', 32), vx, cy - 1, 11 * u, 11 * u);
+    vx += 12 * u;
+  }
+  ctx.globalAlpha = G.inCutscene ? 0.35 : 1;
+  if (s.statPoints > 0 || s.skillPoints > 0) {
+    text(ctx, `✦ ${s.statPoints ? s.statPoints + ' stat' : ''}${s.statPoints && s.skillPoints ? ' · ' : ''}${s.skillPoints ? s.skillPoints + ' skill' : ''} points`, vx + 6 * u, cy + 5 * u, `600 ${8 * u}px ${FONT_DISPLAY}`, '#f6dea0', 'left');
+  }
+  cy += 14 * u;
+  // ----- status effects
+  const p = G.world.player;
+  const statuses: [string, number, string][] = [];
+  if (p.lion > 0) statuses.push(['lion', p.lion, '#ffb347']);
+  if (p.armorLight > 0) statuses.push(['armor', p.armorLight, '#fff1c4']);
+  if (p.shieldT > 0) statuses.push(['shield', p.shieldT, '#bfe0ff']);
+  if (p.veiled > 0) statuses.push(['veil', p.veiled, '#c45cff']);
+  let sx = hx;
+  for (const [ic, t, c] of statuses) {
+    ctx.drawImage(icon(ic, c, 32), sx, cy, 14 * u, 14 * u);
+    text(ctx, t.toFixed(0), sx + 7 * u, cy + 19 * u, `600 ${7 * u}px ${FONT_DISPLAY}`, c, 'center');
+    sx += 18 * u;
+  }
+  if (statuses.length) cy += 24 * u;
+  // ----- echoes
+  for (const e of G.world.echoes) {
+    const sp = ECHO_SPECIES[e.inst.species];
+    ctx.drawImage(icon(e.sentinel ? 'sentinel_echo' : 'archer_echo', '#fff3c4', 32), hx, cy, 12 * u, 12 * u);
+    text(ctx, sp.stages[e.inst.stage].name + (e.inst.commander ? ' ★' : ''), hx + 15 * u, cy + 4 * u, `600 ${7.5 * u}px ${FONT_DISPLAY}`, '#ece4d4', 'left');
+    ctx.fillStyle = 'rgba(255,255,255,0.1)';
+    ctx.fillRect(hx + 15 * u, cy + 8 * u, 70 * u, 2.5 * u);
+    ctx.fillStyle = '#e8c86a';
+    ctx.fillRect(hx + 15 * u, cy + 8 * u, 70 * u * clamp(e.hp / e.maxHp, 0, 1), 2.5 * u);
+    cy += 15 * u;
+  }
+  for (const inst of s.echoes) {
+    if ((inst.downFor ?? 0) > 0 && s.active.includes(inst.uid)) {
+      ctx.globalAlpha = 0.5;
+      ctx.drawImage(icon(inst.species === 'sentinel' ? 'sentinel_echo' : 'archer_echo', '#9a90a4', 32), hx, cy, 12 * u, 12 * u);
+      text(ctx, `returns in ${Math.ceil(inst.downFor ?? 0)}s`, hx + 15 * u, cy + 6 * u, `600 ${7.5 * u}px ${FONT_DISPLAY}`, '#9a90a4', 'left');
+      ctx.globalAlpha = 1;
+      cy += 15 * u;
+    }
+  }
+
+  // ----- top right: location, objective, silver, minimap
+  const rx = W - 12 - sar - (touch ? 46 * u : 0);
+  const room = G.world.room;
+  text(ctx, room.name.toUpperCase(), rx, y0 + 6 * u, `600 ${8.5 * u}px ${FONT_DISPLAY}`, '#e2b85a', 'right');
+  const obj = objectiveText();
+  ctx.font = `italic ${10.5 * u}px ${FONT_BODY}`;
+  const lines = wrap(ctx, obj, 230 * u);
+  lines.slice(0, 3).forEach((l, i) => text(ctx, l, rx, y0 + (19 + i * 12) * u, `italic ${10.5 * u}px ${FONT_BODY}`, '#ddd4c6', 'right'));
+  const my = y0 + (22 + Math.min(3, lines.length) * 12) * u;
+  minimap(ctx, rx - 110 * u, my, 110 * u, 46 * u);
+  ctx.drawImage(icon('ring', '#e8e2d0', 32), rx - 60 * u, my + 50 * u, 10 * u, 10 * u);
+  text(ctx, `${s.silver} silver`, rx, my + 55 * u, `600 ${8.5 * u}px ${FONT_DISPLAY}`, '#ece4d4', 'right');
+
+  // ----- boss bar
+  if (bossName && G.world.boss) {
+    const b = G.world.boss;
+    const bw = Math.min(W * 0.46, 460 * u);
+    const bxx = (W - bw) / 2, byy = touch ? y0 + 6 * u : H - sab - 70 * u;
+    const f = clamp(b.hp / b.maxHp, 0, 1);
+    bossGhost = lerp(bossGhost, f, Math.min(1, dt * 2));
+    text(ctx, bossName.toUpperCase(), W / 2, byy - 8 * u, `700 ${11 * u}px ${FONT_DISPLAY}`, '#f6dea0', 'center');
+    bar(ctx, bxx, byy, bw, 8 * u, f, bossGhost, ['#4a1a06', '#c97a2a', '#ffd27a']);
+    // phase marks
+    for (const m of [0.55, 0.22]) {
+      ctx.fillStyle = 'rgba(0,0,0,0.7)';
+      ctx.fillRect(bxx + bw * m - 1, byy - 2, 2, 12 * u);
+    }
+    // poise
+    if (b.state !== 'kneel') {
+      ctx.fillStyle = 'rgba(255,255,255,0.08)';
+      ctx.fillRect(bxx, byy + 10 * u, bw, 2 * u);
+      ctx.fillStyle = '#e8d8a8';
+      ctx.fillRect(bxx, byy + 10 * u, bw * clamp(b.poise / b.maxPoise, 0, 1), 2 * u);
+    }
+    if (bossSub && !touch) text(ctx, bossSub, W / 2, byy + 20 * u, `italic ${9.5 * u}px ${FONT_BODY}`, '#9b92a6', 'center');
+  } else if (G.world.purifyTarget === null && !bossName) {
+    // elite enemy bar when one is engaged
+    const el = G.world.ents.find((e) => (e as { elite?: string | null }).elite && !e.dying && (e as { aggro?: boolean }).aggro);
+    if (el) {
+      const bw = Math.min(W * 0.36, 340 * u);
+      const bxx = (W - bw) / 2, byy = touch ? y0 + 8 * u : H - sab - 66 * u;
+      text(ctx, el.name.toUpperCase(), W / 2, byy - 8 * u, `700 ${10 * u}px ${FONT_DISPLAY}`, '#f0c0d0', 'center');
+      const f = clamp(el.hp / el.maxHp, 0, 1);
+      bar(ctx, bxx, byy, bw, 6 * u, f, f, ['#3a0a14', '#a02a3a', '#e0606a']);
+    }
+  }
+
+  // ----- bottom centre: skills, echo stance, rally (keyboard / controller)
+  if (!touch && s.abilities.length + s.echoes.length > 0) {
+    const n = 3;
+    const sz = 34 * u, gap = 8 * u;
+    const total = n * sz + (n - 1) * gap + (sz + gap) * 2;
+    let x = (W - total) / 2;
+    const yb = H - sab - sz - 12 * u;
+    const keys: ('skill1' | 'skill2' | 'skill3')[] = ['skill1', 'skill2', 'skill3'];
+    for (let i = 0; i < n; i++) {
+      const id = s.equippedSkills[i];
+      slotBox(ctx, x, yb, sz);
+      if (id) {
+        const def = ABILITIES[id];
+        const cd = p.cds[id] ?? 0;
+        const usable = s.ce >= def.cost && cd <= 0;
+        ctx.globalAlpha = usable ? 1 : 0.4;
+        ctx.drawImage(icon(def.icon, '#f6dea0', 64), x + 5 * u, yb + 5 * u, sz - 10 * u, sz - 10 * u);
+        ctx.globalAlpha = 1;
+        if (cd > 0) {
+          ctx.fillStyle = 'rgba(0,0,0,0.6)';
+          const fr = cd / def.cd;
+          ctx.fillRect(x, yb + sz * (1 - fr), sz, sz * fr);
+        }
+        text(ctx, String(def.cost), x + sz - 3 * u, yb + sz - 5 * u, `600 ${7 * u}px ${FONT_DISPLAY}`, '#f6dea0', 'right');
+      }
+      text(ctx, input.label(keys[i]), x + 4 * u, yb + 6 * u, `700 ${7 * u}px ${FONT_DISPLAY}`, '#ece4d4', 'left');
+      x += sz + gap;
+    }
+    // echo stance
+    if (s.echoes.length) {
+      slotBox(ctx, x, yb, sz);
+      ctx.drawImage(icon(s.echoMode, '#fff3c4', 64), x + 6 * u, yb + 6 * u, sz - 12 * u, sz - 12 * u);
+      text(ctx, input.label('echo'), x + 4 * u, yb + 6 * u, `700 ${7 * u}px ${FONT_DISPLAY}`, '#ece4d4', 'left');
+    }
+    x += sz + gap;
+    // rally gauge
+    if (flag('relic_taken')) {
+      const cx = x + sz / 2, cyy = yb + sz / 2, rr = sz / 2;
+      ctx.fillStyle = 'rgba(12,9,16,0.85)';
+      ctx.beginPath();
+      ctx.arc(cx, cyy, rr, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(226,184,90,0.35)';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      const f = s.rally / 100;
+      ctx.strokeStyle = f >= 1 ? '#fff3c4' : '#e2b85a';
+      ctx.lineWidth = 3 * u;
+      ctx.beginPath();
+      ctx.arc(cx, cyy, rr - 2 * u, -Math.PI / 2, -Math.PI / 2 + f * Math.PI * 2);
+      ctx.stroke();
+      if (f >= 1) {
+        ctx.globalCompositeOperation = 'lighter';
+        glow(ctx, cx, cyy, rr * 1.8, '#ffd27a', 0.5 + Math.sin(G.time * 5) * 0.2);
+        ctx.globalCompositeOperation = 'source-over';
+      }
+      ctx.drawImage(icon('rally', f >= 1 ? '#fff3c4' : '#8a6e3a', 64), cx - rr * 0.55, cyy - rr * 0.55, rr * 1.1, rr * 1.1);
+      text(ctx, input.label('ultimate'), x + 4 * u, yb + 6 * u, `700 ${7 * u}px ${FONT_DISPLAY}`, '#ece4d4', 'left');
+    }
+  }
+  if (settings.showFps) text(ctx, `${fps.toFixed(0)} fps · q${r.tier}`, W / 2, H - 6 - sab, `600 ${9}px ${FONT_DISPLAY}`, '#9b92a6', 'center');
+  ctx.restore();
+}
+
+function text(ctx: Ctx, t: string, x: number, y: number, font: string, color: string, align: CanvasTextAlign) {
+  ctx.font = font;
+  ctx.textAlign = align;
+  ctx.textBaseline = 'middle';
+  ctx.lineWidth = 3;
+  ctx.lineJoin = 'round';
+  ctx.strokeStyle = 'rgba(6,4,10,0.85)';
+  ctx.strokeText(t, x, y);
+  ctx.fillStyle = color;
+  ctx.fillText(t, x, y);
+}
+
+function bar(ctx: Ctx, x: number, y: number, w: number, h: number, f: number, ghost: number, cols: [string, string, string]) {
+  ctx.fillStyle = 'rgba(8,6,12,0.85)';
+  ctx.fillRect(x - 1.5, y - 1.5, w + 3, h + 3);
+  ctx.fillStyle = 'rgba(255,255,255,0.05)';
+  ctx.fillRect(x, y, w, h);
+  if (ghost > f) {
+    ctx.fillStyle = 'rgba(255,240,220,0.55)';
+    ctx.fillRect(x, y, w * ghost, h);
+  }
+  const g = ctx.createLinearGradient(x, y, x, y + h);
+  g.addColorStop(0, cols[2]);
+  g.addColorStop(0.45, cols[1]);
+  g.addColorStop(1, cols[0]);
+  ctx.fillStyle = g;
+  ctx.fillRect(x, y, w * f, h);
+  ctx.strokeStyle = 'rgba(226,184,90,0.55)';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(x - 1.5, y - 1.5, w + 3, h + 3);
+}
+
+function slotBox(ctx: Ctx, x: number, y: number, s: number) {
+  ctx.fillStyle = 'rgba(12,9,16,0.85)';
+  roundRect(ctx, x, y, s, s, 3);
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(226,184,90,0.45)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+}
+
+function wrap(ctx: Ctx, t: string, w: number): string[] {
+  const words = t.split(' ');
+  const out: string[] = [];
+  let cur = '';
+  for (const wd of words) {
+    const test = cur ? cur + ' ' + wd : wd;
+    if (ctx.measureText(test).width > w && cur) {
+      out.push(cur);
+      cur = wd;
+    } else cur = test;
+  }
+  if (cur) out.push(cur);
+  return out;
+}
+
+function minimap(ctx: Ctx, x: number, y: number, w: number, h: number) {
+  const s = G.save;
+  const cur = ROOMS[G.world.room.id];
+  ctx.fillStyle = 'rgba(8,6,12,0.7)';
+  ctx.fillRect(x, y, w, h);
+  ctx.strokeStyle = 'rgba(226,184,90,0.35)';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(x, y, w, h);
+  const scale = 7;
+  const cx = cur.map.x + (cur.w / 16) / 2, cyy = cur.map.y + (cur.h / 16) / 2;
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(x, y, w, h);
+  ctx.clip();
+  for (const id of s.visited) {
+    const rm = ROOMS[id];
+    if (!rm) continue;
+    const rx = x + w / 2 + (rm.map.x - cx) * scale, ry = y + h / 2 + (rm.map.y - cyy) * scale;
+    const rw = (rm.w / 16) * scale, rh = (rm.h / 16) * scale;
+    ctx.fillStyle = id === cur.id ? 'rgba(226,184,90,0.45)' : 'rgba(150,130,170,0.25)';
+    ctx.fillRect(rx, ry, rw, rh);
+    ctx.strokeStyle = id === cur.id ? '#f6dea0' : 'rgba(200,180,220,0.4)';
+    ctx.strokeRect(rx, ry, rw, rh);
+  }
+  const p = G.world.player;
+  const px = x + w / 2 + (cur.map.x + p.x / 256 - cx) * scale, py = y + h / 2 + (cur.map.y + p.y / 256 - cyy) * scale;
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath();
+  ctx.arc(px, py, 2, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}

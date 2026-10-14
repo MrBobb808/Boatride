@@ -1,0 +1,22 @@
+{
+  "name": "remnant-ascension",
+  "version": "1.0.0",
+  "description": "REMNANT: ASCENSION — a biblical dark fantasy action RPG",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build && node scripts/postbuild.mjs",
+    "preview": "vite preview --host",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3",
+    "vite": "^6.4.4",
+    "vite-plugin-singlefile": "^2.3.3"
+  },
+  "dependencies": {
+    "@fontsource/cinzel": "^5.3.0",
+    "@fontsource/cormorant-garamond": "^5.3.0"
+  },
+  "private": true,
+  "type": "module"
+}
