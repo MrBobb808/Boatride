@@ -6,7 +6,8 @@ import { ROOMS, type RoomData } from './rooms';
 import { Grid, T, TILE, isSolid, type EntDef, type Loot } from './tiles';
 import { Player } from './player';
 import { Entity, type HitInfo } from './entity';
-import { makeEnemy, Enemy } from './enemies';
+import { Enemy } from './enemies';
+import { makeEnemy } from './foes';
 import { EchoUnit } from './echoes';
 import { Idol } from './boss';
 import { Npc, Chest, Altar, LoreStone, Shrine, Pickup, Drop, RelicVisual, type Interactable } from './props';
@@ -270,6 +271,7 @@ export class World {
       }
     }
     this.syncCd = Math.max(0, this.syncCd - dt);
+    this.switchCd = Math.max(0, this.switchCd - dt);
     const rallying = this.rallyT >= 0;
     this.player.update(dt);
     for (const e of this.echoes) if (!rallying) e.update(dt);
@@ -508,9 +510,14 @@ export class World {
     const d = G.d;
     let dmg: number;
     if (e instanceof Idol) dmg = Math.max(d.atk * 9, e.maxHp * 0.07) * mult;
+    else if (e instanceof Enemy && e.tank) dmg = Math.max(d.atk * 8, e.maxHp * (e.elite ? 0.22 : 0.35)) * mult;
     else if (e instanceof Enemy && e.elite) dmg = d.atk * 8 * mult;
     else dmg = e.hp + 5;
-    e.staggered = 0;
+    if (e instanceof Enemy && e.tank) {
+      // Tanks stay down a moment longer, but only one execution per break.
+      e.execUsed = true;
+      e.staggered = Math.min(e.staggered, 1.4);
+    } else e.staggered = 0;
     if (e instanceof Idol) {
       e.staggered = 0.6;
     }
@@ -557,6 +564,17 @@ export class World {
         e.hp = Math.min(e.maxHp, e.hp + e.maxHp * frac);
         e.inst.hp = e.hp;
       }
+    }
+  }
+
+  /** Draw nearby foes toward a point (whirlwind attacks). Heavy bodies resist. */
+  pullFoes(x: number, y: number, r: number, dt: number) {
+    for (const e of this.ents) {
+      if (!e.isFoe || e.dying || e.heavyBody) continue;
+      const dx = x - e.x;
+      if (Math.abs(dx) > r || Math.abs(y - e.y) > 50 || Math.abs(dx) < 14) continue;
+      e.body.vx += Math.sign(dx) * 900 * dt;
+      e.body.vx = Math.max(-160, Math.min(160, e.body.vx));
     }
   }
 
@@ -611,7 +629,7 @@ export class World {
 
   commanderAura(x: number, y: number, self?: Entity) {
     for (const e of this.echoes) {
-      if (e === self || !e.inst.commander || e.despawn > 0) continue;
+      if (e === self || (!e.inst.commander && !e.kit.warden) || e.despawn > 0) continue;
       if (Math.abs(e.x - x) < 120 && Math.abs(e.y - y) < 60) return 1.15;
     }
     return 1;
@@ -663,11 +681,23 @@ export class World {
     const levels = gainXp(s, xp);
     fx.number(this.player.x, this.player.y - 56, `+${xp} XP`, false, '#cfe6ff');
     if (levels > 0) {
+      const slotsBefore = G.d.echoSlots;
       G.d = derive(s);
       s.hp = G.d.maxHp;
       this.player.styleKey = '';
       G.ui.levelUp(levels);
       for (const ec of this.echoes) ec.refreshStats();
+      if (G.d.echoSlots > slotsBefore) {
+        // A wider covenant: bring benched Echoes into the line automatically.
+        for (const e of s.echoes) {
+          if (s.active.length >= G.d.echoSlots) break;
+          if (!s.active.includes(e.uid)) s.active.push(e.uid);
+        }
+        this.after(1.4, () => {
+          G.ui.toast(`Your covenant widens: ${G.d.echoSlots} Echoes may now fight beside you.`, 'good');
+          if (s.flags.army_out !== false) this.summonEchoes();
+        });
+      }
     }
   }
 
@@ -823,13 +853,85 @@ export class World {
     e?.assist(target);
   }
 
-  echoCommand(cmd: 'toggle' | 'aggressive' | 'defensive' | 'follow' | 'target' | 'recall' | 'sync') {
+  switchCd = 0;
+
+  /**
+   * Switch support. With Echoes on the bench, the lead fighter steps back and
+   * the next one steps in already swinging at the nearest foe. With no bench,
+   * Elior trades places with the Echo farthest from him (an exchange).
+   */
+  switchSupport() {
+    const s = G.save;
+    if (!s.echoes.length) {
+      G.ui.toast('You have no Echoes yet.', 'warn');
+      return;
+    }
+    if (this.switchCd > 0) {
+      G.ui.toast(`Switch ready in ${Math.ceil(this.switchCd)}s`, 'warn');
+      sfx('denied');
+      return;
+    }
+    if (!this.echoes.length && s.flags.army_out === false) {
+      this.echoCommand('toggle');
+      return;
+    }
+    const p = this.player;
+    const target = (this.priorityTarget && !this.priorityTarget.dying ? this.priorityTarget : null) ?? this.nearestEnemy(p.x, p.y - 20, 260, 0);
+    const bench = s.echoes.filter((e) => !s.active.includes(e.uid) && (e.downFor ?? 0) <= 0);
+    if (bench.length) {
+      const outUid = s.active[0];
+      const incoming = bench[0];
+      s.active = [...s.active.filter((u) => u !== outUid), incoming.uid];
+      if (outUid) {
+        // The bench joins the back of the rotation.
+        const outInst = s.echoes.find((e) => e.uid === outUid);
+        if (outInst) {
+          s.echoes = [...s.echoes.filter((e) => e !== outInst), outInst];
+        }
+        const leaving = this.echoes.find((e) => e.inst.uid === outUid);
+        if (leaving) leaving.dismiss();
+      }
+      this.summonEchoes(true);
+      const unit = this.echoes.find((e) => e.inst.uid === incoming.uid);
+      if (unit) unit.tagIn(target);
+      this.switchCd = 4.5;
+      sfx('summon', { pitch: 1.2 });
+      G.ui.toast(`Switch: ${ECHO_SPECIES[incoming.species].stages[incoming.stage].name} steps in`, 'info');
+    } else if (this.echoes.length) {
+      let far = this.echoes[0];
+      for (const e of this.echoes) if (Math.abs(e.x - p.x) > Math.abs(far.x - p.x)) far = e;
+      if (Math.abs(far.x - p.x) < 24) {
+        G.ui.toast('Your Echoes are already at your side.', 'info');
+        return;
+      }
+      const px = p.x, py = p.y;
+      fx.streak(px, py - 20, far.x, far.y - 20, '#ffe6a8', 0.25, 3);
+      fx.streak(far.x, far.y - 20, px, py - 20, '#fff3c4', 0.25, 2);
+      p.x = far.x;
+      p.y = far.y;
+      p.body.vx = p.body.vy = 0;
+      far.x = px;
+      far.y = py;
+      far.body.vx = far.body.vy = 0;
+      p.invuln = Math.max(p.invuln, 0.35);
+      fx.ring(p.x, p.y - 20, 4, 30, '#ffe6a8', 0.3, 2);
+      fx.ring(far.x, far.y - 20, 4, 30, '#fff3c4', 0.3, 2);
+      this.switchCd = 3;
+      sfx('dash', { pitch: 1.5, vol: 0.8 });
+    }
+    G.ui.refreshHud();
+  }
+
+  echoCommand(cmd: 'toggle' | 'aggressive' | 'defensive' | 'follow' | 'target' | 'recall' | 'sync' | 'switch') {
     const s = G.save;
     if (!s.echoes.length) {
       G.ui.toast('You have no Echoes yet.', 'warn');
       return;
     }
     switch (cmd) {
+      case 'switch':
+        this.switchSupport();
+        return;
       case 'toggle':
         if (this.echoes.length) this.dismissEchoes();
         else {
@@ -1157,7 +1259,7 @@ export class World {
 
     cam.apply(ctx);
     this.cache?.draw(ctx, v);
-    drawLiquids(ctx, this.grid, G.time, v);
+    drawLiquids(ctx, this.grid, G.time, v, this.room.biome);
     drawLiveProps(ctx, this.lights, G.time, v, this.cond, false);
     drawLiveProps(ctx, this.room.ents.filter((e) => e.t === 'decor' && e.k === 'banner'), G.time, v, this.cond, false);
     drawGate(ctx, this.grid, this.gateAmt);

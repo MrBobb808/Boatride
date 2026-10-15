@@ -31,6 +31,9 @@ export const ENEMY_STATS: Record<EnemyKind, EnemyStats> = {
   archer: { hp: 42, dmg: 13, poise: 16, xp: 18, silver: [3, 6], name: 'Hollow Archer' },
   sentinel: { hp: 170, dmg: 20, poise: 60, xp: 55, silver: [8, 14], name: 'Fallen Sentinel' },
   wisp: { hp: 30, dmg: 10, poise: 10, xp: 16, silver: [2, 4], name: 'Veil Wisp' },
+  brute: { hp: 420, dmg: 26, poise: 130, xp: 85, silver: [12, 20], name: 'Ironbound Brute' },
+  bulwark: { hp: 280, dmg: 18, poise: 110, xp: 64, silver: [10, 16], name: 'Shieldwall Bulwark' },
+  knight: { hp: 210, dmg: 22, poise: 70, xp: 70, silver: [10, 16], name: 'Crimson Knight' },
 };
 
 export const CORRUPT = { glow: '#b04cff', eye: '#ff3355', outline: '#07050a' };
@@ -214,6 +217,13 @@ export abstract class Enemy extends Entity {
   groanT = rand(3, 8);
   def: { x: number; y: number };
   scale = 1;
+  /** Broken tanks can be launched and juggled. */
+  juggleWhenBroken = false;
+  /** Damage taken while staggered/broken. */
+  brokenMul = 1.25;
+  /** Tanks survive executions (they take a heavy chunk instead). */
+  tank = false;
+  execUsed = false;
 
   constructor(kind: EnemyKind, x: number, y: number, w: number, h: number, elite: string | null) {
     super(x, y, w, h);
@@ -236,7 +246,7 @@ export abstract class Enemy extends Entity {
   }
 
   executable() {
-    return this.staggered > 0 && !this.dying;
+    return this.staggered > 0 && !this.dying && !this.execUsed;
   }
 
   setState(s: string, clip?: string, blend = 0.08, speed = 1) {
@@ -302,7 +312,7 @@ export abstract class Enemy extends Entity {
       this.body.vx = approach(this.body.vx, 0, 500 * dt);
       if (this.staggered <= 0) {
         this.poise = this.maxPoise;
-        this.setState('idle', 'idle', 0.2);
+        this.onRecover();
       }
     } else {
       if (this.poiseDelay > 0) this.poiseDelay -= dt;
@@ -327,13 +337,17 @@ export abstract class Enemy extends Entity {
 
   groan() {}
   abstract think(dt: number): void;
+  /** Called when a stagger ends. */
+  onRecover() {
+    this.setState('idle', 'idle', 0.2);
+  }
 
   takeHit(h: HitInfo): boolean {
     if (this.dying || this.invuln > 0) return false;
     let dmg = h.dmg;
     this.aggro = true;
     if (this.guardCheck(h)) return true;
-    if (this.staggered > 0) dmg *= 1.25;
+    if (this.staggered > 0) dmg *= this.brokenMul;
     dmg = Math.max(1, Math.round(dmg));
     this.hp -= dmg;
     this.hpBarT = 3;
@@ -360,9 +374,9 @@ export abstract class Enemy extends Entity {
       }
     }
     if (!this.heavyBody && !h.noKnock) {
-      const kb = this.superArmor && this.staggered <= 0 ? 0.25 : 1;
+      const kb = this.superArmor && this.staggered <= 0 ? 0.25 : this.tank ? 0.55 : 1;
       this.body.vx = h.kx * kb;
-      if (h.launch && this.staggered <= 0) {
+      if (h.launch && (this.staggered <= 0 || this.juggleWhenBroken)) {
         this.body.vy = h.ky;
         this.airborne = true;
       } else if (h.ky < -150 && !this.body.onGround) {
@@ -1252,14 +1266,5 @@ export class Wisp extends Enemy {
   }
 }
 
-export function makeEnemy(kind: EnemyKind, x: number, y: number, elite: string | null = null): Enemy {
-  switch (kind) {
-    case 'husk': return new Husk(x, y, elite);
-    case 'hound': return new Hound(x, y, elite);
-    case 'archer': return new Archer(x, y, elite);
-    case 'sentinel': return new Sentinel(x, y, elite);
-    case 'wisp': return new Wisp(x, y, elite);
-  }
-}
 
 export { choose, circle };

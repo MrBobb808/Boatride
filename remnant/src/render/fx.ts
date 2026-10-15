@@ -28,6 +28,7 @@ interface Arc {
 interface Ring { x: number; y: number; r0: number; r1: number; life: number; max: number; c: string; w: number; flat: number }
 interface Num { x: number; y: number; vy: number; text: string; life: number; max: number; c: string; size: number }
 interface Column { x: number; y: number; w: number; h: number; life: number; max: number; c: string }
+interface Streak { x0: number; y0: number; x1: number; y1: number; life: number; max: number; c: string; w: number }
 
 export class FX {
   ps: Particle[] = [];
@@ -35,6 +36,7 @@ export class FX {
   rings: Ring[] = [];
   nums: Num[] = [];
   cols: Column[] = [];
+  streaks: Streak[] = [];
   flashA = 0;
   flashC = '#ffffff';
   tint = 0;
@@ -53,6 +55,7 @@ export class FX {
     this.rings.length = 0;
     this.nums.length = 0;
     this.cols.length = 0;
+    this.streaks.length = 0;
     this.flashA = 0;
   }
 
@@ -128,6 +131,11 @@ export class FX {
     this.rings.push({ x, y, r0, r1, life, max: life, c, w, flat });
   }
 
+  /** A bright line that thins and fades: blink paths and lightning-quick dashes. */
+  streak(x0: number, y0: number, x1: number, y1: number, c = '#ffe6a8', life = 0.22, w = 3) {
+    this.streaks.push({ x0, y0, x1, y1, life, max: life, c, w });
+  }
+
   column(x: number, y: number, w: number, h: number, c: string, life = 0.8) {
     this.cols.push({ x, y, w, h, life, max: life, c });
   }
@@ -171,6 +179,7 @@ export class FX {
     for (let i = this.arcs.length - 1; i >= 0; i--) if ((this.arcs[i].life -= dt) <= 0) this.arcs.splice(i, 1);
     for (let i = this.rings.length - 1; i >= 0; i--) if ((this.rings[i].life -= dt) <= 0) this.rings.splice(i, 1);
     for (let i = this.cols.length - 1; i >= 0; i--) if ((this.cols[i].life -= dt) <= 0) this.cols.splice(i, 1);
+    for (let i = this.streaks.length - 1; i >= 0; i--) if ((this.streaks[i].life -= dt) <= 0) this.streaks.splice(i, 1);
     for (let i = this.nums.length - 1; i >= 0; i--) {
       const n = this.nums[i];
       n.life -= dt;
@@ -318,6 +327,29 @@ export class FX {
       ctx.lineWidth = r.w * (1 - t * 0.6);
       ctx.beginPath();
       ctx.ellipse(r.x, r.y, rad, rad * r.flat, 0, 0, TAU);
+      ctx.stroke();
+    }
+    // Streaks: a wide haze and a hot core, both tapering toward the start point.
+    ctx.lineCap = 'round';
+    for (const st of this.streaks) {
+      const t = 1 - st.life / st.max;
+      const a = 1 - t;
+      const sx = st.x0 + (st.x1 - st.x0) * Math.min(0.85, t * 1.6), sy = st.y0 + (st.y1 - st.y0) * Math.min(0.85, t * 1.6);
+      const g = ctx.createLinearGradient(sx, sy, st.x1, st.y1);
+      g.addColorStop(0, rgba(st.c, 0));
+      g.addColorStop(1, rgba(st.c, 0.55 * a));
+      ctx.globalAlpha = 1;
+      ctx.strokeStyle = g;
+      ctx.lineWidth = st.w * 2.4 * (1 - t * 0.5);
+      ctx.beginPath();
+      ctx.moveTo(sx, sy);
+      ctx.lineTo(st.x1, st.y1);
+      ctx.stroke();
+      const g2 = ctx.createLinearGradient(sx, sy, st.x1, st.y1);
+      g2.addColorStop(0, 'rgba(255,255,255,0)');
+      g2.addColorStop(1, rgba('#ffffff', 0.95 * a));
+      ctx.strokeStyle = g2;
+      ctx.lineWidth = st.w * 0.6 * (1 - t * 0.6);
       ctx.stroke();
     }
     // Light columns.

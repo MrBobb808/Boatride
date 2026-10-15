@@ -27,7 +27,12 @@ const DJUMP_V = 400;
 
 export const DIMS = { torso: 12.5, head: 4.6, neck: 1.5, upperArm: 7, foreArm: 6.6, thigh: 8.2, shin: 8.2, shoulderSpread: 1.4, hipSpread: 1.5 };
 
-type PState = 'free' | 'attack' | 'charge' | 'dodge' | 'airdash' | 'parry' | 'block' | 'hurt' | 'heal' | 'cast' | 'execute' | 'plunge' | 'dead' | 'scripted';
+type PState = 'free' | 'attack' | 'charge' | 'dodge' | 'airdash' | 'parry' | 'block' | 'hurt' | 'heal' | 'cast' | 'execute' | 'plunge' | 'dead' | 'scripted' | 'phantom';
+
+/** Covenant Energy spent per Phantom Step blink, and for Judgment Cross. */
+const PHANTOM_COST = 5;
+const CROSS_COST = 10;
+const COMBO_RANKS: [number, string][] = [[50, 'REMNANT'], [35, 'UNBROKEN'], [20, 'RELENTLESS'], [10, 'FIERCE']];
 
 interface Ghost { x: number; y: number; face: number; pose: Pose; a: number; rot: number }
 
@@ -89,6 +94,27 @@ export class Player extends Entity {
   private drawnFace = 1;
   private turnAt = -1;
   attackHeldFrom = 0;
+  /** Combo counter: hits landed in a row, reset after a short lull. */
+  comboHits = 0;
+  comboT = 0;
+  bestCombo = 0;
+  lastHitAt = -9;
+  /** Phantom Step chain state. */
+  phantomN = 0;
+  phantomUntil = 0;
+  phantomLast: Entity | null = null;
+  phantomStruck = new Set<number>();
+  phantomTarget: Entity | null = null;
+  phantomFrom = { x: 0, y: 0 };
+  phantomTo = { x: 0, y: 0 };
+  /** Index of the current hit inside a multi-hit attack. */
+  atkSeg = -1;
+  atkStartAt = 0;
+  /** The attack that just finished stays "open" briefly for branch inputs. */
+  linger: string | null = null;
+  lingerT = 0;
+  /** Buffered Heavy press, so branch inputs made a beat early still count. */
+  heavyQ = 0;
   ceRegenDelay = 0;
   aura = 0;
   stepCount = 0;
@@ -180,7 +206,8 @@ export class Player extends Entity {
     return G.save.keyItems.includes('eagle_wings');
   }
   isInvuln() {
-    return this.invuln > 0 || this.untouchable > 0 || this.state === 'execute' || this.state === 'dead' ||
+    return this.invuln > 0 || this.untouchable > 0 || this.state === 'execute' || this.state === 'dead' || this.state === 'phantom' ||
+      (this.state === 'attack' && (this.atk?.id === 'cross' || this.atk?.id === 'pstrike') && this.atkT < 0.12) ||
       (this.state === 'dodge' && this.st > 0.02 && this.st < 0.28) || (this.state === 'airdash' && this.st < 0.15) || this.shieldT > 0 || G.inCutscene;
   }
 
@@ -226,6 +253,17 @@ export class Player extends Entity {
     this.shieldT = Math.max(0, this.shieldT - dt);
     this.veiled = Math.max(0, this.veiled - dt);
     this.landT = Math.max(0, this.landT - dt);
+    this.lingerT = Math.max(0, this.lingerT - dt);
+    if (this.lingerT <= 0) this.linger = null;
+    if (this.phantomN > 0 && G.time > this.phantomUntil && this.state !== 'phantom') {
+      this.phantomN = 0;
+      this.phantomStruck.clear();
+      this.phantomLast = null;
+    }
+    if (this.comboHits > 0) {
+      this.comboT -= dt;
+      if (this.comboT <= 0) this.endCombo();
+    }
     for (const k of Object.keys(this.cds) as AbilityId[]) this.cds[k] = Math.max(0, (this.cds[k] ?? 0) - dt);
     // Covenant Energy regeneration
     if (flag('relic_taken')) {
@@ -249,7 +287,8 @@ export class Player extends Entity {
 
     // physics
     let g = GRAV;
-    if (this.state === 'airdash' || this.state === 'execute') g = 0;
+    if (this.state === 'airdash' || this.state === 'execute' || this.state === 'phantom') g = 0;
+    else if (this.state === 'attack' && (this.atk?.id === 'pstrike' || this.atk?.id === 'cross') && !b.onGround) g = GRAV * 0.22;
     else if (this.state === 'attack' && this.atk?.air) g = GRAV * (this.atk.id === 'air3' ? 0.9 : 0.32);
     else if (this.state === 'charge' && !b.onGround) g = GRAV * 0.5;
     if (b.vy < 0 && !input.down('jump') && this.state === 'free' && !this.launchCarry) b.vy += GRAV * 0.9 * dt;
@@ -318,7 +357,7 @@ export class Player extends Entity {
   }
 
   onLand(vy: number) {
-    if (this.state === 'plunge') {
+    if (this.state === 'plunge' || (this.state === 'attack' && this.atk?.dive)) {
       this.plungeImpact();
       return;
     }
@@ -342,6 +381,7 @@ export class Player extends Entity {
       this.queuedT = 0.28;
       this.attackHeldFrom = G.time;
     }
+    this.heavyQ = input.pressed('heavy') ? 0.26 : Math.max(0, this.heavyQ - dt);
 
     switch (this.state) {
       case 'free': {
@@ -468,6 +508,9 @@ export class Player extends Entity {
       case 'execute':
         this.updateExecute(dt);
         break;
+      case 'phantom':
+        this.updatePhantom();
+        break;
       case 'plunge': {
         b.vx = approach(b.vx, 0, 600 * dt);
         b.vy = Math.max(b.vy, 520);
@@ -486,6 +529,11 @@ export class Player extends Entity {
   private tryActions(dt: number) {
     const b = this.body;
     const s = G.save;
+    if (this.queued === 'attack' && this.phantomN >= 3 && G.time < this.phantomUntil && G.save.ce >= CROSS_COST) {
+      this.queued = null;
+      this.startCross();
+      return;
+    }
     // Execution has priority on attack.
     if (input.pressed('attack') || (this.queued === 'attack' && this.queuedT > 0.2)) {
       const ex = G.world.executionTarget(this);
@@ -499,12 +547,43 @@ export class Player extends Entity {
       this.startCounter();
       return;
     }
+    // Phantom Step: Dodge right after landing a hit blinks behind the foe.
+    if (input.pressed('dodge') && this.canPhantom()) {
+      this.startPhantom();
+      return;
+    }
+    // Branches that open for a moment after an attack ends.
+    if (this.linger) {
+      const m = this.moves;
+      if (this.queued === 'attack' && b.onGround && this.linger === m.combo[1].id) {
+        this.queued = null;
+        this.startAttack(m.flurry);
+        return;
+      }
+      if (this.queued === 'attack' && this.linger === m.dash.id) {
+        this.queued = null;
+        this.startAttack(m.comet);
+        return;
+      }
+      if (this.heavyQ > 0 && b.onGround && (this.linger === m.combo[2].id || this.linger === m.extra.id)) {
+        this.heavyQ = 0;
+        this.startAttack(m.storm);
+        return;
+      }
+      if ((this.heavyQ > 0 || this.queued === 'attack') && !b.onGround && this.linger === m.air[2].id) {
+        this.heavyQ = 0;
+        this.queued = null;
+        this.startAttack(m.rend);
+        return;
+      }
+    }
     if (input.pressed('dodge')) {
       if (b.onGround) this.startDodge();
       else if (this.airDash > 0) this.startAirDash();
       return;
     }
-    if (input.pressed('heavy')) {
+    if (input.pressed('heavy') || this.heavyQ > 0) {
+      this.heavyQ = 0;
       if (b.onGround) this.startCharge(false);
       else this.startPlunge();
       return;
@@ -561,7 +640,9 @@ export class Player extends Entity {
     }
     if (input.pressed('echo')) {
       G.ui.echoWheel(true);
+      return;
     }
+    if (input.pressed('switch')) G.world.switchSupport();
   }
 
   tryCast(id: AbilityId | null) {
@@ -641,10 +722,13 @@ export class Player extends Entity {
   startAttack(a: AttackDef) {
     this.atk = a;
     this.atkT = 0;
+    this.atkSeg = -1;
+    this.atkStartAt = G.time;
     this.atkHit.clear();
+    this.linger = null;
     this.setState('attack');
     this.anim.play(a.clip, 0.04, true, 1 / (a.dur / this.aspd()));
-    if (a.rise && input.down('up')) {
+    if (a.rise && (input.down('up') || a.forceRise)) {
       this.body.vy = a.rise;
       this.body.onGround = false;
       this.launchCarry = true;
@@ -663,7 +747,15 @@ export class Player extends Entity {
     this.atkT += dt;
     const u = this.atkT / dur;
     // lunge
-    if (a.lunge && a.lungeT && u >= a.lungeT[0] && u <= a.lungeT[1] && (b.onGround || a.id === 'dash')) {
+    if (a.dive) {
+      if (u >= a.hit[0]) {
+        b.vx = this.face * 230;
+        b.vy = Math.max(b.vy, 470);
+      } else {
+        b.vx = approach(b.vx, 0, 900 * dt);
+        b.vy = Math.min(b.vy, -40);
+      }
+    } else if (a.lunge && a.lungeT && u >= a.lungeT[0] && u <= a.lungeT[1] && (b.onGround || a.id === 'dash' || a.id === 'flurry')) {
       const ahead = G.world.enemyAhead(this, 14);
       b.vx = this.face * a.lunge * (ahead ? 0.25 : 1);
     } else {
@@ -673,7 +765,25 @@ export class Player extends Entity {
     // hits
     if (u >= a.hit[0] && u <= a.hit[1]) {
       if (this.atkT - dt < a.hit[0] * dur) this.onSwing(a);
+      if (a.multi && a.multi > 1) {
+        const seg = Math.min(a.multi - 1, Math.floor(((u - a.hit[0]) / (a.hit[1] - a.hit[0])) * a.multi));
+        if (seg !== this.atkSeg) {
+          this.atkSeg = seg;
+          this.atkHit.clear();
+          this.onSubHit(a, seg);
+        }
+      }
+      if (a.pull) G.world.pullFoes(this.x, this.y - 20, a.pull, dt);
       this.activeHits(a, 1);
+    }
+    // Phantom Step out of any swing that has connected.
+    if (u >= a.hit[0] && input.pressed('dodge') && this.canPhantom()) {
+      this.startPhantom();
+      return;
+    }
+    // Holding attack through the third strike whirls into Storm of Edges (touch-friendly).
+    if (b.onGround && a.id === this.moves.combo[2].id && input.down('attack') && G.time - this.attackHeldFrom > 0.24 && u > 0.5) {
+      return this.startAttack(this.moves.storm);
     }
     // charge on hold (touch-friendly): still holding attack after the first swing
     if (!a.air && input.down('attack') && G.time - this.attackHeldFrom > 0.26 && u > 0.45 && this.combo === 0 && a.id === this.moves.combo[0].id) {
@@ -682,6 +792,34 @@ export class Player extends Entity {
     }
     // cancels
     if (u >= a.cancel) {
+      const m = this.moves;
+      // Branch combos.
+      if (this.heavyQ > 0 && b.onGround && (a.id === m.combo[2].id || a.id === m.extra.id)) {
+        this.heavyQ = 0;
+        return this.startAttack(m.storm);
+      }
+      if (!b.onGround && a.id === m.air[2].id && (this.heavyQ > 0 || (this.queued === 'attack' && this.airAttacks >= 3))) {
+        this.heavyQ = 0;
+        this.queued = null;
+        return this.startAttack(m.rend);
+      }
+      if (this.queued === 'attack' && a.id === m.dash.id) {
+        this.queued = null;
+        return this.startAttack(m.comet);
+      }
+      if (this.queued === 'attack' && (a.id === 'pstrike' || a.id === 'cross')) {
+        this.queued = null;
+        if (a.id === 'pstrike' && this.phantomN >= 3 && G.save.ce >= CROSS_COST) return this.startCross();
+        if (!b.onGround) {
+          if (this.airAttacks < 3) {
+            this.startAttack(m.air[Math.min(this.airAttacks, 2)]);
+            this.airAttacks++;
+          }
+          return;
+        }
+        this.combo = 1;
+        return this.startAttack(m.combo[1]);
+      }
       if (input.pressed('dodge')) {
         if (b.onGround) this.startDodge();
         else if (this.airDash > 0) this.startAirDash();
@@ -731,10 +869,160 @@ export class Player extends Entity {
       }
     }
     if (u >= 1) {
+      if (a.auto) {
+        const next = (this.moves as unknown as Record<string, AttackDef>)[a.auto];
+        if (next) return this.startAttack(next);
+      }
       this.setState('free');
       this.atk = null;
       if (!a.air) this.combo = 0;
+      this.linger = a.id;
+      this.lingerT = 0.34;
     }
+  }
+
+  /** Effects for each hit inside a multi-hit attack. */
+  private onSubHit(a: AttackDef, seg: number) {
+    const f = this.face;
+    if (seg > 0) sfx(a.id === 'flurry' ? 'swing' : 'swingHeavy', { vol: 0.55, pitch: rand(1.05, 1.3), gap: 30 });
+    if (a.id === 'flurry') {
+      const y = this.y - 30 + rand(-6, 6);
+      fx.streak(this.x + f * 6, y, this.x + f * rand(34, 44), y + rand(-3, 3), '#fff1c4', 0.12, 2);
+    } else if (a.id === 'storm') {
+      const dir = seg % 2 ? -1 : 1;
+      fx.slash(this.x, this.y - 22, 30, -2.6, 0.5, 9, dir, '#fffaf0', '#e8c27a', 0.16, rand(-0.3, 0.3));
+      fx.dust(this.x, this.y, 3, 1);
+    } else if (a.id === 'cross') {
+      const dir = seg === 0 ? 1 : -1;
+      fx.slash(this.x + f * 14, this.y - 30, 40, dir > 0 ? -2.4 : 2.4, dir > 0 ? 0.8 : -0.8, 13, f, '#ffffff', '#ffcf6b', 0.3, dir * 0.4);
+      fx.flash('#fff6dc', 0.25);
+      G.camera.punch = 0.05;
+    } else if (a.id === 'comet') {
+      fx.slash(this.x + f * 4, this.y - 30, 30, 1.2, -1.9, 9, f, '#fffaf0', '#e8c27a', 0.18);
+    } else if (a.id === 'rend') {
+      fx.streak(this.x - f * 18, this.y - 40, this.x + f * 8, this.y - 6, '#ffe6a8', 0.18, 3);
+    }
+  }
+
+  // ---------------------------------------------------------------- combo counter
+  private registerHit() {
+    this.comboHits++;
+    this.comboT = 1.7;
+    this.lastHitAt = G.time;
+    if (this.comboHits > this.bestCombo) this.bestCombo = this.comboHits;
+    if (this.comboHits > (G.save.bestCombo ?? 0)) G.save.bestCombo = this.comboHits;
+  }
+
+  comboRank(): string {
+    for (const [n, name] of COMBO_RANKS) if (this.comboHits >= n) return name;
+    return '';
+  }
+
+  private endCombo() {
+    const n = this.comboHits;
+    this.comboHits = 0;
+    this.comboT = 0;
+    if (n >= 10 && this.state !== 'dead') {
+      const bonus = Math.round(n * (n >= 35 ? 1.6 : n >= 20 ? 1.2 : 0.8));
+      G.world.giveXp(bonus);
+      G.world.addRally(n * 0.4);
+    }
+  }
+
+  // ---------------------------------------------------------------- Phantom Step
+  /** A foe worth blinking to, or null. Prefers ones this chain has not struck yet. */
+  private findPhantomTarget(): Entity | null {
+    const foes = G.world.foes().filter((e) => e.canBeTargeted() && Math.abs(e.x - this.x) < 150 && Math.abs(e.y - this.y) < 100);
+    if (!foes.length) return null;
+    const dist = (e: Entity) => Math.hypot(e.x - this.x, (e.y - this.y) * 0.7);
+    foes.sort((a, b) => dist(a) - dist(b));
+    if (this.phantomN > 0) {
+      const fresh = foes.find((e) => e !== this.phantomLast && !this.phantomStruck.has(e.id));
+      if (fresh) return fresh;
+      const other = foes.find((e) => e !== this.phantomLast);
+      if (other && foes.length > 1) return other;
+    }
+    return foes[0];
+  }
+
+  canPhantom(): boolean {
+    if (!flag('phantom')) return false;
+    if (this.state === 'phantom') return false;
+    const recent = G.time - this.lastHitAt < 0.65 || (this.phantomN > 0 && G.time < this.phantomUntil);
+    if (!recent || G.save.ce < PHANTOM_COST) return false;
+    return !!this.findPhantomTarget();
+  }
+
+  startPhantom() {
+    const t = this.findPhantomTarget();
+    if (!t) return;
+    G.save.ce -= PHANTOM_COST;
+    this.ceRegenDelay = 0.6;
+    // Arrive on the far side of the foe; if a wall is there, take the near side.
+    const side = this.phantomN > 0 && t === this.phantomLast ? -sign(this.x - t.x) || this.face : sign(t.x - this.x) || this.face;
+    const off = t.body.w / 2 + 11;
+    let tx = t.x + side * off;
+    const ty = t.y;
+    const blocked = (x: number) => G.world.solidAt(x, ty - 6) || G.world.solidAt(x, ty - 26) || x < 8 || x > G.world.grid.w * 16 - 8;
+    if (blocked(tx)) tx = t.x - side * off;
+    if (blocked(tx)) tx = this.x;
+    this.phantomFrom = { x: this.x, y: this.y };
+    this.phantomTo = { x: tx, y: ty };
+    this.phantomTarget = t;
+    this.phantomLast = t;
+    this.phantomStruck.add(t.id);
+    this.phantomN++;
+    this.phantomUntil = G.time + 1.0;
+    this.atk = null;
+    this.queued = null;
+    this.setState('phantom');
+    this.body.vx = this.body.vy = 0;
+    this.ghosts.push({ x: this.x, y: this.y, face: this.face, pose: { ...this.pose }, a: 0.9, rot: this.pose.rot });
+    fx.spawn(PK.Smoke, this.x, this.y - 18, 0, -20, 0.5, 6, 16, '#1a1220', -20, 2);
+    for (let i = 0; i < 8; i++) fx.spawn(PK.Spark, this.x + rand(-6, 6), this.y - rand(6, 34), rand(-60, 60), rand(-60, 20), 0.25, 1.4, 0.3, '#ffe6a8', 0, 4);
+    sfx('dash', { vol: 0.8, pitch: 1.6 + Math.min(0.6, this.phantomN * 0.1) });
+    G.world.hitstop(0.02);
+  }
+
+  private updatePhantom() {
+    if (this.st < 0.075) return;
+    const t = this.phantomTarget;
+    this.x = this.phantomTo.x;
+    this.y = this.phantomTo.y;
+    this.body.vx = this.body.vy = 0;
+    this.body.onGround = false;
+    fx.streak(this.phantomFrom.x, this.phantomFrom.y - 20, this.x, this.y - 22, '#ffe6a8', 0.22, 3);
+    fx.ring(this.x, this.y - 20, 4, 26, '#ffe6a8', 0.25, 2);
+    if (t) this.face = sign(t.x - this.x) || this.face;
+    const n = this.phantomN;
+    const strike = { ...this.moves.pstrike, dmg: this.moves.pstrike.dmg * (1 + Math.min(5, n - 1) * 0.15) };
+    this.startAttack(strike);
+    this.ghosts.push({ x: this.x - this.face * 8, y: this.y, face: this.face, pose: { ...this.pose }, a: 0.6, rot: 0 });
+    if (n === 3) G.ui.hint(`Judgment Cross ready: ${G.world.keyLabel('attack')}`);
+  }
+
+  startCross() {
+    const t = this.phantomLast && !this.phantomLast.dying ? this.phantomLast : this.findPhantomTarget();
+    G.save.ce -= CROSS_COST;
+    this.phantomN = 0;
+    this.phantomStruck.clear();
+    if (t) {
+      const side = sign(this.x - t.x) || -this.face;
+      const tx = t.x + side * (t.body.w / 2 + 14);
+      if (!G.world.solidAt(tx, t.y - 10) && !G.world.solidAt(tx, t.y - 30)) {
+        fx.streak(this.x, this.y - 20, tx, t.y - 24, '#fff6dc', 0.25, 4);
+        this.x = tx;
+        this.y = t.y;
+      }
+      this.face = sign(t.x - this.x) || this.face;
+    }
+    this.body.vx = 0;
+    this.body.vy = -120;
+    this.startAttack(this.moves.cross);
+    G.world.slowmo(0.35, 0.35);
+    sfx('chargeFull', { pitch: 1.3 });
+    fx.ring(this.x, this.y - 24, 6, 60, '#fff1c4', 0.35, 3);
+    G.ui.hint(null);
   }
 
   onSwing(a: AttackDef) {
@@ -760,6 +1048,7 @@ export class Player extends Entity {
       src: this, launch: a.launch, heavy: (a.finisher ?? false) || a.id === 'heavy', guardBreak: a.guardBreak, stop: a.stop,
     };
     const n = G.world.hitEnemies(box, hit, this.atkHit, (e) => {
+      this.registerHit();
       // per-hit feedback
       G.save.ce = Math.min(d.maxCe, G.save.ce + (flag('relic_taken') ? 2.4 * (skillRank(G.save, 'l_radiance') ? 1.3 : 1) : 0));
       G.world.addRally(1.4);
@@ -1056,6 +1345,13 @@ export class Player extends Entity {
       ctx.restore();
     }
     ctx.globalAlpha = 1;
+    // Mid-blink: nothing but a wisp where Elior will appear.
+    if (this.state === 'phantom') {
+      ctx.globalCompositeOperation = 'lighter';
+      glow(ctx, this.phantomTo.x, this.phantomTo.y - 20, 18, '#ffe6a8', 0.6);
+      ctx.globalCompositeOperation = 'source-over';
+      return;
+    }
     // cape & scarf (world space, behind body)
     const lv = G.save.level;
     if (lv >= 7 || (s.plate && s.plate.tier >= 2)) {
@@ -1075,7 +1371,13 @@ export class Player extends Entity {
       this.turnAt = t;
     }
     const tu = Math.max(0, Math.min(1, (t - this.turnAt) / 0.1));
-    const turnS = this.state === 'free' ? 0.6 + 0.4 * (1 - (1 - tu) * (1 - tu)) : 1;
+    let turnS = this.state === 'free' ? 0.6 + 0.4 * (1 - (1 - tu) * (1 - tu)) : 1;
+    if (this.state === 'attack' && this.atk?.spin) {
+      // Whirl: the sprite narrows and flips as it turns about its own axis.
+      const su = clamp(this.atkT / (this.atk.dur / this.aspd()), 0, 1);
+      const c = Math.cos(su * Math.PI * 2 * this.atk.spin);
+      turnS = Math.sign(c || 1) * Math.max(0.12, Math.abs(c));
+    }
     ctx.save();
     ctx.translate(this.x, this.y);
     ctx.scale(this.face * turnS, 1);

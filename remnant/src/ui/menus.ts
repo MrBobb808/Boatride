@@ -23,7 +23,7 @@ import { saveSlot, listSlots, deleteSlot, loadSlot, exportCode, importCode, SLOT
 import { formatTime, clamp } from '../core/math';
 import { solve, newJoints } from '../render/skeleton';
 import { drawHumanoid } from '../render/actors';
-import { SENT_DIMS, SENT_BASE, ARCH_DIMS, ARCH_BASE, sentinelStyle, archerStyle } from '../game/enemies';
+import { kitFor } from '../game/echoes';
 import { TILE } from '../game/tiles';
 import { FONT_DISPLAY } from '../render/draw';
 import { returnToTitle, startNewGamePlus, loadGameSlot } from '../app';
@@ -355,7 +355,37 @@ function skillsTab() {
       h('div', { class: 'box', style: 'flex:1;min-width:260px' }, h('h3', null, `Ability loadout · ${s.skillPoints} skill point${s.skillPoints === 1 ? '' : 's'}`), h('p', { class: 'muted', style: 'margin:0 0 6px;font-size:0.85em' }, 'Pick a slot, then an ability.'), loadout, h('div', { style: 'margin-top:8px' }, owned)),
       h('div', { style: 'flex:1;min-width:260px' }, detail),
     ),
+    techniques(),
     trees,
+  );
+}
+
+/** Move list: every combo route, with inputs shown for the device in use. */
+function techniques() {
+  const s = G.save;
+  const touch = input.lastDevice === 'touch';
+  const K = (a: Action) => (touch ? ({ attack: 'Attack', heavy: 'hold Attack', dodge: 'Dodge', parry: 'Parry', up: 'stick up', down: 'stick down', jump: 'Jump' } as Record<string, string>)[a] ?? a : input.label(a));
+  const phantom = !!flag('phantom');
+  const rows: [string, string, string, boolean][] = [
+    ['Combo', `${K('attack')} ×3`, 'Strike, strike, finisher.', true],
+    ['Seventy Times Seven', `${K('attack')}, ${K('attack')}, pause, ${K('attack')}`, 'A storm of thrusts that ends in a driving lunge.', true],
+    ['Storm of Edges', touch ? 'hold Attack on the third strike' : `${K('heavy')} during the third strike`, 'Whirl with the blade out, dragging foes into the cut.', true],
+    ['Phantom Step', `land a hit, then ${K('dodge')}`, 'Blink behind your foe and strike. Tap again to blink around every enemy nearby. 5 energy each.', phantom],
+    ['Judgment Cross', `after 3 Phantom Steps, ${K('attack')}`, 'A crossing cut that breaks guards and launches. 10 energy.', phantom],
+    ['Rising Comet', `${K('dodge')} ${K('attack')} (dash strike), then ${K('attack')}`, 'Carry your foe skyward with you.', true],
+    ['Launcher', `${K('up')} + ${K('attack')}`, 'Lift a foe; jump to follow it up.', true],
+    ['Air Combo', `${K('attack')} ×3 in the air`, 'Keeps you and your foe aloft.', true],
+    ["Heaven's Rend", `after an air combo, ${touch ? 'Attack again' : K('heavy')}`, 'Drill down through everything beneath you.', true],
+    ['Plunge', `${K('down')} + ${K('attack')} in the air`, 'Crash down with a shockwave.', true],
+    ['Charged Strike', `hold ${touch ? 'Attack' : K('heavy')}`, 'Three charge levels; the last breaks guards.', true],
+    ['Parry & Counter', `${K('parry')} as a blow lands, then ${K('attack')}`, 'Turn their strength against them.', true],
+    ['Execution', `${K('attack')} a staggered foe`, 'Ends the weak, maims the strong.', true],
+  ];
+  return h('div', { class: 'box' },
+    h('h3', null, `Techniques · best combo ${s.bestCombo ?? 0} hits`),
+    h('div', { class: 'list' }, rows.map(([name, inputs, desc, ok]) => h('div', { class: 'row-item', style: ok ? '' : 'opacity:0.45' },
+      h('div', null, h('div', { class: 'nm' }, name + (ok ? '' : ' (not yet learned)')), h('div', { class: 'sub' }, `${inputs} · ${desc}`)),
+    ))),
   );
 }
 
@@ -366,11 +396,12 @@ let ecSel: string | null = null;
 function echoPortrait(e: EchoInst) {
   const c = h('canvas', { width: '140', height: '168' });
   const ctx = c.getContext('2d')!;
-  const sent = e.species === 'sentinel';
-  const j = solve(sent ? SENT_BASE : ARCH_BASE, sent ? SENT_DIMS : ARCH_DIMS, true, newJoints());
+  const kit = kitFor(e.species);
+  const j = solve(kit.base, kit.dims, true, newJoints());
   ctx.translate(70, 160);
-  ctx.scale(2.6, 2.6);
-  drawHumanoid(ctx, j, sent ? sentinelStyle('echo', e.stage) : archerStyle('echo', e.stage), 0);
+  const sc = 2.6 * Math.min(1, 42 / kit.h);
+  ctx.scale(sc, sc);
+  drawHumanoid(ctx, j, kit.style(e.stage), 0);
   return c;
 }
 
@@ -389,7 +420,7 @@ function echoesTab() {
     const esp = ECHO_SPECIES[e.species];
     const active = s.active.includes(e.uid);
     return h('button', { class: 'row-item' + (e.uid === ecSel ? ' sel' : ''), 'data-nav': '', 'data-k': 'ec_' + e.uid, onclick: () => { ecSel = e.uid; render(); } },
-      img(e.species === 'sentinel' ? 'sentinel_echo' : 'archer_echo', '#fff3c4'),
+      img(e.species === 'archer' ? 'archer_echo' : 'sentinel_echo', '#fff3c4'),
       h('div', null, h('div', { class: 'nm' }, esp.stages[e.stage].name + (e.commander ? ' ★' : '')), h('div', { class: 'sub' }, `${esp.cls} · Level ${e.level} · ${esp.stages[e.stage].title}`)),
       h('span', { class: 'tag' }, active ? 'ACTIVE' : 'RESERVE'));
   }));
@@ -724,7 +755,7 @@ function settingsTab() {
       row('Button opacity', '', slider(st.touchOpacity, 0.3, 1, 0.05, (v) => (st.touchOpacity = v), 'top')),
       row('Left-handed layout', 'Moves the buttons to the left and the stick to the right.', toggle(st.leftHanded, (v) => (st.leftHanded = v), 'lh')),
     ) : null,
-    h('div', { class: 'box' }, h('h3', null, 'Keyboard'), h('p', { class: 'muted', style: 'margin:0 0 6px;font-size:0.85em' }, 'Select a binding, then press the new key. Controllers use a fixed layout: A jump, X attack, Y heavy, B dodge, LB parry, RB/LT/RT skills, D-pad ↑ interact, D-pad ↓ Balm, L3 Echoes, R3 Rally, Start menu.'),
+    h('div', { class: 'box' }, h('h3', null, 'Keyboard'), h('p', { class: 'muted', style: 'margin:0 0 6px;font-size:0.85em' }, 'Select a binding, then press the new key. Controllers use a fixed layout: A jump, X attack, Y heavy, B dodge, LB parry, RB/LT/RT skills, D-pad ↑ interact, D-pad ↓ Balm, L3 Echoes, R3 Rally, View switch Echo, Start menu.'),
       binds, h('div', { style: 'margin-top:8px' }, btn('Reset all settings', () => { resetSettings(); applyTextSize(); renderAny(); }, 'btn small', { 'data-k': 'reset' }))),
     h('div', { class: 'box' }, h('h3', null, 'Save backup'),
       h('p', { class: 'muted', style: 'margin:0 0 6px;font-size:0.85em' }, 'On iPhone, the Home Screen app and Safari keep separate saves. Copy a code from one and import it in the other.'),

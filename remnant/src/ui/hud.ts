@@ -128,7 +128,7 @@ export function drawHud(ctx: Ctx, dt: number) {
   // ----- echoes
   for (const e of G.world.echoes) {
     const sp = ECHO_SPECIES[e.inst.species];
-    ctx.drawImage(icon(e.sentinel ? 'sentinel_echo' : 'archer_echo', '#fff3c4', 32), hx, cy, 12 * u, 12 * u);
+    ctx.drawImage(icon(e.kit.ranged ? 'archer_echo' : 'sentinel_echo', '#fff3c4', 32), hx, cy, 12 * u, 12 * u);
     text(ctx, sp.stages[e.inst.stage].name + (e.inst.commander ? ' ★' : ''), hx + 15 * u, cy + 4 * u, `600 ${7.5 * u}px ${FONT_DISPLAY}`, '#ece4d4', 'left');
     ctx.fillStyle = 'rgba(255,255,255,0.1)';
     ctx.fillRect(hx + 15 * u, cy + 8 * u, 70 * u, 2.5 * u);
@@ -139,7 +139,7 @@ export function drawHud(ctx: Ctx, dt: number) {
   for (const inst of s.echoes) {
     if ((inst.downFor ?? 0) > 0 && s.active.includes(inst.uid)) {
       ctx.globalAlpha = 0.5;
-      ctx.drawImage(icon(inst.species === 'sentinel' ? 'sentinel_echo' : 'archer_echo', '#9a90a4', 32), hx, cy, 12 * u, 12 * u);
+      ctx.drawImage(icon(inst.species === 'archer' ? 'archer_echo' : 'sentinel_echo', '#9a90a4', 32), hx, cy, 12 * u, 12 * u);
       text(ctx, `returns in ${Math.ceil(inst.downFor ?? 0)}s`, hx + 15 * u, cy + 6 * u, `600 ${7.5 * u}px ${FONT_DISPLAY}`, '#9a90a4', 'left');
       ctx.globalAlpha = 1;
       cy += 15 * u;
@@ -253,7 +253,62 @@ export function drawHud(ctx: Ctx, dt: number) {
       text(ctx, input.label('ultimate'), x + 4 * u, yb + 6 * u, `700 ${7 * u}px ${FONT_DISPLAY}`, '#ece4d4', 'left');
     }
   }
+  drawCombo(ctx, W, H, u, touch, sar);
   if (settings.showFps) text(ctx, `${fps.toFixed(0)} fps · q${r.tier}`, W / 2, H - 6 - sab, `600 ${9}px ${FONT_DISPLAY}`, '#9b92a6', 'center');
+  ctx.restore();
+}
+
+let comboShown = 0;
+let comboPop = 0;
+let comboFade = 0;
+let comboLast = 0;
+
+/** Hit counter on the right edge: pops on every hit, ranks at 10/20/35/50. */
+function drawCombo(ctx: Ctx, W: number, H: number, u: number, touch: boolean, sar: number) {
+  const p = G.world.player;
+  const n = p.comboHits;
+  if (n !== comboShown) {
+    if (n > comboShown) comboPop = 1;
+    if (n > 0) comboLast = n;
+    comboShown = n;
+  }
+  comboPop = Math.max(0, comboPop - 0.12);
+  comboFade = n >= 3 ? Math.min(1, comboFade + 0.2) : Math.max(0, comboFade - 0.05);
+  if (comboFade <= 0) return;
+  const shown = n >= 3 ? n : comboLast;
+  const x = W - sar - (touch ? 74 : 26) * u;
+  const y = H * (touch ? 0.36 : 0.42);
+  ctx.save();
+  ctx.globalAlpha *= comboFade;
+  const sc = 1 + comboPop * 0.35;
+  ctx.translate(x, y);
+  ctx.scale(sc, sc);
+  const rank = n >= 3 ? p.comboRank() : '';
+  const hot = n >= 20;
+  ctx.font = `900 ${26 * u}px ${FONT_DISPLAY}`;
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'alphabetic';
+  ctx.lineWidth = 4;
+  ctx.lineJoin = 'round';
+  ctx.strokeStyle = 'rgba(6,4,10,0.9)';
+  ctx.strokeText(String(shown), 0, 0);
+  const g = ctx.createLinearGradient(0, -24 * u, 0, 0);
+  g.addColorStop(0, '#fff6dc');
+  g.addColorStop(0.55, hot ? '#ffcf6b' : '#f2d48a');
+  g.addColorStop(1, hot ? '#e2733a' : '#b8914a');
+  ctx.fillStyle = g;
+  ctx.fillText(String(shown), 0, 0);
+  ctx.restore();
+  ctx.save();
+  ctx.globalAlpha *= comboFade;
+  text(ctx, 'HITS', x, y + 9 * u, `700 ${8 * u}px ${FONT_DISPLAY}`, '#e2b85a', 'right');
+  if (rank) text(ctx, rank, x, y + 21 * u, `700 ${9.5 * u}px ${FONT_DISPLAY}`, hot ? '#ffcf6b' : '#f6dea0', 'right');
+  // Time left before the chain drops.
+  const f = clamp(p.comboT / 1.7, 0, 1);
+  ctx.fillStyle = 'rgba(8,6,12,0.7)';
+  ctx.fillRect(x - 46 * u, y + 28 * u, 46 * u, 2.5 * u);
+  ctx.fillStyle = hot ? '#ffcf6b' : '#e2b85a';
+  ctx.fillRect(x - 46 * u * f, y + 28 * u, 46 * u * f, 2.5 * u);
   ctx.restore();
 }
 

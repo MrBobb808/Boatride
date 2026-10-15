@@ -65,6 +65,9 @@ export class Idol extends Entity {
   executable() {
     return this.staggered > 0 && !this.dying && this.state === 'kneel';
   }
+  canBeTargeted() {
+    return !this.dying && this.state !== 'dormant' && this.state !== 'intro' && this.state !== 'transition' && this.state !== 'dead';
+  }
 
   hurtbox() {
     const kneel = this.state === 'kneel' ? 60 : 0;

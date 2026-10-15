@@ -59,6 +59,10 @@ export abstract class Entity {
   executable(): boolean {
     return false;
   }
+  /** Can Elior's homing moves (Phantom Step, Echo targeting) pick this? */
+  canBeTargeted(): boolean {
+    return this.isFoe && !this.dying && !this.remove;
+  }
 
   constructor(x: number, y: number, w: number, h: number) {
     this.body = makeBody(x, y, w, h);

@@ -12,7 +12,7 @@ export const CHAR_TILE: Record<string, T> = {
   '~': T.Veil, 'w': T.Water, 'X': T.Collapse, 'S': T.Seal, 'G': T.Gate,
 };
 
-export type Biome = 'sanctuary' | 'village' | 'temple' | 'crypt' | 'sanctum';
+export type Biome = 'sanctuary' | 'village' | 'temple' | 'crypt' | 'sanctum' | 'plain' | 'tower';
 
 export type EntDef =
   | { t: 'enemy'; k: EnemyKind; x: number; y: number; face?: number; elite?: string; cond?: string; ncond?: string }
@@ -28,7 +28,7 @@ export type EntDef =
   | { t: 'decor'; k: string; x: number; y: number; w?: number; h?: number; v?: number; flip?: boolean; fg?: boolean; cond?: string; ncond?: string }
   | { t: 'boss'; k: 'idol'; x: number; y: number };
 
-export type EnemyKind = 'husk' | 'hound' | 'archer' | 'sentinel' | 'wisp';
+export type EnemyKind = 'husk' | 'hound' | 'archer' | 'sentinel' | 'wisp' | 'brute' | 'bulwark' | 'knight';
 export type NpcKind = 'azriel' | 'mara' | 'tobiah' | 'ilan' | 'dov' | 'regent';
 
 export interface Loot {

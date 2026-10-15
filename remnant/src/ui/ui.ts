@@ -278,6 +278,7 @@ const hooks: UIHooks = {
       { id: 'target', label: 'Mark target', icon: 'target' },
       { id: 'recall', label: 'Recall', icon: 'recall' },
       { id: 'sync', label: W.syncCd > 0 ? `Sync ${Math.ceil(W.syncCd)}s` : 'Sync strike', icon: 'sync' },
+      { id: 'switch', label: W.switchCd > 0 ? `Switch ${Math.ceil(W.switchCd)}s` : s.echoes.length > G.d.echoSlots ? 'Switch in' : 'Exchange', icon: 'switch' },
     ];
     const ring = h('div', { class: 'wheel-ring' });
     const n = items.length;

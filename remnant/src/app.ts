@@ -1,7 +1,7 @@
 // Application lifecycle: title → intro → game, loading saves, New Game+.
 
 import { G } from './game/ctx';
-import { newGame, derive, type SaveData } from './game/state';
+import { newGame, derive, migrateSave, type SaveData } from './game/state';
 import { saveSlot, loadSlot, requestPersistence } from './game/save';
 import { music } from './audio/music';
 import { input } from './core/input';
@@ -20,6 +20,7 @@ export function setAppHooks(h: Hooks) {
 }
 
 function enterGame(s: SaveData, slot: number, room: string, spawn: string) {
+  migrateSave(s);
   G.save = s;
   G.slot = slot;
   G.d = derive(s);

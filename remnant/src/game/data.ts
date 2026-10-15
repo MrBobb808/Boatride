@@ -266,6 +266,58 @@ export const ECHO_SPECIES: Record<string, EchoSpecies> = {
       { name: 'Dawnpiercer', title: 'Stage III', desc: 'A winged crest of light and a bow strung with sunrise.', ability: 'Rain of Dawn: calls a rain of light arrows on its target.' },
     ],
   },
+  brute: {
+    id: 'brute',
+    cls: 'Colossus',
+    baseHp: 260,
+    baseAtk: 20,
+    evolveLv: [5, 9],
+    evolveCost: [{ covenant_fragment: 2, iron_scrap: 4 }, { covenant_fragment: 4, radiant_core: 1 }],
+    stages: [
+      { name: 'Ironbound Brute', title: 'Stage I', desc: 'A hulking frame in riveted iron, its maul bound with gold.', ability: 'Smash: an overhead blow that shakes the ground and breaks guards.' },
+      { name: 'Covenant Breaker', title: 'Stage II', desc: 'Black-and-gold plate and a maul that hums with light.', ability: 'Earthbreaker: every smash sends a shockwave rolling along the ground.' },
+      { name: 'Mountain of the Remnant', title: 'Stage III', desc: 'Crowned in white flame, slow as a hillside and as hard to move.', ability: 'Unmoved: draws every foe\'s eye and shrugs off half of every blow.' },
+    ],
+  },
+  bulwark: {
+    id: 'bulwark',
+    cls: 'Sentinel',
+    baseHp: 210,
+    baseAtk: 12,
+    evolveLv: [4, 8],
+    evolveCost: [{ covenant_fragment: 2, sentinel_steel: 2 }, { covenant_fragment: 3, radiant_core: 1 }],
+    stages: [
+      { name: 'Shieldwall Bulwark', title: 'Stage I', desc: 'A tower shield bigger than a door, and the patience to hold it.', ability: 'Shieldwall: stands before you and stops arrows and bolts aimed your way.' },
+      { name: 'Covenant Bulwark', title: 'Stage II', desc: 'The shield now bears the covenant sigil in gold.', ability: 'Shove: its shield bash staggers and stuns.' },
+      { name: 'Wall of the Remnant', title: 'Stage III', desc: 'A blazing shield that turns back the dark.', ability: 'Bastion: allies near it take 20% less damage.' },
+    ],
+  },
+  knight: {
+    id: 'knight',
+    cls: 'Vanguard',
+    baseHp: 150,
+    baseAtk: 17,
+    evolveLv: [4, 8],
+    evolveCost: [{ covenant_fragment: 2 }, { covenant_fragment: 3, radiant_core: 1 }],
+    stages: [
+      { name: 'Crimson Knight', title: 'Stage I', desc: 'A duelist of the tower guard, red cloak and quick blade.', ability: 'Riposte: strikes twice in quick succession.' },
+      { name: 'Covenant Knight', title: 'Stage II', desc: 'Its crimson is trimmed with gold now.', ability: 'Lunge: closes distance with a driving thrust.' },
+      { name: 'Knight of the Morning', title: 'Stage III', desc: 'A blade wreathed in dawn-fire.', ability: 'Three-step: its combos run three strikes deep.' },
+    ],
+  },
+  marshal: {
+    id: 'marshal',
+    cls: 'Warden',
+    baseHp: 300,
+    baseAtk: 30,
+    evolveLv: [6, 10],
+    evolveCost: [{ covenant_fragment: 3, radiant_core: 1 }, { covenant_fragment: 5, radiant_core: 2 }],
+    stages: [
+      { name: 'The Crimson Marshal', title: 'Stage I', desc: 'The tower\'s greatest knight, his oath given anew. Red cloak, black steel, a sword that never wavers.', ability: 'Marshal\'s Edge: three-strike combos and a blinding lunge. Nearby Echoes fight harder.' },
+      { name: 'Marshal of the Covenant', title: 'Stage II', desc: 'Black-and-gold plate under a crimson mantle.', ability: 'Shadowless Step: blinks behind his target before striking.' },
+      { name: 'Oathkeeper', title: 'Stage III', desc: 'A crest of white flame and a blade that cuts the dark itself.', ability: 'Edge of Dawn: his finishers loose a crescent of light.' },
+    ],
+  },
 };
 
 export interface EchoInst {

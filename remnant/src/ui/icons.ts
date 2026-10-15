@@ -295,6 +295,18 @@ const ICONS: Record<string, Draw> = {
     line(x, [26, 26, 16, 6], 2.6);
     line(x, [16, 28, 16, 10], 2.6);
   },
+  switch: (x) => {
+    // Two arrows trading places.
+    x.lineWidth = 2.4;
+    x.beginPath();
+    x.arc(16, 16, 9, Math.PI * 1.05, Math.PI * 1.95);
+    x.stroke();
+    fillPoly(x, [26, 12, 24, 20, 19, 13]);
+    x.beginPath();
+    x.arc(16, 16, 9, Math.PI * 0.05, Math.PI * 0.95);
+    x.stroke();
+    fillPoly(x, [6, 20, 8, 12, 13, 19]);
+  },
   toggle: (x) => {
     x.lineWidth = 2.4;
     x.beginPath();

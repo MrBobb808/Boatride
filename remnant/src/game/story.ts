@@ -257,12 +257,13 @@ export class Story {
       { who: 'elior', text: 'Here am I.' },
     ]);
     setFlag('relic_taken');
+    setFlag('phantom');
     G.save.keyItems.push('relic_shard');
     grantAbility(G.save, 'sword_word');
     G.d = derive(G.save);
     G.save.ce = G.d.maxCe;
     W.player.styleKey = '';
-    G.ui.banner('COVENANT AWAKENED', 'Covenant Energy · Sword of the Word · Rally the Remnant', 'ability');
+    G.ui.banner('COVENANT AWAKENED', 'Covenant Energy · Sword of the Word · Phantom Step · Rally the Remnant', 'ability');
     G.ui.refreshHud();
     await wait(2.8);
     // The guardian of the chamber arrives.
@@ -280,7 +281,7 @@ export class Story {
     G.ui.banner('FALLEN SENTINEL', 'Last Warden of the First Lamp', 'boss');
     await wait(1.2);
     this.cine(false);
-    G.ui.hint(this.fmt('Its shield turns aside light blows. Strike from behind, charge a heavy attack, or press {skill1} for the Sword of the Word.'));
+    G.ui.hint(this.fmt('Its shield turns aside light blows. Land a hit, then press {dodge} to Phantom Step behind it — or charge a heavy attack, or press {skill1}.'));
     setTimeout(() => G.ui.hint(null), 9000);
     this.quest('m_dark', 1);
   }
@@ -615,7 +616,7 @@ export class Story {
   async purify(e: Enemy) {
     const W = G.world;
     const s = G.save;
-    const species = e.kind === 'archer' ? 'archer' : 'sentinel';
+    const species = ({ archer: 'archer', brute: 'brute', bulwark: 'bulwark', knight: 'knight' } as Record<string, string>)[e.kind] ?? 'sentinel';
     const first = s.echoes.length === 0;
     this.cine(true);
     W.player.anim.play('invoke', 0.15, true);

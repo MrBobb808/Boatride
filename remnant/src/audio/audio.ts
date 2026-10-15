@@ -604,6 +604,33 @@ export const SFX: Record<string, SfxFn> = {
     a.noiseHit(t, 1.8, d, 'bandpass', 400, 1.2, 0.6 * v, 160, 0.2);
     metal(a, t + 0.1, 140, 0.6 * v, d, 1.4);
   },
+  roar(a, t, v, p, pan) {
+    const d = a.out(pan, 0.7);
+    for (const det of [-25, 0, 25]) a.osc('sawtooth', 90 * p, t, 0.9, d, 0.07 * v, 0.08, 62 * p, det);
+    a.noiseHit(t, 0.9, d, 'bandpass', 520 * p, 1.4, 0.45 * v, 220, 0.1);
+  },
+  bite(a, t, v, p, pan) {
+    const d = a.out(pan, 0.4);
+    a.noiseHit(t, 0.12, d, 'bandpass', 1400 * p, 1.8, 0.5 * v, 400, 0.005);
+    a.osc('square', 140 * p, t, 0.08, d, 0.12 * v, 0.002, 70);
+    metal(a, t + 0.02, 300 * p, 0.3 * v, d, 0.12);
+  },
+  flame(a, t, v, p, pan) {
+    const d = a.out(pan, 0.6);
+    a.noiseHit(t, 1.1, d, 'lowpass', 1100 * p, 0.6, 0.55 * v, 600, 0.12);
+    a.noiseHit(t, 1.0, d, 'bandpass', 2400 * p, 0.8, 0.18 * v, 1200, 0.2);
+  },
+  howl(a, t, v, p, pan) {
+    const d = a.out(pan, 1.2);
+    for (const det of [-12, 0, 12]) a.osc('triangle', 260 * p, t, 1.5, d, 0.08 * v, 0.3, 380 * p, det);
+    a.osc('sawtooth', 130 * p, t, 1.4, d, 0.05 * v, 0.3, 190 * p);
+  },
+  clash(a, t, v, p, pan) {
+    const d = a.out(pan, 0.9);
+    metal(a, t, 640 * p, 1.1 * v, d, 0.7);
+    metal(a, t + 0.012, 980 * p, 0.6 * v, d, 0.5);
+    a.noiseHit(t, 0.06, d, 'highpass', 4500, 1, 0.3 * v);
+  },
   bossSlam(a, t, v, p, pan) {
     const d = a.out(pan, 0.9);
     a.osc('sine', 70, t, 0.9, d, v, 0.002, 25);

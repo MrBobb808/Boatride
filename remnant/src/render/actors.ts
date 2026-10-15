@@ -29,7 +29,7 @@ export interface HumanStyle {
   eye: string;
   eyeGlow: number;
   outline: string;
-  weapon: 'blade' | 'spear' | 'greatsword' | 'none' | 'claws' | 'hammer' | 'book' | 'staff';
+  weapon: 'blade' | 'spear' | 'greatsword' | 'none' | 'claws' | 'hammer' | 'book' | 'staff' | 'maul';
   weaponColor?: string;
   weaponGlow?: string | null;
   weaponGlowAmt?: number;
@@ -884,6 +884,39 @@ function drawWeapon(ctx: Ctx, j: Joints, S: HumanStyle, time: number): WeaponPts
       const cx = hx + dx * 10, cy = hy + dy * 10;
       poly(ctx, [cx - px * 3.5 - dx, cy - py * 3.5 - dy, cx + px * 3.5 - dx, cy + py * 3.5 - dy, cx + px * 3.5 + dx * 2.5, cy + py * 3.5 + dy * 2.5, cx - px * 3.5 + dx * 2.5, cy - py * 3.5 + dy * 2.5],
         lineGrad(ctx, cx - dx, cy - dy, cx + dx * 2.5, cy + dy * 2.5, '#55555c', 0, 0, true), o, 0.5);
+      break;
+    }
+    case 'maul': {
+      // A two-handed war maul: long iron-shod haft, spiked block head.
+      const L = 24;
+      const x0 = hx - dx * 7, y0 = hy - dy * 7, x1 = hx + dx * L, y1 = hy + dy * L;
+      limbShaded(ctx, x0, y0, x1, y1, 1.2, 1.2, '#4a3626', o, 0.5);
+      for (const t of [0.35, 0.7]) {
+        const rx0 = x0 + (x1 - x0) * t, ry0 = y0 + (y1 - y0) * t;
+        limbShaded(ctx, rx0 - dx * 0.8, ry0 - dy * 0.8, rx0 + dx * 0.8, ry0 + dy * 0.8, 1.55, 1.55, '#6a6470', o, 0.4, true);
+      }
+      const hw = 6.5, hl = 5.5, cx = x1, cy = y1;
+      const head = [cx - px * hw - dx * 1.5, cy - py * hw - dy * 1.5, cx + px * hw - dx * 1.5, cy + py * hw - dy * 1.5, cx + px * hw + dx * hl, cy + py * hw + dy * hl, cx - px * hw + dx * hl, cy - py * hw + dy * hl];
+      poly(ctx, head, fillOf(steel, () => lineGrad(ctx, cx - px * hw, cy - py * hw, cx + px * hw, cy + py * hw, steel, 0, 0, true)), o, 0.7);
+      for (const sg of [-1, 1]) {
+        const bx = cx + px * sg * hw, by = cy + py * sg * hw;
+        poly(ctx, [bx - dx * 0.5, by - dy * 0.5, bx + dx * 4, by + dy * 4, bx + px * sg * 3.6 + dx * 1.75, by + py * sg * 3.6 + dy * 1.75], shadeable(steel) ? shade(steel, -0.15) : steel, o, 0.5);
+      }
+      if (fine) {
+        ctx.beginPath();
+        ctx.moveTo(cx - px * hw * 0.8 + dx * hl * 0.5, cy - py * hw * 0.8 + dy * hl * 0.5);
+        ctx.lineTo(cx + px * hw * 0.8 + dx * hl * 0.5, cy + py * hw * 0.8 + dy * hl * 0.5);
+        ctx.strokeStyle = 'rgba(0,0,0,0.35)';
+        ctx.lineWidth = 0.5;
+        ctx.stroke();
+      }
+      if (glowC && ga > 0) {
+        ctx.globalCompositeOperation = 'lighter';
+        glow(ctx, cx + dx * 2, cy + dy * 2, 9 + ga * 6, glowC, 0.4 * ga);
+        if (S.weaponFlame) glow(ctx, cx + dx * 2, cy + dy * 2 - 3, 6, '#fff6dc', 0.5 + Math.sin(time * 9) * 0.15);
+        ctx.globalCompositeOperation = 'source-over';
+      }
+      w.bx = x1 - dx * 6; w.by = y1 - dy * 6; w.tx = cx + dx * hl; w.ty = cy + dy * hl;
       break;
     }
     case 'book': {
