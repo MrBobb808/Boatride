@@ -27,6 +27,7 @@ import { music } from '../audio/music';
 import { shakeScale, settings } from '../core/settings';
 import { guidePoint } from './guide';
 import { tickStatus, powerTier, SOVEREIGN_LV } from './power';
+import { MANTLE_LV, mantleTier, mantlePerks, announceMantle } from './mantle';
 import { updatePending, applyUpdate } from '../core/update';
 import { FINISHERS } from './finishers';
 import { ITEMS, ECHO_SPECIES, type Rarity } from './data';
@@ -131,6 +132,8 @@ export class World {
     p.face = sp.face ?? 1;
     p.scarf.reset(p.x, p.y - 28);
     p.cape.reset(p.x, p.y - 26);
+    p.cloak.reset(p.x, p.y - 26);
+    p.eyeN = 0;
     p.ghosts.length = 0;
     p.trail.length = 0;
     p.lastSafe = { x: p.x, y: p.y };
@@ -734,6 +737,11 @@ export class World {
         });
       } else if (powerTier(s.level) > powerTier(lvBefore)) {
         this.after(2.6, () => G.ui.toast('Your strikes grow heavier and brighter.', 'good'));
+      }
+      // The Shadow Mantle wakes at 25 and deepens at 50, 75 and 100.
+      if (lvBefore < MANTLE_LV && s.level >= MANTLE_LV) announceMantle(3.6);
+      else if (lvBefore >= MANTLE_LV && mantleTier(s.level) > mantleTier(lvBefore)) {
+        this.after(3, () => G.ui.toast(`Your Shadow Mantle deepens: ${mantlePerks()}.`, 'good'));
       }
       if (G.d.echoSlots > slotsBefore) {
         // A wider covenant: bring benched Echoes into the line automatically.

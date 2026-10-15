@@ -14,6 +14,7 @@ import { ELEMENTS, weaponElement, powerTier, isSovereign, bolt, type Element } f
 import { EchoUnit } from './echoes';
 import { makeEcho, skillRank } from './state';
 import type { Player } from './player';
+import { mantleOn } from './mantle';
 
 export type FinId = 'verdict' | 'shadowstep' | 'severance' | 'thousand' | 'skyfall' | 'requiem' | 'element' | 'arise';
 
@@ -32,7 +33,9 @@ export const FINISHERS: FinisherDef[] = [
 
 export function unlockedFinishers(level = G.save.level) {
   const el = weaponElement();
-  return FINISHERS.filter((f) => level >= f.level && (f.id !== 'element' || el));
+  // In the Shadow Mantle any execution may end in Arise.
+  const shade = mantleOn();
+  return FINISHERS.filter((f) => (level >= f.level || (f.id === 'arise' && shade)) && (f.id !== 'element' || el));
 }
 
 let recent: FinId[] = [];

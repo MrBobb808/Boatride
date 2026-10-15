@@ -6,13 +6,13 @@ export type Action =
   | 'left' | 'right' | 'up' | 'down'
   | 'jump' | 'attack' | 'heavy' | 'dodge' | 'parry'
   | 'skill1' | 'skill2' | 'skill3'
-  | 'interact' | 'heal' | 'echo' | 'ultimate' | 'switch'
+  | 'interact' | 'heal' | 'echo' | 'ultimate' | 'switch' | 'transform'
   | 'menu' | 'map'
   | 'confirm' | 'back' | 'tabL' | 'tabR';
 
 export const ACTIONS: Action[] = [
   'left', 'right', 'up', 'down', 'jump', 'attack', 'heavy', 'dodge', 'parry',
-  'skill1', 'skill2', 'skill3', 'interact', 'heal', 'echo', 'ultimate', 'switch', 'menu', 'map',
+  'skill1', 'skill2', 'skill3', 'interact', 'heal', 'echo', 'ultimate', 'switch', 'transform', 'menu', 'map',
   'confirm', 'back', 'tabL', 'tabR',
 ];
 
@@ -20,7 +20,7 @@ export const ACTION_LABELS: Partial<Record<Action, string>> = {
   left: 'Move left', right: 'Move right', up: 'Look up / Interact', down: 'Crouch / Drop',
   jump: 'Jump', attack: 'Attack (hold: charge)', heavy: 'Heavy attack', dodge: 'Dodge / Dash',
   parry: 'Parry (hold: block)', skill1: 'Skill 1', skill2: 'Skill 2', skill3: 'Skill 3',
-  interact: 'Interact', heal: 'Balm (heal)', echo: 'Echo command wheel', ultimate: 'Rally the Remnant', switch: 'Switch support Echo',
+  interact: 'Interact', heal: 'Balm (heal)', echo: 'Echo command wheel', ultimate: 'Rally the Remnant', switch: 'Switch support Echo', transform: 'Shadow Mantle (transform)',
   menu: 'Pause menu', map: 'World map',
 };
 
@@ -44,6 +44,7 @@ export const DEFAULT_KEYS: Record<Action, string[]> = {
   echo: ['KeyC'],
   ultimate: ['KeyT'],
   switch: ['KeyX'],
+  transform: ['KeyG'],
   menu: ['Escape', 'Tab'],
   map: ['KeyM'],
   confirm: ['Enter', 'Space', 'KeyJ'],
@@ -55,8 +56,8 @@ export const DEFAULT_KEYS: Record<Action, string[]> = {
 // Standard gamepad mapping (Xbox naming).
 const PAD: Partial<Record<Action, number[]>> = {
   jump: [0], dodge: [1], attack: [2], heavy: [3], parry: [4], skill1: [5], skill2: [6], skill3: [7],
-  switch: [8], menu: [9], ultimate: [11], up: [12], down: [13], left: [14], right: [15],
-  confirm: [0], back: [1], tabL: [4], tabR: [5], interact: [12], echo: [10], heal: [13],
+  switch: [8], menu: [9], up: [12], down: [13], left: [14], right: [15],
+  confirm: [0], back: [1], tabL: [4], tabR: [5], interact: [12], heal: [13],
 };
 
 type Listener = (a: Action, repeat: boolean) => void;
@@ -87,6 +88,10 @@ export class Input {
   private deviceCbs: ((d: Device) => void)[] = [];
   gamepadConnected = false;
   enabled = true;
+  /** When each stick was clicked in (0 = up), and whether both were clicked together. */
+  private l3At = 0;
+  private r3At = 0;
+  private stickCombo = false;
 
   constructor() {
     window.addEventListener('keydown', (e) => this.onKey(e, true), { passive: false });
@@ -227,6 +232,21 @@ export class Input {
         if (pressed) any = true;
         if (pressed !== this.pad.has(a)) this.setSource(this.pad, a, pressed);
       }
+      // Stick clicks: L3 alone opens the Echo wheel, R3 alone rallies, both
+      // together call the Shadow Mantle. A lone click waits a few frames for
+      // its partner so the combo never also opens the wheel.
+      const l3 = !!gp.buttons[10]?.pressed, r3 = !!gp.buttons[11]?.pressed;
+      this.l3At = l3 ? this.l3At || now : 0;
+      this.r3At = r3 ? this.r3At || now : 0;
+      if (l3 && r3) this.stickCombo = true;
+      else if (!l3 && !r3) this.stickCombo = false;
+      const stick: [Action, boolean][] = [
+        ['transform', this.stickCombo],
+        ['echo', !this.stickCombo && l3 && now - this.l3At > 70],
+        ['ultimate', !this.stickCombo && r3 && now - this.r3At > 70],
+      ];
+      for (const [a, v] of stick) if (v !== this.pad.has(a)) this.setSource(this.pad, a, v);
+      if (l3 || r3) any = true;
       const ax = gp.axes[0] ?? 0, ay = gp.axes[1] ?? 0;
       const dz = 0.28;
       this.padAxisX = Math.abs(ax) > dz ? ax : 0;
@@ -321,7 +341,7 @@ export class Input {
     if (this.lastDevice === 'gamepad') {
       const names: Partial<Record<Action, string>> = {
         jump: 'A', dodge: 'B', attack: 'X', heavy: 'Y', parry: 'LB', skill1: 'RB', skill2: 'LT', skill3: 'RT',
-        interact: 'D-pad ↑', ultimate: 'R3', echo: 'L3', menu: 'Start', map: 'Select', heal: 'D-pad ↓', confirm: 'A', back: 'B',
+        interact: 'D-pad ↑', ultimate: 'R3', echo: 'L3', transform: 'L3+R3', menu: 'Start', map: 'Select', heal: 'D-pad ↓', confirm: 'A', back: 'B',
       };
       return names[a] ?? a;
     }

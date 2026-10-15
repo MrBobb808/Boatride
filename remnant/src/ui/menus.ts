@@ -22,6 +22,7 @@ import { ROOMS, chapterOf } from '../game/rooms';
 import { CH2_ROOM_IDS } from '../game/rooms2';
 import { guidePoint } from '../game/guide';
 import { FINISHERS } from '../game/finishers';
+import { MANTLE_LV, mantlePerks } from '../game/mantle';
 import { saveSlot, listSlots, deleteSlot, loadSlot, exportCode, importCode, SLOT_COUNT } from '../game/save';
 import { formatTime, clamp } from '../core/math';
 import { solve, newJoints } from '../render/skeleton';
@@ -383,6 +384,8 @@ function techniques() {
     ['Charged Strike', `hold ${touch ? 'Attack' : K('heavy')}`, 'Three charge levels; the last breaks guards.', true],
     ['Parry & Counter', `${K('parry')} as a blow lands, then ${K('attack')}`, 'Turn their strength against them.', true],
     ['Execution', `${K('attack')} a staggered foe`, 'Plays a finisher, picked at random from those you have learned.', true],
+    ['Shadow Mantle', `${touch ? 'the Mantle button' : K('transform')} with a full gauge${s.level >= MANTLE_LV ? '' : ` · level ${MANTLE_LV}`}`,
+      `Transform: a black cloak edged in blue-violet light and trailing shadow. ${mantlePerks(Math.max(MANTLE_LV, s.level))}. Fill the gauge by fighting.`, s.level >= MANTLE_LV],
     ...FINISHERS.map((f): [string, string, string, boolean] => [
       `Finisher: ${f.name}`, f.level > 1 ? `level ${f.level}${f.id === 'element' ? ', elemental weapon' : ''}` : 'from the start', f.desc, s.level >= f.level,
     ]),

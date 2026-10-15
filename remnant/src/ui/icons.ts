@@ -244,6 +244,15 @@ const ICONS: Record<string, Draw> = {
     fillPoly(x, [26, 10, 23, 13, 23, 20, 27, 24, 29, 18]);
     x.globalAlpha = 1;
   },
+  mantle: (x) => {
+    // A hooded figure whose eyes burn in the dark of the cowl.
+    fillPoly(x, [16, 3, 24, 9, 26, 18, 29, 29, 3, 29, 6, 18, 8, 9]);
+    x.globalCompositeOperation = 'destination-out';
+    fillPoly(x, [10.5, 13, 21.5, 13, 20.5, 21, 16, 23.5, 11.5, 21]);
+    x.globalCompositeOperation = 'source-over';
+    x.fillRect(12.4, 16.2, 2.8, 1.7);
+    x.fillRect(16.8, 16.2, 2.8, 1.7);
+  },
   rally: (x) => {
     x.lineWidth = 2;
     x.beginPath();

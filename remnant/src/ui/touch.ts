@@ -8,6 +8,7 @@ import { G, flag } from '../game/ctx';
 import { ABILITIES } from '../game/data';
 import { iconUrl } from './icons';
 import { safe } from './safe';
+import { mantleUnlocked } from '../game/mantle';
 
 interface TBtn {
   id: string;
@@ -37,6 +38,7 @@ const BTNS: TBtn[] = [
   { id: 'echo', act: 'echo', icon: 'echo', size: 46, dx: 232, dy: 30, label: 'Echoes' },
   { id: 'interact', act: 'interact', icon: 'interact', size: 54, dx: 226, dy: 104, label: '' },
   { id: 'switch', act: 'switch', icon: 'switch', size: 44, dx: 292, dy: 58, label: 'Switch' },
+  { id: 'mantle', act: 'transform', icon: 'mantle', size: 52, dx: 150, dy: 150, label: 'Mantle' },
   { id: 'menu', icon: 'menu', size: 40, dx: 0, dy: 0, label: '', corner: 'tr', ui: () => G.ui.openMenu() },
   { id: 'map', icon: 'map', size: 40, dx: 0, dy: 48, label: '', corner: 'tr', ui: () => G.ui.openMenu('map') },
 ];
@@ -71,7 +73,7 @@ export function initTouch(el: HTMLElement) {
     const d = document.createElement('div');
     d.className = 'tc' + (b.id === 'attack' ? ' big' : '') + (b.corner ? ' sq' : '');
     const im = document.createElement('img');
-    im.src = iconUrl(b.icon, '#f6dea0');
+    im.src = iconUrl(b.icon, b.id === 'mantle' ? '#d4d0ff' : '#f6dea0');
     im.alt = '';
     im.draggable = false;
     d.appendChild(im);
@@ -237,6 +239,16 @@ export function updateTouch() {
       const ready = s.rally >= 100;
       el.classList.toggle('glow', ready);
       b.cd!.style.background = ready ? 'none' : `conic-gradient(transparent ${(s.rally / 100) * 360}deg, rgba(0,0,0,0.6) 0)`;
+    } else if (b.id === 'mantle') {
+      // Fills like a clock face; while transformed it shows the time left.
+      show = mantleUnlocked();
+      const on = p.mantleT > 0;
+      const g = s.mantle ?? 0;
+      el.classList.toggle('shade', on || g >= 100);
+      el.classList.toggle('glow', !on && g >= 100);
+      b.cd!.style.background = on
+        ? `conic-gradient(rgba(111,123,255,0.5) ${(p.mantleT / Math.max(1, p.mantleMax)) * 360}deg, rgba(0,0,0,0.45) 0)`
+        : g >= 100 ? 'none' : `conic-gradient(transparent ${g * 3.6}deg, rgba(0,0,0,0.6) 0)`;
     } else if (b.id === 'echo') {
       show = s.echoes.length > 0;
     } else if (b.id === 'switch') {

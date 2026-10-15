@@ -12,6 +12,7 @@ import { QUESTS } from '../game/story';
 import { ROOMS, chapterOf } from '../game/rooms';
 import { CH2_ROOM_IDS } from '../game/rooms2';
 import { guidePoint } from '../game/guide';
+import { mantleUnlocked } from '../game/mantle';
 import { FONT_DISPLAY, FONT_BODY, roundRect, glow, type Ctx } from '../render/draw';
 import { clamp, lerp } from '../core/math';
 import { safe } from './safe';
@@ -98,6 +99,23 @@ export function drawHud(ctx: Ctx, dt: number) {
     ceShown = lerp(ceShown, cf, Math.min(1, dt * 8));
     bar(ctx, hx, cy, hw * 0.82, 6 * u, ceShown, ceShown, ['#3a2a10', '#c9a04a', '#fff3c4']);
     cy += 6 * u + 3 * u;
+  }
+  // ----- shadow mantle gauge (from level 25); while transformed, the time left
+  if (mantleUnlocked()) {
+    const pl = G.world.player;
+    const on = pl.mantleT > 0;
+    const f = on ? clamp(pl.mantleT / pl.mantleMax, 0, 1) : clamp((s.mantle ?? 0) / 100, 0, 1);
+    const full = on || f >= 1;
+    const mw = hw * 0.82;
+    bar(ctx, hx, cy, mw, 4 * u, f, f, full ? ['#14102e', '#6f7bff', '#e4e6ff'] : ['#120e24', '#4a4aa8', '#a9b4ff']);
+    if (full) {
+      ctx.globalCompositeOperation = 'lighter';
+      glow(ctx, hx + mw * f, cy + 2 * u, 10 * u, '#6f7bff', 0.45 + Math.sin(G.time * 6) * 0.2);
+      ctx.globalCompositeOperation = 'source-over';
+      const k = touch ? '' : ` · ${input.label('transform')}`;
+      text(ctx, on ? `SHADOW MANTLE ${Math.ceil(pl.mantleT)}s` : `MANTLE READY${k}`, hx + mw + 6 * u, cy + 2.5 * u, `700 ${7 * u}px ${FONT_DISPLAY}`, '#c8ccff', 'left');
+    }
+    cy += 4 * u + 3 * u;
   }
   // ----- xp
   const xf = clamp(s.xp / xpToNext(s.level), 0, 1);

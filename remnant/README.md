@@ -88,6 +88,23 @@ altar once that chapter is done (**Journey east**, **Journey on**).
   - Shadow drinks life and strikes twice.
   - Light sears great foes.
   - Crimson makes foes bleed.
+- **The Shadow Mantle (from level 25):** a transformation.
+  - Fighting fills the Mantle gauge (under the energy bar). Hits, kills,
+    parries and wounds all feed it.
+  - With a full gauge, transform: the world darkens, the shadows pour in,
+    then burst out and throw back everything nearby.
+  - Elior wears a black hooded cloak edged in blue-violet light, with
+    glowing eyes that streak light behind him. Shadow afterimages and black
+    flame trail his every move.
+  - While it lasts (18 seconds at first, 40 from level 100):
+    - 1.5× damage, quicker swings and feet.
+    - Half damage taken, and nothing staggers him.
+    - Free Phantom Steps.
+    - A shadow wave on every swing, and each cut drinks life and calls a
+      shadow blade.
+    - Fallen foes may rise as shadow soldiers, and executions can end in
+      Arise.
+  - It deepens at levels 50, 75 and 100 (up to 2.2× damage).
 - **Level 100, the Sovereign:** a black-and-gold form with violet eyes.
   - Every swing looses a crescent.
   - Phantom Step costs nothing.
@@ -150,6 +167,7 @@ deploys it to GitHub Pages on every push to the default branch that touches
 | **Echoes** | Echo command wheel: summon or dismiss, Aggressive / Defensive / Follow stance, mark target, recall, sync strike, switch |
 | **Switch** | Switch support: the next Echo tags in, or you trade places with one. It appears while Echoes are out. |
 | **Rally** | *Rally the Remnant* (once the gauge is full) |
+| **Mantle** | Transform into the *Shadow Mantle* (from level 25, once its gauge is full) |
 | Context button | Talk, open, rest, purify. It appears only when something is in reach. |
 | ☰ and map (top corner) | Menu and map |
 
@@ -172,6 +190,7 @@ left-handed layout, and turns haptics on or off.
 | C | Echo command wheel |
 | X | Switch support Echo |
 | T | Rally the Remnant |
+| G | Shadow Mantle (transform) |
 | F | Interact / purify |
 | M | Map |
 | Esc or Tab | Menu |
@@ -190,6 +209,7 @@ Every key can be rebound in **Settings → Keyboard**.
 | RB / LT / RT | Abilities |
 | R3 (right stick click) | Rally the Remnant |
 | L3 (left stick click) | Echo command wheel |
+| L3 + R3 together | Shadow Mantle (transform) |
 | D-pad ↑ | Interact |
 | D-pad ↓ | Balm |
 | View | Switch support Echo |

@@ -865,6 +865,62 @@ export const SFX: Record<string, SfxFn> = {
     bell(a, t + 1.1, mtof(38), 0.7 * v, d, 2.2);
     bell(a, t + 1.12, mtof(45), 0.45 * v, d, 2);
   },
+  transform(a, t, v) {
+    // The Shadow Mantle: darkness drawn in for 0.7 s, then a burst that shakes the room.
+    const d = a.out(0, 1.5);
+    const ctx = a.ctx!;
+    a.osc('sine', 38, t, 0.75, d, 0.32 * v, 0.62, 72);
+    a.noiseHit(t, 0.75, d, 'bandpass', 180, 2, 0.26 * v, 3200, 0.68);
+    a.noiseHit(t, 0.75, d, 'highpass', 900, 0.8, 0.08 * v, 5200, 0.7);
+    // A dark, detuned minor cluster opening up as the shadows gather.
+    const f = ctx.createBiquadFilter();
+    f.type = 'lowpass';
+    f.frequency.setValueAtTime(120, t);
+    f.frequency.exponentialRampToValueAtTime(2200, t + 0.72);
+    f.frequency.exponentialRampToValueAtTime(380, t + 1.9);
+    f.Q.value = 4;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.03 * v, t + 0.7);
+    g.gain.setTargetAtTime(0.0001, t + 0.9, 0.35);
+    f.connect(g);
+    g.connect(d);
+    for (const m of [29, 36, 39, 43, 46]) {
+      for (const det of [-11, 11]) {
+        const o = ctx.createOscillator();
+        o.type = 'sawtooth';
+        o.frequency.value = mtof(m);
+        o.detune.value = det;
+        o.connect(f);
+        o.start(t);
+        o.stop(t + 2.4);
+      }
+    }
+    // The burst.
+    const b = t + 0.72;
+    a.osc('sine', 74, b, 1.5, d, 0.85 * v, 0.003, 22);
+    a.osc('triangle', 160, b, 0.4, d, 0.2 * v, 0.003, 45);
+    a.noiseHit(b, 1.1, d, 'lowpass', 2400, 0.7, 0.6 * v, 70, 0.003);
+    a.noiseHit(b, 0.5, d, 'highpass', 5200, 0.6, 0.14 * v, 9000, 0.002);
+    metal(a, b, 82, 0.4 * v, d, 1.3);
+    bell(a, b + 0.02, mtof(50), 0.4 * v, d, 2.4);
+    bell(a, b + 0.04, mtof(57), 0.3 * v, d, 2.2);
+    bell(a, b + 0.06, mtof(62), 0.22 * v, d, 2);
+  },
+  mantleReady(a, t, v) {
+    const d = a.out(0, 1);
+    bell(a, t, mtof(62), 0.3 * v, d, 1.4);
+    bell(a, t + 0.09, mtof(69), 0.26 * v, d, 1.6);
+    a.osc('sine', 55, t, 0.5, d, 0.18 * v, 0.02, 40);
+    a.noiseHit(t, 0.4, d, 'bandpass', 5200, 4, 0.06 * v, 7000, 0.02);
+  },
+  mantleEnd(a, t, v) {
+    // The Mantle unravels: a falling breath of dark air.
+    const d = a.out(0, 0.8);
+    a.noiseHit(t, 0.6, d, 'bandpass', 2600, 1.2, 0.26 * v, 180, 0.04);
+    a.osc('sine', 230, t, 0.5, d, 0.1 * v, 0.02, 80);
+    a.osc('sine', 46, t, 0.6, d, 0.2 * v, 0.01, 30);
+  },
   teleport(a, t, v, p, pan) {
     // Dark air drawn inward, then a pop.
     const d = a.out(pan, 0.6);

@@ -19,8 +19,12 @@ import { castAbility } from './abilities';
 import { lighting } from '../render/lighting';
 import { shakeScale } from '../core/settings';
 import { Proj } from './projectiles';
-import { beginFinisher, updateFinisher, killBlow, type FinState } from './finishers';
+import { beginFinisher, updateFinisher, killBlow, riseAsShadow, type FinState } from './finishers';
 import { weaponElement, elementHit, powerTier, powerDamage, isSovereign, slashColors, drawAura, auraLight, ELEMENTS } from './power';
+import {
+  SHADE, SHADE_GHOST, mantleUnlocked, mantleGain, beginTransform, updateTransform, skipTransform, tickMantle, endMantle,
+  mantleStyle, drawMantleBack, drawMantleOverlay, mantleLights,
+} from './mantle';
 
 const GRAV = 1500;
 const MAX_FALL = 560;
@@ -30,14 +34,14 @@ const DJUMP_V = 400;
 
 export const DIMS = { torso: 12.5, head: 4.6, neck: 1.5, upperArm: 7, foreArm: 6.6, thigh: 8.2, shin: 8.2, shoulderSpread: 1.4, hipSpread: 1.5 };
 
-type PState = 'free' | 'attack' | 'charge' | 'dodge' | 'airdash' | 'parry' | 'block' | 'hurt' | 'heal' | 'cast' | 'execute' | 'plunge' | 'dead' | 'scripted' | 'phantom';
+type PState = 'free' | 'attack' | 'charge' | 'dodge' | 'airdash' | 'parry' | 'block' | 'hurt' | 'heal' | 'cast' | 'execute' | 'plunge' | 'dead' | 'scripted' | 'phantom' | 'transform';
 
 /** Covenant Energy spent per Phantom Step blink, and for Judgment Cross. */
 const PHANTOM_COST = 5;
 const CROSS_COST = 10;
 const COMBO_RANKS: [number, string][] = [[50, 'REMNANT'], [35, 'UNBROKEN'], [20, 'RELENTLESS'], [10, 'FIERCE']];
 
-interface Ghost { x: number; y: number; face: number; pose: Pose; a: number; rot: number }
+interface Ghost { x: number; y: number; face: number; pose: Pose; a: number; rot: number; shade?: boolean }
 
 export class Player extends Entity {
   anim: Animator;
@@ -124,6 +128,16 @@ export class Player extends Entity {
   ceRegenDelay = 0;
   aura = 0;
   stepCount = 0;
+  /** Shadow Mantle: seconds left in the form, its full length, and the transformation sequence. */
+  mantleT = 0;
+  mantleMax = 0;
+  transformT = 0;
+  burstDone = false;
+  shadeT = 0;
+  cloak: Chain;
+  /** Recent eye positions (x, y pairs) for the trail of light while transformed. */
+  eyeTrail = new Float32Array(20);
+  eyeN = 0;
 
   constructor(x: number, y: number) {
     super(x, y, 12, 34);
@@ -133,6 +147,7 @@ export class Player extends Entity {
     this.anim.onStep = () => this.footstep();
     this.scarf = new Chain(7, 3.2, x, y - 28);
     this.cape = new Chain(8, 3.8, x, y - 26);
+    this.cloak = new Chain(8, 3.7, x, y - 26);
     this.layer = 8;
     this.lastSafe = { x, y };
   }
@@ -152,7 +167,7 @@ export class Player extends Entity {
     const gl = getItem(s, s.equipment.gauntlets);
     const bt = getItem(s, s.equipment.boots);
     const wp = getItem(s, s.equipment.weapon);
-    const key = [helm?.id, armor?.id, gl?.id, bt?.id, wp?.id, wp?.plus, wp?.rarity, s.level, flag('relic_taken'), this.armorLight > 0].join('|');
+    const key = [helm?.id, armor?.id, gl?.id, bt?.id, wp?.id, wp?.plus, wp?.rarity, s.level, flag('relic_taken'), this.armorLight > 0, this.mantleT > 0].join('|');
     if (key === this.styleKey && this.style) return;
     this.styleKey = key;
     const hl = helm ? ITEMS[helm.id].look ?? 0 : -1;
@@ -210,6 +225,7 @@ export class Player extends Entity {
       bulk: 1,
       scarf: '#8f2a2a',
     };
+    if (this.mantleT > 0) this.style = mantleStyle(this.style);
   }
 
   // ---------------------------------------------------------------- helpers
@@ -220,7 +236,7 @@ export class Player extends Entity {
     return G.save.keyItems.includes('eagle_wings');
   }
   isInvuln() {
-    return this.invuln > 0 || this.untouchable > 0 || this.state === 'execute' || this.state === 'dead' || this.state === 'phantom' ||
+    return this.invuln > 0 || this.untouchable > 0 || this.state === 'execute' || this.state === 'dead' || this.state === 'phantom' || this.state === 'transform' ||
       (this.state === 'attack' && (this.atk?.id === 'cross' || this.atk?.id === 'pstrike') && this.atkT < 0.12) ||
       (this.state === 'dodge' && this.st > 0.02 && this.st < 0.28) || (this.state === 'airdash' && this.st < 0.15) || this.shieldT > 0 || G.inCutscene;
   }
@@ -301,7 +317,7 @@ export class Player extends Entity {
 
     // physics
     let g = GRAV;
-    if (this.state === 'airdash' || this.state === 'execute' || this.state === 'phantom') g = 0;
+    if (this.state === 'airdash' || this.state === 'execute' || this.state === 'phantom' || this.state === 'transform') g = 0;
     else if (this.state === 'attack' && (this.atk?.id === 'pstrike' || this.atk?.id === 'cross') && !b.onGround) g = GRAV * 0.22;
     else if (this.state === 'attack' && this.atk?.air) g = GRAV * (this.atk.id === 'air3' ? 0.9 : 0.32);
     else if (this.state === 'charge' && !b.onGround) g = GRAV * 0.5;
@@ -344,9 +360,10 @@ export class Player extends Entity {
       }
     }
     for (let i = this.ghosts.length - 1; i >= 0; i--) {
-      this.ghosts[i].a -= dt * 2.6;
+      this.ghosts[i].a -= dt * (this.ghosts[i].shade ? 2.2 : 2.6);
       if (this.ghosts[i].a <= 0) this.ghosts.splice(i, 1);
     }
+    tickMantle(this, dt);
     this.aura = approach(this.aura, this.armorLight > 0 || this.lion > 0 ? 1 : 0, dt * 3);
   }
   launchCarry = false;
@@ -364,6 +381,8 @@ export class Player extends Entity {
         this.body.vx = this.body.vy = 0;
         this.scarf.reset(this.x, this.y - 28);
         this.cape.reset(this.x, this.y - 26);
+        this.cloak.reset(this.x, this.y - 26);
+        this.eyeN = 0;
         G.camera.snapTo(this.x, this.y - 30);
         G.ui.fade(0, 0.25);
       });
@@ -388,7 +407,11 @@ export class Player extends Entity {
     const b = this.body;
     const d = G.d;
     const ax = input.axisX;
-    const speedMul = d.speed * (this.veiled > 0 ? 0.6 : 1) * (this.lion > 0 ? 1.08 : 1);
+    const speedMul = d.speed * (this.veiled > 0 ? 0.6 : 1) * (this.lion > 0 ? 1.08 : 1) * (this.mantleT > 0 ? 1.22 : 1);
+    // The Mantle can be called from almost anything, even a stagger.
+    if (input.pressed('transform') && this.state !== 'transform' && this.state !== 'execute' && this.state !== 'phantom' && this.state !== 'heal' && this.state !== 'plunge') {
+      if (this.tryTransform()) return;
+    }
     if (input.pressed('jump')) this.jumpBuf = 0.13;
     if (input.pressed('attack')) {
       this.queued = 'attack';
@@ -525,6 +548,9 @@ export class Player extends Entity {
       case 'phantom':
         this.updatePhantom();
         break;
+      case 'transform':
+        if (updateTransform(this, dt)) this.setState('free');
+        break;
       case 'plunge': {
         b.vx = approach(b.vx, 0, 600 * dt);
         b.vy = Math.max(b.vy, 520);
@@ -659,6 +685,23 @@ export class Player extends Entity {
     if (input.pressed('switch')) G.world.switchSupport();
   }
 
+  /** Spend a full gauge to put on the Shadow Mantle. */
+  tryTransform(): boolean {
+    if (!mantleUnlocked() || this.mantleT > 0) return false;
+    const g = G.save.mantle ?? 0;
+    if (g < 100) {
+      G.ui.toast(`The shadows are still gathering (${Math.floor(g)}%). Keep fighting.`, 'warn');
+      sfx('denied');
+      return false;
+    }
+    this.setState('transform');
+    this.atk = null;
+    this.queued = null;
+    this.ghosts.length = 0;
+    beginTransform(this);
+    return true;
+  }
+
   tryCast(id: AbilityId | null) {
     if (!id) {
       G.ui.toast('No ability in that slot. Equip one in the Skills menu.', 'warn');
@@ -751,7 +794,7 @@ export class Player extends Entity {
   }
 
   aspd() {
-    return G.d.aspd * this.moves.speed * (this.lion > 0 ? 1.1 : 1);
+    return G.d.aspd * this.moves.speed * (this.lion > 0 ? 1.1 : 1) * (this.mantleT > 0 ? 1.2 : 1);
   }
 
   private updateAttack(dt: number) {
@@ -963,14 +1006,14 @@ export class Player extends Entity {
     if (!flag('phantom')) return false;
     if (this.state === 'phantom') return false;
     const recent = G.time - this.lastHitAt < 0.65 || (this.phantomN > 0 && G.time < this.phantomUntil);
-    if (!recent || (G.save.ce < PHANTOM_COST && !isSovereign())) return false;
+    if (!recent || (G.save.ce < PHANTOM_COST && !isSovereign() && this.mantleT <= 0)) return false;
     return !!this.findPhantomTarget();
   }
 
   startPhantom() {
     const t = this.findPhantomTarget();
     if (!t) return;
-    if (!isSovereign()) G.save.ce -= PHANTOM_COST;
+    if (!isSovereign() && this.mantleT <= 0) G.save.ce -= PHANTOM_COST;
     this.ceRegenDelay = 0.6;
     // Arrive on the far side of the foe; if a wall is there, take the near side.
     const side = this.phantomN > 0 && t === this.phantomLast ? -sign(this.x - t.x) || this.face : sign(t.x - this.x) || this.face;
@@ -993,7 +1036,7 @@ export class Player extends Entity {
     this.body.vx = this.body.vy = 0;
     this.ghosts.push({ x: this.x, y: this.y, face: this.face, pose: { ...this.pose }, a: 0.9, rot: this.pose.rot });
     fx.spawn(PK.Smoke, this.x, this.y - 18, 0, -20, 0.5, 6, 16, '#1a1220', -20, 2);
-    for (let i = 0; i < 8; i++) fx.spawn(PK.Spark, this.x + rand(-6, 6), this.y - rand(6, 34), rand(-60, 60), rand(-60, 20), 0.25, 1.4, 0.3, '#ffe6a8', 0, 4);
+    for (let i = 0; i < 8; i++) fx.spawn(PK.Spark, this.x + rand(-6, 6), this.y - rand(6, 34), rand(-60, 60), rand(-60, 20), 0.25, 1.4, 0.3, this.mantleT > 0 ? SHADE.hi : '#ffe6a8', 0, 4);
     sfx('dash', { vol: 0.8, pitch: 1.6 + Math.min(0.6, this.phantomN * 0.1) });
     G.world.hitstop(0.02);
   }
@@ -1005,8 +1048,9 @@ export class Player extends Entity {
     this.y = this.phantomTo.y;
     this.body.vx = this.body.vy = 0;
     this.body.onGround = false;
-    fx.streak(this.phantomFrom.x, this.phantomFrom.y - 20, this.x, this.y - 22, '#ffe6a8', 0.22, 3);
-    fx.ring(this.x, this.y - 20, 4, 26, '#ffe6a8', 0.25, 2);
+    const pc = this.mantleT > 0 ? SHADE.hi : '#ffe6a8';
+    fx.streak(this.phantomFrom.x, this.phantomFrom.y - 20, this.x, this.y - 22, pc, 0.22, 3);
+    fx.ring(this.x, this.y - 20, 4, 26, pc, 0.25, 2);
     if (t) this.face = sign(t.x - this.x) || this.face;
     const n = this.phantomN;
     const strike = { ...this.moves.pstrike, dmg: this.moves.pstrike.dmg * (1 + Math.min(5, n - 1) * 0.15) };
@@ -1043,22 +1087,25 @@ export class Player extends Entity {
     sfx(a.sfx, { pitch: rand(0.92, 1.08) * (this.family === 'greatsword' ? 0.8 : 1) });
     const tier = powerTier();
     const el = weaponElement();
+    const shade = this.mantleT > 0;
     if (a.arc) {
       const color = this.style.weaponGlow ?? '#fff1c4';
-      const [core, edge] = slashColors(this.lion > 0 ? '#ffb347' : color === '#fff1c4' ? '#e8c27a' : color);
+      const [core, edge] = shade ? [SHADE.core, SHADE.edge] : slashColors(this.lion > 0 ? '#ffb347' : color === '#fff1c4' ? '#e8c27a' : color);
       const grow = 1 + tier * 0.07;
       const r = a.arc.r * this.moves.reach ** 0.5 * grow;
       fx.slash(this.x + this.face * a.arc.cx, this.y + a.arc.cy, r, a.arc.a0, a.arc.a1, a.arc.w + tier * 0.6, this.face, core, edge, 0.17 + tier * 0.01);
       // From level 20 a second, wider echo of the cut trails the first.
-      if (tier >= 2) fx.slash(this.x + this.face * a.arc.cx, this.y + a.arc.cy, r * 1.25, a.arc.a0 - 0.15, a.arc.a1 + 0.15, a.arc.w * 0.5, this.face, edge, edge, 0.24);
+      if (tier >= 2 || shade) fx.slash(this.x + this.face * a.arc.cx, this.y + a.arc.cy, r * 1.25, a.arc.a0 - 0.15, a.arc.a1 + 0.15, a.arc.w * 0.5, this.face, edge, shade ? SHADE.violet : edge, 0.24);
     }
     // Sword waves: finishers from level 35, every third swing from 75, every swing as a Sovereign.
     this.waveN++;
-    const wave = (tier >= 3 && a.finisher) || (tier >= 5 && this.waveN % 3 === 0) || tier >= 6;
+    // In the Shadow Mantle, every grounded swing looses one.
+    const wave = (tier >= 3 && a.finisher) || (tier >= 5 && this.waveN % 3 === 0) || tier >= 6 || shade;
     if (wave && !a.air) {
-      const c = el ? ELEMENTS[el].c : isSovereign() ? '#ffb347' : '#ffd27a';
-      G.world.add(new Proj('lightwave', this.x + this.face * 16, this.y - 22, 'player', G.d.atk * (tier >= 6 ? 0.9 : 0.6) * powerDamage(), {
-        vx: this.face * (tier >= 6 ? 460 : 380), life: tier >= 6 ? 0.6 : 0.42, w: 18, h: tier >= 6 ? 40 : 30, poise: 10, color: c,
+      const big = tier >= 6 || shade;
+      const c = shade ? SHADE.edge : el ? ELEMENTS[el].c : isSovereign() ? '#ffb347' : '#ffd27a';
+      G.world.add(new Proj('lightwave', this.x + this.face * 16, this.y - 22, 'player', G.d.atk * (big ? 0.9 : 0.6) * powerDamage(), {
+        vx: this.face * (big ? 460 : 380), life: big ? 0.6 : 0.42, w: 18, h: big ? 40 : 30, poise: 10, color: c,
       }));
     }
     if (this.armorLight > 0 && !a.air) {
@@ -1088,8 +1135,15 @@ export class Player extends Entity {
       if (a.finisher) G.world.echoAssist(e);
       if (d.lifesteal > 0) G.save.hp = Math.min(d.maxHp, G.save.hp + dmg * d.lifesteal);
       if (el) elementHit(e, el, dmg, this.face, !!a.finisher);
-      if (tier >= 3) fx.ring(e.cx, e.cy, 4, 18 + tier * 4, el ? ELEMENTS[el].c : '#ffe6a8', 0.18, 2);
-      if (e.dying) killBlow(this, e, a.arc?.a0 ?? -1.2, a.arc?.a1 ?? 0.8);
+      // The Mantle drinks from every cut and answers it with a shadow blade.
+      if (this.mantleT > 0 && el !== 'shadow') elementHit(e, 'shadow', dmg * 0.6, this.face, !!a.finisher);
+      if (tier >= 3 || this.mantleT > 0) fx.ring(e.cx, e.cy, 4, 18 + tier * 4, this.mantleT > 0 ? SHADE.edge : el ? ELEMENTS[el].c : '#ffe6a8', 0.18, 2);
+      mantleGain(crit ? 1.7 : 1.1);
+      if (e.dying) {
+        killBlow(this, e, a.arc?.a0 ?? -1.2, a.arc?.a1 ?? 0.8);
+        mantleGain(5);
+        if (this.mantleT > 0 && !isSovereign() && Math.random() < 0.4) G.world.after(0.6, () => riseAsShadow(e));
+      }
     });
     if (n > 0) {
       G.camera.addTrauma(a.shake * shakeScale() * (1 + tier * 0.08));
@@ -1198,6 +1252,7 @@ export class Player extends Entity {
       G.camera.addTrauma(0.2 * shakeScale());
       G.save.ce = Math.min(d.maxCe, G.save.ce + (skillRank(s, 'g_timing') ? 12 : 5));
       G.world.addRally(10);
+      mantleGain(8);
       if (h.src) h.src.parried(this);
       if (G.ui) G.ui.hint(null);
       return false;
@@ -1217,7 +1272,7 @@ export class Player extends Entity {
       G.ui.refreshHud();
       return true;
     }
-    let dmg = h.dmg * (1 - d.dr) * (this.armorLight > 0 ? 0.6 : 1) * G.world.guardianAura(this.x, this.y);
+    let dmg = h.dmg * (1 - d.dr) * (this.armorLight > 0 ? 0.6 : 1) * (this.mantleT > 0 ? 0.5 : 1) * G.world.guardianAura(this.x, this.y);
     if (h.kind === 'hazard') dmg = h.dmg * (1 - d.dr * 0.5);
     dmg = Math.max(1, Math.round(dmg));
     s.hp -= dmg;
@@ -1234,7 +1289,8 @@ export class Player extends Entity {
       this.die();
       return true;
     }
-    const unshaken = isSovereign() && h.kind !== 'hazard' && h.poise < 70;
+    mantleGain(3);
+    const unshaken = h.kind !== 'hazard' && ((isSovereign() && h.poise < 70) || this.mantleT > 0);
     if ((this.lion <= 0 || h.kind === 'hazard') && !unshaken) {
       if (this.state === 'charge' || this.state === 'heal' || this.state === 'cast' || this.state === 'attack' || this.state === 'free' || this.state === 'block' || this.state === 'parry') {
         this.setState('hurt');
@@ -1265,6 +1321,7 @@ export class Player extends Entity {
 
   die() {
     if (this.state === 'dead') return;
+    if (this.mantleT > 0) endMantle(this, true);
     this.setState('dead');
     this.deadT = 0;
     this.anim.play('death', 0.05, true);
@@ -1295,6 +1352,7 @@ export class Player extends Entity {
     } else {
       b.vx = approach(b.vx, 0, 800 * dt);
     }
+    if (this.state === 'transform') skipTransform(this);
     if (this.state !== 'free' && this.state !== 'scripted' && this.state !== 'hurt') this.setState('free');
   }
 
@@ -1333,6 +1391,8 @@ export class Player extends Entity {
     this.scarf.update(ax, ay, dt, -this.body.vx * 3.2 + wind - f * 120, 260, 0.9);
     const cx = this.x + f * (j.shBX - 1), cy = this.y + j.shBY;
     this.cape.update(cx, cy, dt, -this.body.vx * 2.6 + wind - f * 60, 420, 0.88);
+    // The Mantle's cloak: longer, and blown back harder.
+    if (this.mantleT > 0) this.cloak.update(cx, cy + 1, dt, -this.body.vx * 3.2 + wind * 1.3 - f * 70, 380, 0.9);
   }
 
   private updateTrail(dt: number) {
@@ -1359,10 +1419,10 @@ export class Player extends Entity {
     for (const g of this.ghosts) {
       const gj = solve(g.pose, DIMS, true, newJoints());
       ctx.save();
-      ctx.globalAlpha = g.a * 0.6;
+      ctx.globalAlpha = g.a * (g.shade ? 0.75 : 0.6);
       ctx.translate(g.x, g.y);
       ctx.scale(g.face, 1);
-      drawHumanoid(ctx, gj, GHOST, t, g.rot);
+      drawHumanoid(ctx, gj, g.shade ? SHADE_GHOST : GHOST, t, g.rot);
       ctx.restore();
     }
     ctx.globalAlpha = 1;
@@ -1382,7 +1442,9 @@ export class Player extends Entity {
     }
     // cape & scarf (world space, behind body)
     const lv = G.save.level;
-    if (lv >= 7 || (s.plate && s.plate.tier >= 2)) {
+    if (this.mantleT > 0) {
+      drawMantleBack(ctx, this);
+    } else if (lv >= 7 || (s.plate && s.plate.tier >= 2)) {
       drawRibbon(ctx, this.cape, 9, 13, '#3a1418', '#0a070c');
       if (lv >= 7) drawRibbon(ctx, this.cape, 1.5, 2, '#e2b85a');
     }
@@ -1411,7 +1473,7 @@ export class Player extends Entity {
     ctx.scale(this.face * turnS, 1);
     const blink = this.invuln > 0 && this.state !== 'execute' && Math.floor(t * 20) % 2 === 0 && this.flash <= 0;
     if (blink) ctx.globalAlpha = 0.55;
-    const eye = this.state === 'cast' || this.lion > 0 || this.armorLight > 0 || this.state === 'execute' ? 0.9 : 0;
+    const eye = this.mantleT > 0 || this.state === 'transform' ? 1 : this.state === 'cast' || this.lion > 0 || this.armorLight > 0 || this.state === 'execute' ? 0.9 : 0;
     s.eyeGlow = eye;
     const w = drawHumanoid(ctx, this.j, s, t, this.pose.rot, this.body.vx * this.face, this.body.onGround ? 0 : this.body.vy);
     this.lastWpn.bx = w.bx; this.lastWpn.by = w.by; this.lastWpn.tx = w.tx; this.lastWpn.ty = w.ty;
@@ -1425,7 +1487,7 @@ export class Player extends Entity {
     // weapon trail
     if (this.trail.length >= 8) {
       const c = this.style.weaponGlow ?? '#e8c27a';
-      drawTrail(ctx, this.trail, this.lion > 0 ? '#ffb347' : c, '#fffaf0', 0.8 * this.trailFade);
+      drawTrail(ctx, this.trail, this.mantleT > 0 ? SHADE.edge : this.lion > 0 ? '#ffb347' : c, this.mantleT > 0 ? SHADE.core : '#fffaf0', 0.8 * this.trailFade);
     }
     // charge glow on blade
     if (this.state === 'charge') {
@@ -1457,7 +1519,12 @@ export class Player extends Entity {
     }
   }
 
+  drawOverlay(ctx: Ctx) {
+    drawMantleOverlay(ctx, this);
+  }
+
   lights() {
+    mantleLights(this);
     const relic = flag('relic_taken');
     lighting.add(this.x, this.y - 20, relic ? 120 : 90, '#ffd9a0', relic ? 0.85 : 0.7, 0.15);
     if (this.state === 'charge') lighting.add(this.x, this.y - 30, 60 + this.chargeLvl * 20, '#ffe6a8', 0.8, 0.6);

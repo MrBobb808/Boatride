@@ -50,6 +50,8 @@ export interface SaveData {
   choices: Record<string, string>;
   affinity: { mara: number; azriel: number; tobiah: number };
   rally: number;
+  /** Shadow Mantle gauge, 0–100 (from level 25). */
+  mantle?: number;
   ng: number;
   kills: number;
   deaths: number;

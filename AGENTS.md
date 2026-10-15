@@ -50,6 +50,8 @@ up next starts from the latest version.
   - `game/finishers.ts`: randomized slow-motion executions and kill cams.
   - `game/power.ts`: power tiers by level, weapon elements, and the
     Sovereign form at level 100.
+  - `game/mantle.ts`: the Shadow Mantle transformation (from level 25):
+    its gauge, the transformation sequence, the form's effects and look.
 - **Enemies:**
   - `game/enemies.ts`: the base enemy class and Chapter I foes.
   - `game/tanks.ts`: brute, bulwark and knight.
