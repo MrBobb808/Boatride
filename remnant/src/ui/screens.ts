@@ -28,7 +28,7 @@ let sceneT = 0;
 const SIL: HumanStyle = {
   skin: '#0b0910', hair: '#0b0910', hairKind: 'spiky', coat: '#0d0b12', coatDark: '#0d0b12', skirt: 9, trim: null, pants: '#0b0910', boots: '#0b0910',
   glove: '#0b0910', belt: null, plate: null, helm: 'none', eye: '#ffd27a', eyeGlow: 0, outline: '#050408', weapon: 'blade', weaponColor: '#1a1620',
-  offhand: 'none', bulk: 1, scarf: '#0d0b12',
+  offhand: 'none', bulk: 1, scarf: '#0d0b12', flat: true,
 };
 
 export function drawTitleScene(ctx: Ctx, w: number, hgt: number, dt: number) {

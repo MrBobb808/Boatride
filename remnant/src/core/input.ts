@@ -6,13 +6,13 @@ export type Action =
   | 'left' | 'right' | 'up' | 'down'
   | 'jump' | 'attack' | 'heavy' | 'dodge' | 'parry'
   | 'skill1' | 'skill2' | 'skill3'
-  | 'interact' | 'heal' | 'echo' | 'ultimate'
+  | 'interact' | 'heal' | 'echo' | 'ultimate' | 'switch'
   | 'menu' | 'map'
   | 'confirm' | 'back' | 'tabL' | 'tabR';
 
 export const ACTIONS: Action[] = [
   'left', 'right', 'up', 'down', 'jump', 'attack', 'heavy', 'dodge', 'parry',
-  'skill1', 'skill2', 'skill3', 'interact', 'heal', 'echo', 'ultimate', 'menu', 'map',
+  'skill1', 'skill2', 'skill3', 'interact', 'heal', 'echo', 'ultimate', 'switch', 'menu', 'map',
   'confirm', 'back', 'tabL', 'tabR',
 ];
 
@@ -20,7 +20,7 @@ export const ACTION_LABELS: Partial<Record<Action, string>> = {
   left: 'Move left', right: 'Move right', up: 'Look up / Interact', down: 'Crouch / Drop',
   jump: 'Jump', attack: 'Attack (hold: charge)', heavy: 'Heavy attack', dodge: 'Dodge / Dash',
   parry: 'Parry (hold: block)', skill1: 'Skill 1', skill2: 'Skill 2', skill3: 'Skill 3',
-  interact: 'Interact', heal: 'Balm (heal)', echo: 'Echo command wheel', ultimate: 'Rally the Remnant',
+  interact: 'Interact', heal: 'Balm (heal)', echo: 'Echo command wheel', ultimate: 'Rally the Remnant', switch: 'Switch support Echo',
   menu: 'Pause menu', map: 'World map',
 };
 
@@ -43,6 +43,7 @@ export const DEFAULT_KEYS: Record<Action, string[]> = {
   heal: ['KeyH'],
   echo: ['KeyC'],
   ultimate: ['KeyT'],
+  switch: ['KeyX'],
   menu: ['Escape', 'Tab'],
   map: ['KeyM'],
   confirm: ['Enter', 'Space', 'KeyJ'],
@@ -54,7 +55,7 @@ export const DEFAULT_KEYS: Record<Action, string[]> = {
 // Standard gamepad mapping (Xbox naming).
 const PAD: Partial<Record<Action, number[]>> = {
   jump: [0], dodge: [1], attack: [2], heavy: [3], parry: [4], skill1: [5], skill2: [6], skill3: [7],
-  map: [8], menu: [9], ultimate: [11], up: [12], down: [13], left: [14], right: [15],
+  switch: [8], menu: [9], ultimate: [11], up: [12], down: [13], left: [14], right: [15],
   confirm: [0], back: [1], tabL: [4], tabR: [5], interact: [12], echo: [10], heal: [13],
 };
 

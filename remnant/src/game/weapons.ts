@@ -35,6 +35,18 @@ export interface AttackDef {
   /** Player vertical velocity at start (launchers that carry Elior up). */
   rise?: number;
   finisher?: boolean;
+  /** Number of separate hits spread evenly across the active window. */
+  multi?: number;
+  /** Draw enemies within this radius toward Elior while active (whirlwinds). */
+  pull?: number;
+  /** Diving air attack: drives Elior down and forward, ends in an impact on landing. */
+  dive?: boolean;
+  /** Carries Elior upward whether or not Up is held. */
+  forceRise?: boolean;
+  /** Attack started automatically when this one completes. */
+  auto?: string;
+  /** Number of full yaw spins drawn across the attack (sprite turns). */
+  spin?: number;
 }
 
 const IDLE_BLADE: Pose = {
@@ -200,6 +212,40 @@ const BLADE_CLIPS: Record<string, Clip> = {
     k(0.7, { fUA: 0.5, fFA: 0.15, wpn: -0.05, lean: 0.55, fTh: 1.05, fSh: -1.15, bTh: -0.7, bSh: -0.2 }),
     k(1, {}, easeInOutSine),
   ] },
+  // Seventy Times Seven: rapid alternating thrusts.
+  flurry: { dur: 1, fn: (u) => {
+    const s = Math.sin(u * Math.PI * 14), a = Math.abs(s);
+    return { fUA: 1.5 + s * 0.12, fFA: 0.05 + (1 - a) * 0.95, wpn: s * 0.12, lean: 0.36 + a * 0.08, fTh: 0.9, fSh: -0.7, bTh: -0.75, bSh: -0.15, bUA: -1.1 + s * 0.45, bFA: 0.5, head: -0.05 };
+  } },
+  // Storm of Edges: arms flung wide while the sprite yaws around.
+  storm: { dur: 1, keys: [
+    k(0, { fUA: -1.2, fFA: 0.2, wpn: -0.3, lean: -0.15, sq: 0.95, fTh: 0.6, fSh: -0.8, bTh: -0.6, bSh: -0.4 }),
+    k(0.14, { fUA: 1.57, fFA: 0.05, wpn: 0.0, bUA: -1.57, bFA: 0.1, lean: 0.12, fTh: 0.7, fSh: -0.7, bTh: -0.6, bSh: -0.3, sq: 0.97 }, easeInQuad),
+    k(0.8, { fUA: 1.6, fFA: 0.05, wpn: 0.05, bUA: -1.55, bFA: 0.1, lean: 0.1, fTh: 0.7, fSh: -0.7, bTh: -0.6, bSh: -0.3 }),
+    k(1, {}, easeOutCubic),
+  ] },
+  // Phantom strike: arrives already mid-swing.
+  pstrike: { dur: 1, keys: [
+    k(0, { fUA: 2.6, fFA: 0.4, wpn: 0.35, lean: 0.1, fTh: 0.8, fSh: -0.9, bTh: -0.5, bSh: -0.5, bUA: -0.9, sq: 0.94 }),
+    k(0.3, { fUA: 0.6, fFA: 0.1, wpn: 0.0, lean: 0.45, fTh: 0.85, fSh: -0.7, bTh: -0.7, bSh: -0.2, bUA: -1.3, sq: 1 }, easeOutCubic),
+    k(0.65, { fUA: 0.5, fFA: 0.4, wpn: 0.3, lean: 0.35 }),
+    k(1, {}, easeInOutSine),
+  ] },
+  // Judgment Cross: leap, one diagonal cut, then the crossing cut.
+  cross: { dur: 1, keys: [
+    k(0, { fUA: 0.2, fFA: 0.4, wpn: -0.3, lean: 0.4, fTh: 1.1, fSh: -1.7, bTh: -0.2, bSh: -1.2, sq: 0.88 }),
+    k(0.22, { fUA: 3.3, fFA: 0.2, wpn: 0.2, bUA: 2.8, bFA: 0.3, lean: -0.2, fTh: 0.6, fSh: -1.0, bTh: 0.3, bSh: -0.8, sq: 1.08 }, easeOutCubic),
+    k(0.42, { fUA: 0.5, fFA: 0.05, wpn: -0.2, bUA: -0.6, lean: 0.55, fTh: 1.0, fSh: -1.2, bTh: -0.4, bSh: -0.8 }, easeInQuad),
+    k(0.55, { fUA: -0.6, fFA: 0.3, wpn: -0.5, lean: 0.3 }),
+    k(0.7, { fUA: 2.2, fFA: 0.1, wpn: 0.3, bUA: -1.5, lean: 0.1, fTh: 0.9, fSh: -1.1, bTh: -0.5, bSh: -0.7 }, easeOutCubic),
+    k(1, { fUA: 2.0, fFA: 0.4, wpn: 0.4, lean: 0.15 }),
+  ] },
+  // Heaven's Rend: a drilling dive, blade leading.
+  rend: { dur: 1, keys: [
+    k(0, { fUA: 3.0, fFA: 0.3, wpn: 0.2, lean: -0.2, fTh: 1.2, fSh: -1.8, bTh: 0.8, bSh: -1.6 }),
+    k(0.18, { fUA: 1.0, fFA: 0.05, wpn: -0.5, lean: 0.85, rot: 0.5, fTh: 0.4, fSh: -0.5, bTh: -0.2, bSh: -0.6, bUA: -1.8, bFA: 0.2 }, easeOutCubic),
+    k(1, { fUA: 1.0, fFA: 0.05, wpn: -0.5, lean: 0.85, rot: 0.5, fTh: 0.4, fSh: -0.5, bTh: -0.2, bSh: -0.6, bUA: -1.8, bFA: 0.2 }),
+  ] },
   counter: { dur: 1, keys: [
     k(0, { fUA: 1.9, fFA: 0.95, wpn: 0.6, lean: -0.05 }),
     k(0.18, { fUA: -0.5, fFA: 1.5, wpn: 0.1, lean: 0.1, fTh: 0.6, fSh: -0.7 }, easeOutQuad),
@@ -266,6 +312,19 @@ export interface Moveset {
   dash: AttackDef;
   heavy: AttackDef;
   counter: AttackDef;
+  /** Attack, Attack, pause, Attack. */
+  flurry: AttackDef;
+  flurryEnd: AttackDef;
+  /** Heavy during the third strike. */
+  storm: AttackDef;
+  /** Attack after a dash attack. */
+  comet: AttackDef;
+  /** Heavy at the end of an air combo. */
+  rend: AttackDef;
+  /** Phantom Step's arrival strike. */
+  pstrike: AttackDef;
+  /** Judgment Cross: the Phantom Step finisher. */
+  cross: AttackDef;
   speed: number;
   reach: number;
   weight: number;
@@ -289,6 +348,13 @@ const blade: Moveset = {
   dash: { id: 'dash', clip: 'dash', dur: 0.4, hit: [0.25, 0.55], box: { x: 0, y: -36, w: 38, h: 30 }, dmg: 1.3, poise: 16, kx: 180, ky: -60, cancel: 0.6, lunge: 300, lungeT: [0.2, 0.5], stop: 0.06, shake: 0.18, sfx: 'swingSpear', arc: { cx: 6, cy: -22, r: 30, a0: -0.25, a1: 0.25, w: 6 } },
   heavy: { id: 'heavy', clip: 'heavy', dur: 0.56, hit: [0.18, 0.4], box: { x: -4, y: -56, w: 48, h: 60 }, dmg: 1.9, poise: 40, kx: 260, ky: -160, cancel: 0.7, lunge: 140, lungeT: [0.12, 0.32], stop: 0.1, shake: 0.4, sfx: 'swingHeavy', arc: { cx: 2, cy: -24, r: 30, a0: -2.3, a1: 0.9, w: 12 }, finisher: true },
   counter: { id: 'counter', clip: 'counter', dur: 0.46, hit: [0.25, 0.5], box: { x: 0, y: -40, w: 44, h: 36 }, dmg: 2.6, poise: 60, kx: 240, ky: -120, cancel: 0.65, lunge: 320, lungeT: [0.2, 0.4], stop: 0.12, shake: 0.4, sfx: 'swingHeavy', arc: { cx: 6, cy: -24, r: 32, a0: -0.3, a1: 0.3, w: 8 }, guardBreak: true, finisher: true },
+  flurry: { id: 'flurry', clip: 'flurry', dur: 0.66, hit: [0.1, 0.9], box: { x: 0, y: -40, w: 38, h: 26 }, dmg: 0.42, poise: 5, kx: 22, ky: -24, cancel: 0.95, multi: 7, lunge: 40, lungeT: [0.05, 0.9], stop: 0.018, shake: 0.06, sfx: 'swing', auto: 'flurryEnd' },
+  flurryEnd: { id: 'flurryEnd', clip: 'dash', dur: 0.42, hit: [0.25, 0.5], box: { x: 0, y: -38, w: 46, h: 30 }, dmg: 1.6, poise: 32, kx: 280, ky: -100, cancel: 0.6, lunge: 140, lungeT: [0.2, 0.45], stop: 0.09, shake: 0.32, sfx: 'swingHeavy', arc: { cx: 6, cy: -24, r: 32, a0: -0.3, a1: 0.3, w: 9 }, finisher: true },
+  storm: { id: 'storm', clip: 'storm', dur: 0.66, hit: [0.14, 0.82], box: { x: -36, y: -46, w: 72, h: 48 }, dmg: 0.85, poise: 14, kx: 30, ky: -70, cancel: 0.86, multi: 4, pull: 80, spin: 2, stop: 0.03, shake: 0.16, sfx: 'swingHeavy', finisher: true },
+  comet: { id: 'comet', clip: 'launch', dur: 0.46, hit: [0.2, 0.56], box: { x: -4, y: -66, w: 40, h: 72 }, dmg: 1.4, poise: 26, kx: 20, ky: -470, launch: true, cancel: 0.5, multi: 2, stop: 0.06, shake: 0.2, sfx: 'swingHeavy', arc: { ...ARC_UP, r: 30, w: 8 }, rise: -400, forceRise: true },
+  rend: { id: 'rend', clip: 'rend', dur: 0.55, hit: [0.12, 1], box: { x: -4, y: -30, w: 38, h: 42 }, dmg: 0.75, poise: 12, kx: 60, ky: 160, cancel: 1, multi: 4, dive: true, air: true, stop: 0.03, shake: 0.12, sfx: 'swingHeavy' },
+  pstrike: { id: 'pstrike', clip: 'pstrike', dur: 0.26, hit: [0.12, 0.55], box: { x: -6, y: -44, w: 40, h: 46 }, dmg: 1.15, poise: 20, kx: 60, ky: -120, cancel: 0.42, stop: 0.04, shake: 0.14, sfx: 'swing', arc: { ...ARC_DOWN, r: 23, w: 8 } },
+  cross: { id: 'cross', clip: 'cross', dur: 0.72, hit: [0.36, 0.78], box: { x: -30, y: -58, w: 66, h: 66 }, dmg: 2.3, poise: 90, kx: 220, ky: -340, launch: true, guardBreak: true, cancel: 0.88, multi: 2, stop: 0.1, shake: 0.55, sfx: 'swingHeavy', finisher: true },
 };
 
 const spear: Moveset = {
@@ -301,6 +367,9 @@ const spear: Moveset = {
   ],
   dash: { ...blade.dash, box: { x: 0, y: -36, w: 60, h: 20 }, clip: 's3', pierce: true, dmg: 1.5, lunge: 360 },
   counter: { ...blade.counter, clip: 's3', box: { x: 0, y: -38, w: 66, h: 22 }, pierce: true },
+  flurry: { ...blade.flurry, box: { x: 4, y: -40, w: 56, h: 18 }, multi: 8, pierce: true },
+  flurryEnd: { ...blade.flurryEnd, clip: 's3', box: { x: 0, y: -38, w: 70, h: 22 }, pierce: true },
+  storm: { ...blade.storm, box: { x: -46, y: -46, w: 92, h: 48 } },
 };
 
 const greatsword: Moveset = {
@@ -312,6 +381,11 @@ const greatsword: Moveset = {
     { ...blade.combo[2], id: 'g3', clip: 'g3', dur: 0.74, box: { x: -14, y: -54, w: 60, h: 56 }, dmg: 2.6, poise: 50, kx: 320, ky: -180, stop: 0.12, shake: 0.45, guardBreak: true, arc: { ...ARC_WIDE, r: 36, w: 13 } },
   ],
   heavy: { ...blade.heavy, dur: 0.7, box: { x: -6, y: -66, w: 60, h: 70 }, dmg: 2.6, poise: 70, guardBreak: true, arc: { cx: 2, cy: -26, r: 38, a0: -2.3, a1: 0.9, w: 15 } },
+  flurry: { ...blade.flurry, dur: 0.82, multi: 5, dmg: 0.7, poise: 9, box: { x: -2, y: -48, w: 50, h: 34 } },
+  flurryEnd: { ...blade.flurryEnd, dur: 0.5, dmg: 2.3, poise: 50, guardBreak: true },
+  storm: { ...blade.storm, dur: 0.8, dmg: 1.25, poise: 22, box: { x: -46, y: -56, w: 92, h: 58 } },
+  rend: { ...blade.rend, dmg: 1.05, poise: 18 },
+  cross: { ...blade.cross, dmg: 2.9 },
 };
 
 export const MOVESETS: Record<WeaponFamily, Moveset> = { blade, spear, greatsword };

@@ -109,6 +109,14 @@ export const ITEMS: Record<string, ItemBase> = {
   archivist_ring: { id: 'archivist_ring', name: 'Archivist\'s Signet', slot: 'ring', rarity: 4, icon: 'ring', mods: { wis: 2, abil: 15, xp: 10 }, value: 300, desc: 'Mara\'s family seal. She would want it used.', unique: true },
   covenant_signet: { id: 'covenant_signet', name: 'Signet of the Remnant', slot: 'ring', rarity: 5, icon: 'ring', mods: { res: 3, echoDmg: 20, rally: 25, ce: 15 }, value: 999, desc: 'Given to the one who laid the crown down. Echoes fight beside you with one heart.', unique: true, lore: '"But so shall it not be among you: but whosoever will be great among you, shall be your minister:" — Mark 10:43 (KJV)' },
   gilded_crown: { id: 'gilded_crown', name: 'Gilded Crown', slot: 'helm', rarity: 4, icon: 'crown', mods: { atk: 12, str: 3, crit: 6, def: -4 }, value: 0, desc: 'The Idol\'s crown. Power pours from it, and it asks only to be worn.', unique: true, look: 3 },
+  // Chapter II
+  brickmaker_wraps: { id: 'brickmaker_wraps', name: 'Brickmaker\'s Wraps', slot: 'gauntlets', rarity: 2, icon: 'gauntlet', mods: { atk: 5, crit: 3, aspd: 4 }, value: 120, desc: 'Pitch-stained cloth over hard calluses. A grip that does not slip.', look: 1 },
+  pilgrim_band: { id: 'pilgrim_band', name: 'Pilgrim\'s Band', slot: 'ring', rarity: 2, icon: 'ring', mods: { hp: 20, ceRegen: 12 }, value: 130, desc: 'Worn smooth by a long road. Someone walked a long way to lose it here.' },
+  tower_greaves: { id: 'tower_greaves', name: 'Tower Greaves', slot: 'boots', rarity: 2, icon: 'boot', mods: { def: 4, poise: 10, speed: 3 }, value: 140, desc: 'Red-lacquered plate from the Tower\'s honour guard.', look: 1 },
+  crimson_mantle: { id: 'crimson_mantle', name: 'Crimson Mantle', slot: 'armor', rarity: 3, icon: 'armor', mods: { def: 8, hp: 30, atk: 6 }, value: 280, desc: 'A guardsman\'s red coat over black mail. It was made to be seen from far away.', look: 2 },
+  overseer_sigil: { id: 'overseer_sigil', name: 'Overseer\'s Brand', slot: 'relic', rarity: 3, icon: 'sigil', mods: { poise: 15, str: 2, echoDmg: 8 }, value: 220, desc: 'The iron that marked every brick. Cold now, and lighter than it looks.' },
+  oathblade: { id: 'oathblade', name: 'The Oathblade', slot: 'weapon', rarity: 5, icon: 'greatsword', family: 'greatsword', mods: { atk: 46, crit: 6, poise: 18, critDmg: 20 }, value: 999, desc: 'The Marshal\'s sword, given freely. It is heavy only for those who would misuse it.', look: 2, unique: true, lore: '"I have fought a good fight, I have finished my course, I have kept the faith:" — 2 Timothy 4:7 (KJV)' },
+  hound_fang: { id: 'hound_fang', name: 'Gatekeeper\'s Fang', slot: 'relic', rarity: 4, icon: 'shard', mods: { atk: 10, lifesteal: 3, crit: 4 }, value: 320, desc: 'A fang the length of a forearm, still warm at the root.', unique: true },
   // Materials
   iron_scrap: { id: 'iron_scrap', name: 'Iron Scrap', slot: 'material', rarity: 0, icon: 'scrap', value: 3, desc: 'Salvaged metal. The smith can use it.' },
   veil_shard: { id: 'veil_shard', name: 'Veil Shard', slot: 'material', rarity: 1, icon: 'veil', value: 6, desc: 'Crystallized corruption. Five can be purified into a Covenant Fragment.' },
@@ -266,6 +274,58 @@ export const ECHO_SPECIES: Record<string, EchoSpecies> = {
       { name: 'Dawnpiercer', title: 'Stage III', desc: 'A winged crest of light and a bow strung with sunrise.', ability: 'Rain of Dawn: calls a rain of light arrows on its target.' },
     ],
   },
+  brute: {
+    id: 'brute',
+    cls: 'Colossus',
+    baseHp: 260,
+    baseAtk: 20,
+    evolveLv: [5, 9],
+    evolveCost: [{ covenant_fragment: 2, iron_scrap: 4 }, { covenant_fragment: 4, radiant_core: 1 }],
+    stages: [
+      { name: 'Ironbound Brute', title: 'Stage I', desc: 'A hulking frame in riveted iron, its maul bound with gold.', ability: 'Smash: an overhead blow that shakes the ground and breaks guards.' },
+      { name: 'Covenant Breaker', title: 'Stage II', desc: 'Black-and-gold plate and a maul that hums with light.', ability: 'Earthbreaker: every smash sends a shockwave rolling along the ground.' },
+      { name: 'Mountain of the Remnant', title: 'Stage III', desc: 'Crowned in white flame, slow as a hillside and as hard to move.', ability: 'Unmoved: draws every foe\'s eye and shrugs off half of every blow.' },
+    ],
+  },
+  bulwark: {
+    id: 'bulwark',
+    cls: 'Sentinel',
+    baseHp: 210,
+    baseAtk: 12,
+    evolveLv: [4, 8],
+    evolveCost: [{ covenant_fragment: 2, sentinel_steel: 2 }, { covenant_fragment: 3, radiant_core: 1 }],
+    stages: [
+      { name: 'Shieldwall Bulwark', title: 'Stage I', desc: 'A tower shield bigger than a door, and the patience to hold it.', ability: 'Shieldwall: stands before you and stops arrows and bolts aimed your way.' },
+      { name: 'Covenant Bulwark', title: 'Stage II', desc: 'The shield now bears the covenant sigil in gold.', ability: 'Shove: its shield bash staggers and stuns.' },
+      { name: 'Wall of the Remnant', title: 'Stage III', desc: 'A blazing shield that turns back the dark.', ability: 'Bastion: allies near it take 20% less damage.' },
+    ],
+  },
+  knight: {
+    id: 'knight',
+    cls: 'Vanguard',
+    baseHp: 150,
+    baseAtk: 17,
+    evolveLv: [4, 8],
+    evolveCost: [{ covenant_fragment: 2 }, { covenant_fragment: 3, radiant_core: 1 }],
+    stages: [
+      { name: 'Crimson Knight', title: 'Stage I', desc: 'A duelist of the tower guard, red cloak and quick blade.', ability: 'Riposte: strikes twice in quick succession.' },
+      { name: 'Covenant Knight', title: 'Stage II', desc: 'Its crimson is trimmed with gold now.', ability: 'Lunge: closes distance with a driving thrust.' },
+      { name: 'Knight of the Morning', title: 'Stage III', desc: 'A blade wreathed in dawn-fire.', ability: 'Three-step: its combos run three strikes deep.' },
+    ],
+  },
+  marshal: {
+    id: 'marshal',
+    cls: 'Warden',
+    baseHp: 300,
+    baseAtk: 30,
+    evolveLv: [6, 10],
+    evolveCost: [{ covenant_fragment: 3, radiant_core: 1 }, { covenant_fragment: 5, radiant_core: 2 }],
+    stages: [
+      { name: 'The Crimson Marshal', title: 'Stage I', desc: 'The tower\'s greatest knight, his oath given anew. Red cloak, black steel, a sword that never wavers.', ability: 'Marshal\'s Edge: three-strike combos and a blinding lunge. Nearby Echoes fight harder.' },
+      { name: 'Marshal of the Covenant', title: 'Stage II', desc: 'Black-and-gold plate under a crimson mantle.', ability: 'Shadowless Step: blinks behind his target before striking.' },
+      { name: 'Oathkeeper', title: 'Stage III', desc: 'A crest of white flame and a blade that cuts the dark itself.', ability: 'Edge of Dawn: his finishers loose a crescent of light.' },
+    ],
+  },
 };
 
 export interface EchoInst {
@@ -294,6 +354,61 @@ export interface LoreEntry {
   note: string;
 }
 export const LORE: Record<string, LoreEntry> = {
+  gen111: {
+    id: 'gen111', title: 'The Waystone at the Pass', ref: 'Genesis 11:1–2 (KJV)',
+    text: 'And the whole earth was of one language, and of one speech. And it came to pass, as they journeyed from the east, that they found a plain in the land of Shinar; and they dwelt there.',
+    note: 'An old boundary stone where the mountain road comes down onto the plain.',
+  },
+  gen113: {
+    id: 'gen113', title: 'The Brickmakers\' Tally', ref: 'Genesis 11:3 (KJV)',
+    text: 'And they said one to another, Go to, let us make brick, and burn them throughly. And they had brick for stone, and slime had they for morter.',
+    note: 'Pressed into a fired brick, beside thousands of tally marks.',
+  },
+  gen114: {
+    id: 'gen114', title: 'The Builders\' Oath', ref: 'Genesis 11:4 (KJV)',
+    text: 'And they said, Go to, let us build us a city and a tower, whose top may reach unto heaven; and let us make us a name, lest we be scattered abroad upon the face of the whole earth.',
+    note: 'Painted in pitch across the side of the great kiln. Someone has scratched out the word "name" and written it again, larger.',
+  },
+  gen116: {
+    id: 'gen116', title: 'The Gate Lintel', ref: 'Genesis 11:6 (KJV)',
+    text: 'And the LORD said, Behold, the people is one, and they have all one language; and this they begin to do: and now nothing will be restrained from them, which they have imagined to do.',
+    note: 'Cut into a fallen lintel stone, half buried before the Tower Gate.',
+  },
+  gen117: {
+    id: 'gen117', title: 'The Hall of Tongues', ref: 'Genesis 11:7 (KJV)',
+    text: 'Go to, let us go down, and there confound their language, that they may not understand one another\'s speech.',
+    note: 'The only words in the hall still written in a script you can read. Every other wall is covered in letters that slide away from the eye.',
+  },
+  gen119: {
+    id: 'gen119', title: 'The Guard\'s Prayer', ref: 'Genesis 11:9 (KJV)',
+    text: 'Therefore is the name of it called Babel; because the LORD did there confound the language of all the earth: and from thence did the LORD scatter them abroad upon the face of all the earth.',
+    note: 'Scratched inside a guardsman\'s shield, where only its bearer would see it.',
+  },
+  prov1618: {
+    id: 'prov1618', title: 'The Overseer\'s Ledger', ref: 'Proverbs 16:18 (KJV)',
+    text: 'Pride goeth before destruction, and an haughty spirit before a fall.',
+    note: 'The last line in a ledger of bricks and quotas, in a different hand from the rest.',
+  },
+  prov1810: {
+    id: 'prov1810', title: 'The Stair Inscription', ref: 'Proverbs 18:10 (KJV)',
+    text: 'The name of the LORD is a strong tower: the righteous runneth into it, and is safe.',
+    note: 'Carved low on the first stair, where the builders would not see it.',
+  },
+  tim47: {
+    id: 'tim47', title: 'The Marshal\'s Oath', ref: '2 Timothy 4:7 (KJV)',
+    text: 'I have fought a good fight, I have finished my course, I have kept the faith:',
+    note: 'Engraved on the arm of the empty throne. The Marshal never sat in it.',
+  },
+  ruth116: {
+    id: 'ruth116', title: 'An Oath Renewed', ref: 'Ruth 1:16 (KJV)',
+    text: 'And Ruth said, Intreat me not to leave thee, or to return from following after thee: for whither thou goest, I will go; and where thou lodgest, I will lodge: thy people shall be my people, and thy God my God:',
+    note: 'The words the Crimson Marshal spoke, kneeling, when he took up his sword again.',
+  },
+  isa211: {
+    id: 'isa211', title: 'The Fallen Tower', ref: 'Isaiah 2:11 (KJV)',
+    text: 'The lofty looks of man shall be humbled, and the haughtiness of men shall be bowed down, and the LORD alone shall be exalted in that day.',
+    note: 'Mara found it in her father\'s notes on Shinar, under a drawing of a tower that has fallen before.',
+  },
   eph612: {
     id: 'eph612', title: 'The Chamber Inscription', ref: 'Ephesians 6:12 (KJV)',
     text: 'For we wrestle not against flesh and blood, but against principalities, against powers, against the rulers of the darkness of this world, against spiritual wickedness in high places.',

@@ -10,7 +10,7 @@ import { sfx } from '../audio/audio';
 import { rand, sign, clamp } from '../core/math';
 import { lighting } from '../render/lighting';
 
-export type ProjKind = 'arrow' | 'orb' | 'word' | 'wave' | 'lightwave' | 'drop' | 'debris' | 'pillar' | 'waters' | 'puddle' | 'trumpet' | 'rain';
+export type ProjKind = 'arrow' | 'orb' | 'word' | 'wave' | 'lightwave' | 'drop' | 'debris' | 'pillar' | 'waters' | 'puddle' | 'trumpet' | 'rain' | 'flame';
 
 export class Proj extends Entity {
   kind: ProjKind;
@@ -160,6 +160,21 @@ export class Proj extends Entity {
         }
         break;
       }
+      case 'flame': {
+        // Breath of fire: a tumbling gout that pools where it lands.
+        this.vy += 260 * dt;
+        this.x += this.vx * dt;
+        this.y += this.vy * dt;
+        this.strike({ poise: 12, kx: sign(this.vx) * 120, ky: -120, parryable: false }, true);
+        if (Math.random() < dt * 40) fx.spawn(PK.Flame, this.x + rand(-3, 3), this.y + rand(-3, 3), this.vx * 0.2, -40, 0.35, 5, 1, '#ff8a3a', -60, 1);
+        if (W.solidAt(this.x, this.y + 3)) {
+          const ground = Math.floor((this.y + 3) / TILE) * TILE;
+          W.add(new Proj('puddle', this.x, ground, 'enemy', this.dmg * 0.3, { life: 1.6, w: 22, h: 8 }));
+          fx.embers(this.x, this.y - 2, 6, '#ffb347', 8);
+          this.remove = true;
+        }
+        break;
+      }
       case 'drop': {
         this.vy += 700 * dt;
         this.y += this.vy * dt;
@@ -249,9 +264,9 @@ export class Proj extends Entity {
     switch (this.kind) {
       case 'arrow': case 'rain': if (this.team === 'player' || this.reflected) lighting.add(this.x, this.y, 30, this.color, 0.6, 0.6); break;
       case 'orb': lighting.add(this.x, this.y, 40, '#b04cff', 0.7, 0.8); break;
-      case 'word': case 'lightwave': lighting.add(this.x, this.y, 80, '#ffe6a8', 0.9, 0.8); break;
+      case 'word': case 'lightwave': lighting.add(this.x, this.y, 80, this.team === 'enemy' ? '#ff3a4a' : '#ffe6a8', 0.9, 0.8); break;
       case 'wave': lighting.add(this.x, this.y - 10, 50, this.color, 0.8, 0.7); break;
-      case 'drop': case 'puddle': lighting.add(this.x, this.y, 40, '#ff9a3a', 0.8, 0.6); break;
+      case 'drop': case 'puddle': case 'flame': lighting.add(this.x, this.y, 40, '#ff9a3a', 0.8, 0.6); break;
       case 'pillar': lighting.add(this.x, this.y - 60, 140, '#fff1c4', 1, 0.8); break;
       case 'waters': lighting.add(this.x, this.y - 10, 90, '#9fd8ff', 0.7, 0.5); break;
       case 'trumpet': lighting.add(this.x, this.y, 140, '#ffe6a8', 0.7 * (this.life / this.maxLife), 0.8); break;
@@ -299,19 +314,20 @@ export class Proj extends Entity {
         ctx.globalCompositeOperation = 'lighter';
         const H = this.h / 2;
         ctx.globalAlpha = (1 - t * 0.5) * (this.kind === 'lightwave' ? 0.7 : 1);
-        ctx.fillStyle = '#ffb347';
+        const foe = this.team === 'enemy';
+        ctx.fillStyle = foe ? '#ff2a3a' : '#ffb347';
         ctx.beginPath();
         ctx.moveTo(-6, -H);
         ctx.quadraticCurveTo(14, 0, -6, H);
         ctx.quadraticCurveTo(4, 0, -6, -H);
         ctx.fill();
-        ctx.fillStyle = '#fffaf0';
+        ctx.fillStyle = foe ? '#ffd0d0' : '#fffaf0';
         ctx.beginPath();
         ctx.moveTo(-2, -H * 0.85);
         ctx.quadraticCurveTo(12, 0, -2, H * 0.85);
         ctx.quadraticCurveTo(6, 0, -2, -H * 0.85);
         ctx.fill();
-        glow(ctx, 2, 0, H * 1.4, '#ffd27a', 0.5);
+        glow(ctx, 2, 0, H * 1.4, foe ? '#ff3a4a' : '#ffd27a', 0.5);
         ctx.restore();
         ctx.globalAlpha = 1;
         ctx.globalCompositeOperation = 'source-over';
@@ -332,6 +348,14 @@ export class Proj extends Entity {
         ctx.closePath();
         ctx.fill();
         glow(ctx, this.x, this.y - 6, 22, this.color, 0.6 * a);
+        ctx.globalCompositeOperation = 'source-over';
+        break;
+      }
+      case 'flame': {
+        ctx.globalCompositeOperation = 'lighter';
+        const fl = 0.8 + Math.sin(G.time * 30 + this.id) * 0.2;
+        glow(ctx, this.x, this.y, 14 * fl, '#ff6a2a', 0.85);
+        glow(ctx, this.x, this.y, 6, '#ffe6a8', 0.9);
         ctx.globalCompositeOperation = 'source-over';
         break;
       }

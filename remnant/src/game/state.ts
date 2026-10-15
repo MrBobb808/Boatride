@@ -57,6 +57,8 @@ export interface SaveData {
   keyItems: string[];
   altarsLit: string[];
   echoMode: 'aggressive' | 'defensive' | 'follow';
+  /** Longest combo ever landed. */
+  bestCombo?: number;
 }
 
 export function makeItem(id: string, rarity?: Rarity, plus = 0, rollAffixes = true): ItemInst {
@@ -177,6 +179,17 @@ export interface Derived {
 
 export const skillRank = (s: SaveData, id: string) => s.skills[id] ?? 0;
 
+/** Echoes that may fight at once: grows with level (2 at 3, 3 at 7, 4 at 11, 5 at 15, 6 at 19), +1 for the Banner skill. */
+export function echoSlotsFor(level: number, storySlots: number, banner: boolean) {
+  const byLevel = 1 + Math.floor((level + 1) / 4);
+  return Math.min(7, Math.max(storySlots, byLevel) + (banner ? 1 : 0));
+}
+/** The next level at which another Echo slot opens, or null at the cap. */
+export function nextSlotLevel(level: number) {
+  for (let l = level + 1; l <= 30; l++) if (Math.floor((l + 1) / 4) > Math.floor((level + 1) / 4)) return l;
+  return null;
+}
+
 export function derive(s: SaveData): Derived {
   const mods: Partial<Record<ModKey, number>> = {};
   for (const slot of Object.keys(s.equipment) as Slot[]) {
@@ -214,10 +227,16 @@ export function derive(s: SaveData): Derived {
     family: (wb.family ?? 'blade'),
     weaponPlus: weapon?.plus ?? 0,
     weaponRarity: weapon?.rarity ?? 0,
-    echoSlots: Math.min(5, s.storySlots + (r('c_banner') ? 1 : 0)),
+    echoSlots: echoSlotsFor(s.level, s.storySlots, r('c_banner') > 0),
     defense,
     meleeMult: 1 + r('w_edge') * 0.08,
   };
+}
+
+/** Bring older saves up to date with features added since they were written. */
+export function migrateSave(s: SaveData) {
+  if (s.flags.relic_taken && !s.flags.phantom) s.flags.phantom = true;
+  if (s.bestCombo === undefined) s.bestCombo = 0;
 }
 
 export function addMaterial(s: SaveData, id: string, n = 1) {

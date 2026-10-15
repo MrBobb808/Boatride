@@ -4,7 +4,7 @@
 
 import { Entity, type HitInfo } from './entity';
 import { solve, newJoints, BASE_POSE, type Joints, type Pose, type RigDims } from '../render/skeleton';
-import { glow, rgba, poly, circle, limb, ellipse, type Ctx } from '../render/draw';
+import { glow, rgba, poly, circle, ellipse, limbShaded, limbStroke, rGrad, type Ctx } from '../render/draw';
 import { fx, PK } from '../render/fx';
 import { sfx } from '../audio/audio';
 import { music } from '../audio/music';
@@ -46,6 +46,7 @@ export class Idol extends Entity {
   tobiahDone = false;
   staggerFlash = 0;
   name = 'The Gilded Idol';
+  phaseMarks = [0.55, 0.22];
   pending: (() => void) | null = null;
 
   constructor(x: number, y: number) {
@@ -64,6 +65,9 @@ export class Idol extends Entity {
 
   executable() {
     return this.staggered > 0 && !this.dying && this.state === 'kneel';
+  }
+  canBeTargeted() {
+    return !this.dying && this.state !== 'dormant' && this.state !== 'intro' && this.state !== 'transition' && this.state !== 'dead';
   }
 
   hurtbox() {
@@ -603,11 +607,15 @@ export class Idol extends Entity {
     if (dissolve > 0) ctx.globalAlpha = 1 - dissolve;
     const gold = '#c9a04a', goldHi = '#f2d48a', goldDk = '#6a4a1a', o = '#120a04';
     const broken = this.armorBroken > 0;
+    // Polished gold: a hot specular band near the lit edge, deep shadow, then bounce light.
     const goldGrad = (x0: number, y0: number, x1: number, y1: number) => {
       const g = ctx.createLinearGradient(x0, y0, x1, y1);
-      g.addColorStop(0, goldHi);
-      g.addColorStop(0.45, gold);
-      g.addColorStop(1, goldDk);
+      g.addColorStop(0, '#b08a3e');
+      g.addColorStop(0.15, '#ffe39a');
+      g.addColorStop(0.25, goldHi);
+      g.addColorStop(0.5, gold);
+      g.addColorStop(0.84, goldDk);
+      g.addColorStop(1, '#86642a');
       return g;
     };
     // false halo — a spiked sun-disc behind the head
@@ -648,6 +656,30 @@ export class Idol extends Entity {
     const torso = [...P(-4, -22), ...P(-4, 24), ...P(L * 0.55, 34), ...P(L * 0.95, 38), ...P(L * 1.02, 12), ...P(L * 1.02, -14), ...P(L * 0.95, -34), ...P(L * 0.5, -30)];
     const [tcx, tcy] = P(L * 0.55, 0);
     poly(ctx, torso, goldGrad(tcx - 30, tcy - 40, tcx + 30, tcy + 40), o, 1.6);
+    // Engraved breastplate: centre ridge, pectoral curves, belly lames and rivets.
+    {
+      const line = (pts: number[][], c: string, w: number) => {
+        ctx.beginPath();
+        ctx.moveTo(pts[0][0], pts[0][1]);
+        for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]);
+        ctx.strokeStyle = c;
+        ctx.lineWidth = w;
+        ctx.stroke();
+      };
+      line([P(L * 0.98, 2), P(L * 0.42, 3)], rgba(goldDk, 0.8), 1.4);
+      line([P(L * 0.98, 3.4), P(L * 0.42, 4.4)], rgba('#fff2c8', 0.5), 0.8);
+      line([P(L * 0.86, -26), P(L * 0.64, -14), P(L * 0.6, 2)], rgba(goldDk, 0.7), 1.2);
+      line([P(L * 0.86, 32), P(L * 0.62, 22), P(L * 0.6, 4)], rgba(goldDk, 0.7), 1.2);
+      for (const u of [0.32, 0.18]) {
+        line([P(L * u, -24), P(L * u, 27)], rgba(goldDk, 0.85), 1.4);
+        line([P(L * u + 1.6, -23), P(L * u + 1.6, 26)], rgba('#fff2c8', 0.35), 0.8);
+      }
+      for (const [u, r] of [[0.92, -28], [0.92, 32], [0.5, -27], [0.5, 30], [0.08, -21], [0.08, 22]]) {
+        const [rx0, ry0] = P(L * u, r);
+        circle(ctx, rx0, ry0, 1.7, goldHi);
+        circle(ctx, rx0 - 0.5, ry0 - 0.5, 0.7, '#fff6dc');
+      }
+    }
     // sun-disc emblem / molten core
     const [ex, ey] = P(L * 0.62, 4);
     if (!broken) {
@@ -752,24 +784,51 @@ export class Idol extends Entity {
 
   private drawLeg(ctx: Ctx, hx: number, hy: number, kx: number, ky: number, fx2: number, fy2: number, back: boolean, gg: (a: number, b: number, c: number, d: number) => CanvasGradient, o: string) {
     const dk = back ? '#4a3210' : '#6a4a1a';
-    limb(ctx, hx, hy, kx, ky, 12, 10, back ? '#5a3e14' : '#8a6a2a', o, 1.4);
-    limb(ctx, kx, ky, fx2, fy2, 10, 9, back ? '#5a3e14' : '#9a7a32', o, 1.4);
+    const foot = [fx2 - 12, fy2, fx2 - 10, fy2 - 9, fx2 + 8, fy2 - 8, fx2 + 20, fy2 - 2, fx2 + 20, fy2];
+    limbStroke(ctx, hx, hy, kx, ky, 12, 10, o, 2.6);
+    limbStroke(ctx, kx, ky, fx2, fy2, 10, 9, o, 2.6);
+    poly(ctx, foot, null, o, 2.4);
+    poly(ctx, foot, back ? '#4a3210' : gg(fx2 - 12, fy2 - 9, fx2 + 20, fy2), null);
+    limbShaded(ctx, kx, ky, fx2, fy2, 10, 9, back ? '#5a3e14' : '#9a7a32', null, 1, true);
+    limbShaded(ctx, hx, hy, kx, ky, 12, 10, back ? '#5a3e14' : '#8a6a2a', null, 1, true);
     // greave plate & knee cop
-    limb(ctx, kx + (fx2 - kx) * 0.15, ky + (fy2 - ky) * 0.15, kx + (fx2 - kx) * 0.85, ky + (fy2 - ky) * 0.85, 9, 7.5, back ? dk : gg(kx - 10, ky, kx + 10, fy2), o, 1.2);
-    circle(ctx, kx, ky, 9, back ? '#5a3e14' : '#e2c070');
-    // foot (sabaton)
-    poly(ctx, [fx2 - 12, fy2, fx2 - 10, fy2 - 9, fx2 + 8, fy2 - 8, fx2 + 20, fy2 - 2, fx2 + 20, fy2], back ? '#4a3210' : '#a07a30', o, 1.2);
+    limbShaded(ctx, kx + (fx2 - kx) * 0.15, ky + (fy2 - ky) * 0.15, kx + (fx2 - kx) * 0.85, ky + (fy2 - ky) * 0.85, 9, 7.5, back ? dk : '#c9a04a', o, 1.2, true);
+    ctx.beginPath();
+    ctx.arc(kx, ky, 9, 0, Math.PI * 2);
+    ctx.fillStyle = back ? '#5a3e14' : rGrad(ctx, '#e2c070', -3, -3, 11, 0.4, -0.35);
+    if (!back) {
+      ctx.save();
+      ctx.translate(kx, ky);
+      ctx.beginPath();
+      ctx.arc(0, 0, 9, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    } else ctx.fill();
+    ctx.lineWidth = 1.2;
+    ctx.strokeStyle = o;
+    ctx.stroke();
   }
 
   private drawArm(ctx: Ctx, sx: number, sy: number, ex: number, ey: number, hx: number, hy: number, back: boolean, gg: (a: number, b: number, c: number, d: number) => CanvasGradient, o: string) {
-    limb(ctx, sx, sy, ex, ey, 11, 9, back ? '#5a3e14' : '#9a7a32', o, 1.4);
-    limb(ctx, ex, ey, hx, hy, 10, 11, back ? '#5a3e14' : gg(ex - 10, ey, hx + 10, hy), o, 1.4);
-    circle(ctx, ex, ey, 8, back ? '#4a3210' : '#c9a04a');
+    limbStroke(ctx, sx, sy, ex, ey, 11, 9, o, 2.6);
+    limbStroke(ctx, ex, ey, hx, hy, 10, 11, o, 2.6);
+    limbShaded(ctx, ex, ey, hx, hy, 10, 11, back ? '#5a3e14' : '#b08a3a', null, 1, true);
+    limbShaded(ctx, sx, sy, ex, ey, 11, 9, back ? '#5a3e14' : '#9a7a32', null, 1, true);
+    ctx.save();
+    ctx.translate(ex, ey);
+    circle(ctx, 0, 0, 8, back ? '#4a3210' : rGrad(ctx, '#c9a04a', -2.5, -2.5, 9, 0.4, -0.3));
+    ctx.restore();
     // fist
-    circle(ctx, hx, hy, 14, back ? '#5a3e14' : '#b08a3a');
+    ctx.save();
+    ctx.translate(hx, hy);
+    ctx.beginPath();
+    ctx.arc(0, 0, 14, 0, Math.PI * 2);
+    ctx.fillStyle = back ? '#5a3e14' : rGrad(ctx, '#b08a3a', -4, -5, 16, 0.42, -0.35);
+    ctx.fill();
     ctx.lineWidth = 1.4;
     ctx.strokeStyle = o;
     ctx.stroke();
+    ctx.restore();
     ctx.strokeStyle = back ? '#3a2408' : '#6a4a1a';
     ctx.lineWidth = 1.2;
     for (let i = -1; i <= 1; i++) {

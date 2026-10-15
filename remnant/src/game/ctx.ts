@@ -21,7 +21,7 @@ export interface UIHooks {
   openAltar(id: string): void;
   echoWheel(open: boolean): void;
   showCredits(after?: () => void): void;
-  chapterEnd(): Promise<void>;
+  chapterEnd(chapter?: number): Promise<'next' | 'stay'>;
   bossBar(name: string | null, sub?: string): void;
   caption(text: string | null, ref?: string): void;
   refreshHud(): void;

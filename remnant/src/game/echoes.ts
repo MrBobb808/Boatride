@@ -1,25 +1,142 @@
 // Covenant Echoes: purified battle-imprints that fight beside Elior.
 // They keep the form and fighting style of what they were, re-forged in
 // black-gold armor and white fire. Modes: aggressive / defensive / follow.
-// Commands: priority target, recall, synchronized strike.
+// Commands: priority target, recall, synchronized strike, switch.
+//
+// Each species is a kit: its rig, its look per stage, and its moves as data.
+// Melee kits share one brain; the Ranger has its own.
 
 import { Entity, type HitInfo } from './entity';
 import { moveBody, groundAhead, wallAhead } from './physics';
-import { Animator, solve, newJoints, Chain, drawRibbon, type Joints, type Pose, BASE_POSE } from '../render/skeleton';
-import { drawHumanoid } from '../render/actors';
+import { Animator, solve, newJoints, Chain, drawRibbon, type Joints, type Pose, type Clip, type RigDims, BASE_POSE } from '../render/skeleton';
+import { drawHumanoid, type HumanStyle } from '../render/actors';
 import { glow, rgba, type Ctx } from '../render/draw';
 import { fx, PK } from '../render/fx';
 import { sfx } from '../audio/audio';
 import { G } from './ctx';
 import { approach, clamp, rand, sign } from '../core/math';
 import { SENT_CLIPS, SENT_BASE, SENT_DIMS, ARCH_CLIPS, ARCH_BASE, ARCH_DIMS, sentinelStyle, archerStyle } from './enemies';
+import { BRUTE_CLIPS, BRUTE_BASE, BRUTE_DIMS, BULW_CLIPS, BULW_BASE, BULW_DIMS, bruteStyle, bulwarkStyle, knightEchoStyle, marshalStyle } from './tanks';
 import { ECHO_SPECIES, echoXpToNext, type EchoInst } from './data';
 import { echoAtk, echoMaxHp, skillRank } from './state';
 import { Proj } from './projectiles';
 import { lighting } from '../render/lighting';
 
+interface Move {
+  state: string;
+  clip: string;
+  /** Seconds. */
+  T: number;
+  /** Normalized time of the blow. */
+  hitU: number;
+  box: { x: number; y: number; w: number; h: number };
+  mult: number;
+  poise: number;
+  kx: number;
+  ky: number;
+  stun?: number;
+  minStage?: number;
+  weight: number;
+  /** Ground slam: dust, ring, shake. */
+  slam?: boolean;
+  /** Rolling waves of light from this stage on. */
+  waveStage?: number;
+  /** Dash speed through the blow. */
+  dash?: number;
+  /** Repeat the move this many extra times while the foe is close. */
+  chain?: number;
+  /** Teleport behind the target before striking. */
+  blink?: boolean;
+  sound: string;
+}
+
+export interface EchoKit {
+  clips: Record<string, Clip>;
+  base: Pose;
+  dims: RigDims;
+  w: number;
+  h: number;
+  style: (stage: number) => HumanStyle;
+  ranged?: boolean;
+  /** Chance to block a frontal blow while not attacking. */
+  guard: number;
+  /** Damage taken multiplier. */
+  armor: number;
+  speed: number;
+  /** Distance at which it starts a blow. */
+  reach: number;
+  moves: Move[];
+  cape: [number, number] | null;
+  capeColor: (stage: number) => string;
+  /** Draws foes, stops arrows for Elior in defensive mode, shields nearby allies. */
+  guardian: boolean;
+  idle: string;
+  /** Marshal-class: other Echoes near it fight harder. */
+  warden?: boolean;
+}
+
+const SENT_SLASH_BOX = { x: -4, y: -44, w: 40, h: 46 };
+
+export const KITS: Record<string, EchoKit> = {
+  sentinel: {
+    clips: SENT_CLIPS, base: SENT_BASE, dims: SENT_DIMS, w: 18, h: 40, style: (st) => sentinelStyle('echo', st),
+    guard: 0.5, armor: 0.8, speed: 100, reach: 40, guardian: true, idle: 'guard',
+    cape: [11, 15], capeColor: (st) => (st >= 1 ? '#e8dcc0' : '#2a2420'),
+    moves: [
+      { state: 'slash', clip: 'slash', T: 0.8, hitU: 0.58, box: SENT_SLASH_BOX, mult: 1, poise: 18, kx: 140, ky: -120, weight: 1, sound: 'echoAttack' },
+      { state: 'bash', clip: 'bash', T: 0.6, hitU: 0.45, box: SENT_SLASH_BOX, mult: 0.8, poise: 45, kx: 280, ky: -120, stun: 0.6, minStage: 1, weight: 0.45, sound: 'shieldBash' },
+      { state: 'slam', clip: 'slam', T: 1.0, hitU: 0.7, box: { x: -20, y: -36, w: 60, h: 38 }, mult: 2.0, poise: 18, kx: 140, ky: -120, minStage: 2, weight: 0.4, slam: true, waveStage: 2, sound: 'echoAttack' },
+    ],
+  },
+  archer: {
+    clips: ARCH_CLIPS, base: ARCH_BASE, dims: ARCH_DIMS, w: 12, h: 32, style: (st) => archerStyle('echo', st),
+    ranged: true, guard: 0, armor: 1, speed: 100, reach: 260, guardian: false, idle: 'idle',
+    cape: [11, 15], capeColor: (st) => (st >= 1 ? '#e8dcc0' : '#2a2420'), moves: [],
+  },
+  brute: {
+    clips: BRUTE_CLIPS, base: BRUTE_BASE, dims: BRUTE_DIMS, w: 24, h: 50, style: (st) => bruteStyle('echo', st),
+    guard: 0, armor: 0.62, speed: 74, reach: 54, guardian: true, idle: 'idle',
+    cape: null, capeColor: () => '#2a2420',
+    moves: [
+      { state: 'smash', clip: 'smash', T: 1.15, hitU: 0.64, box: { x: -6, y: -48, w: 66, h: 52 }, mult: 2.3, poise: 70, kx: 260, ky: -280, weight: 1, slam: true, waveStage: 1, sound: 'sentinelSlam' },
+      { state: 'sweep', clip: 'sweep', T: 0.9, hitU: 0.58, box: { x: -16, y: -50, w: 68, h: 50 }, mult: 1.5, poise: 45, kx: 340, ky: -160, weight: 0.8, sound: 'swingHeavy' },
+    ],
+  },
+  bulwark: {
+    clips: BULW_CLIPS, base: BULW_BASE, dims: BULW_DIMS, w: 20, h: 44, style: (st) => bulwarkStyle('echo', st),
+    guard: 0.75, armor: 0.7, speed: 92, reach: 56, guardian: true, idle: 'guard',
+    cape: null, capeColor: () => '#2a2420',
+    moves: [
+      { state: 'jab', clip: 'jab', T: 0.7, hitU: 0.52, box: { x: 6, y: -42, w: 52, h: 16 }, mult: 1.0, poise: 20, kx: 160, ky: -60, weight: 1, sound: 'swingSpear' },
+      { state: 'shove', clip: 'shove', T: 0.65, hitU: 0.45, box: { x: 0, y: -44, w: 30, h: 44 }, mult: 0.7, poise: 55, kx: 380, ky: -150, stun: 0.5, minStage: 1, weight: 0.5, sound: 'shieldBash' },
+    ],
+  },
+  knight: {
+    clips: SENT_CLIPS, base: SENT_BASE, dims: SENT_DIMS, w: 16, h: 40, style: (st) => knightEchoStyle(st),
+    guard: 0.25, armor: 0.9, speed: 125, reach: 42, guardian: false, idle: 'guard',
+    cape: [11, 15], capeColor: (st) => (st >= 1 ? '#7a1a1e' : '#4a1216'),
+    moves: [
+      { state: 'slash', clip: 'slash', T: 0.58, hitU: 0.56, box: SENT_SLASH_BOX, mult: 1.0, poise: 20, kx: 140, ky: -110, weight: 1, chain: 1, sound: 'swing' },
+      { state: 'lunge', clip: 'bash', T: 0.7, hitU: 0.5, box: { x: 0, y: -40, w: 34, h: 34 }, mult: 1.4, poise: 35, kx: 240, ky: -80, dash: 320, minStage: 1, weight: 0.5, sound: 'swingSpear' },
+    ],
+  },
+  marshal: {
+    clips: SENT_CLIPS, base: SENT_BASE, dims: SENT_DIMS, w: 18, h: 42, style: (st) => marshalStyle('echo', st),
+    guard: 0.35, armor: 0.75, speed: 150, reach: 48, guardian: false, idle: 'guard', warden: true,
+    cape: [12, 17], capeColor: () => '#6a1418',
+    moves: [
+      { state: 'slash', clip: 'slash', T: 0.48, hitU: 0.55, box: { x: -6, y: -50, w: 50, h: 54 }, mult: 1.3, poise: 30, kx: 160, ky: -130, weight: 1, chain: 2, waveStage: 2, sound: 'swingHeavy' },
+      { state: 'lunge', clip: 'bash', T: 0.6, hitU: 0.48, box: { x: 0, y: -42, w: 38, h: 36 }, mult: 1.8, poise: 50, kx: 280, ky: -90, dash: 400, weight: 0.6, sound: 'dash' },
+      { state: 'blink', clip: 'slash', T: 0.5, hitU: 0.55, box: { x: -6, y: -50, w: 50, h: 54 }, mult: 2.0, poise: 60, kx: 200, ky: -220, blink: true, minStage: 1, weight: 0.55, sound: 'swingHeavy' },
+    ],
+  },
+};
+
+export const kitFor = (species: string) => KITS[species] ?? KITS.sentinel;
+
 export class EchoUnit extends Entity {
   inst: EchoInst;
+  kit: EchoKit;
   anim: Animator;
   pose: Pose = { ...BASE_POSE };
   j: Joints = newJoints();
@@ -36,14 +153,17 @@ export class EchoUnit extends Entity {
   assistCd = 0;
   bowDraw = 0;
   despawn = 0;
+  move: Move | null = null;
+  chainLeft = 0;
 
   constructor(inst: EchoInst, x: number, y: number, slot: number) {
-    super(x, y, inst.species === 'sentinel' ? 18 : 12, inst.species === 'sentinel' ? 40 : 32);
+    const kit = kitFor(inst.species);
+    super(x, y, kit.w, kit.h);
+    this.kit = kit;
     this.inst = inst;
     this.team = 'player';
     this.slot = slot;
-    const isSent = inst.species === 'sentinel';
-    this.anim = new Animator(isSent ? SENT_CLIPS : ARCH_CLIPS, isSent ? SENT_BASE : ARCH_BASE);
+    this.anim = new Animator(kit.clips, kit.base);
     this.anim.play('idle', 0);
     this.cape = new Chain(7, 4, x, y - 34);
     this.maxHp = echoMaxHp(G.save, inst, G.d);
@@ -53,8 +173,9 @@ export class EchoUnit extends Entity {
     this.name = ECHO_SPECIES[inst.species].stages[inst.stage].name;
   }
 
+  /** Shield-bearers and heavies: draw foes and guard Elior. */
   get sentinel() {
-    return this.inst.species === 'sentinel';
+    return this.kit.guardian;
   }
 
   refreshStats() {
@@ -77,7 +198,7 @@ export class EchoUnit extends Entity {
       if (this.despawn <= 0) this.remove = true;
       this.anim.update(dt);
       this.pose = this.anim.sample();
-      solve(this.pose, this.sentinel ? SENT_DIMS : ARCH_DIMS, true, this.j);
+      solve(this.pose, this.kit.dims, true, this.j);
       return;
     }
     const p = G.world.player;
@@ -118,8 +239,8 @@ export class EchoUnit extends Entity {
       const cx = mode === 'aggressive' ? this.x : p.x;
       this.target = G.world.nearestEnemy(cx, p.y - 20, range, 0);
     }
-    if (this.sentinel) this.thinkSentinel(dt, mode);
-    else this.thinkArcher(dt, mode);
+    if (this.kit.ranged) this.thinkArcher(dt, mode);
+    else this.thinkMelee(dt, mode);
     b.vy = Math.min(560, b.vy + 1500 * this.grav * dt);
     moveBody(b, dt, G.world.grid, G.world.solid, this.collide);
     if (this.y > G.world.grid.h * 16 + 30) {
@@ -127,8 +248,10 @@ export class EchoUnit extends Entity {
       this.y = p.y;
     }
     this.animate(dt);
-    const f = this.face;
-    this.cape.update(this.x + f * (this.j.shBX - 2), this.y + this.j.shBY, dt, -b.vx * 2 - f * 50 + Math.sin(G.time * 2) * 30, 380, 0.88);
+    if (this.kit.cape) {
+      const f = this.face;
+      this.cape.update(this.x + f * (this.j.shBX - 2), this.y + this.j.shBY, dt, -b.vx * 2 - f * 50 + Math.sin(G.time * 2) * 30, 380, 0.88);
+    }
   }
 
   private follow(dt: number, speed: number) {
@@ -150,37 +273,37 @@ export class EchoUnit extends Entity {
     }
   }
 
-  private thinkSentinel(dt: number, mode: string) {
+  private pickMove(): Move | null {
+    const stage = this.inst.stage;
+    const avail = this.kit.moves.filter((m) => (m.minStage ?? 0) <= stage);
+    if (!avail.length) return null;
+    let total = 0;
+    for (const m of avail) total += m.weight;
+    let r = Math.random() * total;
+    for (const m of avail) {
+      r -= m.weight;
+      if (r <= 0) return m;
+    }
+    return avail[0];
+  }
+
+  private thinkMelee(dt: number, mode: string) {
     const b = this.body;
     const t = this.target;
-    const atk = echoAtk(G.save, this.inst, G.d) * G.world.commanderAura(this.x, this.y, this);
-    const stage = this.inst.stage;
-    if (this.state === 'slash' || this.state === 'bash' || this.state === 'slam') {
-      const T = this.state === 'slam' ? 1.0 : this.state === 'bash' ? 0.6 : 0.8;
-      const u = this.st / T;
-      b.vx = approach(b.vx, 0, 900 * dt);
-      const hitU = this.state === 'slam' ? 0.7 : this.state === 'bash' ? 0.45 : 0.58;
-      if (u >= hitU && this.st - dt < hitU * T) {
-        sfx(this.state === 'bash' ? 'shieldBash' : 'echoAttack', { pan: G.world.pan(this.x) });
-        const box = this.state === 'slam' ? { x: -20, y: -36, w: 60, h: 38 } : { x: -4, y: -44, w: 40, h: 46 };
-        const x = this.face > 0 ? this.x + box.x : this.x - box.x - box.w;
-        const mult = this.state === 'slam' ? 2.0 : this.state === 'bash' ? 0.8 : 1;
-        G.world.hitEnemies({ x, y: this.y + box.y, w: box.w, h: box.h }, {
-          dmg: atk * mult, poise: this.state === 'bash' ? 45 : 18, kx: this.face * (this.state === 'bash' ? 280 : 140), ky: -120, dir: this.face, kind: 'echo', src: this, stop: 0.02,
-          stun: this.state === 'bash' ? 0.6 : 0,
-        }, this.hitSet, () => this.gainXp(1));
-        fx.slash(this.x + this.face * 4, this.y - 26, 24, -2.0, 0.6, 7, this.face, '#fffaf0', '#ffe6a8', 0.15);
-        if (this.state === 'slam') {
-          fx.dust(this.x, this.y, 10, 1.3);
-          fx.ring(this.x + this.face * 14, this.y, 6, 50, '#fff3c4', 0.35, 3, 0.3);
-          if (stage >= 2) {
-            G.world.add(new Proj('wave', this.x + 16, this.y, 'player', atk * 0.9, { vx: 230, life: 1.2, w: 14, h: 24, color: '#fff3c4', echo: true }));
-            G.world.add(new Proj('wave', this.x - 16, this.y, 'player', atk * 0.9, { vx: -230, life: 1.2, w: 14, h: 24, color: '#fff3c4', echo: true }));
-          }
-        }
-      }
+    const m = this.move;
+    if (m) {
+      const u = this.st / m.T;
+      if (m.dash && u > m.hitU - 0.12 && u < m.hitU + 0.14) b.vx = this.face * m.dash;
+      else b.vx = approach(b.vx, 0, 900 * dt);
+      if (u >= m.hitU && this.st - dt < m.hitU * m.T) this.blow(m);
       if (u >= 1) {
-        this.attackCd = this.state === 'slam' ? 2 : rand(0.6, 1.0);
+        if (this.chainLeft > 0 && t && !t.dying && Math.abs(t.x - this.x) < this.kit.reach + 16) {
+          this.chainLeft--;
+          this.begin(m, true);
+          return;
+        }
+        this.move = null;
+        this.attackCd = m.slam ? 1.6 : rand(0.5, 0.9) * (this.kit.warden ? 0.7 : 1);
         this.state = 'follow';
       }
       return;
@@ -189,21 +312,64 @@ export class EchoUnit extends Entity {
       const dx = t.x - this.x;
       const dist = Math.abs(dx);
       this.face = sign(dx) || this.face;
-      if (dist < 40 && this.attackCd <= 0 && b.onGround) {
-        this.hitSet.clear();
-        const r = Math.random();
-        if (stage >= 1 && r < 0.3) this.begin('bash', 0.6);
-        else if (stage >= 2 && r < 0.5) this.begin('slam', 1.0);
-        else this.begin('slash', 0.8);
+      const mv = this.attackCd <= 0 && b.onGround ? this.pickMove() : null;
+      if (mv && (dist < this.kit.reach || (mv.dash && dist < 150) || (mv.blink && dist < 170))) {
+        this.begin(mv, false);
         return;
       }
       if (mode === 'defensive') {
         // Hold a line just in front of Elior.
         const p = G.world.player;
         const guardX = p.x + sign(t.x - p.x) * 26;
-        this.walk(guardX, 90, dt);
-      } else this.walk(t.x, 100, dt, 30);
-    } else this.follow(dt, 110);
+        this.walk(guardX, this.kit.speed * 0.9, dt);
+      } else this.walk(t.x, this.kit.speed, dt, this.kit.reach - 10);
+    } else this.follow(dt, this.kit.speed + 10);
+  }
+
+  private begin(m: Move, chained: boolean) {
+    this.move = m;
+    this.state = m.state;
+    this.st = 0;
+    this.hitSet.clear();
+    if (!chained) this.chainLeft = (m.chain ?? 0) + (this.kit === KITS.knight && this.inst.stage >= 2 ? 1 : 0);
+    if (m.blink && this.target) {
+      const t = this.target;
+      const side = sign(t.x - this.x) || this.face;
+      const tx = t.x + side * (t.body.w / 2 + 14);
+      if (!G.world.solidAt(tx, t.y - 8) && !G.world.solidAt(tx, t.y - 30)) {
+        fx.streak(this.x, this.y - 22, tx, t.y - 22, '#ffd0c0', 0.22, 3);
+        fx.spawn(PK.Smoke, this.x, this.y - 18, 0, -20, 0.4, 5, 12, '#1a1012', -20, 2);
+        this.x = tx;
+        this.y = t.y;
+        this.face = sign(t.x - this.x) || -side;
+        sfx('dash', { pan: G.world.pan(this.x), pitch: 1.5, vol: 0.6 });
+      }
+    }
+    this.anim.play(m.clip, 0.06, true, 1 / m.T);
+  }
+
+  private blow(m: Move) {
+    const stage = this.inst.stage;
+    const atk = echoAtk(G.save, this.inst, G.d) * G.world.commanderAura(this.x, this.y, this);
+    sfx(m.sound, { pan: G.world.pan(this.x), vol: 0.8 });
+    const box = m.box;
+    const x = this.face > 0 ? this.x + box.x : this.x - box.x - box.w;
+    G.world.hitEnemies({ x, y: this.y + box.y, w: box.w, h: box.h }, {
+      dmg: atk * m.mult, poise: m.poise, kx: this.face * m.kx, ky: m.ky, dir: this.face, kind: 'echo', src: this, stop: 0.02, stun: m.stun ?? 0,
+    }, this.hitSet, () => this.gainXp(1));
+    if (!m.slam) {
+      const big = this.kit === KITS.marshal || this.kit === KITS.brute;
+      fx.slash(this.x + this.face * 4, this.y - this.kit.h * 0.62, big ? 30 : 24, -2.0, 0.6, big ? 9 : 7, this.face, '#fffaf0', this.kit === KITS.marshal ? '#ff8a6a' : '#ffe6a8', 0.15);
+    } else {
+      fx.dust(this.x + this.face * 20, this.y, 12, 1.5);
+      fx.ring(this.x + this.face * 20, this.y, 6, 56, '#fff3c4', 0.35, 3, 0.3);
+      G.camera.addTrauma(0.15);
+    }
+    if (m.waveStage !== undefined && stage >= m.waveStage) {
+      const c = this.kit === KITS.marshal ? '#ffd8b0' : '#fff3c4';
+      G.world.add(new Proj('wave', this.x + this.face * 16, this.y, 'player', atk * 0.9, { vx: this.face * 240, life: 1.2, w: 14, h: 24, color: c, echo: true }));
+      if (m.slam) G.world.add(new Proj('wave', this.x - this.face * 16, this.y, 'player', atk * 0.9, { vx: -this.face * 240, life: 1.2, w: 14, h: 24, color: c, echo: true }));
+    }
   }
 
   private thinkArcher(dt: number, mode: string) {
@@ -259,12 +425,6 @@ export class EchoUnit extends Entity {
     fx.column(t.x, t.y - 120, 40, 60, '#fff3c4', 0.5);
   }
 
-  private begin(s: string, T: number) {
-    this.state = s;
-    this.st = 0;
-    this.anim.play(s, 0.06, true, 1 / T);
-  }
-
   private walk(tx: number, speed: number, dt: number, stop = 6) {
     const b = this.body;
     const dx = tx - this.x;
@@ -279,31 +439,49 @@ export class EchoUnit extends Entity {
 
   private animate(dt: number) {
     const b = this.body;
-    const busy = ['slash', 'bash', 'slam', 'draw'].includes(this.state);
-    if (!busy && this.anim.name !== 'release' || (this.anim.name === 'release' && this.anim.done)) {
+    const busy = this.move !== null || this.state === 'draw';
+    if ((!busy && this.anim.name !== 'release') || (this.anim.name === 'release' && this.anim.done)) {
       if (Math.abs(b.vx) > 12) this.anim.play('walk', 0.15, false, Math.min(2, Math.abs(b.vx) / 60));
-      else this.anim.play(this.sentinel && this.target ? 'guard' : 'idle', 0.2);
+      else this.anim.play(this.target && !this.kit.ranged ? this.kit.idle : 'idle', 0.2);
     }
     this.anim.update(dt);
     this.pose = this.anim.sample();
-    solve(this.pose, this.sentinel ? SENT_DIMS : ARCH_DIMS, b.onGround || this.recallT > 0, this.j);
+    solve(this.pose, this.kit.dims, b.onGround || this.recallT > 0, this.j);
   }
 
   /** Summon-assisted combination: follow up Elior's finisher on the same foe. */
   assist(e: Entity) {
-    if (this.assistCd > 0 || this.recallT > 0 || this.summonT > 0) return;
+    if (this.assistCd > 0 || this.recallT > 0 || this.summonT > 0 || this.move) return;
     this.assistCd = 3.5;
-    if (this.sentinel) {
-      this.x = e.x - G.world.player.face * 24;
-      this.y = e.y;
-      this.face = G.world.player.face;
-      fx.holyBurst(this.x, this.y - 20, 8, 0.6);
-      this.hitSet.clear();
-      this.begin('bash', 0.5);
-      this.st = 0.15;
-    } else {
+    if (this.kit.ranged) {
       this.attackCd = 0;
+      return;
     }
+    this.x = e.x - G.world.player.face * (e.body.w / 2 + 14);
+    this.y = e.y;
+    this.face = G.world.player.face;
+    fx.holyBurst(this.x, this.y - 20, 8, 0.6);
+    this.target = e;
+    const m = this.kit.moves.find((mv) => mv.stun && (mv.minStage ?? 0) <= this.inst.stage) ?? this.kit.moves[0];
+    this.begin(m, false);
+    this.st = m.T * Math.max(0, m.hitU - 0.25);
+  }
+
+  /** Switch: arrive beside a foe already swinging. */
+  tagIn(t: Entity | null) {
+    this.summonT = 0.25;
+    if (!t || this.kit.ranged) {
+      if (t) this.attackCd = 0;
+      return;
+    }
+    this.x = t.x - sign(t.x - G.world.player.x || 1) * (t.body.w / 2 + 14);
+    this.y = t.y;
+    this.face = sign(t.x - this.x) || 1;
+    this.target = t;
+    fx.column(this.x, this.y, 30, 120, '#fff3c4', 0.6);
+    const m = this.kit.moves.reduce((a, b) => (b.mult > a.mult && (b.minStage ?? 0) <= this.inst.stage && !b.blink ? b : a), this.kit.moves[0]);
+    this.begin(m, false);
+    this.st = m.T * Math.max(0, m.hitU - 0.2);
   }
 
   gainXp(n: number) {
@@ -322,15 +500,17 @@ export class EchoUnit extends Entity {
 
   takeHit(h: HitInfo): boolean {
     if (this.invuln > 0 || this.recallT > 0 || this.summonT > 0.4 || this.despawn > 0) return false;
-    // Sentinel guard blocks frontal blows.
-    if (this.sentinel && h.dir !== 0 && sign(h.dir) !== this.face && this.state === 'follow' && Math.random() < 0.5 + this.inst.stage * 0.15) {
+    const frontal = h.dir !== 0 && sign(h.dir) !== this.face;
+    const guard = this.kit.guard + (this.kit.guard > 0 ? this.inst.stage * 0.12 : 0);
+    if (frontal && !this.move && Math.random() < guard) {
       sfx('block', { pan: G.world.pan(this.x), vol: 0.7 });
       fx.hitSparks(this.x + this.face * 10, this.y - 24, -this.face, '#fff1c4', 6);
       this.hp -= h.dmg * 0.2;
     } else {
-      this.hp -= h.dmg * (this.sentinel ? 0.8 : 1);
+      const unmoved = this.kit === KITS.brute && this.inst.stage >= 2 ? 0.5 : 1;
+      this.hp -= h.dmg * this.kit.armor * unmoved;
       this.flash = 0.12;
-      this.body.vx = h.kx * 0.4;
+      if (this.kit !== KITS.brute) this.body.vx = h.kx * 0.4;
       fx.hitSparks(this.cx, this.cy, h.dir || 1, '#ffe6a8', 5);
       sfx('hit', { pan: G.world.pan(this.x), vol: 0.6 });
     }
@@ -352,6 +532,7 @@ export class EchoUnit extends Entity {
   recall() {
     this.recallT = 0.45;
     this.state = 'follow';
+    this.move = null;
     if (skillRank(G.save, 'c_recall')) {
       this.invuln = 2;
       this.hp = Math.min(this.maxHp, this.hp + this.maxHp * 0.25);
@@ -361,6 +542,7 @@ export class EchoUnit extends Entity {
 
   dismiss() {
     this.despawn = 0.5;
+    this.move = null;
     fx.column(this.x, this.y, 30, 80, '#ffe6a8', 0.5);
     this.inst.hp = this.hp;
   }
@@ -380,25 +562,25 @@ export class EchoUnit extends Entity {
   draw(ctx: Ctx) {
     const reveal = this.summonT > 0 ? clamp(1 - this.summonT / 1.1, 0, 1) : 1;
     const fade = this.despawn > 0 ? this.despawn / 0.5 : 1;
-    const style = this.sentinel ? sentinelStyle('echo', this.inst.stage) : archerStyle('echo', this.inst.stage);
-    if (!this.sentinel) style.bowDraw = this.state === 'draw' ? this.bowDraw : 0;
+    const style = this.kit.style(this.inst.stage);
+    if (this.kit.ranged) style.bowDraw = this.state === 'draw' ? this.bowDraw : 0;
     // white fire aura
     ctx.globalCompositeOperation = 'lighter';
-    glow(ctx, this.x, this.y - 18, 30, '#fff3c4', 0.18 * fade);
+    glow(ctx, this.x, this.y - this.kit.h * 0.45, this.kit.h * 0.75, this.kit.warden ? '#ffd0b0' : '#fff3c4', 0.18 * fade);
     ctx.globalCompositeOperation = 'source-over';
     ctx.save();
     if (reveal < 1) {
       // materialize from the top down
       const h = this.body.h + 20;
       ctx.beginPath();
-      ctx.rect(this.x - 40, this.y - h, 80, h * reveal + 2);
+      ctx.rect(this.x - 50, this.y - h, 100, h * reveal + 2);
       ctx.clip();
     }
     ctx.globalAlpha = (this.recallT > 0 ? 0.5 : 0.95) * fade;
-    drawRibbon(ctx, this.cape, 11, 15, this.inst.stage >= 1 ? '#e8dcc0' : '#2a2420', '#0a0806');
+    if (this.kit.cape) drawRibbon(ctx, this.cape, this.kit.cape[0], this.kit.cape[1], this.kit.capeColor(this.inst.stage), '#0a0806');
     ctx.translate(this.x, this.y);
     ctx.scale(this.face, 1);
-    drawHumanoid(ctx, this.j, style, G.time + this.id, this.pose.rot);
+    drawHumanoid(ctx, this.j, style, G.time + this.id, this.pose.rot, this.body.vx * this.face, this.body.vy);
     ctx.restore();
     ctx.globalAlpha = 1;
     if (this.flash > 0) {
@@ -422,9 +604,9 @@ export class EchoUnit extends Entity {
       ctx.fillStyle = '#e8c86a';
       ctx.fillRect(x, y, w * (this.hp / this.maxHp), 1.6);
     }
-    if (this.inst.commander) {
+    if (this.inst.commander || this.kit.warden) {
       ctx.globalCompositeOperation = 'lighter';
-      ctx.strokeStyle = rgba('#ffe6a8', 0.5);
+      ctx.strokeStyle = rgba(this.kit.warden ? '#ffb090' : '#ffe6a8', 0.5);
       ctx.lineWidth = 0.8;
       ctx.beginPath();
       ctx.ellipse(this.x, this.y, 60, 10, 0, 0, Math.PI * 2);
@@ -434,6 +616,6 @@ export class EchoUnit extends Entity {
   }
 
   lights() {
-    lighting.add(this.x, this.y - 20, 70, '#fff3c4', 0.6, 0.3);
+    lighting.add(this.x, this.y - 20, 70, this.kit.warden ? '#ffd0b0' : '#fff3c4', 0.6, 0.3);
   }
 }

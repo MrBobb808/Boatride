@@ -79,6 +79,16 @@ export const NPC_DEFS: Record<NpcKind, { name: string; title: string; style: Hum
       outline: '#050308', weapon: 'staff', offhand: 'none', bulk: 1.05,
     },
   },
+  marshal: {
+    name: 'The Crimson Marshal', title: 'Commander of the Tower', base: { ...NPC_BASE, fUA: 0.65, fFA: 0.6, bUA: 0.7, bFA: 0.75, wpn: 1.35 }, dims: { ...PDIMS, torso: 14, thigh: 9.2, shin: 9.2 }, scale: 1.3,
+    style: {
+      skin: '#3a3036', hair: null, hairKind: 'none', coat: '#7a1218', coatDark: '#4a0a0e', skirt: 13, trim: '#c9a04a',
+      pants: '#1a1216', boots: '#1e1418', glove: '#26181c', belt: '#1a1214',
+      plate: { c: '#2a1c20', dark: '#140c0e', hi: '#b04048', tier: 2 }, helm: 'visor', helmColor: '#24161a', helmTrim: '#c9a04a',
+      eye: '#ff2a3a', eyeGlow: 1, outline: '#0a0406', weapon: 'greatsword', weaponColor: '#9a8a90', weaponGlow: '#ff2a3a', weaponGlowAmt: 0.5,
+      offhand: 'none', crack: '#ff5a3a', bulk: 1.3, crest: '#ff3a3a',
+    },
+  },
 };
 
 export class Npc extends Entity implements Interactable {
@@ -159,7 +169,7 @@ export class Npc extends Entity implements Interactable {
       // traveller's pack
       poly(ctx, [this.j.shBX - 9, this.j.shBY - 2, this.j.shBX - 1, this.j.shBY - 4, this.j.hipX - 2, this.j.hipY + 2, this.j.hipX - 11, this.j.hipY + 1], '#5a4028', '#0a070c', 0.8);
     }
-    drawHumanoid(ctx, this.j, def.style, G.time + this.id, this.pose.rot);
+    drawHumanoid(ctx, this.j, def.style, G.time + this.id, this.pose.rot, this.body.vx * this.face, this.ghost ? 0 : this.body.vy);
     ctx.restore();
     ctx.globalAlpha = 1;
     if (this.ghost) {

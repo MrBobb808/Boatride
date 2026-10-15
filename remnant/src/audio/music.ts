@@ -523,6 +523,112 @@ export const TRACKS: Record<string, TrackDef> = {
       if (ph >= 2 && p === 8 && b % 4 === 3) m.swell(d, t, beat * 2, 1);
     },
   },
+  // Chapter II: the plain of Shinar. D Phrygian-dominant, a reed-like flute over a frame-drum pulse.
+  shinar: {
+    bpm: 76,
+    ambience: 'wind',
+    gen(m, d, s, t, I) {
+      const b = bar(s), p = pos(s);
+      const beat = 60 / 76;
+      const roots = [38, 38, 39, 36];
+      const r = roots[b % 4];
+      if (p === 0) {
+        m.strings(d, r - 12, t, beat * 4, 1, 650, 0.7);
+        m.strings(d, r - 5, t, beat * 4, 0.45, 650, 0.7);
+        if (b % 2 === 0) m.choir(d, 62, t, beat * 8, 0.3, 'oo');
+      }
+      // Harp ostinato on the mode: D Eb F# G A Bb C.
+      const scale = [62, 63, 66, 67, 69, 70, 72, 74];
+      const ost = [0, 2, 1, 2, 4, 3, 2, 1];
+      if (p % 2 === 0) m.harp(d, scale[ost[(p / 2) % 8]] + (b % 4 === 2 ? 1 : 0), t, 0.5, 1.6);
+      // The reed melody on alternate phrases.
+      const mel: Record<number, number> = { 0: 74, 3: 75, 4: 74, 6: 72, 8: 70, 10: 69, 12: 70, 14: 66 };
+      if (Math.floor(b / 2) % 2 === 1 && mel[p] !== undefined) m.flute(d, mel[p], t, beat * 0.9, 0.8);
+      // Frame drum pulse, always faintly present.
+      if (p === 0 || p === 6 || p === 10) m.taiko(d, t, 0.18 + I * 0.4, 1.3);
+      if (I > 0.12) {
+        const v = Math.min(1, I * 1.3);
+        if (p === 3 || p === 12) m.taiko(d, t, 0.45 * v, 1.0);
+        if (p % 2 === 1) m.strings(d, r + 24 + [0, 1, 4, 1][(p >> 1) % 4], t, 0.14, 0.7 * v, 2600, 0.005);
+        if (p === 0 && b % 2 === 0) m.brass(d, r + 12, t, beat * 2, 0.6 * v);
+        if (p === 4 || p === 12) m.snare(d, t, 0.22 * v);
+      }
+    },
+  },
+  // Chapter II: inside the Tower. A rising figure that never resolves.
+  tower: {
+    bpm: 62,
+    ambience: 'drone',
+    gen(m, d, s, t, I) {
+      const b = bar(s), p = pos(s);
+      const beat = 60 / 62;
+      const prog = [[38, [62, 65, 69]], [40, [64, 67, 71]], [41, [65, 69, 72]], [43, [67, 70, 74]]] as const;
+      const [r, ch] = prog[b % 4];
+      if (p === 0) {
+        m.strings(d, r - 12, t, beat * 4, 1.1, 520, 1);
+        for (const n of ch) m.choir(d, n - 12, t, beat * 4, 0.42, b % 2 ? 'ah' : 'oo');
+      }
+      // Each bar climbs a step higher: the tower that keeps reaching.
+      if (p % 4 === 0) m.harp(d, ch[(p / 4) % 3] + 12 + (b % 4), t, 0.45, 2.2);
+      if (p === 8 && b % 4 === 3) m.bell(d, 50, t, 0.8, 5);
+      if (I > 0.12) {
+        const v = Math.min(1, I * 1.3);
+        if (p === 0 || p === 7 || p === 10) m.taiko(d, t, 0.55 * v, 0.8);
+        if (p % 2 === 0) m.strings(d, r + 12 + [0, 2, 3, 2][(p >> 1) % 4], t, 0.16, 0.55 * v, 2200, 0.005);
+        if (p === 0 && b % 2 === 1) m.brass(d, r, t, beat * 2, 0.6 * v);
+      }
+    },
+  },
+  // The Gatekeeper: a beast's war-drum. Phases add weight and fire.
+  gatekeeper: {
+    bpm: 156,
+    ambience: 'fire',
+    gen(m, d, s, t) {
+      const b = bar(s), p = pos(s);
+      const ph = m.phase;
+      const beat = 60 / 156;
+      const roots = [33, 33, 34, 32];
+      const r = roots[b % 4];
+      const ost = [0, 0, 12, 0, 1, 0, 12, 0, 0, 0, 12, 1, 0, 13, 12, 0];
+      m.strings(d, r + 24 + ost[p], t, 0.11, 0.85 + ph * 0.15, 2400, 0.003);
+      if (p % 4 === 0) m.bass(d, r, t, beat * 0.9, 1);
+      const kick = [0, 2, 6, 8, 10, 14];
+      if (kick.includes(p)) m.taiko(d, t, 0.8, p % 8 === 0 ? 0.7 : 0.95);
+      if (ph >= 1 && (p === 4 || p === 12)) m.snare(d, t, 0.5);
+      if (ph >= 1 && p % 2 === 1) m.tick2(d, t, 0.6);
+      if (p === 0) {
+        m.brass(d, r + 12, t, beat * 2, 0.9);
+        m.brass(d, r + 18, t, beat * 2, 0.6);
+      }
+      if (ph >= 2 && p === 8) m.brass(d, r + 25, t, beat * 1.5, 0.7);
+      if (p === 0 && b % 2 === 0) for (const n of [57, 60, 63]) m.choir(d, n + (r - 33), t, beat * 7, 0.6 + ph * 0.15, 'ah');
+      if (ph >= 2 && p === 12 && b % 4 === 3) m.swell(d, t, beat * 2, 1);
+    },
+  },
+  // The Crimson Marshal: an honour duel. Strings, then brass, then everything.
+  duel: {
+    bpm: 132,
+    ambience: 'none',
+    gen(m, d, s, t) {
+      const b = bar(s), p = pos(s);
+      const ph = m.phase;
+      const beat = 60 / 132;
+      const prog = [[38, [62, 65, 69]], [34, [58, 62, 65]], [36, [60, 64, 67]], [33, [57, 61, 64]]] as const;
+      const [r, ch] = prog[b % 4];
+      // Tremolo strings carrying the chord.
+      if (p % 2 === 0) for (const n of ch) m.strings(d, n, t, 0.2, 0.32 + ph * 0.08, 2800, 0.004);
+      if (p % 4 === 0) m.bass(d, r, t, beat * 1.8, 0.85);
+      // A duelist's rhythm: two strikes, a pause, a strike.
+      if (p === 0 || p === 3 || p === 8 || (ph >= 1 && p === 11)) m.taiko(d, t, 0.7, 1.05);
+      if (p === 6 || p === 14) m.snare(d, t, 0.35 + ph * 0.15);
+      if (ph >= 1 && p % 2 === 1) m.tick2(d, t, 0.5);
+      // The Marshal's call: a fanfare that grows each phase.
+      const call: Record<number, number> = { 0: 0, 2: 7, 4: 12, 7: 10, 8: 7 };
+      if (b % 2 === 0 && call[p] !== undefined) m.brass(d, r + 24 + call[p], t, beat * 1.2, 0.55 + ph * 0.2);
+      if (p === 0 && b % 4 === 0) for (const n of ch) m.choir(d, n, t, beat * 15, 0.5 + ph * 0.2, 'ah');
+      if (ph >= 2 && p === 8 && b % 2 === 1) m.swell(d, t, beat * 2, 1);
+    },
+  },
   victory: {
     bpm: 64,
     ambience: 'none',

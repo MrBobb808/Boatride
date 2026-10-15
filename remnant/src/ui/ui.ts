@@ -15,6 +15,7 @@ import { haptic } from './touch';
 import { formatTime } from '../core/math';
 import { openMenu, openShop, openAltar, isMenuOpen } from './menus';
 import { SECRET_IDS } from '../game/story';
+import { CH2_SECRETS } from '../game/story2';
 
 let uiRoot: HTMLElement;
 let toastBox: HTMLElement;
@@ -278,6 +279,7 @@ const hooks: UIHooks = {
       { id: 'target', label: 'Mark target', icon: 'target' },
       { id: 'recall', label: 'Recall', icon: 'recall' },
       { id: 'sync', label: W.syncCd > 0 ? `Sync ${Math.ceil(W.syncCd)}s` : 'Sync strike', icon: 'sync' },
+      { id: 'switch', label: W.switchCd > 0 ? `Switch ${Math.ceil(W.switchCd)}s` : s.echoes.length > G.d.echoSlots ? 'Switch in' : 'Exchange', icon: 'switch' },
     ];
     const ring = h('div', { class: 'wheel-ring' });
     const n = items.length;
@@ -331,37 +333,42 @@ const hooks: UIHooks = {
     pushLayer({ el: layer, onBack: close });
   },
 
-  chapterEnd() {
-    return new Promise<void>((resolve) => {
+  chapterEnd(chapter = 1) {
+    return new Promise<'next' | 'stay'>((resolve) => {
       const s = G.save;
       blocking++;
       music.play('victory');
+      const two = chapter === 2;
       const stat = (v: string | number, l: string) => h('div', { class: 'stat' }, h('b', null, String(v)), h('span', null, l));
+      const secrets = two ? CH2_SECRETS : SECRET_IDS;
       const card = h('div', { class: 'chapter panel' },
-        h('div', { class: 'eyebrow' }, 'Chapter I'),
-        h('h2', null, 'THE ASHEN VILLAGE'),
+        h('div', { class: 'eyebrow' }, two ? 'Chapter II' : 'Chapter I'),
+        h('h2', null, two ? 'THE TOWER OF SHINAR' : 'THE ASHEN VILLAGE'),
         h('div', { class: 'muted' }, 'Complete'),
         h('div', { class: 'stats' },
           stat(formatTime(s.playtime), 'Time'), stat(s.level, 'Level'), stat(s.echoes.length, 'Echoes purified'),
-          stat(`${s.secrets.length}/${SECRET_IDS.length}`, 'Hidden chambers'), stat(s.kills, 'Foes overcome'), stat(s.deaths, 'Times fallen'),
+          stat(`${secrets.filter((x) => s.secrets.includes(x)).length}/${secrets.length}`, two ? 'Hidden caches' : 'Hidden chambers'), stat(s.kills, 'Foes overcome'), two ? stat(s.bestCombo ?? 0, 'Best combo') : stat(s.deaths, 'Times fallen'),
         ),
-        h('p', { class: 'theme' }, 'True greatness is not found in the power to rule, but in the strength to remain faithful.'),
-        h('p', { class: 'next' }, 'Chapter II — The Valley of Bones — is in development. Your journey continues: explore the temple, grow your army, or begin New Game+ at any altar.'),
+        h('p', { class: 'theme' }, two ? 'Pride builds towers to make a name. Faithfulness keeps an oath when no one is watching.' : 'True greatness is not found in the power to rule, but in the strength to remain faithful.'),
+        h('p', { class: 'next' }, two
+          ? 'Chapter III — The Valley of Bones — is in development. Your journey continues: explore Shinar, grow your army, or begin New Game+ at any altar.'
+          : 'The road east leads down to the Plain of Shinar, where a red tower has risen in a single month.'),
         h('div', { class: 'row' },
-          btn('Continue exploring', () => close(), 'btn primary', { 'data-autofocus': '' }),
+          two ? null : btn('Begin Chapter II', () => close('next'), 'btn primary', { 'data-autofocus': '' }),
+          btn(two ? 'Continue exploring' : 'Stay in Hearthward', () => close('stay'), two ? 'btn primary' : 'btn', two ? { 'data-autofocus': '' } : {}),
           btn('Credits', () => hooks.showCredits()),
         ),
       );
       const layer = h('div', { class: 'layer dim' }, card);
       uiRoot.appendChild(layer);
-      const close = () => {
+      const close = (r: 'next' | 'stay' = 'stay') => {
         popLayer(layer);
         blocking--;
-        music.play('sanctuary');
+        if (r === 'stay') music.play(two ? 'shinar' : 'sanctuary');
         input.flush();
-        resolve();
+        resolve(r);
       };
-      pushLayer({ el: layer, onBack: close });
+      pushLayer({ el: layer, onBack: () => close('stay') });
     });
   },
 

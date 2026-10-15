@@ -36,6 +36,7 @@ const BTNS: TBtn[] = [
   { id: 'rally', act: 'ultimate', icon: 'rally', size: 54, dx: 2, dy: 170, label: 'Rally' },
   { id: 'echo', act: 'echo', icon: 'echo', size: 46, dx: 232, dy: 30, label: 'Echoes' },
   { id: 'interact', act: 'interact', icon: 'interact', size: 54, dx: 226, dy: 104, label: '' },
+  { id: 'switch', act: 'switch', icon: 'switch', size: 44, dx: 292, dy: 58, label: 'Switch' },
   { id: 'menu', icon: 'menu', size: 40, dx: 0, dy: 0, label: '', corner: 'tr', ui: () => G.ui.openMenu() },
   { id: 'map', icon: 'map', size: 40, dx: 0, dy: 48, label: '', corner: 'tr', ui: () => G.ui.openMenu('map') },
 ];
@@ -238,6 +239,10 @@ export function updateTouch() {
       b.cd!.style.background = ready ? 'none' : `conic-gradient(transparent ${(s.rally / 100) * 360}deg, rgba(0,0,0,0.6) 0)`;
     } else if (b.id === 'echo') {
       show = s.echoes.length > 0;
+    } else if (b.id === 'switch') {
+      show = s.echoes.length > 0 && G.world.echoes.length > 0;
+      const cd = G.world.switchCd;
+      b.cd!.style.background = cd > 0 ? `conic-gradient(rgba(0,0,0,0.6) ${(cd / 4.5) * 360}deg, transparent 0)` : 'none';
     } else if (b.id === 'interact') {
       show = !!G.world.near || !!G.world.purifyTarget;
     } else if (b.id === 'parry' || b.id === 'dodge') {

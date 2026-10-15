@@ -11,13 +11,37 @@ is original fiction inspired by biblical themes, not part of the Bible.
 
 > *True greatness is not found in the power to rule, but in the strength to remain faithful.*
 
-This build contains **Chapter I — The Ashen Village**, a complete vertical
-slice:
+This build contains two chapters:
 
-- 12 rooms with the full combat and Echo systems.
-- Abilities and skill trees, gear, crafting and merchants.
-- The **Gilded Idol** boss fight.
-- An ending, plus New Game+.
+- **Chapter I — The Ashen Village.** 12 rooms, the full combat and Echo
+  systems, abilities and skill trees, gear, crafting and merchants, and the
+  **Gilded Idol** boss fight.
+- **Chapter II — The Tower of Shinar.** Nine rooms across a dusk plain, a
+  brickworks and a red tower. It adds:
+  - Heavy foes (Ironbound Brutes, Shieldwall Bulwarks and Crimson Knights)
+    that break into a long, juggleable stagger.
+  - **The Gatekeeper**, a three-headed hound chained at the tower gate.
+  - The Crimson Guard's three waves.
+  - **The Crimson Marshal**, an honour duel your Echoes may not join. When
+    he kneels, you choose: raise him as your strongest Echo, or let him rest
+    and take his sword.
+- Each chapter has an ending, plus New Game+.
+
+Chapter II begins from the Chapter I ending screen, or from any altar once
+Chapter I is done (**Journey east**).
+
+### Combat highlights
+
+- **Phantom Step:** land a hit, then dodge to blink behind the nearest foe.
+  Chain blinks around a crowd; after the third, attack for **Judgment
+  Cross**, a launching cross-cut.
+- **New combos:** Seventy Times Seven (thrust flurry), Storm of Edges (a
+  whirl that pulls foes in), Rising Comet and Heaven's Rend. A combo counter
+  ranks long strings. The full move list is in **Menu → Skills**.
+- **Switch support:** tag in a benched Echo mid-strike, or trade places
+  with one on the field.
+- **A growing army:** more Echoes can fight at once as you level, up to
+  seven.
 
 ## Play it on iPhone
 
@@ -72,7 +96,8 @@ deploys it to GitHub Pages on every push to the default branch that touches
 | **Parry** | Tap just before a hit to parry; hold to block with a shield; a parry or block opens a counter |
 | Skill buttons | The three equipped Covenant abilities |
 | **Balm** | Heal |
-| **Echoes** | Echo command wheel: summon or dismiss, Aggressive / Defensive / Follow stance, mark target, recall, sync strike |
+| **Echoes** | Echo command wheel: summon or dismiss, Aggressive / Defensive / Follow stance, mark target, recall, sync strike, switch |
+| **Switch** | Switch support: the next Echo tags in, or you trade places with one. It appears while Echoes are out. |
 | **Rally** | *Rally the Remnant* (once the gauge is full) |
 | Context button | Talk, open, rest, purify. It appears only when something is in reach. |
 | ☰ and map (top corner) | Menu and map |
@@ -94,6 +119,7 @@ left-handed layout, and turns haptics on or off.
 | Q, E, R | Abilities |
 | H | Balm (heal) |
 | C | Echo command wheel |
+| X | Switch support Echo |
 | T | Rally the Remnant |
 | F | Interact / purify |
 | M | Map |
@@ -115,8 +141,8 @@ Every key can be rebound in **Settings → Keyboard**.
 | L3 (left stick click) | Echo command wheel |
 | D-pad ↑ | Interact |
 | D-pad ↓ | Balm |
-| View | Map |
-| Menu | Menu |
+| View | Switch support Echo |
+| Menu | Menu (the map is a tab inside it) |
 
 ## Development
 
@@ -157,5 +183,5 @@ Debug helpers are available when you add `?debug` to the URL.
 | `src/core` | Loop, math, input, settings |
 | `src/render` | Renderer, camera, skeleton, characters, environment, lighting, effects |
 | `src/audio` | Sound effects and the music sequencer |
-| `src/game` | World, player, weapons, enemies, Echoes, boss, rooms, story, data, saves |
+| `src/game` | World, player, weapons, enemies and tanks, Echoes, bosses, rooms, story (one file per chapter), data, saves |
 | `src/ui` | HUD, touch controls, menus, screens, dialogue |

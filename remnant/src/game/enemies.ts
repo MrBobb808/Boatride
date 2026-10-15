@@ -5,8 +5,8 @@
 import { Entity, type HitInfo } from './entity';
 import { moveBody, groundAhead, wallAhead, hazardAhead, los } from './physics';
 import { Animator, solve, newJoints, BASE_POSE, Chain, drawRibbon, type Clip, type Joints, type Pose, type RigDims } from '../render/skeleton';
-import { drawHumanoid, type HumanStyle } from '../render/actors';
-import { glow, rgba, circle, poly, limb, ellipse, type Ctx } from '../render/draw';
+import { drawHumanoid, flashStyle, type HumanStyle } from '../render/actors';
+import { glow, rgba, circle, poly, limb, ellipse, limbShaded, limbStroke, lineGrad, type Ctx } from '../render/draw';
 import { fx, PK } from '../render/fx';
 import { sfx } from '../audio/audio';
 import { G } from './ctx';
@@ -15,6 +15,7 @@ import { Proj } from './projectiles';
 import type { EnemyKind } from './tiles';
 import { lighting } from '../render/lighting';
 import { shakeScale } from '../core/settings';
+import { CH2_ROOM_IDS } from './rooms2';
 
 export interface EnemyStats {
   hp: number;
@@ -31,6 +32,9 @@ export const ENEMY_STATS: Record<EnemyKind, EnemyStats> = {
   archer: { hp: 42, dmg: 13, poise: 16, xp: 18, silver: [3, 6], name: 'Hollow Archer' },
   sentinel: { hp: 170, dmg: 20, poise: 60, xp: 55, silver: [8, 14], name: 'Fallen Sentinel' },
   wisp: { hp: 30, dmg: 10, poise: 10, xp: 16, silver: [2, 4], name: 'Veil Wisp' },
+  brute: { hp: 420, dmg: 26, poise: 130, xp: 85, silver: [12, 20], name: 'Ironbound Brute' },
+  bulwark: { hp: 280, dmg: 18, poise: 110, xp: 64, silver: [10, 16], name: 'Shieldwall Bulwark' },
+  knight: { hp: 210, dmg: 22, poise: 70, xp: 70, silver: [10, 16], name: 'Crimson Knight' },
 };
 
 export const CORRUPT = { glow: '#b04cff', eye: '#ff3355', outline: '#07050a' };
@@ -214,6 +218,15 @@ export abstract class Enemy extends Entity {
   groanT = rand(3, 8);
   def: { x: number; y: number };
   scale = 1;
+  /** Broken tanks can be launched and juggled. */
+  juggleWhenBroken = false;
+  /** Damage taken while staggered/broken. */
+  brokenMul = 1.25;
+  /** Tanks survive executions (they take a heavy chunk instead). */
+  tank = false;
+  execUsed = false;
+  /** 1 in Chapter I, 2 in Chapter II. */
+  tier = 1;
 
   constructor(kind: EnemyKind, x: number, y: number, w: number, h: number, elite: string | null) {
     super(x, y, w, h);
@@ -222,8 +235,11 @@ export abstract class Enemy extends Entity {
     this.stats = ENEMY_STATS[kind];
     const ng = 1 + (G.save?.ng ?? 0) * 0.6;
     const em = elite ? 2.0 : 1;
-    this.maxHp = this.hp = Math.round(this.stats.hp * ng * em);
-    this.dmg = this.stats.dmg * ng * (elite ? 1.15 : 1);
+    // Chapter II foes are tougher, and worth more.
+    this.tier = G.world?.room && CH2_ROOM_IDS.has(G.world.room.id) ? 2 : 1;
+    const th = this.tier === 2 ? 1.8 : 1, td = this.tier === 2 ? 1.4 : 1;
+    this.maxHp = this.hp = Math.round(this.stats.hp * ng * em * th);
+    this.dmg = this.stats.dmg * ng * (elite ? 1.15 : 1) * td;
     this.maxPoise = this.poise = this.stats.poise * (elite ? 1.6 : 1);
     this.elite = elite;
     this.purifiable = !!elite;
@@ -236,7 +252,7 @@ export abstract class Enemy extends Entity {
   }
 
   executable() {
-    return this.staggered > 0 && !this.dying;
+    return this.staggered > 0 && !this.dying && !this.execUsed;
   }
 
   setState(s: string, clip?: string, blend = 0.08, speed = 1) {
@@ -302,7 +318,7 @@ export abstract class Enemy extends Entity {
       this.body.vx = approach(this.body.vx, 0, 500 * dt);
       if (this.staggered <= 0) {
         this.poise = this.maxPoise;
-        this.setState('idle', 'idle', 0.2);
+        this.onRecover();
       }
     } else {
       if (this.poiseDelay > 0) this.poiseDelay -= dt;
@@ -327,13 +343,17 @@ export abstract class Enemy extends Entity {
 
   groan() {}
   abstract think(dt: number): void;
+  /** Called when a stagger ends. */
+  onRecover() {
+    this.setState('idle', 'idle', 0.2);
+  }
 
   takeHit(h: HitInfo): boolean {
     if (this.dying || this.invuln > 0) return false;
     let dmg = h.dmg;
     this.aggro = true;
     if (this.guardCheck(h)) return true;
-    if (this.staggered > 0) dmg *= 1.25;
+    if (this.staggered > 0) dmg *= this.brokenMul;
     dmg = Math.max(1, Math.round(dmg));
     this.hp -= dmg;
     this.hpBarT = 3;
@@ -360,9 +380,9 @@ export abstract class Enemy extends Entity {
       }
     }
     if (!this.heavyBody && !h.noKnock) {
-      const kb = this.superArmor && this.staggered <= 0 ? 0.25 : 1;
+      const kb = this.superArmor && this.staggered <= 0 ? 0.25 : this.tank ? 0.55 : 1;
       this.body.vx = h.kx * kb;
-      if (h.launch && this.staggered <= 0) {
+      if (h.launch && (this.staggered <= 0 || this.juggleWhenBroken)) {
         this.body.vy = h.ky;
         this.airborne = true;
       } else if (h.ky < -150 && !this.body.onGround) {
@@ -451,7 +471,12 @@ export abstract class Enemy extends Entity {
     ctx.translate(this.x, this.y);
     ctx.scale(this.face, 1);
     if (this.dying && !this.awaitingPurify) ctx.globalAlpha = clamp(1 - (this.deathT - 0.4) / 0.6, 0, 1);
-    drawHumanoid(ctx, this.j, this.style, G.time + this.id, this.pose.rot);
+    drawHumanoid(ctx, this.j, this.style, G.time + this.id, this.pose.rot, this.body.vx * this.face, this.body.vy);
+    if (this.flash > 0) {
+      // White-out on the frames right after a hit.
+      ctx.globalAlpha = Math.min(0.9, this.flash * 9);
+      drawHumanoid(ctx, this.j, flashStyle(this.style), G.time + this.id, this.pose.rot, this.body.vx * this.face, this.body.vy);
+    }
     ctx.restore();
     ctx.globalAlpha = 1;
     this.drawFlash(ctx);
@@ -721,8 +746,11 @@ export class Hound extends Enemy {
       const kx = hipX + Math.sin(a) * len1, ky = bodyY + 3 + Math.cos(a) * len1;
       const fa = a + (front ? -0.7 : 0.8) - (run ? Math.max(0, Math.cos(t * 2 + phase)) * 0.6 : 0);
       const fx2 = kx + Math.sin(fa) * len2, fy2 = Math.min(0, ky + Math.cos(fa) * len2);
-      limb(ctx, hipX, bodyY + 2, kx, ky, 2.6, 1.8, back ? '#0c0810' : '#18121e', o, 0.7);
-      limb(ctx, kx, ky, fx2, fy2, 1.8, 1.3, back ? '#0c0810' : '#18121e', o, 0.7);
+      const c = back ? '#0c0810' : '#221a2a';
+      limbStroke(ctx, hipX, bodyY + 2, kx, ky, 2.6, 1.8, o, 1.2);
+      limbStroke(ctx, kx, ky, fx2, fy2, 1.8, 1.3, o, 1.2);
+      limbShaded(ctx, kx, ky, fx2, fy2, 1.8, 1.3, c, null);
+      limbShaded(ctx, hipX, bodyY + 2, kx, ky, 2.6, 1.8, c, null);
     };
     legs(Math.PI, 7, true, true);
     legs(0, -8, false, true);
@@ -733,7 +761,7 @@ export class Hound extends Enemy {
     ctx.quadraticCurveTo(13, bodyY - 1, 10, bodyY + 4);
     ctx.quadraticCurveTo(0, bodyY + 7, -11, bodyY + 4);
     ctx.closePath();
-    ctx.fillStyle = '#1a1220';
+    ctx.fillStyle = lineGrad(ctx, 0, bodyY - 8, 0, bodyY + 7, '#241a2c', 0.22, -0.35);
     ctx.fill();
     ctx.lineWidth = 0.8;
     ctx.strokeStyle = o;
@@ -760,7 +788,13 @@ export class Hound extends Enemy {
     // head
     const hx = 12, hy = bodyY - 4 + crouch * 3;
     const open = this.state === 'bite' || this.state === 'pounce' ? 0.6 : crouch * 0.3;
-    poly(ctx, [hx - 3, hy - 3, hx + 3, hy - 5, hx + 10, hy - 2, hx + 10, hy, hx + 2, hy + 1], '#1e1624', o, 0.7);
+    poly(ctx, [hx - 3, hy - 3, hx + 3, hy - 5, hx + 10, hy - 2, hx + 10, hy, hx + 2, hy + 1], lineGrad(ctx, hx, hy - 5, hx, hy + 1, '#2a2032', 0.25, -0.3), o, 0.7);
+    // Fangs.
+    ctx.fillStyle = '#d8ccd8';
+    ctx.beginPath();
+    ctx.moveTo(hx + 7.5, hy + 0.6); ctx.lineTo(hx + 8.2, hy + 2.2 + open * 1.5); ctx.lineTo(hx + 8.8, hy + 0.6);
+    ctx.moveTo(hx + 4.5, hy + 0.9); ctx.lineTo(hx + 5.1, hy + 2.1 + open * 1.2); ctx.lineTo(hx + 5.7, hy + 0.9);
+    ctx.fill();
     poly(ctx, [hx + 1, hy + 1, hx + 9, hy + 1 + open * 2, hx + 8, hy + 3 + open * 4, hx, hy + 3], '#140e18', o, 0.6);
     // ears
     poly(ctx, [hx - 1, hy - 3, hx - 3, hy - 9, hx + 2, hy - 4], '#140e18', o, 0.5);
@@ -1238,14 +1272,5 @@ export class Wisp extends Enemy {
   }
 }
 
-export function makeEnemy(kind: EnemyKind, x: number, y: number, elite: string | null = null): Enemy {
-  switch (kind) {
-    case 'husk': return new Husk(x, y, elite);
-    case 'hound': return new Hound(x, y, elite);
-    case 'archer': return new Archer(x, y, elite);
-    case 'sentinel': return new Sentinel(x, y, elite);
-    case 'wisp': return new Wisp(x, y, elite);
-  }
-}
 
 export { choose, circle };
