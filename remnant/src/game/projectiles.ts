@@ -166,11 +166,12 @@ export class Proj extends Entity {
         this.x += this.vx * dt;
         this.y += this.vy * dt;
         this.strike({ poise: 12, kx: sign(this.vx) * 120, ky: -120, parryable: false }, true);
-        if (Math.random() < dt * 40) fx.spawn(PK.Flame, this.x + rand(-3, 3), this.y + rand(-3, 3), this.vx * 0.2, -40, 0.35, 5, 1, '#ff8a3a', -60, 1);
+        const tint = this.color !== '#ffd27a' ? this.color : null;
+        if (Math.random() < dt * 40) fx.spawn(PK.Flame, this.x + rand(-3, 3), this.y + rand(-3, 3), this.vx * 0.2, -40, 0.35, 5, 1, tint ?? '#ff8a3a', -60, 1);
         if (W.solidAt(this.x, this.y + 3)) {
           const ground = Math.floor((this.y + 3) / TILE) * TILE;
-          W.add(new Proj('puddle', this.x, ground, 'enemy', this.dmg * 0.3, { life: 1.6, w: 22, h: 8 }));
-          fx.embers(this.x, this.y - 2, 6, '#ffb347', 8);
+          W.add(new Proj('puddle', this.x, ground, 'enemy', this.dmg * 0.3, { life: 1.6, w: 22, h: 8, color: this.color }));
+          fx.embers(this.x, this.y - 2, 6, tint ?? '#ffb347', 8);
           this.remove = true;
         }
         break;
@@ -235,7 +236,7 @@ export class Proj extends Entity {
           this.hitSet.clear();
           G.world.hitPlayerSide({ x: this.x - this.w / 2, y: this.y - 10, w: this.w, h: 12 }, { dmg: this.dmg, poise: 0, kx: 0, ky: -100, dir: 0, kind: 'proj', parryable: false, unblockable: true, noKnock: true, src: this }, this.hitSet);
         }
-        if (Math.random() < dt * 10) fx.spawn(PK.Ember, this.x + rand(-12, 12), this.y - 2, 0, -30, 0.5, 1, 0.2, '#ffb347');
+        if (Math.random() < dt * 10) fx.spawn(PK.Ember, this.x + rand(-12, 12), this.y - 2, 0, -30, 0.5, 1, 0.2, this.color !== '#ffd27a' ? this.color : '#ffb347');
         break;
       }
       case 'trumpet': {
@@ -315,7 +316,9 @@ export class Proj extends Entity {
         const H = this.h / 2;
         ctx.globalAlpha = (1 - t * 0.5) * (this.kind === 'lightwave' ? 0.7 : 1);
         const foe = this.team === 'enemy';
-        ctx.fillStyle = foe ? '#ff2a3a' : '#ffb347';
+        // Elemental crescents carry their own colour.
+        const tint = !foe && this.color !== '#ffd27a' ? this.color : null;
+        ctx.fillStyle = foe ? '#ff2a3a' : tint ?? '#ffb347';
         ctx.beginPath();
         ctx.moveTo(-6, -H);
         ctx.quadraticCurveTo(14, 0, -6, H);
@@ -327,7 +330,7 @@ export class Proj extends Entity {
         ctx.quadraticCurveTo(12, 0, -2, H * 0.85);
         ctx.quadraticCurveTo(6, 0, -2, -H * 0.85);
         ctx.fill();
-        glow(ctx, 2, 0, H * 1.4, foe ? '#ff3a4a' : '#ffd27a', 0.5);
+        glow(ctx, 2, 0, H * 1.4, foe ? '#ff3a4a' : tint ?? '#ffd27a', 0.5);
         ctx.restore();
         ctx.globalAlpha = 1;
         ctx.globalCompositeOperation = 'source-over';
@@ -354,8 +357,9 @@ export class Proj extends Entity {
       case 'flame': {
         ctx.globalCompositeOperation = 'lighter';
         const fl = 0.8 + Math.sin(G.time * 30 + this.id) * 0.2;
-        glow(ctx, this.x, this.y, 14 * fl, '#ff6a2a', 0.85);
-        glow(ctx, this.x, this.y, 6, '#ffe6a8', 0.9);
+        const acid = this.color !== '#ffd27a';
+        glow(ctx, this.x, this.y, 14 * fl, acid ? this.color : '#ff6a2a', 0.85);
+        glow(ctx, this.x, this.y, 6, acid ? '#f0ffd0' : '#ffe6a8', 0.9);
         ctx.globalCompositeOperation = 'source-over';
         break;
       }
@@ -424,11 +428,12 @@ export class Proj extends Entity {
       case 'puddle': {
         const fade = Math.min(1, this.life * 2);
         ctx.globalCompositeOperation = 'lighter';
-        ctx.fillStyle = rgba('#ff7a1a', 0.6 * fade);
+        const acid = this.color !== '#ffd27a';
+        ctx.fillStyle = rgba(acid ? this.color : '#ff7a1a', 0.6 * fade);
         ctx.beginPath();
         ctx.ellipse(this.x, this.y - 1, this.w / 2, 2.5, 0, 0, Math.PI * 2);
         ctx.fill();
-        glow(ctx, this.x, this.y - 2, 18, '#ff9a3a', 0.4 * fade);
+        glow(ctx, this.x, this.y - 2, 18, acid ? this.color : '#ff9a3a', 0.4 * fade);
         ctx.globalCompositeOperation = 'source-over';
         break;
       }

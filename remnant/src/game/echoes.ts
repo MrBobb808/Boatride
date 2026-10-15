@@ -17,6 +17,7 @@ import { G } from './ctx';
 import { approach, clamp, rand, sign } from '../core/math';
 import { SENT_CLIPS, SENT_BASE, SENT_DIMS, ARCH_CLIPS, ARCH_BASE, ARCH_DIMS, sentinelStyle, archerStyle } from './enemies';
 import { BRUTE_CLIPS, BRUTE_BASE, BRUTE_DIMS, BULW_CLIPS, BULW_BASE, BULW_DIMS, bruteStyle, bulwarkStyle, knightEchoStyle, marshalStyle } from './tanks';
+import { LOCUST_DIMS, locustStyle, drawLocustWings, drawLocustHead, drawLocustScythes } from './locusts';
 import { ECHO_SPECIES, echoXpToNext, type EchoInst } from './data';
 import { echoAtk, echoMaxHp, skillRank } from './state';
 import { Proj } from './projectiles';
@@ -73,6 +74,9 @@ export interface EchoKit {
   idle: string;
   /** Marshal-class: other Echoes near it fight harder. */
   warden?: boolean;
+  /** Extra parts drawn in rig space behind / in front of the body (wings, antennae). */
+  under?: (ctx: Ctx, u: EchoUnit) => void;
+  over?: (ctx: Ctx, u: EchoUnit) => void;
 }
 
 const SENT_SLASH_BOX = { x: -4, y: -44, w: 40, h: 46 };
@@ -132,6 +136,23 @@ export const KITS: Record<string, EchoKit> = {
   },
 };
 
+KITS.locust = {
+  clips: SENT_CLIPS, base: { ...SENT_BASE, lean: 0.26, bUA: 0.85, bFA: 1.3, fUA: 0.65, fFA: 1.4, wpn: 0.35, bTh: -0.38, bSh: -0.36, fTh: 0.5, fSh: -0.6 },
+  dims: LOCUST_DIMS, w: 18, h: 46, style: (st) => locustStyle('echo', st),
+  guard: 0.1, armor: 0.8, speed: 200, reach: 46, guardian: false, idle: 'guard', warden: true,
+  cape: null, capeColor: () => '#000000',
+  moves: [
+    { state: 'slash', clip: 'slash', T: 0.34, hitU: 0.55, box: { x: -6, y: -50, w: 50, h: 54 }, mult: 1.2, poise: 26, kx: 140, ky: -130, weight: 1, chain: 3, waveStage: 2, sound: 'swing' },
+    { state: 'lunge', clip: 'bash', T: 0.5, hitU: 0.45, box: { x: 0, y: -46, w: 40, h: 40 }, mult: 1.9, poise: 50, kx: 280, ky: -120, dash: 480, weight: 0.6, sound: 'wingbeat' },
+    { state: 'blink', clip: 'slash', T: 0.42, hitU: 0.55, box: { x: -6, y: -50, w: 50, h: 54 }, mult: 2.3, poise: 60, kx: 200, ky: -240, blink: true, minStage: 1, weight: 0.6, sound: 'swingHeavy' },
+  ],
+  under: (ctx, u) => drawLocustWings(ctx, u.j, 'echo', Math.abs(u.body.vx) > 160 || !u.body.onGround ? 0.85 : 0.08, G.time * (Math.abs(u.body.vx) > 160 || !u.body.onGround ? 46 : 3) + u.id),
+  over: (ctx, u) => {
+    drawLocustScythes(ctx, u.j, 'echo', 12);
+    drawLocustHead(ctx, u.j, 'echo', G.time + u.id, u.state === 'slash' ? 1 : 0);
+  },
+};
+
 export const kitFor = (species: string) => KITS[species] ?? KITS.sentinel;
 
 export class EchoUnit extends Entity {
@@ -153,6 +174,8 @@ export class EchoUnit extends Entity {
   assistCd = 0;
   bowDraw = 0;
   despawn = 0;
+  /** Seconds left for a temporary Echo raised by a Sovereign's finisher. */
+  tempT = 0;
   move: Move | null = null;
   chainLeft = 0;
 
@@ -192,6 +215,10 @@ export class EchoUnit extends Entity {
     if (this.summonT > 0) {
       this.summonT -= dt;
       if (Math.random() < dt * 40) fx.spawn(PK.Flame, this.x + rand(-10, 10), this.y - rand(0, 40), 0, -60, 0.6, 4, 0.5, '#fff3d0', -40, 1);
+    }
+    if (this.tempT > 0) {
+      this.tempT -= dt;
+      if (this.tempT <= 0) this.dismiss();
     }
     if (this.despawn > 0) {
       this.despawn -= dt;
@@ -566,7 +593,7 @@ export class EchoUnit extends Entity {
     if (this.kit.ranged) style.bowDraw = this.state === 'draw' ? this.bowDraw : 0;
     // white fire aura
     ctx.globalCompositeOperation = 'lighter';
-    glow(ctx, this.x, this.y - this.kit.h * 0.45, this.kit.h * 0.75, this.kit.warden ? '#ffd0b0' : '#fff3c4', 0.18 * fade);
+    glow(ctx, this.x, this.y - this.kit.h * 0.45, this.kit.h * 0.75, this.tempT > 0 ? '#9a6aff' : this.kit.warden ? '#ffd0b0' : '#fff3c4', (this.tempT > 0 ? 0.32 : 0.18) * fade);
     ctx.globalCompositeOperation = 'source-over';
     ctx.save();
     if (reveal < 1) {
@@ -580,7 +607,9 @@ export class EchoUnit extends Entity {
     if (this.kit.cape) drawRibbon(ctx, this.cape, this.kit.cape[0], this.kit.cape[1], this.kit.capeColor(this.inst.stage), '#0a0806');
     ctx.translate(this.x, this.y);
     ctx.scale(this.face, 1);
+    this.kit.under?.(ctx, this);
     drawHumanoid(ctx, this.j, style, G.time + this.id, this.pose.rot, this.body.vx * this.face, this.body.vy);
+    this.kit.over?.(ctx, this);
     ctx.restore();
     ctx.globalAlpha = 1;
     if (this.flash > 0) {

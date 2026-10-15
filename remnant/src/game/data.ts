@@ -69,6 +69,8 @@ export interface ItemBase {
   /** Flat stats at +0. */
   mods?: Partial<Record<ModKey, number>>;
   family?: WeaponFamily;
+  /** Weapon element: fire, frost, storm, shadow, holy or blood. */
+  element?: 'fire' | 'frost' | 'storm' | 'shadow' | 'holy' | 'blood';
   /** Visual tier on Elior (0..3). */
   look?: number;
   value: number;
@@ -79,9 +81,14 @@ export interface ItemBase {
 export const ITEMS: Record<string, ItemBase> = {
   // Weapons
   militia_sword: { id: 'militia_sword', name: 'Militia Sword', slot: 'weapon', rarity: 0, icon: 'sword', family: 'blade', mods: { atk: 10 }, value: 10, desc: 'Notched steel issued to the Hearthward watch. Light and quick.', look: 0 },
-  covenant_blade: { id: 'covenant_blade', name: 'Covenant Blade', slot: 'weapon', rarity: 3, icon: 'sword', family: 'blade', mods: { atk: 22, crit: 5, abil: 10 }, value: 220, desc: 'Reforged around a shard of the covenant relic. Its edge hums near the Veil.', look: 2, unique: true },
+  covenant_blade: { id: 'covenant_blade', name: 'Covenant Blade', slot: 'weapon', rarity: 3, icon: 'sword', family: 'blade', mods: { atk: 22, crit: 5, abil: 10 }, value: 220, desc: 'Reforged around a shard of the covenant relic. Its edge hums near the Veil.', look: 2, unique: true, element: 'holy' },
   watchman_spear: { id: 'watchman_spear', name: "Watchman's Spear", slot: 'weapon', rarity: 2, icon: 'spear', family: 'spear', mods: { atk: 15, crit: 3 }, value: 120, desc: 'Long reach and piercing thrusts. Its third strike passes through every foe in line.', look: 1, lore: 'Carried by the wall-wardens of a kingdom whose walls are now dust.' },
-  judgment_greatsword: { id: 'judgment_greatsword', name: 'Judgment Greatsword', slot: 'weapon', rarity: 4, icon: 'greatsword', family: 'greatsword', mods: { atk: 34, poise: 20, def: 4 }, value: 400, desc: 'Slow, crushing arcs that shatter guards and break poise.', look: 2, unique: true, lore: 'Cast from the Idol\'s melted gilding, then quenched in the temple cistern.' },
+  judgment_greatsword: { id: 'judgment_greatsword', name: 'Judgment Greatsword', slot: 'weapon', rarity: 4, icon: 'greatsword', family: 'greatsword', mods: { atk: 34, poise: 20, def: 4 }, value: 400, desc: 'Slow, crushing arcs that shatter guards and break poise.', look: 2, unique: true, element: 'fire', lore: 'Cast from the Idol\'s melted gilding, then quenched in the temple cistern.' },
+  ember_brand: { id: 'ember_brand', name: 'Ember Brand', slot: 'weapon', rarity: 3, icon: 'sword', family: 'blade', element: 'fire', mods: { atk: 27, crit: 4 }, value: 260, desc: 'Fire element. A kiln-forged blade that never cools. Its cuts keep burning.', look: 2 },
+  frostwake_spear: { id: 'frostwake_spear', name: 'Frostwake Spear', slot: 'weapon', rarity: 3, icon: 'spear', family: 'spear', element: 'frost', mods: { atk: 25, crit: 5 }, value: 260, desc: 'Frost element. Rime gathers along the shaft; struck foes slow to a crawl.', look: 1 },
+  stormcaller: { id: 'stormcaller', name: 'Stormcaller', slot: 'weapon', rarity: 4, icon: 'greatsword', family: 'greatsword', element: 'storm', mods: { atk: 44, poise: 16, crit: 3 }, value: 420, desc: 'Storm element. Lightning leaps from every blow to the foes nearby.', look: 2 },
+  umbral_fang: { id: 'umbral_fang', name: 'Umbral Fang', slot: 'weapon', rarity: 4, icon: 'sword', family: 'blade', element: 'shadow', mods: { atk: 40, crit: 8, lifesteal: 2 }, value: 440, desc: 'Shadow element. Cut from the Locust King\'s carapace; a second, darker blade follows each strike.', look: 2 },
+  dawnbreaker: { id: 'dawnbreaker', name: 'Dawnbreaker', slot: 'weapon', rarity: 5, icon: 'greatsword', family: 'greatsword', element: 'holy', mods: { atk: 64, crit: 6, poise: 24, abil: 15 }, value: 999, desc: 'Light element. Forged where the dry bones stood up. It burns brightest against the greatest foes.', look: 2, unique: true, lore: '"So I prophesied as he commanded me, and the breath came into them, and they lived, and stood up upon their feet, an exceeding great army." — Ezekiel 37:10 (KJV)' },
   rusted_greatsword: { id: 'rusted_greatsword', name: 'Rusted Greatsword', slot: 'weapon', rarity: 1, icon: 'greatsword', family: 'greatsword', mods: { atk: 20, poise: 10 }, value: 60, desc: 'Heavy and blunt with age, but it still breaks shields.', look: 0 },
   // Helms
   watch_hood: { id: 'watch_hood', name: 'Watchman\'s Hood', slot: 'helm', rarity: 0, icon: 'hood', mods: { def: 1 }, value: 5, desc: 'Wool against the ash wind.', look: 0 },
@@ -115,7 +122,7 @@ export const ITEMS: Record<string, ItemBase> = {
   tower_greaves: { id: 'tower_greaves', name: 'Tower Greaves', slot: 'boots', rarity: 2, icon: 'boot', mods: { def: 4, poise: 10, speed: 3 }, value: 140, desc: 'Red-lacquered plate from the Tower\'s honour guard.', look: 1 },
   crimson_mantle: { id: 'crimson_mantle', name: 'Crimson Mantle', slot: 'armor', rarity: 3, icon: 'armor', mods: { def: 8, hp: 30, atk: 6 }, value: 280, desc: 'A guardsman\'s red coat over black mail. It was made to be seen from far away.', look: 2 },
   overseer_sigil: { id: 'overseer_sigil', name: 'Overseer\'s Brand', slot: 'relic', rarity: 3, icon: 'sigil', mods: { poise: 15, str: 2, echoDmg: 8 }, value: 220, desc: 'The iron that marked every brick. Cold now, and lighter than it looks.' },
-  oathblade: { id: 'oathblade', name: 'The Oathblade', slot: 'weapon', rarity: 5, icon: 'greatsword', family: 'greatsword', mods: { atk: 46, crit: 6, poise: 18, critDmg: 20 }, value: 999, desc: 'The Marshal\'s sword, given freely. It is heavy only for those who would misuse it.', look: 2, unique: true, lore: '"I have fought a good fight, I have finished my course, I have kept the faith:" — 2 Timothy 4:7 (KJV)' },
+  oathblade: { id: 'oathblade', name: 'The Oathblade', slot: 'weapon', rarity: 5, icon: 'greatsword', family: 'greatsword', mods: { atk: 46, crit: 6, poise: 18, critDmg: 20 }, value: 999, desc: 'The Marshal\'s sword, given freely. It is heavy only for those who would misuse it.', look: 2, unique: true, element: 'blood', lore: '"I have fought a good fight, I have finished my course, I have kept the faith:" — 2 Timothy 4:7 (KJV)' },
   hound_fang: { id: 'hound_fang', name: 'Gatekeeper\'s Fang', slot: 'relic', rarity: 4, icon: 'shard', mods: { atk: 10, lifesteal: 3, crit: 4 }, value: 320, desc: 'A fang the length of a forearm, still warm at the root.', unique: true },
   // Materials
   iron_scrap: { id: 'iron_scrap', name: 'Iron Scrap', slot: 'material', rarity: 0, icon: 'scrap', value: 3, desc: 'Salvaged metal. The smith can use it.' },
@@ -226,7 +233,7 @@ export const SKILLS: SkillNode[] = [
 
 // ---------- Echoes ----------
 
-export type EchoClass = 'Sentinel' | 'Vanguard' | 'Ranger' | 'Herald' | 'Colossus' | 'Warden';
+export type EchoClass = 'Sentinel' | 'Vanguard' | 'Ranger' | 'Herald' | 'Colossus' | 'Warden' | 'Sovereign';
 export const ECHO_CLASS_INFO: Record<EchoClass, string> = {
   Sentinel: 'Heavy armored frontline defenders with shields.',
   Vanguard: 'Aggressive sword-wielding melee fighters.',
@@ -234,6 +241,7 @@ export const ECHO_CLASS_INFO: Record<EchoClass, string> = {
   Herald: 'Support units providing healing, blessings and buffs.',
   Colossus: 'Massive legendary creatures with devastating attacks.',
   Warden: 'Elite commanders that improve nearby units.',
+  Sovereign: 'A raised king: blinding speed, aerial strikes, and command of everything beside it.',
 };
 
 export interface EchoSpecies {
@@ -248,6 +256,19 @@ export interface EchoSpecies {
 }
 
 export const ECHO_SPECIES: Record<string, EchoSpecies> = {
+  locust: {
+    id: 'locust',
+    cls: 'Sovereign',
+    baseHp: 300,
+    baseAtk: 38,
+    evolveLv: [8, 14],
+    evolveCost: [{ covenant_fragment: 3, radiant_core: 1 }, { covenant_fragment: 6, radiant_core: 2 }],
+    stages: [
+      { name: 'The Locust King', title: 'Stage I', desc: 'The swarm\'s sovereign, his hunger turned to loyalty. Black chitin, scythe claws, wings that blur.', ability: 'King\'s Rend: blinding claw strings and diving strikes. Nearby Echoes fight harder.' },
+      { name: 'The Restored', title: 'Stage II', desc: 'Gold seams run through his carapace where the Veil was burned away.', ability: 'Devouring Blur: he is behind his target before the string begins.' },
+      { name: 'Wing of the Covenant', title: 'Stage III', desc: 'White-gold wings and a crown of light.', ability: 'Years Restored: his finishers loose crescents of light.' },
+    ],
+  },
   sentinel: {
     id: 'sentinel',
     cls: 'Sentinel',
@@ -342,7 +363,8 @@ export interface EchoInst {
 }
 
 export const echoXpToNext = (lv: number) => Math.round(30 + lv * lv * 14);
-export const xpToNext = (lv: number) => Math.round(30 * Math.pow(lv, 1.55) + 6);
+/** XP for the next level. Past level 30 the climb is linear, so level 100 and beyond is within reach. */
+export const xpToNext = (lv: number) => (lv <= 30 ? Math.round(30 * Math.pow(lv, 1.55) + 6) : Math.round(30 * Math.pow(30, 1.55) + 6) + (lv - 30) * 60);
 
 // ---------- Lore: inscriptions found in the world ----------
 
@@ -354,6 +376,41 @@ export interface LoreEntry {
   note: string;
 }
 export const LORE: Record<string, LoreEntry> = {
+  eze371: {
+    id: 'eze371', title: 'The Valley Stone', ref: 'Ezekiel 37:1–2 (KJV)',
+    text: 'The hand of the LORD was upon me, and carried me out in the spirit of the LORD, and set me down in the midst of the valley which was full of bones, And caused me to pass by them round about: and, behold, there were very many in the open valley; and, lo, they were very dry.',
+    note: 'A marker stone at the valley\'s edge, older than any kingdom on Mara\'s maps.',
+  },
+  eze373: {
+    id: 'eze373', title: 'The Question', ref: 'Ezekiel 37:3 (KJV)',
+    text: 'And he said unto me, Son of man, can these bones live? And I answered, O Lord GOD, thou knowest.',
+    note: 'Cut into a giant\'s rib beside the road, at the height of a man\'s eyes.',
+  },
+  joel14: {
+    id: 'joel14', title: 'The Gleaners\' Lament', ref: 'Joel 1:4 (KJV)',
+    text: 'That which the palmerworm hath left hath the locust eaten; and that which the locust hath left hath the cankerworm eaten; and that which the cankerworm hath left hath the caterpillar eaten.',
+    note: 'Scratched on a field marker where nothing grows any more.',
+  },
+  prov3027: {
+    id: 'prov3027', title: 'The Wise Man\'s Mistake', ref: 'Proverbs 30:27 (KJV)',
+    text: 'The locusts have no king, yet go they forth all of them by bands;',
+    note: 'Daubed on the hive wall by a traveller. This swarm has a king.',
+  },
+  exo1014: {
+    id: 'exo1014', title: 'The Plague Record', ref: 'Exodus 10:14 (KJV)',
+    text: 'And the locusts went up over all the land of Egypt, and rested in all the coasts of Egypt: very grievous were they; before them there were no such locusts as they, neither after them shall be such.',
+    note: 'Carved deep in the brood halls, as if someone wanted the swarm to read it.',
+  },
+  joel225: {
+    id: 'joel225', title: 'The Promise in the Hive', ref: 'Joel 2:25 (KJV)',
+    text: 'And I will restore to you the years that the locust hath eaten, the cankerworm, and the caterpillar, and the palmerworm, my great army which I sent among you.',
+    note: 'Found at the threshold of the brood chamber. The words the Locust King heard as he rose a second time.',
+  },
+  eze3710: {
+    id: 'eze3710', title: 'An Exceeding Great Army', ref: 'Ezekiel 37:10 (KJV)',
+    text: 'So I prophesied as he commanded me, and the breath came into them, and they lived, and stood up upon their feet, an exceeding great army.',
+    note: 'Mara read it aloud the night the valley was quiet again.',
+  },
   gen111: {
     id: 'gen111', title: 'The Waystone at the Pass', ref: 'Genesis 11:1–2 (KJV)',
     text: 'And the whole earth was of one language, and of one speech. And it came to pass, as they journeyed from the east, that they found a plain in the land of Shinar; and they dwelt there.',

@@ -4,6 +4,7 @@
 import type { EnemyKind } from './tiles';
 import { Enemy, Husk, Hound, Archer, Sentinel, Wisp } from './enemies';
 import { Brute, Bulwark, Knight } from './tanks';
+import { Drone, Soldier } from './locusts';
 
 export function makeEnemy(kind: EnemyKind, x: number, y: number, elite: string | null = null): Enemy {
   switch (kind) {
@@ -15,5 +16,7 @@ export function makeEnemy(kind: EnemyKind, x: number, y: number, elite: string |
     case 'brute': return new Brute(x, y, elite);
     case 'bulwark': return new Bulwark(x, y, elite);
     case 'knight': return new Knight(x, y, elite);
+    case 'drone': return new Drone(x, y, elite);
+    case 'soldier': return new Soldier(x, y, elite);
   }
 }

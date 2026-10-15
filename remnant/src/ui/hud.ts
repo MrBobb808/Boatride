@@ -9,8 +9,9 @@ import { settings } from '../core/settings';
 import { icon } from './icons';
 import { ABILITIES, ECHO_SPECIES, xpToNext } from '../game/data';
 import { QUESTS } from '../game/story';
-import { ROOMS } from '../game/rooms';
+import { ROOMS, chapterOf } from '../game/rooms';
 import { CH2_ROOM_IDS } from '../game/rooms2';
+import { guidePoint } from '../game/guide';
 import { FONT_DISPLAY, FONT_BODY, roundRect, glow, type Ctx } from '../render/draw';
 import { clamp, lerp } from '../core/math';
 import { safe } from './safe';
@@ -44,13 +45,14 @@ export const currentFps = () => fps;
 export function objectiveText(): string {
   const s = G.save;
   // In Shinar the newest main quest leads; in Chapter I, the oldest open one.
-  const ch2 = CH2_ROOM_IDS.has(G.world.room.id);
-  for (const q of ch2 ? [...QUESTS].reverse() : QUESTS) {
+  const later = chapterOf(G.world.room.id) > 1;
+  for (const q of later ? [...QUESTS].reverse() : QUESTS) {
     if (q.kind !== 'main') continue;
     const st = s.quests[q.id];
     if (st && !st.done) return q.stages[Math.min(st.stage, q.stages.length - 1)];
   }
-  if (flag('ch2_done')) return 'Chapter II complete. Explore Shinar, grow your army, or begin New Game+ at an altar.';
+  if (flag('ch3_done')) return 'Chapter III complete. Brave the Trial of the Remnant, grow your army, or begin New Game+ at an altar.';
+  if (flag('ch2_done')) return 'Chapter II complete. Journey on to the Valley of Bones from any altar.';
   if (flag('ending_done')) return 'Chapter I complete. Journey east to Shinar from any altar, or begin New Game+.';
   if (flag('ch1_done')) return 'Chapter I complete. Explore, grow stronger, or begin New Game+ at an altar.';
   return '';
@@ -130,16 +132,29 @@ export function drawHud(ctx: Ctx, dt: number) {
     sx += 18 * u;
   }
   if (statuses.length) cy += 24 * u;
-  // ----- echoes
-  for (const e of G.world.echoes) {
-    const sp = ECHO_SPECIES[e.inst.species];
-    ctx.drawImage(icon(e.kit.ranged ? 'archer_echo' : 'sentinel_echo', '#fff3c4', 32), hx, cy, 12 * u, 12 * u);
-    text(ctx, sp.stages[e.inst.stage].name + (e.inst.commander ? ' ★' : ''), hx + 15 * u, cy + 4 * u, `600 ${7.5 * u}px ${FONT_DISPLAY}`, '#ece4d4', 'left');
-    ctx.fillStyle = 'rgba(255,255,255,0.1)';
-    ctx.fillRect(hx + 15 * u, cy + 8 * u, 70 * u, 2.5 * u);
-    ctx.fillStyle = '#e8c86a';
-    ctx.fillRect(hx + 15 * u, cy + 8 * u, 70 * u * clamp(e.hp / e.maxHp, 0, 1), 2.5 * u);
-    cy += 15 * u;
+  // ----- echoes (a compact grid once the army outgrows the list)
+  const army = G.world.echoes;
+  if (army.length <= 5) {
+    for (const e of army) {
+      const sp = ECHO_SPECIES[e.inst.species];
+      ctx.drawImage(icon(e.kit.ranged ? 'archer_echo' : 'sentinel_echo', e.tempT > 0 ? '#c9a8ff' : '#fff3c4', 32), hx, cy, 12 * u, 12 * u);
+      text(ctx, (e.tempT > 0 ? 'Shadow ' : '') + sp.stages[e.inst.stage].name + (e.inst.commander ? ' ★' : ''), hx + 15 * u, cy + 4 * u, `600 ${7.5 * u}px ${FONT_DISPLAY}`, e.tempT > 0 ? '#d8c4ff' : '#ece4d4', 'left');
+      ctx.fillStyle = 'rgba(255,255,255,0.1)';
+      ctx.fillRect(hx + 15 * u, cy + 8 * u, 70 * u, 2.5 * u);
+      ctx.fillStyle = e.tempT > 0 ? '#a888e8' : '#e8c86a';
+      ctx.fillRect(hx + 15 * u, cy + 8 * u, 70 * u * clamp(e.hp / e.maxHp, 0, 1), 2.5 * u);
+      cy += 15 * u;
+    }
+  } else {
+    army.forEach((e, i) => {
+      const gx = hx + (i % 2) * 46 * u, gy = cy + Math.floor(i / 2) * 13 * u;
+      ctx.drawImage(icon(e.kit.ranged ? 'archer_echo' : 'sentinel_echo', e.tempT > 0 ? '#c9a8ff' : '#fff3c4', 32), gx, gy, 10 * u, 10 * u);
+      ctx.fillStyle = 'rgba(255,255,255,0.1)';
+      ctx.fillRect(gx + 12 * u, gy + 4 * u, 30 * u, 2.5 * u);
+      ctx.fillStyle = e.tempT > 0 ? '#a888e8' : '#e8c86a';
+      ctx.fillRect(gx + 12 * u, gy + 4 * u, 30 * u * clamp(e.hp / e.maxHp, 0, 1), 2.5 * u);
+    });
+    cy += Math.ceil(army.length / 2) * 13 * u + 2 * u;
   }
   for (const inst of s.echoes) {
     if ((inst.downFor ?? 0) > 0 && s.active.includes(inst.uid)) {
@@ -259,8 +274,69 @@ export function drawHud(ctx: Ctx, dt: number) {
     }
   }
   drawCombo(ctx, W, H, u, touch, sar);
+  drawSaved(ctx, H, u, sal, sab, dt);
+  if (settings.guide && !G.inCutscene && !G.world.bossActive) drawGuideArrow(ctx, W, H, u, sat, sal, sar, sab);
   if (settings.showFps) text(ctx, `${fps.toFixed(0)} fps · q${r.tier}`, W / 2, H - 6 - sab, `600 ${9}px ${FONT_DISPLAY}`, '#9b92a6', 'center');
   ctx.restore();
+}
+
+// ----- objective arrow at the screen edge when the marker is out of view
+function drawGuideArrow(ctx: Ctx, W: number, H: number, u: number, sat: number, sal: number, sar: number, sab: number) {
+  const g = guidePoint();
+  if (!g) return;
+  const v = G.camera.view();
+  const sx = ((g.point.x - v.x) / v.w) * W, sy = ((g.point.y - 30 - v.y) / v.h) * H;
+  const m = 26 * u;
+  if (sx > m && sx < W - m && sy > m && sy < H - m) return;
+  const cx = W / 2, cy = H / 2;
+  const ang = Math.atan2(sy - cy, sx - cx);
+  const hw = W / 2 - m - Math.max(sal, sar), hh = H / 2 - m - Math.max(sat, sab) - 20 * u;
+  const k = Math.min(hw / Math.max(0.001, Math.abs(Math.cos(ang))), hh / Math.max(0.001, Math.abs(Math.sin(ang))));
+  const ax = cx + Math.cos(ang) * k, ay = cy + Math.sin(ang) * k;
+  const pulse = 0.75 + Math.sin(G.time * 5) * 0.25;
+  ctx.save();
+  ctx.translate(ax, ay);
+  ctx.globalCompositeOperation = 'lighter';
+  glow(ctx, 0, 0, 22 * u, '#ffcf6b', 0.35 * pulse);
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.rotate(ang);
+  ctx.beginPath();
+  ctx.moveTo(11 * u, 0); ctx.lineTo(-6 * u, -8 * u); ctx.lineTo(-2 * u, 0); ctx.lineTo(-6 * u, 8 * u); ctx.closePath();
+  ctx.fillStyle = `rgba(255,230,168,${0.65 + pulse * 0.35})`;
+  ctx.fill();
+  ctx.strokeStyle = '#3a2806';
+  ctx.lineWidth = 1.2 * u;
+  ctx.stroke();
+  ctx.restore();
+}
+
+// ----- "Saved" indicator (bottom-left, a turning sigil for a moment)
+let savedT = 0;
+export function noteSaved() {
+  savedT = 1.8;
+}
+function drawSaved(ctx: Ctx, H: number, u: number, sal: number, sab: number, dt: number) {
+  if (savedT <= 0) return;
+  savedT -= dt;
+  const a = Math.min(1, savedT * 2.5, (1.8 - savedT) * 6);
+  const x = 16 + sal + 8 * u, y = H - sab - 18 * u;
+  ctx.save();
+  ctx.globalAlpha = a;
+  ctx.translate(x, y);
+  ctx.rotate(G.time * 3);
+  ctx.strokeStyle = '#f6dea0';
+  ctx.lineWidth = 1.4 * u;
+  ctx.beginPath();
+  for (let i = 0; i < 4; i++) {
+    const ang = (i / 4) * Math.PI * 2;
+    ctx.moveTo(0, 0);
+    ctx.lineTo(Math.cos(ang) * 6 * u, Math.sin(ang) * 6 * u);
+  }
+  ctx.stroke();
+  ctx.restore();
+  ctx.globalAlpha = a;
+  text(ctx, 'Saved', x + 12 * u, y + 3.5 * u, `600 ${9.5 * u}px ${FONT_DISPLAY}`, '#f6dea0', 'left');
+  ctx.globalAlpha = 1;
 }
 
 let comboShown = 0;
@@ -387,10 +463,10 @@ function minimap(ctx: Ctx, x: number, y: number, w: number, h: number) {
   ctx.beginPath();
   ctx.rect(x, y, w, h);
   ctx.clip();
-  const ch2 = CH2_ROOM_IDS.has(cur.id);
+  const ch = chapterOf(cur.id);
   for (const id of s.visited) {
     const rm = ROOMS[id];
-    if (!rm || CH2_ROOM_IDS.has(id) !== ch2) continue;
+    if (!rm || chapterOf(id) !== ch) continue;
     const rx = x + w / 2 + (rm.map.x - cx) * scale, ry = y + h / 2 + (rm.map.y - cyy) * scale;
     const rw = (rm.w / 16) * scale, rh = (rm.h / 16) * scale;
     ctx.fillStyle = id === cur.id ? 'rgba(226,184,90,0.45)' : 'rgba(150,130,170,0.25)';

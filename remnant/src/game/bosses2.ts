@@ -25,7 +25,7 @@ import { moveBody } from './physics';
 import { SENT_BASE, SENT_DIMS } from './enemies';
 import { marshalStyle } from './tanks';
 
-export type BossKey = 'gatekeeper' | 'marshal';
+export type BossKey = 'gatekeeper' | 'marshal' | 'locust_king';
 
 /** Shared lifecycle for the Chapter II bosses: intro, phases, kneel, defeat. */
 export abstract class BossBase extends Entity {
@@ -96,6 +96,7 @@ export abstract class BossBase extends Entity {
   }
 
   update(dt: number) {
+    if (this.chill > 0 && this.fighting) dt *= 0.75;
     this.st += dt;
     this.flash = Math.max(0, this.flash - dt);
     this.staggerFlash = Math.max(0, this.staggerFlash - dt);
@@ -144,6 +145,16 @@ export abstract class BossBase extends Entity {
 
   takeHit(h: HitInfo): boolean {
     if (!this.fighting || this.invuln > 0 || this.dying) return false;
+    if (h.dot) {
+      const d = Math.max(1, Math.round(h.dmg));
+      this.hp -= d;
+      fx.number(this.x + rand(-20, 20), this.cy - 30, d, false, '#ffb36a');
+      if (this.hp <= 0) {
+        this.hp = 0;
+        this.die();
+      }
+      return true;
+    }
     if (this.state !== 'kneel' && this.guard(h)) return true;
     let dmg = h.dmg;
     if (this.state === 'kneel') dmg *= 1.5;

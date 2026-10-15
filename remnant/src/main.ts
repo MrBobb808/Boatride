@@ -22,6 +22,8 @@ import { showTitle, hideTitle, drawTitleScene, startIntro, drawIntro, updateIntr
 import { openMenu, applyTextSize, isMenuOpen } from './ui/menus';
 import { derive, makeItem, makeEcho } from './game/state';
 import { ITEMS } from './game/data';
+import { flush as flushCloud, initCloud } from './game/cloud';
+import { checkForUpdate, applyUpdate, takeResumeSlot } from './core/update';
 
 const STEP = 1 / 120;
 
@@ -83,27 +85,50 @@ async function boot() {
     else if (a === 'map') openMenu('map');
   });
 
+  // Leaving the app (home button, app switcher, closing the tab) saves first.
+  const saveNow = () => {
+    if (app.mode === 'game' && G.save) G.world.autosave(true);
+    flushCloud();
+  };
   document.addEventListener('visibilitychange', () => {
-    if (document.hidden && app.mode === 'game' && !isMenuOpen() && !G.inCutscene && layerCount() === 0) {
-      openMenu();
-    }
+    if (!document.hidden) return;
+    saveNow();
+    if (app.mode === 'game' && !isMenuOpen() && !G.inCutscene && layerCount() === 0) openMenu();
   });
+  window.addEventListener('pagehide', saveNow);
 
   setupDebug();
   registerSW();
+  void initCloud();
 
   const bootEl = document.getElementById('boot')!;
   bootEl.classList.add('hide');
   setTimeout(() => bootEl.remove(), 800);
 
   const params = new URLSearchParams(location.search);
-  if (params.has('autostart')) {
+  const resume = takeResumeSlot();
+  if (resume !== null && loadGameSlot(resume)) {
+    setTimeout(() => G.ui.toast('Updated to the newest version. Welcome back.', 'good'), 800);
+  } else if (params.has('autostart')) {
     startNewGame(2, true);
   } else {
     app.mode = 'title';
     showTitle();
   }
   requestAnimationFrame(loop);
+  // Look for a newer build now and whenever the app comes back to the front.
+  const lookForUpdate = () => {
+    if (import.meta.env.DEV) return;
+    void checkForUpdate().then((ready) => {
+      if (!ready) return;
+      if (app.mode === 'title') applyUpdate(null);
+      else if (app.mode === 'game') G.ui.toast('An update has downloaded. It installs at the next doorway; your progress is kept.', 'info');
+    });
+  };
+  setTimeout(lookForUpdate, 4000);
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) lookForUpdate();
+  });
 }
 
 const perf = { update: 0, draw: 0, hud: 0, frames: 0 };

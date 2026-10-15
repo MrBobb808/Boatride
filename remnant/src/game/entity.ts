@@ -26,6 +26,8 @@ export interface HitInfo {
   px?: number;
   py?: number;
   noKnock?: boolean;
+  /** Burn or bleed damage over time: no flinch, no poise, no sparks. */
+  dot?: boolean;
 }
 
 let nextId = 1;
@@ -56,6 +58,15 @@ export abstract class Entity {
   isFoe = false;
   isBoss = false;
   dying = false;
+  /** Elemental status (seconds left, and damage per second). */
+  burn = 0;
+  burnDps = 0;
+  bleed = 0;
+  bleedDps = 0;
+  chill = 0;
+  dotT = 0;
+  /** Killing blow cut this foe in two (angle of the cut), drawn by the world. */
+  slice: { a: number; t: number } | null = null;
   executable(): boolean {
     return false;
   }

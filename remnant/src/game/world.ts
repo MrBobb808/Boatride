@@ -11,11 +11,12 @@ import { makeEnemy } from './foes';
 import { EchoUnit } from './echoes';
 import { Idol } from './boss';
 import { BossBase, Gatekeeper, Marshal } from './bosses2';
+import { LocustKing } from './bosses3';
 import { Npc, Chest, Altar, LoreStone, Shrine, Pickup, Drop, RelicVisual, type Interactable } from './props';
 import { Proj } from './projectiles';
 import { Story } from './story';
 import { G, flag, setFlag } from './ctx';
-import { TileCache, buildParallax, drawSky, drawLiveProps, drawLiquids, drawGate, BIOMES, type Layer } from '../render/environment';
+import { TileCache, buildParallax, drawSky, drawLiveProps, drawLiquids, drawGate, BIOMES, LIVE_DECOR, type Layer } from '../render/environment';
 import { lighting } from '../render/lighting';
 import { fx, PK } from '../render/fx';
 import { glow, rgba, makeCanvas, releaseCanvas, FONT_DISPLAY, type Ctx } from '../render/draw';
@@ -23,10 +24,15 @@ import { overlaps, rand, clamp, sign, choose, randInt, type Rect } from '../core
 import { input } from '../core/input';
 import { sfx } from '../audio/audio';
 import { music } from '../audio/music';
-import { shakeScale } from '../core/settings';
+import { shakeScale, settings } from '../core/settings';
+import { guidePoint } from './guide';
+import { tickStatus, powerTier, SOVEREIGN_LV } from './power';
+import { updatePending, applyUpdate } from '../core/update';
+import { FINISHERS } from './finishers';
 import { ITEMS, ECHO_SPECIES, type Rarity } from './data';
 import { gainXp, makeItem, addMaterial, derive, makeEcho, echoMaxHp, skillRank, type SaveData } from './state';
 import { saveSlot } from './save';
+import { noteSaved } from '../ui/hud';
 import { solve, newJoints, BASE_POSE } from '../render/skeleton';
 import { drawHumanoid } from '../render/actors';
 import { SENT_DIMS, SENT_BASE, sentinelStyle, ARCH_DIMS, ARCH_BASE, archerStyle } from './enemies';
@@ -70,6 +76,8 @@ export class World {
   vignette: HTMLCanvasElement | null = null;
   vigGen = -1;
   deathHandled = false;
+  saveT = 0;
+  lostT = 0;
   firedTriggers = new Set<string>();
   echoSummonT = 0;
 
@@ -108,6 +116,7 @@ export class World {
     this.timers = [];
     this.weather = [];
     this.rallyT = -1;
+    this.lostT = 0;
     this.firedTriggers.clear();
     fx.clear();
     const s = G.save;
@@ -200,7 +209,7 @@ export class World {
         return;
       case 'boss':
         if (s.defeated.includes(e.k)) return;
-        this.boss = e.k === 'gatekeeper' ? new Gatekeeper(x, y) : e.k === 'marshal' ? new Marshal(x, y) : new Idol(x, y);
+        this.boss = e.k === 'gatekeeper' ? new Gatekeeper(x, y) : e.k === 'marshal' ? new Marshal(x, y) : e.k === 'locust_king' ? new LocustKing(x, y) : new Idol(x, y);
         this.add(this.boss);
         return;
     }
@@ -262,6 +271,22 @@ export class World {
     }
     G.time += dt;
     s.playtime += dtRaw;
+    // Lost for a while? Point at the marker.
+    if (!G.inCutscene && !this.bossActive) this.lostT += dtRaw;
+    if (this.lostT > 100 && settings.guide) {
+      this.lostT = -90;
+      const g = guidePoint();
+      if (g && !this.foes().some((e) => e.canBeTargeted() && Math.abs(e.x - this.player.x) < 260)) {
+        G.ui.hint(`Not sure where to go? Follow the golden marker toward ${g.target.label}.`);
+        this.after(7, () => G.ui.hint(null));
+      }
+    }
+    // Quiet autosave every half minute of free play.
+    this.saveT += dtRaw;
+    if (this.saveT > 30 && !G.inCutscene && !this.transitioning && this.player.state !== 'dead' && this.rallyT < 0) {
+      this.saveT = 0;
+      this.autosave(true);
+    }
     G.d = G.d ?? derive(s);
     // timers
     for (let i = this.timers.length - 1; i >= 0; i--) {
@@ -279,6 +304,8 @@ export class World {
     for (const e of this.ents) {
       if (rallying && e.isFoe) continue;
       e.update(dt);
+      if (e.isFoe && (e.burn > 0 || e.bleed > 0 || e.chill > 0)) tickStatus(e, dt);
+      if (e.slice) e.slice.t += dt;
     }
     if (rallying) this.updateRally(dt);
     // cleanup
@@ -319,6 +346,13 @@ export class World {
     input.flush();
     await G.ui.fade(1, 0.2);
     const keepVx = this.player.body.vx;
+    if (updatePending()) {
+      // A newer build is waiting: step through the door, save, and reload into it.
+      this.load(to, spawn);
+      this.autosave(true);
+      applyUpdate(G.slot);
+      return;
+    }
     this.load(to, spawn);
     if (Math.abs(keepVx) > 40) this.player.body.vx = keepVx * 0.5;
     this.autosave(true);
@@ -501,7 +535,7 @@ export class World {
     for (const e of this.ents) {
       if (!e.executable()) continue;
       if (e.isBoss) {
-        if (Math.abs(e.x - p.x) < (e instanceof Gatekeeper ? 120 : e instanceof Marshal ? 56 : 80) && Math.abs(e.y - p.y) < 60) return e;
+        if (Math.abs(e.x - p.x) < (e instanceof Gatekeeper ? 120 : e instanceof Marshal || e instanceof LocustKing ? 56 : 80) && Math.abs(e.y - p.y) < 60) return e;
       } else if (Math.abs(e.x - p.x) < 36 && Math.abs(e.y - p.y) < 30) return e;
     }
     return null;
@@ -658,8 +692,8 @@ export class World {
     const s = G.save;
     const st = e.stats;
     s.kills++;
-    const tier = e.tier === 2 ? 1.7 : 1;
-    const xp = Math.round(st.xp * (e.elite ? 4 : 1) * G.d.xpMult * (1 + s.ng * 0.5) * tier);
+    const tier = e.tier === 3 ? 2.6 : e.tier === 2 ? 1.7 : 1;
+    const xp = e.xpOverride ?? Math.round(st.xp * (e.elite ? 4 : 1) * G.d.xpMult * (1 + s.ng * 0.5) * tier);
     this.giveXp(xp);
     const loot: Loot[] = [{ silver: Math.round(randInt(st.silver[0], st.silver[1]) * (e.elite ? 4 : 1) * tier) }];
     if (Math.random() < 0.28) loot.push({ mat: 'veil_shard', n: 1 });
@@ -678,6 +712,7 @@ export class World {
 
   giveXp(xp: number) {
     const s = G.save;
+    const lvBefore = s.level;
     const levels = gainXp(s, xp);
     fx.number(this.player.x, this.player.y - 56, `+${xp} XP`, false, '#cfe6ff');
     if (levels > 0) {
@@ -687,6 +722,19 @@ export class World {
       this.player.styleKey = '';
       G.ui.levelUp(levels);
       for (const ec of this.echoes) ec.refreshStats();
+      // New finishers and power tiers announce themselves.
+      const fins = FINISHERS.filter((f) => f.level > lvBefore && f.level <= s.level && f.level > 1);
+      fins.forEach((f, i) => this.after(2.2 + i * 1.2, () => G.ui.toast(`New finisher: ${f.name} — ${f.desc}`, 'good')));
+      if (lvBefore < SOVEREIGN_LV && s.level >= SOVEREIGN_LV) {
+        this.after(3.4, () => {
+          G.ui.banner('SOVEREIGN OF THE REMNANT', 'Every swing looses a crescent · Phantom Step costs nothing · ordinary blows cannot stagger you · the fallen rise to serve', 'ability');
+          sfx('arise');
+          fx.column(this.player.x, this.player.y, 60, 420, '#9a6aff', 2);
+          fx.flash('#c9a8ff', 0.5);
+        });
+      } else if (powerTier(s.level) > powerTier(lvBefore)) {
+        this.after(2.6, () => G.ui.toast('Your strikes grow heavier and brighter.', 'good'));
+      }
       if (G.d.echoSlots > slotsBefore) {
         // A wider covenant: bring benched Echoes into the line automatically.
         for (const e of s.echoes) {
@@ -785,7 +833,12 @@ export class World {
       await G.ui.fade(1, 0.3);
       this.rest();
       this.player.revive();
-      this.load(s.altar.room, s.altar.spawn);
+      // Rise again at the doorway of the room where you fell, not back at
+      // the last altar: no progress is ever thrown away.
+      const room = ROOMS[s.room] ? s.room : s.altar.room;
+      const spawn = ROOMS[s.room]?.spawns[s.spawn] ? s.spawn : s.altar.spawn;
+      this.load(room, spawn);
+      this.autosave(true);
       if (this.room.id === 'idol_sanctum') {
         // returning to the arena resets the fight
       }
@@ -1176,6 +1229,7 @@ export class World {
       this.closeGate(false);
       this.story.gatekeeperDefeated(b);
     } else if (b instanceof Marshal) this.story.marshalDefeated(b);
+    else if (b instanceof LocustKing) this.story.kingDefeated(b);
     else if (b instanceof Idol) {
       this.closeGate(false);
       this.story.bossDefeated(b);
@@ -1191,9 +1245,95 @@ export class World {
     sfx('denied');
   }
 
+  /** A foe cut clean in two: each half slides apart along the cut. */
+  private drawSliced(ctx: Ctx, e: Entity) {
+    const sl = e.slice!;
+    const t = sl.t;
+    const nx = -Math.sin(sl.a), ny = Math.cos(sl.a);
+    const cx = e.cx, cy = e.cy;
+    const sep = Math.min(10, t * 28);
+    const R = 120;
+    for (const side of [1, -1]) {
+      ctx.save();
+      ctx.beginPath();
+      // Half-plane on this side of the cut line through (cx, cy).
+      const dx = Math.cos(sl.a), dy = Math.sin(sl.a);
+      ctx.moveTo(cx - dx * R, cy - dy * R);
+      ctx.lineTo(cx + dx * R, cy + dy * R);
+      ctx.lineTo(cx + dx * R + nx * side * R, cy + dy * R + ny * side * R);
+      ctx.lineTo(cx - dx * R + nx * side * R, cy - dy * R + ny * side * R);
+      ctx.closePath();
+      ctx.clip();
+      ctx.translate(nx * side * sep + (side > 0 ? 0 : 0), ny * side * sep + (side < 0 ? t * t * 30 : 0));
+      e.draw(ctx);
+      ctx.restore();
+    }
+    if (t < 0.35) {
+      // The cut itself, a line of light that fades.
+      const dx = Math.cos(sl.a), dy = Math.sin(sl.a);
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.strokeStyle = rgba('#fff6dc', 1 - t / 0.35);
+      ctx.lineWidth = 2.2;
+      ctx.beginPath();
+      ctx.moveTo(cx - dx * 30, cy - dy * 30);
+      ctx.lineTo(cx + dx * 30, cy + dy * 30);
+      ctx.stroke();
+      ctx.globalCompositeOperation = 'source-over';
+    }
+  }
+
+  /** The golden objective marker (and doorway chevrons when the way leads out). */
+  private drawGuide(ctx: Ctx) {
+    const g = guidePoint();
+    if (!g) return;
+    const p = this.player;
+    const { x, y } = g.point;
+    if (!g.viaExit && Math.hypot(x - p.x, y - p.y) < 36) return;
+    const t = G.time;
+    const my = y - 38 + Math.sin(t * 3) * 3;
+    ctx.globalCompositeOperation = 'lighter';
+    glow(ctx, x, my, 24, '#ffcf6b', 0.5 + Math.sin(t * 4) * 0.12);
+    const gr = ctx.createLinearGradient(0, my, 0, y);
+    gr.addColorStop(0, rgba('#ffe6a8', 0.35));
+    gr.addColorStop(1, rgba('#ffe6a8', 0));
+    ctx.fillStyle = gr;
+    ctx.fillRect(x - 1.2, my, 2.4, y - my);
+    glow(ctx, x, y - 2, 18, '#ffcf6b', 0.3);
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.beginPath();
+    ctx.moveTo(x, my - 8); ctx.lineTo(x + 5.5, my); ctx.lineTo(x, my + 8); ctx.lineTo(x - 5.5, my); ctx.closePath();
+    ctx.fillStyle = '#ffe6a8';
+    ctx.fill();
+    ctx.strokeStyle = '#5a3c08';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    if (g.viaExit) {
+      // Chevrons flowing out through the doorway.
+      const d = g.dir;
+      ctx.strokeStyle = rgba('#ffe6a8', 0.9);
+      ctx.lineWidth = 2;
+      for (let i = 0; i < 3; i++) {
+        const k = ((t * 1.5 + i / 3) % 1);
+        const cx = x + d.x * (k * 26 - 6) - (d.x ? 0 : 0), cy = my + 18 + d.y * (k * 22);
+        ctx.globalAlpha = Math.sin(k * Math.PI);
+        ctx.beginPath();
+        if (d.x) {
+          ctx.moveTo(cx - d.x * 4, cy - 5); ctx.lineTo(cx + d.x * 2, cy); ctx.lineTo(cx - d.x * 4, cy + 5);
+        } else {
+          ctx.moveTo(cx - 5, cy - d.y * 4); ctx.lineTo(cx, cy + d.y * 2); ctx.lineTo(cx + 5, cy - d.y * 4);
+        }
+        ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
+    }
+  }
+
   autosave(quiet = false) {
+    if (!G.save || G.save.hp <= 0 || this.player.state === 'dead') return;
+    this.saveT = 0;
     const ok = saveSlot(G.slot, G.save);
-    if (!quiet) G.ui.toast(ok ? 'Progress saved' : 'Could not save — storage is unavailable', ok ? 'info' : 'warn');
+    if (ok) noteSaved();
+    if (!quiet || !ok) G.ui.toast(ok ? 'Progress saved' : 'Could not save — storage is unavailable', ok ? 'info' : 'warn');
   }
 
   // ---------------------------------------------------------------- weather
@@ -1281,14 +1421,15 @@ export class World {
     this.cache?.draw(ctx, v);
     drawLiquids(ctx, this.grid, G.time, v, this.room.biome);
     drawLiveProps(ctx, this.lights, G.time, v, this.cond, false);
-    drawLiveProps(ctx, this.room.ents.filter((e) => e.t === 'decor' && e.k === 'banner'), G.time, v, this.cond, false);
+    drawLiveProps(ctx, this.room.ents.filter((e) => e.t === 'decor' && LIVE_DECOR.has(e.k)), G.time, v, this.cond, false);
     drawGate(ctx, this.grid, this.gateAmt);
     // entities by layer
     const list: Entity[] = [...this.ents, ...this.echoes, this.player];
     list.sort((a, b) => a.layer - b.layer);
     for (const e of list) {
       if (e.x < v.x - 260 || e.x > v.x + v.w + 260) continue;
-      e.draw(ctx);
+      if (e.slice) this.drawSliced(ctx, e);
+      else e.draw(ctx);
     }
     fx.drawBack(ctx);
     drawLiveProps(ctx, this.room.ents, G.time, v, this.cond, true);
@@ -1335,6 +1476,7 @@ export class World {
     fx.drawAdd(ctx);
     ctx.globalCompositeOperation = 'source-over';
     for (const e of list) e.drawOverlay?.(ctx);
+    if (settings.guide && !G.inCutscene && !this.bossActive) this.drawGuide(ctx);
     // priority target reticle
     if (this.priorityTarget && !this.priorityTarget.dying) {
       const t = this.priorityTarget;

@@ -16,6 +16,7 @@ import type { EnemyKind } from './tiles';
 import { lighting } from '../render/lighting';
 import { shakeScale } from '../core/settings';
 import { CH2_ROOM_IDS } from './rooms2';
+import { CH3_ROOM_IDS } from './rooms3';
 
 export interface EnemyStats {
   hp: number;
@@ -35,6 +36,8 @@ export const ENEMY_STATS: Record<EnemyKind, EnemyStats> = {
   brute: { hp: 420, dmg: 26, poise: 130, xp: 85, silver: [12, 20], name: 'Ironbound Brute' },
   bulwark: { hp: 280, dmg: 18, poise: 110, xp: 64, silver: [10, 16], name: 'Shieldwall Bulwark' },
   knight: { hp: 210, dmg: 22, poise: 70, xp: 70, silver: [10, 16], name: 'Crimson Knight' },
+  drone: { hp: 34, dmg: 12, poise: 8, xp: 18, silver: [2, 5], name: 'Locust Drone' },
+  soldier: { hp: 190, dmg: 22, poise: 60, xp: 72, silver: [10, 16], name: 'Locust Soldier' },
 };
 
 export const CORRUPT = { glow: '#b04cff', eye: '#ff3355', outline: '#07050a' };
@@ -225,8 +228,10 @@ export abstract class Enemy extends Entity {
   /** Tanks survive executions (they take a heavy chunk instead). */
   tank = false;
   execUsed = false;
-  /** 1 in Chapter I, 2 in Chapter II. */
+  /** 1 in Chapter I, 2 in Chapter II, 3 in Chapter III. */
   tier = 1;
+  /** Fixed XP for this kill (the Trial sets it). */
+  xpOverride: number | null = null;
 
   constructor(kind: EnemyKind, x: number, y: number, w: number, h: number, elite: string | null) {
     super(x, y, w, h);
@@ -236,8 +241,9 @@ export abstract class Enemy extends Entity {
     const ng = 1 + (G.save?.ng ?? 0) * 0.6;
     const em = elite ? 2.0 : 1;
     // Chapter II foes are tougher, and worth more.
-    this.tier = G.world?.room && CH2_ROOM_IDS.has(G.world.room.id) ? 2 : 1;
-    const th = this.tier === 2 ? 1.8 : 1, td = this.tier === 2 ? 1.4 : 1;
+    const rid = G.world?.room?.id ?? '';
+    this.tier = CH3_ROOM_IDS.has(rid) ? 3 : CH2_ROOM_IDS.has(rid) ? 2 : 1;
+    const th = [1, 1, 1.8, 3.0][this.tier], td = [1, 1, 1.4, 1.9][this.tier];
     this.maxHp = this.hp = Math.round(this.stats.hp * ng * em * th);
     this.dmg = this.stats.dmg * ng * (elite ? 1.15 : 1) * td;
     this.maxPoise = this.poise = this.stats.poise * (elite ? 1.6 : 1);
@@ -289,6 +295,8 @@ export abstract class Enemy extends Entity {
   }
 
   update(dt: number) {
+    // Chilled foes move and think at half speed.
+    if (this.chill > 0 && !this.dying) dt *= 0.55;
     this.st += dt;
     this.flash = Math.max(0, this.flash - dt);
     this.hpBarT = Math.max(0, this.hpBarT - dt);
@@ -350,6 +358,17 @@ export abstract class Enemy extends Entity {
 
   takeHit(h: HitInfo): boolean {
     if (this.dying || this.invuln > 0) return false;
+    if (h.dot) {
+      const d = Math.max(1, Math.round(h.dmg * (this.staggered > 0 ? this.brokenMul : 1)));
+      this.hp -= d;
+      this.hpBarT = 3;
+      fx.number(this.x + rand(-6, 6), this.y - this.body.h - 6, d, false, '#ffb36a');
+      if (this.hp <= 0) {
+        this.hp = 0;
+        this.die(h);
+      }
+      return true;
+    }
     let dmg = h.dmg;
     this.aggro = true;
     if (this.guardCheck(h)) return true;

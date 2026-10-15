@@ -6,6 +6,7 @@ import { makeCanvas, releaseCanvas, glow, rgba, shade, mix, poly, circle, ellips
 import { RNG, hash2, fbm1, clamp } from '../core/math';
 import { TILE, T, isSolid, type Grid, type Biome, type EntDef } from '../game/tiles';
 import { buildParallaxCh2, drawDuskSky, drawPropCh2, drawPitch } from './env2';
+import { buildParallaxCh3, drawValleySky, drawCaveSky, drawVoidSky, drawHiveWall, drawSolidCh3, drawOneWayCh3, drawLiquidCh3, drawPropCh3, drawLivePropCh3, isCh3, LIVE_CH3 } from './env3';
 
 export interface BiomePal {
   sky: [string, string, string];
@@ -60,6 +61,21 @@ export const BIOMES: Record<Biome, BiomePal> = {
     stone: '#6a4a38', stoneDark: '#2e1e16', cap: '#8a6a4e', capTuft: '#5a4030', back: '#2a1a14', backLine: '#3a2418', moon: null,
     plat: '#5a3a22', ambient: '#120806',
   },
+  valley: {
+    sky: ['#4a423a', '#94806a', '#d4b88e'], far: '#6a5a4c', mid: '#3e342c', near: '#221c18', fog: '#c8a47a',
+    stone: '#9a8c74', stoneDark: '#3e352c', cap: '#cdbf9e', capTuft: '#8a7650', back: '', backLine: '', moon: null,
+    plat: '#7a6448', ambient: '#1a1612',
+  },
+  hive: {
+    sky: ['#0a0604', '#1c1008', '#2e1a0a'], far: '#2a1808', mid: '#1c1006', near: '#120a04', fog: '#a8641c',
+    stone: '#4a3220', stoneDark: '#1e140c', cap: '#c07a24', capTuft: '#e0a040', back: '#2a1a0c', backLine: '#3a2410', moon: null,
+    plat: '#a86a20', ambient: '#140a04',
+  },
+  trial: {
+    sky: ['#04030a', '#0c0a1a', '#18142a'], far: '#1a1630', mid: '#141026', near: '#0c0a18', fog: '#6a5a9a',
+    stone: '#a8a090', stoneDark: '#4a4640', cap: '#d8d0bc', capTuft: '#c9a04a', back: '', backLine: '', moon: null,
+    plat: '#bab2a0', ambient: '#0a0814',
+  },
 };
 
 // ---------------------------------------------------------------- Parallax
@@ -79,6 +95,7 @@ export interface Layer {
 export function buildParallax(biome: Biome, seed: number, interior: boolean, viewH: number, res: number): Layer[] {
   const pal = BIOMES[biome];
   if (biome === 'plain' || biome === 'tower') return buildParallaxCh2(biome, pal, seed, viewH, res);
+  if (isCh3(biome)) return buildParallaxCh3(biome, pal, seed, viewH, res);
   const layers: Layer[] = [];
   const rng = new RNG(seed);
   const W = 1024;
@@ -256,6 +273,9 @@ export function drawSky(ctx: Ctx, pal: BiomePal, w: number, h: number, interior:
     drawDuskSky(ctx, pal, w, h, t);
     return;
   }
+  if (pal === BIOMES.valley) return drawValleySky(ctx, pal, w, h, t);
+  if (pal === BIOMES.trial) return drawVoidSky(ctx, pal, w, h, t);
+  if (pal === BIOMES.hive) return drawCaveSky(ctx, pal, w, h);
   const g = ctx.createLinearGradient(0, 0, 0, h);
   g.addColorStop(0, pal.sky[0]);
   g.addColorStop(0.6, pal.sky[1]);
@@ -371,6 +391,9 @@ export class TileCache {
         }
       }
     }
+    if (this.interior && this.biome === 'hive') {
+      drawHiveWall(ctx, Math.max(0, tx0) * TILE, Math.max(0, ty0) * TILE, Math.min(g.w, tx1 + 1) * TILE, Math.min(g.h, ty1 + 1) * TILE, this.seed);
+    }
     // Static props (behind tiles).
     for (const e of this.ents) {
       if (e.t !== 'decor' || e.fg) continue;
@@ -400,6 +423,10 @@ export class TileCache {
       return isSolid(tt) && tt !== T.Gate;
     };
     if (t === T.OneWay) {
+      if (isCh3(this.biome)) {
+        drawOneWayCh3(ctx, this.biome, pal, tx, ty, g.get(tx - 1, ty) !== T.OneWay, g.get(tx + 1, ty) !== T.OneWay);
+        return;
+      }
       // Plank or stone ledge with supports.
       const wood = this.biome === 'village' || this.biome === 'sanctuary' || this.biome === 'plain' || this.biome === 'tower';
       const c = wood ? pal.plat : pal.cap;
@@ -423,7 +450,7 @@ export class TileCache {
       return;
     }
     if (t === T.Spikes) {
-      const metal = this.biome === 'crypt' ? '#c9c1b0' : '#5a5560';
+      const metal = this.biome === 'crypt' || this.biome === 'valley' ? '#c9c1b0' : this.biome === 'hive' ? '#4a2c14' : '#5a5560';
       for (let i = 0; i < 4; i++) {
         const sx = x + i * 4 + 2;
         poly(ctx, [sx - 2, y + TILE, sx, y + 4 + hash2(tx, i) * 3, sx + 2, y + TILE], metal, '#0a0a0e', 0.5);
@@ -440,6 +467,11 @@ export class TileCache {
         depth = d - 1;
         break;
       }
+    }
+    if (isCh3(this.biome)) {
+      drawSolidCh3(ctx, this.biome, pal, tx, ty, t, depth, v, solid);
+      this.drawMarks(ctx, x, y, t);
+      return;
     }
     let base = t === T.Brick ? shade(pal.stone, -0.08) : pal.stone;
     if (t === T.Seal) base = '#7a5a28';
@@ -492,6 +524,11 @@ export class TileCache {
       ctx.fillStyle = rgba('#000000', 0.3);
       ctx.fillRect(x + TILE - 1.8, y, 1.8, TILE);
     }
+    this.drawMarks(ctx, x, y, t);
+  }
+
+  /** Breakable, sealed and collapsing tiles carry the same marks in every biome. */
+  private drawMarks(ctx: Ctx, x: number, y: number, t: T) {
     if (t === T.Cracked) {
       ctx.strokeStyle = '#e8b85a';
       ctx.lineWidth = 0.9;
@@ -540,7 +577,7 @@ export function drawProp(ctx: Ctx, e: Extract<EntDef, { t: 'decor' }>, pal: Biom
   const rng = new RNG(seed + Math.floor(e.x * 31 + e.y * 7));
   const o = '#08060a';
   ctx.save();
-  if (drawPropCh2(ctx, e, pal, seed)) {
+  if (drawPropCh2(ctx, e, pal, seed) || drawPropCh3(ctx, e, pal, seed)) {
     ctx.restore();
     return;
   }
@@ -1139,6 +1176,10 @@ function drawHallBack(ctx: Ctx, e: Extract<EntDef, { t: 'decor' }>, pal: BiomePa
   }
 }
 
+/** Decor kinds animated by drawLiveProps behind the actors (pass these in the background pass). */
+export const LIVE_DECOR: ReadonlySet<string> = new Set(['banner', ...LIVE_CH3]);
+let liveCh3Frame = -1;
+
 /** Animated props drawn every frame (banners, flames, water, veil pools, grass). */
 export function drawLiveProps(ctx: Ctx, ents: EntDef[], t: number, view: { x: number; y: number; w: number; h: number }, cond: (c?: string, n?: string) => boolean, fg: boolean) {
   for (const e of ents) {
@@ -1146,6 +1187,13 @@ export function drawLiveProps(ctx: Ctx, ents: EntDef[], t: number, view: { x: nu
     const x = e.x * TILE, y = e.y * TILE;
     if (x < view.x - 200 || x > view.x + view.w + 200 || y < view.y - 200 || y > view.y + view.h + 300) continue;
     if (e.t === 'decor') {
+      if (LIVE_CH3.has(e.k)) {
+        // Chapter III overlays belong to the background pass; if this frame's
+        // background pass did not include them, the foreground pass draws them.
+        if (!fg) liveCh3Frame = t;
+        if (!e.fg && (!fg || liveCh3Frame !== t) && cond(e.cond, e.ncond)) drawLivePropCh3(ctx, e, t);
+        continue;
+      }
       if (!!e.fg !== fg) continue;
       if (!cond(e.cond, e.ncond)) continue;
       if (e.k === 'banner') {
@@ -1227,6 +1275,7 @@ export function flame(ctx: Ctx, x: number, y: number, s: number, t: number) {
 /** Water and veil pools, animated. */
 export function drawLiquids(ctx: Ctx, g: Grid, t: number, view: { x: number; y: number; w: number; h: number }, biome: Biome = 'village') {
   const pitch = biome === 'plain' || biome === 'tower';
+  const ch3 = isCh3(biome);
   const tx0 = Math.max(0, Math.floor(view.x / TILE)), tx1 = Math.min(g.w - 1, Math.floor((view.x + view.w) / TILE));
   const ty0 = Math.max(0, Math.floor(view.y / TILE)), ty1 = Math.min(g.h - 1, Math.floor((view.y + view.h) / TILE));
   for (let ty = ty0; ty <= ty1; ty++)
@@ -1236,6 +1285,7 @@ export function drawLiquids(ctx: Ctx, g: Grid, t: number, view: { x: number; y: 
       const x = tx * TILE, y = ty * TILE;
       const top = g.get(tx, ty - 1) !== tt;
       if (tt === T.Water) {
+        if (ch3 && drawLiquidCh3(ctx, biome, x, y, top, tx, t)) continue;
         ctx.fillStyle = 'rgba(40,70,110,0.45)';
         const wy = top ? Math.sin(t * 2 + tx * 0.8) * 0.8 + 6 : 0;
         ctx.fillRect(x, y + wy, TILE, TILE - wy);

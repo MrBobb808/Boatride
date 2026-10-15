@@ -18,8 +18,10 @@ import {
   echoMaxHp, echoAtk, addMaterial,
 } from '../game/state';
 import { QUESTS } from '../game/story';
-import { ROOMS } from '../game/rooms';
+import { ROOMS, chapterOf } from '../game/rooms';
 import { CH2_ROOM_IDS } from '../game/rooms2';
+import { guidePoint } from '../game/guide';
+import { FINISHERS } from '../game/finishers';
 import { saveSlot, listSlots, deleteSlot, loadSlot, exportCode, importCode, SLOT_COUNT } from '../game/save';
 import { formatTime, clamp } from '../core/math';
 import { solve, newJoints } from '../render/skeleton';
@@ -380,7 +382,10 @@ function techniques() {
     ['Plunge', `${K('down')} + ${K('attack')} in the air`, 'Crash down with a shockwave.', true],
     ['Charged Strike', `hold ${touch ? 'Attack' : K('heavy')}`, 'Three charge levels; the last breaks guards.', true],
     ['Parry & Counter', `${K('parry')} as a blow lands, then ${K('attack')}`, 'Turn their strength against them.', true],
-    ['Execution', `${K('attack')} a staggered foe`, 'Ends the weak, maims the strong.', true],
+    ['Execution', `${K('attack')} a staggered foe`, 'Plays a finisher, picked at random from those you have learned.', true],
+    ...FINISHERS.map((f): [string, string, string, boolean] => [
+      `Finisher: ${f.name}`, f.level > 1 ? `level ${f.level}${f.id === 'element' ? ', elemental weapon' : ''}` : 'from the start', f.desc, s.level >= f.level,
+    ]),
   ];
   return h('div', { class: 'box' },
     h('h3', null, `Techniques · best combo ${s.bestCombo ?? 0} hits`),
@@ -524,6 +529,7 @@ function mapTab() {
       h('span', null, h('i', { style: 'background:#e2b85a' }), 'You are here: ' + G.world.room.name),
       h('span', null, h('i', { style: 'background:#ffcf6b;border-radius:50%' }), 'Altar'),
       h('span', null, h('i', { style: 'background:#6a5a8a' }), 'Explored'),
+      h('span', null, h('i', { style: 'background:#ffcf6b;clip-path:polygon(50% 0,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%)' }), 'Objective'),
       h('span', null, `Altars kindled: ${lit.join(', ')}`),
     ),
   );
@@ -532,10 +538,12 @@ function mapTab() {
 const ALTAR_NAMES: Record<string, string> = {
   sanctuary: 'Hearthward', temple_hall: 'Nave of the First Lamp', chamber: 'Covenant Chamber', antechamber: 'Hall of Offerings',
   shinar_camp: 'Camp at the Pass', tower_lower: 'The First Course', tower_upper: 'The Crimson Guard',
+  valley_camp: 'Camp at the Valley\'s Edge', hive_mouth: 'Mouth of the Hive',
 };
 const ALTAR_ROOMS: Record<string, string> = {
   sanctuary: 'sanctuary', temple_hall: 'temple_hall', chamber: 'covenant_chamber', antechamber: 'idol_antechamber',
   shinar_camp: 'shinar_camp', tower_lower: 'tower_lower', tower_upper: 'tower_upper',
+  valley_camp: 'valley_camp', hive_mouth: 'hive_mouth',
 };
 
 function drawMap(c: HTMLCanvasElement) {
@@ -547,8 +555,8 @@ function drawMap(c: HTMLCanvasElement) {
   ctx.scale(dpr, dpr);
   const s = G.save;
   // One chapter's map at a time.
-  const ch2 = CH2_ROOM_IDS.has(G.world.room.id);
-  const rooms = Object.values(ROOMS).filter((rm) => CH2_ROOM_IDS.has(rm.id) === ch2);
+  const ch = chapterOf(G.world.room.id);
+  const rooms = Object.values(ROOMS).filter((rm) => chapterOf(rm.id) === ch);
   let minX = 1e9, minY = 1e9, maxX = -1e9, maxY = -1e9;
   for (const rm of rooms) {
     minX = Math.min(minX, rm.map.x); minY = Math.min(minY, rm.map.y);
@@ -595,6 +603,27 @@ function drawMap(c: HTMLCanvasElement) {
       ctx.textAlign = 'center';
       ctx.fillText(rm.name, x + w / 2, y + hh + 11);
     }
+  }
+  // The objective: a golden star where the guide leads.
+  const gp = guidePoint();
+  const gRoom = gp ? ROOMS[gp.target.room] : null;
+  if (gp && gRoom && rooms.includes(gRoom)) {
+    const sx = X(gRoom.map.x + gp.target.x / TILE / 16), sy = Y(gRoom.map.y + gp.target.y / TILE / 16) - 3;
+    ctx.save();
+    ctx.translate(sx, sy);
+    ctx.fillStyle = '#ffcf6b';
+    ctx.strokeStyle = '#3a2806';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    for (let i = 0; i < 10; i++) {
+      const a = -Math.PI / 2 + (i / 10) * Math.PI * 2;
+      const rr = i % 2 ? 3 : 7;
+      ctx.lineTo(Math.cos(a) * rr, Math.sin(a) * rr);
+    }
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
   }
   const cur = ROOMS[G.world.room.id];
   const p = G.world.player;
@@ -758,6 +787,7 @@ function settingsTab() {
       row('Reduce flashes', 'Softens bright full-screen flashes.', toggle(st.reduceFlashes, (v) => (st.reduceFlashes = v), 'rf')),
       row('Damage numbers', '', toggle(st.dmgNumbers, (v) => (st.dmgNumbers = v), 'dn')),
       row('Haptics', 'Light taps on button presses and big moments (iPhone, iOS 18+).', toggle(st.haptics, (v) => (st.haptics = v), 'hp')),
+      row('Objective marker', 'A golden marker and screen-edge arrow that point toward your next objective.', toggle(st.guide, (v) => (st.guide = v), 'gd')),
     ),
     isTouchDevice() ? h('div', { class: 'box' }, h('h3', null, 'Touch controls'),
       row('Button size', '', slider(st.touchScale, 0.8, 1.3, 0.05, (v) => (st.touchScale = v), 'tsz')),
@@ -842,7 +872,7 @@ let shopBody: HTMLElement;
 let shopKind: 'merchant' | 'smith' = 'merchant';
 let shopTab: 'buy' | 'sell' | 'temper' | 'forge' = 'buy';
 
-const STOCK: { id: string; price: number; mat?: boolean; once?: boolean }[] = [
+const STOCK: { id: string; price: number; mat?: boolean; once?: boolean; cond?: string }[] = [
   { id: 'iron_scrap', price: 14, mat: true },
   { id: 'veil_shard', price: 24, mat: true },
   { id: 'balm_vial', price: 140, once: true },
@@ -853,6 +883,10 @@ const STOCK: { id: string; price: number; mat?: boolean; once?: boolean }[] = [
   { id: 'ember_lamp', price: 90 },
   { id: 'rusted_greatsword', price: 120 },
   { id: 'bell_shard', price: 160 },
+  // Elemental arms, as the road goes on.
+  { id: 'ember_brand', price: 420, once: true, cond: 'ch1_done' },
+  { id: 'frostwake_spear', price: 420, once: true, cond: 'ch1_done' },
+  { id: 'stormcaller', price: 780, once: true, cond: 'ch2_done' },
 ];
 
 export function openShop(kind: 'merchant' | 'smith') {
@@ -905,7 +939,7 @@ function renderShop() {
   shopEl.append(top, shopBody);
   let content: HTMLElement;
   if (shopTab === 'buy') {
-    content = h('div', { class: 'list' }, STOCK.filter((x) => !(x.once && G.save.flags['bought_' + x.id])).map((x) => {
+    content = h('div', { class: 'list' }, STOCK.filter((x) => !(x.once && G.save.flags['bought_' + x.id]) && (!x.cond || flag(x.cond))).map((x) => {
       const base = ITEMS[x.id];
       return h('div', { class: 'row-item', style: 'cursor:default' }, img(base.icon, RARITY_COLORS[base.rarity]),
         h('div', null, h('div', { class: 'nm', style: rarityStyle(base.rarity) }, base.name), h('div', { class: 'sub' }, base.desc)),
@@ -915,7 +949,7 @@ function renderShop() {
             s.silver -= x.price;
             if (x.mat) addMaterial(s, x.id, 1);
             else if (x.id === 'balm_vial') { s.balmMax++; s.balm++; G.save.flags['bought_' + x.id] = true; G.ui.toast('Balm charges: ' + s.balmMax, 'good'); }
-            else { const it = makeItem(x.id); s.inventory.push(it); G.ui.itemGet(it); }
+            else { const it = makeItem(x.id); s.inventory.push(it); G.ui.itemGet(it); if (x.once) G.save.flags['bought_' + x.id] = true; }
             sfx('loot');
             renderShop();
           }, 'btn small primary', { disabled: s.silver < x.price, 'data-k': 'buy_' + x.id })));
@@ -967,6 +1001,14 @@ export function openAltar(id: string) {
         G.world.transition(ALTAR_ROOMS[a], 'altar');
         s.altar = { room: ALTAR_ROOMS[a], spawn: 'altar' };
       }, 'btn opt')),
+      flag('ch2_done') && !s.altarsLit.includes('valley_camp') && chapterOf(G.world.room.id) !== 3 ? btn([h('b', null, 'Journey on'), h('span', null, 'Chapter III · The Valley of Bones')], () => {
+        done();
+        G.world.transition('valley_camp', 'start');
+      }, 'btn opt') : null,
+      flag('ch2_done') ? btn([h('b', null, 'Enter the Trial of the Remnant'), h('span', null, `Endless waves that grow with you${s.flags.trial_best ? ` · best: wave ${s.flags.trial_best}` : ''}`)], () => {
+        done();
+        G.world.transition('trial_arena', 'start');
+      }, 'btn opt') : null,
       flag('ending_done') && !s.altarsLit.includes('shinar_camp') && !CH2_ROOM_IDS.has(G.world.room.id) ? btn([h('b', null, 'Journey east'), h('span', null, 'Chapter II · The road down to the Plain of Shinar')], () => {
         done();
         G.world.transition('shinar_camp', 'start');

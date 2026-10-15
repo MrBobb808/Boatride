@@ -118,6 +118,7 @@ export class Chapter2 {
     setFlag('ch2_intro');
     // The camp altar is kindled on arrival, so Shinar is always one step away.
     if (!G.save.altarsLit.includes('shinar_camp')) G.save.altarsLit.push('shinar_camp');
+    G.save.altar = { room: 'shinar_camp', spawn: 'altar' };
     music.play('shinar');
     await wait(0.8);
     G.ui.banner('CHAPTER II', 'The Tower of Shinar', 'chapter');
@@ -468,7 +469,7 @@ export class Chapter2 {
     setFlag('ch2_done');
     G.world.autosave(true);
     st.cine(false);
-    await G.ui.chapterEnd(2);
+    if ((await G.ui.chapterEnd(2)) === 'next') await this.st.ch3.beginFromChapterTwo();
   }
 
   // ---------------------------------------------------------------- talk

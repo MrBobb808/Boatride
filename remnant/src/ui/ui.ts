@@ -16,6 +16,7 @@ import { formatTime } from '../core/math';
 import { openMenu, openShop, openAltar, isMenuOpen } from './menus';
 import { SECRET_IDS } from '../game/story';
 import { CH2_SECRETS } from '../game/story2';
+import { CH3_SECRETS } from '../game/story3';
 
 let uiRoot: HTMLElement;
 let toastBox: HTMLElement;
@@ -338,24 +339,25 @@ const hooks: UIHooks = {
       const s = G.save;
       blocking++;
       music.play('victory');
-      const two = chapter === 2;
       const stat = (v: string | number, l: string) => h('div', { class: 'stat' }, h('b', null, String(v)), h('span', null, l));
-      const secrets = two ? CH2_SECRETS : SECRET_IDS;
+      const C = [
+        { n: 'Chapter I', title: 'THE ASHEN VILLAGE', secrets: SECRET_IDS, sl: 'Hidden chambers', theme: 'True greatness is not found in the power to rule, but in the strength to remain faithful.', next: 'The road east leads down to the Plain of Shinar, where a red tower has risen in a single month.', go: 'Begin Chapter II', stay: 'Stay in Hearthward', music: 'sanctuary' },
+        { n: 'Chapter II', title: 'THE TOWER OF SHINAR', secrets: CH2_SECRETS, sl: 'Hidden caches', theme: 'Pride builds towers to make a name. Faithfulness keeps an oath when no one is watching.', next: 'Two days east lies the Valley of Bones, where a swarm has eaten everything that grew.', go: 'Begin Chapter III', stay: 'Stay in Shinar', music: 'shinar' },
+        { n: 'Chapter III', title: 'THE VALLEY OF BONES', secrets: CH3_SECRETS, sl: 'Hidden caches', theme: 'The locust takes; the covenant restores. An army raised by mercy follows further than one driven by fear.', next: 'Chapter IV is in development. Your journey continues: brave the Trial of the Remnant, grow your army toward level 100, or begin New Game+ at any altar.', go: '', stay: 'Continue exploring', music: 'valley' },
+      ][Math.min(2, Math.max(1, chapter) - 1)];
       const card = h('div', { class: 'chapter panel' },
-        h('div', { class: 'eyebrow' }, two ? 'Chapter II' : 'Chapter I'),
-        h('h2', null, two ? 'THE TOWER OF SHINAR' : 'THE ASHEN VILLAGE'),
+        h('div', { class: 'eyebrow' }, C.n),
+        h('h2', null, C.title),
         h('div', { class: 'muted' }, 'Complete'),
         h('div', { class: 'stats' },
           stat(formatTime(s.playtime), 'Time'), stat(s.level, 'Level'), stat(s.echoes.length, 'Echoes purified'),
-          stat(`${secrets.filter((x) => s.secrets.includes(x)).length}/${secrets.length}`, two ? 'Hidden caches' : 'Hidden chambers'), stat(s.kills, 'Foes overcome'), two ? stat(s.bestCombo ?? 0, 'Best combo') : stat(s.deaths, 'Times fallen'),
+          stat(`${C.secrets.filter((x) => s.secrets.includes(x)).length}/${C.secrets.length}`, C.sl), stat(s.kills, 'Foes overcome'), chapter > 1 ? stat(s.bestCombo ?? 0, 'Best combo') : stat(s.deaths, 'Times fallen'),
         ),
-        h('p', { class: 'theme' }, two ? 'Pride builds towers to make a name. Faithfulness keeps an oath when no one is watching.' : 'True greatness is not found in the power to rule, but in the strength to remain faithful.'),
-        h('p', { class: 'next' }, two
-          ? 'Chapter III — The Valley of Bones — is in development. Your journey continues: explore Shinar, grow your army, or begin New Game+ at any altar.'
-          : 'The road east leads down to the Plain of Shinar, where a red tower has risen in a single month.'),
+        h('p', { class: 'theme' }, C.theme),
+        h('p', { class: 'next' }, C.next),
         h('div', { class: 'row' },
-          two ? null : btn('Begin Chapter II', () => close('next'), 'btn primary', { 'data-autofocus': '' }),
-          btn(two ? 'Continue exploring' : 'Stay in Hearthward', () => close('stay'), two ? 'btn primary' : 'btn', two ? { 'data-autofocus': '' } : {}),
+          C.go ? btn(C.go, () => close('next'), 'btn primary', { 'data-autofocus': '' }) : null,
+          btn(C.stay, () => close('stay'), C.go ? 'btn' : 'btn primary', C.go ? {} : { 'data-autofocus': '' }),
           btn('Credits', () => hooks.showCredits()),
         ),
       );
@@ -364,7 +366,7 @@ const hooks: UIHooks = {
       const close = (r: 'next' | 'stay' = 'stay') => {
         popLayer(layer);
         blocking--;
-        if (r === 'stay') music.play(two ? 'shinar' : 'sanctuary');
+        if (r === 'stay') music.play(C.music);
         input.flush();
         resolve(r);
       };
