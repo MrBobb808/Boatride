@@ -19,6 +19,7 @@ import {
 } from '../game/state';
 import { QUESTS } from '../game/story';
 import { ROOMS } from '../game/rooms';
+import { CH2_ROOM_IDS } from '../game/rooms2';
 import { saveSlot, listSlots, deleteSlot, loadSlot, exportCode, importCode, SLOT_COUNT } from '../game/save';
 import { formatTime, clamp } from '../core/math';
 import { solve, newJoints } from '../render/skeleton';
@@ -528,8 +529,14 @@ function mapTab() {
   );
 }
 
-const ALTAR_NAMES: Record<string, string> = { sanctuary: 'Hearthward', temple_hall: 'Nave of the First Lamp', chamber: 'Covenant Chamber', antechamber: 'Hall of Offerings' };
-const ALTAR_ROOMS: Record<string, string> = { sanctuary: 'sanctuary', temple_hall: 'temple_hall', chamber: 'covenant_chamber', antechamber: 'idol_antechamber' };
+const ALTAR_NAMES: Record<string, string> = {
+  sanctuary: 'Hearthward', temple_hall: 'Nave of the First Lamp', chamber: 'Covenant Chamber', antechamber: 'Hall of Offerings',
+  shinar_camp: 'Camp at the Pass', tower_lower: 'The First Course', tower_upper: 'The Crimson Guard',
+};
+const ALTAR_ROOMS: Record<string, string> = {
+  sanctuary: 'sanctuary', temple_hall: 'temple_hall', chamber: 'covenant_chamber', antechamber: 'idol_antechamber',
+  shinar_camp: 'shinar_camp', tower_lower: 'tower_lower', tower_upper: 'tower_upper',
+};
 
 function drawMap(c: HTMLCanvasElement) {
   const r = c.getBoundingClientRect();
@@ -539,7 +546,9 @@ function drawMap(c: HTMLCanvasElement) {
   const ctx = c.getContext('2d')!;
   ctx.scale(dpr, dpr);
   const s = G.save;
-  const rooms = Object.values(ROOMS);
+  // One chapter's map at a time.
+  const ch2 = CH2_ROOM_IDS.has(G.world.room.id);
+  const rooms = Object.values(ROOMS).filter((rm) => CH2_ROOM_IDS.has(rm.id) === ch2);
   let minX = 1e9, minY = 1e9, maxX = -1e9, maxY = -1e9;
   for (const rm of rooms) {
     minX = Math.min(minX, rm.map.x); minY = Math.min(minY, rm.map.y);
@@ -958,6 +967,10 @@ export function openAltar(id: string) {
         G.world.transition(ALTAR_ROOMS[a], 'altar');
         s.altar = { room: ALTAR_ROOMS[a], spawn: 'altar' };
       }, 'btn opt')),
+      flag('ending_done') && !s.altarsLit.includes('shinar_camp') && !CH2_ROOM_IDS.has(G.world.room.id) ? btn([h('b', null, 'Journey east'), h('span', null, 'Chapter II · The road down to the Plain of Shinar')], () => {
+        done();
+        G.world.transition('shinar_camp', 'start');
+      }, 'btn opt') : null,
       flag('ch1_done') ? btn([h('b', null, 'Begin New Game+'), h('span', null, 'Start Chapter I again with everything you have earned. Foes grow stronger.')], () => { done(); startNewGamePlus(); }, 'btn opt') : null,
     ),
   );

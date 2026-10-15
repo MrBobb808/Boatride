@@ -11,6 +11,7 @@ import { TILE, T } from './tiles';
 import { Npc, Shrine, Altar } from './props';
 import { Enemy } from './enemies';
 import { Idol } from './boss';
+import { Chapter2, QUESTS2, type Gatekeeper, type Marshal } from './story2';
 import { LORE, ITEMS, ECHO_SPECIES } from './data';
 import { setQuest, makeEcho, grantAbility, derive, makeItem, addMaterial, hasMaterials, payMaterials, getItem, MAX_PLUS } from './state';
 import { rand } from '../core/math';
@@ -44,6 +45,7 @@ export const QUESTS: QuestDef[] = [
   { id: 's_dov', title: 'The Smith\'s Request', kind: 'side', stages: ['Dov needs 6 Iron Scrap to repair the watch\'s blades. Salvage it from the ruins.'], done: 'Dov repaid the scrap with a free tempering.' },
   { id: 's_tobiah', title: 'Tobiah\'s Courage', kind: 'side', stages: ['Tobiah followed you into the dark. Find him.'], done: 'Tobiah is safe.' },
   { id: 's_secrets', title: 'Hidden Chambers', kind: 'side', stages: ['The village and temple hide secret places. Find all five.'], done: 'Every hidden chamber of the First Lamp has been found.' },
+  ...QUESTS2,
 ];
 
 const TEMPLE_LORE = ['eph610', 'eph612', 'cor104', 'isa4031', 'josh620'];
@@ -52,13 +54,14 @@ const SECRET_IDS = ['sanct_loft', 'cistern_chest', 'crypt_high', 'hall_ledge', '
 const wait = (sec: number) => new Promise<void>((r) => setTimeout(r, sec * 1000));
 
 export class Story {
+  ch2 = new Chapter2(this);
   // ---------------------------------------------------------------- helpers
   fmt(text: string) {
     const L = (a: Parameters<typeof input.label>[0]) => {
       if (input.lastDevice === 'touch') {
         const names: Record<string, string> = {
           move: 'the left stick', jump: 'JUMP', attack: 'ATTACK', dodge: 'DODGE', parry: 'PARRY', heal: 'BALM', skill1: 'the first skill button',
-          interact: 'the action button', echo: 'the ECHO button', ultimate: 'RALLY', down: 'down on the stick', heavy: 'ATTACK (hold)',
+          interact: 'the action button', echo: 'the ECHO button', ultimate: 'RALLY', down: 'down on the stick', heavy: 'ATTACK (hold)', switch: 'SWITCH',
         };
         return names[a] ?? a;
       }
@@ -67,7 +70,7 @@ export class Story {
     };
     return text
       .replace('{move}', input.lastDevice === 'touch' ? 'the left stick' : input.lastDevice === 'gamepad' ? 'the left stick' : '[A]/[D] or arrows')
-      .replace(/\{(jump|attack|dodge|parry|heal|skill1|interact|echo|ultimate|down|heavy)\}/g, (_, a) => L(a));
+      .replace(/\{(jump|attack|dodge|parry|heal|skill1|interact|echo|ultimate|down|heavy|switch)\}/g, (_, a) => L(a));
   }
 
   async say(lines: DialogueLine[]) {
@@ -111,6 +114,7 @@ export class Story {
   // ---------------------------------------------------------------- room entry
   onEnter(id: string, first: boolean) {
     const s = G.save;
+    if (this.ch2.onEnter(id, first)) return;
     if (id === 'sanctuary' && !flag('intro_done')) {
       this.opening();
       return;
@@ -181,6 +185,7 @@ export class Story {
 
   // ---------------------------------------------------------------- triggers
   onTrigger(id: string) {
+    if (this.ch2.onTrigger(id)) return;
     switch (id) {
       case 'steps_cutscene': if (!flag('collapsed')) this.collapse(); break;
       case 'relic': if (!flag('relic_taken')) this.relic(); break;
@@ -412,6 +417,7 @@ export class Story {
   async talk(n: Npc) {
     const s = G.save;
     n.talkT = 4;
+    if (await this.ch2.talk(n)) return;
     switch (n.kind) {
       case 'mara': return this.talkMara();
       case 'ilan': {
@@ -532,6 +538,7 @@ export class Story {
       s.lore.push(id);
       G.world.giveXp(15);
       if (id === 'eph610') this.secret('cistern_chest_area');
+      this.ch2.onLore(id);
     }
     this.checkMara();
   }
@@ -580,6 +587,7 @@ export class Story {
   secret(id: string) {
     const s = G.save;
     const key = id === 'cistern_chest_area' ? 'cistern_chest' : id;
+    if (this.ch2.secret(key)) return;
     if (!SECRET_IDS.includes(key) || s.secrets.includes(key)) return;
     s.secrets.push(key);
     sfx('lootRare', { vol: 0.6 });
@@ -669,7 +677,8 @@ export class Story {
     }
     W.giveXp(60);
     this.cine(false);
-    if (W.gateClosed && !W.bossActive) W.closeGate(false);
+    if (W.gateClosed && !W.bossActive && !(W.room.id === 'tower_upper' && !flag('guard_cleared'))) W.closeGate(false);
+    this.ch2.onPurified(e.elite);
     if (e.elite === 'chamber_sentinel') {
       setFlag('chamber_done');
       setFlag('has_echo');
@@ -682,6 +691,13 @@ export class Story {
     }
     G.ui.refreshHud();
     W.autosave();
+  }
+
+  gatekeeperDefeated(b: Gatekeeper) {
+    return this.ch2.gatekeeperDefeated(b);
+  }
+  marshalDefeated(m: Marshal) {
+    return this.ch2.marshalDefeated(m);
   }
 
   // ---------------------------------------------------------------- the Idol falls
@@ -799,7 +815,7 @@ export class Story {
     this.quest('m_return', 0, true);
     W_autosave();
     this.cine(false);
-    await G.ui.chapterEnd();
+    if ((await G.ui.chapterEnd(1)) === 'next') await this.ch2.beginFromChapterOne();
   }
 }
 

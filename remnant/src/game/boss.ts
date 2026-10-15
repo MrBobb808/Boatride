@@ -46,6 +46,7 @@ export class Idol extends Entity {
   tobiahDone = false;
   staggerFlash = 0;
   name = 'The Gilded Idol';
+  phaseMarks = [0.55, 0.22];
   pending: (() => void) | null = null;
 
   constructor(x: number, y: number) {

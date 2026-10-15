@@ -15,6 +15,7 @@ import { Proj } from './projectiles';
 import type { EnemyKind } from './tiles';
 import { lighting } from '../render/lighting';
 import { shakeScale } from '../core/settings';
+import { CH2_ROOM_IDS } from './rooms2';
 
 export interface EnemyStats {
   hp: number;
@@ -224,6 +225,8 @@ export abstract class Enemy extends Entity {
   /** Tanks survive executions (they take a heavy chunk instead). */
   tank = false;
   execUsed = false;
+  /** 1 in Chapter I, 2 in Chapter II. */
+  tier = 1;
 
   constructor(kind: EnemyKind, x: number, y: number, w: number, h: number, elite: string | null) {
     super(x, y, w, h);
@@ -232,8 +235,11 @@ export abstract class Enemy extends Entity {
     this.stats = ENEMY_STATS[kind];
     const ng = 1 + (G.save?.ng ?? 0) * 0.6;
     const em = elite ? 2.0 : 1;
-    this.maxHp = this.hp = Math.round(this.stats.hp * ng * em);
-    this.dmg = this.stats.dmg * ng * (elite ? 1.15 : 1);
+    // Chapter II foes are tougher, and worth more.
+    this.tier = G.world?.room && CH2_ROOM_IDS.has(G.world.room.id) ? 2 : 1;
+    const th = this.tier === 2 ? 1.8 : 1, td = this.tier === 2 ? 1.4 : 1;
+    this.maxHp = this.hp = Math.round(this.stats.hp * ng * em * th);
+    this.dmg = this.stats.dmg * ng * (elite ? 1.15 : 1) * td;
     this.maxPoise = this.poise = this.stats.poise * (elite ? 1.6 : 1);
     this.elite = elite;
     this.purifiable = !!elite;

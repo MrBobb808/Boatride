@@ -10,6 +10,7 @@ import { Enemy } from './enemies';
 import { makeEnemy } from './foes';
 import { EchoUnit } from './echoes';
 import { Idol } from './boss';
+import { BossBase, Gatekeeper, Marshal } from './bosses2';
 import { Npc, Chest, Altar, LoreStone, Shrine, Pickup, Drop, RelicVisual, type Interactable } from './props';
 import { Proj } from './projectiles';
 import { Story } from './story';
@@ -48,7 +49,7 @@ export class World {
   hitstopT = 0;
   slowT = 0;
   slowScale = 1;
-  boss: Idol | null = null;
+  boss: Idol | BossBase | null = null;
   bossActive = false;
   priorityTarget: Entity | null = null;
   syncCd = 0;
@@ -198,8 +199,8 @@ export class World {
         this.lights.push(e);
         return;
       case 'boss':
-        if (s.defeated.includes('idol')) return;
-        this.boss = new Idol(x, y);
+        if (s.defeated.includes(e.k)) return;
+        this.boss = e.k === 'gatekeeper' ? new Gatekeeper(x, y) : e.k === 'marshal' ? new Marshal(x, y) : new Idol(x, y);
         this.add(this.boss);
         return;
     }
@@ -479,7 +480,7 @@ export class World {
     let bd = range;
     for (const e of this.ents) {
       if (!e.isFoe || e.dying || e.remove) continue;
-      if (e instanceof Idol && (e.state === 'dormant' || e.state === 'intro')) continue;
+      if (e.isBoss && !e.canBeTargeted()) continue;
       if (dir && sign(e.x - x) !== dir && Math.abs(e.x - x) > 20) continue;
       const d = Math.hypot(e.x - x, (e.y - y) * 0.7);
       if (d < bd) { bd = d; best = e; }
@@ -499,8 +500,8 @@ export class World {
   executionTarget(p: Player): Entity | null {
     for (const e of this.ents) {
       if (!e.executable()) continue;
-      if (e instanceof Idol) {
-        if (Math.abs(e.x - p.x) < 80) return e;
+      if (e.isBoss) {
+        if (Math.abs(e.x - p.x) < (e instanceof Gatekeeper ? 120 : e instanceof Marshal ? 56 : 80) && Math.abs(e.y - p.y) < 60) return e;
       } else if (Math.abs(e.x - p.x) < 36 && Math.abs(e.y - p.y) < 30) return e;
     }
     return null;
@@ -509,7 +510,7 @@ export class World {
   execute(p: Player, e: Entity, mult: number) {
     const d = G.d;
     let dmg: number;
-    if (e instanceof Idol) dmg = Math.max(d.atk * 9, e.maxHp * 0.07) * mult;
+    if (e.isBoss) dmg = Math.max(d.atk * 9, e.maxHp * 0.07) * mult;
     else if (e instanceof Enemy && e.tank) dmg = Math.max(d.atk * 8, e.maxHp * (e.elite ? 0.22 : 0.35)) * mult;
     else if (e instanceof Enemy && e.elite) dmg = d.atk * 8 * mult;
     else dmg = e.hp + 5;
@@ -518,9 +519,7 @@ export class World {
       e.execUsed = true;
       e.staggered = Math.min(e.staggered, 1.4);
     } else e.staggered = 0;
-    if (e instanceof Idol) {
-      e.staggered = 0.6;
-    }
+    if (e.isBoss) e.staggered = 0.6;
     e.takeHit({ dmg, poise: 0, kx: p.face * 300, ky: -260, dir: p.face, kind: 'melee', src: p, heavy: true, crit: true, stop: 0.12 });
     sfx('execute');
     fx.flash('#fff6dc', 0.5);
@@ -659,9 +658,10 @@ export class World {
     const s = G.save;
     const st = e.stats;
     s.kills++;
-    const xp = Math.round(st.xp * (e.elite ? 4 : 1) * G.d.xpMult * (1 + s.ng * 0.5));
+    const tier = e.tier === 2 ? 1.7 : 1;
+    const xp = Math.round(st.xp * (e.elite ? 4 : 1) * G.d.xpMult * (1 + s.ng * 0.5) * tier);
     this.giveXp(xp);
-    const loot: Loot[] = [{ silver: randInt(st.silver[0], st.silver[1]) * (e.elite ? 4 : 1) }];
+    const loot: Loot[] = [{ silver: Math.round(randInt(st.silver[0], st.silver[1]) * (e.elite ? 4 : 1) * tier) }];
     if (Math.random() < 0.28) loot.push({ mat: 'veil_shard', n: 1 });
     if (Math.random() < 0.22) loot.push({ mat: 'iron_scrap', n: 1 });
     if (e.kind === 'sentinel') loot.push({ mat: 'sentinel_steel', n: e.elite ? 3 : 1 });
@@ -795,6 +795,7 @@ export class World {
 
   // ---------------------------------------------------------------- Echo army
   summonEchoes(silent = false) {
+    if (this.duel) return;
     const s = G.save;
     const slots = G.d.echoSlots;
     s.active = s.active.filter((u) => s.echoes.some((e) => e.uid === u)).slice(0, slots);
@@ -862,6 +863,7 @@ export class World {
    */
   switchSupport() {
     const s = G.save;
+    if (this.duel) return this.duelRefuse();
     if (!s.echoes.length) {
       G.ui.toast('You have no Echoes yet.', 'warn');
       return;
@@ -928,6 +930,7 @@ export class World {
       G.ui.toast('You have no Echoes yet.', 'warn');
       return;
     }
+    if (this.duel && cmd !== 'aggressive' && cmd !== 'defensive' && cmd !== 'follow') return this.duelRefuse();
     switch (cmd) {
       case 'switch':
         this.switchSupport();
@@ -984,6 +987,7 @@ export class World {
   tryRally() {
     const s = G.save;
     if (!flag('relic_taken')) return;
+    if (this.duel) return this.duelRefuse();
     if (s.rally < 100) {
       G.ui.toast(`Rally the Remnant charges as you fight (${Math.floor(s.rally)}%)`, 'warn');
       sfx('denied');
@@ -1033,7 +1037,7 @@ export class World {
       for (const e of this.foes()) {
         const v = G.camera.view();
         if (e.x < v.x - 20 || e.x > v.x + v.w + 20) continue;
-        if (e instanceof Idol && (e.state === 'dormant' || e.state === 'intro' || e.state === 'transition')) continue;
+        if (e.isBoss && !e.canBeTargeted()) continue;
         e.takeHit({ dmg, poise: final ? 120 : 40, kx: sign(e.x - this.rallyX) * 200, ky: -260, dir: sign(e.x - this.rallyX) || 1, kind: 'ability', src: this.player, launch: !final, crit: final });
         fx.slash(e.cx, e.cy, 30, rand(-3, -1.5), rand(0.5, 1.2), 10, choose([1, -1]), '#ffffff', '#ffe6a8', 0.25);
         fx.holyBurst(e.cx, e.cy, 10, 1);
@@ -1164,11 +1168,27 @@ export class World {
     this.after(6.5, () => (t.remove = true));
   }
 
-  onBossDefeated(idol: Idol) {
+  onBossDefeated(b: Idol | BossBase) {
     this.bossActive = false;
-    G.save.defeated.push('idol');
-    this.closeGate(false);
-    this.story.bossDefeated(idol);
+    const key = b instanceof BossBase ? b.key : 'idol';
+    if (!G.save.defeated.includes(key)) G.save.defeated.push(key);
+    if (b instanceof Gatekeeper) {
+      this.closeGate(false);
+      this.story.gatekeeperDefeated(b);
+    } else if (b instanceof Marshal) this.story.marshalDefeated(b);
+    else if (b instanceof Idol) {
+      this.closeGate(false);
+      this.story.bossDefeated(b);
+    }
+  }
+
+  /** The Marshal's honour duel: Elior fights alone. */
+  get duel() {
+    return this.bossActive && this.boss instanceof Marshal && !this.boss.dying;
+  }
+  duelRefuse() {
+    G.ui.toast('An honour duel. Your Echoes kneel and watch.', 'warn');
+    sfx('denied');
   }
 
   autosave(quiet = false) {

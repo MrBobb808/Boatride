@@ -2,6 +2,7 @@
 // Coordinates are tiles; an entity's y is the row its feet stand on.
 
 import { MapBuilder, type RoomDef, type Exit, type EntDef } from './tiles';
+import { ROOMS2 } from './rooms2';
 
 export interface RoomSpec extends Omit<RoomDef, 'rows' | 'w' | 'h' | 'exits'> {
   exits: (Exit & { cond?: string })[];
@@ -547,6 +548,6 @@ function sanctum() {
 export type RoomData = ReturnType<typeof sanctuary>;
 
 export const ROOMS: Record<string, RoomData> = Object.fromEntries(
-  [sanctuary(), ashenRoad(), villageSquare(), cistern(), templeSteps(), templeHall(), chamber(), crypt(), gallery(), vault(), antechamber(), sanctum()]
+  [sanctuary(), ashenRoad(), villageSquare(), cistern(), templeSteps(), templeHall(), chamber(), crypt(), gallery(), vault(), antechamber(), sanctum(), ...ROOMS2]
     .map((r) => [r.id, r]),
 );

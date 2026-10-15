@@ -10,6 +10,7 @@ import { icon } from './icons';
 import { ABILITIES, ECHO_SPECIES, xpToNext } from '../game/data';
 import { QUESTS } from '../game/story';
 import { ROOMS } from '../game/rooms';
+import { CH2_ROOM_IDS } from '../game/rooms2';
 import { FONT_DISPLAY, FONT_BODY, roundRect, glow, type Ctx } from '../render/draw';
 import { clamp, lerp } from '../core/math';
 import { safe } from './safe';
@@ -42,11 +43,15 @@ export const currentFps = () => fps;
 
 export function objectiveText(): string {
   const s = G.save;
-  for (const q of QUESTS) {
+  // In Shinar the newest main quest leads; in Chapter I, the oldest open one.
+  const ch2 = CH2_ROOM_IDS.has(G.world.room.id);
+  for (const q of ch2 ? [...QUESTS].reverse() : QUESTS) {
     if (q.kind !== 'main') continue;
     const st = s.quests[q.id];
     if (st && !st.done) return q.stages[Math.min(st.stage, q.stages.length - 1)];
   }
+  if (flag('ch2_done')) return 'Chapter II complete. Explore Shinar, grow your army, or begin New Game+ at an altar.';
+  if (flag('ending_done')) return 'Chapter I complete. Journey east to Shinar from any altar, or begin New Game+.';
   if (flag('ch1_done')) return 'Chapter I complete. Explore, grow stronger, or begin New Game+ at an altar.';
   return '';
 }
@@ -160,7 +165,7 @@ export function drawHud(ctx: Ctx, dt: number) {
   text(ctx, `${s.silver} silver`, rx, my + 55 * u, `600 ${8.5 * u}px ${FONT_DISPLAY}`, '#ece4d4', 'right');
 
   // ----- boss bar
-  if (bossName && G.world.boss) {
+  if (bossName && G.world.boss && !G.inCutscene) {
     const b = G.world.boss;
     const bw = Math.min(W * 0.46, 460 * u);
     const bxx = (W - bw) / 2, byy = touch ? y0 + 6 * u : H - sab - 70 * u;
@@ -169,7 +174,7 @@ export function drawHud(ctx: Ctx, dt: number) {
     text(ctx, bossName.toUpperCase(), W / 2, byy - 8 * u, `700 ${11 * u}px ${FONT_DISPLAY}`, '#f6dea0', 'center');
     bar(ctx, bxx, byy, bw, 8 * u, f, bossGhost, ['#4a1a06', '#c97a2a', '#ffd27a']);
     // phase marks
-    for (const m of [0.55, 0.22]) {
+    for (const m of b.phaseMarks) {
       ctx.fillStyle = 'rgba(0,0,0,0.7)';
       ctx.fillRect(bxx + bw * m - 1, byy - 2, 2, 12 * u);
     }
@@ -382,9 +387,10 @@ function minimap(ctx: Ctx, x: number, y: number, w: number, h: number) {
   ctx.beginPath();
   ctx.rect(x, y, w, h);
   ctx.clip();
+  const ch2 = CH2_ROOM_IDS.has(cur.id);
   for (const id of s.visited) {
     const rm = ROOMS[id];
-    if (!rm) continue;
+    if (!rm || CH2_ROOM_IDS.has(id) !== ch2) continue;
     const rx = x + w / 2 + (rm.map.x - cx) * scale, ry = y + h / 2 + (rm.map.y - cyy) * scale;
     const rw = (rm.w / 16) * scale, rh = (rm.h / 16) * scale;
     ctx.fillStyle = id === cur.id ? 'rgba(226,184,90,0.45)' : 'rgba(150,130,170,0.25)';
