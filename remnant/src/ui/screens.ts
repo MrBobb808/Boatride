@@ -2,7 +2,7 @@
 
 import { G } from '../game/ctx';
 import { h, btn, pushLayer, popLayer, clear } from './dom';
-import { listSlots, lastSlot, SLOT_COUNT, deleteSlot } from '../game/save';
+import { listSlots, lastSlot, loadSlot, SLOT_COUNT, deleteSlot, syncFromCloud } from '../game/save';
 import { startNewGame, loadGameSlot } from '../app';
 import { isIOS, isStandalone, settings } from '../core/settings';
 import { music } from '../audio/music';
@@ -123,7 +123,6 @@ export function drawTitleScene(ctx: Ctx, w: number, hgt: number, dt: number) {
 export function showTitle() {
   hideTitle();
   music.play('title');
-  const last = lastSlot();
   const menu = h('div', { class: 'title-menu' });
   const root = h('div', { class: 'title-screen' },
     h('div', { class: 'logo' },
@@ -132,11 +131,19 @@ export function showTitle() {
       h('div', { class: 'verse' }, '“For we wrestle not against flesh and blood, but against principalities, against powers, against the rulers of the darkness of this world, against spiritual wickedness in high places.” ', h('b', null, 'EPHESIANS 6:12 (KJV)')),
     ),
     menu,
-    h('div', { class: 'title-foot' }, 'Chapter I · The Ashen Village — a vertical slice. A work of fiction; scripture quoted from the KJV.'),
+    h('div', { class: 'title-foot' }, 'Chapters I–III · The Ashen Village, The Tower of Shinar, The Valley of Bones. A work of fiction; scripture quoted from the KJV.'),
   );
+  let last = lastSlot();
   const build = () => {
     clear(menu);
-    if (last !== null) menu.appendChild(btn('Continue', () => { if (loadGameSlot(last)) sfx('uiConfirm'); }, 'btn primary', { 'data-autofocus': '' }));
+    last = lastSlot();
+    const d = last !== null ? loadSlot(last) : null;
+    if (last !== null && d) {
+      const where = ROOMS[d.room]?.name ?? '';
+      const slot = last;
+      menu.appendChild(btn([h('b', null, 'Continue'), h('span', { class: 'cont-meta' }, `Level ${d.level} · ${where} · ${formatTime(d.playtime)}`)],
+        () => { if (loadGameSlot(slot)) sfx('uiConfirm'); }, 'btn primary cont', { 'data-autofocus': '' }));
+    }
     menu.appendChild(btn('New game', () => pickSlot('new'), last === null ? 'btn primary' : 'btn', last === null ? { 'data-autofocus': '' } : {}));
     if (listSlots().some((s) => s.data)) menu.appendChild(btn('Load game', () => pickSlot('load')));
     menu.appendChild(btn('Settings', () => openSettingsStandalone()));
@@ -146,6 +153,10 @@ export function showTitle() {
     }
   };
   build();
+  // A newer save from the cloud (claude.ai preview) redraws the menu.
+  void syncFromCloud().then((changed) => {
+    if (changed && titleEl === root) build();
+  });
   titleEl = root;
   document.getElementById('ui')!.appendChild(root);
   pushLayer({ el: root });

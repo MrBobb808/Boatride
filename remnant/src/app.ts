@@ -26,7 +26,7 @@ function enterGame(s: SaveData, slot: number, room: string, spawn: string) {
   G.d = derive(s);
   G.inCutscene = false;
   G.paused = false;
-  s.hp = Math.min(s.hp, G.d.maxHp);
+  s.hp = s.hp > 0 ? Math.min(s.hp, G.d.maxHp) : G.d.maxHp;
   G.world.player.revive();
   G.world.player.styleKey = '';
   G.world.load(room, spawn);

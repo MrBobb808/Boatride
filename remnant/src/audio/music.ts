@@ -11,7 +11,7 @@ type Gen = (m: Music, d: AudioNode, step: number, t: number, I: number) => void;
 interface TrackDef {
   bpm: number;
   gen: Gen;
-  ambience?: 'wind' | 'drone' | 'none' | 'fire';
+  ambience?: 'wind' | 'drone' | 'none' | 'fire' | 'swarm';
 }
 
 interface Playing {
@@ -116,6 +116,35 @@ export class Music {
       f.type = 'lowpass';
       f.frequency.value = 900;
       g.gain.value = 0.035;
+    } else if (kind === 'swarm') {
+      // A hive breathing: band-limited noise trembling at wingbeat rate, swelling and receding.
+      f.type = 'bandpass';
+      f.frequency.value = 330;
+      f.Q.value = 2.2;
+      g.gain.value = 0.045;
+      const am = ctx.createOscillator();
+      am.type = 'triangle';
+      am.frequency.value = 31;
+      const ag = ctx.createGain();
+      ag.gain.value = 0.018;
+      am.connect(ag);
+      ag.connect(g.gain);
+      const lfo = ctx.createOscillator();
+      lfo.frequency.value = 0.07;
+      const lg = ctx.createGain();
+      lg.gain.value = 0.022;
+      lfo.connect(lg);
+      lg.connect(g.gain);
+      const sweep = ctx.createOscillator();
+      sweep.frequency.value = 0.05;
+      const sg = ctx.createGain();
+      sg.gain.value = 120;
+      sweep.connect(sg);
+      sg.connect(f.frequency);
+      am.start();
+      lfo.start();
+      sweep.start();
+      p.amb.push(am, lfo, sweep);
     } else {
       f.type = 'lowpass';
       f.frequency.value = 180;
@@ -320,6 +349,43 @@ export class Music {
     audio.noiseHit(t, 0.04, d, 'highpass', 7000, 0.7, 0.05 * v);
   }
 
+  /** A dry chitinous click (mandibles, shell on shell). */
+  click(d: AudioNode, t: number, v = 1, f = 3200) {
+    audio.noiseHit(t, 0.02, d, 'bandpass', f, 7, 0.5 * v, undefined, 0.0015);
+    audio.osc('triangle', f * 0.5, t, 0.014, d, 0.035 * v, 0.001);
+  }
+
+  /** An insect drone: a sawtooth chopped at wingbeat rate through a nasal band. */
+  buzz(d: AudioNode, m: number, t: number, dur: number, v = 1) {
+    const ctx = audio.ctx!;
+    const o = ctx.createOscillator();
+    o.type = 'sawtooth';
+    o.frequency.value = mtof(m);
+    const f = ctx.createBiquadFilter();
+    f.type = 'bandpass';
+    f.frequency.value = Math.min(4000, mtof(m) * 4);
+    f.Q.value = 1.8;
+    const am = ctx.createGain();
+    am.gain.value = 0.5;
+    const lfo = ctx.createOscillator();
+    lfo.type = 'square';
+    lfo.frequency.value = 34;
+    const lg = ctx.createGain();
+    lg.gain.value = 0.5;
+    lfo.connect(lg);
+    lg.connect(am.gain);
+    const g = ctx.createGain();
+    this.sustain(g, t, 0.02, dur, 0.07 * v, 0.12);
+    o.connect(f);
+    f.connect(am);
+    am.connect(g);
+    g.connect(d);
+    o.start(t);
+    lfo.start(t);
+    o.stop(t + dur + 0.3);
+    lfo.stop(t + dur + 0.3);
+  }
+
   swell(d: AudioNode, t: number, dur: number, v = 1) {
     const ctx = audio.ctx!;
     const s = ctx.createBufferSource();
@@ -358,6 +424,20 @@ const SANCT_CH = [
 const SANCT_MEL = [77, -1, 76, 72, 74, -1, 72, 69, 70, -1, 69, 65, 67, -1, -1, -1];
 
 const BOSS_CH = [36, 32, 34, 31];
+
+const VALLEY_PROG = [[40, [64, 67, 71]], [41, [65, 69, 72]], [40, [64, 67, 71]], [38, [62, 65, 69]]] as const;
+const VALLEY_MEL: Record<number, number> = { 0: 76, 4: 77, 6: 76, 8: 74, 12: 71 };
+const HIVE_CLICKS = [[0, 2, 5, 7, 10, 12, 13], [0, 3, 5, 6, 9, 11, 14]];
+const SWARM_OST = [0, 12, 1, 12, 0, 12, 3, 12, 0, 12, 1, 12, 6, 12, 3, 1];
+const SWARM_KICK = [0, 3, 6, 8, 10, 13];
+const TRIAL_PROG = [[38, [62, 65, 69]], [34, [62, 65, 70]], [41, [60, 65, 69]], [36, [60, 64, 67]]] as const;
+const TRIAL_OST = [0, 0, 7, 0, 12, 0, 7, 0, 0, 0, 7, 0, 12, 7, 5, 7];
+const TRIAL_CALL: Record<number, number>[] = [
+  { 0: 74, 6: 77, 8: 76, 12: 74 },
+  { 0: 72, 4: 74, 8: 77, 12: 81 },
+  { 0: 81, 6: 79, 8: 77, 12: 76 },
+  { 0: 76, 8: 74 },
+];
 
 export const TRACKS: Record<string, TrackDef> = {
   title: {
@@ -627,6 +707,123 @@ export const TRACKS: Record<string, TrackDef> = {
       if (b % 2 === 0 && call[p] !== undefined) m.brass(d, r + 24 + call[p], t, beat * 1.2, 0.55 + ph * 0.2);
       if (p === 0 && b % 4 === 0) for (const n of ch) m.choir(d, n, t, beat * 15, 0.5 + ph * 0.2, 'ah');
       if (ph >= 2 && p === 8 && b % 2 === 1) m.swell(d, t, beat * 2, 1);
+    },
+  },
+  // Chapter III: the Valley of Dry Bones. E Phrygian, wide and empty: a low drone,
+  // a far bell, and a reed lament that never quite resolves.
+  valley: {
+    bpm: 70,
+    ambience: 'wind',
+    gen(m, d, s, t, I) {
+      const b = bar(s), p = pos(s);
+      const beat = 60 / 70;
+      const [r, ch] = VALLEY_PROG[b % 4];
+      if (p === 0) {
+        m.strings(d, r - 12, t, beat * 4, 1.2, 480, 1.4);
+        m.strings(d, r - 5, t, beat * 4, 0.45, 480, 1.4);
+        if (b % 2 === 0) for (const n of ch) m.choir(d, n - 12, t, beat * 8, 0.32, 'oo');
+      }
+      // a low bell tolling across the valley, and its flattened second answering
+      if (p === 0 && b % 4 === 0) m.bell(d, 52, t, 0.9, 6);
+      if (p === 8 && b % 4 === 2) m.bell(d, 53, t, 0.45, 5);
+      if (Math.random() < 0.05 && p % 2 === 1) m.harp(d, [76, 77, 79, 83, 84][Math.floor(rand(0, 5))], t, 0.3, 2.6);
+      // the lament: E F E D B, on alternate phrases
+      const n = VALLEY_MEL[p];
+      if (Math.floor(b / 4) % 2 === 1 && n !== undefined) m.flute(d, n - (b % 4 === 3 ? 2 : 0), t, beat * 1.5, 0.75);
+      if (I > 0.12) {
+        const v = Math.min(1, I * 1.3);
+        if (p === 0 || p === 10) m.taiko(d, t, 0.5 * v, 0.75);
+        if (p === 6) m.taiko(d, t, 0.3 * v, 1);
+        if (p % 2 === 0) m.strings(d, r + 12 + [0, 1, 0, 3][(p >> 1) % 4], t, 0.16, 0.55 * v, 2000, 0.005);
+        if (p === 0 && b % 2 === 1) m.brass(d, r, t, beat * 2, 0.55 * v);
+      }
+    },
+  },
+  // Chapter III: inside the hive. A drone that pulses like breath, dissonant
+  // sustains rubbing a semitone apart, dry clicks in an uneven pattern.
+  hive: {
+    bpm: 96,
+    ambience: 'swarm',
+    gen(m, d, s, t, I) {
+      const b = bar(s), p = pos(s);
+      const beat = 60 / 96;
+      const roots = [37, 37, 38, 36];
+      const r = roots[b % 4];
+      // the pulse
+      if (p % 2 === 0) m.bass(d, r - 12, t, 0.2, p % 8 === 0 ? 0.6 : 0.36);
+      if (p === 0 && b % 2 === 0) {
+        m.strings(d, r + 12, t, beat * 8, 0.5, 700, 1.6);
+        m.strings(d, r + 13, t, beat * 8, 0.32, 700, 1.6);
+      }
+      if (p === 0 && b % 4 === 1) m.choir(d, r + 18, t, beat * 6, 0.22, 'oo');
+      // clicks: an uneven pattern that shifts each bar
+      if (HIVE_CLICKS[b % 2].includes(p) && Math.random() > 0.12) m.click(d, t, rand(0.5, 0.9), rand(2400, 4200));
+      // a burst of chittering at the end of every other bar
+      if (p === 12 && b % 2 === 1) for (let k = 1; k <= 4; k++) m.click(d, t + k * 0.032, 0.55, rand(3000, 4600));
+      // a thin high whine that comes and goes
+      if (p === 0 && b % 8 === 7) m.strings(d, r + 48, t, beat * 3.5, 0.12, 5000, 1.2);
+      if (I > 0.12) {
+        const v = Math.min(1, I * 1.3);
+        if (p === 0 || p === 6 || p === 8) m.taiko(d, t, 0.55 * v, 0.7);
+        if (p === 4 || p === 12) m.snare(d, t, 0.25 * v);
+        if (p % 2 === 1) m.strings(d, r + 24 + (p % 4 === 1 ? 0 : 1), t, 0.1, 0.5 * v, 2400, 0.004);
+        if (p === 0 && b % 2 === 1) m.buzz(d, r + 12, t, beat * 1.5, 0.7 * v);
+      }
+    },
+  },
+  // The Locust King: the swarm made flesh. A Phrygian grind at full gallop;
+  // phase 1 adds the buzzing riff and choir, phase 2 the semitone brass and rolls.
+  swarm: {
+    bpm: 160,
+    ambience: 'swarm',
+    gen(m, d, s, t) {
+      const b = bar(s), p = pos(s);
+      const ph = m.phase;
+      const beat = 60 / 160;
+      const roots = [33, 34, 33, 31];
+      const r = roots[b % 4];
+      m.strings(d, r + 24 + SWARM_OST[p], t, 0.09, 0.8 + ph * 0.15, 2600, 0.003);
+      if (ph >= 2) m.strings(d, r + 36 + SWARM_OST[p], t, 0.08, 0.4, 3400, 0.003);
+      if (p % 2 === 0) m.bass(d, r, t, beat * 0.45, p % 8 === 0 ? 1 : 0.7);
+      if (SWARM_KICK.includes(p)) m.taiko(d, t, 0.8, p % 8 === 0 ? 0.75 : 0.95);
+      if (p === 4 || p === 12) m.snare(d, t, 0.45 + ph * 0.1);
+      if (ph >= 1 && (p === 14 || p === 15)) m.taiko(d, t, 0.5, 1.35);
+      if (ph >= 1 && p % 2 === 1) m.tick2(d, t, 0.7);
+      if (ph >= 2 && p % 2 === 0 && p !== 4 && p !== 12) m.snare(d, t, 0.14);
+      // the swarm's voice: a buzzing riff
+      if (ph >= 1 && (p === 0 || p === 3 || p === 6)) m.buzz(d, r + 12 + (p === 6 ? 1 : 0), t, beat * 1.2, 0.8);
+      if (p === 0) {
+        m.brass(d, r + 12, t, beat * 1.5, 0.9);
+        m.brass(d, r + 19, t, beat * 1.5, 0.65);
+        if (ph >= 2) m.brass(d, r + 13, t, beat * 1.5, 0.55);
+      }
+      if (p === 8 && b % 2 === 1) m.brass(d, r + 24 + (ph >= 2 ? 1 : 0), t, beat * 1.2, 0.6);
+      if (ph >= 1 && p === 0 && b % 2 === 0) for (const n of [57, 60, 64]) m.choir(d, n + (r - 33) + (ph >= 2 ? 1 : 0), t, beat * 7, 0.55 + ph * 0.15, 'ah');
+      if (ph >= 2 && p === 8 && b % 4 === 3) m.swell(d, t, beat * 2, 1);
+      if (p % 4 === 2) m.click(d, t, 0.35 + ph * 0.15, 3600);
+    },
+  },
+  // The Trial: an endless proving. D minor at a march, brass carrying the call on alternate phrases.
+  trial: {
+    bpm: 140,
+    ambience: 'none',
+    gen(m, d, s, t, I) {
+      const b = bar(s), p = pos(s);
+      const beat = 60 / 140;
+      const [r, ch] = TRIAL_PROG[b % 4];
+      const lift = 0.85 + Math.min(1, I) * 0.15;
+      m.strings(d, r + 24 + TRIAL_OST[p], t, 0.11, 0.75 * lift, 2800, 0.003);
+      if (p % 2 === 0) m.bass(d, r, t, beat * 0.45, p % 4 === 0 ? 0.95 : 0.6);
+      if (p === 0 || p === 4 || p === 8 || p === 10 || p === 12) m.taiko(d, t, 0.7 * lift, p === 0 ? 0.8 : 1);
+      if (p === 4 || p === 12) m.snare(d, t, 0.42);
+      if (p % 2 === 1) m.tick2(d, t, 0.5);
+      if (b % 4 === 3 && p >= 12) m.snare(d, t, 0.22 + (p - 12) * 0.08);
+      if (p === 0) for (const n of ch) m.choir(d, n, t, beat * 4, 0.42, 'ah');
+      if (p === 0 && b % 4 === 0) m.bell(d, ch[2] + 12, t, 0.6, 3);
+      // the call
+      const n = TRIAL_CALL[b % 4][p];
+      if (Math.floor(b / 4) % 2 === 1 && n !== undefined) m.brass(d, n - 12, t, beat * (p === 0 && b % 4 === 3 ? 3.5 : 1.4), 0.75);
+      else if (n !== undefined && p === 0) m.strings(d, n, t, beat * 3.5, 0.5, 2200, 0.08);
     },
   },
   victory: {

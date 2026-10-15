@@ -180,13 +180,15 @@ export interface Derived {
 export const skillRank = (s: SaveData, id: string) => s.skills[id] ?? 0;
 
 /** Echoes that may fight at once: grows with level (2 at 3, 3 at 7, 4 at 11, 5 at 15, 6 at 19), +1 for the Banner skill. */
+/** Echo slots: one more every four levels up to seven, then at 50, 75 and 100 (ten at most). */
 export function echoSlotsFor(level: number, storySlots: number, banner: boolean) {
-  const byLevel = 1 + Math.floor((level + 1) / 4);
-  return Math.min(7, Math.max(storySlots, byLevel) + (banner ? 1 : 0));
+  const early = Math.min(7, 1 + Math.floor((level + 1) / 4));
+  const late = (level >= 50 ? 1 : 0) + (level >= 75 ? 1 : 0) + (level >= 100 ? 1 : 0);
+  return Math.min(10, Math.max(storySlots, early) + late + (banner ? 1 : 0));
 }
 /** The next level at which another Echo slot opens, or null at the cap. */
 export function nextSlotLevel(level: number) {
-  for (let l = level + 1; l <= 30; l++) if (Math.floor((l + 1) / 4) > Math.floor((level + 1) / 4)) return l;
+  for (let l = level + 1; l <= 100; l++) if (echoSlotsFor(l, 0, false) > echoSlotsFor(level, 0, false)) return l;
   return null;
 }
 

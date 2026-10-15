@@ -1,9 +1,11 @@
 // Save slots in localStorage, plus a portable save code for moving a game
 // between Safari and the installed home-screen app (iOS keeps their storage
-// separate).
+// separate). Inside the claude.ai preview every slot is also mirrored to a
+// private cloud copy (see cloud.ts).
 
 import { store } from '../core/settings';
 import type { SaveData } from './state';
+import { pushSlot, pullSlots, removeSlot } from './cloud';
 
 export const SLOT_COUNT = 3;
 const key = (slot: number) => `remnant-save-${slot}`;
@@ -16,9 +18,49 @@ export interface SlotInfo {
 
 export function saveSlot(slot: number, data: SaveData): boolean {
   data.updated = Date.now();
-  const ok = store.set(key(slot), JSON.stringify(data));
+  const json = JSON.stringify(data);
+  const ok = store.set(key(slot), json);
   if (ok) store.set(LAST, String(slot));
+  pushSlot(slot, json, data.updated);
   return ok;
+}
+
+/**
+ * Bring in any cloud copy newer than the local one. Resolves true when a
+ * local slot changed (the title menu then redraws).
+ */
+export async function syncFromCloud(): Promise<boolean> {
+  const cloud = await pullSlots(SLOT_COUNT);
+  let changed = false;
+  let newest = -1, newestAt = 0;
+  cloud.forEach((c, slot) => {
+    const local = loadSlot(slot);
+    if (!c) {
+      if (local) pushSlot(slot, JSON.stringify(local), local.updated ?? Date.now());
+      return;
+    }
+    const localAt = local?.updated ?? 0;
+    if (c.updated > localAt) {
+      try {
+        const d = JSON.parse(c.json) as SaveData;
+        if (d && d.version === 1) {
+          store.set(key(slot), c.json);
+          changed = true;
+        }
+      } catch {
+        /* a damaged cloud copy is ignored */
+      }
+    } else if (local && localAt > c.updated) {
+      // This device is ahead: send it up.
+      pushSlot(slot, JSON.stringify(local), localAt);
+    }
+    if (Math.max(c.updated, localAt) > newestAt) {
+      newestAt = Math.max(c.updated, localAt);
+      newest = slot;
+    }
+  });
+  if (changed && newest >= 0) store.set(LAST, String(newest));
+  return changed;
 }
 
 export function loadSlot(slot: number): SaveData | null {
@@ -35,6 +77,7 @@ export function loadSlot(slot: number): SaveData | null {
 
 export function deleteSlot(slot: number) {
   store.remove(key(slot));
+  removeSlot(slot);
 }
 
 export function listSlots(): SlotInfo[] {

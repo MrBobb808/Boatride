@@ -11,7 +11,7 @@ is original fiction inspired by biblical themes, not part of the Bible.
 
 > *True greatness is not found in the power to rule, but in the strength to remain faithful.*
 
-This build contains two chapters:
+This build contains three chapters:
 
 - **Chapter I — The Ashen Village.** 12 rooms, the full combat and Echo
   systems, abilities and skill trees, gear, crafting and merchants, and the
@@ -25,10 +25,34 @@ This build contains two chapters:
   - **The Crimson Marshal**, an honour duel your Echoes may not join. When
     he kneels, you choose: raise him as your strongest Echo, or let him rest
     and take his sword.
+- **Chapter III — The Valley of Bones.** Ezekiel's valley, stripped bare by a
+  locust swarm that has built a hive inside the bones of giants.
+  - Locust drones swoop in packs, and locust soldiers fight with scythe claws.
+  - **The Locust King** hatches from a cocoon in the brood chamber. He is
+    blindingly fast and has claw strings, aerial dives, acid and a paralysing
+    screech; he calls his swarm and devours his own drones to heal. Beaten,
+    he is raised as your Echo.
+  - **The Trial of the Remnant** is an endless wave arena that keeps pace
+    with your level. It is the way to level 100 and beyond.
 - Each chapter has an ending, plus New Game+.
 
-Chapter II begins from the Chapter I ending screen, or from any altar once
-Chapter I is done (**Journey east**).
+Each chapter begins from the previous chapter's ending screen, or from any
+altar once that chapter is done (**Journey east**, **Journey on**).
+
+### Saving, directions and updates
+
+- **Saving:** the game saves itself every 30 seconds, on every doorway and
+  whenever you leave the app. The title screen's **Continue** shows where you
+  are. If you fall, you rise again at the doorway of the room you were in.
+- **Cloud copy:** in the claude.ai preview each player's saves are also kept
+  in a private cloud copy.
+- **Directions:** a golden marker shows the way to your next objective. An
+  arrow at the screen edge points toward it when it is out of view, the map
+  marks it with a star, and a hint appears if you seem lost. You can turn it
+  off under **Settings → Objective marker**.
+- **Updates:** the installed app checks GitHub Pages for a newer build when
+  it opens or comes back to the front. When it finds one, it installs it at
+  the next doorway and puts you back where you were.
 
 ### Combat highlights
 
@@ -40,8 +64,35 @@ Chapter I is done (**Journey east**).
   ranks long strings. The full move list is in **Menu → Skills**.
 - **Switch support:** tag in a benched Echo mid-strike, or trade places
   with one on the field.
-- **A growing army:** more Echoes can fight at once as you level, up to
-  seven.
+- **A growing army:** more Echoes can fight at once as you level: seven by
+  level 26, then one more at 50, 75 and 100 (ten in all).
+- **Finishers:** executing a staggered foe plays a slow-motion finisher,
+  picked at random from those your level has unlocked. They are:
+  - Judgment Leap.
+  - Shadow Step, a teleport behind the foe and a stab through the back.
+  - Cross Severance.
+  - Thousand Cuts.
+  - Heaven's Verdict.
+  - Whirlwind Requiem.
+  - Elemental Ruin.
+  - Arise.
+
+  Killing blows can also cut foes in two under a slow-motion kill cam.
+- **Power that grows:** at levels 10, 20, 35, 50 and 75 your strikes get
+  bigger, brighter and heavier. From 35, finishing blows send out sword
+  waves.
+- **Elemental weapons:** each element has its own colours and on-hit effect.
+  - Fire burns.
+  - Frost slows.
+  - Storm chains lightning.
+  - Shadow drinks life and strikes twice.
+  - Light sears great foes.
+  - Crimson makes foes bleed.
+- **Level 100, the Sovereign:** a black-and-gold form with violet eyes.
+  - Every swing looses a crescent.
+  - Phantom Step costs nothing.
+  - Ordinary blows cannot stagger you.
+  - Fallen foes may rise to fight for you.
 
 ## Play it on iPhone
 

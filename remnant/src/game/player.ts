@@ -18,6 +18,9 @@ import { getItem, skillRank } from './state';
 import { castAbility } from './abilities';
 import { lighting } from '../render/lighting';
 import { shakeScale } from '../core/settings';
+import { Proj } from './projectiles';
+import { beginFinisher, updateFinisher, killBlow, type FinState } from './finishers';
+import { weaponElement, elementHit, powerTier, powerDamage, isSovereign, slashColors, drawAura, auraLight, ELEMENTS } from './power';
 
 const GRAV = 1500;
 const MAX_FALL = 560;
@@ -80,6 +83,9 @@ export class Player extends Entity {
   ghostT = 0;
   execTarget: Entity | null = null;
   execPhase = 0;
+  fin: FinState | null = null;
+  /** Sword-wave rhythm for the higher power tiers. */
+  waveN = 0;
   scriptX: number | null = null;
   scriptSpeed = 60;
   landT = 0;
@@ -166,12 +172,20 @@ export class Player extends Entity {
       wGlow = rar >= 4 ? RARITY_COLORS[rar] : '#ffd27a';
       wAmt = Math.min(1, 0.4 + plus * 0.12 + Math.max(0, rar - 2) * 0.15);
     }
+    // Elemental weapons glow their element's colour.
+    const el = wb.element;
+    if (el) {
+      wGlow = ELEMENTS[el].c;
+      wAmt = Math.max(wAmt, 0.65);
+    }
+    // The Sovereign: black and gold, eyes burning violet.
+    const sov = lv >= 100;
     this.style = {
       skin: '#e0b28c',
       hair: '#1a1316',
       hairKind: 'spiky',
-      coat: lv >= 7 ? '#1f2a48' : '#26304e',
-      coatDark: '#19203a',
+      coat: sov ? '#16131e' : lv >= 7 ? '#1f2a48' : '#26304e',
+      coatDark: sov ? '#0c0a12' : '#19203a',
       skirt: 9,
       trim: lv >= 3 ? (lv >= 6 ? '#e2b85a' : '#9a7a4a') : null,
       pants: '#38302e',
@@ -182,14 +196,14 @@ export class Player extends Entity {
       helm: helmKind,
       helmColor: hl === 2 ? '#2a2830' : '#6d6a66',
       helmTrim: hl === 2 ? '#e2b85a' : undefined,
-      eye: '#ffe08a',
-      eyeGlow: 0,
+      eye: sov ? '#c9a8ff' : '#ffe08a',
+      eyeGlow: sov ? 1 : lv >= 50 ? 0.5 : 0,
       outline: '#0a070c',
       weapon: wb.family === 'spear' ? 'spear' : wb.family === 'greatsword' ? 'greatsword' : 'blade',
       weaponColor: wb.id === 'judgment_greatsword' ? '#e8d8a8' : wb.id === 'covenant_blade' ? '#e8e4dc' : '#c9ced6',
       weaponGlow: wGlow,
       weaponGlowAmt: wAmt,
-      weaponFlame: plus >= 5 || wb.id === 'judgment_greatsword',
+      weaponFlame: plus >= 5 || el === 'fire' || sov,
       offhand: 'none',
       runes: relic && lv >= 4 ? '#ffd27a' : null,
       crack: null,
@@ -949,14 +963,14 @@ export class Player extends Entity {
     if (!flag('phantom')) return false;
     if (this.state === 'phantom') return false;
     const recent = G.time - this.lastHitAt < 0.65 || (this.phantomN > 0 && G.time < this.phantomUntil);
-    if (!recent || G.save.ce < PHANTOM_COST) return false;
+    if (!recent || (G.save.ce < PHANTOM_COST && !isSovereign())) return false;
     return !!this.findPhantomTarget();
   }
 
   startPhantom() {
     const t = this.findPhantomTarget();
     if (!t) return;
-    G.save.ce -= PHANTOM_COST;
+    if (!isSovereign()) G.save.ce -= PHANTOM_COST;
     this.ceRegenDelay = 0.6;
     // Arrive on the far side of the foe; if a wall is there, take the near side.
     const side = this.phantomN > 0 && t === this.phantomLast ? -sign(this.x - t.x) || this.face : sign(t.x - this.x) || this.face;
@@ -1027,9 +1041,25 @@ export class Player extends Entity {
 
   onSwing(a: AttackDef) {
     sfx(a.sfx, { pitch: rand(0.92, 1.08) * (this.family === 'greatsword' ? 0.8 : 1) });
+    const tier = powerTier();
+    const el = weaponElement();
     if (a.arc) {
       const color = this.style.weaponGlow ?? '#fff1c4';
-      fx.slash(this.x + this.face * a.arc.cx, this.y + a.arc.cy, a.arc.r * this.moves.reach ** 0.5, a.arc.a0, a.arc.a1, a.arc.w, this.face, '#fffaf0', this.lion > 0 ? '#ffb347' : color === '#fff1c4' ? '#e8c27a' : color, 0.17);
+      const [core, edge] = slashColors(this.lion > 0 ? '#ffb347' : color === '#fff1c4' ? '#e8c27a' : color);
+      const grow = 1 + tier * 0.07;
+      const r = a.arc.r * this.moves.reach ** 0.5 * grow;
+      fx.slash(this.x + this.face * a.arc.cx, this.y + a.arc.cy, r, a.arc.a0, a.arc.a1, a.arc.w + tier * 0.6, this.face, core, edge, 0.17 + tier * 0.01);
+      // From level 20 a second, wider echo of the cut trails the first.
+      if (tier >= 2) fx.slash(this.x + this.face * a.arc.cx, this.y + a.arc.cy, r * 1.25, a.arc.a0 - 0.15, a.arc.a1 + 0.15, a.arc.w * 0.5, this.face, edge, edge, 0.24);
+    }
+    // Sword waves: finishers from level 35, every third swing from 75, every swing as a Sovereign.
+    this.waveN++;
+    const wave = (tier >= 3 && a.finisher) || (tier >= 5 && this.waveN % 3 === 0) || tier >= 6;
+    if (wave && !a.air) {
+      const c = el ? ELEMENTS[el].c : isSovereign() ? '#ffb347' : '#ffd27a';
+      G.world.add(new Proj('lightwave', this.x + this.face * 16, this.y - 22, 'player', G.d.atk * (tier >= 6 ? 0.9 : 0.6) * powerDamage(), {
+        vx: this.face * (tier >= 6 ? 460 : 380), life: tier >= 6 ? 0.6 : 0.42, w: 18, h: tier >= 6 ? 40 : 30, poise: 10, color: c,
+      }));
     }
     if (this.armorLight > 0 && !a.air) {
       G.world.spawnLightWave(this.x + this.face * 14, this.y - 14, this.face, 0.8);
@@ -1041,7 +1071,9 @@ export class Player extends Entity {
     const box = this.attackBox(a);
     const d = G.d;
     const crit = Math.random() < d.crit;
-    let dmg = d.atk * a.dmg * d.meleeMult * mult * (this.lion > 0 ? 1.35 : 1) * G.world.commanderAura(this.x, this.y);
+    let dmg = d.atk * a.dmg * d.meleeMult * mult * (this.lion > 0 ? 1.35 : 1) * G.world.commanderAura(this.x, this.y) * powerDamage();
+    const el = weaponElement();
+    const tier = powerTier();
     if (crit) dmg *= d.critDmg;
     const hit: HitInfo = {
       dmg, poise: a.poise * (this.family === 'greatsword' ? 1.3 : 1) * (crit ? 1.3 : 1), kx: a.kx * this.face, ky: a.ky, dir: this.face, kind: 'melee', crit,
@@ -1055,10 +1087,14 @@ export class Player extends Entity {
       if (a.hang && !this.body.onGround) this.body.vy = Math.min(this.body.vy, a.hang);
       if (a.finisher) G.world.echoAssist(e);
       if (d.lifesteal > 0) G.save.hp = Math.min(d.maxHp, G.save.hp + dmg * d.lifesteal);
+      if (el) elementHit(e, el, dmg, this.face, !!a.finisher);
+      if (tier >= 3) fx.ring(e.cx, e.cy, 4, 18 + tier * 4, el ? ELEMENTS[el].c : '#ffe6a8', 0.18, 2);
+      if (e.dying) killBlow(this, e, a.arc?.a0 ?? -1.2, a.arc?.a1 ?? 0.8);
     });
     if (n > 0) {
-      G.camera.addTrauma(a.shake * shakeScale());
-      if (a.finisher || crit) G.camera.punch = 0.035;
+      G.camera.addTrauma(a.shake * shakeScale() * (1 + tier * 0.08));
+      if (tier >= 1) G.world.hitstop((a.stop ?? 0.04) * tier * 0.08);
+      if (a.finisher || crit) G.camera.punch = 0.035 + tier * 0.006;
     }
   }
 
@@ -1100,44 +1136,26 @@ export class Player extends Entity {
   }
 
   // ---------------------------------------------------------------- executions
+  /** Executions play a finisher picked at random from those unlocked. */
   startExecute(e: Entity) {
     this.execTarget = e;
     this.setState('execute');
     this.execPhase = 0;
-    this.face = e.x > this.x ? 1 : -1;
-    this.anim.play('executeLeap', 0.05, true);
-    this.body.vy = -260;
-    G.world.slowmo(0.5, 0.35);
-    G.camera.zoomTarget = 1.18;
-    sfx('whoosh', { vol: 0.7 });
+    this.fin = beginFinisher(this, e);
   }
   private updateExecute(dt: number) {
-    const e = this.execTarget;
-    const b = this.body;
-    if (!e) return this.setState('free');
-    if (this.execPhase === 0) {
-      const tx = e.x - this.face * 10;
-      b.vx = (tx - this.x) * 8;
-      b.vy += 900 * dt;
-      if (this.st > 0.28) {
-        this.execPhase = 1;
-        this.st = 0;
-        this.anim.play('executeStrike', 0.03, true);
-      }
-    } else if (this.execPhase === 1) {
-      b.vx = approach(b.vx, 0, 2000 * dt);
-      if (this.st > 0.1 && this.st - dt <= 0.1) {
-        const mult = skillRank(G.save, 'w_exec') ? 1.6 : 1;
-        G.world.execute(this, e, mult);
-        if (skillRank(G.save, 'w_exec')) G.save.ce = Math.min(G.d.maxCe, G.save.ce + 25);
-      }
-      if (this.st > 0.55) {
-        this.execPhase = 2;
-        G.camera.zoomTarget = 1;
-        this.setState('free');
-        this.invuln = 0.4;
-        this.execTarget = null;
-      }
+    const f = this.fin;
+    if (!f || !this.execTarget) {
+      this.fin = null;
+      return this.setState('free');
+    }
+    if (updateFinisher(this, f, dt)) {
+      this.fin = null;
+      G.camera.zoomTarget = 1;
+      G.camera.focus = null;
+      this.setState('free');
+      this.invuln = 0.4;
+      this.execTarget = null;
     }
   }
 
@@ -1216,10 +1234,13 @@ export class Player extends Entity {
       this.die();
       return true;
     }
-    if (this.lion <= 0 || h.kind === 'hazard') {
+    const unshaken = isSovereign() && h.kind !== 'hazard' && h.poise < 70;
+    if ((this.lion <= 0 || h.kind === 'hazard') && !unshaken) {
       if (this.state === 'charge' || this.state === 'heal' || this.state === 'cast' || this.state === 'attack' || this.state === 'free' || this.state === 'block' || this.state === 'parry') {
         this.setState('hurt');
-        this.hurtT = 0.26;
+        // A paralysing blow (the Locust King's screech) pins Elior longer.
+        this.hurtT = Math.max(0.26, h.stun ?? 0);
+        if (h.stun) fx.ring(this.x, this.y - 24, 4, 26, '#c9a8ff', h.stun, 2);
         this.atk = null;
         this.anim.play('hurt', 0.02, true);
         if (!h.noKnock) {
@@ -1346,6 +1367,13 @@ export class Player extends Entity {
     }
     ctx.globalAlpha = 1;
     // Mid-blink: nothing but a wisp where Elior will appear.
+    if (this.fin?.hidden) {
+      ctx.globalCompositeOperation = 'lighter';
+      glow(ctx, this.fin.target.cx, this.fin.target.cy, 22, '#8a4aff', 0.5);
+      ctx.globalCompositeOperation = 'source-over';
+      return;
+    }
+    if (this.state !== 'dead') drawAura(ctx, this.x, this.y, this.face);
     if (this.state === 'phantom') {
       ctx.globalCompositeOperation = 'lighter';
       glow(ctx, this.phantomTo.x, this.phantomTo.y - 20, 18, '#ffe6a8', 0.6);
@@ -1434,6 +1462,7 @@ export class Player extends Entity {
     lighting.add(this.x, this.y - 20, relic ? 120 : 90, '#ffd9a0', relic ? 0.85 : 0.7, 0.15);
     if (this.state === 'charge') lighting.add(this.x, this.y - 30, 60 + this.chargeLvl * 20, '#ffe6a8', 0.8, 0.6);
     if (this.armorLight > 0 || this.lion > 0) lighting.add(this.x, this.y - 20, 110, '#ffcf6b', 0.9, 0.4);
+    auraLight(this.x, this.y);
   }
 }
 

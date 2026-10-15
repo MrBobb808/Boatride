@@ -16,6 +16,8 @@ export interface Settings {
   touchOpacity: number;
   leftHanded: boolean;
   haptics: boolean;
+  /** Golden objective marker and edge arrow. */
+  guide: boolean;
   showFps: boolean;
   keys: Record<Action, string[]>;
 }
@@ -48,6 +50,7 @@ const DEFAULTS: Settings = {
   touchOpacity: 0.75,
   leftHanded: false,
   haptics: true,
+  guide: true,
   showFps: false,
   keys: structuredClone(DEFAULT_KEYS),
 };

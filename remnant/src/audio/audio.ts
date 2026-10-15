@@ -246,6 +246,36 @@ const metal = (a: AudioEngine, t: number, f: number, v: number, dest: AudioNode,
   parts.forEach((m, i) => a.osc(i % 2 ? 'square' : 'sine', f * m, t, dec / (1 + i * 0.3), dest, 0.05 * v, 0.001));
 };
 
+let raspCurve: Float32Array<ArrayBuffer> | null = null;
+/** Soft-clipping curve that gives the Locust King's scream its rasp (built once). */
+const rasp = () => {
+  if (raspCurve) return raspCurve;
+  const n = 1024;
+  raspCurve = new Float32Array(n);
+  for (let i = 0; i < n; i++) {
+    const x = (i / (n - 1)) * 2 - 1;
+    raspCurve[i] = Math.tanh(x * 4) * 0.8 + Math.sin(x * 9) * 0.12;
+  }
+  return raspCurve;
+};
+
+/** A tone chopped at `rate` Hz (insect wings), returning its output gain for an envelope. */
+const chopped = (a: AudioEngine, t: number, dur: number, rate: number, depth: number) => {
+  const ctx = a.ctx!;
+  const am = ctx.createGain();
+  am.gain.value = 1 - depth;
+  const lfo = ctx.createOscillator();
+  lfo.type = 'triangle';
+  lfo.frequency.value = rate;
+  const lg = ctx.createGain();
+  lg.gain.value = depth;
+  lfo.connect(lg);
+  lg.connect(am.gain);
+  lfo.start(t);
+  lfo.stop(t + dur + 0.1);
+  return am;
+};
+
 export const SFX: Record<string, SfxFn> = {
   swing(a, t, v, p, pan) {
     const d = a.out(pan, 0.2);
@@ -703,6 +733,215 @@ export const SFX: Record<string, SfxFn> = {
     const d = a.out(0, 0.2);
     a.osc('square', 140, t, 0.12, d, 0.05 * v, 0.002);
     a.osc('square', 110, t + 0.1, 0.14, d, 0.05 * v, 0.002);
+  },
+
+  // ----- Chapter III: the swarm
+  buzz(a, t, v, p, pan) {
+    // Insect wings: a sawtooth chopped at wingbeat rate through a nasal band, a little doppler.
+    const d = a.out(pan, 0.3);
+    const ctx = a.ctx!;
+    const o = ctx.createOscillator();
+    o.type = 'sawtooth';
+    o.frequency.setValueAtTime(165 * p, t);
+    o.frequency.linearRampToValueAtTime(205 * p, t + 0.18);
+    o.frequency.linearRampToValueAtTime(175 * p, t + 0.42);
+    const f = ctx.createBiquadFilter();
+    f.type = 'bandpass';
+    f.frequency.value = 1100 * p;
+    f.Q.value = 1.6;
+    const am = chopped(a, t, 0.45, 52 * p, 0.45);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(0.3 * v, t + 0.06);
+    g.gain.setValueAtTime(0.3 * v, t + 0.3);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.44);
+    o.connect(f);
+    f.connect(am);
+    am.connect(g);
+    g.connect(d);
+    o.start(t);
+    o.stop(t + 0.5);
+    a.noiseHit(t, 0.38, d, 'bandpass', 2400 * p, 3, 0.06 * v, 1800 * p, 0.05);
+  },
+  chitter(a, t, v, p, pan) {
+    // Mandibles: a ragged run of dry clicks.
+    const d = a.out(pan, 0.2);
+    const n = 6 + Math.floor(rand(0, 4));
+    let tt = t;
+    for (let i = 0; i < n; i++) {
+      a.noiseHit(tt, 0.014, d, 'bandpass', rand(2600, 4200) * p, 7, 0.8 * v * rand(0.6, 1), undefined, 0.001);
+      a.osc('square', rand(1500, 2100) * p, tt, 0.01, d, 0.03 * v, 0.001);
+      tt += rand(0.022, 0.05);
+    }
+  },
+  skitter(a, t, v, p, pan) {
+    // Many legs on stone: tiny taps scattered over a third of a second.
+    const d = a.out(pan, 0.1);
+    for (let i = 0; i < 16; i++) a.noiseHit(t + rand(0, 0.32), 0.008, d, 'highpass', rand(3500, 6500) * p, 1.2, 0.2 * v * rand(0.4, 1), undefined, 0.0008);
+    a.noiseHit(t, 0.3, d, 'bandpass', 5200 * p, 2, 0.02 * v, undefined, 0.1);
+  },
+  acid(a, t, v, p, pan) {
+    // A wet spit, then the sizzle where it lands.
+    const d = a.out(pan, 0.35);
+    a.noiseHit(t, 0.12, d, 'lowpass', 2400 * p, 2.5, 0.35 * v, 400, 0.004);
+    a.osc('sine', 620 * p, t, 0.07, d, 0.14 * v, 0.003, 180 * p);
+    a.noiseHit(t + 0.05, 0.6, d, 'highpass', 5200, 0.8, 0.12 * v, 7000, 0.04);
+    for (let i = 0; i < 9; i++) a.noiseHit(t + 0.06 + rand(0, 0.5), 0.01, d, 'highpass', rand(3000, 7000), 1, 0.14 * v, undefined, 0.001);
+  },
+  screech(a, t, v, p, pan) {
+    // The Locust King's roar: a harsh rising insect scream with grinding wings in its throat.
+    const d = a.out(pan, 1.1);
+    const ctx = a.ctx!;
+    const shaper = ctx.createWaveShaper();
+    shaper.curve = rasp();
+    const f = ctx.createBiquadFilter();
+    f.type = 'bandpass';
+    f.frequency.setValueAtTime(900 * p, t);
+    f.frequency.exponentialRampToValueAtTime(2600 * p, t + 0.75);
+    f.Q.value = 1.4;
+    const am = chopped(a, t, 1.05, 46, 0.4);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(0.26 * v, t + 0.12);
+    g.gain.linearRampToValueAtTime(0.36 * v, t + 0.7);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 1.05);
+    for (const [det, type] of [[-18, 'sawtooth'], [0, 'square'], [21, 'sawtooth']] as const) {
+      const o = ctx.createOscillator();
+      o.type = type;
+      o.detune.value = det;
+      o.frequency.setValueAtTime(260 * p, t);
+      o.frequency.exponentialRampToValueAtTime(820 * p, t + 0.8);
+      o.frequency.linearRampToValueAtTime(760 * p, t + 1);
+      o.connect(shaper);
+      o.start(t);
+      o.stop(t + 1.1);
+    }
+    shaper.connect(f);
+    f.connect(am);
+    am.connect(g);
+    g.connect(d);
+    a.noiseHit(t, 1, d, 'bandpass', 1800 * p, 2, 0.28 * v, 4200 * p, 0.15);
+    a.osc('sawtooth', 70 * p, t, 0.7, d, 0.14 * v, 0.05, 50 * p);
+  },
+  wingbeat(a, t, v, p, pan) {
+    // One heavy downstroke: a pressure thump with a chitin rattle.
+    const d = a.out(pan, 0.4);
+    a.noiseHit(t, 0.28, d, 'bandpass', 260 * p, 1.1, 0.7 * v, 900 * p, 0.05);
+    a.noiseHit(t + 0.05, 0.2, d, 'lowpass', 500 * p, 0.8, 0.4 * v, 120, 0.03);
+    a.osc('sine', 85 * p, t + 0.04, 0.22, d, 0.35 * v, 0.03, 45 * p);
+    a.noiseHit(t + 0.02, 0.09, d, 'bandpass', 3200 * p, 3, 0.08 * v);
+  },
+  arise(a, t, v) {
+    // A fallen foe rises to serve: the ground swells for a second, then the summons lands.
+    const d = a.out(0, 1.6);
+    const ctx = a.ctx!;
+    a.osc('sine', 36, t, 1.5, d, 0.32 * v, 1, 48);
+    const f = ctx.createBiquadFilter();
+    f.type = 'lowpass';
+    f.frequency.setValueAtTime(140, t);
+    f.frequency.exponentialRampToValueAtTime(1800, t + 1.1);
+    f.frequency.exponentialRampToValueAtTime(500, t + 1.6);
+    f.Q.value = 3;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.035 * v, t + 1.05);
+    g.gain.setTargetAtTime(0.0001, t + 1.15, 0.25);
+    f.connect(g);
+    g.connect(d);
+    for (const m of [26, 33, 38, 41, 45]) {
+      for (const det of [-8, 8]) {
+        const o = ctx.createOscillator();
+        o.type = 'sawtooth';
+        o.frequency.value = mtof(m);
+        o.detune.value = det;
+        o.connect(f);
+        o.start(t);
+        o.stop(t + 2.3);
+      }
+    }
+    a.noiseHit(t, 1.05, d, 'bandpass', 300, 1.2, 0.22 * v, 2400, 0.95);
+    a.osc('sine', 90, t + 1.1, 0.7, d, 0.55 * v, 0.004, 30);
+    a.noiseHit(t + 1.1, 0.5, d, 'lowpass', 1600, 0.7, 0.4 * v, 90);
+    bell(a, t + 1.1, mtof(38), 0.7 * v, d, 2.2);
+    bell(a, t + 1.12, mtof(45), 0.45 * v, d, 2);
+  },
+  teleport(a, t, v, p, pan) {
+    // Dark air drawn inward, then a pop.
+    const d = a.out(pan, 0.6);
+    a.noiseHit(t, 0.22, d, 'bandpass', 3800 * p, 1.4, 0.4 * v, 260 * p, 0.12);
+    a.osc('sine', 140 * p, t, 0.2, d, 0.18 * v, 0.1, 55);
+    a.osc('sine', 1100 * p, t + 0.2, 0.06, d, 0.22 * v, 0.001, 180 * p);
+    a.noiseHit(t + 0.2, 0.03, d, 'highpass', 3000, 1, 0.25 * v);
+  },
+  slice(a, t, v, p, pan) {
+    // A clean, sharp metallic cut.
+    const d = a.out(pan, 0.4);
+    a.noiseHit(t, 0.07, d, 'highpass', 6500 * p, 1.2, 0.3 * v, 3200 * p, 0.004);
+    metal(a, t + 0.01, 1850 * p, 0.55 * v, d, 0.28);
+    a.osc('sine', 3400 * p, t + 0.008, 0.22, d, 0.04 * v, 0.001);
+  },
+  finisher(a, t, v, p, pan) {
+    // The slow-motion killing blow: a huge boom, a crash, and the ground still shaking after.
+    const d = a.out(pan, 1.4);
+    a.osc('sine', 78 * p, t, 1.6, d, 0.75 * v, 0.003, 24);
+    a.osc('triangle', 150 * p, t, 0.5, d, 0.22 * v, 0.003, 40);
+    a.noiseHit(t, 0.9, d, 'lowpass', 2200, 0.7, 0.6 * v, 70, 0.003);
+    a.noiseHit(t, 1.4, d, 'highpass', 2600, 0.6, 0.12 * v, 900, 0.004);
+    metal(a, t, 95 * p, 0.55 * v, d, 1.2);
+    a.noiseHit(t + 0.25, 1.6, d, 'lowpass', 140, 0.8, 0.45 * v, 50, 0.3);
+  },
+  // Elemental accents, layered on an ordinary hit.
+  elemFire(a, t, v, p, pan) {
+    const d = a.out(pan, 0.3);
+    a.noiseHit(t, 0.22, d, 'bandpass', 700 * p, 0.9, 0.35 * v, 2200 * p, 0.02);
+    for (let i = 0; i < 6; i++) a.noiseHit(t + rand(0, 0.18), 0.012, d, 'highpass', rand(2500, 5000), 1, 0.16 * v, undefined, 0.001);
+  },
+  elemFrost(a, t, v, p, pan) {
+    const d = a.out(pan, 0.6);
+    a.noiseHit(t, 0.035, d, 'highpass', 4200, 1.2, 0.35 * v, undefined, 0.001);
+    [2, 2.73, 3.61, 4.9].forEach((m, i) => a.osc(i % 2 ? 'triangle' : 'sine', 1180 * m * p, t + i * 0.012, 0.32 / (1 + i * 0.4), d, 0.045 * v, 0.001));
+    a.noiseHit(t + 0.03, 0.3, d, 'bandpass', 7500, 6, 0.08 * v, undefined, 0.05);
+  },
+  elemStorm(a, t, v, p, pan) {
+    const d = a.out(pan, 0.4);
+    a.osc('sawtooth', 2200 * p, t, 0.1, d, 0.07 * v, 0.001, 220);
+    a.osc('square', 95 * p, t, 0.14, d, 0.06 * v, 0.002);
+    a.noiseHit(t, 0.05, d, 'highpass', 3500, 0.8, 0.35 * v, undefined, 0.001);
+    for (let i = 1; i <= 4; i++) a.noiseHit(t + i * rand(0.02, 0.035), 0.012, d, 'bandpass', rand(3000, 6000), 2, 0.22 * v, undefined, 0.001);
+  },
+  elemShadow(a, t, v, p, pan) {
+    // A dark thrum: a low tone shuddering at 14 Hz.
+    const d = a.out(pan, 0.7);
+    const ctx = a.ctx!;
+    const o = ctx.createOscillator();
+    o.type = 'sawtooth';
+    o.frequency.setValueAtTime(70 * p, t);
+    o.frequency.exponentialRampToValueAtTime(48 * p, t + 0.35);
+    const f = ctx.createBiquadFilter();
+    f.type = 'lowpass';
+    f.frequency.value = 420;
+    const am = chopped(a, t, 0.4, 14, 0.5);
+    const g = ctx.createGain();
+    a.env(g, t, 0.02, 0.4 * v, 0.36);
+    o.connect(f);
+    f.connect(am);
+    am.connect(g);
+    g.connect(d);
+    o.start(t);
+    o.stop(t + 0.45);
+    a.noiseHit(t, 0.3, d, 'lowpass', 300, 1, 0.22 * v, 120, 0.05);
+  },
+  elemHoly(a, t, v, p, pan) {
+    const d = a.out(pan, 0.9);
+    bell(a, t, mtof(88) * p, 0.45 * v, d, 0.7);
+    bell(a, t + 0.03, mtof(95) * p, 0.3 * v, d, 0.6);
+    a.noiseHit(t, 0.25, d, 'bandpass', 8000, 3, 0.05 * v, undefined, 0.02);
+  },
+  elemBlood(a, t, v, p, pan) {
+    const d = a.out(pan, 0.25);
+    a.noiseHit(t, 0.11, d, 'bandpass', 2600 * p, 1.6, 0.32 * v, 700 * p, 0.003);
+    a.noiseHit(t + 0.02, 0.14, d, 'lowpass', 900 * p, 6, 0.3 * v, 260, 0.004);
+    a.osc('sine', 120 * p, t + 0.02, 0.1, d, 0.2 * v, 0.003, 60);
   },
 };
 

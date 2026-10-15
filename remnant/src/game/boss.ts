@@ -407,6 +407,16 @@ export class Idol extends Entity {
   // ---------------------------------------------------------------- damage & phases
   takeHit(h: HitInfo): boolean {
     if (this.state === 'dormant' || this.state === 'intro' || this.state === 'dead' || this.state === 'transition' || this.invuln > 0) return false;
+    if (h.dot) {
+      const d = Math.max(1, Math.round(h.dmg));
+      this.hp -= d;
+      fx.number(this.x + rand(-20, 20), this.y - 100, d, false, '#ffb36a');
+      if (this.hp <= 0) {
+        this.hp = 0;
+        this.die();
+      }
+      return true;
+    }
     let dmg = h.dmg;
     if (this.state === 'kneel') dmg *= 1.5;
     if (this.armorBroken > 0 && h.py !== undefined && h.py < this.y - 90) dmg *= 1.3;
