@@ -76,6 +76,22 @@ export const BIOMES: Record<Biome, BiomePal> = {
     stone: '#a8a090', stoneDark: '#4a4640', cap: '#d8d0bc', capTuft: '#c9a04a', back: '', backLine: '', moon: null,
     plat: '#bab2a0', ambient: '#0a0814',
   },
+  // Chapter IV: the plain of Dura at dusk, the blue-glazed city, and the furnace.
+  dura: {
+    sky: ['#1a1030', '#6a2a3a', '#e08a4a'], far: '#4a2a30', mid: '#2e1a1e', near: '#1a0e10', fog: '#d8904a',
+    stone: '#b08a5a', stoneDark: '#4a3420', cap: '#d8b47a', capTuft: '#a08a50', back: '', backLine: '', moon: null,
+    plat: '#8a6a40', ambient: '#1a0e0c',
+  },
+  babylon: {
+    sky: ['#0c0a20', '#2a1a3a', '#8a4a3a'], far: '#2a2040', mid: '#1c1630', near: '#100c1e', fog: '#9a6a5a',
+    stone: '#2a5a9a', stoneDark: '#14284a', cap: '#c9a04a', capTuft: '#e2c070', back: '#1a2a4a', backLine: '#24386a', moon: '#f1d9b0',
+    plat: '#8a6a3a', ambient: '#0c0a18',
+  },
+  furnace: {
+    sky: ['#0a0402', '#1e0a04', '#3a1606'], far: '#2a1006', mid: '#1c0a04', near: '#100602', fog: '#ff6a1a',
+    stone: '#3a2a24', stoneDark: '#181210', cap: '#5a3a28', capTuft: '#ff8a3a', back: '#1e1410', backLine: '#2e1e16', moon: null,
+    plat: '#4a3424', ambient: '#1a0804',
+  },
 };
 
 // ---------------------------------------------------------------- Parallax

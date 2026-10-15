@@ -88,6 +88,7 @@ export const ITEMS: Record<string, ItemBase> = {
   frostwake_spear: { id: 'frostwake_spear', name: 'Frostwake Spear', slot: 'weapon', rarity: 3, icon: 'spear', family: 'spear', element: 'frost', mods: { atk: 25, crit: 5 }, value: 260, desc: 'Frost element. Rime gathers along the shaft; struck foes slow to a crawl.', look: 1 },
   stormcaller: { id: 'stormcaller', name: 'Stormcaller', slot: 'weapon', rarity: 4, icon: 'greatsword', family: 'greatsword', element: 'storm', mods: { atk: 44, poise: 16, crit: 3 }, value: 420, desc: 'Storm element. Lightning leaps from every blow to the foes nearby.', look: 2 },
   umbral_fang: { id: 'umbral_fang', name: 'Umbral Fang', slot: 'weapon', rarity: 4, icon: 'sword', family: 'blade', element: 'shadow', mods: { atk: 40, crit: 8, lifesteal: 2 }, value: 440, desc: 'Shadow element. Cut from the Locust King\'s carapace; a second, darker blade follows each strike.', look: 2 },
+  stonecutter: { id: 'stonecutter', name: 'Stonecutter', slot: 'weapon', rarity: 5, icon: 'greatsword', family: 'greatsword', element: 'holy', mods: { atk: 82, crit: 8, poise: 30, abil: 20 }, value: 999, desc: 'Light element. Hewn from the stone that broke the Image, cut without hands. It grows heavier against those who would be worshipped.', look: 2, unique: true, lore: '"Thou sawest till that a stone was cut out without hands, which smote the image upon his feet that were of iron and clay, and brake them to pieces." — Daniel 2:34 (KJV)' },
   dawnbreaker: { id: 'dawnbreaker', name: 'Dawnbreaker', slot: 'weapon', rarity: 5, icon: 'greatsword', family: 'greatsword', element: 'holy', mods: { atk: 64, crit: 6, poise: 24, abil: 15 }, value: 999, desc: 'Light element. Forged where the dry bones stood up. It burns brightest against the greatest foes.', look: 2, unique: true, lore: '"So I prophesied as he commanded me, and the breath came into them, and they lived, and stood up upon their feet, an exceeding great army." — Ezekiel 37:10 (KJV)' },
   rusted_greatsword: { id: 'rusted_greatsword', name: 'Rusted Greatsword', slot: 'weapon', rarity: 1, icon: 'greatsword', family: 'greatsword', mods: { atk: 20, poise: 10 }, value: 60, desc: 'Heavy and blunt with age, but it still breaks shields.', look: 0 },
   // Helms
@@ -120,6 +121,8 @@ export const ITEMS: Record<string, ItemBase> = {
   brickmaker_wraps: { id: 'brickmaker_wraps', name: 'Brickmaker\'s Wraps', slot: 'gauntlets', rarity: 2, icon: 'gauntlet', mods: { atk: 5, crit: 3, aspd: 4 }, value: 120, desc: 'Pitch-stained cloth over hard calluses. A grip that does not slip.', look: 1 },
   pilgrim_band: { id: 'pilgrim_band', name: 'Pilgrim\'s Band', slot: 'ring', rarity: 2, icon: 'ring', mods: { hp: 20, ceRegen: 12 }, value: 130, desc: 'Worn smooth by a long road. Someone walked a long way to lose it here.' },
   tower_greaves: { id: 'tower_greaves', name: 'Tower Greaves', slot: 'boots', rarity: 2, icon: 'boot', mods: { def: 4, poise: 10, speed: 3 }, value: 140, desc: 'Red-lacquered plate from the Tower\'s honour guard.', look: 1 },
+  unsinged_robe: { id: 'unsinged_robe', name: 'Unsinged Robe', slot: 'armor', rarity: 4, icon: 'armor', mods: { def: 12, hp: 60, poise: 20 }, value: 420, desc: 'Barak\'s robe, worn into the furnace and out again. It does not even smell of smoke.', look: 2, unique: true },
+  lion_mane_helm: { id: 'lion_mane_helm', name: 'Lionmane Helm', slot: 'helm', rarity: 4, icon: 'helm', mods: { def: 9, atk: 10, crit: 5 }, value: 400, desc: 'Dov beat it from a brazen lion\'s mane. It roars when it is struck.', look: 2, unique: true },
   crimson_mantle: { id: 'crimson_mantle', name: 'Crimson Mantle', slot: 'armor', rarity: 3, icon: 'armor', mods: { def: 8, hp: 30, atk: 6 }, value: 280, desc: 'A guardsman\'s red coat over black mail. It was made to be seen from far away.', look: 2 },
   overseer_sigil: { id: 'overseer_sigil', name: 'Overseer\'s Brand', slot: 'relic', rarity: 3, icon: 'sigil', mods: { poise: 15, str: 2, echoDmg: 8 }, value: 220, desc: 'The iron that marked every brick. Cold now, and lighter than it looks.' },
   oathblade: { id: 'oathblade', name: 'The Oathblade', slot: 'weapon', rarity: 5, icon: 'greatsword', family: 'greatsword', mods: { atk: 46, crit: 6, poise: 18, critDmg: 20 }, value: 999, desc: 'The Marshal\'s sword, given freely. It is heavy only for those who would misuse it.', look: 2, unique: true, element: 'blood', lore: '"I have fought a good fight, I have finished my course, I have kept the faith:" — 2 Timothy 4:7 (KJV)' },
@@ -405,6 +408,66 @@ export const LORE: Record<string, LoreEntry> = {
     id: 'joel225', title: 'The Promise in the Hive', ref: 'Joel 2:25 (KJV)',
     text: 'And I will restore to you the years that the locust hath eaten, the cankerworm, and the caterpillar, and the palmerworm, my great army which I sent among you.',
     note: 'Found at the threshold of the brood chamber. The words the Locust King heard as he rose a second time.',
+  },
+  ps1371: {
+    id: 'ps1371', title: 'By the Rivers', ref: 'Psalm 137:1 (KJV)',
+    text: 'By the rivers of Babylon, there we sat down, yea, we wept, when we remembered Zion.',
+    note: 'Cut into a willow\'s bark by the river, where the captives hang their harps.',
+  },
+  dan31: {
+    id: 'dan31', title: 'The Satrap\'s Proclamation', ref: 'Daniel 3:1 (KJV)',
+    text: 'Nebuchadnezzar the king made an image of gold, whose height was threescore cubits, and the breadth thereof six cubits: he set it up in the plain of Dura, in the province of Babylon.',
+    note: 'An old decree on the gate, painted over with a new one in the same words.',
+  },
+  dan35: {
+    id: 'dan35', title: 'When Ye Hear the Music', ref: 'Daniel 3:5 (KJV)',
+    text: 'That at what time ye hear the sound of the cornet, flute, harp, sackbut, psaltery, dulcimer, and all kinds of musick, ye fall down and worship the golden image that Nebuchadnezzar the king hath set up:',
+    note: 'Nailed up on every corner of the Processional Way.',
+  },
+  dan317: {
+    id: 'dan317', title: 'Able to Deliver', ref: 'Daniel 3:17 (KJV)',
+    text: 'If it be so, our God whom we serve is able to deliver us from the burning fiery furnace, and he will deliver us out of thine hand, O king.',
+    note: 'Scratched into the furnace-hall wall by someone led past it in chains.',
+  },
+  dan318: {
+    id: 'dan318', title: 'But If Not', ref: 'Daniel 3:18 (KJV)',
+    text: 'But if not, be it known unto thee, O king, that we will not serve thy gods, nor worship the golden image which thou hast set up.',
+    note: 'Written beside the last one, in a steadier hand.',
+  },
+  dan325: {
+    id: 'dan325', title: 'The Fourth in the Fire', ref: 'Daniel 3:25 (KJV)',
+    text: 'He answered and said, Lo, I see four men loose, walking in the midst of the fire, and they have no hurt; and the form of the fourth is like the Son of God.',
+    note: 'What the satrap\'s own guards cried out at the mouth of the furnace.',
+  },
+  dan622: {
+    id: 'dan622', title: 'The Lions\' Mouths', ref: 'Daniel 6:22 (KJV)',
+    text: 'My God hath sent his angel, and hath shut the lions\' mouths, that they have not hurt me: forasmuch as before him innocency was found in me; and also before thee, O king, have I done no hurt.',
+    note: 'Carved low on the den wall, by someone who spent a long night here.',
+  },
+  dan232: {
+    id: 'dan232', title: 'Head of Gold, Feet of Clay', ref: 'Daniel 2:32–33 (KJV)',
+    text: 'This image\'s head was of fine gold, his breast and his arms of silver, his belly and his thighs of brass, His legs of iron, his feet part of iron and part of clay.',
+    note: 'A dream recorded long ago, on a stone the satrap forgot to break.',
+  },
+  dan234: {
+    id: 'dan234', title: 'A Stone Cut Without Hands', ref: 'Daniel 2:34 (KJV)',
+    text: 'Thou sawest till that a stone was cut out without hands, which smote the image upon his feet that were of iron and clay, and brake them to pieces.',
+    note: 'On the dais itself, half buried in sand.',
+  },
+  dan235: {
+    id: 'dan235', title: 'Like the Chaff', ref: 'Daniel 2:35 (KJV)',
+    text: 'Then was the iron, the clay, the brass, the silver, and the gold, broken to pieces together, and became like the chaff of the summer threshingfloors; and the wind carried them away, that no place was found for them: and the stone that smote the image became a great mountain, and filled the whole earth.',
+    note: 'All that was left of the Image was the wind.',
+  },
+  dan244: {
+    id: 'dan244', title: 'A Kingdom Never Destroyed', ref: 'Daniel 2:44 (KJV)',
+    text: 'And in the days of these kings shall the God of heaven set up a kingdom, which shall never be destroyed: and the kingdom shall not be left to other people, but it shall break in pieces and consume all these kingdoms, and it shall stand for ever.',
+    note: 'Barak recited it by the river, the night the plain was empty.',
+  },
+  isa432: {
+    id: 'isa432', title: 'Through the Fire', ref: 'Isaiah 43:2 (KJV)',
+    text: 'When thou passest through the waters, I will be with thee; and through the rivers, they shall not overflow thee: when thou walkest through the fire, thou shalt not be burned; neither shall the flame kindle upon thee.',
+    note: 'Talia sang it walking out of the furnace.',
   },
   eze3710: {
     id: 'eze3710', title: 'An Exceeding Great Army', ref: 'Ezekiel 37:10 (KJV)',

@@ -23,6 +23,8 @@ import { CH2_ROOM_IDS } from '../game/rooms2';
 import { guidePoint } from '../game/guide';
 import { FINISHERS } from '../game/finishers';
 import { MANTLE_LV, mantlePerks } from '../game/mantle';
+import { nextChapter, travelToChapter, trainingOpen, startTraining } from '../game/chapters';
+import { chaptersTab } from './chapters';
 import { saveSlot, listSlots, deleteSlot, loadSlot, exportCode, importCode, SLOT_COUNT } from '../game/save';
 import { formatTime, clamp } from '../core/math';
 import { solve, newJoints } from '../render/skeleton';
@@ -45,6 +47,7 @@ const TABS: { id: string; label: string; icon: string }[] = [
   { id: 'skills', label: 'Skills', icon: 'skills' },
   { id: 'echoes', label: 'Echoes', icon: 'echo' },
   { id: 'map', label: 'Map', icon: 'map' },
+  { id: 'chapters', label: 'Chapters', icon: 'chapters' },
   { id: 'journal', label: 'Journal', icon: 'journal' },
   { id: 'crafting', label: 'Crafting', icon: 'craft' },
   { id: 'settings', label: 'Settings', icon: 'gear' },
@@ -120,6 +123,14 @@ function renderTabs() {
     const b = h('button', { class: 'tab' + (t.id === tab ? ' on' : ''), 'data-nav': '', role: 'tab', onclick: () => setTab(t.id) }, h('img', { src: iconUrl(t.icon, t.id === tab ? '#f6dea0' : '#9b92a6'), alt: '' }), t.label);
     tabsEl.appendChild(b);
   }
+  // Too many tabs for the width: inactive ones shrink to icons; keep the open one in view.
+  tabsEl.classList.remove('compact');
+  if (tabsEl.scrollWidth > tabsEl.clientWidth + 1) tabsEl.classList.add('compact');
+  const on = tabsEl.querySelector('.tab.on');
+  if (on) {
+    const a = tabsEl.getBoundingClientRect(), r = on.getBoundingClientRect();
+    if (r.left < a.left || r.right > a.right) tabsEl.scrollLeft += r.left - a.left - (a.width - r.width) / 2;
+  }
 }
 
 function render() {
@@ -134,6 +145,7 @@ function render() {
     case 'skills': bodyEl.appendChild(skillsTab()); break;
     case 'echoes': bodyEl.appendChild(echoesTab()); break;
     case 'map': bodyEl.appendChild(mapTab()); break;
+    case 'chapters': bodyEl.appendChild(chaptersTab(closeMenu)); break;
     case 'journal': bodyEl.appendChild(journalTab()); break;
     case 'crafting': bodyEl.appendChild(craftingTab()); break;
     case 'settings': bodyEl.appendChild(settingsTab()); break;
@@ -542,11 +554,13 @@ const ALTAR_NAMES: Record<string, string> = {
   sanctuary: 'Hearthward', temple_hall: 'Nave of the First Lamp', chamber: 'Covenant Chamber', antechamber: 'Hall of Offerings',
   shinar_camp: 'Camp at the Pass', tower_lower: 'The First Course', tower_upper: 'The Crimson Guard',
   valley_camp: 'Camp at the Valley\'s Edge', hive_mouth: 'Mouth of the Hive',
+  river_camp: 'Camp by the Rivers', dura_plain: 'The Plain of Dura',
 };
 const ALTAR_ROOMS: Record<string, string> = {
   sanctuary: 'sanctuary', temple_hall: 'temple_hall', chamber: 'covenant_chamber', antechamber: 'idol_antechamber',
   shinar_camp: 'shinar_camp', tower_lower: 'tower_lower', tower_upper: 'tower_upper',
   valley_camp: 'valley_camp', hive_mouth: 'hive_mouth',
+  river_camp: 'river_camp', dura_plain: 'dura_plain',
 };
 
 function drawMap(c: HTMLCanvasElement) {
@@ -796,6 +810,8 @@ function settingsTab() {
       row('Button size', '', slider(st.touchScale, 0.8, 1.3, 0.05, (v) => (st.touchScale = v), 'tsz')),
       row('Button opacity', '', slider(st.touchOpacity, 0.3, 1, 0.05, (v) => (st.touchOpacity = v), 'top')),
       row('Left-handed layout', 'Moves the buttons to the left and the stick to the right.', toggle(st.leftHanded, (v) => (st.leftHanded = v), 'lh')),
+      row('Button labels', 'Show the name under each touch button.', toggle(st.buttonLabels, (v) => (st.buttonLabels = v), 'bl')),
+      row('Dynamic Island indicator', 'On iPhones with a Dynamic Island, a living status ring around it: low health, the Shadow Mantle, Rally and news.', toggle(st.island, (v) => (st.island = v), 'di')),
     ) : null,
     h('div', { class: 'box' }, h('h3', null, 'Keyboard'), h('p', { class: 'muted', style: 'margin:0 0 6px;font-size:0.85em' }, 'Select a binding, then press the new key. Controllers use a fixed layout: A jump, X attack, Y heavy, B dodge, LB parry, RB/LT/RT skills, D-pad ↑ interact, D-pad ↓ Balm, L3 Echoes, R3 Rally, View switch Echo, Start menu.'),
       binds, h('div', { style: 'margin-top:8px' }, btn('Reset all settings', () => { resetSettings(); applyTextSize(); renderAny(); }, 'btn small', { 'data-k': 'reset' }))),
@@ -991,7 +1007,7 @@ export function openAltar(id: string) {
   const s = G.save;
   pause(true);
   const lit = s.altarsLit.filter((a) => a !== id && ALTAR_ROOMS[a]);
-  const card = h('div', { class: 'choice-card panel' },
+  const card = h('div', { class: 'choice-card panel scroll altar' },
     h('div', { class: 'eyebrow' }, 'Altar'),
     h('h2', { class: 'title-text' }, ALTAR_NAMES[id] ?? 'Altar'),
     h('p', { class: 'muted' }, 'Health, Balm and Covenant Energy restored. Your Echoes are made whole. Foes of the Veil stir again. Progress saved.'),
@@ -1004,17 +1020,14 @@ export function openAltar(id: string) {
         G.world.transition(ALTAR_ROOMS[a], 'altar');
         s.altar = { room: ALTAR_ROOMS[a], spawn: 'altar' };
       }, 'btn opt')),
-      flag('ch2_done') && !s.altarsLit.includes('valley_camp') && chapterOf(G.world.room.id) !== 3 ? btn([h('b', null, 'Journey on'), h('span', null, 'Chapter III · The Valley of Bones')], () => {
+      ...(() => {
+        // The next chapter, once the one before it is finished.
+        const nx = nextChapter();
+        return nx ? [btn([h('b', null, 'Journey on'), h('span', null, `Chapter ${nx.roman} · ${nx.title}`)], () => { done(); travelToChapter(nx); }, 'btn opt')] : [];
+      })(),
+      trainingOpen() ? btn([h('b', null, 'Enter the Trial of the Remnant'), h('span', null, `Training: endless waves that grow with you${s.flags.trial_best ? ` · best: wave ${s.flags.trial_best}` : ''}`)], () => {
         done();
-        G.world.transition('valley_camp', 'start');
-      }, 'btn opt') : null,
-      flag('ch2_done') ? btn([h('b', null, 'Enter the Trial of the Remnant'), h('span', null, `Endless waves that grow with you${s.flags.trial_best ? ` · best: wave ${s.flags.trial_best}` : ''}`)], () => {
-        done();
-        G.world.transition('trial_arena', 'start');
-      }, 'btn opt') : null,
-      flag('ending_done') && !s.altarsLit.includes('shinar_camp') && !CH2_ROOM_IDS.has(G.world.room.id) ? btn([h('b', null, 'Journey east'), h('span', null, 'Chapter II · The road down to the Plain of Shinar')], () => {
-        done();
-        G.world.transition('shinar_camp', 'start');
+        startTraining(1);
       }, 'btn opt') : null,
       flag('ch1_done') ? btn([h('b', null, 'Begin New Game+'), h('span', null, 'Start Chapter I again with everything you have earned. Foes grow stronger.')], () => { done(); startNewGamePlus(); }, 'btn opt') : null,
     ),

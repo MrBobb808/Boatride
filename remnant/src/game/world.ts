@@ -28,6 +28,7 @@ import { shakeScale, settings } from '../core/settings';
 import { guidePoint } from './guide';
 import { tickStatus, powerTier, SOVEREIGN_LV } from './power';
 import { MANTLE_LV, mantleTier, mantlePerks, announceMantle } from './mantle';
+import { islandNotify } from '../ui/island';
 import { updatePending, applyUpdate } from '../core/update';
 import { FINISHERS } from './finishers';
 import { ITEMS, ECHO_SPECIES, type Rarity } from './data';
@@ -337,7 +338,14 @@ export class World {
       const r = { x: ex.x * TILE, y: ex.y * TILE, w: ex.w * TILE, h: ex.h * TILE };
       if (overlaps(hb, r)) {
         if (this.gateClosed) return;
-        this.transition(ex.to, ex.spawn);
+        let to = ex.to, spawn = ex.spawn;
+        // Training sends you back to wherever you started it.
+        const back = G.save.flags.trial_return;
+        if (this.room.id === 'trial_arena' && typeof back === 'string') {
+          [to, spawn] = back.split('|');
+          delete G.save.flags.trial_return;
+        }
+        this.transition(to, spawn);
         return;
       }
     }
@@ -695,7 +703,7 @@ export class World {
     const s = G.save;
     const st = e.stats;
     s.kills++;
-    const tier = e.tier === 3 ? 2.6 : e.tier === 2 ? 1.7 : 1;
+    const tier = e.tier === 4 ? 3.6 : e.tier === 3 ? 2.6 : e.tier === 2 ? 1.7 : 1;
     const xp = e.xpOverride ?? Math.round(st.xp * (e.elite ? 4 : 1) * G.d.xpMult * (1 + s.ng * 0.5) * tier);
     this.giveXp(xp);
     const loot: Loot[] = [{ silver: Math.round(randInt(st.silver[0], st.silver[1]) * (e.elite ? 4 : 1) * tier) }];
@@ -724,6 +732,7 @@ export class World {
       s.hp = G.d.maxHp;
       this.player.styleKey = '';
       G.ui.levelUp(levels);
+      islandNotify(`LEVEL ${s.level}`, '#f6dea0', 'stats', 2.8);
       for (const ec of this.echoes) ec.refreshStats();
       // New finishers and power tiers announce themselves.
       const fins = FINISHERS.filter((f) => f.level > lvBefore && f.level <= s.level && f.level > 1);

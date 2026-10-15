@@ -244,6 +244,22 @@ const ICONS: Record<string, Draw> = {
     fillPoly(x, [26, 10, 23, 13, 23, 20, 27, 24, 29, 18]);
     x.globalAlpha = 1;
   },
+  chapters: (x) => {
+    // A scroll, half unrolled.
+    fillPoly(x, [7, 6, 22, 6, 22, 24, 7, 24]);
+    x.lineWidth = 2.4;
+    x.beginPath();
+    x.arc(7, 15, 3, 0, Math.PI * 2);
+    x.stroke();
+    x.beginPath();
+    x.arc(25, 7, 3, 0, Math.PI * 2);
+    x.stroke();
+    x.globalCompositeOperation = 'destination-out';
+    x.fillRect(10, 10, 9, 1.6);
+    x.fillRect(10, 14, 9, 1.6);
+    x.fillRect(10, 18, 6, 1.6);
+    x.globalCompositeOperation = 'source-over';
+  },
   mantle: (x) => {
     // A hooded figure whose eyes burn in the dark of the cowl.
     fillPoly(x, [16, 3, 24, 9, 26, 18, 29, 29, 3, 29, 6, 18, 8, 9]);

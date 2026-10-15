@@ -106,6 +106,9 @@ export function startNewGamePlus() {
   s.flags.has_echo = s.echoes.length > 0;
   if (s.keyItems.includes('eagle_wings')) s.flags.plume = true;
   if (s.keyItems.includes('ram_horn')) s.flags.horn = true;
+  // The Shadow Mantle and your Trial record stay learned.
+  for (const f of ['mantle_known', 'mantle_used', 'mantle_ready_seen', 'trial_best']) if (old.flags[f] !== undefined) s.flags[f] = old.flags[f];
+  s.mantle = old.mantle;
   s.echoMode = old.echoMode;
   saveSlot(G.slot, s);
   G.ui.fade(1, 0.6).then(() => {

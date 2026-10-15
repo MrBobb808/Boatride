@@ -18,7 +18,13 @@ export interface Settings {
   haptics: boolean;
   /** Golden objective marker and edge arrow. */
   guide: boolean;
+  /** Words under the touch buttons. */
+  buttonLabels: boolean;
+  /** Game status drawn around the Dynamic Island. */
+  island: boolean;
   showFps: boolean;
+  /** Settings format, for one-time migrations. */
+  v: number;
   keys: Record<Action, string[]>;
 }
 
@@ -47,11 +53,14 @@ const DEFAULTS: Settings = {
   zoom: 'normal',
   textSize: 'normal',
   touchScale: 1,
-  touchOpacity: 0.75,
+  touchOpacity: 0.55,
   leftHanded: false,
   haptics: true,
   guide: true,
+  buttonLabels: false,
+  island: true,
   showFps: false,
+  v: 2,
   keys: structuredClone(DEFAULT_KEYS),
 };
 
@@ -90,6 +99,11 @@ function load(): Settings {
       const parsed = JSON.parse(raw);
       Object.assign(s, parsed);
       s.keys = { ...structuredClone(DEFAULT_KEYS), ...(parsed.keys ?? {}) };
+      // v2 lowered the default button opacity; carry the old default down too.
+      if (!parsed.v) {
+        if (parsed.touchOpacity === 0.75) s.touchOpacity = DEFAULTS.touchOpacity;
+        s.v = 2;
+      }
     } catch {
       /* corrupt settings — use defaults */
     }

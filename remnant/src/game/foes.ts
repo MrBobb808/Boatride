@@ -18,5 +18,8 @@ export function makeEnemy(kind: EnemyKind, x: number, y: number, elite: string |
     case 'knight': return new Knight(x, y, elite);
     case 'drone': return new Drone(x, y, elite);
     case 'soldier': return new Soldier(x, y, elite);
+    // Placeholders until the Chapter IV foes land.
+    case 'lion': return new Hound(x, y, elite);
+    case 'priest': return new Archer(x, y, elite);
   }
 }

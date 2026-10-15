@@ -15,6 +15,7 @@ import { sfx } from '../audio/audio';
 import { rand, choose, TAU } from '../core/math';
 import { shakeScale } from '../core/settings';
 import { isSovereign, bolt } from './power';
+import { islandNotify } from '../ui/island';
 
 export const MANTLE_LV = 25;
 const TIER_LV = [25, 50, 75, 100];
@@ -72,6 +73,7 @@ export function mantleGain(n: number) {
   fx.number(p.x, p.y - 52, 'MANTLE READY', true, SHADE.hi);
   fx.ring(p.x, p.y - 20, 6, 44, SHADE.edge, 0.45, 2);
   sfx('mantleReady');
+  islandNotify('MANTLE READY', '#c8ccff', 'mantle');
   if (!flag('mantle_ready_seen')) {
     setFlag('mantle_ready_seen');
     G.ui.toast(howToTransform('The shadows answer. Transform'), 'good');

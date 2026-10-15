@@ -11,7 +11,7 @@ is original fiction inspired by biblical themes, not part of the Bible.
 
 > *True greatness is not found in the power to rule, but in the strength to remain faithful.*
 
-This build contains three chapters:
+This build contains four chapters:
 
 - **Chapter I — The Ashen Village.** 12 rooms, the full combat and Echo
   systems, abilities and skill trees, gear, crafting and merchants, and the
@@ -34,10 +34,33 @@ This build contains three chapters:
     he is raised as your Echo.
   - **The Trial of the Remnant** is an endless wave arena that keeps pace
     with your level. It is the way to level 100 and beyond.
+- **Chapter IV — The Plain of Dura.** By the rivers of Babylon, after the book
+  of Daniel.
+  - A satrap has raised an image of gold and commands every captive to bow.
+  - Three captives who would not are bound for the burning fiery furnace.
+  - Pass the blue Gate of Babylon and the Processional Way. Brazen Lions
+    pounce, and Chaldean Fire-Priests rain fire.
+  - Drop into the Lions' Den to purify its lion as an Echo.
+  - Hold the furnace mouth, then stand while the whole plain kneels.
+  - **The Image of Gold:** head of gold, arms of silver, belly of brass,
+    legs of iron and feet of clay. Strike its feet.
 - Each chapter has an ending, plus New Game+.
 
-Each chapter begins from the previous chapter's ending screen, or from any
-altar once that chapter is done (**Journey east**, **Journey on**).
+Each chapter begins from the previous chapter's ending screen, from any
+altar once the one before is done (**Journey on**), or from the
+**Chapters** tab in the menu.
+
+### Chapter select and training
+
+- **Menu → Chapters** lists every chapter with its status.
+  - Travel to any chapter you have reached; you arrive at its camp altar.
+  - Begin the next one once the chapter before it is complete.
+- **Training Grounds** (also under Chapters, and at any altar) opens the
+  Trial of the Remnant from anywhere after the opening.
+  - It is endless waves of stronger and stronger foes, with experience scaled
+    to your level and rewards every five waves.
+  - Once you have reached waves 10, 20, 30 and so on, you can start from them.
+  - Leaving by the west door returns you to where you started.
 
 ### Saving, directions and updates
 

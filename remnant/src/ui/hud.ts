@@ -13,6 +13,7 @@ import { ROOMS, chapterOf } from '../game/rooms';
 import { CH2_ROOM_IDS } from '../game/rooms2';
 import { guidePoint } from '../game/guide';
 import { mantleUnlocked } from '../game/mantle';
+import { drawIsland } from './island';
 import { FONT_DISPLAY, FONT_BODY, roundRect, glow, type Ctx } from '../render/draw';
 import { clamp, lerp } from '../core/math';
 import { safe } from './safe';
@@ -25,6 +26,13 @@ let bossGhost = 1;
 let fps = 60;
 let fpsAcc = 0;
 let fpsN = 0;
+// The top-right corner quietens down once you have read it.
+let roomSeen = '';
+let roomT = 0;
+let objSeen = '';
+let objT = 0;
+let silverSeen = -1;
+let silverT = 0;
 
 export function setBoss(name: string | null, sub = '') {
   bossName = name;
@@ -184,18 +192,48 @@ export function drawHud(ctx: Ctx, dt: number) {
     }
   }
 
-  // ----- top right: location, objective, silver, minimap
+  // ----- top right: location, objective, minimap, silver. On touch it stays
+  // small and quiet: the room name fades after a few seconds, the objective
+  // dims once read, and silver shows only when it changes.
+  const base = G.inCutscene ? 0.35 : 1;
   const rx = W - 12 - sar - (touch ? 46 * u : 0);
   const room = G.world.room;
-  text(ctx, room.name.toUpperCase(), rx, y0 + 6 * u, `600 ${8.5 * u}px ${FONT_DISPLAY}`, '#e2b85a', 'right');
+  if (room.id !== roomSeen) { roomSeen = room.id; roomT = 0; }
+  roomT += dt;
   const obj = objectiveText();
-  ctx.font = `italic ${10.5 * u}px ${FONT_BODY}`;
-  const lines = wrap(ctx, obj, 230 * u);
-  lines.slice(0, 3).forEach((l, i) => text(ctx, l, rx, y0 + (19 + i * 12) * u, `italic ${10.5 * u}px ${FONT_BODY}`, '#ddd4c6', 'right'));
-  const my = y0 + (22 + Math.min(3, lines.length) * 12) * u;
-  minimap(ctx, rx - 110 * u, my, 110 * u, 46 * u);
-  ctx.drawImage(icon('ring', '#e8e2d0', 32), rx - 60 * u, my + 50 * u, 10 * u, 10 * u);
-  text(ctx, `${s.silver} silver`, rx, my + 55 * u, `600 ${8.5 * u}px ${FONT_DISPLAY}`, '#ece4d4', 'right');
+  if (obj !== objSeen) { objSeen = obj; objT = 0; }
+  objT += dt;
+  if (s.silver !== silverSeen) { if (silverSeen >= 0) silverT = 0; else silverT = 99; silverSeen = s.silver; }
+  silverT += dt;
+  const nameA = touch ? clamp((7 - roomT) / 1.5, 0, 1) : 1;
+  if (nameA > 0) {
+    ctx.globalAlpha = base * nameA;
+    text(ctx, room.name.toUpperCase(), rx, y0 + 6 * u, `600 ${8.5 * u}px ${FONT_DISPLAY}`, '#e2b85a', 'right');
+  }
+  const of = touch ? 9.5 : 10.5;
+  ctx.font = `italic ${of * u}px ${FONT_BODY}`;
+  const lines = wrap(ctx, obj, (touch ? 190 : 230) * u).slice(0, touch ? 2 : 3);
+  const oy = touch ? y0 + (nameA > 0 ? 18 : 6) * u : y0 + 19 * u;
+  ctx.globalAlpha = base * (touch && objT > 10 ? 0.55 : 1);
+  lines.forEach((l, i) => text(ctx, l, rx, oy + i * (of + 1.5) * u, `italic ${of * u}px ${FONT_BODY}`, '#ddd4c6', 'right'));
+  ctx.globalAlpha = base;
+  const my = oy + (lines.length * (of + 1.5) + 3) * u;
+  const mw = (touch ? 84 : 110) * u, mh = (touch ? 36 : 46) * u;
+  ctx.globalAlpha = base * (touch ? 0.75 : 1);
+  minimap(ctx, rx - mw, my, mw, mh);
+  ctx.globalAlpha = base;
+  const silverA = touch ? clamp((4 - silverT) / 0.8, 0, 1) : 1;
+  if (silverA > 0) {
+    ctx.globalAlpha = base * silverA;
+    ctx.drawImage(icon('ring', '#e8e2d0', 32), rx - 60 * u, my + mh + 4 * u, 10 * u, 10 * u);
+    text(ctx, `${s.silver} silver`, rx, my + mh + 9 * u, `600 ${8.5 * u}px ${FONT_DISPLAY}`, '#ece4d4', 'right');
+    ctx.globalAlpha = base;
+  }
+  // ----- training: the wave you are on
+  if (room.id === 'trial_arena') {
+    const wave = G.world.story.ch3.trialWave;
+    if (wave > 0) text(ctx, `WAVE ${wave}  ·  BEST ${Number(s.flags.trial_best ?? 0)}`, W / 2, y0 + 8 * u, `700 ${10 * u}px ${FONT_DISPLAY}`, '#f6dea0', 'center');
+  }
 
   // ----- boss bar
   if (bossName && G.world.boss && !G.inCutscene) {
@@ -293,6 +331,8 @@ export function drawHud(ctx: Ctx, dt: number) {
   }
   drawCombo(ctx, W, H, u, touch, sar);
   drawSaved(ctx, H, u, sal, sab, dt);
+  ctx.globalAlpha = 1;
+  drawIsland(ctx, W, H, dt);
   if (settings.guide && !G.inCutscene && !G.world.bossActive) drawGuideArrow(ctx, W, H, u, sat, sal, sar, sab);
   if (settings.showFps) text(ctx, `${fps.toFixed(0)} fps · q${r.tier}`, W / 2, H - 6 - sab, `600 ${9}px ${FONT_DISPLAY}`, '#9b92a6', 'center');
   ctx.restore();

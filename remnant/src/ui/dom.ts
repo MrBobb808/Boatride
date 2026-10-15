@@ -17,11 +17,10 @@ export function h<K extends keyof HTMLElementTagNameMap>(tag: K, attrs?: Attrs |
       else if (k.startsWith('on') && typeof v === 'function') {
         const ev = k.slice(2).toLowerCase();
         if (ev === 'click') {
+          const born = performance.now();
           el.addEventListener('click', (e) => {
             e.preventDefault();
-            // Ghost-click guard: a tap that opened a layer must not also press
-            // whatever button appears under the finger.
-            if (performance.now() - lastLayerAt < 380) return;
+            if (ghostClick(e as MouseEvent, born)) return;
             (v as (e: Event) => void)(e);
           });
         } else el.addEventListener(ev, v as EventListener);
@@ -64,6 +63,19 @@ interface Layer {
 
 const stack: Layer[] = [];
 let lastLayerAt = 0;
+let pressAt = -1;
+window.addEventListener('pointerdown', () => { pressAt = performance.now(); }, { capture: true, passive: true });
+
+// Ghost-click guard: the tap that opens a layer (or reveals dialogue choices)
+// must not also press the button that appears under the same finger. Only
+// that tap is dropped: a button built after the press began. Every fresh tap
+// counts, however quickly it follows. (A blanket time window here used to eat
+// deliberate first taps for 380 ms after any menu opened.)
+function ghostClick(e: MouseEvent, born: number) {
+  if (e.detail > 0) return pressAt >= 0 && born > pressAt;
+  // Keyboard or controller: one press must not open a layer and confirm in it too.
+  return performance.now() - lastLayerAt < 150;
+}
 
 export function pushLayer(l: Layer) {
   stack.push(l);

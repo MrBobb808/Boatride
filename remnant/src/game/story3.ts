@@ -18,6 +18,7 @@ import { rollGear } from './world';
 import { makeEcho, derive, makeItem, addMaterial } from './state';
 import { CH3_ROOM_IDS } from './rooms3';
 import { registerGuide } from './guide';
+import { islandNotify } from '../ui/island';
 import { shakeScale } from '../core/settings';
 import { rand, choose } from '../core/math';
 import type { Story, QuestDef } from './story';
@@ -107,7 +108,12 @@ export class Chapter3 {
         setTimeout(() => this.kingDefeated(k), 900);
       }
     }
-    if (id === 'trial_arena') this.startTrial();
+    if (id === 'trial_arena') {
+      // Training from the menu may skip ahead to a wave near your best.
+      const from = Math.max(1, Number(s.flags.trial_from ?? 1));
+      delete s.flags.trial_from;
+      this.startTrial(from);
+    }
     return true;
   }
 
@@ -354,7 +360,7 @@ export class Chapter3 {
     setFlag('ch3_done');
     G.world.autosave(true);
     st.cine(false);
-    await G.ui.chapterEnd(3);
+    if ((await G.ui.chapterEnd(3)) === 'next') await this.st.ch4.beginFromChapterThree();
   }
 
   // ---------------------------------------------------------------- talk
@@ -421,12 +427,12 @@ export class Chapter3 {
   }
 
   // ---------------------------------------------------------------- the Trial of the Remnant
-  startTrial() {
+  startTrial(from = 1) {
     this.stopTrial();
-    this.trialWave = 0;
+    this.trialWave = from - 1;
     this.trialFoes = [];
     this.trialWaiting = true;
-    G.ui.banner('THE TRIAL OF THE REMNANT', 'Endless waves · leave by the west door at any time', 'boss');
+    G.ui.banner('THE TRIAL OF THE REMNANT', `Endless waves${from > 1 ? `, from wave ${from}` : ''} · leave by the west door at any time`, 'boss');
     if (!G.save.quests.s_trial) this.st.quest('s_trial', 0);
     this.trialTimer = window.setInterval(() => this.tickTrial(), 300);
     setTimeout(() => this.nextWave(), 2500);
@@ -448,8 +454,9 @@ export class Chapter3 {
     const n = this.trialWave;
     if (n > 1 && (n - 1) % 5 === 0) this.trialReward(n - 1);
     G.ui.toast(`Wave ${n}`, 'warn');
+    islandNotify(`WAVE ${n}`, '#ffe6a8', 'rally', 1.8);
     sfx('bell', { pitch: 0.6 + Math.min(0.6, n * 0.02) });
-    const pool: EnemyKind[] = n < 3 ? ['husk', 'hound', 'drone'] : n < 6 ? ['husk', 'hound', 'archer', 'drone', 'soldier'] : n < 10 ? ['archer', 'drone', 'soldier', 'knight', 'bulwark'] : ['drone', 'soldier', 'knight', 'bulwark', 'brute'];
+    const pool: EnemyKind[] = n < 3 ? ['husk', 'hound', 'drone'] : n < 6 ? ['husk', 'hound', 'archer', 'drone', 'soldier'] : n < 10 ? ['archer', 'drone', 'soldier', 'knight', 'bulwark', 'lion'] : ['drone', 'soldier', 'knight', 'bulwark', 'brute', 'lion', 'priest'];
     const count = Math.min(12, 3 + Math.floor(n * 0.8));
     // The Trial keeps pace with Elior.
     const lvScale = 1 + Math.max(0, s.level - 12) * 0.05;

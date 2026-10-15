@@ -13,11 +13,13 @@ import { Enemy } from './enemies';
 import { Idol } from './boss';
 import { Chapter2, QUESTS2, type Gatekeeper, type Marshal } from './story2';
 import { Chapter3, QUESTS3, type LocustKing } from './story3';
+import { Chapter4, QUESTS4 } from './story4';
 import { LORE, ITEMS, ECHO_SPECIES } from './data';
 import { setQuest, makeEcho, grantAbility, derive, makeItem, addMaterial, hasMaterials, payMaterials, getItem, MAX_PLUS } from './state';
 import { rand } from '../core/math';
 import { shakeScale } from '../core/settings';
 import type { Entity } from './entity';
+import { islandNotify } from '../ui/island';
 
 export interface QuestDef {
   id: string;
@@ -48,6 +50,7 @@ export const QUESTS: QuestDef[] = [
   { id: 's_secrets', title: 'Hidden Chambers', kind: 'side', stages: ['The village and temple hide secret places. Find all five.'], done: 'Every hidden chamber of the First Lamp has been found.' },
   ...QUESTS2,
   ...QUESTS3,
+  ...QUESTS4,
 ];
 
 const TEMPLE_LORE = ['eph610', 'eph612', 'cor104', 'isa4031', 'josh620'];
@@ -58,6 +61,7 @@ const wait = (sec: number) => new Promise<void>((r) => setTimeout(r, sec * 1000)
 export class Story {
   ch2 = new Chapter2(this);
   ch3 = new Chapter3(this);
+  ch4 = new Chapter4(this);
   // ---------------------------------------------------------------- helpers
   fmt(text: string) {
     const L = (a: Parameters<typeof input.label>[0]) => {
@@ -97,7 +101,10 @@ export class Story {
     if (setQuest(s, id, stage, done)) {
       const q = QUESTS.find((x) => x.id === id);
       if (!q) return;
-      if (done) G.ui.toast(`Quest complete — ${q.title}`, 'good');
+      if (done) {
+        G.ui.toast(`Quest complete — ${q.title}`, 'good');
+        islandNotify('QUEST COMPLETE', '#9fe39a', 'journal', 2.6);
+      }
       else if (!before) G.ui.toast(`New quest — ${q.title}`, 'info');
       else G.ui.toast(`Quest updated — ${q.title}`, 'info');
     }
@@ -118,6 +125,7 @@ export class Story {
   onEnter(id: string, first: boolean) {
     const s = G.save;
     if (this.ch3.onEnter(id, first)) return;
+    if (this.ch4.onEnter(id, first)) return;
     if (this.ch2.onEnter(id, first)) return;
     if (id === 'sanctuary' && !flag('intro_done')) {
       this.opening();
@@ -190,6 +198,7 @@ export class Story {
   // ---------------------------------------------------------------- triggers
   onTrigger(id: string) {
     if (this.ch3.onTrigger(id)) return;
+    if (this.ch4.onTrigger(id)) return;
     if (this.ch2.onTrigger(id)) return;
     switch (id) {
       case 'steps_cutscene': if (!flag('collapsed')) this.collapse(); break;
@@ -423,6 +432,7 @@ export class Story {
     const s = G.save;
     n.talkT = 4;
     if (await this.ch3.talk(n)) return;
+    if (await this.ch4.talk(n)) return;
     if (await this.ch2.talk(n)) return;
     switch (n.kind) {
       case 'mara': return this.talkMara();
@@ -546,6 +556,7 @@ export class Story {
       if (id === 'eph610') this.secret('cistern_chest_area');
       this.ch2.onLore(id);
       this.ch3.onLore(id);
+      this.ch4.onLore(id);
     }
     this.checkMara();
   }
@@ -596,6 +607,7 @@ export class Story {
     const key = id === 'cistern_chest_area' ? 'cistern_chest' : id;
     if (this.ch2.secret(key)) return;
     if (this.ch3.secret(key)) return;
+    if (this.ch4.secret(key)) return;
     if (!SECRET_IDS.includes(key) || s.secrets.includes(key)) return;
     s.secrets.push(key);
     sfx('lootRare', { vol: 0.6 });
@@ -632,7 +644,7 @@ export class Story {
   async purify(e: Enemy) {
     const W = G.world;
     const s = G.save;
-    const species = ({ archer: 'archer', brute: 'brute', bulwark: 'bulwark', knight: 'knight' } as Record<string, string>)[e.kind] ?? 'sentinel';
+    const species = ({ archer: 'archer', brute: 'brute', bulwark: 'bulwark', knight: 'knight', lion: 'lion' } as Record<string, string>)[e.kind] ?? 'sentinel';
     const first = s.echoes.length === 0;
     this.cine(true);
     W.player.anim.play('invoke', 0.15, true);
@@ -688,6 +700,7 @@ export class Story {
     if (W.gateClosed && !W.bossActive && !(W.room.id === 'tower_upper' && !flag('guard_cleared'))) W.closeGate(false);
     this.ch2.onPurified(e.elite);
     this.ch3.onPurified(e.elite);
+    this.ch4.onPurified(e.elite);
     if (e.elite === 'chamber_sentinel') {
       setFlag('chamber_done');
       setFlag('has_echo');
