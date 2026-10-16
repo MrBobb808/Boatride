@@ -6,6 +6,7 @@ import { moveBody, touchesTile } from './physics';
 import { T } from './tiles';
 import { Animator, solve, Chain, drawRibbon, newJoints, type Joints, type Pose, BASE_POSE } from '../render/skeleton';
 import { drawHumanoid, drawTrail, type HumanStyle } from '../render/actors';
+import { drawHeroSprite, heroSpriteReady, type HeroSpriteAction } from '../render/heroSprites';
 import { glow, rgba, circle, type Ctx } from '../render/draw';
 import { fx, PK } from '../render/fx';
 import { input } from '../core/input';
@@ -1498,6 +1499,8 @@ export class Player extends Entity {
       ctx.globalCompositeOperation = 'source-over';
       return;
     }
+    // The illustrated atlas handles Elior's scarf; classic poses retain the old ribbon.
+    const illustrated = heroSpriteReady(s, this.state, this.mantleT);
     // cape & scarf (world space, behind body)
     const lv = G.save.level;
     if (this.mantleT > 0) {
@@ -1506,7 +1509,7 @@ export class Player extends Entity {
       drawRibbon(ctx, this.cape, 9, 13, '#3a1418', '#0a070c');
       if (lv >= 7) drawRibbon(ctx, this.cape, 1.5, 2, '#e2b85a');
     }
-    drawRibbon(ctx, this.scarf, 3.4, 1.4, s.scarf ?? '#8f2a2a', '#0a070c');
+    if (!illustrated) drawRibbon(ctx, this.scarf, 3.4, 1.4, s.scarf ?? '#8f2a2a', '#0a070c');
     // aura
     if (this.aura > 0.01) {
       ctx.globalCompositeOperation = 'lighter';
@@ -1533,7 +1536,11 @@ export class Player extends Entity {
     if (blink) ctx.globalAlpha = 0.55;
     const eye = this.mantleT > 0 || this.state === 'transform' ? 1 : this.state === 'cast' || this.lion > 0 || this.armorLight > 0 || this.state === 'execute' ? 0.9 : 0;
     s.eyeGlow = eye;
-    const w = drawHumanoid(ctx, this.j, s, t, this.pose.rot, this.body.vx * this.face, this.body.onGround ? 0 : this.body.vy);
+    const attackProgress = this.atk ? clamp(this.atkT / Math.max(0.01, this.atk.dur / this.aspd()), 0, 1) : 0;
+    const w = illustrated
+      ? drawHeroSprite(ctx, this.j, s, t, this.state as HeroSpriteAction, this.body.vx * this.face,
+          this.body.onGround, this.body.vy, attackProgress, this.pose.rot)
+      : drawHumanoid(ctx, this.j, s, t, this.pose.rot, this.body.vx * this.face, this.body.onGround ? 0 : this.body.vy);
     this.lastWpn.bx = w.bx; this.lastWpn.by = w.by; this.lastWpn.tx = w.tx; this.lastWpn.ty = w.ty;
     if (this.flash > 0) {
       ctx.globalCompositeOperation = 'lighter';
