@@ -143,11 +143,13 @@ export class Weigher extends BossBase {
   dropY = 0;
   dropR = 0;
   crownDrop = 0;
+  /** The beam slides off his shoulders before it tips (so it never crosses his face). */
+  beamSag = 0;
   crownX = 0;
   crownY = 0;
 
   constructor(x: number, y: number) {
-    super('weigher', x, y, 52, 124, 80000);
+    super('weigher', x, y, 52, 124, 72000);
     this.name = 'The Weigher';
     this.sub = 'Lord of the Feast, Given to the Veil';
     this.maxPoise = this.poise = 900;
@@ -165,7 +167,7 @@ export class Weigher extends BossBase {
   }
 
   get dmg() {
-    return 66 * this.ngMul * (this.phase >= 3 ? 1.12 : 1);
+    return 60 * this.ngMul * (this.phase >= 3 ? 1.12 : 1);
   }
   get spd() {
     return this.phase >= 3 ? 1.2 : this.phase === 2 ? 1.12 : 1;
@@ -180,7 +182,7 @@ export class Weigher extends BossBase {
     return this.y - HOVER - this.sink + Math.sin(G.time * 1.6 + a.bob) * 2 * (1 - this.sink / 30);
   }
   beamY(a: Actor) {
-    return this.baseOf(a) - lerp(90, 128, a.lift) + this.sink * 0.2;
+    return this.baseOf(a) - lerp(90, 128, a.lift) + this.sink * 0.2 + this.beamSag;
   }
   /** Beam end (pan anchor) in world space for pan i. */
   anchor(i: number) {
@@ -355,7 +357,7 @@ export class Weigher extends BossBase {
         else if (i === 0) want = clamp(p.x + (p.x < this.homeX - 120 ? 170 : -170), left, right);
         else want = clamp(p.x + (p.x < this.acts[0].x ? -80 : 80), left, right);
         // The halves keep their sides: the left half stays left of the right one.
-        if (n === 2) want = i === 0 ? Math.min(want, this.acts[1].x - 70) : Math.max(want, this.acts[0].x + 70);
+        if (n === 2) want = i === 0 ? Math.min(want, this.acts[1].x - 90) : Math.max(want, this.acts[0].x + 90);
         a.vx = approach(a.vx, clamp((want - a.x) * 1.2, -70, 70) * this.spd, 160 * dt);
         a.x += a.vx * dt;
         a.lift = approach(a.lift, this.phase >= 2 ? 0.8 : 0.35, dt);
@@ -366,10 +368,11 @@ export class Weigher extends BossBase {
       } else this.runAttack(a, i, dt, n);
     }
     if (n === 1) this.acts[1].x = this.acts[0].x;
-    else if (this.acts[0].x > this.acts[1].x - 40) {
-      const mid = (this.acts[0].x + this.acts[1].x) / 2;
-      this.acts[0].x = Math.max(left, mid - 20);
-      this.acts[1].x = Math.min(right, mid + 20);
+    else if (this.acts[0].x > this.acts[1].x - 80) {
+      // Never let the halves overlap, even against a wall.
+      const mid = clamp((this.acts[0].x + this.acts[1].x) / 2, left + 40, right - 40);
+      this.acts[0].x = mid - 40;
+      this.acts[1].x = mid + 40;
     }
     this.x = this.acts[0].x;
   }
@@ -798,8 +801,9 @@ export class Weigher extends BossBase {
     this.camF.y = this.y - 70;
     G.camera.focus = this.camF;
     if (t < 0.9) {
-      // The beam tips hard; the chains give way.
-      a.tilt = approach(a.tilt, 0.95, dt * 2);
+      // The beam slides down off his shoulders to his waist, then tips hard; the chains give way.
+      this.beamSag = approach(this.beamSag, 34, dt * 90);
+      a.tilt = this.beamSag < 30 ? approach(a.tilt, 0.15, dt * 2) : approach(a.tilt, 0.6, dt * 2.4);
       if (this.introT === 20 && t > 0.5) {
         this.introT = 21;
         sfx('chainRattle', { vol: 1, pitch: 1.2 });

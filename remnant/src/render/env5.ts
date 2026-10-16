@@ -1539,7 +1539,37 @@ const paletteColumn: PropFn = (ctx, e) => {
     ctx.lineTo(fx, -13);
   }
   ctx.stroke();
-  for (const f of [0.33, 0.66]) {
+  // a gilt collar at eye height, with a lamp on a bracket where the columns are tall
+  const cy = -Math.min(H * 0.42, 120);
+  ctx.fillStyle = GOLD_DK;
+  ctx.fillRect(-11.5, cy - 5, 23, 10);
+  ctx.fillStyle = GOLD;
+  ctx.fillRect(-11.5, cy - 5, 23, 1.4);
+  ctx.fillRect(-11.5, cy + 3.6, 23, 1.4);
+  rosette(ctx, -4.5, cy, 2.4);
+  rosette(ctx, 4.5, cy, 2.4);
+  if (H > 200) {
+    ctx.strokeStyle = GOLD_DK;
+    ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    ctx.moveTo(-10, cy + 10);
+    ctx.quadraticCurveTo(-18, cy + 8, -19, cy - 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.ellipse(-19, cy - 2, 4.4, 1.8, 0, 0, Math.PI);
+    ctx.fillStyle = GOLD;
+    ctx.fill();
+    ctx.fillStyle = '#ffe8a8';
+    ctx.beginPath();
+    ctx.moveTo(-20.4, cy - 2);
+    ctx.quadraticCurveTo(-19.6, cy - 6.5, -19, cy - 7.6);
+    ctx.quadraticCurveTo(-18, cy - 5, -17.6, cy - 2);
+    ctx.fill();
+    ctx.globalCompositeOperation = 'lighter';
+    blob(ctx, LAMP, -19, cy - 5, 20, 20, 0.5);
+    ctx.globalCompositeOperation = 'source-over';
+  }
+  for (const f of [0.2, 0.75]) {
     const by = top + (-12 - top) * f;
     ctx.fillStyle = GOLD_DK;
     ctx.fillRect(-10.5, by, 21, 3);
@@ -2051,7 +2081,7 @@ const treasureHeap: PropFn = (ctx, e, pal, rng) => {
 /** The great balance of the Hall of Scales: its stepped base and post (beam and pans swing live). */
 const balanceBase: PropFn = (ctx, e) => {
   const W = (e.w ?? 30) * TILE, H = (e.h ?? 20) * TILE;
-  const piv = -H * 0.86;
+  const piv = -H * 0.72;
   for (const [hw, y0, hh] of [[W * 0.16, 0, 8], [W * 0.12, -8, 7], [W * 0.08, -15, 6]] as const) {
     ctx.beginPath();
     ctx.rect(-hw, y0 - hh, hw * 2, hh);
@@ -2621,7 +2651,7 @@ export function drawLivePropCh5(ctx: Ctx, e: Decor, t: number) {
     }
     case 'balance_scales': {
       const W = (e.w ?? 30) * TILE, H = (e.h ?? 20) * TILE;
-      const px = x, py = y - H * 0.86, L = W * 0.4, D = H * 0.42;
+      const px = x, py = y - H * 0.72, L = W * 0.4, D = H * 0.38;
       const a = (scaleTilt + Math.sin(t * 0.45) * 0.02) * fx;
       const ca = Math.cos(a), sa = Math.sin(a);
       // chains and pans first, so the beam crosses over them

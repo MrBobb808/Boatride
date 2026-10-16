@@ -7,6 +7,7 @@ import { RNG, hash2, fbm1, clamp } from '../core/math';
 import { TILE, T, isSolid, type Grid, type Biome, type EntDef } from '../game/tiles';
 import { buildParallaxCh2, drawDuskSky, drawPropCh2, drawPitch } from './env2';
 import { buildParallaxCh3, drawValleySky, drawCaveSky, drawVoidSky, drawHiveWall, drawSolidCh3, drawOneWayCh3, drawLiquidCh3, drawPropCh3, drawLivePropCh3, isCh3, LIVE_CH3 } from './env3';
+import { DEN_SEED, FEAST_SEED, drawDenWall, drawDenTile } from './env4';
 import { buildParallaxCh4, drawSkyCh4, drawSolidCh4, drawOneWayCh4, drawSpikesCh4, drawLiquidCh4, drawPropCh4, drawLivePropCh4, isCh4, LIVE_CH4, BACKDROP_CH4 } from './env4';
 import { buildParallaxCh5, drawSkyCh5, drawSolidCh5, drawOneWayCh5, drawSpikesCh5, drawLiquidCh5, drawPropCh5, drawLivePropCh5, isCh5, LIVE_CH5, BACKDROP_CH5 } from './env5';
 
@@ -404,7 +405,10 @@ export class TileCache {
     const tx0 = Math.floor((cx * CH) / TILE) - 1, ty0 = Math.floor((cy * CH) / TILE) - 1;
     const tx1 = tx0 + CH / TILE + 2, ty1 = ty0 + CH / TILE + 2;
     // Back wall for interiors.
-    if (this.interior && pal.back && (this.biome === 'sanctuary' || this.biome === 'crypt' || this.biome === 'tower')) {
+    if (this.interior && this.biome === 'crypt' && this.seed === DEN_SEED) {
+      // the lions' den dresses the crypt's walls as rough, clawed stone
+      drawDenWall(ctx, Math.max(0, tx0) * TILE, Math.max(0, ty0) * TILE, Math.min(g.w, tx1 + 1) * TILE, Math.min(g.h, ty1 + 1) * TILE);
+    } else if (this.interior && pal.back && (this.biome === 'sanctuary' || this.biome === 'crypt' || this.biome === 'tower')) {
       for (let ty = ty0; ty <= ty1; ty++) {
         for (let tx = tx0; tx <= tx1; tx++) {
           if (tx < 0 || ty < 0 || tx >= g.w || ty >= g.h) continue;
@@ -591,6 +595,7 @@ export class TileCache {
       ctx.fillStyle = rgba('#000000', 0.3);
       ctx.fillRect(x + TILE - 1.8, y, 1.8, TILE);
     }
+    if (this.seed === DEN_SEED && this.biome === 'crypt') drawDenTile(ctx, tx, ty, up);
     this.drawMarks(ctx, x, y, t);
   }
 
@@ -644,7 +649,7 @@ export function drawProp(ctx: Ctx, e: Extract<EntDef, { t: 'decor' }>, pal: Biom
   const rng = new RNG(seed + Math.floor(e.x * 31 + e.y * 7));
   const o = '#08060a';
   ctx.save();
-  if (drawPropCh2(ctx, e, pal, seed) || drawPropCh3(ctx, e, pal, seed) || drawPropCh4(ctx, e, pal, seed) || drawPropCh5(ctx, e, pal, seed)) {
+  if (drawPropCh2(ctx, e, pal, seed) || drawPropCh3(ctx, e, pal, seed) || drawPropCh4(ctx, e, pal, seed, isCh5(biome) || seed === FEAST_SEED) || drawPropCh5(ctx, e, pal, seed)) {
     ctx.restore();
     return;
   }

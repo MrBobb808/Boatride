@@ -35,7 +35,11 @@ const EMBER_HI = '#ffc060';
  */
 const IMAGE_FAR: Record<number, number> = { 503: 0.25, 571: 1 };
 /** Seed of the Chapter V streets: the same city on the night of the feast. */
-const FEAST_SEED = 613;
+export const FEAST_SEED = 613;
+/** Seed of the lions' den (Chapter IV), which dresses the shared crypt biome as a den. */
+export const DEN_SEED = 541;
+/** Set per prop by drawPropCh4: the wall is being drawn on a Chapter V night. */
+let wallNight = false;
 
 // ---------------------------------------------------------------- helpers
 
@@ -2522,6 +2526,27 @@ const cityWall: PropFn = (ctx, e, pal, rng) => {
   g.addColorStop(1, 'rgba(0,0,12,0.35)');
   ctx.fillStyle = g;
   ctx.fillRect(Math.max(x0, v[0]), top, Math.min(x1, v[2]) - Math.max(x0, v[0]), -top);
+  if (wallNight) {
+    // The night of the feast: the glaze sinks into moonlit navy, lamps burn along the wall.
+    ctx.globalCompositeOperation = 'source-atop';
+    ctx.fillStyle = 'rgba(6,10,30,0.52)';
+    ctx.fillRect(Math.max(x0, v[0]), -H - 14, Math.min(x1, v[2]) - Math.max(x0, v[0]), H + 14);
+    ctx.fillStyle = 'rgba(170,190,255,0.22)';
+    ctx.fillRect(Math.max(x0, v[0]), top - 6, Math.min(x1, v[2]) - Math.max(x0, v[0]), 5);
+    ctx.globalCompositeOperation = 'lighter';
+    for (let i = 0; i <= n; i++) {
+      const cx = x0 + i * step;
+      if (cx < v[0] - 60 || cx > v[2] + 60 || cx < x0 + 8 || cx > x1 - 8) continue;
+      blob(ctx, '#ff9a4a', cx, -H + 23, 9, 11, 0.7);
+    }
+    for (let i = 0; i < n; i++) {
+      const cx = x0 + (i + 0.5) * step;
+      if (cx < v[0] - 60 || cx > v[2] + 60) continue;
+      blob(ctx, '#ff9040', cx, -14, step * 0.38, 30, 0.32);
+      blob(ctx, '#ffc070', cx, ly - 14, step * 0.3, 20, 0.12);
+    }
+    ctx.globalCompositeOperation = 'source-over';
+  }
 };
 
 /** The great gate: twin towers and a round-arched passage, rows of golden lions and dragons. */
@@ -3998,9 +4023,10 @@ const PROPS: Record<string, PropFn> = {
 export const BACKDROP_CH4: ReadonlySet<string> = new Set(['ziggurat', 'city_wall', 'gate_arch', 'furnace_wall']);
 
 /** Chapter IV props. Returns false for kinds it does not know. */
-export function drawPropCh4(ctx: Ctx, e: Decor, pal: BiomePal, seed: number): boolean {
+export function drawPropCh4(ctx: Ctx, e: Decor, pal: BiomePal, seed: number, night = false): boolean {
   const fn = PROPS[e.k];
   if (!fn) return false;
+  wallNight = night;
   // Tile chunks are baked with a plain scale+translate; skip props that miss this chunk entirely.
   const b = BOUNDS[e.k]?.(e);
   const m = ctx.getTransform();
@@ -4188,5 +4214,96 @@ export function drawLivePropCh4(ctx: Ctx, e: Decor, t: number) {
       ctx.globalCompositeOperation = 'source-over';
       break;
     }
+  }
+}
+
+// ---------------------------------------------------------------- the lions' den
+
+/**
+ * The den's walls, drawn in place of the crypt's brick back wall: rough-hewn stone
+ * gone brown with age, scored by claws, old rings set into it, damp streaks.
+ */
+export function drawDenWall(ctx: Ctx, x0: number, y0: number, x1: number, y1: number) {
+  ctx.fillStyle = '#211a17';
+  ctx.fillRect(x0, y0, x1 - x0, y1 - y0);
+  brickField(ctx, x0, y0, x1, y1, 26, 13, ['#2a221d', '#251e1a', '#30271f', '#1e1814'], 541, 'rgba(0,0,0,0.55)', 0.9);
+  ctx.fillStyle = 'rgba(255,220,180,0.05)';
+  for (let y = Math.ceil(y0 / 13) * 13; y < y1; y += 13) ctx.fillRect(x0, y + 1, x1 - x0, 1);
+  // damp running down the stone
+  ctx.fillStyle = 'rgba(0,0,0,0.22)';
+  for (let x = Math.floor(x0 / 40) * 40; x < x1; x += 40) {
+    if (hash2(x, 3, 551) < 0.5) continue;
+    const sx = x + hash2(x, 5, 551) * 30;
+    ctx.fillRect(sx, y0, 3 + hash2(x, 7, 551) * 4, y1 - y0);
+  }
+  // claw marks in sets of four, raked where the lions have tried the walls
+  for (let cy = Math.floor(y0 / 64) * 64; cy < y1; cy += 64)
+    for (let cx = Math.floor(x0 / 64) * 64; cx < x1; cx += 64) {
+      if (hash2(cx, cy, 552) < 0.45) continue;
+      const mx = cx + 10 + hash2(cx, cy, 553) * 40, my = cy + 10 + hash2(cx, cy, 554) * 40;
+      const a = (hash2(cx, cy, 555) - 0.5) * 0.8, L = 14 + hash2(cx, cy, 556) * 12;
+      const dx = Math.sin(a) * L, dy = Math.cos(a) * L;
+      for (const [c, o] of [['rgba(0,0,0,0.55)', 0.8], ['rgba(214,190,160,0.4)', 0]] as const) {
+        ctx.strokeStyle = c;
+        ctx.lineWidth = 0.9;
+        ctx.beginPath();
+        for (let k = 0; k < 4; k++) {
+          ctx.moveTo(mx + k * 3.4 + o, my + o);
+          ctx.quadraticCurveTo(mx + k * 3.4 + dx * 0.5 + 1 + o, my + dy * 0.5 + o, mx + k * 3.4 + dx + o, my + dy + o);
+        }
+        ctx.stroke();
+      }
+    }
+  // iron rings set in the wall, a broken chain hanging from some
+  for (let cx = Math.floor(x0 / 96) * 96 + 48; cx < x1; cx += 96) {
+    const ry = 150 + hash2(cx, 1, 557) * 120;
+    if (ry < y0 - 40 || ry > y1 + 10) continue;
+    ctx.strokeStyle = '#141010';
+    ctx.lineWidth = 2.4;
+    ctx.beginPath();
+    ctx.arc(cx, ry, 4, 0, TAU);
+    ctx.stroke();
+    ctx.strokeStyle = '#4a3e3a';
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
+    if (hash2(cx, 2, 557) < 0.6) {
+      ctx.strokeStyle = '#3a302c';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      for (let k = 0; k < 6; k++) {
+        ctx.moveTo(cx + 1.2, ry + 5 + k * 3.6);
+        ctx.ellipse(cx, ry + 5 + k * 3.6 + 1.4, k & 1 ? 0.6 : 1.2, 1.6, 0, 0, TAU);
+      }
+      ctx.stroke();
+    }
+  }
+}
+
+/** Straw trodden into the den floor and a scatter of bone on its ledges. */
+export function drawDenTile(ctx: Ctx, tx: number, ty: number, up: boolean) {
+  if (up) return;
+  const x = tx * TILE, y = ty * TILE;
+  ctx.strokeStyle = '#a8883e';
+  ctx.lineWidth = 0.6;
+  ctx.beginPath();
+  for (let i = 0; i < 5; i++) {
+    const sx = x + hash2(tx, ty * 7 + i, 561) * 16, a = (hash2(tx, ty * 7 + i, 562) - 0.5) * 0.8;
+    ctx.moveTo(sx, y - 0.3);
+    ctx.lineTo(sx + Math.cos(a) * 6, y - 0.3 - Math.abs(Math.sin(a)) * 2.4);
+  }
+  ctx.stroke();
+  ctx.fillStyle = 'rgba(200,170,90,0.45)';
+  ctx.fillRect(x, y, TILE, 1.2);
+  if (hash2(tx, ty, 563) < 0.12) {
+    ctx.strokeStyle = '#cfc4ac';
+    ctx.lineWidth = 1.2;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    const bx = x + 3 + hash2(tx, ty, 564) * 9;
+    ctx.moveTo(bx, y - 1.2);
+    ctx.lineTo(bx + 5, y - 0.4);
+    ctx.stroke();
+    circle(ctx, bx, y - 1.2, 1, '#cfc4ac');
+    circle(ctx, bx + 5, y - 0.4, 1, '#cfc4ac');
   }
 }

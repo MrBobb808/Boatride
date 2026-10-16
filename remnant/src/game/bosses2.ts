@@ -9,6 +9,7 @@
 //   lunge, a leaping slam, blood-edge crescents, a blink behind you, and a
 //   parry that punishes careless swings. Beaten, he kneels and offers his sword.
 
+import { bossScale } from './difficulty';
 import { Entity, type HitInfo } from './entity';
 import { solve, newJoints, Chain, drawRibbon, type Joints, type Pose } from '../render/skeleton';
 import { glow, rgba, poly, circle, ellipse, limbShaded, limbStroke, lineGrad, type Ctx } from '../render/draw';
@@ -59,8 +60,11 @@ export abstract class BossBase extends Entity {
     this.heavyBody = true;
     this.layer = 4;
     this.invuln = 999;
+    const diff = bossScale();
     this.ngMul = 1 + (G.save?.ng ?? 0) * 0.6;
-    this.maxHp = this.hp = Math.round(hp * this.ngMul);
+    this.maxHp = this.hp = Math.round(hp * this.ngMul * diff.hp);
+    // Every boss's attacks scale with ngMul, so difficulty rides on it too.
+    this.ngMul *= diff.dmg;
   }
 
   get fighting() {
@@ -97,6 +101,8 @@ export abstract class BossBase extends Entity {
 
   update(dt: number) {
     if (this.chill > 0 && this.fighting) dt *= 0.75;
+    // Harder settings make the fight itself quicker, never the cutscenes.
+    if (this.fighting && this.state !== 'kneel') dt *= bossScale().tempo;
     this.st += dt;
     this.flash = Math.max(0, this.flash - dt);
     this.staggerFlash = Math.max(0, this.staggerFlash - dt);
