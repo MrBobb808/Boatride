@@ -3851,65 +3851,50 @@ const kneelingCrowd: PropFn = (ctx, e, pal, rng) => {
   }
 };
 
-/** The stepped stone dais the Image stands on: dressed blocks, gold inlay, a basalt plinth and offerings. */
+/**
+ * The stepped stone dais the Image stands on: dressed blocks, gold inlay, a gilded
+ * edge to the top step and offerings. The top step is 12 units high, matching
+ * IMAGE_DAIS_H in game/bosses4.ts, where the Image's feet are set down.
+ */
 const imageDais: PropFn = (ctx, e, pal, rng) => {
   const W = (e.w ?? 26) * TILE;
   let y = 0;
-  const steps = [[W / 2, 11], [W * 0.4, 10], [W * 0.29, 9]] as const;
+  const steps = [[W / 2, 4], [W * 0.42, 4], [W * 0.32, 4]] as const;
   for (let i = 0; i < steps.length; i++) {
     const [hw, hh] = steps[i];
-    brickField(ctx, -hw, y - hh, hw, y, 32, hh, ['#a08058', '#94744e', '#ae8c62'], 901 + i, 'rgba(40,24,10,0.45)', 0.6);
-    ctx.fillStyle = 'rgba(255,232,190,0.4)';
-    ctx.fillRect(-hw, y - hh, hw * 2, 1);
-    ctx.fillStyle = GOLD;
-    ctx.fillRect(-hw, y - hh + 2.4, hw * 2, 0.9);
-    ctx.fillStyle = 'rgba(0,0,0,0.3)';
-    ctx.fillRect(-hw, y - 1.4, hw * 2, 1.4);
+    brickField(ctx, -hw, y - hh, hw, y, 28, hh, ['#a08058', '#94744e', '#ae8c62'], 901 + i, 'rgba(40,24,10,0.45)', 0.5);
+    ctx.fillStyle = 'rgba(255,232,190,0.45)';
+    ctx.fillRect(-hw, y - hh, hw * 2, 0.8);
+    ctx.fillStyle = 'rgba(0,0,0,0.28)';
+    ctx.fillRect(-hw, y - 0.9, hw * 2, 0.9);
     ctx.fillStyle = 'rgba(255,190,120,0.25)';
     ctx.fillRect(-hw, y - hh, 2, hh);
     ctx.fillStyle = 'rgba(30,12,4,0.35)';
     ctx.fillRect(hw - 3, y - hh, 3, hh);
     y -= hh;
   }
-  // the plinth of black stone, banded with gold and written over
-  const pw = W * 0.17, ph = 9;
-  ctx.beginPath();
-  ctx.rect(-pw, y - ph, pw * 2, ph);
-  solidify(ctx, metalGrad(ctx, -pw, pw, ['#2e2a32', '#6a6070', '#121016']), OUT, 0.5);
+  // the top step's face: black stone banded in gold and written over
+  const tw = W * 0.32;
+  ctx.fillStyle = '#2a2630';
+  ctx.fillRect(-tw + 6, -11.2, tw * 2 - 12, 3);
   ctx.fillStyle = GOLD;
-  ctx.fillRect(-pw, y - ph, pw * 2, 1.2);
-  ctx.fillRect(-pw, y - 1.6, pw * 2, 1);
-  ctx.fillStyle = 'rgba(232,200,120,0.5)';
-  for (let xx = -pw + 3; xx < pw - 3; xx += rng.range(1.6, 2.8)) {
+  ctx.fillRect(-tw, -12, tw * 2, 0.9);
+  ctx.fillRect(-tw + 6, -8.2, tw * 2 - 12, 0.6);
+  ctx.fillStyle = 'rgba(232,200,120,0.55)';
+  for (let xx = -tw + 8; xx < tw - 8; xx += rng.range(1.6, 2.8)) {
     ctx.beginPath();
-    ctx.moveTo(xx, y - 6.4);
-    ctx.lineTo(xx + 1.2, y - 5.9);
-    ctx.lineTo(xx, y - 5.4);
+    ctx.moveTo(xx, -10.6);
+    ctx.lineTo(xx + 1.1, -10.1);
+    ctx.lineTo(xx, -9.6);
     ctx.fill();
   }
   for (const sx of [-1, 1]) {
     ctx.fillStyle = GOLD;
-    ctx.fillRect(sx < 0 ? -pw - 1 : pw - 3, y - ph - 1, 4, ph + 1);
+    ctx.fillRect(sx < 0 ? -tw : tw - 3, -12, 3, 4);
   }
-  // a central stair up the front
-  ctx.fillStyle = '#b8966a';
-  ctx.fillRect(-22, -30, 44, 30);
-  ctx.strokeStyle = 'rgba(50,28,10,0.5)';
-  ctx.lineWidth = 0.6;
-  ctx.beginPath();
-  for (let yy = -3.75; yy > -30; yy -= 3.75) {
-    ctx.moveTo(-22, yy);
-    ctx.lineTo(22, yy);
-  }
-  ctx.stroke();
-  ctx.fillStyle = 'rgba(255,236,200,0.3)';
-  for (let yy = -3.75; yy > -30; yy -= 3.75) ctx.fillRect(-22, yy, 44, 0.6);
-  ctx.fillStyle = GOLD;
-  ctx.fillRect(-23.5, -30, 2, 30);
-  ctx.fillRect(21.5, -30, 2, 30);
   // offerings left on the steps: gold bowls, incense rising, scattered petals
-  for (const ox of [-W * 0.33, W * 0.31, -W * 0.18, W * 0.2]) {
-    const oy = Math.abs(ox) > W * 0.29 ? -11 : -21;
+  for (const ox of [-W * 0.46, W * 0.45, -W * 0.37, W * 0.36]) {
+    const oy = Math.abs(ox) > W * 0.42 ? -4 : -8;
     ctx.beginPath();
     ctx.ellipse(ox, oy - 1.4, 3.4, 1.6, 0, 0, Math.PI);
     ctx.lineTo(ox - 3.4, oy - 1.4);
@@ -3921,7 +3906,7 @@ const imageDais: PropFn = (ctx, e, pal, rng) => {
     ctx.bezierCurveTo(ox + 3, oy - 8, ox - 3, oy - 12, ox + 1, oy - 20);
     ctx.stroke();
   }
-  for (let i = 0; i < 24; i++) circle(ctx, rng.range(-W * 0.45, W * 0.45), -rng.range(0, 1) * 0.6 - (rng.chance(0.5) ? 0 : 11), 0.6, rng.chance(0.5) ? '#a82a2a' : '#e8c060');
+  for (let i = 0; i < 24; i++) circle(ctx, rng.range(-W * 0.48, W * 0.48), -0.4 - (rng.chance(0.5) ? 0 : 4), 0.6, rng.chance(0.5) ? '#a82a2a' : '#e8c060');
   ctx.fillStyle = pal.cap;
   ctx.beginPath();
   ctx.moveTo(-W / 2 - 16, 1);
@@ -3956,7 +3941,7 @@ const BOUNDS: Record<string, (e: Decor) => [number, number, number, number]> = {
   brick_ruin: (e) => { const W = (e.w ?? 5) * TILE, H = (e.h ?? 3.6) * TILE; return [-W * 0.75, -H - 6, W * 0.75, 4]; },
   obelisk: (e) => [-20, -(e.h ?? 7) * TILE - 16, 20, 4],
   kneeling_crowd: (e) => { const W = (e.w ?? 12) * TILE; return [-W / 2 - 12, -32, W / 2 + 26, 4]; },
-  image_dais: (e) => { const W = (e.w ?? 26) * TILE; return [-W / 2 - 20, -64, W / 2 + 20, 4]; },
+  image_dais: (e) => { const W = (e.w ?? 26) * TILE; return [-W / 2 - 20, -36, W / 2 + 20, 4]; },
 };
 
 const PROPS: Record<string, PropFn> = {
