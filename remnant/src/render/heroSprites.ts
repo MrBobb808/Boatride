@@ -11,11 +11,12 @@ const FRAME_H = 48;
 const art = new Image();
 art.decoding = 'async';
 art.src = atlasUrl;
+const classicArt = new URLSearchParams(window.location.search).has('classicArt');
 
 export type HeroSpriteAction = 'free' | 'attack' | 'charge' | 'dodge' | 'airdash' | 'cast' | 'hurt';
 
 export function heroSpriteReady(style: HumanStyle, action: string, mantle: number): action is HeroSpriteAction {
-  if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('classicArt')) return false;
+  if (classicArt) return false;
   return art.complete && art.naturalWidth === FRAME_W * 16 && art.naturalHeight === FRAME_H * 3 &&
     style.helm === 'none' && mantle <= 0 &&
     (action === 'free' || action === 'attack' || action === 'charge' ||
