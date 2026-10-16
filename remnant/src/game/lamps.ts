@@ -11,6 +11,7 @@ import { fx, PK } from '../render/fx';
 import { glow, rgba, type Ctx } from '../render/draw';
 import { lighting } from '../render/lighting';
 import { sfx } from '../audio/audio';
+import { input } from '../core/input';
 import { RNG, rand, choose, overlaps, type Rect } from '../core/math';
 import { SUBS, SUB_IDS, MAX_HEARTS, type SubId } from './subweapons';
 import { chapterOf } from './rooms';
@@ -35,6 +36,7 @@ export class Lamp extends Entity {
   smash() {
     if (this.remove) return;
     this.remove = true;
+    input.rumble(0, 0.3, 40);
     const x = this.x, y = this.y - 8;
     sfx('shatter', { vol: 0.35, pitch: 2.2 });
     fx.spawn(PK.Smoke, x, y, 0, -30, 0.5, 3, 8, '#3a3030', -20, 2);

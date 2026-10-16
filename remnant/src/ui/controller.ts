@@ -7,6 +7,7 @@ import { settings, saveSettings } from '../core/settings';
 import { h, btn } from './dom';
 
 let waiting: Action | null = null;
+let rumbleNote = '';
 
 /** Stop waiting for a button (the menu closed or the player changed their mind). */
 export function cancelPadCapture() {
@@ -65,12 +66,23 @@ export function controllerBox(rerender: () => void): HTMLElement {
       'Select an action, then press the controller button you want for it. Menus always use ✕ / A to confirm and ○ / B to go back. Move and aim combos with the left stick (up + Attack launches, down + Attack plunges); the D-pad holds quick actions. The Shadow Mantle is L3 + R3 together unless you give it a button of its own. Leave the PS / Home button alone; the iPhone uses it.'),
     rows,
     h('div', { class: 'set-row' },
-      h('label', null, 'Rumble', h('small', null, 'Controller vibration on hits, parries, finishers and the Mantle, where the browser supports it.')),
+      h('label', null, 'Rumble', h('small', null, 'Controller vibration on hits, parries, plunges, finishers, the Mantle and boss kills, where the browser supports it.')),
       h('div', { class: 'seg' },
         btn('On', () => { st.rumble = true; saveSettings(); rerender(); }, 'btn' + (st.rumble ? ' on' : ''), { 'data-k': 'rum_on' }),
         btn('Off', () => { st.rumble = false; saveSettings(); rerender(); }, 'btn' + (!st.rumble ? ' on' : ''), { 'data-k': 'rum_off' }),
+        btn('Test', () => {
+          const can = input.canRumble();
+          if (can === null) rumbleNote = 'Connect a controller and press any button on it first.';
+          else if (!can) rumbleNote = 'This browser cannot make the controller vibrate. Safari on iPhone and iPad has not supported controller vibration so far (Safari on a Mac and Chrome do). Everything else works, and the game will rumble as soon as iOS allows it.';
+          else {
+            input.rumble(0.9, 0.9, 450, true);
+            rumbleNote = 'Sent a half-second rumble. If you felt nothing, check that the controller is charged and that Rumble is On.';
+          }
+          rerender();
+        }, 'btn', { 'data-k': 'rum_test' }),
       ),
     ),
+    rumbleNote ? h('p', { class: 'muted', 'data-k': 'rum_note', style: 'margin:0 0 6px;font-size:0.85em' }, rumbleNote) : null,
     h('div', { style: 'margin-top:8px' }, btn('Reset controller buttons', () => { cancelPadCapture(); st.pad = {}; saveSettings(); rerender(); }, 'btn small', { 'data-k': 'pad_reset' })),
   );
 }
