@@ -223,11 +223,11 @@ export class GoldenImage extends BossBase {
   sink = 0;
 
   constructor(x: number, y: number) {
-    super('golden_image', x, y, 64, 150, 24000);
+    super('golden_image', x, y, 64, 150, 30000);
     this.name = 'The Image of Gold';
     this.sub = 'Idol of the Plain of Dura';
-    this.maxPoise = this.poise = 420;
-    this.kneelTime = 4.2;
+    this.maxPoise = this.poise = 700;
+    this.kneelTime = 3.8;
     this.face = -1;
     this.homeX = x;
     this.hitColor = '#ffe6a8';
@@ -248,7 +248,7 @@ export class GoldenImage extends BossBase {
   }
 
   get dmg() {
-    return 52 * this.ngMul * (this.phase >= 3 ? 1.15 : 1);
+    return 58 * this.ngMul * (this.phase >= 3 ? 1.15 : 1);
   }
   get spd() {
     return this.phase >= 3 ? 1.3 : this.phase === 2 ? 1.15 : 1;
@@ -795,7 +795,7 @@ export class GoldenImage extends BossBase {
     this.breathOn = 0;
     this.turnSq = 1;
     this.phase = 2;
-    this.maxPoise = this.poise = 460;
+    this.maxPoise = this.poise = 760;
     this.introT = 0;
     G.inCutscene = true;
     G.ui.cinematicBars(true);
@@ -850,7 +850,7 @@ export class GoldenImage extends BossBase {
 
   enterPhase3() {
     this.phase = 3;
-    this.maxPoise = Math.max(this.maxPoise, 480);
+    this.maxPoise = Math.max(this.maxPoise, 800);
     this.crFeet = Math.max(this.crFeet, 0.65);
     this.rainT = 2;
     sfx('furnaceBlast', { vol: 1, pitch: 0.8 });
