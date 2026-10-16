@@ -1024,7 +1024,7 @@ export class Weigher extends BossBase {
     ctx.stroke();
     // The beam across the shoulders (or held aloft), behind the hands and head.
     const by = this.beamY(a) - base;
-    this.drawBeam(ctx, 0, by, a.tilt, side, a.lift > 0.6 ? 0 : 1);
+    if (this.beamDrop <= 0) this.drawBeam(ctx, 0, by, a.tilt, side, a.lift > 0.6 ? 0 : 1);
     // Arms up to the beam; the writing hand leaves it.
     const ct = Math.cos(a.tilt), stt = Math.sin(a.tilt);
     for (const s of [-1, 1]) {
@@ -1105,7 +1105,7 @@ export class Weigher extends BossBase {
       ctx.save();
       ctx.translate(turn * 0.4, hy - 10);
       ctx.scale(1.25, 1.25);
-      this.drawCrown(ctx, 0, 0, 0, 0);
+      if (this.crownDrop <= 0) this.drawCrown(ctx, 0, 0, 0, 0);
       ctx.restore();
     }
     if (side !== 0) {
