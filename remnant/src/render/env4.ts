@@ -34,6 +34,8 @@ const EMBER_HI = '#ffc060';
  * layer leaves it out rather than show two.
  */
 const IMAGE_FAR: Record<number, number> = { 503: 0.25, 571: 1 };
+/** Seed of the Chapter V streets: the same city on the night of the feast. */
+const FEAST_SEED = 613;
 
 // ---------------------------------------------------------------- helpers
 
@@ -1062,6 +1064,27 @@ export function buildParallaxCh4(biome: Ch4Biome, pal: BiomePal, seed: number, v
             }
           });
           x += bw + fr.range(-6, 30);
+        }
+      }
+      if (seed === FEAST_SEED) {
+        // the night of the king's feast (Chapter V): festival lanterns strung across the roofs
+        const lr = new RNG(seed + 70);
+        for (let lx = 10; lx < w - 60; lx += lr.range(70, 130)) {
+          const span = lr.range(50, 90), ly = h * lr.range(0.66, 0.76);
+          ctx.strokeStyle = 'rgba(20,14,20,0.8)';
+          ctx.lineWidth = 0.6;
+          ctx.beginPath();
+          ctx.moveTo(lx, ly);
+          ctx.quadraticCurveTo(lx + span / 2, ly + 12, lx + span, ly);
+          ctx.stroke();
+          for (let k = 1; k < 7; k++) {
+            const u = k / 7, px = lx + span * u, py = ly + 24 * u * (1 - u) + 2;
+            ctx.globalCompositeOperation = 'lighter';
+            blob(ctx, k % 3 ? '#ff9a3a' : '#ff5a4a', px, py, 6, 6, 0.55);
+            ctx.globalCompositeOperation = 'source-over';
+            ctx.fillStyle = k % 3 ? '#ffc060' : '#ff7a5a';
+            ctx.fillRect(px - 1, py - 1.4, 2, 2.8);
+          }
         }
       }
     });

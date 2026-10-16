@@ -13,6 +13,7 @@ import { Idol } from './boss';
 import { BossBase, Gatekeeper, Marshal } from './bosses2';
 import { LocustKing } from './bosses3';
 import { GoldenImage } from './bosses4';
+import { Weigher } from './bosses5';
 import { Npc, Chest, Altar, LoreStone, Shrine, Pickup, Drop, RelicVisual, type Interactable } from './props';
 import { Proj } from './projectiles';
 import { Story } from './story';
@@ -216,8 +217,8 @@ export class World {
         return;
       case 'boss':
         // The beaten Image stays on its dais until the stone falls (the story finishes it).
-        if (s.defeated.includes(e.k) && !(e.k === 'golden_image' && !flag('ch4_image_done'))) return;
-        this.boss = e.k === 'gatekeeper' ? new Gatekeeper(x, y) : e.k === 'marshal' ? new Marshal(x, y) : e.k === 'locust_king' ? new LocustKing(x, y) : e.k === 'golden_image' ? new GoldenImage(x, y) : new Idol(x, y);
+        if (s.defeated.includes(e.k) && !(e.k === 'golden_image' && !flag('ch4_image_done')) && !(e.k === 'weigher' && !flag('ch5_weigher_done'))) return;
+        this.boss = e.k === 'gatekeeper' ? new Gatekeeper(x, y) : e.k === 'marshal' ? new Marshal(x, y) : e.k === 'locust_king' ? new LocustKing(x, y) : e.k === 'golden_image' ? new GoldenImage(x, y) : e.k === 'weigher' ? new Weigher(x, y) : new Idol(x, y);
         this.add(this.boss);
         return;
     }
@@ -551,7 +552,7 @@ export class World {
     for (const e of this.ents) {
       if (!e.executable()) continue;
       if (e.isBoss) {
-        if (Math.abs(e.x - p.x) < (e instanceof Gatekeeper ? 120 : e instanceof GoldenImage ? 96 : e instanceof Marshal || e instanceof LocustKing ? 56 : 80) && Math.abs(e.y - p.y) < 60) return e;
+        if (Math.abs(e.x - p.x) < (e instanceof Gatekeeper ? 120 : e instanceof GoldenImage || e instanceof Weigher ? 96 : e instanceof Marshal || e instanceof LocustKing ? 56 : 80) && Math.abs(e.y - p.y) < 60) return e;
       } else if (Math.abs(e.x - p.x) < 36 && Math.abs(e.y - p.y) < 30) return e;
     }
     return null;
@@ -1277,6 +1278,7 @@ export class World {
     } else if (b instanceof Marshal) this.story.marshalDefeated(b);
     else if (b instanceof LocustKing) this.story.kingDefeated(b);
     else if (b instanceof GoldenImage) this.story.ch4.imageDefeated(b);
+    else if (b instanceof Weigher) this.story.ch5.weigherDefeated(b);
     else if (b instanceof Idol) {
       this.closeGate(false);
       this.story.bossDefeated(b);
