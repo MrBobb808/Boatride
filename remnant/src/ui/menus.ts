@@ -1,3 +1,4 @@
+import { islandCalibrate, ISLAND_LEN } from './island';
 // The pause menu (character, equipment, skills, Echoes, map, journal,
 // crafting, settings, system), plus the merchant, the forge and altar menus.
 
@@ -833,7 +834,9 @@ function settingsTab() {
       row('Button opacity', '', slider(st.touchOpacity, 0.3, 1, 0.05, (v) => (st.touchOpacity = v), 'top')),
       row('Left-handed layout', 'Moves the buttons to the left and the stick to the right.', toggle(st.leftHanded, (v) => (st.leftHanded = v), 'lh')),
       row('Button labels', 'Show the name under each touch button.', toggle(st.buttonLabels, (v) => (st.buttonLabels = v), 'bl')),
-      row('Dynamic Island indicator', 'On iPhones with a Dynamic Island, a living status ring around it: low health, the Shadow Mantle, Rally and news.', toggle(st.island, (v) => (st.island = v), 'di')),
+      row('Dynamic Island indicator', 'On iPhones with a Dynamic Island, a living status ring around it: low health, boss life, Rally and news. On the iPhone 18 Pro\'s smaller island, your Echoes and the Shadow Mantle bud off it too.', toggle(st.island, (v) => (st.island = v), 'di')),
+      row('Island size', 'Which iPhone the ring should hug. Auto suits the iPhone 18 Pro and Pro Max; choose 14–17 Pro for the older, longer island.', seg(st.islandSize ?? 'auto', [['auto', 'Auto'], ['compact', '18 Pro'], ['classic', '14–17 Pro'], ['custom', 'Measured']], (v) => { st.islandSize = v; islandCalibrate(); }, 'dis')),
+      row('Island length', 'Turn the phone sideways and slide until the bright outline just hugs the island. Sets the size to Measured.', slider(st.islandLen ?? ISLAND_LEN.compact, 70, 140, 1, (v) => { st.islandLen = v; st.islandSize = 'custom'; islandCalibrate(); }, 'dil')),
     ) : null,
     h('div', { class: 'box' }, h('h3', null, 'Keyboard'), h('p', { class: 'muted', style: 'margin:0 0 6px;font-size:0.85em' }, 'Select a binding, then press the new key.'),
       binds, h('div', { style: 'margin-top:8px' }, btn('Reset all settings', () => { resetSettings(); applyTextSize(); renderAny(); }, 'btn small', { 'data-k': 'reset' }))),

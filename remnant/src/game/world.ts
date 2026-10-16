@@ -30,7 +30,7 @@ import { shakeScale, settings } from '../core/settings';
 import { guidePoint } from './guide';
 import { tickStatus, powerTier, SOVEREIGN_LV } from './power';
 import { MANTLE_LV, mantleTier, mantlePerks, announceMantle } from './mantle';
-import { islandNotify } from '../ui/island';
+import { islandNotify, islandRipple } from '../ui/island';
 import { placeLamps } from './lamps';
 import { updatePending, applyUpdate } from '../core/update';
 import { FINISHERS } from './finishers';
@@ -740,6 +740,7 @@ export class World {
       this.player.styleKey = '';
       G.ui.levelUp(levels);
       islandNotify(`LEVEL ${s.level}`, '#f6dea0', 'stats', 2.8);
+      islandRipple('#ffd27a');
       for (const ec of this.echoes) ec.refreshStats();
       // New finishers and power tiers announce themselves.
       const fins = FINISHERS.filter((f) => f.level > lvBefore && f.level <= s.level && f.level > 1);
@@ -1270,6 +1271,7 @@ export class World {
   onBossDefeated(b: Idol | BossBase) {
     this.bossActive = false;
     input.rumble(1, 1, 800);
+    islandRipple('#ffe6a8', true);
     const key = b instanceof BossBase ? b.key : 'idol';
     if (!G.save.defeated.includes(key)) G.save.defeated.push(key);
     if (b instanceof Gatekeeper) {

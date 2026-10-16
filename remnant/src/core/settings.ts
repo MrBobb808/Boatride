@@ -22,6 +22,10 @@ export interface Settings {
   buttonLabels: boolean;
   /** Game status drawn around the Dynamic Island. */
   island: boolean;
+  /** The island's length: auto, the iPhone 18 Pro's smaller island, the iPhone 14-17 Pro's, or a measured length. */
+  islandSize?: 'auto' | 'compact' | 'classic' | 'custom';
+  /** Measured island length in CSS px (islandSize 'custom'). */
+  islandLen?: number;
   showFps: boolean;
   /** Settings format, for one-time migrations. */
   v: number;
@@ -65,6 +69,8 @@ const DEFAULTS: Settings = {
   guide: true,
   buttonLabels: false,
   island: true,
+  islandSize: 'auto',
+  islandLen: 96,
   showFps: false,
   v: 2,
   keys: structuredClone(DEFAULT_KEYS),
