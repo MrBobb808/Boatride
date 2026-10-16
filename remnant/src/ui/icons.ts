@@ -244,6 +244,44 @@ const ICONS: Record<string, Draw> = {
     fillPoly(x, [26, 10, 23, 13, 23, 20, 27, 24, 29, 18]);
     x.globalAlpha = 1;
   },
+  dagger: (x) => {
+    fillPoly(x, [27, 5, 13, 17, 15, 19]);
+    line(x, [10, 16, 16, 22], 2.4);
+    line(x, [6, 26, 13, 19], 3);
+  },
+  axe: (x) => {
+    line(x, [8, 27, 21, 8], 2.4);
+    fillPoly(x, [17, 5, 27, 9, 26, 17, 21, 12, 19, 10]);
+  },
+  flask: (x) => {
+    fillPoly(x, [13, 4, 19, 4, 19, 11, 25, 19, 23, 28, 9, 28, 7, 19, 13, 11]);
+    x.globalCompositeOperation = 'destination-out';
+    x.fillRect(11, 17, 10, 2);
+    x.globalCompositeOperation = 'source-over';
+  },
+  cross: (x) => {
+    x.fillRect(13.5, 3, 5, 26);
+    x.fillRect(6, 10, 20, 5);
+  },
+  sling: (x) => {
+    x.lineWidth = 2;
+    x.beginPath();
+    x.moveTo(4, 6);
+    x.quadraticCurveTo(14, 26, 22, 20);
+    x.stroke();
+    x.beginPath();
+    x.arc(24, 18, 4.5, 0, Math.PI * 2);
+    x.fill();
+  },
+  heart: (x) => {
+    x.beginPath();
+    x.moveTo(16, 28);
+    x.bezierCurveTo(2, 18, 3, 6, 10, 6);
+    x.quadraticCurveTo(14, 6, 16, 10);
+    x.quadraticCurveTo(18, 6, 22, 6);
+    x.bezierCurveTo(29, 6, 30, 18, 16, 28);
+    x.fill();
+  },
   chapters: (x) => {
     // A scroll, half unrolled.
     fillPoly(x, [7, 6, 22, 6, 22, 24, 7, 24]);

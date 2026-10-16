@@ -20,6 +20,8 @@ import { lighting } from '../render/lighting';
 import { shakeScale } from '../core/settings';
 import { Proj } from './projectiles';
 import { beginFinisher, updateFinisher, killBlow, riseAsShadow, type FinState } from './finishers';
+import { throwSub } from './subweapons';
+import { strikeLamps } from './lamps';
 import { weaponElement, elementHit, powerTier, powerDamage, isSovereign, slashColors, drawAura, auraLight, ELEMENTS } from './power';
 import {
   SHADE, SHADE_GHOST, mantleUnlocked, mantleGain, beginTransform, updateTransform, skipTransform, tickMantle, endMantle,
@@ -138,6 +140,8 @@ export class Player extends Entity {
   /** Recent eye positions (x, y pairs) for the trail of light while transformed. */
   eyeTrail = new Float32Array(20);
   eyeN = 0;
+  /** Seconds before another sub-weapon can be thrown. */
+  subCd = 0;
 
   constructor(x: number, y: number) {
     super(x, y, 12, 34);
@@ -282,6 +286,7 @@ export class Player extends Entity {
     }
     this.shieldT = Math.max(0, this.shieldT - dt);
     this.veiled = Math.max(0, this.veiled - dt);
+    this.subCd = Math.max(0, this.subCd - dt);
     this.landT = Math.max(0, this.landT - dt);
     this.lingerT = Math.max(0, this.lingerT - dt);
     if (this.lingerT <= 0) this.linger = null;
@@ -538,7 +543,8 @@ export class Player extends Entity {
           this.castFired = true;
           castAbility(this, this.castId);
         }
-        if (this.st >= (this.castId === 'armor_light' || this.castId === 'lion' ? 0.6 : 0.36)) this.setState('free');
+        // No castId: a sub-weapon throw, which only borrows the pose.
+        if (this.st >= (this.castId === 'armor_light' || this.castId === 'lion' ? 0.6 : this.castId ? 0.36 : 0.2)) this.setState('free');
         if (this.castFired && this.st > 0.2 && input.pressed('dodge')) this.startDodge();
         break;
       }
@@ -620,6 +626,12 @@ export class Player extends Entity {
     if (input.pressed('dodge')) {
       if (b.onGround) this.startDodge();
       else if (this.airDash > 0) this.startAirDash();
+      return;
+    }
+    // Sub-weapon: its own button, or the old way, up + Heavy.
+    if (input.pressed('sub') || ((input.pressed('heavy') || this.heavyQ > 0) && input.down('up'))) {
+      this.heavyQ = 0;
+      throwSub(this);
       return;
     }
     if (input.pressed('heavy') || this.heavyQ > 0) {
@@ -726,6 +738,14 @@ export class Player extends Entity {
     this.anim.play(id === 'armor_light' || id === 'lion' || id === 'trumpet' ? 'invoke' : 'cast', 0.05, true);
     G.ui.refreshHud();
     return true;
+  }
+
+  /** A quick throw for sub-weapons: on the ground Elior plants and throws; in the air the jump carries on. */
+  throwPose() {
+    if (this.state !== 'free' || !this.grounded) return;
+    this.castId = null;
+    this.setState('cast');
+    this.anim.play('cast', 0.03, true, 1.6);
   }
 
   startDodge() {
@@ -1116,6 +1136,7 @@ export class Player extends Entity {
   /** Damage everything the current attack's box overlaps (once per swing). */
   activeHits(a: AttackDef, mult: number) {
     const box = this.attackBox(a);
+    strikeLamps(box);
     const d = G.d;
     const crit = Math.random() < d.crit;
     let dmg = d.atk * a.dmg * d.meleeMult * mult * (this.lion > 0 ? 1.35 : 1) * G.world.commanderAura(this.x, this.y) * powerDamage();

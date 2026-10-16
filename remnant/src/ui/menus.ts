@@ -25,6 +25,7 @@ import { FINISHERS } from '../game/finishers';
 import { MANTLE_LV, mantlePerks } from '../game/mantle';
 import { nextChapter, travelToChapter, trainingOpen, startTraining } from '../game/chapters';
 import { chaptersTab } from './chapters';
+import { bestiaryPanes, bestiaryCount } from './bestiary';
 import { controllerBox, cancelPadCapture } from './controller';
 import { saveSlot, listSlots, deleteSlot, loadSlot, exportCode, importCode, SLOT_COUNT } from '../game/save';
 import { formatTime, clamp } from '../core/math';
@@ -540,6 +541,7 @@ function mapTab() {
   wrap.appendChild(c);
   requestAnimationFrame(() => drawMap(c));
   const lit = s.altarsLit.map((a) => ALTAR_NAMES[a] ?? a);
+  const ex = explored();
   return h('div', { class: 'col', style: 'flex:1;min-height:0' },
     wrap,
     h('div', { class: 'legend' },
@@ -548,8 +550,18 @@ function mapTab() {
       h('span', null, h('i', { style: 'background:#6a5a8a' }), 'Explored'),
       h('span', null, h('i', { style: 'background:#ffcf6b;clip-path:polygon(50% 0,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%)' }), 'Objective'),
       h('span', null, `Altars kindled: ${lit.join(', ')}`),
+      h('span', { 'data-k': 'explored' }, `Explored: ${ex.ch}% of Chapter ${['', 'I', 'II', 'III', 'IV'][ex.n]} · ${ex.all}% in all`),
     ),
   );
+}
+
+/** Rooms visited out of rooms that exist, for this chapter and the whole game (the Trial arena doesn't count). */
+function explored() {
+  const s = G.save, n = chapterOf(G.world.room.id === 'trial_arena' ? s.flags.trial_return?.toString().split('|')[0] ?? 'valley_camp' : G.world.room.id);
+  const ids = Object.keys(ROOMS).filter((id) => id !== 'trial_arena');
+  const seen = new Set(s.visited);
+  const pct = (list: string[]) => list.length ? Math.floor((100 * list.filter((id) => seen.has(id)).length) / list.length) : 0;
+  return { n, ch: pct(ids.filter((id) => chapterOf(id) === n)), all: pct(ids) };
 }
 
 const ALTAR_NAMES: Record<string, string> = {
@@ -658,7 +670,7 @@ function drawMap(c: HTMLCanvasElement) {
 
 // ---------------------------------------------------------------- journal
 
-let jView: 'quests' | 'lore' = 'quests';
+let jView: 'quests' | 'lore' | 'beasts' = 'quests';
 let jSel: string | null = null;
 
 function journalTab() {
@@ -666,6 +678,7 @@ function journalTab() {
   const sub = h('div', { class: 'modes' },
     btn('Quests', () => { jView = 'quests'; jSel = null; render(); }, 'btn small' + (jView === 'quests' ? ' primary' : ''), { 'data-k': 'jq' }),
     btn(`Inscriptions (${s.lore.length})`, () => { jView = 'lore'; jSel = null; render(); }, 'btn small' + (jView === 'lore' ? ' primary' : ''), { 'data-k': 'jl' }),
+    btn(`Bestiary (${bestiaryCount()})`, () => { jView = 'beasts'; jSel = null; render(); }, 'btn small' + (jView === 'beasts' ? ' primary' : ''), { 'data-k': 'jb' }),
   );
   let left: HTMLElement, right: HTMLElement;
   if (jView === 'quests') {
@@ -686,6 +699,8 @@ function journalTab() {
       q.id === 's_secrets' ? h('p', { class: 'muted' }, `${s.secrets.length} of 5 found.`) : null,
       q.id === 's_mara' ? h('p', { class: 'muted' }, `Temple inscriptions remembered: ${['eph610', 'eph612', 'cor104', 'isa4031', 'josh620'].filter((l) => s.lore.includes(l)).length}`) : null,
       h('div', { class: 'list', style: 'margin-top:8px' }, q.stages.slice(0, st.done ? q.stages.length : st.stage).map((t) => h('div', { class: 'muted', style: 'text-decoration:line-through;font-size:0.9em' }, t)))) : h('div', { class: 'box muted' }, 'Select a quest.');
+  } else if (jView === 'beasts') {
+    [left, right] = bestiaryPanes(jSel, (id) => { jSel = id; render(); });
   } else {
     if (!jSel && s.lore[0]) jSel = s.lore[0];
     left = h('div', { class: 'list' }, s.lore.length ? s.lore.map((id) => h('button', { class: 'row-item' + (id === jSel ? ' sel' : ''), 'data-nav': '', 'data-k': 'l_' + id, onclick: () => { jSel = id; render(); } },

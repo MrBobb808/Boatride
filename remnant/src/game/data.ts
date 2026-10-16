@@ -272,6 +272,19 @@ export const ECHO_SPECIES: Record<string, EchoSpecies> = {
       { name: 'Wing of the Covenant', title: 'Stage III', desc: 'White-gold wings and a crown of light.', ability: 'Years Restored: his finishers loose crescents of light.' },
     ],
   },
+  lion: {
+    id: 'lion',
+    cls: 'Vanguard',
+    baseHp: 220,
+    baseAtk: 26,
+    evolveLv: [5, 9],
+    evolveCost: [{ covenant_fragment: 2, radiant_core: 1 }, { covenant_fragment: 4, radiant_core: 2 }],
+    stages: [
+      { name: 'Lion of the Den', title: 'Stage I', desc: 'A bronze lion of Babylon\'s gate, the Veil burned out of it. Black bronze now, and a golden mane.', ability: 'Pounce: springs on foes from a distance and rakes them with its claws.' },
+      { name: 'Lion of the Gate', title: 'Stage II', desc: 'Gold seams glow along its flanks where the Veil was burned away.', ability: 'Rending Claws: its claws rake twice before it draws back.' },
+      { name: 'Dawnmane', title: 'Stage III', desc: 'A mane of white-gold fire.', ability: 'Dawnmane: its pounce lands with a wave of light both ways.' },
+    ],
+  },
   sentinel: {
     id: 'sentinel',
     cls: 'Sentinel',

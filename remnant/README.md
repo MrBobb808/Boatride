@@ -62,6 +62,36 @@ altar once the one before is done (**Journey on**), or from the
   - Once you have reached waves 10, 20, 30 and so on, you can start from them.
   - Leaving by the west door returns you to where you started.
 
+### Lamps, hearts and sub-weapons
+
+A few things borrowed from *Castlevania*:
+
+- **Lamps** hang along the walls of every room. Strike one to break it.
+  They come back when you return to the room.
+  - Most drop a **heart**; some drop a big heart (5) or silver.
+  - Now and then one drops a **sub-weapon**. The first lamp you ever break
+    always gives the Dagger.
+- **Hearts** are the ammunition for sub-weapons (up to 99). They show next
+  to your Balm vials.
+- **Sub-weapons:** you carry one at a time. Picking up another swaps it;
+  picking up the one you have gives 5 hearts.
+
+  | Sub-weapon | Hearts | What it does |
+  |---|---|---|
+  | Dagger | 1 | Thrown straight and fast |
+  | Axe | 2 | Thrown high in an arc; cuts through everything, and reaches foes above you |
+  | Holy Water | 2 | A flask that breaks into a pool of blue fire |
+  | Cross | 3 | Flies out, turns, and comes back, cutting through foes both ways (found from Chapter II on) |
+  | David's Sling | 1 | A stone that knocks foes off balance |
+
+  Throw with **Sub** on touch, **U** on a keyboard, or hold **up and press
+  Heavy** on any device.
+- **Map exploration:** the Map tab shows the share of rooms you have
+  explored, in this chapter and in all.
+- **Bestiary:** **Journal → Bestiary** records every kind of foe you have
+  slain, with a field note and its base numbers, and the great foes you
+  have overcome. Foes you have not met yet show as ???.
+
 ### Saving, directions and updates
 
 - **Saving:** the game saves itself every 30 seconds, on every doorway and
@@ -191,6 +221,7 @@ deploys it to GitHub Pages on every push to the default branch that touches
 | **Switch** | Switch support: the next Echo tags in, or you trade places with one. It appears while Echoes are out. |
 | **Rally** | *Rally the Remnant* (once the gauge is full) |
 | **Mantle** | Transform into the *Shadow Mantle* (from level 25, once its gauge is full) |
+| **Sub** | Throw your sub-weapon. The badge shows your hearts. |
 | Context button | Talk, open, rest, purify. It appears only when something is in reach. |
 | ☰ and map (top corner) | Menu and map |
 
@@ -214,6 +245,7 @@ left-handed layout, and turns haptics on or off.
 | X | Switch support Echo |
 | T | Rally the Remnant |
 | G | Shadow Mantle (transform) |
+| U (or W + K) | Throw sub-weapon |
 | F | Interact / purify |
 | M | Map |
 | Esc or Tab | Menu |
@@ -239,6 +271,7 @@ PlayStation, A B X Y and LB/RB on Xbox).
 | L3 (left stick click) | L3 | Echo command wheel |
 | R3 (right stick click) | R3 | Rally the Remnant |
 | L3 + R3 together | L3 + R3 | Shadow Mantle (transform) |
+| ↑ + △ | ↑ + Y | Throw sub-weapon (or give it its own button) |
 | D-pad ↑ | D-pad ↑ | Interact |
 | D-pad ↓ | D-pad ↓ | Balm |
 | Create | View | Switch support Echo |

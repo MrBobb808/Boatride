@@ -143,7 +143,7 @@ input, textarea { -webkit-user-select: text; user-select: text; }
 .banner .b-line { width: min(60%, 520px); height: 1px; margin: 10px auto 0; background: linear-gradient(90deg, transparent, var(--gold), transparent); }
 .banner.boss .b-title { color: #ffd7a0; font-size: clamp(24px, min(5.2vw, 10vh), 64px); }
 .banner.echo .b-title, .banner.ability .b-title { color: #fff3d0; }
-.banner.area { top: 18%; }
+.banner.area { top: max(18%, calc(128px + var(--sat))); } /* clear of the hint line on short screens */
 .banner.area .b-title { font-size: clamp(18px, min(3.2vw, 6.5vh), 36px); }
 .banner.out { opacity: 0; }
 @keyframes bannerIn { from { opacity: 0; letter-spacing: 0.3em; } }

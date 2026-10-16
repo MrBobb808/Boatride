@@ -9,6 +9,7 @@ import { ABILITIES } from '../game/data';
 import { iconUrl } from './icons';
 import { safe } from './safe';
 import { mantleUnlocked } from '../game/mantle';
+import { SUBS, type SubId } from '../game/subweapons';
 
 interface TBtn {
   id: string;
@@ -42,6 +43,7 @@ const BTNS: TBtn[] = [
   { id: 'interact', act: 'interact', icon: 'interact', size: 54, dx: 226, dy: 104, label: '' },
   { id: 'switch', act: 'switch', icon: 'switch', size: 40, dx: 286, dy: 58, label: 'Switch' },
   { id: 'mantle', act: 'transform', icon: 'mantle', size: 48, dx: 148, dy: 148, label: 'Mantle' },
+  { id: 'sub', act: 'sub', icon: 'dagger', size: 40, dx: 212, dy: 170, label: 'Sub' },
   { id: 'menu', icon: 'menu', size: 40, dx: 0, dy: 0, label: '', corner: 'tr', ui: () => G.ui.openMenu() },
   { id: 'map', icon: 'map', size: 40, dx: 0, dy: 48, label: '', corner: 'tr', ui: () => G.ui.openMenu('map') },
 ];
@@ -91,7 +93,7 @@ export function initTouch(el: HTMLElement) {
       d.appendChild(l);
       b.lbl = l;
     }
-    if (b.id === 'heal') {
+    if (b.id === 'heal' || b.id === 'sub') {
       const c = document.createElement('div');
       c.className = 'cnt';
       d.appendChild(c);
@@ -244,6 +246,16 @@ export function updateTouch() {
       const ready = s.rally >= 100;
       el.classList.toggle('glow', ready);
       b.cd!.style.background = ready ? 'none' : `conic-gradient(transparent ${(s.rally / 100) * 360}deg, rgba(0,0,0,0.6) 0)`;
+    } else if (b.id === 'sub') {
+      // The carried sub-weapon, with the hearts left to throw it.
+      show = !!s.sub;
+      if (s.sub) {
+        const def = SUBS[s.sub as SubId];
+        const img = el.firstChild as HTMLImageElement;
+        const want = iconUrl(def.icon, '#f6dea0');
+        if (img.src !== want) img.src = want;
+        b.cnt!.textContent = String(s.hearts ?? 0);
+      }
     } else if (b.id === 'mantle') {
       // Fills like a clock face; while transformed it shows the time left.
       show = mantleUnlocked();
@@ -293,6 +305,7 @@ function dimFor(b: TBtn): number {
     case 'mantle': return p.mantleT > 0 || (s.mantle ?? 0) >= 100 ? 1 : 0.5;
     case 'switch': return G.world.switchCd > 0 ? 0.45 : 0.6;
     case 'echo': return 0.6;
+    case 'sub': return s.sub && (s.hearts ?? 0) >= SUBS[s.sub as SubId].cost ? 0.85 : 0.45;
     default: return 0.75;
   }
 }

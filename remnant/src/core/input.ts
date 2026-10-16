@@ -6,13 +6,13 @@ export type Action =
   | 'left' | 'right' | 'up' | 'down'
   | 'jump' | 'attack' | 'heavy' | 'dodge' | 'parry'
   | 'skill1' | 'skill2' | 'skill3'
-  | 'interact' | 'heal' | 'echo' | 'ultimate' | 'switch' | 'transform'
+  | 'interact' | 'heal' | 'echo' | 'ultimate' | 'switch' | 'transform' | 'sub'
   | 'menu' | 'map'
   | 'confirm' | 'back' | 'tabL' | 'tabR';
 
 export const ACTIONS: Action[] = [
   'left', 'right', 'up', 'down', 'jump', 'attack', 'heavy', 'dodge', 'parry',
-  'skill1', 'skill2', 'skill3', 'interact', 'heal', 'echo', 'ultimate', 'switch', 'transform', 'menu', 'map',
+  'skill1', 'skill2', 'skill3', 'interact', 'heal', 'echo', 'ultimate', 'switch', 'transform', 'sub', 'menu', 'map',
   'confirm', 'back', 'tabL', 'tabR',
 ];
 
@@ -20,7 +20,7 @@ export const ACTION_LABELS: Partial<Record<Action, string>> = {
   left: 'Move left', right: 'Move right', up: 'Look up / Interact', down: 'Crouch / Drop',
   jump: 'Jump', attack: 'Attack (hold: charge)', heavy: 'Heavy attack', dodge: 'Dodge / Dash',
   parry: 'Parry (hold: block)', skill1: 'Skill 1', skill2: 'Skill 2', skill3: 'Skill 3',
-  interact: 'Interact', heal: 'Balm (heal)', echo: 'Echo command wheel', ultimate: 'Rally the Remnant', switch: 'Switch support Echo', transform: 'Shadow Mantle (transform)',
+  interact: 'Interact', heal: 'Balm (heal)', echo: 'Echo command wheel', ultimate: 'Rally the Remnant', switch: 'Switch support Echo', transform: 'Shadow Mantle (transform)', sub: 'Sub-weapon (or hold up + Heavy)',
   menu: 'Pause menu', map: 'World map',
 };
 
@@ -45,6 +45,7 @@ export const DEFAULT_KEYS: Record<Action, string[]> = {
   ultimate: ['KeyT'],
   switch: ['KeyX'],
   transform: ['KeyG'],
+  sub: ['KeyU'],
   menu: ['Escape', 'Tab'],
   map: ['KeyM'],
   confirm: ['Enter', 'Space', 'KeyJ'],
@@ -59,13 +60,13 @@ export const DEFAULT_KEYS: Record<Action, string[]> = {
 // The Shadow Mantle has no button of its own by default: L3 + R3 together.
 export const DEFAULT_PAD: Partial<Record<Action, number[]>> = {
   jump: [0], dodge: [1], attack: [2], heavy: [3], parry: [4], skill1: [5], skill2: [6], skill3: [7],
-  switch: [8], menu: [9], echo: [10], ultimate: [11], transform: [],
+  switch: [8], menu: [9], echo: [10], ultimate: [11], transform: [], sub: [],
   interact: [12], heal: [13],
 };
 // Menus always navigate the same way: ✕/A confirm, ○/B back, L1/R1 tabs.
 const PAD_FIXED: Partial<Record<Action, number[]>> = { confirm: [0], back: [1], tabL: [4], tabR: [5] };
 /** Actions a player may move to other controller buttons. */
-export const PAD_REMAPPABLE: Action[] = ['jump', 'attack', 'heavy', 'dodge', 'parry', 'skill1', 'skill2', 'skill3', 'interact', 'heal', 'echo', 'ultimate', 'switch', 'transform', 'menu'];
+export const PAD_REMAPPABLE: Action[] = ['jump', 'attack', 'heavy', 'dodge', 'parry', 'skill1', 'skill2', 'skill3', 'interact', 'heal', 'echo', 'ultimate', 'switch', 'transform', 'sub', 'menu'];
 
 export type PadKind = 'playstation' | 'xbox' | 'generic';
 const PS_NAMES = ['✕', '○', '□', '△', 'L1', 'R1', 'L2', 'R2', 'Create', 'Options', 'L3', 'R3', 'D-pad ↑', 'D-pad ↓', 'D-pad ←', 'D-pad →', 'PS', 'Touchpad'];
@@ -383,6 +384,7 @@ export class Input {
   /** The controller button(s) for an action, as the player would read them. */
   padLabel(a: Action): string {
     if (a === 'transform' && !(this.padMap.transform?.length)) return `${this.buttonName(10)}+${this.buttonName(11)}`;
+    if (a === 'sub' && !(this.padMap.sub?.length)) return `↑+${this.buttonName(3)}`;
     const idx = PAD_FIXED[a] ?? this.padMap[a];
     if (a === 'up') return this.buttonName(12);
     if (a === 'down') return this.buttonName(13);

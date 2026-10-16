@@ -14,6 +14,7 @@ import { CH2_ROOM_IDS } from '../game/rooms2';
 import { guidePoint } from '../game/guide';
 import { mantleUnlocked } from '../game/mantle';
 import { drawIsland } from './island';
+import { SUBS, type SubId } from '../game/subweapons';
 import { FONT_DISPLAY, FONT_BODY, roundRect, glow, type Ctx } from '../render/draw';
 import { clamp, lerp } from '../core/math';
 import { safe } from './safe';
@@ -140,6 +141,21 @@ export function drawHud(ctx: Ctx, dt: number) {
     vx += 12 * u;
   }
   ctx.globalAlpha = G.inCutscene ? 0.35 : 1;
+  // ----- sub-weapon and hearts
+  if (s.sub || (s.hearts ?? 0) > 0) {
+    vx += 5 * u;
+    const def = s.sub ? SUBS[s.sub as SubId] : null;
+    if (def) {
+      ctx.strokeStyle = 'rgba(226,184,90,0.55)';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(vx, cy - 2, 13 * u, 13 * u);
+      ctx.drawImage(icon(def.icon, def.color, 32), vx + 1.5 * u, cy - 0.5, 10 * u, 10 * u);
+      vx += 16 * u;
+    }
+    ctx.drawImage(icon('heart', '#e0405a', 32), vx, cy, 10 * u, 10 * u);
+    text(ctx, String(s.hearts ?? 0), vx + 12 * u, cy + 5 * u, `700 ${8.5 * u}px ${FONT_DISPLAY}`, '#ffd0d8', 'left');
+    vx += 26 * u;
+  }
   if (s.statPoints > 0 || s.skillPoints > 0) {
     text(ctx, `✦ ${s.statPoints ? s.statPoints + ' stat' : ''}${s.statPoints && s.skillPoints ? ' · ' : ''}${s.skillPoints ? s.skillPoints + ' skill' : ''} points`, vx + 6 * u, cy + 5 * u, `600 ${8 * u}px ${FONT_DISPLAY}`, '#f6dea0', 'left');
   }

@@ -12,6 +12,7 @@ import { EchoUnit } from './echoes';
 import { Idol } from './boss';
 import { BossBase, Gatekeeper, Marshal } from './bosses2';
 import { LocustKing } from './bosses3';
+import { GoldenImage } from './bosses4';
 import { Npc, Chest, Altar, LoreStone, Shrine, Pickup, Drop, RelicVisual, type Interactable } from './props';
 import { Proj } from './projectiles';
 import { Story } from './story';
@@ -29,6 +30,7 @@ import { guidePoint } from './guide';
 import { tickStatus, powerTier, SOVEREIGN_LV } from './power';
 import { MANTLE_LV, mantleTier, mantlePerks, announceMantle } from './mantle';
 import { islandNotify } from '../ui/island';
+import { placeLamps } from './lamps';
 import { updatePending, applyUpdate } from '../core/update';
 import { FINISHERS } from './finishers';
 import { ITEMS, ECHO_SPECIES, type Rarity } from './data';
@@ -123,6 +125,7 @@ export class World {
     fx.clear();
     const s = G.save;
     for (const e of r.ents) this.spawnDef(e);
+    placeLamps(r);
     if (r.id === 'covenant_chamber' && !flag('relic_taken')) this.add(new RelicVisual(34.5 * TILE, 20 * TILE));
     const sp = r.spawns[spawnName] ?? Object.values(r.spawns)[0];
     const p = this.player;
@@ -212,8 +215,9 @@ export class World {
         this.lights.push(e);
         return;
       case 'boss':
-        if (s.defeated.includes(e.k)) return;
-        this.boss = e.k === 'gatekeeper' ? new Gatekeeper(x, y) : e.k === 'marshal' ? new Marshal(x, y) : e.k === 'locust_king' ? new LocustKing(x, y) : new Idol(x, y);
+        // The beaten Image stays on its dais until the stone falls (the story finishes it).
+        if (s.defeated.includes(e.k) && !(e.k === 'golden_image' && !flag('ch4_image_done'))) return;
+        this.boss = e.k === 'gatekeeper' ? new Gatekeeper(x, y) : e.k === 'marshal' ? new Marshal(x, y) : e.k === 'locust_king' ? new LocustKing(x, y) : e.k === 'golden_image' ? new GoldenImage(x, y) : new Idol(x, y);
         this.add(this.boss);
         return;
     }
@@ -546,7 +550,7 @@ export class World {
     for (const e of this.ents) {
       if (!e.executable()) continue;
       if (e.isBoss) {
-        if (Math.abs(e.x - p.x) < (e instanceof Gatekeeper ? 120 : e instanceof Marshal || e instanceof LocustKing ? 56 : 80) && Math.abs(e.y - p.y) < 60) return e;
+        if (Math.abs(e.x - p.x) < (e instanceof Gatekeeper ? 120 : e instanceof GoldenImage ? 96 : e instanceof Marshal || e instanceof LocustKing ? 56 : 80) && Math.abs(e.y - p.y) < 60) return e;
       } else if (Math.abs(e.x - p.x) < 36 && Math.abs(e.y - p.y) < 30) return e;
     }
     return null;
@@ -703,6 +707,7 @@ export class World {
     const s = G.save;
     const st = e.stats;
     s.kills++;
+    (s.bestiary ??= {})[e.kind] = (s.bestiary[e.kind] ?? 0) + 1;
     const tier = e.tier === 4 ? 3.6 : e.tier === 3 ? 2.6 : e.tier === 2 ? 1.7 : 1;
     const xp = e.xpOverride ?? Math.round(st.xp * (e.elite ? 4 : 1) * G.d.xpMult * (1 + s.ng * 0.5) * tier);
     this.giveXp(xp);
@@ -1247,6 +1252,7 @@ export class World {
       this.story.gatekeeperDefeated(b);
     } else if (b instanceof Marshal) this.story.marshalDefeated(b);
     else if (b instanceof LocustKing) this.story.kingDefeated(b);
+    else if (b instanceof GoldenImage) this.story.ch4.imageDefeated(b);
     else if (b instanceof Idol) {
       this.closeGate(false);
       this.story.bossDefeated(b);

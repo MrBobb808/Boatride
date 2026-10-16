@@ -62,8 +62,8 @@ interface LionPal {
 
 const FLASH_C = 'rgba(255,248,236,1)';
 const LION_PALS = {
-  foe: { body: '#a06a32', dark: '#5a3414', mane: '#e0a83e', maneDk: '#8a5418', claw: '#f2e6c8', eye: '#c45cff', eyeCore: '#fbe8ff', o: '#140a04', spec: 'rgba(255,226,170,0.55)', seam: null, flat: false, patina: 'rgba(80,150,130,0.35)' },
-  elite: { body: '#7a4a26', dark: '#3a1e0c', mane: '#d06a2a', maneDk: '#6a2410', claw: '#ffe0c0', eye: '#ff3a6a', eyeCore: '#fff0f4', o: '#120604', spec: 'rgba(255,200,150,0.5)', seam: null, flat: false, patina: 'rgba(90,140,120,0.3)' },
+  foe: { body: '#a06a32', dark: '#5a3414', mane: '#eab448', maneDk: '#b0702a', claw: '#f2e6c8', eye: '#c45cff', eyeCore: '#fbe8ff', o: '#140a04', spec: 'rgba(255,226,170,0.55)', seam: null, flat: false, patina: 'rgba(80,150,130,0.35)' },
+  elite: { body: '#7a4a26', dark: '#3a1e0c', mane: '#e07a30', maneDk: '#94401a', claw: '#ffe0c0', eye: '#ff3a6a', eyeCore: '#fff0f4', o: '#120604', spec: 'rgba(255,200,150,0.5)', seam: null, flat: false, patina: 'rgba(90,140,120,0.3)' },
   flash: { body: FLASH_C, dark: FLASH_C, mane: FLASH_C, maneDk: FLASH_C, claw: FLASH_C, eye: '#ffffff', eyeCore: '#ffffff', o: FLASH_C, spec: FLASH_C, seam: null, flat: true, patina: null },
   echo0: { body: '#24201e', dark: '#100e0e', mane: '#b8903e', maneDk: '#5a4218', claw: '#fff3c4', eye: '#ffffff', eyeCore: '#ffffff', o: '#0a0806', spec: 'rgba(255,230,170,0.35)', seam: '#e2b85a', flat: false, patina: null },
   echo1: { body: '#1e1b1c', dark: '#0e0c0c', mane: '#e2b85a', maneDk: '#7a5a22', claw: '#fff3c4', eye: '#ffffff', eyeCore: '#ffffff', o: '#0a0806', spec: 'rgba(255,236,190,0.45)', seam: '#ffd27a', flat: false, patina: null },
@@ -143,9 +143,9 @@ function pawTarget(L: LionPose, i: number, front: boolean, near: boolean) {
   if (front && near && L.claw > 0) {
     const c = L.claw;
     const up = c < 0.5 ? easeOutCubic(c / 0.5) : 1 - easeInQuad((c - 0.5) / 0.5);
-    const fwd = c < 0.5 ? 6 * up : 6 + 7 * easeInQuad((c - 0.5) / 0.5);
+    const fwd = c < 0.5 ? 13 * up : 13 + 4 * easeInQuad((c - 0.5) / 0.5);
     x += (fwd - x) * Math.min(1, c * 4);
-    y += (-14 * up - y) * Math.min(1, c * 4);
+    y += (-13 * up - y) * Math.min(1, c * 4);
   }
   PAW[0] = x;
   PAW[1] = y;
@@ -259,10 +259,8 @@ export function drawLion(ctx: Ctx, L: LionPose, look: LionLook) {
     ctx.quadraticCurveTo(sx - 5.5, sy + 1, sx - 1.5, sy + 4.5);
     ctx.moveTo(hx + 4, hy - 5);
     ctx.quadraticCurveTo(hx + 6.5, hy + 0.5, hx + 3, hy + 4.6);
-    ctx.moveTo(mx - 3, my - 3);
-    ctx.lineTo(mx - 2.5, my + 2.6);
-    ctx.moveTo(mx + 1, my - 3.4);
-    ctx.lineTo(mx + 1.5, my + 2.6);
+    ctx.moveTo(mx - 1, my - 3.2);
+    ctx.quadraticCurveTo(mx + 0.4, my, mx - 0.4, my + 2.8);
     ctx.strokeStyle = P.dark;
     ctx.lineWidth = 0.6;
     ctx.stroke();
@@ -296,48 +294,58 @@ export function drawLion(ctx: Ctx, L: LionPose, look: LionLook) {
 
   // Near legs over the body.
   drawBackLeg(ctx, P, L, 2, true, hx, hy);
-  drawFrontLeg(ctx, P, L, 3, true, sx, sy);
+  // A raking paw comes up in front of the face; otherwise the mane covers the shoulder.
+  if (L.claw <= 0) drawFrontLeg(ctx, P, L, 3, true, sx, sy);
 
-  // Head root, then the mane around the neck.
+  // Head root, then the mane: a full ruff of curled locks framing the head.
   const hdx = sx + 9 + L.crouch * 2 + L.air * 1.5 - L.down * 1, hdy = sy - 7 + L.crouch * 3.5 - L.roar * 4 + L.down * 6;
   const ha = L.crouch * 0.22 - L.roar * 0.5 - L.air * 0.12 - L.claw * 0.1 + L.down * 0.45 + L.pitch * 0.5;
   {
-    const nx = sx + 3, ny = sy - 6.5 + L.crouch * 1.5 + L.down * 3;
     ctx.save();
-    ctx.translate(nx, ny);
-    const n = 11;
-    const bristle = L.roar * 3 + L.air * 1.5;
+    ctx.translate(hdx - 3.5, hdy + 1.5);
+    ctx.rotate(ha * 0.5);
+    const bristle = L.roar * 2.5 + L.air * 1.2;
     for (let layer = 0; layer < 2; layer++) {
-      const r0 = layer ? 4.5 : 5.5, r1 = (layer ? 9.6 : 11.5) + bristle;
+      const n = layer ? 9 : 11;
+      const r0 = layer ? 5 : 6, r1 = (layer ? 10.5 : 13) + bristle;
+      // Locks sweep from under the jaw, over the crown, down the neck: the face stays clear.
+      const a0 = layer ? -2.75 : -2.95, a1 = layer ? 1.75 : 2.05;
       ctx.beginPath();
-      for (let i = 0; i <= n; i++) {
-        const a = -2.75 + (i / n) * 4.45 + Math.sin(t * 3 + i * 1.7) * 0.05;
-        const rr = r1 * (i % 2 ? 0.86 : 1) - (i === 0 || i === n ? 3 : 0);
-        const ox = Math.cos(a), oy = Math.sin(a);
-        // A curl at each lock: the tip hooks back toward the tail.
-        if (i === 0) ctx.moveTo(ox * r0, oy * r0);
-        ctx.quadraticCurveTo(ox * rr * 0.7 - oy * 2, oy * rr * 0.7 + ox * 2, ox * rr - 1.2, oy * rr + 0.6);
-        const b = a + 0.2;
-        ctx.lineTo(Math.cos(b) * r0, Math.sin(b) * r0);
+      for (let i = 0; i < n; i++) {
+        const a = a0 + ((i + 0.5) / n) * (a1 - a0) + Math.sin(t * 2.6 + i * 1.7) * 0.04;
+        const w = ((a1 - a0) / n) * 0.75;
+        const rr = r1 * (i % 2 ? 0.88 : 1);
+        const ca = Math.cos(a), sa = Math.sin(a);
+        // A teardrop lock whose tip curls back toward the tail.
+        const bx0 = Math.cos(a - w) * r0, by0 = Math.sin(a - w) * r0;
+        const bx1 = Math.cos(a + w) * r0, by1 = Math.sin(a + w) * r0;
+        const tx = ca * rr - 1.6, ty = sa * rr + 0.4;
+        ctx.moveTo(bx0, by0);
+        ctx.quadraticCurveTo(Math.cos(a - w * 1.6) * rr * 0.85, Math.sin(a - w * 1.6) * rr * 0.85, tx, ty);
+        ctx.quadraticCurveTo(Math.cos(a + w * 0.6) * rr * 0.7, Math.sin(a + w * 0.6) * rr * 0.7, bx1, by1);
+        ctx.closePath();
       }
-      ctx.closePath();
-      const mc = layer ? P.mane : P.maneDk;
-      ctx.fillStyle = flat ? mc : rGrad(ctx, mc, 2, -3, r1 + 2, 0.28, -0.3);
-      ctx.fill();
-      ctx.lineWidth = 0.7;
+      ctx.moveTo(r0 + 1.5, 0);
+      ctx.arc(0, 0, r0 + 1.5, 0, Math.PI * 2);
+      // Outline then fill: the locks read as one ruff, not a pile of shapes.
+      ctx.lineJoin = 'round';
+      ctx.lineWidth = 1.5;
       ctx.strokeStyle = P.o;
       ctx.stroke();
+      const mc = layer ? P.mane : P.maneDk;
+      ctx.fillStyle = flat ? mc : rGrad(ctx, mc, 2, -4, 15, 0.32, -0.28);
+      ctx.fill();
     }
     if (!flat) {
-      // Locks as engraved strands.
+      // Engraved strands down each lock.
       ctx.beginPath();
-      for (let i = 1; i < n; i += 2) {
-        const a = -2.6 + (i / n) * 4.3;
-        ctx.moveTo(Math.cos(a) * 4.5, Math.sin(a) * 4.5);
-        ctx.lineTo(Math.cos(a) * 8, Math.sin(a) * 8);
+      for (let i = 0; i < 9; i += 1) {
+        const a = -2.75 + ((i + 0.5) / 9) * 4.5;
+        ctx.moveTo(Math.cos(a) * 5.5, Math.sin(a) * 5.5);
+        ctx.lineTo(Math.cos(a) * 8.6 - 0.8, Math.sin(a) * 8.6 + 0.2);
       }
       ctx.strokeStyle = P.maneDk;
-      ctx.lineWidth = 0.5;
+      ctx.lineWidth = 0.55;
       ctx.stroke();
     }
     ctx.restore();
@@ -347,6 +355,7 @@ export function drawLion(ctx: Ctx, L: LionPose, look: LionLook) {
   ctx.save();
   ctx.translate(hdx, hdy);
   ctx.rotate(ha);
+  ctx.scale(1.12, 1.12);
   const jaw = clamp(L.jaw, 0, 1) * 0.6;
   // Lower jaw, hinged under the eye.
   ctx.save();
@@ -397,6 +406,7 @@ export function drawLion(ctx: Ctx, L: LionPose, look: LionLook) {
   ctx.closePath();
   ctx.fill();
   ctx.restore();
+  if (L.claw > 0) drawFrontLeg(ctx, P, L, 3, true, sx, sy);
 }
 
 // =====================================================================
@@ -678,12 +688,12 @@ const PRIEST_CLIPS: Record<string, Clip> = {
 function priestStyle(elite: boolean): HumanStyle {
   const robe = elite ? '#5e0f14' : '#7a2a12';
   return {
-    skin: '#5a4440', hair: null, hairKind: 'none', beard: null,
+    skin: '#7a5a4c', hair: null, hairKind: 'none', beard: null,
     coat: robe, coatDark: shade(robe, -0.4), skirt: 17, trim: '#d8a94c',
     // The robe falls to the ankles; the stride shows as folds of the same cloth.
-    pants: shade(robe, -0.12), boots: '#2a1a10', glove: '#5a4440', belt: '#d8a94c',
+    pants: shade(robe, -0.12), boots: '#2a1a10', glove: '#7a5a4c', belt: '#d8a94c',
     plate: null, helm: 'none', eye: '#ffb04a', eyeGlow: 1, outline: '#0c0604',
-    weapon: 'staff', weaponColor: '#5a3a1e', offhand: 'none', crack: null, bulk: 1.18,
+    weapon: 'staff', weaponColor: '#5a3a1e', offhand: 'none', crack: null, bulk: 1.06,
   };
 }
 
@@ -1094,26 +1104,32 @@ export class Priest extends Enemy {
     ctx.rotate(j.headA);
     const R = 4.5;
     // Beard: squared and ringed in curls, Babylonian fashion.
-    poly(ctx, [R * 0.1, R * 0.45, R * 1.05, R * 0.55, R * 1.0, R * 1.9, R * 0.65, R * 2.45, -R * 0.2, R * 2.3, -R * 0.35, R * 1.0], vGrad(ctx, '#2a1c16', 0, R * 2.4, 0.12, -0.3), o, 0.45);
-    ctx.strokeStyle = 'rgba(120,90,70,0.6)';
-    ctx.lineWidth = 0.35;
+    poly(ctx, [R * 0.15, R * 0.5, R * 1.0, R * 0.6, R * 0.95, R * 1.65, R * 0.7, R * 2.05, R * 0.05, R * 1.95, -R * 0.2, R * 1.0], vGrad(ctx, '#2a1c16', 0, R * 2.1, 0.12, -0.3), o, 0.45);
+    ctx.strokeStyle = 'rgba(140,105,80,0.7)';
+    ctx.lineWidth = 0.3;
     ctx.beginPath();
     for (let r = 0; r < 3; r++) {
-      const y = R * (1.05 + r * 0.45);
-      ctx.moveTo(-R * 0.2, y);
-      ctx.lineTo(R * 0.95 - r * 0.1, y + 0.2);
+      const y = R * (0.95 + r * 0.36);
+      for (let x = 0; x < R * 0.85; x += 1.1) {
+        ctx.moveTo(x, y);
+        ctx.arc(x + 0.5, y, 0.5, Math.PI, 0, true);
+      }
     }
     ctx.stroke();
     // Tall hat: a flared cylinder with gold bands and a crescent at the crown.
-    const y0 = -R * 0.55, y1 = -R * 3.0;
-    poly(ctx, [-R * 1.0, y0, R * 1.0, y0, R * 1.18, y1, -R * 0.95, y1 - 0.4], vGrad(ctx, hatC, y1, y0, 0.25, -0.25), o, 0.55);
+    const y0 = -R * 0.6, y1 = -R * 2.55;
+    poly(ctx, [-R * 0.95, y0, R * 0.95, y0, R * 0.8, y1, -R * 0.75, y1 - 0.3], vGrad(ctx, hatC, y1, y0, 0.25, -0.25), o, 0.5);
     ctx.fillStyle = gold;
-    ctx.fillRect(-R * 1.0, y0 - 1.1, R * 2.0, 1.1);
-    ctx.fillRect(-R * 1.08, y0 - R * 1.25, R * 2.18, 0.7);
-    ctx.fillRect(-R * 0.98, y1 - 0.5, R * 2.16, 0.9);
-    // A rosette on the band.
-    ellipse(ctx, R * 0.5, y0 - R * 0.75, 0.9, 0.9, 0, gold);
-    poly(ctx, [-R * 0.3, y1 - 0.4, R * 0.15, y1 - 3.4, R * 0.6, y1 - 0.4, R * 0.15, y1 - 1.6], gold, o, 0.35);
+    ctx.fillRect(-R * 0.95, y0 - 1.0, R * 1.9, 1.0);
+    ctx.fillRect(-R * 0.86, y0 - R * 1.15, R * 1.74, 0.6);
+    ctx.fillRect(-R * 0.78, y1 - 0.4, R * 1.6, 0.8);
+    // A rosette on the band, a crescent at the crown.
+    ellipse(ctx, R * 0.45, y0 - R * 0.6, 0.8, 0.8, 0, gold);
+    ctx.strokeStyle = gold;
+    ctx.lineWidth = 0.7;
+    ctx.beginPath();
+    ctx.arc(0, y1 - 2, 1.6, 0.2, Math.PI - 0.2);
+    ctx.stroke();
     ctx.restore();
     // Staff head: a gilded ring that cups the flame.
     const a = j.wpnA;
