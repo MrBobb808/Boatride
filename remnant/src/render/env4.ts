@@ -1068,12 +1068,38 @@ export function buildParallaxCh4(biome: Ch4Biome, pal: BiomePal, seed: number, v
     // Near: the inner wall's battlements and towers, palms against them.
     mk(0.35, 0.15, (ctx, w, h) => {
       const base = h * 0.92, top = h * 0.74;
-      const col = pal.near, rim = rgba('#9aa8e8', 0.2);
+      const col = mix(pal.near, '#16284e', 0.4), rim = rgba('#9aa8e8', 0.22);
       ctx.fillStyle = col;
       ctx.fillRect(0, top, w, h - top);
       merlons(ctx, 0, w, top, 9, col);
       ctx.fillStyle = rim;
       ctx.fillRect(0, top, w, 0.8);
+      // a dim frieze of rosettes, and gateways with lamplight
+      ctx.fillStyle = 'rgba(200,150,60,0.35)';
+      ctx.fillRect(0, top + 10, w, 0.8);
+      ctx.fillRect(0, top + 20, w, 0.8);
+      ctx.globalAlpha = 0.3;
+      for (let x = 6; x < w; x += 14) rosette(ctx, x, top + 15, 3);
+      ctx.globalAlpha = 1;
+      for (let x = 190; x < w; x += 256) {
+        ctx.fillStyle = '#05060c';
+        ctx.beginPath();
+        ctx.moveTo(x - 9, base);
+        ctx.lineTo(x - 9, base - 26);
+        ctx.arc(x, base - 26, 9, Math.PI, 0);
+        ctx.lineTo(x + 9, base);
+        ctx.fill();
+        ctx.globalCompositeOperation = 'lighter';
+        blob(ctx, '#ff9a4a', x, base - 12, 16, 16, 0.4);
+        ctx.globalCompositeOperation = 'source-over';
+        for (const sx of [-1, 1]) {
+          ctx.fillStyle = '#2a1e14';
+          ctx.fillRect(x + sx * 18 - 1, base - 18, 2, 18);
+          ctx.globalCompositeOperation = 'lighter';
+          blob(ctx, '#ff8a3a', x + sx * 18, base - 21, 9, 9, 0.6);
+          ctx.globalCompositeOperation = 'source-over';
+        }
+      }
       const fr = new RNG(seed + 24);
       for (let x = 60; x < w; x += 256) {
         ctx.fillStyle = col;
@@ -1449,24 +1475,19 @@ function furnaceTile(ctx: Ctx, pal: BiomePal, x: number, y: number, tx: number, 
   if (depth <= 1) {
     brickTints(ctx, x, y, tx, ty, 101, 'rgba(150,110,90,0.12)', 'rgba(0,0,0,0.25)', 0.45);
     tileCourses(ctx, x, y, ty, 'rgba(0,0,0,0.6)', 0.7);
-    if (hash2(tx, ty, 102) < 0.3) {
-      // heat working through the mortar: a run along a joint, then down
+    if (hash2(tx, ty, 102) < 0.16) {
+      // heat working through the mortar along a bed joint
       const r = 1 + ((hash2(tx, ty, 103) * 3) | 0), yy = y + r * 4;
-      const a = x + hash2(tx, ty, 104) * 6, b = a + 5 + hash2(tx, ty, 105) * 6;
-      const off = (ty * 4 + r) & 1 ? 4 : 0;
-      const jx = x + off + (b - x > 8 + off ? 8 : 0);
+      const a = x + hash2(tx, ty, 104) * 5, b = a + 5 + hash2(tx, ty, 105) * 7;
       ctx.globalCompositeOperation = 'lighter';
       ctx.lineCap = 'round';
-      for (const [lw, c] of [[2.4, 'rgba(255,70,10,0.22)'], [0.7, 'rgba(255,170,70,0.85)']] as const) {
+      for (const [lw, c] of [[1.8, 'rgba(255,70,10,0.16)'], [0.5, 'rgba(255,160,70,0.65)']] as const) {
         ctx.strokeStyle = c;
         ctx.lineWidth = lw;
         ctx.beginPath();
         ctx.moveTo(a, yy);
-        ctx.lineTo(b, yy);
-        if (jx > a && jx < b) {
-          ctx.moveTo(jx, yy);
-          ctx.lineTo(jx, yy + 4);
-        }
+        ctx.lineTo((a + b) / 2, yy + 0.7);
+        ctx.lineTo(b, yy - 0.3);
         ctx.stroke();
       }
       ctx.globalCompositeOperation = 'source-over';
@@ -1687,11 +1708,13 @@ export function drawLiquidCh4(ctx: Ctx, biome: Biome, tt: T, x: number, y: numbe
         ctx.fillRect(bx - r * 0.5, y + wy + 0.6 - r * 0.75, r * 0.5, 0.5);
       } else {
         const q = (ph - 0.78) / 0.22;
-        ctx.strokeStyle = rgba('#ffe680', 1 - q);
+        ctx.strokeStyle = '#ffe680';
+        ctx.globalAlpha = 1 - q;
         ctx.lineWidth = 0.6;
         ctx.beginPath();
         ctx.ellipse(bx, y + wy + 0.6, 1.5 + q * 4, 0.6 + q, 0, 0, TAU);
         ctx.stroke();
+        ctx.globalAlpha = 1;
         ctx.fillStyle = '#ffd060';
         ctx.fillRect(bx - 2 - q * 2, y + wy - q * 6 + q * q * 5, 0.9, 0.9);
         ctx.fillRect(bx + 1.5 + q * 2, y + wy - q * 7 + q * q * 6, 0.9, 0.9);
@@ -2211,16 +2234,19 @@ const willow: PropFn = (ctx, e, pal, rng) => {
   };
   const p = [0, 0];
   // the crown's dark mass
-  ctx.fillStyle = WILLOW_LEAF[0];
-  ctx.beginPath();
-  for (let i = 0; i < nb; i++)
-    for (const u of [0.45, 0.75, 1]) {
-      at(i, u, p);
-      const rx = (11 + u * 5) * s, ry = (8 + u * 3) * s;
-      ctx.moveTo(p[0] + rx, p[1]);
-      ctx.ellipse(p[0], p[1], rx, ry, 0, 0, TAU);
-    }
-  ctx.fill();
+  for (let pass = 0; pass < 2; pass++) {
+    ctx.fillStyle = pass ? '#34442a' : WILLOW_LEAF[0];
+    ctx.beginPath();
+    for (let i = 0; i < nb; i++)
+      for (let u = 0.35; u <= 1.01; u += 0.13) {
+        at(i, u, p);
+        const rx = rng.range(5, 8) * s * (pass ? 0.7 : 1), ry = rx * 0.7;
+        const px = p[0] + rng.range(-3, 3) * s, py = p[1] + rng.range(-4, 2) * s - (pass ? 2.5 * s : 0);
+        ctx.moveTo(px + rx, py);
+        ctx.ellipse(px, py, rx, ry, 0, 0, TAU);
+      }
+    ctx.fill();
+  }
   // curtains of hanging strands, back to front, each strand set with leaves
   const harps: number[] = [];
   for (let layer = 0; layer < 3; layer++) {
@@ -2276,40 +2302,38 @@ const willow: PropFn = (ctx, e, pal, rng) => {
     ctx.moveTo(hx, hy);
     ctx.lineTo(hx, ly);
     ctx.stroke();
-    const hs = 1.15 * s, tilt = ((k / 3) & 1 ? 0.18 : -0.14);
+    const hs = 0.85 * s, tilt = ((k / 3) & 1 ? 0.18 : -0.14);
     ctx.save();
     ctx.translate(hx, ly);
     ctx.rotate(tilt);
     ctx.scale(hs, hs);
+    ctx.lineCap = 'round';
+    // arms curving out from the soundbox, a slanted yoke across their tops
+    for (const [c, w] of [[OUT, 2.4], ['#a8743a', 1.3]] as const) {
+      ctx.strokeStyle = c;
+      ctx.lineWidth = w;
+      ctx.beginPath();
+      ctx.moveTo(-3.4, 9);
+      ctx.bezierCurveTo(-6.8, 6, -6.4, 2, -4.6, -0.4);
+      ctx.moveTo(3.4, 9);
+      ctx.bezierCurveTo(6.8, 5.4, 6.8, 1, 5.4, -2.2);
+      ctx.moveTo(-5.6, -0.2);
+      ctx.lineTo(6.4, -2.6);
+      ctx.stroke();
+    }
     ctx.beginPath();
-    ctx.moveTo(-5, 1);
-    ctx.quadraticCurveTo(-7, 8, -4.6, 13);
-    ctx.lineTo(4.6, 13);
-    ctx.quadraticCurveTo(7.4, 7, 5.4, -0.6);
-    ctx.lineTo(4, 0);
-    ctx.quadraticCurveTo(5.2, 7, 3.4, 10.4);
-    ctx.lineTo(-3.4, 10.4);
-    ctx.quadraticCurveTo(-5.2, 7, -3.6, 1.6);
-    ctx.closePath();
-    ctx.moveTo(-5.6, 0);
-    ctx.lineTo(6, -1.6);
-    ctx.lineTo(6, 0);
-    ctx.lineTo(-5.6, 1.6);
-    ctx.closePath();
-    solidify(ctx, '#9a6a30', OUT, 0.35);
-    ctx.fillStyle = '#6a4418';
-    ctx.fillRect(-4.6, 10.4, 9.2, 2.6);
-    ctx.strokeStyle = 'rgba(250,236,200,0.75)';
-    ctx.lineWidth = 0.25;
+    ctx.ellipse(0, 10.6, 5.2, 2.8, 0, 0, TAU);
+    solidify(ctx, '#8a5a26', OUT, 0.35);
+    circle(ctx, 0, 10.4, 1, '#2a160a');
+    ctx.strokeStyle = 'rgba(255,244,214,0.85)';
+    ctx.lineWidth = 0.3;
     ctx.beginPath();
     for (let i = 0; i < 5; i++) {
-      const sx = -2.4 + i * 1.2;
-      ctx.moveTo(sx, 1.4 - i * 0.24);
-      ctx.lineTo(sx * 0.9, 10.4);
+      const sx = -2.6 + i * 1.3;
+      ctx.moveTo(sx, -0.4 - (sx + 5.6) * 0.2);
+      ctx.lineTo(sx * 0.8, 9.2);
     }
     ctx.stroke();
-    ctx.fillStyle = 'rgba(255,220,150,0.5)';
-    ctx.fillRect(-5.2, 3, 0.6, 6);
     ctx.restore();
   }
 };
@@ -2318,7 +2342,7 @@ const ziggurat: PropFn = (ctx, e, pal, rng) => {
   const W = (e.w ?? 18) * TILE, H = W * 0.5;
   const tiers = 4;
   const haze = pal.fog;
-  const b0 = mix(MUD, haze, 0.18), b1 = mix('#86603c', haze, 0.18), b2 = mix('#a67c50', haze, 0.18);
+  const b0 = mix('#6e4c3c', haze, 0.12), b1 = mix('#624436', haze, 0.12), b2 = mix('#785442', haze, 0.12);
   // earth under the base, so a river channel in front shows the far bank rather than sky
   ctx.fillStyle = mix('#4a3420', haze, 0.12);
   ctx.fillRect(-W / 2 - 24, -3, W + 48, 44);
@@ -2327,7 +2351,7 @@ const ziggurat: PropFn = (ctx, e, pal, rng) => {
   const th = H / (tiers + 0.55);
   for (let i = 0; i < tiers; i++) {
     const tw = W * (1 - i * 0.2), y0 = -(i + 1) * th, x0 = -tw / 2;
-    brickField(ctx, x0, y0, x0 + tw, y0 + th, 7, 3.5, [b0, b1, b2], 300 + i, 'rgba(40,22,10,0.3)', 0.45);
+    brickField(ctx, x0, y0, x0 + tw, y0 + th, 7, 3.5, [b0, b1, b2], 300 + i, 'rgba(40,22,10,0.18)', 0.4);
     // buttressed faces: recesses in shadow, their edges catching the sun
     ctx.fillStyle = 'rgba(30,14,6,0.28)';
     for (let bx = x0 + 10; bx < x0 + tw - 12; bx += 16) ctx.fillRect(bx, y0 + 3, 6, th - 3);
@@ -2365,7 +2389,7 @@ const ziggurat: PropFn = (ctx, e, pal, rng) => {
   stair(0, 0, 0, -th * 2, 18);
   // the shrine on the summit, glazed blue with gilded horns
   const sw = W * 0.2, sh = th * 0.95, sy = -tiers * th - sh;
-  brickField(ctx, -sw / 2, sy, sw / 2, -tiers * th, 6, 3, [mix(GLAZE, haze, 0.25), mix('#2a5ea0', haze, 0.25)], 309, 'rgba(6,14,34,0.5)', 0.4);
+  brickField(ctx, -sw / 2, sy, sw / 2, -tiers * th, 6, 3, [mix(GLAZE, '#3a2440', 0.4), mix('#2a5ea0', '#3a2440', 0.4)], 309, 'rgba(6,14,34,0.4)', 0.4);
   ctx.fillStyle = mix(GOLD, haze, 0.1);
   ctx.fillRect(-sw / 2 - 2, sy - 2.5, sw + 4, 2.6);
   for (const sx of [-1, 1]) {
@@ -2411,7 +2435,7 @@ const cityWall: PropFn = (ctx, e, pal, rng) => {
   brickField(ctx, x0, -12, x1, 0, 16, 6, ['#4e4436', '#443a2e', '#5a4e3e'], 201, 'rgba(0,0,0,0.5)', 0.6);
   ctx.fillStyle = 'rgba(255,230,190,0.18)';
   ctx.fillRect(x0, -12, W, 0.8);
-  brickField(ctx, x0, top, x1, -12, 8, 4, [GLAZE, '#1b4682', '#28599a', '#1d4a88'], 202, 'rgba(4,12,30,0.75)', 0.55);
+  brickField(ctx, x0, top, x1, -12, 8, 4, ['#1c4480', '#183c74', '#224e90', '#1a417a'], 202, 'rgba(4,12,30,0.75)', 0.55);
   ctx.fillStyle = 'rgba(160,205,255,0.1)';
   for (let yy = top + 0.7; yy < -12; yy += 4) ctx.fillRect(Math.max(x0, v[0]), yy, Math.min(x1, v[2]) - Math.max(x0, v[0]), 0.5);
   rosetteBand(ctx, x0, x1, top + 8, 11);
@@ -2871,9 +2895,9 @@ const straw: PropFn = (ctx, e, pal, rng) => {
   ctx.quadraticCurveTo(-W * 0.28, -9, 0, -9.5);
   ctx.quadraticCurveTo(W * 0.3, -9, W / 2, 1);
   ctx.closePath();
-  ctx.fillStyle = '#7a5c26';
+  ctx.fillStyle = '#8a6a2c';
   ctx.fill();
-  const C = ['#4e3a1a', '#a07a36', '#c8a24c', '#e8d07a'];
+  const C = ['#5e4620', '#b08a3e', '#d8b456', '#f2dc8a'];
   ctx.lineCap = 'round';
   for (let k = 0; k < C.length; k++) {
     ctx.strokeStyle = C[k];
@@ -2937,16 +2961,22 @@ function emberCrack(ctx: Ctx, x: number, y: number, rng: RNG, len: number) {
   ctx.beginPath();
   ctx.moveTo(x, y);
   let cx = x, cy = y;
+  const dir = rng.chance(0.5) ? 1 : -1;
   for (let k = 0; k < len; k++) {
-    if (k & 1) cy += rng.chance(0.5) ? 5 : -5;
-    else cx += rng.range(4, 10) * (rng.chance(0.5) ? 1 : -1);
+    cx += dir * rng.range(2.5, 6);
+    cy += rng.range(-2, 3.2);
     ctx.lineTo(cx, cy);
+    if (k === 1 && rng.chance(0.5)) {
+      ctx.lineTo(cx + dir * rng.range(1, 3), cy + rng.range(3, 6));
+      ctx.moveTo(cx, cy);
+    }
   }
-  ctx.strokeStyle = 'rgba(255,70,10,0.22)';
-  ctx.lineWidth = 2.6;
+  const a = rng.range(0.5, 1);
+  ctx.strokeStyle = rgba('#ff4a0a', 0.16 * a);
+  ctx.lineWidth = 2;
   ctx.stroke();
-  ctx.strokeStyle = 'rgba(255,170,70,0.8)';
-  ctx.lineWidth = 0.7;
+  ctx.strokeStyle = rgba('#ffa850', 0.7 * a);
+  ctx.lineWidth = 0.55;
   ctx.stroke();
 }
 
@@ -2972,11 +3002,11 @@ const furnaceWall: PropFn = (ctx, e, pal, rng) => {
   brickField(ctx, x0, top, x1, sill, 10, 5, SOOT_T, 501, '#0a0604', 0.7);
   ctx.globalCompositeOperation = 'lighter';
   const cr = new RNG(Math.floor(e.x * 7) + 503);
-  for (let i = 0; i < W / 36; i++) {
+  for (let i = 0; i < W / 56; i++) {
     const cx = x0 + cr.range(0, W), cy = -cr.range(30, H * (cr.chance(0.6) ? 0.4 : 0.85));
     const len = cr.int(3, 7);
     if (cx < v[0] - 60 || cx > v[2] + 60) continue;
-    emberCrack(ctx, cx, Math.round(cy / 5) * 5, cr, len);
+    emberCrack(ctx, cx, cy, cr, len);
   }
   ctx.globalCompositeOperation = 'source-over';
   // a clerestory of small glowing vents high on the wall
@@ -3576,11 +3606,12 @@ const furnaceMouth: PropFn = (ctx, e, pal, rng) => {
   ctx.arc(0, -ms, mw, Math.PI, 0);
   ctx.lineTo(mw, 0);
   ctx.closePath();
-  const ig = ctx.createRadialGradient(0, -6, 6, 0, -ms * 0.6, crown);
-  ig.addColorStop(0, '#ffe8a0');
-  ig.addColorStop(0.25, '#ff9a2a');
-  ig.addColorStop(0.6, '#b8300a');
-  ig.addColorStop(1, '#3a0a02');
+  const ig = ctx.createRadialGradient(0, 0, 4, 0, -ms * 0.4, crown * 1.05);
+  ig.addColorStop(0, '#ffd070');
+  ig.addColorStop(0.2, '#ff6a14');
+  ig.addColorStop(0.48, '#8a1e06');
+  ig.addColorStop(0.8, '#2a0602');
+  ig.addColorStop(1, '#140200');
   ctx.fillStyle = ig;
   ctx.fill();
   // a sill of glowing stone
@@ -3742,8 +3773,8 @@ function worshipper(ctx: Ctx, x: number, y: number, s: number, pose: number, col
     ctx.lineTo(6.4, -2.4);
     ctx.lineTo(6.6, 0);
     ctx.closePath();
-    taper(ctx, 1.4, -17.6, 2.8, 6.4, -24.6, 2.2);
-    taper(ctx, -1.4, -17.6, 2.6, 3.2, -25.4, 2);
+    taper(ctx, 1.4, -17.6, 2.2, 6, -25.4, 1.6);
+    taper(ctx, -1.2, -17.6, 2, 2.6, -26, 1.5);
     hx = 0.4;
     hy = -22.4;
   } else {
@@ -3774,6 +3805,8 @@ function worshipper(ctx: Ctx, x: number, y: number, s: number, pose: number, col
   }
   ctx.fillStyle = col;
   ctx.fill();
+  // a face in shadow, and the sash at the waist
+  circle(ctx, hx + 1.2, hy + 0.3, 1.5, 'rgba(120,70,50,0.55)');
   // the low sun along their backs
   ctx.strokeStyle = rim;
   ctx.lineWidth = 0.8;
@@ -3798,16 +3831,21 @@ function worshipper(ctx: Ctx, x: number, y: number, s: number, pose: number, col
 /** Worshippers in two ranks, foreheads to the dust, bowed toward the Image. */
 const kneelingCrowd: PropFn = (ctx, e, pal, rng) => {
   const W = (e.w ?? 12) * TILE;
+  const robes = ['#3a2626', '#2a2838', '#3c2e20', '#46262a', '#30302a'];
   for (let row = 0; row < 2; row++) {
     const s = row ? 1 : 0.84, dy = row ? 0 : -3;
-    const col = row ? '#1e1517' : mix('#2a2026', pal.fog, 0.12);
-    const rim = row ? 'rgba(255,170,100,0.4)' : 'rgba(255,170,100,0.28)';
+    const rim = row ? 'rgba(255,180,110,0.6)' : 'rgba(255,170,100,0.4)';
     const step = row ? 21 : 18;
     const n = Math.max(1, Math.round(W / step));
     for (let i = 0; i < n; i++) {
       const px = -W / 2 + (i + 0.5) * (W / n) + rng.range(-3, 3) + (row ? 0 : 8);
       const r = rng.next();
-      const pose = r < 0.62 ? 0 : r < 0.82 ? 2 : 1;
+      const pose = r < 0.66 ? 0 : r < 0.9 ? 2 : 1;
+      const col = mix(rng.pick(robes), row ? '#120c0c' : pal.fog, row ? 0.25 : 0.18);
+      ctx.fillStyle = 'rgba(0,0,0,0.25)';
+      ctx.beginPath();
+      ctx.ellipse(px, dy, 13 * s, 1.6, 0, 0, TAU);
+      ctx.fill();
       worshipper(ctx, px, dy, s * rng.range(0.92, 1.06), pose, col, rim, rng.int(0, 2));
     }
   }
@@ -3985,14 +4023,15 @@ function clothOff(u: number, sw: number, t: number, ph: number) {
 /** A flame tongue from a base of width wid at (bx, by) up to height hgt, its tip pushed by sway. Adds to the path. */
 function tongue(ctx: Ctx, bx: number, by: number, wid: number, hgt: number, sway: number) {
   ctx.moveTo(bx - wid / 2, by);
-  ctx.quadraticCurveTo(bx - wid * 0.55 + sway * 0.3, by - hgt * 0.55, bx + sway, by - hgt);
-  ctx.quadraticCurveTo(bx + wid * 0.55 + sway * 0.3, by - hgt * 0.5, bx + wid / 2, by);
+  ctx.bezierCurveTo(bx - wid * 0.75, by - hgt * 0.35, bx - wid * 0.1 + sway * 0.6, by - hgt * 0.62, bx + sway, by - hgt);
+  ctx.bezierCurveTo(bx + wid * 0.25 + sway * 0.5, by - hgt * 0.55, bx + wid * 0.75, by - hgt * 0.3, bx + wid / 2, by);
   ctx.closePath();
 }
 
-const FLAME_C = ['#d8360a', '#ff8a1a', '#fff0a8'] as const;
-const FLAME_W = [1, 0.62, 0.32] as const;
-const FLAME_H = [1, 0.74, 0.44] as const;
+const FLAME_C = ['#a81c06', '#ff4a0a', '#ff9a20', '#fff0b8'] as const;
+const FLAME_A = [0.7, 0.5, 0.5, 0.6] as const;
+const FLAME_W = [1, 0.78, 0.52, 0.28] as const;
+const FLAME_H = [1, 0.84, 0.6, 0.36] as const;
 
 /** Animated overlays: banner cloth, motes in the light, the furnace's fire. Allocation-free. */
 export function drawLivePropCh4(ctx: Ctx, e: Decor, t: number) {
@@ -4074,7 +4113,7 @@ export function drawLivePropCh4(ctx: Ctx, e: Decor, t: number) {
       const W = (e.w ?? 18) * TILE, H = (e.h ?? 15) * TILE;
       const mw = W * 0.21, ms = H * 0.36, crown = ms + mw;
       const q = tier();
-      const n = q === 2 ? 11 : q === 1 ? 8 : 5;
+      const n = q === 2 ? 15 : q === 1 ? 10 : 6;
       const fl = 0.86 + 0.14 * Math.sin(t * 9.1) * Math.sin(t * 5.3 + 1);
       ctx.save();
       ctx.beginPath();
@@ -4086,35 +4125,45 @@ export function drawLivePropCh4(ctx: Ctx, e: Decor, t: number) {
       ctx.clip();
       ctx.globalCompositeOperation = 'lighter';
       blob(ctx, '#ff6a1a', x, y - ms * 0.6, mw * 1.3, crown * 0.8, 0.4 * fl);
-      for (let layer = 0; layer < 3; layer++) {
-        ctx.globalCompositeOperation = layer === 2 ? 'lighter' : 'source-over';
-        ctx.globalAlpha = layer === 0 ? 0.92 : 0.95;
+      // a dark-red body, then additive layers: where tongues overlap the fire burns whiter
+      for (let layer = 0; layer < 4; layer++) {
+        ctx.globalCompositeOperation = layer === 0 ? 'source-over' : 'lighter';
+        ctx.globalAlpha = FLAME_A[layer];
         ctx.fillStyle = FLAME_C[layer];
         ctx.beginPath();
         for (let i = 0; i < n; i++) {
-          const u = (i + 0.5) / n;
-          const ph = t * (2.2 + hash2(i, 1, 9) * 1.4) + i * 1.7;
-          const hgt = crown * (0.5 + 0.28 * Math.sin(ph) * Math.sin(ph * 0.53 + 1) + 0.3 * (1 - Math.abs(u - 0.5) * 2)) * FLAME_H[layer] * fl;
-          const wid = ((2 * mw) / n) * 2 * FLAME_W[layer];
-          const sway = Math.sin(t * 3.1 + i * 2.1) * wid * 0.35 + Math.sin(t * 7.3 + i) * wid * 0.15;
+          const u = (i + 0.5 + Math.sin(i * 7.1) * 0.25) / n;
+          const ph = t * (2.4 + hash2(i, 1, 9) * 1.8) + i * 1.7 + layer * 0.35;
+          const flick = 0.5 + 0.5 * Math.sin(ph) * Math.sin(ph * 0.53 + 1.3);
+          const hgt = crown * (0.32 + 0.42 * flick + 0.3 * (1 - Math.abs(u - 0.5) * 2)) * FLAME_H[layer] * fl;
+          const wid = ((2 * mw) / n) * (1.7 + hash2(i, 2, 9) * 0.8) * FLAME_W[layer];
+          const sway = Math.sin(t * 3.1 + i * 2.1) * wid * 0.6 + Math.sin(t * 7.3 + i) * wid * 0.25;
           tongue(ctx, x - mw + u * 2 * mw, y + 1, wid, hgt, sway);
         }
         ctx.fill();
       }
       ctx.globalAlpha = 1;
+      for (let i = 0; i < n; i += 2) {
+        const u = (i + 0.5 + Math.sin(i * 7.1) * 0.25) / n;
+        const ph = t * (2.4 + hash2(i, 1, 9) * 1.8) + i * 1.7;
+        const hy = crown * (0.3 + 0.35 * (0.5 + 0.5 * Math.sin(ph) * Math.sin(ph * 0.53 + 1.3)));
+        blob(ctx, '#ff7a1a', x - mw + u * 2 * mw, y - hy, mw * 0.35, mw * 0.45, 0.3);
+      }
       ctx.globalCompositeOperation = 'lighter';
       blob(ctx, '#ffe8a0', x, y - 5, mw * 0.95, 16, 0.6 * fl);
       ctx.restore();
       ctx.globalCompositeOperation = 'lighter';
       // tongues that escape over the arch and lick up the dome
-      ctx.fillStyle = 'rgba(255,120,30,0.5)';
-      ctx.beginPath();
-      for (let k = 0; k < 3; k++) {
-        const ph = t * 1.9 + k * 2.3;
-        const hgt = 14 + 18 * (0.5 + 0.5 * Math.sin(ph)) * (0.5 + 0.5 * Math.sin(ph * 1.7 + k));
-        tongue(ctx, x + (k - 1) * mw * 0.45, y - crown + 8, mw * 0.4, hgt, Math.sin(t * 2.7 + k) * 6);
+      for (let layer = 0; layer < 2; layer++) {
+        ctx.fillStyle = layer ? 'rgba(255,220,120,0.4)' : 'rgba(255,90,20,0.38)';
+        ctx.beginPath();
+        for (let k = 0; k < 3; k++) {
+          const ph = t * 1.9 + k * 2.3;
+          const hgt = (22 + 34 * (0.5 + 0.5 * Math.sin(ph)) * (0.5 + 0.5 * Math.sin(ph * 1.7 + k))) * (layer ? 0.55 : 1);
+          tongue(ctx, x + (k - 1) * mw * 0.42, y - crown + 22, mw * (layer ? 0.14 : 0.26), hgt + 6, Math.sin(t * 2.7 + k) * 12);
+        }
+        ctx.fill();
       }
-      ctx.fill();
       // embers spat up out of the mouth
       const ne = q === 2 ? 28 : q === 1 ? 16 : 8;
       ctx.fillStyle = '#ffd080';

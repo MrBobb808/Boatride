@@ -39,8 +39,8 @@ export const ENEMY_STATS: Record<EnemyKind, EnemyStats> = {
   knight: { hp: 210, dmg: 22, poise: 70, xp: 70, silver: [10, 16], name: 'Crimson Knight' },
   drone: { hp: 34, dmg: 12, poise: 8, xp: 18, silver: [2, 5], name: 'Locust Drone' },
   soldier: { hp: 190, dmg: 22, poise: 60, xp: 72, silver: [10, 16], name: 'Locust Soldier' },
-  lion: { hp: 150, dmg: 20, poise: 40, xp: 60, silver: [8, 14], name: 'Brazen Lion' },
-  priest: { hp: 110, dmg: 18, poise: 26, xp: 58, silver: [10, 16], name: 'Chaldean Fire-Priest' },
+  lion: { hp: 170, dmg: 20, poise: 42, xp: 62, silver: [8, 14], name: 'Brazen Lion' },
+  priest: { hp: 120, dmg: 18, poise: 26, xp: 60, silver: [10, 16], name: 'Chaldean Fire-Priest' },
 };
 
 export const CORRUPT = { glow: '#b04cff', eye: '#ff3355', outline: '#07050a' };

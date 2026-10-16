@@ -11,7 +11,7 @@ type Gen = (m: Music, d: AudioNode, step: number, t: number, I: number) => void;
 interface TrackDef {
   bpm: number;
   gen: Gen;
-  ambience?: 'wind' | 'drone' | 'none' | 'fire' | 'swarm';
+  ambience?: 'wind' | 'drone' | 'none' | 'fire' | 'swarm' | 'furnace' | 'den';
 }
 
 interface Playing {
@@ -145,6 +145,48 @@ export class Music {
       lfo.start();
       sweep.start();
       p.amb.push(am, lfo, sweep);
+    } else if (kind === 'furnace') {
+      // The furnace's roar: low noise that surges and falls like a bellows working.
+      f.type = 'lowpass';
+      f.frequency.value = 240;
+      f.Q.value = 0.7;
+      g.gain.value = 0.09;
+      const lfo = ctx.createOscillator();
+      lfo.frequency.value = 0.18;
+      const lg = ctx.createGain();
+      lg.gain.value = 0.045;
+      lfo.connect(lg);
+      lg.connect(g.gain);
+      const sweep = ctx.createOscillator();
+      sweep.frequency.value = 0.11;
+      const sg = ctx.createGain();
+      sg.gain.value = 90;
+      sweep.connect(sg);
+      sg.connect(f.frequency);
+      lfo.start();
+      sweep.start();
+      p.amb.push(lfo, sweep);
+    } else if (kind === 'den') {
+      // Something large breathing in the dark: a slow swell in and out.
+      f.type = 'bandpass';
+      f.frequency.value = 220;
+      f.Q.value = 1.2;
+      g.gain.value = 0.035;
+      const lfo = ctx.createOscillator();
+      lfo.frequency.value = 0.22;
+      const lg = ctx.createGain();
+      lg.gain.value = 0.032;
+      lfo.connect(lg);
+      lg.connect(g.gain);
+      const sweep = ctx.createOscillator();
+      sweep.frequency.value = 0.22;
+      const sg = ctx.createGain();
+      sg.gain.value = 70;
+      sweep.connect(sg);
+      sg.connect(f.frequency);
+      lfo.start();
+      sweep.start();
+      p.amb.push(lfo, sweep);
     } else {
       f.type = 'lowpass';
       f.frequency.value = 180;
@@ -313,15 +355,16 @@ export class Music {
     audio.noiseHit(t, dur * 0.6, d, 'bandpass', mtof(m) * 2, 8, 0.008 * v, undefined, 0.08);
   }
 
-  brass(d: AudioNode, m: number, t: number, dur: number, v = 1) {
+  /** a > 0.06 swells the note in, the filter opening with it. */
+  brass(d: AudioNode, m: number, t: number, dur: number, v = 1, a = 0.06) {
     const ctx = audio.ctx!;
     const f = ctx.createBiquadFilter();
     f.type = 'lowpass';
     f.frequency.setValueAtTime(300, t);
-    f.frequency.linearRampToValueAtTime(2400, t + 0.09);
-    f.frequency.setTargetAtTime(1100, t + 0.12, 0.25);
+    f.frequency.linearRampToValueAtTime(2400, t + Math.max(0.09, a));
+    f.frequency.setTargetAtTime(1100, t + Math.max(0.12, a), 0.25);
     const g = ctx.createGain();
-    this.sustain(g, t, 0.06, dur, 0.05 * v, 0.25);
+    this.sustain(g, t, a, dur, 0.05 * v, 0.25);
     f.connect(g);
     g.connect(d);
     for (const det of [-6, 6]) {
@@ -386,6 +429,66 @@ export class Music {
     lfo.stop(t + dur + 0.3);
   }
 
+  /** A plucked oud: a bright, nasal attack that darkens fast, with a slight slide into the note. */
+  oud(d: AudioNode, m: number, t: number, v = 1, dec = 0.9, slide = 0) {
+    const ctx = audio.ctx!;
+    const f = ctx.createBiquadFilter();
+    f.type = 'lowpass';
+    f.Q.value = 3;
+    f.frequency.setValueAtTime(3400, t);
+    f.frequency.exponentialRampToValueAtTime(520, t + dec * 0.6);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(0.06 * v, t + 0.004);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dec);
+    f.connect(g);
+    g.connect(d);
+    for (const [type, det] of [['sawtooth', -4], ['triangle', 5]] as const) {
+      const o = ctx.createOscillator();
+      o.type = type;
+      o.frequency.setValueAtTime(mtof(m - slide), t);
+      if (slide) o.frequency.exponentialRampToValueAtTime(mtof(m), t + 0.07);
+      o.detune.value = det;
+      o.connect(f);
+      o.start(t);
+      o.stop(t + dec + 0.05);
+    }
+    audio.noiseHit(t, 0.03, d, 'bandpass', mtof(m) * 4, 3, 0.03 * v, undefined, 0.001);
+  }
+
+  /** Frame drum: 'dum' is the low open stroke at the centre, 'tek' the dry slap at the rim. */
+  frame(d: AudioNode, t: number, v = 1, tek = false) {
+    if (tek) {
+      audio.noiseHit(t, 0.07, d, 'bandpass', 2400, 1.6, 0.16 * v, 1400, 0.001);
+      audio.osc('triangle', 420, t, 0.04, d, 0.05 * v, 0.001, 300);
+    } else {
+      audio.osc('sine', 110, t, 0.38, d, 0.42 * v, 0.002, 62);
+      audio.noiseHit(t, 0.09, d, 'lowpass', 700, 1, 0.14 * v, 180);
+    }
+  }
+
+  /** A hammer on metal: inharmonic partials ringing over a hard thud. */
+  anvil(d: AudioNode, t: number, v = 1, f = 520) {
+    const parts = [1, 2.76, 5.4, 8.93];
+    for (let i = 0; i < parts.length; i++) audio.osc(i ? 'sine' : 'triangle', f * parts[i], t, 0.5 / (1 + i * 0.7), d, (0.06 * v) / (1 + i * 0.5), 0.001);
+    audio.noiseHit(t, 0.05, d, 'highpass', 3000, 1, 0.12 * v, undefined, 0.001);
+    audio.osc('sine', 90, t, 0.12, d, 0.18 * v, 0.002, 55);
+  }
+
+  /** A great gong: a dark bloom of partials that takes a moment to open up. */
+  gong(d: AudioNode, m: number, t: number, v = 1, dec = 5) {
+    const f = mtof(m);
+    const parts = [1, 1.48, 1.97, 2.53, 3.21, 4.1];
+    for (let i = 0; i < parts.length; i++) audio.osc('sine', f * parts[i], t, dec / (1 + i * 0.4), d, (0.06 * v) / (1 + i * 0.6), 0.02 + i * 0.03);
+    audio.noiseHit(t, 0.6, d, 'bandpass', f * 3, 2, 0.05 * v, f * 1.5, 0.05);
+  }
+
+  /** A slow breath of filtered noise, rising then falling (a lion's breathing in the den). */
+  breath(d: AudioNode, t: number, dur: number, v = 1, out = false) {
+    audio.noiseHit(t, dur, d, 'bandpass', out ? 420 : 260, 1.6, 0.09 * v, out ? 180 : 520, dur * 0.45);
+    if (out) audio.osc('sawtooth', 48, t + dur * 0.2, dur * 0.6, d, 0.025 * v, dur * 0.3, 40);
+  }
+
   swell(d: AudioNode, t: number, dur: number, v = 1) {
     const ctx = audio.ctx!;
     const s = ctx.createBufferSource();
@@ -430,6 +533,21 @@ const VALLEY_MEL: Record<number, number> = { 0: 76, 4: 77, 6: 76, 8: 74, 12: 71 
 const HIVE_CLICKS = [[0, 2, 5, 7, 10, 12, 13], [0, 3, 5, 6, 9, 11, 14]];
 const SWARM_OST = [0, 12, 1, 12, 0, 12, 3, 12, 0, 12, 1, 12, 6, 12, 3, 1];
 const SWARM_KICK = [0, 3, 6, 8, 10, 13];
+// Chapter IV. E Phrygian dominant: E F G# A B C D.
+const DURA_SCALE = [52, 53, 56, 57, 59, 60, 62, 64, 65, 68, 69, 71];
+const DURA_OUD: (number | null)[][] = [
+  [7, null, 6, 7, 8, null, 7, 6, 4, null, 3, 4, 2, 1, 0, null],
+  [0, 1, 2, null, 3, 2, 1, null, 2, 3, 4, 5, 4, null, 3, 2],
+  [7, 8, 9, null, 8, 7, 6, null, 7, 6, 4, 3, 2, null, 1, 0],
+  [4, null, 3, 2, 1, null, 2, 1, 0, null, null, 1, 0, null, null, null],
+];
+const DURA_DUM = [0, 8];
+const DURA_TEK = [4, 6, 12, 14];
+const BABYLON_PROG = [[38, [62, 65, 69]], [34, [62, 65, 70]], [36, [60, 64, 67]], [33, [61, 64, 69]]] as const;
+const BABYLON_CALL: Record<number, number> = { 0: 69, 4: 74, 6: 72, 8: 70, 12: 69 };
+const FURNACE_HITS = [0, 3, 6, 8, 11, 14];
+const IMAGE_PROG = [[36, [60, 63, 67]], [32, [60, 63, 68]], [34, [62, 65, 70]], [31, [59, 62, 67]]] as const;
+const IMAGE_KICK = [0, 6, 8, 11];
 const TRIAL_PROG = [[38, [62, 65, 69]], [34, [62, 65, 70]], [41, [60, 65, 69]], [36, [60, 64, 67]]] as const;
 const TRIAL_OST = [0, 0, 7, 0, 12, 0, 7, 0, 0, 0, 7, 0, 12, 7, 5, 7];
 const TRIAL_CALL: Record<number, number>[] = [
@@ -824,6 +942,160 @@ export const TRACKS: Record<string, TrackDef> = {
       const n = TRIAL_CALL[b % 4][p];
       if (Math.floor(b / 4) % 2 === 1 && n !== undefined) m.brass(d, n - 12, t, beat * (p === 0 && b % 4 === 3 ? 3.5 : 1.4), 0.75);
       else if (n !== undefined && p === 0) m.strings(d, n, t, beat * 3.5, 0.5, 2200, 0.08);
+    },
+  },
+  // Chapter IV: dusk on the plain of Dura. E Phrygian dominant, an oud improvising
+  // over a drone and a frame drum keeping a maqsum.
+  dura: {
+    bpm: 84,
+    ambience: 'wind',
+    gen(m, d, s, t, I) {
+      const b = bar(s), p = pos(s);
+      const beat = 60 / 84;
+      if (p === 0) {
+        m.strings(d, 40, t, beat * 4, 0.9, 520, 1.2);
+        m.strings(d, 47, t, beat * 4, 0.4, 520, 1.2);
+        if (b % 4 === 0) m.choir(d, 64, t, beat * 8, 0.24, 'oo');
+      }
+      if (DURA_DUM.includes(p)) m.frame(d, t, 0.55 + I * 0.3);
+      if (DURA_TEK.includes(p)) m.frame(d, t, p === 6 || p === 14 ? 0.35 : 0.6, true);
+      // the oud line, and a grace note now and then
+      const line = DURA_OUD[b % 4];
+      const n = line[p];
+      if (n !== null && n !== undefined) {
+        const note = DURA_SCALE[n] + (Math.floor(b / 4) % 2 ? 12 : 0);
+        m.oud(d, note, t, 0.9, p % 4 === 0 ? 1.1 : 0.7, Math.random() < 0.15 ? 1 : 0);
+        if (Math.random() < 0.08) m.oud(d, note + 1, t + 0.06, 0.5, 0.25);
+      }
+      // a reed answering on the second half of every other phrase
+      if (Math.floor(b / 2) % 2 === 1 && p % 4 === 2 && Math.random() < 0.6) m.flute(d, DURA_SCALE[4 + ((p >> 2) % 4)] + 12, t, beat * 0.9, 0.5);
+      if (I > 0.12) {
+        const v = Math.min(1, I * 1.3);
+        if (p === 0 || p === 10) m.taiko(d, t, 0.5 * v, 0.9);
+        if (p % 2 === 1) m.strings(d, 52 + [0, 1, 4, 1][(p >> 1) % 4], t, 0.12, 0.5 * v, 2400, 0.004);
+        if (p === 0 && b % 2 === 1) m.brass(d, 40, t, beat * 2, 0.5 * v);
+      }
+    },
+  },
+  // Chapter IV: Babylon by night. A grand processional: brass swelling over a march.
+  babylon: {
+    bpm: 96,
+    ambience: 'fire',
+    gen(m, d, s, t, I) {
+      const b = bar(s), p = pos(s);
+      const beat = 60 / 96;
+      const [r, ch] = BABYLON_PROG[b % 4];
+      if (p === 0) {
+        m.bass(d, r, t, beat * 4, 0.7);
+        for (const n of ch) m.brass(d, n - 12, t, beat * 3.6, 0.42, 0.9);
+        for (const n of ch) m.choir(d, n, t, beat * 4, 0.3, 'ah');
+      }
+      // the march: taiko on the beats, a snare roll into each phrase
+      if (p % 4 === 0) m.taiko(d, t, p === 0 ? 0.7 : 0.45, p === 0 ? 0.8 : 1);
+      if (p === 6 || p === 14) m.frame(d, t, 0.5, true);
+      if (b % 4 === 3 && p >= 12) m.snare(d, t, 0.18 + (p - 12) * 0.07);
+      // the herald's call on alternate phrases
+      const n = BABYLON_CALL[p];
+      if (Math.floor(b / 2) % 2 === 1 && n !== undefined) m.brass(d, n + (b % 4 === 3 ? -2 : 0), t, beat * (p === 12 ? 3 : 1.4), 0.6);
+      if (p === 0 && b % 4 === 0) m.bell(d, ch[2] + 12, t, 0.45, 3.5);
+      if (p % 4 === 2) m.harp(d, ch[(p >> 2) % 3] + 12, t, 0.35, 1.4);
+      if (I > 0.12) {
+        const v = Math.min(1, I * 1.3);
+        if (p === 10) m.taiko(d, t, 0.5 * v, 1.2);
+        if (p === 4 || p === 12) m.snare(d, t, 0.3 * v);
+        if (p % 2 === 1) m.strings(d, r + 24 + [0, 7, 3, 7][(p >> 1) % 4], t, 0.12, 0.6 * v, 2600, 0.004);
+      }
+    },
+  },
+  // Chapter IV: the furnace halls. Hammers on metal, a roar underneath, and a
+  // figure that climbs a semitone every bar until it breaks.
+  furnace: {
+    bpm: 104,
+    ambience: 'furnace',
+    gen(m, d, s, t, I) {
+      const b = bar(s), p = pos(s);
+      const beat = 60 / 104;
+      const climb = b % 8;
+      if (p % 4 === 0) m.bass(d, 33, t, beat * 0.9, p === 0 ? 0.9 : 0.55);
+      if (FURNACE_HITS.includes(p)) m.anvil(d, t, p === 0 ? 0.9 : 0.6, p === 0 ? 440 : p % 3 === 0 ? 560 : 620);
+      if (p === 0 || p === 8) m.taiko(d, t, 0.55, 0.7);
+      if (p === 0) {
+        m.strings(d, 45 + climb, t, beat * 4, 0.55, 900, 0.5);
+        m.strings(d, 46 + climb, t, beat * 4, 0.3, 900, 0.5);
+      }
+      if (p % 2 === 0) m.strings(d, 57 + climb + (p % 4 === 2 ? 1 : 0), t, 0.1, 0.35 + climb * 0.05, 2400, 0.004);
+      if (climb === 7 && p === 8) m.swell(d, t, beat * 2, 0.8);
+      if (p === 0 && climb === 0) m.gong(d, 33, t, 0.6, 4);
+      if (I > 0.12) {
+        const v = Math.min(1, I * 1.3);
+        if (p === 4 || p === 12) m.snare(d, t, 0.35 * v);
+        if (p % 2 === 1) m.tick2(d, t, 0.6 * v);
+        if (p === 0 && b % 2 === 1) m.brass(d, 45 + climb, t, beat * 2, 0.6 * v);
+      }
+    },
+  },
+  // Chapter IV: the lions' den. Sparse and low; something breathes in the dark.
+  den: {
+    bpm: 50,
+    ambience: 'den',
+    gen(m, d, s, t, I) {
+      const b = bar(s), p = pos(s);
+      const beat = 60 / 50;
+      if (p === 0) {
+        m.strings(d, 37, t, beat * 4, 0.8, 360, 1.6);
+        if (b % 2 === 1) m.strings(d, 38, t, beat * 4, 0.35, 360, 1.6);
+      }
+      // the breath: in over a bar, out over the next, with a growl in it
+      if (p === 0) m.breath(d, t, beat * 3, 0.8, b % 2 === 1);
+      if (p === 8 && b % 4 === 2) m.taiko(d, t, 0.3, 0.6);
+      if (Math.random() < 0.05 && p % 2 === 1) m.harp(d, [49, 52, 56, 61][Math.floor(rand(0, 4))], t, 0.3, 2.4);
+      if (p === 12 && b % 4 === 3) m.flute(d, 73, t, beat * 1.5, 0.35);
+      if (I > 0.12) {
+        const v = Math.min(1, I * 1.3);
+        if (p === 0 || p === 6) m.taiko(d, t, 0.55 * v, 0.7);
+        if (p % 4 === 2) m.strings(d, 49 + (p === 10 ? 1 : 0), t, 0.16, 0.5 * v, 1800, 0.005);
+      }
+    },
+  },
+  // The Image of gold: colossal. A choir over heavy drums; each phase adds weight,
+  // then brass and a gong, then the full march at double time.
+  image: {
+    bpm: 112,
+    ambience: 'none',
+    gen(m, d, s, t) {
+      const b = bar(s), p = pos(s);
+      const ph = m.phase;
+      const beat = 60 / 112;
+      const [r, ch] = IMAGE_PROG[b % 4];
+      const lift = ph >= 3 ? 1 : 0;
+      if (p === 0) {
+        for (const n of ch) m.choir(d, n + lift, t, beat * 4, 0.7 + ph * 0.1, 'ah');
+        for (const n of ch) m.choir(d, n - 12 + lift, t, beat * 4, 0.45, 'oo');
+        m.strings(d, r + lift, t, beat * 4, 1.1, 700, 0.3);
+      }
+      if (p % 4 === 0) m.bass(d, r + lift, t, beat * 0.95, 0.9);
+      if (IMAGE_KICK.includes(p)) m.taiko(d, t, 0.85, p === 0 ? 0.6 : 0.8);
+      if (p === 4 || p === 12) m.snare(d, t, 0.35 + ph * 0.08);
+      if (p === 0 && b % 4 === 0) m.gong(d, r + 12, t, 0.7, 5);
+      if (ph >= 1) {
+        m.strings(d, r + 24 + [0, 0, 7, 0, 3, 0, 7, 0, 0, 0, 7, 0, 8, 7, 3, 2][p] + lift, t, 0.11, 0.7, 2600, 0.003);
+        if (p === 0) {
+          m.brass(d, r + 12 + lift, t, beat * 1.5, 0.85);
+          m.brass(d, r + 19 + lift, t, beat * 1.5, 0.6);
+        }
+        if (p === 2 || p === 14) m.taiko(d, t, 0.45, 1.3);
+      }
+      if (ph >= 2) {
+        if (p % 2 === 1) m.tick2(d, t, 0.7);
+        if (p === 8 && b % 2 === 1) m.brass(d, r + 24 + lift, t, beat * 1.2, 0.6);
+        if (p === 0) m.bell(d, ch[2] + 12 + lift, t, 0.5, 2.5);
+        if (b % 4 === 3 && p >= 12) m.snare(d, t, 0.2 + (p - 12) * 0.08);
+      }
+      if (ph >= 3) {
+        if (p % 2 === 0 && !IMAGE_KICK.includes(p)) m.taiko(d, t, 0.4, 1.1);
+        if (p === 0 && b % 2 === 0) m.gong(d, r, t, 0.6, 4);
+        if (p === 8 && b % 4 === 3) m.swell(d, t, beat * 2, 1);
+      }
     },
   },
   victory: {

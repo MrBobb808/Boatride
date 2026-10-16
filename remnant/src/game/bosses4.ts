@@ -223,7 +223,7 @@ export class GoldenImage extends BossBase {
   sink = 0;
 
   constructor(x: number, y: number) {
-    super('golden_image', x, y, 64, 150, 9200);
+    super('golden_image', x, y, 64, 150, 24000);
     this.name = 'The Image of Gold';
     this.sub = 'Idol of the Plain of Dura';
     this.maxPoise = this.poise = 420;
@@ -454,7 +454,7 @@ export class GoldenImage extends BossBase {
     this.breathOn = 0;
     this.turnSq = 1;
     this.eyeCharge = 0;
-    this.cd = (cd + rand(0, 0.35)) / this.spd;
+    this.cd = (cd * 0.72 + rand(0, 0.3)) / this.spd;
   }
 
   private hit(x: number, y: number, w: number, h: number, mul: number, extra: Partial<HitInfo> = {}) {
