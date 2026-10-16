@@ -9,7 +9,8 @@ import { input } from '../core/input';
 import { sfx, audio } from '../audio/audio';
 import { music } from '../audio/music';
 import { NPC_DEFS, renderPortrait } from '../game/props';
-import { LORE, ITEMS, RARITY_COLORS, RARITY_NAMES, type ItemInst } from '../game/data';
+import { LORE, ITEMS, RARITY_COLORS, RARITY_NAMES, ECHO_SPECIES, type ItemInst, type EchoOrder } from '../game/data';
+import { ORDER_MARK } from '../game/echoes';
 import { setBoss } from './hud';
 import { haptic } from './touch';
 import { formatTime } from '../core/math';
@@ -281,68 +282,7 @@ const hooks: UIHooks = {
     }
     sfx('uiOpen');
     audio.setMuffled(true);
-    const W = G.world;
-    const s = G.save;
-    const items: { id: Parameters<typeof W.echoCommand>[0]; label: string; icon: string; on?: boolean }[] = [
-      { id: 'toggle', label: W.echoes.length ? 'Dismiss' : 'Summon', icon: 'toggle' },
-      { id: 'aggressive', label: 'Aggressive', icon: 'aggressive', on: s.echoMode === 'aggressive' },
-      { id: 'defensive', label: 'Defensive', icon: 'defensive', on: s.echoMode === 'defensive' },
-      { id: 'follow', label: 'Follow', icon: 'follow', on: s.echoMode === 'follow' },
-      { id: 'target', label: 'Mark target', icon: 'target' },
-      { id: 'recall', label: 'Recall', icon: 'recall' },
-      { id: 'sync', label: W.syncCd > 0 ? `Sync ${Math.ceil(W.syncCd)}s` : 'Sync strike', icon: 'sync' },
-      { id: 'switch', label: W.switchCd > 0 ? `Switch ${Math.ceil(W.switchCd)}s` : s.echoes.length > G.d.echoSlots ? 'Switch in' : 'Exchange', icon: 'switch' },
-    ];
-    const ring = h('div', { class: 'wheel-ring' });
-    const n = items.length;
-    const btns: HTMLElement[] = [];
-    items.forEach((it, i) => {
-      const a = -Math.PI / 2 + (i / n) * Math.PI * 2;
-      const b = btn([img(it.icon, '#f6dea0'), it.label], () => {
-        close();
-        W.echoCommand(it.id);
-      }, 'wheel-btn' + (it.on ? ' on' : ''), i === 0 ? { 'data-autofocus': '' } : {});
-      b.style.left = 50 + Math.cos(a) * 42 + '%';
-      b.style.top = 50 + Math.sin(a) * 42 + '%';
-      btns.push(b);
-      ring.appendChild(b);
-    });
-    ring.appendChild(h('div', { class: 'wheel-center' }, 'Command the Remnant', h('div', { class: 'muted', style: 'font-family:var(--font-body);letter-spacing:0;font-size:1.2em;margin-top:4px;text-transform:none' }, `${W.echoes.length} of ${s.echoes.length} present`)));
-    const layer = h('div', { class: 'wheel' }, ring);
-    layer.addEventListener('pointerup', (e) => {
-      if (e.target === layer) close();
-    });
-    uiRoot.appendChild(layer);
-    wheelEl = layer;
-    // On a controller the stick points straight at a command (✕ picks it),
-    // the way radial menus work on consoles.
-    const stickMag = () => Math.hypot(input.axisX, input.axisY);
-    const aim = () => {
-      if (wheelEl !== layer) return;
-      if (input.lastDevice === 'gamepad' && stickMag() > 0.55) {
-        const ang = Math.atan2(input.axisY, input.axisX) + Math.PI / 2;
-        const i = ((Math.round((ang / (Math.PI * 2)) * n) % n) + n) % n;
-        if (document.activeElement !== btns[i]) {
-          btns[i].focus({ preventScroll: true });
-          sfx('ui', { vol: 0.5 });
-        }
-      }
-      requestAnimationFrame(aim);
-    };
-    requestAnimationFrame(aim);
-    const close = () => {
-      if (!wheelEl) return;
-      popLayer(layer);
-      wheelEl = null;
-      audio.setMuffled(false);
-      input.flush();
-    };
-    pushLayer({ el: layer, onBack: close, onAction: (a) => {
-      if (a === 'echo' || a === 'menu') { close(); return true; }
-      // The stick aims radially above; only the D-pad steps between buttons.
-      if ((a === 'left' || a === 'right' || a === 'up' || a === 'down') && stickMag() > 0.5) return true;
-      return false;
-    } });
+    openWheel('main');
   },
 
   showCredits(after) {
@@ -471,3 +411,189 @@ const hooks: UIHooks = {
 };
 
 export { hooks };
+
+// ---------------------------------------------------------------- command wheel
+type WheelItem = { label: string; icon: string; on?: boolean; color?: string; run: () => void };
+
+/** The Echo command wheel and its two pages: Squad (how many to summon) and Orders. */
+function wheelItems(page: 'main' | 'squad' | 'orders'): { title: string; sub: string; items: WheelItem[] } {
+  const W = G.world;
+  const s = G.save;
+  const cmd = (id: Parameters<typeof W.echoCommand>[0]) => () => W.echoCommand(id);
+  if (page === 'squad') {
+    const pre = s.summonPreset ?? 'all';
+    const picked = (s.squadPick ?? []).filter((u) => s.echoes.some((e) => e.uid === u)).length;
+    return {
+      title: 'Summon', sub: `${W.echoes.length} of ${Math.min(s.echoes.length, G.d.echoSlots)} out`,
+      items: [
+        { label: 'One', icon: 'echo', on: pre === 'one', run: () => W.setSummon('one') },
+        { label: 'Two', icon: 'sync', on: pre === 'two', run: () => W.setSummon('two') },
+        { label: picked ? `Squad (${picked})` : 'Squad', icon: 'sigil', on: pre === 'squad', run: () => W.setSummon('squad') },
+        { label: 'All', icon: 'rally', on: pre === 'all', run: () => W.setSummon('all') },
+        { label: W.echoes.length ? 'Dismiss' : 'Summon', icon: 'toggle', run: cmd('toggle') },
+        { label: 'Back', icon: 'recall', run: () => openWheel('main') },
+      ],
+    };
+  }
+  if (page === 'orders') {
+    const all = W.echoes.map((e) => e.order);
+    const same = all.length && all.every((o) => o === all[0]) ? all[0] ?? 'free' : null;
+    const o = (order: EchoOrder | undefined) => () => {
+      W.orderEchoes(order);
+      hooks.toast(order ? `All Echoes: ${ORDER_INFO[order].name} — ${ORDER_INFO[order].sub}` : 'All Echoes: free to follow the army\'s mode', 'info');
+    };
+    return {
+      title: 'Orders', sub: 'for every Echo out',
+      items: [
+        { label: 'Guard', icon: 'defensive', on: same === 'guard', color: ORDER_MARK.guard, run: o('guard') },
+        { label: 'Hunt', icon: 'aggressive', on: same === 'hunt', color: ORDER_MARK.hunt, run: o('hunt') },
+        { label: 'Flank', icon: 'switch', on: same === 'flank', color: ORDER_MARK.flank, run: o('flank') },
+        { label: 'Hold here', icon: 'pillar', on: same === 'hold', color: ORDER_MARK.hold, run: o('hold') },
+        { label: 'Focus', icon: 'target', on: same === 'focus', color: ORDER_MARK.focus, run: o('focus') },
+        { label: 'Free', icon: 'follow', on: same === 'free', run: o(undefined) },
+        { label: 'Each Echo…', icon: 'echo', run: () => openOrdersPanel() },
+        { label: 'Back', icon: 'recall', run: () => openWheel('main') },
+      ],
+    };
+  }
+  return {
+    title: 'Command the Remnant', sub: `${W.echoes.length} of ${s.echoes.length} present`,
+    items: [
+      { label: 'Summon…', icon: 'toggle', run: () => openWheel('squad') },
+      { label: 'Orders…', icon: 'sigil', run: () => openWheel('orders') },
+      { label: 'Aggressive', icon: 'aggressive', on: s.echoMode === 'aggressive', run: cmd('aggressive') },
+      { label: 'Defensive', icon: 'defensive', on: s.echoMode === 'defensive', run: cmd('defensive') },
+      { label: 'Follow', icon: 'follow', on: s.echoMode === 'follow', run: cmd('follow') },
+      { label: 'Mark target', icon: 'target', run: cmd('target') },
+      { label: 'Recall', icon: 'recall', run: cmd('recall') },
+      { label: W.syncCd > 0 ? `Sync ${Math.ceil(W.syncCd)}s` : 'Sync strike', icon: 'sync', run: cmd('sync') },
+      { label: W.switchCd > 0 ? `Switch ${Math.ceil(W.switchCd)}s` : s.echoes.length > G.d.echoSlots ? 'Switch in' : 'Swap', icon: 'switch', run: cmd('switch') },
+    ],
+  };
+}
+
+function closeWheel() {
+  if (!wheelEl) return;
+  popLayer(wheelEl);
+  wheelEl = null;
+  audio.setMuffled(false);
+  input.flush();
+}
+
+function openWheel(page: 'main' | 'squad' | 'orders') {
+  if (wheelEl) {
+    popLayer(wheelEl);
+    wheelEl = null;
+  }
+  const { title, sub, items } = wheelItems(page);
+  const ring = h('div', { class: 'wheel-ring' });
+  const n = items.length;
+  const btns: HTMLElement[] = [];
+  items.forEach((it, i) => {
+    const a = -Math.PI / 2 + (i / n) * Math.PI * 2;
+    const sub = it.label.endsWith('…') || it.label === 'Back';
+    const b = btn([img(it.icon, it.color ?? '#f6dea0'), it.label], () => {
+      // Pages swap in place; commands close the wheel.
+      if (!sub) closeWheel();
+      it.run();
+    }, 'wheel-btn' + (it.on ? ' on' : ''), i === 0 ? { 'data-autofocus': '' } : {});
+    b.style.left = 50 + Math.cos(a) * 42 + '%';
+    b.style.top = 50 + Math.sin(a) * 42 + '%';
+    btns.push(b);
+    ring.appendChild(b);
+  });
+  ring.appendChild(h('div', { class: 'wheel-center' }, title, h('div', { class: 'muted', style: 'font-family:var(--font-body);letter-spacing:0;font-size:1.2em;margin-top:4px;text-transform:none' }, sub)));
+  const layer = h('div', { class: 'wheel' }, ring);
+  layer.addEventListener('pointerup', (e) => {
+    if (e.target === layer) closeWheel();
+  });
+  uiRoot.appendChild(layer);
+  wheelEl = layer;
+  // On a controller the stick points straight at a command (✕ picks it),
+  // the way radial menus work on consoles.
+  const stickMag = () => Math.hypot(input.axisX, input.axisY);
+  const aim = () => {
+    if (wheelEl !== layer) return;
+    if (input.lastDevice === 'gamepad' && stickMag() > 0.55) {
+      const ang = Math.atan2(input.axisY, input.axisX) + Math.PI / 2;
+      const i = ((Math.round((ang / (Math.PI * 2)) * n) % n) + n) % n;
+      if (document.activeElement !== btns[i]) {
+        btns[i].focus({ preventScroll: true });
+        sfx('ui', { vol: 0.5 });
+      }
+    }
+    requestAnimationFrame(aim);
+  };
+  requestAnimationFrame(aim);
+  const back = () => (page === 'main' ? closeWheel() : openWheel('main'));
+  pushLayer({ el: layer, onBack: back, onAction: (a) => {
+    if (a === 'echo' || a === 'menu') { closeWheel(); return true; }
+    // The stick aims radially above; only the D-pad steps between buttons.
+    if ((a === 'left' || a === 'right' || a === 'up' || a === 'down') && stickMag() > 0.5) return true;
+    return false;
+  } });
+}
+
+const ORDER_INFO: Record<EchoOrder, { name: string; sub: string }> = {
+  guard: { name: 'Guard', sub: 'shield Elior and cut off foes that close in' },
+  hunt: { name: 'Hunt', sub: 'pursue foes anywhere in the fight' },
+  flank: { name: 'Flank', sub: 'get behind Elior\'s foe and strike its back' },
+  hold: { name: 'Hold', sub: 'defend this spot; swap back to it later' },
+  focus: { name: 'Focus', sub: 'stay on one foe until it falls' },
+};
+
+/** Orders one Echo at a time, and who belongs to the hand-picked squad. */
+function openOrdersPanel() {
+  if (wheelEl) {
+    popLayer(wheelEl);
+    wheelEl = null;
+  }
+  const W = G.world;
+  const s = G.save;
+  const list = h('div', { class: 'orders-list scroll' });
+  const orders: (EchoOrder | 'free')[] = ['free', 'guard', 'hunt', 'flank', 'hold', 'focus'];
+  const render = () => {
+    clear(list);
+    const out = new Set(W.echoes.map((e) => e.inst.uid));
+    const sorted = [...s.echoes].sort((a, b) => Number(out.has(b.uid)) - Number(out.has(a.uid)));
+    for (const inst of sorted) {
+      const name = inst.nickname || ECHO_SPECIES[inst.species].stages[inst.stage].name;
+      const here = out.has(inst.uid);
+      const cur = inst.order ?? 'free';
+      const seg = h('div', { class: 'seg' });
+      for (const o of orders) {
+        const live = o === 'hold' || o === 'focus';
+        const b = btn(o === 'free' ? 'Free' : ORDER_INFO[o].name, () => {
+          if (live && !here) { hooks.toast(`${name} must be summoned to ${o === 'hold' ? 'hold a spot' : 'focus a foe'}.`, 'warn'); return; }
+          W.orderEchoes(o === 'free' ? undefined : o, inst.uid);
+          render();
+        }, 'btn small' + (cur === o ? ' on' : ''), { 'data-nav': '' });
+        if (o !== 'free') b.style.borderColor = cur === o ? ORDER_MARK[o] : '';
+        seg.appendChild(b);
+      }
+      const inSquad = (s.squadPick ?? []).includes(inst.uid);
+      const sq = btn(inSquad ? '✓ In squad' : 'In squad', () => {
+        const pick = new Set(s.squadPick ?? []);
+        if (pick.has(inst.uid)) pick.delete(inst.uid);
+        else if (pick.size >= G.d.echoSlots) { hooks.toast(`Your squad holds ${G.d.echoSlots}.`, 'warn'); return; }
+        else pick.add(inst.uid);
+        s.squadPick = [...pick];
+        if (s.summonPreset === 'squad') W.summonEchoes(true);
+        render();
+      }, 'btn small' + (inSquad ? ' on' : ''), { 'data-nav': '' });
+      list.appendChild(h('div', { class: 'orders-row' + (here ? '' : ' away') },
+        h('div', { class: 'orders-name' }, name, h('small', null, here ? `Lv ${inst.level} · on the field` : `Lv ${inst.level} · not summoned`)), seg, sq));
+    }
+  };
+  render();
+  const card = h('div', { class: 'panel orders' },
+    h('div', { class: 'eyebrow' }, 'Orders'),
+    h('p', { class: 'muted', style: 'margin:0 0 6px;font-size:0.85em' }, 'Guard shields you · Hunt chases · Flank strikes from behind · Hold keeps a spot you can swap back to · Focus stays on one foe. Mark up to ' + G.d.echoSlots + ' Echoes "In squad" for the Squad summon.'),
+    list,
+    h('div', { class: 'row' }, btn('Done', () => close(), 'btn primary', { 'data-autofocus': '' })));
+  const layer = h('div', { class: 'layer dim' }, card);
+  uiRoot.appendChild(layer);
+  wheelEl = layer;
+  const close = () => closeWheel();
+  pushLayer({ el: layer, onBack: close });
+}

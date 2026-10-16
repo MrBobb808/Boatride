@@ -64,6 +64,10 @@ export interface SaveData {
   keyItems: string[];
   altarsLit: string[];
   echoMode: 'aggressive' | 'defensive' | 'follow';
+  /** How many of the lineup to call out: the lead, the lead two, the hand-picked squad, or the whole lineup (default). */
+  summonPreset?: 'one' | 'two' | 'squad' | 'all';
+  /** The hand-picked squad (Echo uids) for summonPreset 'squad'. */
+  squadPick?: string[];
   /** Longest combo ever landed. */
   bestCombo?: number;
 }

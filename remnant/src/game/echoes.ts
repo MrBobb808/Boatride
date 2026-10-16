@@ -19,7 +19,7 @@ import { SENT_CLIPS, SENT_BASE, SENT_DIMS, ARCH_CLIPS, ARCH_BASE, ARCH_DIMS, sen
 import { BRUTE_CLIPS, BRUTE_BASE, BRUTE_DIMS, BULW_CLIPS, BULW_BASE, BULW_DIMS, bruteStyle, bulwarkStyle, knightEchoStyle, marshalStyle } from './tanks';
 import { LOCUST_DIMS, locustStyle, drawLocustWings, drawLocustHead, drawLocustScythes } from './locusts';
 import { drawLion, newLionPose } from './babylon';
-import { ECHO_SPECIES, echoXpToNext, type EchoInst } from './data';
+import { ECHO_SPECIES, echoXpToNext, type EchoInst, type EchoOrder } from './data';
 import { echoAtk, echoMaxHp, skillRank } from './state';
 import { Proj } from './projectiles';
 import { lighting } from '../render/lighting';
@@ -193,6 +193,9 @@ KITS.lion = {
 
 export const kitFor = (species: string) => KITS[species] ?? KITS.sentinel;
 
+/** Colours of the order marks over the Echoes' heads. */
+export const ORDER_MARK: Record<EchoOrder, string> = { guard: '#9fe39a', hunt: '#ff8a6a', flank: '#ffd27a', hold: '#9fd7ff', focus: '#ff5a7a' };
+
 export class EchoUnit extends Entity {
   inst: EchoInst;
   kit: EchoKit;
@@ -216,6 +219,54 @@ export class EchoUnit extends Entity {
   tempT = 0;
   move: Move | null = null;
   chainLeft = 0;
+  /** The spot a 'hold' order defends. */
+  holdX = 0;
+  holdY = 0;
+  /** The foe a 'focus' order stays on, or the fight handed over by a swap. */
+  focus: Entity | null = null;
+  /** Seconds a swap's handoff keeps it on Elior's foe whatever its order. */
+  handoffT = 0;
+  /** A foe it could not reach, left alone for a moment. */
+  private ignore: Entity | null = null;
+  private ignoreT = 0;
+  private stuckT = 0;
+  private lastDx = 0;
+  private guardXpCd = 0;
+
+  get order(): EchoOrder | undefined {
+    return this.inst.order;
+  }
+
+  /** Give this Echo an order. Hold marks Elior's spot; focus takes his current foe. */
+  setOrder(o: EchoOrder | undefined, foe: Entity | null = null) {
+    this.inst.order = o;
+    this.focus = o === 'focus' ? foe : null;
+    if (o === 'hold') {
+      const p = G.world.player;
+      this.holdX = p.x;
+      this.holdY = p.y;
+    }
+  }
+
+  /** Swap handoff: arrive (already at Elior's old place) and press his foe at once. */
+  takeOver(foe: Entity | null) {
+    if (this.order === 'hold') {
+      this.holdX = this.x;
+      this.holdY = this.y;
+    }
+    if (!foe || foe.dying || foe.remove) return;
+    this.target = foe;
+    this.focus = this.order === 'focus' ? foe : this.focus;
+    this.handoffT = 3;
+    this.face = sign(foe.x - this.x) || this.face;
+    this.attackCd = 0;
+    if (this.kit.ranged || this.move) return;
+    const m = this.kit.moves.find((mv) => (mv.minStage ?? 0) <= this.inst.stage && !mv.blink && !mv.leap) ?? this.kit.moves[0];
+    if (Math.abs(foe.x - this.x) < this.kit.reach + 30) {
+      this.begin(m, false);
+      this.st = m.T * Math.max(0, m.hitU - 0.3);
+    }
+  }
 
   constructor(inst: EchoInst, x: number, y: number, slot: number) {
     const kit = kitFor(inst.species);
@@ -289,23 +340,25 @@ export class EchoUnit extends Entity {
       this.animate(dt);
       return;
     }
-    // Teleport back if very far from Elior (fell off or left behind).
-    if (Math.abs(p.x - this.x) > 420 || Math.abs(p.y - this.y) > 260) {
+    this.handoffT = Math.max(0, this.handoffT - dt);
+    this.guardXpCd = Math.max(0, this.guardXpCd - dt);
+    if (this.ignoreT > 0 && (this.ignoreT -= dt) <= 0) this.ignore = null;
+    const order = this.order;
+    // Teleport back if very far from Elior (fell off or left behind). Hunters
+    // range wider, and a held post is not abandoned for distance alone.
+    const leash = order === 'hold' ? 1400 : order === 'hunt' || order === 'focus' ? 720 : 420;
+    if (Math.abs(p.x - this.x) > leash || Math.abs(p.y - this.y) > (order === 'hold' ? 900 : 260)) {
       this.x = p.x - p.face * 20;
       this.y = p.y;
       b.vx = b.vy = 0;
       fx.holyBurst(this.x, this.y - 20, 10, 0.6);
     }
-    // Choose a target.
-    const prio = G.world.priorityTarget;
-    if (prio && !prio.dying && !prio.remove) this.target = prio;
-    else {
-      const range = mode === 'aggressive' ? 260 : mode === 'defensive' ? 110 : 150;
-      const cx = mode === 'aggressive' ? this.x : p.x;
-      this.target = G.world.nearestEnemy(cx, p.y - 20, range, 0);
-    }
-    if (this.kit.ranged) this.thinkArcher(dt, mode);
-    else this.thinkMelee(dt, mode);
+    this.chooseTarget(mode);
+    // Orders map onto the army's movement styles; hold has its own.
+    const how = order === 'guard' ? 'defensive' : order === 'hold' ? 'hold' : order ? 'aggressive' : mode;
+    if (this.kit.ranged) this.thinkArcher(dt, how);
+    else this.thinkMelee(dt, how);
+    this.watchReach(dt);
     b.vy = Math.min(560, b.vy + 1500 * this.grav * dt);
     moveBody(b, dt, G.world.grid, G.world.solid, this.collide);
     if (this.y > G.world.grid.h * 16 + 30) {
@@ -317,6 +370,68 @@ export class EchoUnit extends Entity {
       const f = this.face;
       this.cape.update(this.x + f * (this.j.shBX - 2), this.y + this.j.shBY, dt, -b.vx * 2 - f * 50 + Math.sin(G.time * 2) * 30, 380, 0.88);
     }
+  }
+
+  private usable(e: Entity | null): e is Entity {
+    return !!e && !e.dying && !e.remove && e !== this.ignore;
+  }
+
+  private chooseTarget(mode: string) {
+    const W = G.world, p = W.player, order = this.order;
+    if (this.handoffT > 0 && this.usable(this.target)) return;
+    if (order === 'focus') {
+      if (this.usable(this.focus)) { this.target = this.focus; return; }
+      if (this.focus) {
+        // Its foe has fallen: it goes hunting.
+        this.focus = null;
+        this.inst.order = 'hunt';
+      }
+    }
+    const prio = W.priorityTarget;
+    if (order !== 'hold' && this.usable(prio)) { this.target = prio; return; }
+    let t: Entity | null;
+    if (order === 'hold') t = W.nearestEnemy(this.holdX, this.holdY - 20, 150, 0);
+    else if (order === 'hunt' || order === 'focus') t = W.nearestEnemy(this.x, this.y - 20, 420, 0);
+    else if (order === 'guard') t = W.nearestEnemy(p.x, p.y - 20, 150, 0);
+    else if (order === 'flank') t = this.usable(p.lastFoe) ? p.lastFoe : W.nearestEnemy(p.x, p.y - 20, 260, 0);
+    else {
+      const range = mode === 'aggressive' ? 260 : mode === 'defensive' ? 110 : 150;
+      t = W.nearestEnemy(mode === 'aggressive' ? this.x : p.x, p.y - 20, range, 0);
+    }
+    this.target = t === this.ignore ? null : t;
+  }
+
+  /** A foe on a ledge it cannot climb to: give up on it for a few seconds. */
+  private watchReach(dt: number) {
+    const t = this.target;
+    if (!t || this.kit.ranged || this.move) { this.stuckT = 0; return; }
+    const dx = Math.abs(t.x - this.x);
+    const high = t.y < this.y - 60;
+    if (high && this.body.onGround && Math.abs(dx - this.lastDx) < 30 * dt + 0.5) this.stuckT += dt;
+    else this.stuckT = Math.max(0, this.stuckT - dt);
+    this.lastDx = dx;
+    if (this.stuckT > 1.6) {
+      this.ignore = t;
+      this.ignoreT = 3;
+      this.target = null;
+      this.stuckT = 0;
+    }
+  }
+
+  /** Where to stand to strike t: behind it when flanking, and spread out when others share the foe. */
+  private standX(t: Entity) {
+    const p = G.world.player;
+    const reach = this.kit.reach - 10;
+    if (this.order === 'flank') {
+      const back = -(t.face || sign(p.x - t.x) || 1);
+      return t.x + back * (t.body.w / 2 + 16);
+    }
+    let rank = 0;
+    for (const e of G.world.echoes) if (e !== this && e.target === t && e.slot < this.slot) rank++;
+    if (rank === 0) return t.x + sign(this.x - t.x || 1) * reach;
+    // Crowding: alternate sides of the foe, a step farther each time.
+    const side = rank % 2 ? -sign(p.x - t.x || 1) : sign(p.x - t.x || 1);
+    return t.x + side * (reach + Math.floor(rank / 2) * 10);
   }
 
   private follow(dt: number, speed: number) {
@@ -386,7 +501,9 @@ export class EchoUnit extends Entity {
       const dx = t.x - this.x;
       const dist = Math.abs(dx);
       this.face = sign(dx) || this.face;
-      const mv = this.attackCd <= 0 && b.onGround ? this.pickMove() : null;
+      // A flanker holds its blow until it is behind the foe (or has tried for a while).
+      const behind = this.order !== 'flank' || sign(this.x - t.x) === -(t.face || 1) || this.st > 1.4;
+      const mv = this.attackCd <= 0 && b.onGround && behind ? this.pickMove() : null;
       if (mv && (dist < this.kit.reach || (mv.dash && dist < 150) || (mv.blink && dist < 170))) {
         this.begin(mv, false);
         return;
@@ -396,8 +513,15 @@ export class EchoUnit extends Entity {
         const p = G.world.player;
         const guardX = p.x + sign(t.x - p.x) * 26;
         this.walk(guardX, this.kit.speed * 0.9, dt);
-      } else this.walk(t.x, this.kit.speed, dt, this.kit.reach - 10);
-    } else this.follow(dt, this.kit.speed + 10);
+      } else if (mode === 'hold' && Math.abs(t.x - this.holdX) > 170) this.walk(this.holdX, this.kit.speed, dt);
+      else if (this.order === 'flank' && !behind) {
+        // Circle round: hop over the foe if it stands between.
+        const sx = this.standX(t);
+        this.walk(sx, this.kit.speed * 1.15, dt, 4);
+        if (b.onGround && Math.abs(t.x - this.x) < t.body.w / 2 + 12 && sign(sx - this.x) === sign(t.x - this.x)) b.vy = -440;
+      } else this.walk(this.standX(t), this.kit.speed, dt, 6);
+    } else if (mode === 'hold') this.walk(this.holdX, this.kit.speed, dt, 8);
+    else this.follow(dt, this.kit.speed + 10);
   }
 
   private begin(m: Move, chained: boolean) {
@@ -424,12 +548,20 @@ export class EchoUnit extends Entity {
 
   private blow(m: Move) {
     const stage = this.inst.stage;
-    const atk = echoAtk(G.save, this.inst, G.d) * G.world.commanderAura(this.x, this.y, this);
+    let atk = echoAtk(G.save, this.inst, G.d) * G.world.commanderAura(this.x, this.y, this);
+    let poiseMul = 1;
+    const t = this.target;
+    if (this.order === 'flank' && t && sign(this.x - t.x) === -(t.face || 1)) {
+      // A blow in the back: harder, and it breaks guard sooner.
+      atk *= 1.3;
+      poiseMul = 1.6;
+      fx.ring(t.x, t.cy, 4, 22, '#ffd27a', 0.25, 2);
+    }
     sfx(m.sound, { pan: G.world.pan(this.x), vol: 0.8 });
     const box = m.box;
     const x = this.face > 0 ? this.x + box.x : this.x - box.x - box.w;
     G.world.hitEnemies({ x, y: this.y + box.y, w: box.w, h: box.h }, {
-      dmg: atk * m.mult, poise: m.poise, kx: this.face * m.kx, ky: m.ky, dir: this.face, kind: 'echo', src: this, stop: 0.02, stun: m.stun ?? 0,
+      dmg: atk * m.mult, poise: m.poise * poiseMul, kx: this.face * m.kx, ky: m.ky, dir: this.face, kind: 'echo', src: this, stop: 0.02, stun: m.stun ?? 0,
     }, this.hitSet, () => this.gainXp(1));
     if (!m.slam) {
       const big = this.kit === KITS.marshal || this.kit === KITS.brute;
@@ -487,9 +619,11 @@ export class EchoUnit extends Entity {
         return;
       }
       if (dist < 70) this.walk(this.x - sign(dx) * 40, 80, dt);
+      else if (mode === 'hold') this.walk(this.holdX, 90, dt, 8);
       else if (mode === 'aggressive' && dist > 200) this.walk(t.x, 90, dt, 180);
       else this.follow(dt, 100);
-    } else this.follow(dt, 110);
+    } else if (mode === 'hold') this.walk(this.holdX, 110, dt, 8);
+    else this.follow(dt, 110);
   }
 
   private rain(t: Entity, atk: number) {
@@ -574,6 +708,11 @@ export class EchoUnit extends Entity {
 
   takeHit(h: HitInfo): boolean {
     if (this.invuln > 0 || this.recallT > 0 || this.summonT > 0.4 || this.despawn > 0) return false;
+    // A guard learns from the blows it takes for Elior.
+    if (this.order === 'guard' && this.guardXpCd <= 0) {
+      this.guardXpCd = 1.5;
+      this.gainXp(1);
+    }
     const frontal = h.dir !== 0 && sign(h.dir) !== this.face;
     const guard = this.kit.guard + (this.kit.guard > 0 ? this.inst.stage * 0.12 : 0);
     if (frontal && !this.move && Math.random() < guard) {
@@ -673,6 +812,47 @@ export class EchoUnit extends Entity {
   }
 
   drawOverlay(ctx: Ctx) {
+    if (this.despawn <= 0) {
+      const o = this.order;
+      const top = this.y - this.body.h - 14;
+      if (o) {
+        // Its order, as a small mark over its head.
+        const c = ORDER_MARK[o];
+        ctx.fillStyle = 'rgba(8,6,12,0.75)';
+        ctx.beginPath();
+        ctx.arc(this.x, top, 5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = c;
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        if (o === 'guard') { ctx.moveTo(this.x - 2.5, top - 2); ctx.lineTo(this.x + 2.5, top - 2); ctx.lineTo(this.x + 2.5, top + 0.5); ctx.lineTo(this.x, top + 3); ctx.lineTo(this.x - 2.5, top + 0.5); ctx.closePath(); }
+        else if (o === 'hunt') { ctx.moveTo(this.x - 2.5, top - 2.5); ctx.lineTo(this.x + 2.5, top); ctx.lineTo(this.x - 2.5, top + 2.5); }
+        else if (o === 'flank') { ctx.arc(this.x, top, 2.6, -Math.PI * 0.9, Math.PI * 0.4); }
+        else if (o === 'hold') { ctx.moveTo(this.x, top - 3); ctx.lineTo(this.x, top + 3); ctx.moveTo(this.x - 2.5, top + 3); ctx.lineTo(this.x + 2.5, top + 3); }
+        else { ctx.arc(this.x, top, 2.6, 0, Math.PI * 2); ctx.moveTo(this.x + 0.6, top); ctx.arc(this.x, top, 0.6, 0, Math.PI * 2); }
+        ctx.stroke();
+      }
+      if (o === 'hold') {
+        // The post it keeps, marked on the ground.
+        ctx.strokeStyle = rgba('#9fd7ff', 0.35 + Math.sin(G.time * 3) * 0.1);
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.ellipse(this.holdX, this.holdY, 22, 4, 0, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      if (G.world.swapPick === this) {
+        // Swap destination: a gold chevron bobbing over the Echo Elior would trade places with.
+        const y = top - (o ? 12 : 4) + Math.sin(G.time * 6) * 1.5;
+        ctx.globalCompositeOperation = 'lighter';
+        glow(ctx, this.x, y, 12, '#ffd27a', 0.45);
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.strokeStyle = '#ffe6a8';
+        ctx.lineWidth = 1.6;
+        ctx.beginPath();
+        ctx.moveTo(this.x - 4, y - 3); ctx.lineTo(this.x, y + 1.5); ctx.lineTo(this.x + 4, y - 3);
+        ctx.stroke();
+      }
+    }
     // compact health pip bar, shown when hurt
     if (this.hp < this.maxHp && this.despawn <= 0) {
       const w = 16, x = this.x - w / 2, y = this.y - this.body.h - 8;

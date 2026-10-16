@@ -22,7 +22,6 @@ import { G } from '../game/ctx';
 import { settings, isIOS } from '../core/settings';
 import { safe } from './safe';
 import { mantleUnlocked } from '../game/mantle';
-import { EchoUnit } from '../game/echoes';
 import { glow, rgba, FONT_DISPLAY, type Ctx } from '../render/draw';
 import { icon } from './icons';
 
@@ -304,8 +303,8 @@ export function drawIsland(ctx: Ctx, W: number, H: number, dt: number) {
   // Summoned Echoes: a bubble that buds off the far side with one dot per shadow.
   if (compact) {
     let n = 0, hurtEcho = 0;
-    for (const e of G.world.ents) {
-      if (e instanceof EchoUnit && !e.remove) {
+    for (const e of G.world.echoes) {
+      if (!e.remove && e.despawn <= 0) {
         n++;
         if (e.hp < e.maxHp * 0.35) hurtEcho++;
       }
