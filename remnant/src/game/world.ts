@@ -34,7 +34,7 @@ import { islandNotify, islandRipple } from '../ui/island';
 import { placeLamps } from './lamps';
 import { updatePending, applyUpdate } from '../core/update';
 import { FINISHERS } from './finishers';
-import { ITEMS, ECHO_SPECIES, type Rarity } from './data';
+import { ITEMS, ECHO_SPECIES, type Rarity, type EchoOrder } from './data';
 import { gainXp, makeItem, addMaterial, derive, makeEcho, echoMaxHp, skillRank, type SaveData } from './state';
 import { saveSlot } from './save';
 import { noteSaved } from '../ui/hud';
@@ -308,6 +308,8 @@ export class World {
     if (this.room.id === 'trial_arena') this.story.ch3.rounds.update(dt);
     this.syncCd = Math.max(0, this.syncCd - dt);
     this.switchCd = Math.max(0, this.switchCd - dt);
+    this.player.swapStrikeT = Math.max(0, this.player.swapStrikeT - dt);
+    this.swapPick = this.switchCd <= 0 && !this.duel && !this.benchReady() ? this.pickSwap() : null;
     const rallying = this.rallyT >= 0;
     this.player.update(dt);
     for (const e of this.echoes) if (!rallying) e.update(dt);
@@ -899,8 +901,11 @@ export class World {
     const s = G.save;
     const slots = G.d.echoSlots;
     s.active = s.active.filter((u) => s.echoes.some((e) => e.uid === u)).slice(0, slots);
+    const call = this.summonList();
+    // Shadows outside the chosen preset step back (they stay in the lineup).
+    for (const e of this.echoes) if (!call.includes(e.inst.uid) && e.tempT <= 0 && e.despawn <= 0) e.dismiss();
     let i = 0;
-    for (const u of s.active) {
+    for (const u of call) {
       if (this.echoes.some((e) => e.inst.uid === u)) { i++; continue; }
       const inst = s.echoes.find((e) => e.uid === u)!;
       if ((inst.downFor ?? 0) > 0) continue;
@@ -926,6 +931,83 @@ export class World {
     G.save.flags.army_out = false;
     sfx('whoosh', { vol: 0.5 });
     G.ui.refreshHud();
+  }
+
+  /** Which Echoes the summon preset calls out, in order. */
+  summonList(): string[] {
+    const s = G.save;
+    const slots = G.d.echoSlots;
+    const pre = s.summonPreset ?? 'all';
+    if (pre === 'squad') {
+      const pick = (s.squadPick ?? []).filter((u) => s.echoes.some((e) => e.uid === u)).slice(0, slots);
+      if (pick.length) return pick;
+    }
+    const line = s.active.slice(0, slots);
+    return pre === 'one' ? line.slice(0, 1) : pre === 'two' ? line.slice(0, 2) : line;
+  }
+
+  /** Choose how many shadows fight: the lead, two, the picked squad, or all. */
+  setSummon(pre: 'one' | 'two' | 'squad' | 'all') {
+    const s = G.save;
+    if (pre === 'squad' && !(s.squadPick ?? []).some((u) => s.echoes.some((e) => e.uid === u))) {
+      G.ui.toast('Pick your squad first: Command → Orders, then mark Echoes "In squad".', 'warn');
+      sfx('denied');
+      return;
+    }
+    s.summonPreset = pre;
+    if (!s.active.length) s.active = s.echoes.slice(0, G.d.echoSlots).map((e) => e.uid);
+    this.summonEchoes();
+    const n = this.summonList().length;
+    G.ui.toast(pre === 'one' ? 'Summon: the lead Echo' : pre === 'two' ? 'Summon: the lead two' : pre === 'squad' ? `Summon: your squad (${n})` : `Summon: the whole lineup (${n})`, 'info');
+  }
+
+  /** Give one Echo (by uid) or every summoned Echo an order. */
+  orderEchoes(order: EchoOrder | undefined, uid?: string) {
+    const p = this.player;
+    const foe = (this.priorityTarget && !this.priorityTarget.dying ? this.priorityTarget : null)
+      ?? (p.lastFoe && !p.lastFoe.dying && !p.lastFoe.remove ? p.lastFoe : null)
+      ?? this.nearestEnemy(p.x + p.face * 40, p.y - 20, 320, 0);
+    if (order === 'focus' && !foe) {
+      G.ui.toast('No enemy in sight to focus on.', 'warn');
+      return;
+    }
+    let n = 0;
+    for (const e of this.echoes) {
+      if (uid && e.inst.uid !== uid) continue;
+      e.setOrder(order, foe);
+      n++;
+    }
+    // Orders also stick to Echoes not on the field yet.
+    if (uid && !n) {
+      const inst = G.save.echoes.find((e) => e.uid === uid);
+      if (inst) inst.order = order === 'focus' || order === 'hold' ? undefined : order;
+    }
+    if (order === 'hold') fx.ring(p.x, p.y, 6, 40, '#9fd7ff', 0.35, 2);
+    sfx('uiConfirm');
+  }
+
+  private benchReady() {
+    const s = G.save;
+    return s.echoes.some((e) => !s.active.includes(e.uid) && (e.downFor ?? 0) <= 0);
+  }
+
+  /**
+   * The Echo a swap trades places with: the nearest one in the direction Elior
+   * is aiming (stick or facing), else the farthest. Echoes right beside him are skipped.
+   */
+  pickSwap(): EchoUnit | null {
+    const p = this.player;
+    const ax = Math.abs(input.axisX) > 0.35 ? Math.sign(input.axisX) : p.face;
+    let best: EchoUnit | null = null, bestD = Infinity;
+    let far: EchoUnit | null = null, farD = 0;
+    for (const e of this.echoes) {
+      if (e.despawn > 0 || e.recallT > 0 || e.summonT > 0.4) continue;
+      const dx = e.x - p.x, d = Math.hypot(dx, e.y - p.y);
+      if (d < 40 || d > 700) continue;
+      if (Math.sign(dx) === ax && d < bestD) { best = e; bestD = d; }
+      if (d > farD) { far = e; farD = d; }
+    }
+    return best ?? far;
   }
 
   onEchoFallen(e: EchoUnit) {
@@ -955,6 +1037,8 @@ export class World {
   }
 
   switchCd = 0;
+  /** The Echo a swap would trade places with right now (marked over its head). */
+  swapPick: EchoUnit | null = null;
 
   /**
    * Switch support. With Echoes on the bench, the lead fighter steps back and
@@ -1000,12 +1084,13 @@ export class World {
       sfx('summon', { pitch: 1.2 });
       G.ui.toast(`Switch: ${ECHO_SPECIES[incoming.species].stages[incoming.stage].name} steps in`, 'info');
     } else if (this.echoes.length) {
-      let far = this.echoes[0];
-      for (const e of this.echoes) if (Math.abs(e.x - p.x) > Math.abs(far.x - p.x)) far = e;
-      if (Math.abs(far.x - p.x) < 24) {
+      const far = this.pickSwap();
+      if (!far) {
         G.ui.toast('Your Echoes are already at your side.', 'info');
         return;
       }
+      // The fight transfers: the Echo takes over Elior's foe where he stood.
+      const foe = p.lastFoe && !p.lastFoe.dying && !p.lastFoe.remove && Math.abs(p.lastFoe.x - p.x) < 220 ? p.lastFoe : this.nearestEnemy(p.x, p.y - 20, 200, 0);
       const px = p.x, py = p.y;
       fx.streak(px, py - 20, far.x, far.y - 20, '#ffe6a8', 0.25, 3);
       fx.streak(far.x, far.y - 20, px, py - 20, '#fff3c4', 0.25, 2);
@@ -1018,6 +1103,12 @@ export class World {
       p.invuln = Math.max(p.invuln, 0.35);
       fx.ring(p.x, p.y - 20, 4, 30, '#ffe6a8', 0.3, 2);
       fx.ring(far.x, far.y - 20, 4, 30, '#fff3c4', 0.3, 2);
+      far.takeOver(foe);
+      // Elior arrives with an opening: his next blow lands harder.
+      p.swapStrikeT = 0.9;
+      p.lastFoe = null;
+      const there = this.nearestEnemy(p.x, p.y - 20, 160, 0);
+      if (there) p.face = Math.sign(there.x - p.x) || p.face;
       this.switchCd = 3;
       sfx('dash', { pitch: 1.5, vol: 0.8 });
     }

@@ -379,7 +379,17 @@ export interface EchoInst {
   /** Seconds until it can be summoned again after falling. */
   downFor?: number;
   nickname?: string;
+  /** Its standing order in battle; none follows the army's mode. */
+  order?: EchoOrder;
 }
+
+/**
+ * Individual orders. guard: shield Elior and cut off foes that close on him.
+ * hunt: pursue foes anywhere in the fight. flank: circle behind Elior's foe and
+ * strike its back. hold: defend a marked spot (Elior can swap back to it).
+ * focus: stay on one foe until it falls.
+ */
+export type EchoOrder = 'guard' | 'hunt' | 'flank' | 'hold' | 'focus';
 
 export const echoXpToNext = (lv: number) => Math.round(30 + lv * lv * 14);
 /** XP for the next level. Past level 30 the climb is linear, so level 100 and beyond is within reach. */

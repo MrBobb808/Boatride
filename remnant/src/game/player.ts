@@ -114,6 +114,10 @@ export class Player extends Entity {
   comboT = 0;
   bestCombo = 0;
   lastHitAt = -9;
+  /** The foe Elior struck last (a swap hands it to the Echo). */
+  lastFoe: Entity | null = null;
+  /** Seconds left of the opening after a swap: the next blow lands harder. */
+  swapStrikeT = 0;
   /** Phantom Step chain state. */
   phantomN = 0;
   phantomUntil = 0;
@@ -1163,8 +1167,18 @@ export class Player extends Entity {
       dmg, poise: a.poise * (this.family === 'greatsword' ? 1.3 : 1) * (crit ? 1.3 : 1), kx: a.kx * this.face, ky: a.ky, dir: this.face, kind: 'melee', crit,
       src: this, launch: a.launch, heavy: (a.finisher ?? false) || a.id === 'heavy', guardBreak: a.guardBreak, stop: a.stop,
     };
+    if (this.swapStrikeT > 0) {
+      // Arriving from a swap: the first blow carries the momentum.
+      hit.dmg *= 1.5;
+      hit.poise *= 1.5;
+    }
     const n = G.world.hitEnemies(box, hit, this.atkHit, (e) => {
       this.registerHit();
+      this.lastFoe = e;
+      if (this.swapStrikeT > 0) {
+        this.swapStrikeT = 0;
+        fx.ring(e.x, e.cy, 4, 34, '#ffe6a8', 0.3, 3);
+      }
       // per-hit feedback
       G.save.ce = Math.min(d.maxCe, G.save.ce + (flag('relic_taken') ? 2.4 * (skillRank(G.save, 'l_radiance') ? 1.3 : 1) : 0));
       G.world.addRally(1.4);

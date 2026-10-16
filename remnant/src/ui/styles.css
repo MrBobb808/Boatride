@@ -439,3 +439,14 @@ textarea.code { width: 100%; height: 70px; background: rgba(10,8,14,0.9); color:
   .go-cols { grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); }
   .go-right .go-name { justify-content: flex-start; margin-top: 0; }
 }
+
+/* Echo orders, one Echo at a time (from the command wheel) */
+.orders { width: min(92vw, 780px); max-height: 88vh; display: flex; flex-direction: column; padding: 14px 18px; }
+.orders-list { overflow-y: auto; display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; min-height: 0; }
+.orders-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; }
+.orders-row.away { opacity: 0.6; }
+.orders-name { flex: 1 1 120px; font-family: var(--font-display); color: var(--gold); letter-spacing: 0.04em; }
+.orders-name small { display: block; font-family: var(--font-body); color: var(--muted, #b9ad94); letter-spacing: 0; font-size: 0.8em; }
+.orders-row .seg { display: flex; flex-wrap: wrap; gap: 4px; }
+.orders-row .btn.small { min-height: 44px; min-width: 52px; }
+.orders-row .btn.on { border-color: var(--gold); color: var(--gold-hi); }

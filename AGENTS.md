@@ -69,6 +69,17 @@ up next starts from the latest version.
   - `game/feast.ts`: Vessel Wraith and Scribe of the Veil.
 - **Echoes** (purified allies): `game/echoes.ts` holds the kits, `game/data.ts`
   the species.
+  - **Squad control:** the command wheel (`ui/ui.ts`, `openWheel`) has a
+    Summon page (One / Two / Squad / All, `World.setSummon` and
+    `summonList`; save fields `summonPreset`, `squadPick`) and an Orders page
+    (Guard / Hunt / Flank / Hold / Focus for every Echo out, or "Each Echo…"
+    for one at a time and the squad picks). Orders live on `EchoInst.order`
+    and drive targeting and movement in `EchoUnit.chooseTarget` / `standX`.
+    Flank blows to a foe's back hit harder; guards earn XP from blows taken.
+  - **Swap:** `World.switchSupport` trades places with `World.swapPick`
+    (nearest Echo in the aimed direction, marked by a gold chevron). The Echo
+    takes over Elior's foe (`EchoUnit.takeOver`) and Elior's next blow within
+    0.9 s lands harder (`Player.swapStrikeT`).
 - **Saves:**
   - `game/save.ts` keeps three local slots.
   - `game/cloud.ts` mirrors saves to a private cloud copy when the game runs
@@ -80,7 +91,11 @@ up next starts from the latest version.
 - **UI:** `ui/` holds the HUD, menus, touch controls, dialogue and title
   screen.
   - `ui/island.ts` draws game status around the Dynamic Island in landscape
-    (add `?island=left` to the URL to preview it on a desktop).
+    (add `?island=left`, or `?island=compact` / `?island=classic`, to the URL
+    to preview it on a desktop). Settings → Island size fits it to the iPhone
+    18 Pro's smaller island (default) or the 14–17 Pro's, with a length
+    slider; on the small island the Echo count and Mantle gauge bud off as
+    pods, a boss's life rings the island, and big moments send a ripple.
 
 ## Rules to keep
 
