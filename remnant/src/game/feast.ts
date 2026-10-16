@@ -288,7 +288,7 @@ export class WineDrop extends Entity {
 // VESSEL WRAITH
 // =====================================================================
 
-const CUP_GOLD = '#d8a840', CUP_SILVER = '#c0c8d2';
+const CUP_GOLD = '#d8a840', CUP_SILVER = '#a4aebb';
 
 export class Vessel extends Enemy {
   variant: number;
@@ -505,7 +505,7 @@ export class Vessel extends Enemy {
     // The cup, tipped.
     ctx.rotate(this.tilt);
     const metal = this.variant ? CUP_SILVER : CUP_GOLD;
-    const fill = vGrad(ctx, metal, -5, 11, 0.4, -0.45);
+    const fill = vGrad(ctx, metal, -5, 11, this.variant ? 0.3 : 0.4, -0.45);
     if (this.variant === 0) {
       // A chalice: deep bowl, stem, foot.
       poly(ctx, [-7.5, -4, 7.5, -4, 6, 1.5, 2, 4.6, 1, 8.6, 4.6, 10.2, 4.6, 11.4, -4.6, 11.4, -4.6, 10.2, -1, 8.6, -2, 4.6, -6, 1.5], fill, '#140a02', 0.8);
