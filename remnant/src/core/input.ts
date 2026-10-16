@@ -78,12 +78,24 @@ const XB_NAMES = ['A', 'B', 'X', 'Y', 'LB', 'RB', 'LT', 'RT', 'View', 'Menu', 'L
 /** Sony pads report names like "DualSense Wireless Controller" or vendor 054c. */
 export function padKindOf(id: string): PadKind {
   const s = id.toLowerCase();
-  if (/dualsense|dualshock|playstation|054c|ps5|ps4|wireless controller/.test(s)) return 'playstation';
   if (/xbox|xinput|045e/.test(s)) return 'xbox';
+  if (/dualsense|dualshock|playstation|054c|ps5|ps4|wireless controller/.test(s)) return 'playstation';
   return 'generic';
 }
 
-type Listener = (a: Action, repeat: boolean) => void;
+type Listener = (a: Action, repeat: boolean) => void | boolean;
+export type GamepadStatus = 'waiting' | 'connected' | 'unavailable' | 'blocked' | 'background' | 'error';
+
+function buttonDown(p: Gamepad, i: number) {
+  const b = p.buttons[i];
+  return !!b && (b.pressed || b.value > 0.5);
+}
+
+function padActive(p: Gamepad) {
+  if (Math.abs(p.axes[0] ?? 0) > 0.28 || Math.abs(p.axes[1] ?? 0) > 0.28) return true;
+  for (let i = 0; i < p.buttons.length; i++) if (buttonDown(p, i)) return true;
+  return false;
+}
 
 export class Input {
   keys: Record<Action, string[]> = structuredClone(DEFAULT_KEYS);
@@ -110,6 +122,10 @@ export class Input {
   private rebindCb: ((code: string) => void) | null = null;
   private deviceCbs: ((d: Device) => void)[] = [];
   gamepadConnected = false;
+  gamepadStatus: GamepadStatus = 'waiting';
+  lastPadButton = -1;
+  private activePad: Gamepad | null = null;
+  private focused = true;
   enabled = true;
   /** Controller bindings in use: defaults overlaid with the player's own. */
   padMap: Partial<Record<Action, number[]>> = { ...DEFAULT_PAD };
@@ -127,15 +143,17 @@ export class Input {
   constructor() {
     window.addEventListener('keydown', (e) => this.onKey(e, true), { passive: false });
     window.addEventListener('keyup', (e) => this.onKey(e, false), { passive: false });
-    window.addEventListener('blur', () => this.releaseAll());
+    window.addEventListener('blur', () => { this.focused = false; this.releaseAll(); });
+    window.addEventListener('focus', () => { this.focused = true; });
     document.addEventListener('visibilitychange', () => {
       if (document.hidden) this.releaseAll();
     });
-    window.addEventListener('gamepadconnected', () => {
-      this.gamepadConnected = true;
-    });
-    window.addEventListener('gamepaddisconnected', () => {
-      this.gamepadConnected = navigator.getGamepads?.().some((g) => g) ?? false;
+    // Polling also finds pads paired before launch and reconnects whose event was missed.
+    window.addEventListener('gamepaddisconnected', (e) => {
+      if (e.gamepad.index === this.activePad?.index) {
+        this.usePad(null);
+        this.gamepadStatus = 'waiting';
+      }
     });
   }
 
@@ -192,6 +210,7 @@ export class Input {
       if (this.keys[a].includes(e.code)) {
         handled = true;
         if (down && e.repeat) continue;
+        this.setDevice('keyboard');
         this.setSource(this.kb, a, down);
       }
     }
@@ -218,7 +237,8 @@ export class Input {
   }
 
   private emit(a: Action, repeat: boolean) {
-    for (const l of this.listeners.slice()) l(a, repeat);
+    // Closing a menu must not reopen it in the gameplay listener on the same press.
+    for (const l of this.listeners.slice()) if (l(a, repeat) === true) break;
   }
 
   private isDownRaw(a: Action) {
@@ -245,78 +265,136 @@ export class Input {
       for (const a of Array.from(s)) this.setSource(s, a, false);
     }
     this.touchAxisX = this.touchAxisY = 0;
+    this.padAxisX = this.padAxisY = this.axisX = this.axisY = 0;
+    this.padPrev.length = 0;
+    this.l3At = this.r3At = 0;
+    this.stickCombo = false;
+    this.downNow.clear();
+    this.flush();
   }
+
+  private clearPadInput() {
+    for (const a of this.pad) {
+      this.setSource(this.pad, a, false);
+      if (!this.isDownRaw(a)) {
+        this.pend.delete(a);
+        this.pressedStep.delete(a);
+        this.downNow.delete(a);
+      }
+    }
+    this.padAxisX = this.padAxisY = 0;
+  }
+
+  private usePad(gp: Gamepad | null) {
+    if (gp?.index !== this.activePad?.index || gp?.id !== this.activePad?.id) {
+      this.clearPadInput();
+      this.padPrev.length = 0;
+      this.padHold = this.lastPadButton = -1;
+      this.l3At = this.r3At = 0;
+      this.stickCombo = false;
+      this.padName = gp?.id ?? '';
+      this.padKind = gp ? padKindOf(gp.id) : 'generic';
+      if (!gp && this.lastDevice === 'gamepad') {
+        this.setDevice('ontouchstart' in window || navigator.maxTouchPoints > 0 ? 'touch' : 'keyboard');
+      }
+    }
+    this.activePad = gp;
+    this.gamepadConnected = !!gp;
+  }
+
+  private padButtonDown(i: number) {
+    return i !== this.padHold && !!this.activePad && buttonDown(this.activePad, i);
+  }
+
+  private pollPad(now: number) {
+    if (document.hidden || !this.focused) {
+      this.usePad(null);
+      this.gamepadStatus = 'background';
+      return;
+    }
+    if (typeof navigator.getGamepads !== 'function') {
+      this.usePad(null);
+      this.gamepadStatus = 'unavailable';
+      return;
+    }
+    let pads: (Gamepad | null)[];
+    try {
+      pads = navigator.getGamepads();
+    } catch (e) {
+      // Embedded browsers may deny Gamepad access. Keep touch/keyboard and the loop alive.
+      this.usePad(null);
+      this.gamepadStatus = (e as { name?: string })?.name === 'SecurityError' ? 'blocked' : 'error';
+      return;
+    }
+    let gp: Gamepad | null = null;
+    let current: Gamepad | null = null, active: Gamepad | null = null;
+    for (const p of pads) {
+      if (!p || !p.connected) continue;
+      gp ??= p;
+      if (p.index === this.activePad?.index && p.id === this.activePad.id) current = p;
+      if (!active && padActive(p)) active = p;
+    }
+    // A stale/idle slot must not steal the controller the player is actually using.
+    gp = current && padActive(current) ? current : active ?? current ?? gp;
+    this.usePad(gp);
+    this.gamepadStatus = gp ? 'connected' : 'waiting';
+    if (!gp) return;
+
+    // Device selection precedes callbacks: the very first press must work after touch.
+    if (padActive(gp)) this.setDevice('gamepad');
+    if (this.padHold >= 0 && !buttonDown(gp, this.padHold)) this.padHold = -1;
+    let nextButton = -1;
+    for (let i = 0; i < gp.buttons.length; i++) {
+      const down = buttonDown(gp, i);
+      if (down && !this.padPrev[i] && nextButton < 0) nextButton = this.lastPadButton = i;
+      this.padPrev[i] = down;
+    }
+    if (this.padCapture) {
+      this.clearPadInput();
+      if (nextButton >= 0) {
+        const cb = this.padCapture;
+        this.padCapture = null;
+        this.padHold = nextButton;
+        cb(nextButton);
+      }
+      return;
+    }
+    const ax = Number.isFinite(gp.axes[0]) ? gp.axes[0] : 0;
+    const ay = Number.isFinite(gp.axes[1]) ? gp.axes[1] : 0;
+    this.padAxisX = Math.abs(ax) > 0.28 ? ax : 0;
+    this.padAxisY = Math.abs(ay) > 0.28 ? ay : 0;
+    // Give a lone stick click a moment to become the L3 + R3 Mantle chord.
+    const chord = !(this.padMap.transform?.length);
+    const l3 = this.padButtonDown(10), r3 = this.padButtonDown(11);
+    this.l3At = l3 ? this.l3At || now : 0;
+    this.r3At = r3 ? this.r3At || now : 0;
+    if (chord && l3 && r3) this.stickCombo = true;
+    else if (!l3 && !r3) this.stickCombo = false;
+    const l3Solo = !this.stickCombo && l3 && (!chord || now - this.l3At > 70);
+    const r3Solo = !this.stickCombo && r3 && (!chord || now - this.r3At > 70);
+    for (const a of ACTIONS) {
+      if (a === 'left' || a === 'right' || a === 'up' || a === 'down') continue;
+      const idx = PAD_FIXED[a] ?? this.padMap[a];
+      let pressed = false;
+      if (idx) for (const i of idx) if (i === 10 ? l3Solo : i === 11 ? r3Solo : this.padButtonDown(i)) pressed = true;
+      if (a === 'transform' && chord && this.stickCombo) pressed = true;
+      if (pressed !== this.pad.has(a)) this.setSource(this.pad, a, pressed);
+      if (this.padCapture) return; // A confirm callback can start rebinding mid-poll.
+    }
+    // Digital directions navigate menus; only analog axes move Elior.
+    this.setSource(this.pad, 'left', ax < -0.5 || this.padButtonDown(14));
+    this.setSource(this.pad, 'right', ax > 0.5 || this.padButtonDown(15));
+    this.setSource(this.pad, 'up', ay < -0.6 || this.padButtonDown(12));
+    this.setSource(this.pad, 'down', ay > 0.6 || this.padButtonDown(13));
+  }
+
+  get controllerX() { return this.padAxisX; }
+  get controllerY() { return this.padAxisY; }
 
   /** Called once per rendered frame. */
   poll() {
     const now = performance.now();
-    const pads = navigator.getGamepads ? navigator.getGamepads() : [];
-    let gp: Gamepad | null = null;
-    for (const p of pads) if (p && p.connected) { gp = p; break; }
-    if (gp) {
-      this.gamepadConnected = true;
-      if (gp.id !== this.padName) {
-        this.padName = gp.id;
-        this.padKind = padKindOf(gp.id);
-      }
-      const btn = (i: number) => i !== this.padHold && !!gp!.buttons[i] && (gp!.buttons[i].pressed || gp!.buttons[i].value > 0.5);
-      if (this.padHold >= 0 && !gp.buttons[this.padHold]?.pressed) this.padHold = -1;
-      // Rebinding: the next button pressed goes to the waiting callback.
-      if (this.padCapture) {
-        for (let i = 0; i < gp.buttons.length; i++) {
-          const down = !!gp.buttons[i]?.pressed;
-          if (down && !this.padPrev[i]) {
-            const cb = this.padCapture;
-            this.padCapture = null;
-            this.padHold = i;
-            cb(i);
-            break;
-          }
-        }
-        this.padPrev = gp.buttons.map((b) => !!b?.pressed);
-        return;
-      }
-      this.padPrev = gp.buttons.map((b) => !!b?.pressed);
-      let any = false;
-      // Stick clicks: while the Mantle has no button of its own, L3 + R3
-      // together call it. A lone click waits a few frames for its partner so
-      // the chord never also fires what L3 or R3 do alone.
-      const chord = !(this.padMap.transform?.length);
-      const l3 = btn(10), r3 = btn(11);
-      this.l3At = l3 ? this.l3At || now : 0;
-      this.r3At = r3 ? this.r3At || now : 0;
-      if (chord && l3 && r3) this.stickCombo = true;
-      else if (!l3 && !r3) this.stickCombo = false;
-      const l3Solo = !this.stickCombo && l3 && (!chord || now - this.l3At > 70);
-      const r3Solo = !this.stickCombo && r3 && (!chord || now - this.r3At > 70);
-      for (const a of ACTIONS) {
-        // Directions come from the stick and D-pad below.
-        if (a === 'left' || a === 'right' || a === 'up' || a === 'down') continue;
-        const idx = PAD_FIXED[a] ?? this.padMap[a];
-        let pressed = false;
-        if (idx) for (const i of idx) if (i === 10 ? l3Solo : i === 11 ? r3Solo : btn(i)) pressed = true;
-        if (a === 'transform' && chord && this.stickCombo) pressed = true;
-        if (pressed) any = true;
-        if (pressed !== this.pad.has(a)) this.setSource(this.pad, a, pressed);
-      }
-      if (l3 || r3) any = true;
-      const ax = gp.axes[0] ?? 0, ay = gp.axes[1] ?? 0;
-      const dz = 0.28;
-      this.padAxisX = Math.abs(ax) > dz ? ax : 0;
-      this.padAxisY = Math.abs(ay) > dz ? ay : 0;
-      if (this.padAxisX || this.padAxisY) any = true;
-      // Stick also drives the digital directions (for menus and drop-through).
-      const stickL = ax < -0.5, stickR = ax > 0.5, stickU = ay < -0.6, stickD = ay > 0.6;
-      const dpad = (i: number) => !!gp!.buttons[i]?.pressed;
-      const want: [Action, boolean][] = [
-        ['left', stickL || dpad(14)], ['right', stickR || dpad(15)],
-        ['up', stickU || dpad(12)], ['down', stickD || dpad(13)],
-      ];
-      for (const [a, v] of want) if (v !== this.pad.has(a)) this.setSource(this.pad, a, v);
-      if (any) this.setDevice('gamepad');
-    } else {
-      this.padAxisX = this.padAxisY = 0;
-    }
+    this.pollPad(now);
     // Navigation auto-repeat for menus.
     for (const [a, t] of this.repeatTimers) {
       if (!this.isDownRaw(a)) { this.repeatTimers.delete(a); continue; }
@@ -409,6 +487,7 @@ export class Input {
   /** Wait for the next controller button (for rebinding). */
   capturePadButton(cb: ((button: number) => void) | null) {
     this.padCapture = cb;
+    if (cb) this.clearPadInput();
   }
   get capturingPad() {
     return !!this.padCapture;
@@ -417,13 +496,13 @@ export class Input {
   /** Rumble the controller, where the browser allows it (DualSense and Xbox pads in Safari 16.4+ and Chrome). */
   rumble(strong: number, weak: number, ms: number) {
     if (!this.rumbleOn || this.lastDevice !== 'gamepad') return;
-    const pads = navigator.getGamepads ? navigator.getGamepads() : [];
-    for (const p of pads) {
-      const act = (p as (Gamepad & { vibrationActuator?: { playEffect?: (t: string, o: object) => Promise<unknown> } }) | null)?.vibrationActuator;
+    try {
+      const act = (this.activePad as (Gamepad & { vibrationActuator?: { playEffect?: (t: string, o: object) => Promise<unknown> } }) | null)?.vibrationActuator;
       if (act?.playEffect) {
-        act.playEffect('dual-rumble', { duration: ms, strongMagnitude: Math.min(1, strong), weakMagnitude: Math.min(1, weak) }).catch(() => { /* unsupported */ });
-        return;
+        act.playEffect('dual-rumble', { duration: ms, strongMagnitude: Math.min(1, strong), weakMagnitude: Math.min(1, weak) })?.catch(() => { /* unsupported */ });
       }
+    } catch {
+      /* A missing/disconnected motor must never interrupt combat. */
     }
   }
   rumbleOn = true;
