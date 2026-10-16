@@ -304,6 +304,7 @@ export class World {
         t.fn();
       }
     }
+    if (this.room.id === 'trial_arena') this.story.ch3.rounds.update(dt);
     this.syncCd = Math.max(0, this.syncCd - dt);
     this.switchCd = Math.max(0, this.switchCd - dt);
     const rallying = this.rallyT >= 0;
@@ -850,6 +851,28 @@ export class World {
     const s = G.save;
     s.deaths++;
     G.ui.bossBar(null);
+    const R = this.story.ch3.rounds;
+    if (this.room.id === 'trial_arena' && R.active) {
+      // The Trial: falling ends the run. Show what it came to, then go again or leave.
+      this.after(1.8, async () => {
+        const choice = await R.onDeath();
+        await G.ui.fade(1, 0.3);
+        R.clearArena();
+        this.rest();
+        this.player.revive();
+        // Entering the arena starts a fresh run from round 1.
+        if (choice === 'again') this.load('trial_arena', 'start');
+        else {
+          const back = s.flags.trial_return;
+          delete s.flags.trial_return;
+          const [room, spawn] = typeof back === 'string' ? back.split('|') : [s.altar.room, s.altar.spawn];
+          this.load(ROOMS[room] ? room : s.altar.room, ROOMS[room]?.spawns[spawn] ? spawn : s.altar.spawn);
+        }
+        this.autosave(true);
+        await G.ui.fade(0, 0.5);
+      });
+      return;
+    }
     this.after(1.6, async () => {
       await G.ui.death();
       await G.ui.fade(1, 0.3);
@@ -1245,6 +1268,7 @@ export class World {
 
   onBossDefeated(b: Idol | BossBase) {
     this.bossActive = false;
+    input.rumble(1, 1, 800);
     const key = b instanceof BossBase ? b.key : 'idol';
     if (!G.save.defeated.includes(key)) G.save.defeated.push(key);
     if (b instanceof Gatekeeper) {

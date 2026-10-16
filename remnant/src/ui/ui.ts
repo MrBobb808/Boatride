@@ -28,6 +28,11 @@ let fadeEl: HTMLElement;
 let blocking = 0;
 let wheelEl: HTMLElement | null = null;
 
+/** Hold the game still while a card from another module is up (+1 on, -1 off). */
+export function holdUI(d: number) {
+  blocking = Math.max(0, blocking + d);
+}
+
 export function blockingUI() {
   return blocking > 0 || isMenuOpen() || !!wheelEl;
 }

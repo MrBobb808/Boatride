@@ -1045,7 +1045,7 @@ export function openAltar(id: string) {
         const nx = nextChapter();
         return nx ? [btn([h('b', null, 'Journey on'), h('span', null, `Chapter ${nx.roman} · ${nx.title}`)], () => { done(); travelToChapter(nx); }, 'btn opt')] : [];
       })(),
-      trainingOpen() ? btn([h('b', null, 'Enter the Trial of the Remnant'), h('span', null, `Training: endless waves that grow with you${s.flags.trial_best ? ` · best: wave ${s.flags.trial_best}` : ''}`)], () => {
+      trainingOpen() ? btn([h('b', null, 'Enter the Trial of the Remnant'), h('span', null, `Endless rounds that grow with you${s.flags.trial_best ? ` · best: round ${s.flags.trial_best}` : ''}`)], () => {
         done();
         startTraining(1);
       }, 'btn opt') : null,

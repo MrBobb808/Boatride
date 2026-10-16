@@ -13,6 +13,7 @@ import { TILE } from './tiles';
 import { type Npc } from './props';
 import { Enemy } from './enemies';
 import { LocustKing } from './bosses3';
+import { Rounds } from './rounds';
 import { ECHO_SPECIES, xpToNext } from './data';
 import { rollGear } from './world';
 import { makeEcho, derive, makeItem, addMaterial } from './state';
@@ -37,7 +38,7 @@ export const QUESTS3: QuestDef[] = [
   },
   { id: 's_valley_words', title: 'The Valley\'s Words', kind: 'side', stages: ['Mara wants every inscription in the valley and the hive. Find all six.', 'You have found all six. Bring them to Mara at the camp.'], done: 'Mara has the valley\'s words, and you have her trust.' },
   { id: 's_hive_caches', title: 'Hidden in the Bones', kind: 'side', stages: ['The valley and the hive hide two secret caches. Find them.'], done: 'Both caches of the valley found.' },
-  { id: 's_trial', title: 'The Trial of the Remnant', kind: 'side', stages: ['Survive ten waves in the Trial of the Remnant. Enter it from any altar.'], done: 'Ten waves held. The Trial goes on as long as you do.' },
+  { id: 's_trial', title: 'The Trial of the Remnant', kind: 'side', stages: ['Survive ten rounds in the Trial of the Remnant. Enter it from any altar or the Chapters menu.'], done: 'Ten rounds held. The Trial goes on as long as you do.' },
 ];
 
 export const CH3_LORE = ['eze371', 'eze373', 'joel14', 'prov3027', 'exo1014', 'joel225'];
@@ -65,17 +66,21 @@ registerGuide(() => {
 
 export class Chapter3 {
   constructor(private st: Story) {}
-  trialWave = 0;
-  trialFoes: Enemy[] = [];
-  trialTimer: number | null = null;
-  trialWaiting = false;
+  /** The Trial's endless rounds (Zombies-style). */
+  rounds = new Rounds();
+
+  /** Walking out of the arena mid-run still records how far the run got. */
+  private leftTrial() {
+    if (!this.rounds.active) return;
+    const n = this.rounds.round;
+    this.rounds.stop();
+    if (n > 0) G.ui.toast(`Trial run recorded: round ${n}.`, 'info');
+  }
 
   // ---------------------------------------------------------------- rooms
   onEnter(id: string, first: boolean): boolean {
-    if (!CH3_ROOM_IDS.has(id)) {
-      this.stopTrial();
-      return false;
-    }
+    if (id !== 'trial_arena') this.leftTrial();
+    if (!CH3_ROOM_IDS.has(id)) return false;
     const s = G.save;
     if (id === 'valley_camp' && !flag('ch3_intro')) {
       this.opening();
@@ -85,7 +90,6 @@ export class Chapter3 {
       this.ending();
       return true;
     }
-    if (id !== 'trial_arena') this.stopTrial();
     if (first) {
       const r = G.world.room;
       setTimeout(() => G.ui.banner(r.name.toUpperCase(), r.region, 'area'), 400);
@@ -112,7 +116,8 @@ export class Chapter3 {
       // Training from the menu may skip ahead to a wave near your best.
       const from = Math.max(1, Number(s.flags.trial_from ?? 1));
       delete s.flags.trial_from;
-      this.startTrial(from);
+      this.rounds.start(from);
+      if (!s.quests.s_trial) this.st.quest('s_trial', 0);
     }
     return true;
   }
@@ -424,81 +429,6 @@ export class Chapter3 {
 
   onPurified(elite: string | null) {
     if (elite === 'bone_colossus') G.ui.toast('The Colossus of the Valley joins your Echoes.', 'good');
-  }
-
-  // ---------------------------------------------------------------- the Trial of the Remnant
-  startTrial(from = 1) {
-    this.stopTrial();
-    this.trialWave = from - 1;
-    this.trialFoes = [];
-    this.trialWaiting = true;
-    G.ui.banner('THE TRIAL OF THE REMNANT', `Endless waves${from > 1 ? `, from wave ${from}` : ''} · leave by the west door at any time`, 'boss');
-    if (!G.save.quests.s_trial) this.st.quest('s_trial', 0);
-    this.trialTimer = window.setInterval(() => this.tickTrial(), 300);
-    setTimeout(() => this.nextWave(), 2500);
-  }
-
-  stopTrial() {
-    if (this.trialTimer !== null) clearInterval(this.trialTimer);
-    this.trialTimer = null;
-    this.trialFoes = [];
-  }
-
-  private nextWave() {
-    const W = G.world;
-    if (W.room.id !== 'trial_arena' || this.trialTimer === null) return;
-    const s = G.save;
-    this.trialWave++;
-    this.trialWaiting = false;
-    this.trialFoes = [];
-    const n = this.trialWave;
-    if (n > 1 && (n - 1) % 5 === 0) this.trialReward(n - 1);
-    G.ui.toast(`Wave ${n}`, 'warn');
-    islandNotify(`WAVE ${n}`, '#ffe6a8', 'rally', 1.8);
-    sfx('bell', { pitch: 0.6 + Math.min(0.6, n * 0.02) });
-    const pool: EnemyKind[] = n < 3 ? ['husk', 'hound', 'drone'] : n < 6 ? ['husk', 'hound', 'archer', 'drone', 'soldier'] : n < 10 ? ['archer', 'drone', 'soldier', 'knight', 'bulwark', 'lion'] : ['drone', 'soldier', 'knight', 'bulwark', 'brute', 'lion', 'priest'];
-    const count = Math.min(12, 3 + Math.floor(n * 0.8));
-    // The Trial keeps pace with Elior.
-    const lvScale = 1 + Math.max(0, s.level - 12) * 0.05;
-    const hpMul = (1 + n * 0.14) * lvScale;
-    const dmgMul = (1 + n * 0.05) * Math.pow(lvScale, 0.8);
-    const xpEach = Math.max(10, Math.round(xpToNext(s.level) / 26));
-    for (let i = 0; i < count; i++) {
-      setTimeout(() => {
-        if (W.room.id !== 'trial_arena' || this.trialTimer === null) return;
-        const k = choose(pool);
-        const x = (i % 2 ? 44 : 12) * TILE + rand(-30, 30);
-        const e = W.spawnEnemy(k, x, k === 'drone' ? 10 * TILE : 18 * TILE);
-        e.maxHp = e.hp = Math.round(e.maxHp * hpMul);
-        e.dmg *= dmgMul;
-        e.xpOverride = xpEach;
-        this.trialFoes.push(e);
-        fx.column(e.x, e.y, 20, 120, '#ffe6a8', 0.6);
-      }, 200 + i * 350);
-    }
-  }
-
-  private tickTrial() {
-    const W = G.world;
-    if (W.room.id !== 'trial_arena') return this.stopTrial();
-    if (W.player.state === 'dead') return;
-    const n = this.trialWave;
-    if (n === 0 || this.trialWaiting) return;
-    const expected = Math.min(12, 3 + Math.floor(n * 0.8));
-    if (this.trialFoes.length >= expected && this.trialFoes.every((f) => f.dying)) {
-      this.trialWaiting = true;
-      const s = G.save;
-      if (n > Number(s.flags.trial_best ?? 0)) s.flags.trial_best = n;
-      if (n >= 10 && s.quests.s_trial && !s.quests.s_trial.done) this.st.quest('s_trial', 0, true);
-      setTimeout(() => this.nextWave(), 1800);
-    }
-  }
-
-  private trialReward(n: number) {
-    const W = G.world;
-    W.spawnLoot(28 * TILE, 16 * TILE, [{ silver: 60 * n }, { mat: 'covenant_fragment', n: 1 + Math.floor(n / 10) }, { mat: n >= 15 ? 'radiant_core' : 'sentinel_steel', n: 1 }, rollGear(Math.min(3, 1 + Math.floor(n / 10)))], true);
-    G.ui.toast(`Wave ${n} held: the Trial rewards you.`, 'good');
-    fx.column(28 * TILE, 18 * TILE, 40, 240, '#ffe6a8', 1.2);
   }
 }
 

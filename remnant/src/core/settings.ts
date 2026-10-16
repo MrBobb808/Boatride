@@ -30,6 +30,8 @@ export interface Settings {
   pad: Partial<Record<Action, number[]>>;
   /** Controller rumble on big moments. */
   rumble: boolean;
+  /** The name put on the Trial leaderboard. */
+  name: string;
 }
 
 export const isTouchDevice = () =>
@@ -68,6 +70,7 @@ const DEFAULTS: Settings = {
   keys: structuredClone(DEFAULT_KEYS),
   pad: {},
   rumble: true,
+  name: 'Elior',
 };
 
 const KEY = 'remnant-settings-v1';

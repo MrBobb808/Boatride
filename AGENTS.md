@@ -102,5 +102,6 @@ up next starts from the latest version.
 
 Chapters I–IV are complete, each with a chapter-end screen. The Chapter IV
 end screen says Chapter V is in development. The Trial of the Remnant
-(`trial_arena`, entered from any altar after Chapter II) is the endless way
-to level 100 and beyond.
+(`trial_arena`) is an endless Zombies-style rounds mode (`game/rounds.ts`) with
+a Game Over card and leaderboard (`game/board.ts`, `ui/leaderboard.ts`); it is
+also the endless way to level 100 and beyond.

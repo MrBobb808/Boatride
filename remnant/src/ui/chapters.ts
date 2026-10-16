@@ -4,6 +4,7 @@
 import { G } from '../game/ctx';
 import { h, btn } from './dom';
 import { chapterOf } from '../game/rooms';
+import { openLeaderboard } from './leaderboard';
 import { CHAPTERS, chapterOpen, travelToChapter, trainingOpen, trainingStarts, startTraining } from '../game/chapters';
 
 export function chaptersTab(close: () => void): HTMLElement {
@@ -30,12 +31,13 @@ export function chaptersTab(close: () => void): HTMLElement {
   const best = Number(s.flags.trial_best ?? 0);
   const training = trainingOpen()
     ? h('div', { class: 'box' },
-      h('h3', null, 'Training Grounds'),
-      h('p', { class: 'muted' }, 'Endless waves of stronger and stronger foes in the Trial of the Remnant. Every foe pays experience scaled to your level, with rewards every five waves. Leave by the west door to come back here.'),
+      h('h3', null, 'The Trial: endless rounds'),
+      h('p', { class: 'muted' }, 'Survive round after round of foes that grow stronger, faster and more numerous. Every fifth round the Pack runs; every tenth a Champion comes. Fallen foes sometimes drop a blessing. The run ends when you fall, and runs from round 1 go on the leaderboard. Every foe pays experience scaled to your level.'),
       h('div', { class: 'ch-waves' },
-        busy ? h('span', { class: 'muted' }, 'Not during a boss fight.') : trainingStarts().map((w) => btn(w === 1 ? 'Start at wave 1' : `Wave ${w}`, () => { close(); startTraining(w); }, 'btn small', { 'data-k': 'tw_' + w })),
+        busy ? h('span', { class: 'muted' }, 'Not during a boss fight.') : trainingStarts().map((w) => btn(w === 1 ? 'Start at round 1' : `Round ${w} (unranked)`, () => { close(); startTraining(w); }, 'btn small' + (w === 1 ? ' primary' : ''), { 'data-k': 'tw_' + w })),
+        btn('Leaderboard', () => openLeaderboard(), 'btn small', { 'data-k': 'tw_board' }),
       ),
-      best ? h('small', { class: 'muted' }, `Best: wave ${best}. Reach waves 10, 20, 30… to start from them.`) : null,
+      best ? h('small', { class: 'muted' }, `Best: round ${best}. Reach rounds 10, 20, 30… to practise from them.`) : null,
     )
     : null;
   return h('div', { class: 'col scroll', style: 'flex:1' },

@@ -50,17 +50,40 @@ Each chapter begins from the previous chapter's ending screen, from any
 altar once the one before is done (**Journey on**), or from the
 **Chapters** tab in the menu.
 
-### Chapter select and training
+### Chapter select and the Trial
 
 - **Menu → Chapters** lists every chapter with its status.
   - Travel to any chapter you have reached; you arrive at its camp altar.
   - Begin the next one once the chapter before it is complete.
-- **Training Grounds** (also under Chapters, and at any altar) opens the
-  Trial of the Remnant from anywhere after the opening.
-  - It is endless waves of stronger and stronger foes, with experience scaled
-    to your level and rewards every five waves.
-  - Once you have reached waves 10, 20, 30 and so on, you can start from them.
-  - Leaving by the west door returns you to where you started.
+- **The Trial of the Remnant** is an endless rounds mode in the spirit of
+  *Call of Duty* Zombies. Enter it from **Menu → Chapters** or any altar once
+  the opening is done.
+  - Foes pour in from both sides, round after round. Each round brings more
+    of them, with more health, harder hits and a little more speed.
+  - A big blood-red counter shows the round: tally marks for rounds 1 to 5,
+    then the number. It flashes when a new round begins.
+  - Every fifth round **the Pack runs** (Gloom Hounds, later Brazen Lions).
+    Every tenth a **Champion of the Trial** comes. Every fifth round held
+    pays out silver, materials and gear.
+  - Fallen foes sometimes drop a **blessing**:
+
+    | Blessing | Effect |
+    |---|---|
+    | Judgment | Fire falls on every foe in the arena |
+    | Wrath | Every foe falls to one blow for 18 seconds |
+    | Double Portion | Twice the experience for 25 seconds |
+    | Manna | Health, Balm, energy and hearts restored |
+
+  - **Falling ends the run.** The Game Over card shows the rounds you
+    survived, your kills, time and levels gained.
+  - **Leaderboard:** runs that start at round 1 are ranked by the round they
+    reached, on this device's board (shared by all save slots). You can put
+    your name on it from the Game Over card. In the claude.ai preview there
+    is also an **Everyone** board shared by all players there. Open it any
+    time from **Menu → Chapters → Leaderboard**.
+  - Once you have reached rounds 10, 20, 30 and so on, you can practise from
+    them (unranked). Every foe pays experience scaled to your level, so the
+    Trial is also the endless way to level 100 and beyond.
 
 ### Lamps, hearts and sub-weapons
 
@@ -304,9 +327,12 @@ not move Elior; it holds quick actions, so using one never makes him step.
   Select an action, then press the button you want. Two actions that share
   a button swap.
 - **Menus:** they always use ✕ / A to confirm and ○ / B to go back.
-- **Rumble:** the controller vibrates on hits, parries, finishers and the
-  Mantle where the browser supports it. You can turn it off in the same
-  section.
+- **Rumble:** the controller vibrates on every hit (harder for finishers and
+  crits), parries, plunges, the Mantle, boss kills and new Trial rounds,
+  where the browser supports it. **Settings → Controller → Rumble → Test**
+  tells you whether yours does. Safari on iPhone has not supported controller
+  vibration so far (Safari on a Mac and Chrome do); the game uses it as soon
+  as the browser allows.
 
 ## Development
 

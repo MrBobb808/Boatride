@@ -237,6 +237,8 @@ export abstract class Enemy extends Entity {
   xpOverride: number | null = null;
   /** Seconds of haste left (a Brazen Lion's roar): moves and thinks faster. */
   haste = 0;
+  /** Standing speed-up (the Trial's later rounds): moves and thinks faster. */
+  tempo = 1;
 
   constructor(kind: EnemyKind, x: number, y: number, w: number, h: number, elite: string | null) {
     super(x, y, w, h);
@@ -307,6 +309,7 @@ export abstract class Enemy extends Entity {
       dt *= 1.35;
       if (Math.random() < dt * 12) fx.spawn(PK.Ember, this.x + rand(-8, 8), this.y - rand(4, this.body.h), 0, -50, 0.5, 1.4, 0.2, '#ffb347', -20, 1);
     }
+    if (this.tempo !== 1 && !this.dying) dt *= this.tempo;
     this.st += dt;
     this.flash = Math.max(0, this.flash - dt);
     this.hpBarT = Math.max(0, this.hpBarT - dt);
