@@ -131,7 +131,7 @@ export function showTitle() {
       h('div', { class: 'verse' }, '“For we wrestle not against flesh and blood, but against principalities, against powers, against the rulers of the darkness of this world, against spiritual wickedness in high places.” ', h('b', null, 'EPHESIANS 6:12 (KJV)')),
     ),
     menu,
-    h('div', { class: 'title-foot' }, 'Chapters I–III · The Ashen Village, The Tower of Shinar, The Valley of Bones. A work of fiction; scripture quoted from the KJV.'),
+    h('div', { class: 'title-foot' }, 'Chapters I–IV · The Ashen Village, The Tower of Shinar, The Valley of Bones, The Plain of Dura. A work of fiction; scripture quoted from the KJV.'),
   );
   let last = lastSlot();
   const build = () => {
@@ -171,7 +171,7 @@ export function hideTitle() {
 
 function pickSlot(mode: 'new' | 'load') {
   const slots = listSlots();
-  const card = h('div', { class: 'choice-card panel' },
+  const card = h('div', { class: 'choice-card panel scroll' },
     h('div', { class: 'eyebrow' }, mode === 'new' ? 'New game' : 'Load game'),
     h('h2', { class: 'title-text' }, mode === 'new' ? 'Choose a save slot' : 'Choose a journey'),
     h('div', { class: 'saves', style: 'margin-top:10px' }, slots.map((sl) => {

@@ -17,6 +17,7 @@ import { openMenu, openShop, openAltar, isMenuOpen } from './menus';
 import { SECRET_IDS } from '../game/story';
 import { CH2_SECRETS } from '../game/story2';
 import { CH3_SECRETS } from '../game/story3';
+import { CH4_SECRETS } from '../game/story4';
 
 let uiRoot: HTMLElement;
 let toastBox: HTMLElement;
@@ -90,7 +91,7 @@ const hooks: UIHooks = {
       const textEl = h('div', { class: 'text' });
       const choices = h('div', { class: 'choices' });
       const next = h('div', { class: 'next' }, '▼');
-      const box = h('div', { class: 'dialogue panel' }, canvas, h('div', null, who, textEl, choices), next);
+      const box = h('div', { class: 'dialogue panel' }, canvas, h('div', { class: 'dl-body scroll' }, who, textEl, choices), next);
       const layer = h('div', { class: 'layer', style: 'align-items:flex-end;padding:0;' }, box);
       uiRoot.appendChild(layer);
       let full = '';
@@ -162,7 +163,8 @@ const hooks: UIHooks = {
         }
         show();
       };
-      const off = waitAdvance(box, () => {
+      // A tap anywhere advances, not only on the box: the layer covers the screen anyway.
+      const off = waitAdvance(layer, () => {
         if (lines[i]?.choices && !typing) return;
         advance();
       });
@@ -215,7 +217,7 @@ const hooks: UIHooks = {
       const L = LORE[id];
       if (!L) return resolve();
       blocking++;
-      const card = h('div', { class: 'lore-card panel' },
+      const card = h('div', { class: 'lore-card panel scroll' },
         h('div', { class: 'eyebrow' }, L.title),
         h('div', { class: 'verse-text' }, '“' + L.text + '”'),
         h('div', { class: 'ref' }, L.ref),
@@ -284,6 +286,7 @@ const hooks: UIHooks = {
     ];
     const ring = h('div', { class: 'wheel-ring' });
     const n = items.length;
+    const btns: HTMLElement[] = [];
     items.forEach((it, i) => {
       const a = -Math.PI / 2 + (i / n) * Math.PI * 2;
       const b = btn([img(it.icon, '#f6dea0'), it.label], () => {
@@ -292,6 +295,7 @@ const hooks: UIHooks = {
       }, 'wheel-btn' + (it.on ? ' on' : ''), i === 0 ? { 'data-autofocus': '' } : {});
       b.style.left = 50 + Math.cos(a) * 42 + '%';
       b.style.top = 50 + Math.sin(a) * 42 + '%';
+      btns.push(b);
       ring.appendChild(b);
     });
     ring.appendChild(h('div', { class: 'wheel-center' }, 'Command the Remnant', h('div', { class: 'muted', style: 'font-family:var(--font-body);letter-spacing:0;font-size:1.2em;margin-top:4px;text-transform:none' }, `${W.echoes.length} of ${s.echoes.length} present`)));
@@ -301,6 +305,22 @@ const hooks: UIHooks = {
     });
     uiRoot.appendChild(layer);
     wheelEl = layer;
+    // On a controller the stick points straight at a command (✕ picks it),
+    // the way radial menus work on consoles.
+    const stickMag = () => Math.hypot(input.axisX, input.axisY);
+    const aim = () => {
+      if (wheelEl !== layer) return;
+      if (input.lastDevice === 'gamepad' && stickMag() > 0.55) {
+        const ang = Math.atan2(input.axisY, input.axisX) + Math.PI / 2;
+        const i = ((Math.round((ang / (Math.PI * 2)) * n) % n) + n) % n;
+        if (document.activeElement !== btns[i]) {
+          btns[i].focus({ preventScroll: true });
+          sfx('ui', { vol: 0.5 });
+        }
+      }
+      requestAnimationFrame(aim);
+    };
+    requestAnimationFrame(aim);
     const close = () => {
       if (!wheelEl) return;
       popLayer(layer);
@@ -310,12 +330,14 @@ const hooks: UIHooks = {
     };
     pushLayer({ el: layer, onBack: close, onAction: (a) => {
       if (a === 'echo' || a === 'menu') { close(); return true; }
+      // The stick aims radially above; only the D-pad steps between buttons.
+      if ((a === 'left' || a === 'right' || a === 'up' || a === 'down') && stickMag() > 0.5) return true;
       return false;
     } });
   },
 
   showCredits(after) {
-    const card = h('div', { class: 'chapter panel' },
+    const card = h('div', { class: 'chapter panel scroll' },
       h('div', { class: 'eyebrow' }, 'Credits'),
       h('h2', null, 'REMNANT: ASCENSION'),
       h('p', null, 'A vertical slice — Chapter I: The Ashen Village.'),
@@ -343,9 +365,10 @@ const hooks: UIHooks = {
       const C = [
         { n: 'Chapter I', title: 'THE ASHEN VILLAGE', secrets: SECRET_IDS, sl: 'Hidden chambers', theme: 'True greatness is not found in the power to rule, but in the strength to remain faithful.', next: 'The road east leads down to the Plain of Shinar, where a red tower has risen in a single month.', go: 'Begin Chapter II', stay: 'Stay in Hearthward', music: 'sanctuary' },
         { n: 'Chapter II', title: 'THE TOWER OF SHINAR', secrets: CH2_SECRETS, sl: 'Hidden caches', theme: 'Pride builds towers to make a name. Faithfulness keeps an oath when no one is watching.', next: 'Two days east lies the Valley of Bones, where a swarm has eaten everything that grew.', go: 'Begin Chapter III', stay: 'Stay in Shinar', music: 'shinar' },
-        { n: 'Chapter III', title: 'THE VALLEY OF BONES', secrets: CH3_SECRETS, sl: 'Hidden caches', theme: 'The locust takes; the covenant restores. An army raised by mercy follows further than one driven by fear.', next: 'Chapter IV is in development. Your journey continues: brave the Trial of the Remnant, grow your army toward level 100, or begin New Game+ at any altar.', go: '', stay: 'Continue exploring', music: 'valley' },
-      ][Math.min(2, Math.max(1, chapter) - 1)];
-      const card = h('div', { class: 'chapter panel' },
+        { n: 'Chapter III', title: 'THE VALLEY OF BONES', secrets: CH3_SECRETS, sl: 'Hidden caches', theme: 'The locust takes; the covenant restores. An army raised by mercy follows further than one driven by fear.', next: 'South, by the rivers of Babylon, an image of gold has been raised on the plain of Dura, and three captives are bound for the furnace.', go: 'Begin Chapter IV', stay: 'Stay in the valley', music: 'valley' },
+        { n: 'Chapter IV', title: 'THE PLAIN OF DURA', secrets: CH4_SECRETS, sl: 'Hidden caches', theme: 'The furnace could not burn those who would not bow. Every image of gold stands on feet of clay.', next: 'Chapter V is in development. Your journey continues: train in the Trial of the Remnant, grow your army toward level 100, or begin New Game+ at any altar.', go: '', stay: 'Continue exploring', music: 'dura' },
+      ][Math.min(3, Math.max(1, chapter) - 1)];
+      const card = h('div', { class: 'chapter panel scroll' },
         h('div', { class: 'eyebrow' }, C.n),
         h('h2', null, C.title),
         h('div', { class: 'muted' }, 'Complete'),
@@ -396,7 +419,7 @@ const hooks: UIHooks = {
   choice(title, body, options) {
     return new Promise<number>((resolve) => {
       blocking++;
-      const card = h('div', { class: 'choice-card panel' },
+      const card = h('div', { class: 'choice-card panel scroll' },
         h('div', { class: 'eyebrow' }, 'A choice'),
         h('h2', { class: 'title-text' }, title),
         h('p', null, body),

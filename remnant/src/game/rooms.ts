@@ -4,6 +4,7 @@
 import { MapBuilder, type RoomDef, type Exit, type EntDef } from './tiles';
 import { ROOMS2, CH2_ROOM_IDS } from './rooms2';
 import { ROOMS3, CH3_ROOM_IDS } from './rooms3';
+import { ROOMS4, CH4_ROOM_IDS } from './rooms4';
 
 export interface RoomSpec extends Omit<RoomDef, 'rows' | 'w' | 'h' | 'exits'> {
   exits: (Exit & { cond?: string })[];
@@ -549,11 +550,11 @@ function sanctum() {
 export type RoomData = ReturnType<typeof sanctuary>;
 
 export const ROOMS: Record<string, RoomData> = Object.fromEntries(
-  [sanctuary(), ashenRoad(), villageSquare(), cistern(), templeSteps(), templeHall(), chamber(), crypt(), gallery(), vault(), antechamber(), sanctum(), ...ROOMS2, ...ROOMS3]
+  [sanctuary(), ashenRoad(), villageSquare(), cistern(), templeSteps(), templeHall(), chamber(), crypt(), gallery(), vault(), antechamber(), sanctum(), ...ROOMS2, ...ROOMS3, ...ROOMS4]
     .map((r) => [r.id, r]),
 );
 
 /** Which chapter a room belongs to (maps show one chapter at a time). */
 export function chapterOf(id: string) {
-  return CH3_ROOM_IDS.has(id) ? 3 : CH2_ROOM_IDS.has(id) ? 2 : 1;
+  return CH4_ROOM_IDS.has(id) ? 4 : CH3_ROOM_IDS.has(id) ? 3 : CH2_ROOM_IDS.has(id) ? 2 : 1;
 }

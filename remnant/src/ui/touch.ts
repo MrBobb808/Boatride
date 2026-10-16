@@ -8,6 +8,8 @@ import { G, flag } from '../game/ctx';
 import { ABILITIES } from '../game/data';
 import { iconUrl } from './icons';
 import { safe } from './safe';
+import { mantleUnlocked } from '../game/mantle';
+import { SUBS, type SubId } from '../game/subweapons';
 
 interface TBtn {
   id: string;
@@ -20,8 +22,11 @@ interface TBtn {
   el?: HTMLDivElement;
   cd?: HTMLDivElement;
   cnt?: HTMLDivElement;
+  lbl?: HTMLDivElement;
   ui?: () => void;
   corner?: 'tr';
+  /** Last opacity factor applied, so styles change only when needed. */
+  dim?: number;
 }
 
 const BTNS: TBtn[] = [
@@ -29,14 +34,16 @@ const BTNS: TBtn[] = [
   { id: 'jump', act: 'jump', icon: 'jump', size: 64, dx: 92, dy: -26, label: 'Jump' },
   { id: 'parry', act: 'parry', icon: 'parry', size: 54, dx: 80, dy: 56, label: 'Parry' },
   { id: 'dodge', act: 'dodge', icon: 'dodge', size: 54, dx: 6, dy: 94, label: 'Dodge' },
-  { id: 'skill1', act: 'skill1', icon: 'arc', size: 48, dx: 172, dy: -28, label: '' },
-  { id: 'skill2', act: 'skill2', icon: 'arc', size: 48, dx: 160, dy: 26, label: '' },
-  { id: 'skill3', act: 'skill3', icon: 'arc', size: 48, dx: 138, dy: 88, label: '' },
-  { id: 'heal', act: 'heal', icon: 'heal', size: 42, dx: 70, dy: 146, label: 'Balm' },
-  { id: 'rally', act: 'ultimate', icon: 'rally', size: 54, dx: 2, dy: 170, label: 'Rally' },
-  { id: 'echo', act: 'echo', icon: 'echo', size: 46, dx: 232, dy: 30, label: 'Echoes' },
+  { id: 'skill1', act: 'skill1', icon: 'arc', size: 44, dx: 170, dy: -28, label: '' },
+  { id: 'skill2', act: 'skill2', icon: 'arc', size: 44, dx: 158, dy: 26, label: '' },
+  { id: 'skill3', act: 'skill3', icon: 'arc', size: 44, dx: 138, dy: 86, label: '' },
+  { id: 'heal', act: 'heal', icon: 'heal', size: 40, dx: 70, dy: 146, label: 'Balm' },
+  { id: 'rally', act: 'ultimate', icon: 'rally', size: 48, dx: 4, dy: 168, label: 'Rally' },
+  { id: 'echo', act: 'echo', icon: 'echo', size: 42, dx: 228, dy: 30, label: 'Echoes' },
   { id: 'interact', act: 'interact', icon: 'interact', size: 54, dx: 226, dy: 104, label: '' },
-  { id: 'switch', act: 'switch', icon: 'switch', size: 44, dx: 292, dy: 58, label: 'Switch' },
+  { id: 'switch', act: 'switch', icon: 'switch', size: 40, dx: 286, dy: 58, label: 'Switch' },
+  { id: 'mantle', act: 'transform', icon: 'mantle', size: 48, dx: 148, dy: 148, label: 'Mantle' },
+  { id: 'sub', act: 'sub', icon: 'dagger', size: 40, dx: 212, dy: 170, label: 'Sub' },
   { id: 'menu', icon: 'menu', size: 40, dx: 0, dy: 0, label: '', corner: 'tr', ui: () => G.ui.openMenu() },
   { id: 'map', icon: 'map', size: 40, dx: 0, dy: 48, label: '', corner: 'tr', ui: () => G.ui.openMenu('map') },
 ];
@@ -71,7 +78,7 @@ export function initTouch(el: HTMLElement) {
     const d = document.createElement('div');
     d.className = 'tc' + (b.id === 'attack' ? ' big' : '') + (b.corner ? ' sq' : '');
     const im = document.createElement('img');
-    im.src = iconUrl(b.icon, '#f6dea0');
+    im.src = iconUrl(b.icon, b.id === 'mantle' ? '#d4d0ff' : '#f6dea0');
     im.alt = '';
     im.draggable = false;
     d.appendChild(im);
@@ -84,8 +91,9 @@ export function initTouch(el: HTMLElement) {
       l.className = 'lbl';
       l.textContent = b.label;
       d.appendChild(l);
+      b.lbl = l;
     }
-    if (b.id === 'heal') {
+    if (b.id === 'heal' || b.id === 'sub') {
       const c = document.createElement('div');
       c.className = 'cnt';
       d.appendChild(c);
@@ -156,7 +164,8 @@ export function layout() {
     const el = b.el!;
     const s = b.size * u;
     el.style.width = el.style.height = s + 'px';
-    el.style.opacity = String(settings.touchOpacity);
+    b.dim = undefined;
+    if (b.lbl) b.lbl.style.display = settings.buttonLabels ? '' : 'none';
     if (b.corner === 'tr') {
       const top = 10 + safe.top + b.dy * u;
       el.style.top = top + 'px';
@@ -237,6 +246,26 @@ export function updateTouch() {
       const ready = s.rally >= 100;
       el.classList.toggle('glow', ready);
       b.cd!.style.background = ready ? 'none' : `conic-gradient(transparent ${(s.rally / 100) * 360}deg, rgba(0,0,0,0.6) 0)`;
+    } else if (b.id === 'sub') {
+      // The carried sub-weapon, with the hearts left to throw it.
+      show = !!s.sub;
+      if (s.sub) {
+        const def = SUBS[s.sub as SubId];
+        const img = el.firstChild as HTMLImageElement;
+        const want = iconUrl(def.icon, '#f6dea0');
+        if (img.src !== want) img.src = want;
+        b.cnt!.textContent = String(s.hearts ?? 0);
+      }
+    } else if (b.id === 'mantle') {
+      // Fills like a clock face; while transformed it shows the time left.
+      show = mantleUnlocked();
+      const on = p.mantleT > 0;
+      const g = s.mantle ?? 0;
+      el.classList.toggle('shade', on || g >= 100);
+      el.classList.toggle('glow', !on && g >= 100);
+      b.cd!.style.background = on
+        ? `conic-gradient(rgba(111,123,255,0.5) ${(p.mantleT / Math.max(1, p.mantleMax)) * 360}deg, rgba(0,0,0,0.45) 0)`
+        : g >= 100 ? 'none' : `conic-gradient(transparent ${g * 3.6}deg, rgba(0,0,0,0.6) 0)`;
     } else if (b.id === 'echo') {
       show = s.echoes.length > 0;
     } else if (b.id === 'switch') {
@@ -250,6 +279,34 @@ export function updateTouch() {
     }
     if (G.inCutscene && !b.corner) show = b.id === 'attack' || b.id === 'jump' ? true : false;
     el.classList.toggle('hidden', !show);
+    if (show) {
+      // Buttons that can't do anything right now step back.
+      const f = dimFor(b);
+      if (f !== b.dim) {
+        b.dim = f;
+        el.style.opacity = String(settings.touchOpacity * f);
+      }
+    }
+  }
+}
+
+function dimFor(b: TBtn): number {
+  const s = G.save;
+  const p = G.world.player;
+  switch (b.id) {
+    case 'attack': case 'jump': case 'dodge': case 'parry': case 'interact': return 1;
+    case 'skill1': case 'skill2': case 'skill3': {
+      const id = s.equippedSkills[+b.id.slice(5) - 1];
+      if (!id) return 0.5;
+      return (p.cds[id] ?? 0) > 0 || s.ce < ABILITIES[id].cost ? 0.5 : 0.85;
+    }
+    case 'heal': return s.balm > 0 && s.hp < G.d.maxHp * 0.7 ? 0.9 : 0.5;
+    case 'rally': return s.rally >= 100 ? 1 : 0.5;
+    case 'mantle': return p.mantleT > 0 || (s.mantle ?? 0) >= 100 ? 1 : 0.5;
+    case 'switch': return G.world.switchCd > 0 ? 0.45 : 0.6;
+    case 'echo': return 0.6;
+    case 'sub': return s.sub && (s.hearts ?? 0) >= SUBS[s.sub as SubId].cost ? 0.85 : 0.45;
+    default: return 0.75;
   }
 }
 

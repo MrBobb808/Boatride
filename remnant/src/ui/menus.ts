@@ -22,6 +22,11 @@ import { ROOMS, chapterOf } from '../game/rooms';
 import { CH2_ROOM_IDS } from '../game/rooms2';
 import { guidePoint } from '../game/guide';
 import { FINISHERS } from '../game/finishers';
+import { MANTLE_LV, mantlePerks } from '../game/mantle';
+import { nextChapter, travelToChapter, trainingOpen, startTraining } from '../game/chapters';
+import { chaptersTab } from './chapters';
+import { bestiaryPanes, bestiaryCount } from './bestiary';
+import { controllerBox, cancelPadCapture } from './controller';
 import { saveSlot, listSlots, deleteSlot, loadSlot, exportCode, importCode, SLOT_COUNT } from '../game/save';
 import { formatTime, clamp } from '../core/math';
 import { solve, newJoints } from '../render/skeleton';
@@ -44,6 +49,7 @@ const TABS: { id: string; label: string; icon: string }[] = [
   { id: 'skills', label: 'Skills', icon: 'skills' },
   { id: 'echoes', label: 'Echoes', icon: 'echo' },
   { id: 'map', label: 'Map', icon: 'map' },
+  { id: 'chapters', label: 'Chapters', icon: 'chapters' },
   { id: 'journal', label: 'Journal', icon: 'journal' },
   { id: 'crafting', label: 'Crafting', icon: 'craft' },
   { id: 'settings', label: 'Settings', icon: 'gear' },
@@ -97,6 +103,7 @@ export function openMenu(t?: string, settingsOnly = false) {
 
 export function closeMenu() {
   if (!menuEl) return;
+  cancelPadCapture();
   popLayer(menuEl);
   menuEl = null;
   pause(false);
@@ -119,6 +126,14 @@ function renderTabs() {
     const b = h('button', { class: 'tab' + (t.id === tab ? ' on' : ''), 'data-nav': '', role: 'tab', onclick: () => setTab(t.id) }, h('img', { src: iconUrl(t.icon, t.id === tab ? '#f6dea0' : '#9b92a6'), alt: '' }), t.label);
     tabsEl.appendChild(b);
   }
+  // Too many tabs for the width: inactive ones shrink to icons; keep the open one in view.
+  tabsEl.classList.remove('compact');
+  if (tabsEl.scrollWidth > tabsEl.clientWidth + 1) tabsEl.classList.add('compact');
+  const on = tabsEl.querySelector('.tab.on');
+  if (on) {
+    const a = tabsEl.getBoundingClientRect(), r = on.getBoundingClientRect();
+    if (r.left < a.left || r.right > a.right) tabsEl.scrollLeft += r.left - a.left - (a.width - r.width) / 2;
+  }
 }
 
 function render() {
@@ -133,6 +148,7 @@ function render() {
     case 'skills': bodyEl.appendChild(skillsTab()); break;
     case 'echoes': bodyEl.appendChild(echoesTab()); break;
     case 'map': bodyEl.appendChild(mapTab()); break;
+    case 'chapters': bodyEl.appendChild(chaptersTab(closeMenu)); break;
     case 'journal': bodyEl.appendChild(journalTab()); break;
     case 'crafting': bodyEl.appendChild(craftingTab()); break;
     case 'settings': bodyEl.appendChild(settingsTab()); break;
@@ -377,12 +393,16 @@ function techniques() {
     ['Judgment Cross', `after 3 Phantom Steps, ${K('attack')}`, 'A crossing cut that breaks guards and launches. 10 energy.', phantom],
     ['Rising Comet', `${K('dodge')} ${K('attack')} (dash strike), then ${K('attack')}`, 'Carry your foe skyward with you.', true],
     ['Launcher', `${K('up')} + ${K('attack')}`, 'Lift a foe; jump to follow it up.', true],
+    ['Air Dash', `${K('dodge')} in the air`, 'A dash through the air; it also keeps an air combo going.', true],
     ['Air Combo', `${K('attack')} ×3 in the air`, 'Keeps you and your foe aloft.', true],
     ["Heaven's Rend", `after an air combo, ${touch ? 'Attack again' : K('heavy')}`, 'Drill down through everything beneath you.', true],
     ['Plunge', `${K('down')} + ${K('attack')} in the air`, 'Crash down with a shockwave.', true],
     ['Charged Strike', `hold ${touch ? 'Attack' : K('heavy')}`, 'Three charge levels; the last breaks guards.', true],
     ['Parry & Counter', `${K('parry')} as a blow lands, then ${K('attack')}`, 'Turn their strength against them.', true],
     ['Execution', `${K('attack')} a staggered foe`, 'Plays a finisher, picked at random from those you have learned.', true],
+    ['Sub-weapon', touch ? 'the Sub button' : `${K('sub')}, or ${K('up')} + ${K('heavy')}`, 'Throw the sub-weapon you carry. Costs hearts; lamps drop more.', !!s.sub],
+    ['Shadow Mantle', `${touch ? 'the Mantle button' : K('transform')} with a full gauge${s.level >= MANTLE_LV ? '' : ` · level ${MANTLE_LV}`}`,
+      `Transform: a black cloak edged in blue-violet light and trailing shadow. ${mantlePerks(Math.max(MANTLE_LV, s.level))}. Fill the gauge by fighting.`, s.level >= MANTLE_LV],
     ...FINISHERS.map((f): [string, string, string, boolean] => [
       `Finisher: ${f.name}`, f.level > 1 ? `level ${f.level}${f.id === 'element' ? ', elemental weapon' : ''}` : 'from the start', f.desc, s.level >= f.level,
     ]),
@@ -523,6 +543,7 @@ function mapTab() {
   wrap.appendChild(c);
   requestAnimationFrame(() => drawMap(c));
   const lit = s.altarsLit.map((a) => ALTAR_NAMES[a] ?? a);
+  const ex = explored();
   return h('div', { class: 'col', style: 'flex:1;min-height:0' },
     wrap,
     h('div', { class: 'legend' },
@@ -531,19 +552,31 @@ function mapTab() {
       h('span', null, h('i', { style: 'background:#6a5a8a' }), 'Explored'),
       h('span', null, h('i', { style: 'background:#ffcf6b;clip-path:polygon(50% 0,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%)' }), 'Objective'),
       h('span', null, `Altars kindled: ${lit.join(', ')}`),
+      h('span', { 'data-k': 'explored' }, `Explored: ${ex.ch}% of Chapter ${['', 'I', 'II', 'III', 'IV'][ex.n]} · ${ex.all}% in all`),
     ),
   );
+}
+
+/** Rooms visited out of rooms that exist, for this chapter and the whole game (the Trial arena doesn't count). */
+function explored() {
+  const s = G.save, n = chapterOf(G.world.room.id === 'trial_arena' ? s.flags.trial_return?.toString().split('|')[0] ?? 'valley_camp' : G.world.room.id);
+  const ids = Object.keys(ROOMS).filter((id) => id !== 'trial_arena');
+  const seen = new Set(s.visited);
+  const pct = (list: string[]) => list.length ? Math.floor((100 * list.filter((id) => seen.has(id)).length) / list.length) : 0;
+  return { n, ch: pct(ids.filter((id) => chapterOf(id) === n)), all: pct(ids) };
 }
 
 const ALTAR_NAMES: Record<string, string> = {
   sanctuary: 'Hearthward', temple_hall: 'Nave of the First Lamp', chamber: 'Covenant Chamber', antechamber: 'Hall of Offerings',
   shinar_camp: 'Camp at the Pass', tower_lower: 'The First Course', tower_upper: 'The Crimson Guard',
   valley_camp: 'Camp at the Valley\'s Edge', hive_mouth: 'Mouth of the Hive',
+  river_camp: 'Camp by the Rivers', dura_plain: 'The Plain of Dura',
 };
 const ALTAR_ROOMS: Record<string, string> = {
   sanctuary: 'sanctuary', temple_hall: 'temple_hall', chamber: 'covenant_chamber', antechamber: 'idol_antechamber',
   shinar_camp: 'shinar_camp', tower_lower: 'tower_lower', tower_upper: 'tower_upper',
   valley_camp: 'valley_camp', hive_mouth: 'hive_mouth',
+  river_camp: 'river_camp', dura_plain: 'dura_plain',
 };
 
 function drawMap(c: HTMLCanvasElement) {
@@ -639,7 +672,7 @@ function drawMap(c: HTMLCanvasElement) {
 
 // ---------------------------------------------------------------- journal
 
-let jView: 'quests' | 'lore' = 'quests';
+let jView: 'quests' | 'lore' | 'beasts' = 'quests';
 let jSel: string | null = null;
 
 function journalTab() {
@@ -647,6 +680,7 @@ function journalTab() {
   const sub = h('div', { class: 'modes' },
     btn('Quests', () => { jView = 'quests'; jSel = null; render(); }, 'btn small' + (jView === 'quests' ? ' primary' : ''), { 'data-k': 'jq' }),
     btn(`Inscriptions (${s.lore.length})`, () => { jView = 'lore'; jSel = null; render(); }, 'btn small' + (jView === 'lore' ? ' primary' : ''), { 'data-k': 'jl' }),
+    btn(`Bestiary (${bestiaryCount()})`, () => { jView = 'beasts'; jSel = null; render(); }, 'btn small' + (jView === 'beasts' ? ' primary' : ''), { 'data-k': 'jb' }),
   );
   let left: HTMLElement, right: HTMLElement;
   if (jView === 'quests') {
@@ -667,6 +701,8 @@ function journalTab() {
       q.id === 's_secrets' ? h('p', { class: 'muted' }, `${s.secrets.length} of 5 found.`) : null,
       q.id === 's_mara' ? h('p', { class: 'muted' }, `Temple inscriptions remembered: ${['eph610', 'eph612', 'cor104', 'isa4031', 'josh620'].filter((l) => s.lore.includes(l)).length}`) : null,
       h('div', { class: 'list', style: 'margin-top:8px' }, q.stages.slice(0, st.done ? q.stages.length : st.stage).map((t) => h('div', { class: 'muted', style: 'text-decoration:line-through;font-size:0.9em' }, t)))) : h('div', { class: 'box muted' }, 'Select a quest.');
+  } else if (jView === 'beasts') {
+    [left, right] = bestiaryPanes(jSel, (id) => { jSel = id; render(); });
   } else {
     if (!jSel && s.lore[0]) jSel = s.lore[0];
     left = h('div', { class: 'list' }, s.lore.length ? s.lore.map((id) => h('button', { class: 'row-item' + (id === jSel ? ' sel' : ''), 'data-nav': '', 'data-k': 'l_' + id, onclick: () => { jSel = id; render(); } },
@@ -750,7 +786,7 @@ const row = (label: string, sub: string, ctl: HTMLElement) => h('div', { class: 
 
 function settingsTab() {
   const st = settings;
-  const binds = (['left', 'right', 'up', 'down', 'jump', 'attack', 'heavy', 'dodge', 'parry', 'skill1', 'skill2', 'skill3', 'interact', 'heal', 'echo', 'ultimate', 'menu', 'map'] as Action[]).map((a) =>
+  const binds = (['left', 'right', 'up', 'down', 'jump', 'attack', 'heavy', 'dodge', 'parry', 'skill1', 'skill2', 'skill3', 'interact', 'heal', 'echo', 'ultimate', 'switch', 'transform', 'menu', 'map'] as Action[]).map((a) =>
     row(ACTION_LABELS[a] ?? a, '', h('div', { class: 'bind' }, h('button', {
       class: 'key' + (listening === a ? ' listen' : ''), 'data-nav': '', 'data-k': 'kb_' + a,
       onclick: () => {
@@ -793,9 +829,12 @@ function settingsTab() {
       row('Button size', '', slider(st.touchScale, 0.8, 1.3, 0.05, (v) => (st.touchScale = v), 'tsz')),
       row('Button opacity', '', slider(st.touchOpacity, 0.3, 1, 0.05, (v) => (st.touchOpacity = v), 'top')),
       row('Left-handed layout', 'Moves the buttons to the left and the stick to the right.', toggle(st.leftHanded, (v) => (st.leftHanded = v), 'lh')),
+      row('Button labels', 'Show the name under each touch button.', toggle(st.buttonLabels, (v) => (st.buttonLabels = v), 'bl')),
+      row('Dynamic Island indicator', 'On iPhones with a Dynamic Island, a living status ring around it: low health, the Shadow Mantle, Rally and news.', toggle(st.island, (v) => (st.island = v), 'di')),
     ) : null,
-    h('div', { class: 'box' }, h('h3', null, 'Keyboard'), h('p', { class: 'muted', style: 'margin:0 0 6px;font-size:0.85em' }, 'Select a binding, then press the new key. Controllers use a fixed layout: A jump, X attack, Y heavy, B dodge, LB parry, RB/LT/RT skills, D-pad ↑ interact, D-pad ↓ Balm, L3 Echoes, R3 Rally, View switch Echo, Start menu.'),
+    h('div', { class: 'box' }, h('h3', null, 'Keyboard'), h('p', { class: 'muted', style: 'margin:0 0 6px;font-size:0.85em' }, 'Select a binding, then press the new key.'),
       binds, h('div', { style: 'margin-top:8px' }, btn('Reset all settings', () => { resetSettings(); applyTextSize(); renderAny(); }, 'btn small', { 'data-k': 'reset' }))),
+    controllerBox(renderAny),
     h('div', { class: 'box' }, h('h3', null, 'Save backup'),
       h('p', { class: 'muted', style: 'margin:0 0 6px;font-size:0.85em' }, 'On iPhone, the Home Screen app and Safari keep separate saves. Copy a code from one and import it in the other.'),
       h('div', { style: 'display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px' },
@@ -988,7 +1027,7 @@ export function openAltar(id: string) {
   const s = G.save;
   pause(true);
   const lit = s.altarsLit.filter((a) => a !== id && ALTAR_ROOMS[a]);
-  const card = h('div', { class: 'choice-card panel' },
+  const card = h('div', { class: 'choice-card panel scroll altar' },
     h('div', { class: 'eyebrow' }, 'Altar'),
     h('h2', { class: 'title-text' }, ALTAR_NAMES[id] ?? 'Altar'),
     h('p', { class: 'muted' }, 'Health, Balm and Covenant Energy restored. Your Echoes are made whole. Foes of the Veil stir again. Progress saved.'),
@@ -1001,17 +1040,14 @@ export function openAltar(id: string) {
         G.world.transition(ALTAR_ROOMS[a], 'altar');
         s.altar = { room: ALTAR_ROOMS[a], spawn: 'altar' };
       }, 'btn opt')),
-      flag('ch2_done') && !s.altarsLit.includes('valley_camp') && chapterOf(G.world.room.id) !== 3 ? btn([h('b', null, 'Journey on'), h('span', null, 'Chapter III · The Valley of Bones')], () => {
+      ...(() => {
+        // The next chapter, once the one before it is finished.
+        const nx = nextChapter();
+        return nx ? [btn([h('b', null, 'Journey on'), h('span', null, `Chapter ${nx.roman} · ${nx.title}`)], () => { done(); travelToChapter(nx); }, 'btn opt')] : [];
+      })(),
+      trainingOpen() ? btn([h('b', null, 'Enter the Trial of the Remnant'), h('span', null, `Training: endless waves that grow with you${s.flags.trial_best ? ` · best: wave ${s.flags.trial_best}` : ''}`)], () => {
         done();
-        G.world.transition('valley_camp', 'start');
-      }, 'btn opt') : null,
-      flag('ch2_done') ? btn([h('b', null, 'Enter the Trial of the Remnant'), h('span', null, `Endless waves that grow with you${s.flags.trial_best ? ` · best: wave ${s.flags.trial_best}` : ''}`)], () => {
-        done();
-        G.world.transition('trial_arena', 'start');
-      }, 'btn opt') : null,
-      flag('ending_done') && !s.altarsLit.includes('shinar_camp') && !CH2_ROOM_IDS.has(G.world.room.id) ? btn([h('b', null, 'Journey east'), h('span', null, 'Chapter II · The road down to the Plain of Shinar')], () => {
-        done();
-        G.world.transition('shinar_camp', 'start');
+        startTraining(1);
       }, 'btn opt') : null,
       flag('ch1_done') ? btn([h('b', null, 'Begin New Game+'), h('span', null, 'Start Chapter I again with everything you have earned. Foes grow stronger.')], () => { done(); startNewGamePlus(); }, 'btn opt') : null,
     ),

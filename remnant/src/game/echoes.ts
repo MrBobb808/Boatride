@@ -18,6 +18,7 @@ import { approach, clamp, rand, sign } from '../core/math';
 import { SENT_CLIPS, SENT_BASE, SENT_DIMS, ARCH_CLIPS, ARCH_BASE, ARCH_DIMS, sentinelStyle, archerStyle } from './enemies';
 import { BRUTE_CLIPS, BRUTE_BASE, BRUTE_DIMS, BULW_CLIPS, BULW_BASE, BULW_DIMS, bruteStyle, bulwarkStyle, knightEchoStyle, marshalStyle } from './tanks';
 import { LOCUST_DIMS, locustStyle, drawLocustWings, drawLocustHead, drawLocustScythes } from './locusts';
+import { drawLion, newLionPose } from './babylon';
 import { ECHO_SPECIES, echoXpToNext, type EchoInst } from './data';
 import { echoAtk, echoMaxHp, skillRank } from './state';
 import { Proj } from './projectiles';
@@ -48,6 +49,8 @@ interface Move {
   chain?: number;
   /** Teleport behind the target before striking. */
   blink?: boolean;
+  /** Spring at the target: launch speed upward, a little before the blow. */
+  leap?: number;
   sound: string;
 }
 
@@ -77,6 +80,8 @@ export interface EchoKit {
   /** Extra parts drawn in rig space behind / in front of the body (wings, antennae). */
   under?: (ctx: Ctx, u: EchoUnit) => void;
   over?: (ctx: Ctx, u: EchoUnit) => void;
+  /** Draws the whole body instead of the humanoid (beasts). */
+  body?: (ctx: Ctx, u: EchoUnit) => void;
 }
 
 const SENT_SLASH_BOX = { x: -4, y: -44, w: 40, h: 46 };
@@ -150,6 +155,39 @@ KITS.locust = {
   over: (ctx, u) => {
     drawLocustScythes(ctx, u.j, 'echo', 12);
     drawLocustHead(ctx, u.j, 'echo', G.time + u.id, u.state === 'slash' ? 1 : 0);
+  },
+};
+
+// The lion keeps a humanoid rig only for the shared brain; it is drawn as a beast.
+const LP = newLionPose();
+KITS.lion = {
+  clips: SENT_CLIPS, base: SENT_BASE, dims: SENT_DIMS, w: 28, h: 22, style: (st) => sentinelStyle('echo', st),
+  guard: 0, armor: 0.85, speed: 185, reach: 34, guardian: false, idle: 'guard',
+  cape: null, capeColor: () => '#000000',
+  moves: [
+    { state: 'claw', clip: 'slash', T: 0.42, hitU: 0.55, box: { x: -4, y: -26, w: 34, h: 28 }, mult: 1.0, poise: 22, kx: 150, ky: -110, weight: 1, chain: 0, sound: 'swing' },
+    { state: 'claw', clip: 'slash', T: 0.38, hitU: 0.55, box: { x: -4, y: -26, w: 34, h: 28 }, mult: 1.0, poise: 22, kx: 150, ky: -110, minStage: 1, weight: 0.8, chain: 1, sound: 'swing' },
+    { state: 'pounce', clip: 'bash', T: 0.72, hitU: 0.78, box: { x: -8, y: -30, w: 42, h: 32 }, mult: 1.7, poise: 45, kx: 260, ky: -180, dash: 260, leap: 320, weight: 0.7, slam: true, waveStage: 2, sound: 'pounce' },
+  ],
+  body: (ctx, u) => {
+    const L = LP;
+    const b = u.body;
+    const m = u.move;
+    L.time = G.time + u.id;
+    // Stride by distance travelled, so the paws do not slide.
+    L.gait = u.x * 0.16;
+    L.run = b.onGround ? clamp(Math.abs(b.vx) / 160, 0, 1) : 0;
+    const v = m ? u.st / m.T : 0;
+    L.crouch = m && m.leap && b.onGround && v < m.hitU - 0.33 ? clamp(v * 5, 0, 1) : 0;
+    L.air = b.onGround ? 0 : 1;
+    L.pitch = L.air ? clamp(b.vy * 0.0012, -0.35, 0.35) : 0;
+    L.claw = m && !m.leap ? clamp(v, 0, 1) : 0;
+    L.roar = 0;
+    L.jaw = Math.max(L.claw > 0.35 ? 0.7 : 0, L.air * 0.8, L.crouch * 0.3);
+    L.down = 0;
+    L.land = 0;
+    L.lash = L.crouch;
+    drawLion(ctx, L, u.inst.stage >= 2 ? 'echo2' : u.inst.stage >= 1 ? 'echo1' : 'echo0');
   },
 };
 
@@ -320,7 +358,16 @@ export class EchoUnit extends Entity {
     const m = this.move;
     if (m) {
       const u = this.st / m.T;
-      if (m.dash && u > m.hitU - 0.12 && u < m.hitU + 0.14) b.vx = this.face * m.dash;
+      if (m.leap) {
+        // Crouch, spring, and carry through the air onto the target.
+        const lu = m.hitU - 0.33;
+        if (u >= lu && this.st - dt < lu * m.T && b.onGround) {
+          const T = (2 * m.leap) / 1500;
+          const dx = t ? Math.abs(t.x - this.x) : 80;
+          b.vy = -m.leap;
+          b.vx = this.face * clamp(dx / T, 120, m.dash ?? 300);
+        } else if (b.onGround && (u < lu || this.st > lu * m.T + 0.1)) b.vx = approach(b.vx, 0, 900 * dt);
+      } else if (m.dash && u > m.hitU - 0.12 && u < m.hitU + 0.14) b.vx = this.face * m.dash;
       else b.vx = approach(b.vx, 0, 900 * dt);
       if (u >= m.hitU && this.st - dt < m.hitU * m.T) this.blow(m);
       if (u >= 1) {
@@ -608,7 +655,8 @@ export class EchoUnit extends Entity {
     ctx.translate(this.x, this.y);
     ctx.scale(this.face, 1);
     this.kit.under?.(ctx, this);
-    drawHumanoid(ctx, this.j, style, G.time + this.id, this.pose.rot, this.body.vx * this.face, this.body.vy);
+    if (this.kit.body) this.kit.body(ctx, this);
+    else drawHumanoid(ctx, this.j, style, G.time + this.id, this.pose.rot, this.body.vx * this.face, this.body.vy);
     this.kit.over?.(ctx, this);
     ctx.restore();
     ctx.globalAlpha = 1;

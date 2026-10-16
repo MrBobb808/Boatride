@@ -11,7 +11,7 @@ is original fiction inspired by biblical themes, not part of the Bible.
 
 > *True greatness is not found in the power to rule, but in the strength to remain faithful.*
 
-This build contains three chapters:
+This build contains four chapters:
 
 - **Chapter I — The Ashen Village.** 12 rooms, the full combat and Echo
   systems, abilities and skill trees, gear, crafting and merchants, and the
@@ -34,10 +34,63 @@ This build contains three chapters:
     he is raised as your Echo.
   - **The Trial of the Remnant** is an endless wave arena that keeps pace
     with your level. It is the way to level 100 and beyond.
+- **Chapter IV — The Plain of Dura.** By the rivers of Babylon, after the book
+  of Daniel.
+  - A satrap has raised an image of gold and commands every captive to bow.
+  - Three captives who would not are bound for the burning fiery furnace.
+  - Pass the blue Gate of Babylon and the Processional Way. Brazen Lions
+    pounce, and Chaldean Fire-Priests rain fire.
+  - Drop into the Lions' Den to purify its lion as an Echo.
+  - Hold the furnace mouth, then stand while the whole plain kneels.
+  - **The Image of Gold:** head of gold, arms of silver, belly of brass,
+    legs of iron and feet of clay. Strike its feet.
 - Each chapter has an ending, plus New Game+.
 
-Each chapter begins from the previous chapter's ending screen, or from any
-altar once that chapter is done (**Journey east**, **Journey on**).
+Each chapter begins from the previous chapter's ending screen, from any
+altar once the one before is done (**Journey on**), or from the
+**Chapters** tab in the menu.
+
+### Chapter select and training
+
+- **Menu → Chapters** lists every chapter with its status.
+  - Travel to any chapter you have reached; you arrive at its camp altar.
+  - Begin the next one once the chapter before it is complete.
+- **Training Grounds** (also under Chapters, and at any altar) opens the
+  Trial of the Remnant from anywhere after the opening.
+  - It is endless waves of stronger and stronger foes, with experience scaled
+    to your level and rewards every five waves.
+  - Once you have reached waves 10, 20, 30 and so on, you can start from them.
+  - Leaving by the west door returns you to where you started.
+
+### Lamps, hearts and sub-weapons
+
+A few things borrowed from *Castlevania*:
+
+- **Lamps** hang along the walls of every room. Strike one to break it.
+  They come back when you return to the room.
+  - Most drop a **heart**; some drop a big heart (5) or silver.
+  - Now and then one drops a **sub-weapon**. The first lamp you ever break
+    always gives the Dagger.
+- **Hearts** are the ammunition for sub-weapons (up to 99). They show next
+  to your Balm vials.
+- **Sub-weapons:** you carry one at a time. Picking up another swaps it;
+  picking up the one you have gives 5 hearts.
+
+  | Sub-weapon | Hearts | What it does |
+  |---|---|---|
+  | Dagger | 1 | Thrown straight and fast |
+  | Axe | 2 | Thrown high in an arc; cuts through everything, and reaches foes above you |
+  | Holy Water | 2 | A flask that breaks into a pool of blue fire |
+  | Cross | 3 | Flies out, turns, and comes back, cutting through foes both ways (found from Chapter II on) |
+  | David's Sling | 1 | A stone that knocks foes off balance |
+
+  Throw with **Sub** on touch, **U** on a keyboard, or hold **up and press
+  Heavy** on any device.
+- **Map exploration:** the Map tab shows the share of rooms you have
+  explored, in this chapter and in all.
+- **Bestiary:** **Journal → Bestiary** records every kind of foe you have
+  slain, with a field note and its base numbers, and the great foes you
+  have overcome. Foes you have not met yet show as ???.
 
 ### Saving, directions and updates
 
@@ -88,6 +141,23 @@ altar once that chapter is done (**Journey east**, **Journey on**).
   - Shadow drinks life and strikes twice.
   - Light sears great foes.
   - Crimson makes foes bleed.
+- **The Shadow Mantle (from level 25):** a transformation.
+  - Fighting fills the Mantle gauge (under the energy bar). Hits, kills,
+    parries and wounds all feed it.
+  - With a full gauge, transform: the world darkens, the shadows pour in,
+    then burst out and throw back everything nearby.
+  - Elior wears a black hooded cloak edged in blue-violet light, with
+    glowing eyes that streak light behind him. Shadow afterimages and black
+    flame trail his every move.
+  - While it lasts (18 seconds at first, 40 from level 100):
+    - 1.5× damage, quicker swings and feet.
+    - Half damage taken, and nothing staggers him.
+    - Free Phantom Steps.
+    - A shadow wave on every swing, and each cut drinks life and calls a
+      shadow blade.
+    - Fallen foes may rise as shadow soldiers, and executions can end in
+      Arise.
+  - It deepens at levels 50, 75 and 100 (up to 2.2× damage).
 - **Level 100, the Sovereign:** a black-and-gold form with violet eyes.
   - Every swing looses a crescent.
   - Phantom Step costs nothing.
@@ -150,6 +220,8 @@ deploys it to GitHub Pages on every push to the default branch that touches
 | **Echoes** | Echo command wheel: summon or dismiss, Aggressive / Defensive / Follow stance, mark target, recall, sync strike, switch |
 | **Switch** | Switch support: the next Echo tags in, or you trade places with one. It appears while Echoes are out. |
 | **Rally** | *Rally the Remnant* (once the gauge is full) |
+| **Mantle** | Transform into the *Shadow Mantle* (from level 25, once its gauge is full) |
+| **Sub** | Throw your sub-weapon. The badge shows your hearts. |
 | Context button | Talk, open, rest, purify. It appears only when something is in reach. |
 | ☰ and map (top corner) | Menu and map |
 
@@ -172,28 +244,69 @@ left-handed layout, and turns haptics on or off.
 | C | Echo command wheel |
 | X | Switch support Echo |
 | T | Rally the Remnant |
+| G | Shadow Mantle (transform) |
+| U (or W + K) | Throw sub-weapon |
 | F | Interact / purify |
 | M | Map |
 | Esc or Tab | Menu |
 
 Every key can be rebound in **Settings → Keyboard**.
 
-### Controller (standard layout, Xbox names)
+### Controller (PS5 DualSense, PS4, Xbox and others)
 
-| Button | Action |
+Pair the controller with the iPhone first: on a PS5 DualSense, hold **PS**
+and **Create** until the light bar flashes, then pick it in the iPhone's
+**Settings → Bluetooth**. Open the game and press any button. The game sees
+which kind of pad it is and names buttons to match (✕ ○ □ △ and L1/R1 on
+PlayStation, A B X Y and LB/RB on Xbox).
+
+| PlayStation | Xbox | Action |
+|---|---|---|
+| Left stick | Left stick | Move, and aim combos: ↑ + □ launches, ↓ + □ in the air plunges, ↓ + ✕ drops through a ledge |
+| ✕ | A | Jump (double jump after the Plume) |
+| ○ | B | Dodge / air dash; right after a hit, Phantom Step |
+| □ | X | Attack (hold to charge) |
+| △ | Y | Heavy (hold to charge; in the air, plunge) |
+| L1 | LB | Parry / block |
+| R1 / L2 / R2 | RB / LT / RT | Abilities |
+| L3 (left stick click) | L3 | Echo command wheel (point the stick at a command, ✕ to pick) |
+| R3 (right stick click) | R3 | Rally the Remnant |
+| L3 + R3 together | L3 + R3 | Shadow Mantle (transform) |
+| D-pad ↑ | D-pad ↑ | Interact |
+| D-pad ↓ | D-pad ↓ | Balm |
+| D-pad ← | D-pad ← | Switch support Echo |
+| D-pad → | D-pad → | Throw sub-weapon (or stick ↑ + △) |
+| Touchpad or Create | View | Map |
+| Options | Menu | Menu |
+
+Combos on the controller, all also listed in **Menu → Skills → Techniques**
+with the buttons of whatever you are holding:
+
+| Combo | Input |
 |---|---|
-| A | Jump |
-| B | Dodge |
-| X | Attack |
-| Y | Heavy |
-| LB | Parry / block |
-| RB / LT / RT | Abilities |
-| R3 (right stick click) | Rally the Remnant |
-| L3 (left stick click) | Echo command wheel |
-| D-pad ↑ | Interact |
-| D-pad ↓ | Balm |
-| View | Switch support Echo |
-| Menu | Menu (the map is a tab inside it) |
+| Combo | □ □ □ |
+| Seventy Times Seven | □ □, pause, □ |
+| Storm of Edges | □ □ □ △ |
+| Phantom Step | land a hit, then ○ (again to blink around every foe) |
+| Judgment Cross | after 3 Phantom Steps, □ |
+| Rising Comet | ○ □ (dash strike), then □ |
+| Launcher → air combo → Heaven's Rend | stick ↑ + □, ✕, □ □ □, △ |
+| Plunge | in the air, stick ↓ + □ (or △) |
+| Charged Strike | hold △ |
+| Parry & Counter | L1 as a blow lands, then □ |
+| Execution | □ on a staggered foe |
+
+The stick has to point mostly up or down for a launcher or plunge, so
+attacking while running diagonally stays a normal combo. The D-pad does
+not move Elior; it holds quick actions, so using one never makes him step.
+
+- **Remapping:** move any action to any button in **Settings → Controller**.
+  Select an action, then press the button you want. Two actions that share
+  a button swap.
+- **Menus:** they always use ✕ / A to confirm and ○ / B to go back.
+- **Rumble:** the controller vibrates on hits, parries, finishers and the
+  Mantle where the browser supports it. You can turn it off in the same
+  section.
 
 ## Development
 

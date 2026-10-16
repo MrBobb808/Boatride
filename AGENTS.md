@@ -40,20 +40,28 @@ up next starts from the latest version.
   - I, *The Ashen Village*: `game/rooms.ts` and `game/story.ts`.
   - II, *The Tower of Shinar*: `game/rooms2.ts` and `game/story2.ts`.
   - III, *The Valley of Bones*: `game/rooms3.ts` and `game/story3.ts`.
+  - IV, *The Plain of Dura*: `game/rooms4.ts` and `game/story4.ts`. Its art
+    is in `render/env4.ts`.
+  - `game/chapters.ts` lists the chapters for chapter select (`ui/chapters.ts`)
+    and starts training (the Trial of the Remnant from the menu).
 - **Bosses:**
   - `game/boss.ts`: the Gilded Idol.
   - `game/bosses2.ts`: the Gatekeeper and the Crimson Marshal.
   - `game/bosses3.ts`: the Locust King.
+  - `game/bosses4.ts`: the Image of Gold.
 - **Combat:**
   - `game/player.ts`: the player.
   - `game/weapons.ts`: movesets and animation clips.
   - `game/finishers.ts`: randomized slow-motion executions and kill cams.
   - `game/power.ts`: power tiers by level, weapon elements, and the
     Sovereign form at level 100.
+  - `game/mantle.ts`: the Shadow Mantle transformation (from level 25):
+    its gauge, the transformation sequence, the form's effects and look.
 - **Enemies:**
   - `game/enemies.ts`: the base enemy class and Chapter I foes.
   - `game/tanks.ts`: brute, bulwark and knight.
   - `game/locusts.ts`: drone and soldier.
+  - `game/babylon.ts`: Brazen Lion and Chaldean Fire-Priest.
 - **Echoes** (purified allies): `game/echoes.ts` holds the kits, `game/data.ts`
   the species.
 - **Saves:**
@@ -66,6 +74,8 @@ up next starts from the latest version.
   golden objective marker.
 - **UI:** `ui/` holds the HUD, menus, touch controls, dialogue and title
   screen.
+  - `ui/island.ts` draws game status around the Dynamic Island in landscape
+    (add `?island=left` to the URL to preview it on a desktop).
 
 ## Rules to keep
 
@@ -90,7 +100,7 @@ up next starts from the latest version.
 
 ## Where the story stands
 
-Chapters I–III are complete, each with a chapter-end screen. The Chapter III
-end screen says Chapter IV is in development. The Trial of the Remnant
+Chapters I–IV are complete, each with a chapter-end screen. The Chapter IV
+end screen says Chapter V is in development. The Trial of the Remnant
 (`trial_arena`, entered from any altar after Chapter II) is the endless way
 to level 100 and beyond.

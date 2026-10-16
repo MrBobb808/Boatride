@@ -14,6 +14,8 @@ import { ELEMENTS, weaponElement, powerTier, isSovereign, bolt, type Element } f
 import { EchoUnit } from './echoes';
 import { makeEcho, skillRank } from './state';
 import type { Player } from './player';
+import { mantleOn } from './mantle';
+import { input } from '../core/input';
 
 export type FinId = 'verdict' | 'shadowstep' | 'severance' | 'thousand' | 'skyfall' | 'requiem' | 'element' | 'arise';
 
@@ -32,7 +34,9 @@ export const FINISHERS: FinisherDef[] = [
 
 export function unlockedFinishers(level = G.save.level) {
   const el = weaponElement();
-  return FINISHERS.filter((f) => level >= f.level && (f.id !== 'element' || el));
+  // In the Shadow Mantle any execution may end in Arise.
+  const shade = mantleOn();
+  return FINISHERS.filter((f) => (level >= f.level || (f.id === 'arise' && shade)) && (f.id !== 'element' || el));
 }
 
 let recent: FinId[] = [];
@@ -335,6 +339,7 @@ function appear(p: Player, f: FinState, x: number, y: number, face: number) {
 function climax(p: Player, f: FinState, mult: number, o: { slow?: number; scale?: number; zoom?: number } = {}) {
   if (f.struck) return;
   f.struck = true;
+  input.rumble(0.9, 0.6, 260);
   const e = f.target;
   const exec = skillRank(G.save, 'w_exec') > 0;
   G.world.execute(p, e, mult * (exec ? 1.6 : 1) * (1 + powerTier() * 0.08));
@@ -446,7 +451,7 @@ export function killBlow(p: Player, e: Entity, arcA0: number, arcA1: number) {
   if (isSovereign() && !elite && Math.random() < 0.25) G.world.after(0.7, () => riseAsShadow(e));
 }
 
-const SHADOW_OF: Record<string, string> = { archer: 'archer', wisp: 'archer', brute: 'brute', bulwark: 'bulwark', knight: 'knight', soldier: 'locust', drone: 'locust' };
+const SHADOW_OF: Record<string, string> = { archer: 'archer', wisp: 'archer', brute: 'brute', bulwark: 'bulwark', knight: 'knight', soldier: 'locust', drone: 'locust', lion: 'lion', priest: 'archer' };
 
 /** The fallen rise as a shadow Echo for half a minute. */
 export function riseAsShadow(e: Entity) {

@@ -635,9 +635,46 @@ export const SFX: Record<string, SfxFn> = {
     metal(a, t + 0.1, 140, 0.6 * v, d, 1.4);
   },
   roar(a, t, v, p, pan) {
+    // A great cat's roar: a throat that opens and closes, a rattle in it, the chest under it.
     const d = a.out(pan, 0.7);
-    for (const det of [-25, 0, 25]) a.osc('sawtooth', 90 * p, t, 0.9, d, 0.07 * v, 0.08, 62 * p, det);
-    a.noiseHit(t, 0.9, d, 'bandpass', 520 * p, 1.4, 0.45 * v, 220, 0.1);
+    const ctx = a.ctx!;
+    const f = ctx.createBiquadFilter();
+    f.type = 'bandpass';
+    f.Q.value = 1.6;
+    f.frequency.setValueAtTime(380 * p, t);
+    f.frequency.linearRampToValueAtTime(820 * p, t + 0.25);
+    f.frequency.exponentialRampToValueAtTime(260 * p, t + 0.95);
+    const am = chopped(a, t, 1, 26, 0.35);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(0.32 * v, t + 0.12);
+    g.gain.setValueAtTime(0.3 * v, t + 0.5);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 1);
+    for (const det of [-25, 0, 25]) {
+      const o = ctx.createOscillator();
+      o.type = 'sawtooth';
+      o.detune.value = det;
+      o.frequency.setValueAtTime(80 * p, t);
+      o.frequency.linearRampToValueAtTime(104 * p, t + 0.25);
+      o.frequency.exponentialRampToValueAtTime(58 * p, t + 0.95);
+      o.connect(f);
+      o.start(t);
+      o.stop(t + 1.05);
+    }
+    f.connect(am);
+    am.connect(g);
+    g.connect(d);
+    a.noiseHit(t, 0.9, d, 'bandpass', 600 * p, 1.4, 0.36 * v, 220, 0.08);
+    a.osc('sine', 52 * p, t, 0.9, d, 0.3 * v, 0.1, 38 * p);
+  },
+  pounce(a, t, v, p, pan) {
+    // The leap (a rush of air), then the landing: weight, claws on stone, a snarl.
+    const d = a.out(pan, 0.5);
+    a.noiseHit(t, 0.28, d, 'bandpass', 500 * p, 1, 0.4 * v, 2400 * p, 0.12);
+    a.osc('sawtooth', 140 * p, t + 0.02, 0.22, d, 0.06 * v, 0.03, 220 * p);
+    a.osc('sine', 85 * p, t + 0.3, 0.3, d, 0.6 * v, 0.003, 36);
+    a.noiseHit(t + 0.3, 0.2, d, 'lowpass', 1000, 0.8, 0.45 * v, 140);
+    for (let i = 0; i < 4; i++) a.noiseHit(t + 0.31 + i * 0.03, 0.03, d, 'highpass', rand(3500, 6000), 2, 0.18 * v, undefined, 0.001);
   },
   bite(a, t, v, p, pan) {
     const d = a.out(pan, 0.4);
@@ -865,6 +902,62 @@ export const SFX: Record<string, SfxFn> = {
     bell(a, t + 1.1, mtof(38), 0.7 * v, d, 2.2);
     bell(a, t + 1.12, mtof(45), 0.45 * v, d, 2);
   },
+  transform(a, t, v) {
+    // The Shadow Mantle: darkness drawn in for 0.7 s, then a burst that shakes the room.
+    const d = a.out(0, 1.5);
+    const ctx = a.ctx!;
+    a.osc('sine', 38, t, 0.75, d, 0.32 * v, 0.62, 72);
+    a.noiseHit(t, 0.75, d, 'bandpass', 180, 2, 0.26 * v, 3200, 0.68);
+    a.noiseHit(t, 0.75, d, 'highpass', 900, 0.8, 0.08 * v, 5200, 0.7);
+    // A dark, detuned minor cluster opening up as the shadows gather.
+    const f = ctx.createBiquadFilter();
+    f.type = 'lowpass';
+    f.frequency.setValueAtTime(120, t);
+    f.frequency.exponentialRampToValueAtTime(2200, t + 0.72);
+    f.frequency.exponentialRampToValueAtTime(380, t + 1.9);
+    f.Q.value = 4;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.03 * v, t + 0.7);
+    g.gain.setTargetAtTime(0.0001, t + 0.9, 0.35);
+    f.connect(g);
+    g.connect(d);
+    for (const m of [29, 36, 39, 43, 46]) {
+      for (const det of [-11, 11]) {
+        const o = ctx.createOscillator();
+        o.type = 'sawtooth';
+        o.frequency.value = mtof(m);
+        o.detune.value = det;
+        o.connect(f);
+        o.start(t);
+        o.stop(t + 2.4);
+      }
+    }
+    // The burst.
+    const b = t + 0.72;
+    a.osc('sine', 74, b, 1.5, d, 0.85 * v, 0.003, 22);
+    a.osc('triangle', 160, b, 0.4, d, 0.2 * v, 0.003, 45);
+    a.noiseHit(b, 1.1, d, 'lowpass', 2400, 0.7, 0.6 * v, 70, 0.003);
+    a.noiseHit(b, 0.5, d, 'highpass', 5200, 0.6, 0.14 * v, 9000, 0.002);
+    metal(a, b, 82, 0.4 * v, d, 1.3);
+    bell(a, b + 0.02, mtof(50), 0.4 * v, d, 2.4);
+    bell(a, b + 0.04, mtof(57), 0.3 * v, d, 2.2);
+    bell(a, b + 0.06, mtof(62), 0.22 * v, d, 2);
+  },
+  mantleReady(a, t, v) {
+    const d = a.out(0, 1);
+    bell(a, t, mtof(62), 0.3 * v, d, 1.4);
+    bell(a, t + 0.09, mtof(69), 0.26 * v, d, 1.6);
+    a.osc('sine', 55, t, 0.5, d, 0.18 * v, 0.02, 40);
+    a.noiseHit(t, 0.4, d, 'bandpass', 5200, 4, 0.06 * v, 7000, 0.02);
+  },
+  mantleEnd(a, t, v) {
+    // The Mantle unravels: a falling breath of dark air.
+    const d = a.out(0, 0.8);
+    a.noiseHit(t, 0.6, d, 'bandpass', 2600, 1.2, 0.26 * v, 180, 0.04);
+    a.osc('sine', 230, t, 0.5, d, 0.1 * v, 0.02, 80);
+    a.osc('sine', 46, t, 0.6, d, 0.2 * v, 0.01, 30);
+  },
   teleport(a, t, v, p, pan) {
     // Dark air drawn inward, then a pop.
     const d = a.out(pan, 0.6);
@@ -889,6 +982,155 @@ export const SFX: Record<string, SfxFn> = {
     a.noiseHit(t, 1.4, d, 'highpass', 2600, 0.6, 0.12 * v, 900, 0.004);
     metal(a, t, 95 * p, 0.55 * v, d, 1.2);
     a.noiseHit(t + 0.25, 1.6, d, 'lowpass', 140, 0.8, 0.45 * v, 50, 0.3);
+  },
+  // ----- Chapter IV: Babylon, the furnace, the Image
+  fireball(a, t, v, p, pan) {
+    // Flung fire: a roaring whoosh with crackle riding on it.
+    const d = a.out(pan, 0.5);
+    a.noiseHit(t, 0.55, d, 'bandpass', 380 * p, 0.8, 0.5 * v, 1600 * p, 0.05);
+    a.noiseHit(t, 0.5, d, 'lowpass', 700 * p, 0.7, 0.3 * v, 260, 0.04);
+    a.osc('sine', 120 * p, t, 0.4, d, 0.16 * v, 0.03, 70);
+    for (let i = 0; i < 8; i++) a.noiseHit(t + rand(0, 0.45), 0.012, d, 'highpass', rand(2500, 6000), 1, 0.15 * v, undefined, 0.001);
+  },
+  fireBurst(a, t, v, p, pan) {
+    // Fire bursting outward: a thump, a bloom of flame, embers spitting after.
+    const d = a.out(pan, 0.9);
+    a.osc('sine', 70 * p, t, 0.6, d, 0.75 * v, 0.003, 30);
+    a.noiseHit(t, 0.9, d, 'lowpass', 2200 * p, 0.7, 0.7 * v, 220, 0.01);
+    a.noiseHit(t + 0.05, 1.1, d, 'bandpass', 900 * p, 0.8, 0.3 * v, 400, 0.1);
+    for (let i = 0; i < 14; i++) a.noiseHit(t + rand(0.05, 1), 0.012, d, 'highpass', rand(3000, 7000), 1, 0.16 * v, undefined, 0.001);
+  },
+  chant(a, t, v, p, pan) {
+    // Priests intoning: three voices on an open fifth and a minor third, the vowel closing.
+    const d = a.out(pan, 1.2);
+    const ctx = a.ctx!;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(0.14 * v, t + 0.25);
+    g.gain.setValueAtTime(0.14 * v, t + 1);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 1.5);
+    g.connect(d);
+    const mixG = ctx.createGain();
+    for (const [f0, f1, q, amp] of [[700, 360, 6, 1], [1100, 760, 7, 0.45], [2500, 2300, 9, 0.15]] as const) {
+      const bp = ctx.createBiquadFilter();
+      bp.type = 'bandpass';
+      bp.frequency.setValueAtTime(f0, t);
+      bp.frequency.linearRampToValueAtTime(f1, t + 1.2);
+      bp.Q.value = q;
+      const ag = ctx.createGain();
+      ag.gain.value = amp * 2;
+      mixG.connect(bp);
+      bp.connect(ag);
+      ag.connect(g);
+    }
+    for (const m of [45, 52, 48]) {
+      for (const det of [-8, 8]) {
+        const o = ctx.createOscillator();
+        o.type = 'sawtooth';
+        o.frequency.value = mtof(m) * p;
+        o.detune.value = det + rand(-4, 4);
+        o.connect(mixG);
+        o.start(t);
+        o.stop(t + 1.6);
+      }
+    }
+  },
+  horn(a, t, v) {
+    // The herald's cornet: a short pickup, a lip slide up, a long blast with a fifth beneath.
+    const d = a.out(0, 1.5);
+    const ctx = a.ctx!;
+    const notes = [[64, 0, 0.14, 0], [69, 0.16, 0.14, 0], [76, 0.34, 1.5, 2]] as const;
+    for (const [m, dt, dur, slide] of notes) {
+      for (const [det, k] of [[-6, 1], [6, 1], [0, 0.5]] as const) {
+        const o = ctx.createOscillator();
+        o.type = 'sawtooth';
+        o.frequency.setValueAtTime(mtof(m - slide), t + dt);
+        if (slide) o.frequency.exponentialRampToValueAtTime(mtof(m), t + dt + 0.12);
+        o.detune.value = det;
+        const f = ctx.createBiquadFilter();
+        f.type = 'lowpass';
+        f.frequency.setValueAtTime(500, t + dt);
+        f.frequency.linearRampToValueAtTime(3600, t + dt + 0.07);
+        f.frequency.setTargetAtTime(2000, t + dt + 0.1, 0.3);
+        const g = ctx.createGain();
+        g.gain.setValueAtTime(0.0001, t + dt);
+        g.gain.linearRampToValueAtTime(0.12 * v * k, t + dt + 0.04);
+        g.gain.setTargetAtTime(0.0001, t + dt + dur, 0.15);
+        o.connect(f);
+        f.connect(g);
+        g.connect(d);
+        o.start(t + dt);
+        o.stop(t + dt + dur + 0.8);
+      }
+    }
+    a.osc('sawtooth', mtof(69), t + 0.34, 1.5, d, 0.05 * v, 0.1);
+    a.noiseHit(t + 0.34, 1.4, d, 'bandpass', 1800, 2, 0.05 * v, undefined, 0.2);
+  },
+  goldGong(a, t, v, p) {
+    // A great gong of gold: a dark bloom, a beating shimmer, a long tail.
+    const d = a.out(0, 1.6);
+    const f = 82 * p;
+    const parts = [1, 1.48, 1.97, 2.53, 3.21, 4.1, 5.2];
+    parts.forEach((m, i) => a.osc('sine', f * m, t, 6 / (1 + i * 0.35), d, (0.22 * v) / (1 + i * 0.5), 0.02 + i * 0.04, undefined, i % 2 ? 4 : -3));
+    a.osc('sine', f * 2.02, t, 5, d, 0.06 * v, 0.6);
+    a.noiseHit(t, 0.12, d, 'lowpass', 900, 0.8, 0.5 * v, 200, 0.002);
+    a.noiseHit(t, 2.5, d, 'bandpass', 3400, 3, 0.04 * v, 2000, 0.6);
+    bell(a, t + 0.02, f * 8, 0.3 * v, d, 3);
+  },
+  colossusStep(a, t, v, p, pan) {
+    // A footfall that shakes the plain: a sub boom, the thud, the metal body groaning after.
+    const d = a.out(pan, 0.8);
+    a.osc('sine', 46 * p, t, 1.4, d, 1.1 * v, 0.004, 18);
+    a.osc('triangle', 90 * p, t, 0.3, d, 0.3 * v, 0.003, 40);
+    a.noiseHit(t, 0.6, d, 'lowpass', 600, 0.7, 0.8 * v, 60, 0.004);
+    metal(a, t + 0.04, 70 * p, 0.6 * v, d, 1.2);
+    for (let i = 0; i < 7; i++) a.noiseHit(t + rand(0.1, 0.7), 0.04, d, 'bandpass', rand(600, 1800), 2, 0.12 * v);
+  },
+  stoneCrack(a, t, v, p, pan) {
+    // Stone splitting: a sharp report, then grinding as the crack runs.
+    const d = a.out(pan, 0.8);
+    a.noiseHit(t, 0.06, d, 'highpass', 1800 * p, 0.8, 0.8 * v, undefined, 0.001);
+    a.osc('square', 180 * p, t, 0.05, d, 0.12 * v, 0.001, 90);
+    a.osc('sine', 60 * p, t, 0.6, d, 0.5 * v, 0.003, 30);
+    let tt = t + 0.05;
+    for (let i = 0; i < 10; i++) {
+      a.noiseHit(tt, 0.05, d, 'bandpass', rand(500, 1600) * p, 3, 0.25 * v * (1 - i * 0.07), undefined, 0.002);
+      tt += rand(0.03, 0.08);
+    }
+    a.noiseHit(t + 0.1, 0.9, d, 'lowpass', 300, 0.8, 0.3 * v, 80, 0.1);
+  },
+  furnaceBlast(a, t, v, p) {
+    // The furnace door's breath: a roar of fire swelling out of the dark and booming.
+    const d = a.out(0, 1.2);
+    a.noiseHit(t, 1.6, d, 'lowpass', 260 * p, 0.8, 0.9 * v, 1800 * p, 0.35);
+    a.noiseHit(t + 0.2, 1.4, d, 'bandpass', 700 * p, 0.7, 0.4 * v, 300, 0.3);
+    a.osc('sine', 40 * p, t + 0.25, 1.4, d, 0.8 * v, 0.2, 28);
+    a.osc('sawtooth', 55 * p, t + 0.2, 1.2, d, 0.06 * v, 0.3, 40);
+    for (let i = 0; i < 16; i++) a.noiseHit(t + rand(0.3, 1.6), 0.012, d, 'highpass', rand(2500, 6500), 1, 0.14 * v, undefined, 0.001);
+  },
+  shatterGold(a, t, v) {
+    // The Image breaking apart: a colossal boom; gold and silver ring out, brass and iron
+    // clatter down, clay crumbles, and the ground rumbles under it all.
+    const d = a.out(0, 1.6);
+    a.osc('sine', 52, t, 2.4, d, 1.1 * v, 0.003, 18);
+    a.noiseHit(t, 1.2, d, 'lowpass', 3000, 0.7, 0.9 * v, 90, 0.002);
+    for (let i = 0; i < 6; i++) bell(a, t + rand(0, 0.5), rand(900, 2400), 0.35 * v, d, rand(1.4, 2.6));
+    for (let i = 0; i < 18; i++) metal(a, t + rand(0.05, 1.6), rand(220, 1400), 0.45 * v, d, rand(0.2, 0.9));
+    for (let i = 0; i < 12; i++) a.noiseHit(t + rand(0.4, 2.2), 0.08, d, 'lowpass', rand(400, 1200), 1, 0.3 * v, 120, 0.002);
+    a.noiseHit(t + 0.3, 2.6, d, 'lowpass', 160, 0.8, 0.7 * v, 50, 0.4);
+    a.noiseHit(t, 1.6, d, 'highpass', 3500, 0.6, 0.2 * v, 1500, 0.002);
+  },
+  stoneFall(a, t, v) {
+    // The stone cut without hands: a falling shriek of air, then the strike.
+    const d = a.out(0, 1.4);
+    a.noiseHit(t, 1.1, d, 'bandpass', 3200, 4, 0.22 * v, 500, 0.9);
+    a.osc('sine', 1400, t, 1.1, d, 0.05 * v, 0.8, 300);
+    const s = t + 1.1;
+    a.osc('sine', 44, s, 2.2, d, 1.2 * v, 0.003, 16);
+    a.osc('triangle', 120, s, 0.4, d, 0.3 * v, 0.002, 40);
+    a.noiseHit(s, 1, d, 'lowpass', 2600, 0.7, 0.95 * v, 70, 0.002);
+    for (let i = 0; i < 12; i++) a.noiseHit(s + rand(0.05, 1.2), 0.05, d, 'bandpass', rand(500, 2200), 2, 0.25 * v);
+    a.noiseHit(s + 0.2, 2.4, d, 'lowpass', 140, 0.8, 0.6 * v, 45, 0.3);
   },
   // Elemental accents, layered on an ordinary hit.
   elemFire(a, t, v, p, pan) {

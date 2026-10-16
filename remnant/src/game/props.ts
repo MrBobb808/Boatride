@@ -79,6 +79,38 @@ export const NPC_DEFS: Record<NpcKind, { name: string; title: string; style: Hum
       outline: '#050308', weapon: 'staff', offhand: 'none', bulk: 1.05,
     },
   },
+  satrap: {
+    name: 'The Satrap of Dura', title: 'Keeper of the Image', base: { ...NPC_BASE, fUA: 0.55, fFA: 1.1, bUA: 0.45, bFA: 1.2 }, dims: { ...PDIMS, torso: 13.5, thigh: 8.6, shin: 8.6 }, scale: 1.1,
+    style: {
+      skin: '#b07a56', hair: '#141010', hairKind: 'long', beard: '#141010', coat: '#7a5a14', coatDark: '#4a3608', skirt: 18, trim: '#f2d68e',
+      pants: '#3a2a10', boots: '#2a1e0c', glove: '#b07a56', belt: '#c9a04a', plate: null, helm: 'crown', helmColor: '#d8b04a',
+      eye: '#ffcf6b', eyeGlow: 0.6, outline: '#0a0604', weapon: 'staff', offhand: 'none', bulk: 1.1,
+    },
+  },
+  ezra: {
+    name: 'Ezra', title: 'Captive of Judah', base: NPC_BASE, dims: { ...PDIMS, torso: 12.5 }, scale: 1,
+    style: {
+      skin: '#c48e66', hair: '#2a1a12', hairKind: 'short', beard: '#2a1a12', coat: '#8a7a5a', coatDark: '#5a4e3a', skirt: 12, trim: null,
+      pants: '#5a4e3a', boots: '#3a2e20', glove: '#c48e66', belt: '#4a3a2a', plate: null, helm: 'none', eye: '#fff', eyeGlow: 0,
+      outline: '#0a070c', weapon: 'none', offhand: 'none', bulk: 1,
+    },
+  },
+  talia: {
+    name: 'Talia', title: 'Captive of Judah', base: NPC_BASE, dims: { ...PDIMS, torso: 11.8, thigh: 7.8, shin: 7.8 }, scale: 0.95,
+    style: {
+      skin: '#d6a07a', hair: '#1a1210', hairKind: 'long', coat: '#6a7a8a', coatDark: '#4a5664', skirt: 16, trim: null,
+      pants: '#4a5664', boots: '#2e241c', glove: '#d6a07a', belt: '#3a2e24', plate: null, helm: 'none', eye: '#fff', eyeGlow: 0,
+      outline: '#0a070c', weapon: 'none', offhand: 'none', bulk: 0.92,
+    },
+  },
+  barak: {
+    name: 'Barak', title: 'Captive of Judah', base: { ...NPC_BASE, lean: 0.12 }, dims: { ...PDIMS, torso: 12.5 }, scale: 0.98,
+    style: {
+      skin: '#b88660', hair: '#d8d4cc', hairKind: 'short', beard: '#e0dcd4', coat: '#5a4a3a', coatDark: '#3e3228', skirt: 14, trim: null,
+      pants: '#3e3228', boots: '#2a2018', glove: '#b88660', belt: '#2a2018', plate: null, helm: 'none', eye: '#fff', eyeGlow: 0,
+      outline: '#0a070c', weapon: 'staff', offhand: 'none', bulk: 0.95,
+    },
+  },
   marshal: {
     name: 'The Crimson Marshal', title: 'Commander of the Tower', base: { ...NPC_BASE, fUA: 0.65, fFA: 0.6, bUA: 0.7, bFA: 0.75, wpn: 1.35 }, dims: { ...PDIMS, torso: 14, thigh: 9.2, shin: 9.2 }, scale: 1.3,
     style: {

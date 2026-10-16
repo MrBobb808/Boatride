@@ -50,6 +50,13 @@ export interface SaveData {
   choices: Record<string, string>;
   affinity: { mara: number; azriel: number; tobiah: number };
   rally: number;
+  /** Shadow Mantle gauge, 0–100 (from level 25). */
+  mantle?: number;
+  /** Hearts (sub-weapon ammunition) and the sub-weapon carried. */
+  hearts?: number;
+  sub?: string | null;
+  /** Foes slain, by kind, for the Bestiary. */
+  bestiary?: Record<string, number>;
   ng: number;
   kills: number;
   deaths: number;

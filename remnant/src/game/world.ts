@@ -12,6 +12,7 @@ import { EchoUnit } from './echoes';
 import { Idol } from './boss';
 import { BossBase, Gatekeeper, Marshal } from './bosses2';
 import { LocustKing } from './bosses3';
+import { GoldenImage } from './bosses4';
 import { Npc, Chest, Altar, LoreStone, Shrine, Pickup, Drop, RelicVisual, type Interactable } from './props';
 import { Proj } from './projectiles';
 import { Story } from './story';
@@ -27,6 +28,9 @@ import { music } from '../audio/music';
 import { shakeScale, settings } from '../core/settings';
 import { guidePoint } from './guide';
 import { tickStatus, powerTier, SOVEREIGN_LV } from './power';
+import { MANTLE_LV, mantleTier, mantlePerks, announceMantle } from './mantle';
+import { islandNotify } from '../ui/island';
+import { placeLamps } from './lamps';
 import { updatePending, applyUpdate } from '../core/update';
 import { FINISHERS } from './finishers';
 import { ITEMS, ECHO_SPECIES, type Rarity } from './data';
@@ -121,6 +125,7 @@ export class World {
     fx.clear();
     const s = G.save;
     for (const e of r.ents) this.spawnDef(e);
+    placeLamps(r);
     if (r.id === 'covenant_chamber' && !flag('relic_taken')) this.add(new RelicVisual(34.5 * TILE, 20 * TILE));
     const sp = r.spawns[spawnName] ?? Object.values(r.spawns)[0];
     const p = this.player;
@@ -131,6 +136,8 @@ export class World {
     p.face = sp.face ?? 1;
     p.scarf.reset(p.x, p.y - 28);
     p.cape.reset(p.x, p.y - 26);
+    p.cloak.reset(p.x, p.y - 26);
+    p.eyeN = 0;
     p.ghosts.length = 0;
     p.trail.length = 0;
     p.lastSafe = { x: p.x, y: p.y };
@@ -208,8 +215,9 @@ export class World {
         this.lights.push(e);
         return;
       case 'boss':
-        if (s.defeated.includes(e.k)) return;
-        this.boss = e.k === 'gatekeeper' ? new Gatekeeper(x, y) : e.k === 'marshal' ? new Marshal(x, y) : e.k === 'locust_king' ? new LocustKing(x, y) : new Idol(x, y);
+        // The beaten Image stays on its dais until the stone falls (the story finishes it).
+        if (s.defeated.includes(e.k) && !(e.k === 'golden_image' && !flag('ch4_image_done'))) return;
+        this.boss = e.k === 'gatekeeper' ? new Gatekeeper(x, y) : e.k === 'marshal' ? new Marshal(x, y) : e.k === 'locust_king' ? new LocustKing(x, y) : e.k === 'golden_image' ? new GoldenImage(x, y) : new Idol(x, y);
         this.add(this.boss);
         return;
     }
@@ -334,7 +342,14 @@ export class World {
       const r = { x: ex.x * TILE, y: ex.y * TILE, w: ex.w * TILE, h: ex.h * TILE };
       if (overlaps(hb, r)) {
         if (this.gateClosed) return;
-        this.transition(ex.to, ex.spawn);
+        let to = ex.to, spawn = ex.spawn;
+        // Training sends you back to wherever you started it.
+        const back = G.save.flags.trial_return;
+        if (this.room.id === 'trial_arena' && typeof back === 'string') {
+          [to, spawn] = back.split('|');
+          delete G.save.flags.trial_return;
+        }
+        this.transition(to, spawn);
         return;
       }
     }
@@ -535,7 +550,7 @@ export class World {
     for (const e of this.ents) {
       if (!e.executable()) continue;
       if (e.isBoss) {
-        if (Math.abs(e.x - p.x) < (e instanceof Gatekeeper ? 120 : e instanceof Marshal || e instanceof LocustKing ? 56 : 80) && Math.abs(e.y - p.y) < 60) return e;
+        if (Math.abs(e.x - p.x) < (e instanceof Gatekeeper ? 120 : e instanceof GoldenImage ? 96 : e instanceof Marshal || e instanceof LocustKing ? 56 : 80) && Math.abs(e.y - p.y) < 60) return e;
       } else if (Math.abs(e.x - p.x) < 36 && Math.abs(e.y - p.y) < 30) return e;
     }
     return null;
@@ -692,7 +707,8 @@ export class World {
     const s = G.save;
     const st = e.stats;
     s.kills++;
-    const tier = e.tier === 3 ? 2.6 : e.tier === 2 ? 1.7 : 1;
+    (s.bestiary ??= {})[e.kind] = (s.bestiary[e.kind] ?? 0) + 1;
+    const tier = e.tier === 4 ? 3.6 : e.tier === 3 ? 2.6 : e.tier === 2 ? 1.7 : 1;
     const xp = e.xpOverride ?? Math.round(st.xp * (e.elite ? 4 : 1) * G.d.xpMult * (1 + s.ng * 0.5) * tier);
     this.giveXp(xp);
     const loot: Loot[] = [{ silver: Math.round(randInt(st.silver[0], st.silver[1]) * (e.elite ? 4 : 1) * tier) }];
@@ -721,6 +737,7 @@ export class World {
       s.hp = G.d.maxHp;
       this.player.styleKey = '';
       G.ui.levelUp(levels);
+      islandNotify(`LEVEL ${s.level}`, '#f6dea0', 'stats', 2.8);
       for (const ec of this.echoes) ec.refreshStats();
       // New finishers and power tiers announce themselves.
       const fins = FINISHERS.filter((f) => f.level > lvBefore && f.level <= s.level && f.level > 1);
@@ -734,6 +751,11 @@ export class World {
         });
       } else if (powerTier(s.level) > powerTier(lvBefore)) {
         this.after(2.6, () => G.ui.toast('Your strikes grow heavier and brighter.', 'good'));
+      }
+      // The Shadow Mantle wakes at 25 and deepens at 50, 75 and 100.
+      if (lvBefore < MANTLE_LV && s.level >= MANTLE_LV) announceMantle(3.6);
+      else if (lvBefore >= MANTLE_LV && mantleTier(s.level) > mantleTier(lvBefore)) {
+        this.after(3, () => G.ui.toast(`Your Shadow Mantle deepens: ${mantlePerks()}.`, 'good'));
       }
       if (G.d.echoSlots > slotsBefore) {
         // A wider covenant: bring benched Echoes into the line automatically.
@@ -1230,6 +1252,7 @@ export class World {
       this.story.gatekeeperDefeated(b);
     } else if (b instanceof Marshal) this.story.marshalDefeated(b);
     else if (b instanceof LocustKing) this.story.kingDefeated(b);
+    else if (b instanceof GoldenImage) this.story.ch4.imageDefeated(b);
     else if (b instanceof Idol) {
       this.closeGate(false);
       this.story.bossDefeated(b);
