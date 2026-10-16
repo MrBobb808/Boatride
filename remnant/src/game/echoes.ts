@@ -232,6 +232,8 @@ export class EchoUnit extends Entity {
   private stuckT = 0;
   private lastDx = 0;
   private guardXpCd = 0;
+  /** Seconds spent circling for a foe's back without getting there. */
+  private flankT = 0;
 
   get order(): EchoOrder | undefined {
     return this.inst.order;
@@ -283,6 +285,8 @@ export class EchoUnit extends Entity {
     this.summonT = 1.1;
     this.layer = 7;
     this.name = ECHO_SPECIES[inst.species].stages[inst.stage].name;
+    // A held post and a focused foe belong to one fight: a fresh summon starts free.
+    if (inst.order === 'hold' || inst.order === 'focus') inst.order = undefined;
   }
 
   /** Shield-bearers and heavies: draw foes and guard Elior. */
@@ -502,7 +506,9 @@ export class EchoUnit extends Entity {
       const dist = Math.abs(dx);
       this.face = sign(dx) || this.face;
       // A flanker holds its blow until it is behind the foe (or has tried for a while).
-      const behind = this.order !== 'flank' || sign(this.x - t.x) === -(t.face || 1) || this.st > 1.4;
+      const atBack = sign(this.x - t.x) === -(t.face || 1);
+      this.flankT = this.order === 'flank' && !atBack ? this.flankT + dt : 0;
+      const behind = this.order !== 'flank' || atBack || this.flankT > 1.6;
       const mv = this.attackCd <= 0 && b.onGround && behind ? this.pickMove() : null;
       if (mv && (dist < this.kit.reach || (mv.dash && dist < 150) || (mv.blink && dist < 170))) {
         this.begin(mv, false);
