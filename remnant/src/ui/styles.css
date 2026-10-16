@@ -94,6 +94,7 @@ input, textarea { -webkit-user-select: text; user-select: text; }
   .row-item:hover { border-color: var(--line-strong); background: rgba(50,38,24,0.55); outline: none; }
   .wheel-btn:hover { border-color: var(--gold); color: var(--gold-hi); outline: none; }
 }
+.btn > img { width: 20px; height: 20px; flex: none; }
 .btn:active { transform: translateY(1px); }
 .btn[disabled] { opacity: 0.38; cursor: default; filter: grayscale(0.6); }
 .btn.primary { border-color: var(--gold); color: var(--gold-hi); background: linear-gradient(180deg, rgba(110,80,30,0.85), rgba(50,34,12,0.95)); }
@@ -152,6 +153,8 @@ input, textarea { -webkit-user-select: text; user-select: text; }
   border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); color: var(--bone); text-align: center; font-size: 0.95em; pointer-events: none; animation: toastIn 0.3s; }
 .caption { position: absolute; left: 50%; bottom: calc(13% + var(--sab)); transform: translateX(-50%); width: max-content; max-width: min(760px, calc(100% - 40px - var(--sal) - var(--sar))); text-align: center; font-size: 1.12em; font-style: italic; color: var(--bone); text-shadow: 0 2px 10px #000, 0 0 2px #000; pointer-events: none; animation: toastIn 0.5s; }
 .caption .ref { display: block; margin-top: 6px; font-style: normal; font-family: var(--font-display); font-size: 0.62em; letter-spacing: 0.16em; color: var(--gold); }
+/* Gameplay hints and prompts that arrive while a menu or card is open wait underneath it. */
+#ui:has(> .menu, > .layer.dim) > :is(.hint, .prompt) { visibility: hidden; }
 .bars::before, .bars::after { content: ""; position: absolute; left: 0; right: 0; height: 0; background: #000; transition: height 0.5s ease; z-index: 1; pointer-events: none; }
 .bars::before { top: 0; } .bars::after { bottom: 0; }
 .bars.on::before, .bars.on::after { height: 9vh; }
@@ -368,7 +371,7 @@ textarea.code { width: 100%; height: 70px; background: rgba(10,8,14,0.9); color:
   .node { width: 38px; height: 38px; }
   .node img { width: 22px; height: 22px; }
   .slots { gap: 4px; }
-  .slot { width: 48px; padding: 4px 2px; gap: 1px; font-size: 0.64em; }
+  .slot { width: 48px; padding: 4px 2px; gap: 1px; font-size: min(0.64em, 10px); }
   .slot img { width: 24px; height: 24px; }
   .menu-body { padding-top: 8px; gap: 10px; }
   .box { padding: 8px 10px; }

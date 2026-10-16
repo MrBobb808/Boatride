@@ -235,6 +235,8 @@ export abstract class Enemy extends Entity {
   tier = 1;
   /** Fixed XP for this kill (the Trial sets it). */
   xpOverride: number | null = null;
+  /** Seconds of haste left (a Brazen Lion's roar): moves and thinks faster. */
+  haste = 0;
 
   constructor(kind: EnemyKind, x: number, y: number, w: number, h: number, elite: string | null) {
     super(x, y, w, h);
@@ -300,6 +302,11 @@ export abstract class Enemy extends Entity {
   update(dt: number) {
     // Chilled foes move and think at half speed.
     if (this.chill > 0 && !this.dying) dt *= 0.55;
+    if (this.haste > 0 && !this.dying) {
+      this.haste -= dt;
+      dt *= 1.35;
+      if (Math.random() < dt * 12) fx.spawn(PK.Ember, this.x + rand(-8, 8), this.y - rand(4, this.body.h), 0, -50, 0.5, 1.4, 0.2, '#ffb347', -20, 1);
+    }
     this.st += dt;
     this.flash = Math.max(0, this.flash - dt);
     this.hpBarT = Math.max(0, this.hpBarT - dt);
