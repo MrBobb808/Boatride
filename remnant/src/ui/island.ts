@@ -79,8 +79,33 @@ export function islandRipple(color = '#ffd27a', strong = false) {
 
 /** Seconds left of the bright outline drawn while the length slider moves. */
 let calibrate = 0;
+let calEl: HTMLDivElement | null = null;
+let calTimer = 0;
+/**
+ * Show the island's outline for a moment while its size is set. The Settings
+ * menu covers the game canvas, so the outline is a page element above it.
+ */
 export function islandCalibrate() {
   calibrate = 2.5;
+  const side = islandSide();
+  if (!side) {
+    G.ui?.toast('Turn the phone sideways to see the island outline.', 'info');
+    return;
+  }
+  if (!calEl) {
+    calEl = document.createElement('div');
+    calEl.style.cssText = 'position:fixed;z-index:9999;pointer-events:none;border:1.5px solid #7af0ff;border-radius:999px;box-sizing:border-box;transition:opacity 0.4s;';
+    document.body.appendChild(calEl);
+  }
+  const len = islandLength() + 3, w = THICK + 3;
+  calEl.style.width = w + 'px';
+  calEl.style.height = len + 'px';
+  calEl.style.top = innerHeight / 2 - len / 2 + 'px';
+  calEl.style.left = side === 'left' ? INSET + THICK / 2 - w / 2 + 'px' : '';
+  calEl.style.right = side === 'right' ? INSET + THICK / 2 - w / 2 + 'px' : '';
+  calEl.style.opacity = '1';
+  clearTimeout(calTimer);
+  calTimer = window.setTimeout(() => { if (calEl) calEl.style.opacity = '0'; }, 2500);
 }
 
 function pill(ctx: Ctx, cx: number, cy: number, w: number, h: number) {

@@ -467,7 +467,7 @@ function wheelItems(page: 'main' | 'squad' | 'orders'): { title: string; sub: st
       { label: 'Mark target', icon: 'target', run: cmd('target') },
       { label: 'Recall', icon: 'recall', run: cmd('recall') },
       { label: W.syncCd > 0 ? `Sync ${Math.ceil(W.syncCd)}s` : 'Sync strike', icon: 'sync', run: cmd('sync') },
-      { label: W.switchCd > 0 ? `Switch ${Math.ceil(W.switchCd)}s` : s.echoes.length > G.d.echoSlots ? 'Switch in' : 'Swap', icon: 'switch', run: cmd('switch') },
+      { label: W.switchCd > 0 ? `Switch ${Math.ceil(W.switchCd)}s` : W.benchReady() ? 'Switch in' : 'Swap', icon: 'switch', run: cmd('switch') },
     ],
   };
 }
@@ -595,5 +595,8 @@ function openOrdersPanel() {
   uiRoot.appendChild(layer);
   wheelEl = layer;
   const close = () => closeWheel();
-  pushLayer({ el: layer, onBack: close });
+  pushLayer({ el: layer, onBack: close, onAction: (a) => {
+    if (a === 'echo' || a === 'menu') { close(); return true; }
+    return false;
+  } });
 }

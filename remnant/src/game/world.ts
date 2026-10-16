@@ -117,6 +117,7 @@ export class World {
     this.gateClosed = false;
     this.gateAmt = 0;
     this.priorityTarget = null;
+    this.player.lastFoe = null;
     this.purifyTarget = null;
     this.timers = [];
     this.weather = [];
@@ -906,7 +907,7 @@ export class World {
     for (const e of this.echoes) if (!call.includes(e.inst.uid) && e.tempT <= 0 && e.despawn <= 0) e.dismiss();
     let i = 0;
     for (const u of call) {
-      if (this.echoes.some((e) => e.inst.uid === u)) { i++; continue; }
+      if (this.echoes.some((e) => e.inst.uid === u && e.despawn <= 0)) { i++; continue; }
       const inst = s.echoes.find((e) => e.uid === u)!;
       if ((inst.downFor ?? 0) > 0) continue;
       if (inst.hp <= 0) inst.hp = echoMaxHp(s, inst, G.d);
@@ -943,7 +944,10 @@ export class World {
       if (pick.length) return pick;
     }
     const line = s.active.slice(0, slots);
-    return pre === 'one' ? line.slice(0, 1) : pre === 'two' ? line.slice(0, 2) : line;
+    if (pre !== 'one' && pre !== 'two') return line;
+    // The lead (or lead two) still standing: a fallen lead's place is taken until it returns.
+    const up = line.filter((u) => (s.echoes.find((e) => e.uid === u)?.downFor ?? 0) <= 0);
+    return up.slice(0, pre === 'one' ? 1 : 2);
   }
 
   /** Choose how many shadows fight: the lead, two, the picked squad, or all. */
@@ -986,9 +990,12 @@ export class World {
     sfx('uiConfirm');
   }
 
-  private benchReady() {
+  /** Whether Switch rotates in a benched Echo (whole-lineup preset only) rather than swapping places. */
+  benchReady() {
     const s = G.save;
-    return s.echoes.some((e) => !s.active.includes(e.uid) && (e.downFor ?? 0) <= 0);
+    if ((s.summonPreset ?? 'all') !== 'all') return false;
+    for (const e of s.echoes) if ((e.downFor ?? 0) <= 0 && s.active.indexOf(e.uid) < 0) return true;
+    return false;
   }
 
   /**
@@ -1063,7 +1070,7 @@ export class World {
     }
     const p = this.player;
     const target = (this.priorityTarget && !this.priorityTarget.dying ? this.priorityTarget : null) ?? this.nearestEnemy(p.x, p.y - 20, 260, 0);
-    const bench = s.echoes.filter((e) => !s.active.includes(e.uid) && (e.downFor ?? 0) <= 0);
+    const bench = this.benchReady() ? s.echoes.filter((e) => !s.active.includes(e.uid) && (e.downFor ?? 0) <= 0) : [];
     if (bench.length) {
       const outUid = s.active[0];
       const incoming = bench[0];
