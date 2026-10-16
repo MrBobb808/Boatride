@@ -53,12 +53,31 @@ export const DEFAULT_KEYS: Record<Action, string[]> = {
   tabR: ['KeyE', 'BracketRight'],
 };
 
-// Standard gamepad mapping (Xbox naming).
-const PAD: Partial<Record<Action, number[]>> = {
+// Standard gamepad mapping. Button indices are the same on Xbox and
+// PlayStation pads: 0 A/✕, 1 B/○, 2 X/□, 3 Y/△, 4 LB/L1, 5 RB/R1, 6 LT/L2,
+// 7 RT/R2, 8 View/Create, 9 Menu/Options, 10 L3, 11 R3, 12–15 D-pad, 16 home.
+// The Shadow Mantle has no button of its own by default: L3 + R3 together.
+export const DEFAULT_PAD: Partial<Record<Action, number[]>> = {
   jump: [0], dodge: [1], attack: [2], heavy: [3], parry: [4], skill1: [5], skill2: [6], skill3: [7],
-  switch: [8], menu: [9], up: [12], down: [13], left: [14], right: [15],
-  confirm: [0], back: [1], tabL: [4], tabR: [5], interact: [12], heal: [13],
+  switch: [8], menu: [9], echo: [10], ultimate: [11], transform: [],
+  interact: [12], heal: [13],
 };
+// Menus always navigate the same way: ✕/A confirm, ○/B back, L1/R1 tabs.
+const PAD_FIXED: Partial<Record<Action, number[]>> = { confirm: [0], back: [1], tabL: [4], tabR: [5] };
+/** Actions a player may move to other controller buttons. */
+export const PAD_REMAPPABLE: Action[] = ['jump', 'attack', 'heavy', 'dodge', 'parry', 'skill1', 'skill2', 'skill3', 'interact', 'heal', 'echo', 'ultimate', 'switch', 'transform', 'menu'];
+
+export type PadKind = 'playstation' | 'xbox' | 'generic';
+const PS_NAMES = ['✕', '○', '□', '△', 'L1', 'R1', 'L2', 'R2', 'Create', 'Options', 'L3', 'R3', 'D-pad ↑', 'D-pad ↓', 'D-pad ←', 'D-pad →', 'PS', 'Touchpad'];
+const XB_NAMES = ['A', 'B', 'X', 'Y', 'LB', 'RB', 'LT', 'RT', 'View', 'Menu', 'L3', 'R3', 'D-pad ↑', 'D-pad ↓', 'D-pad ←', 'D-pad →', 'Home', 'Share'];
+
+/** Sony pads report names like "DualSense Wireless Controller" or vendor 054c. */
+export function padKindOf(id: string): PadKind {
+  const s = id.toLowerCase();
+  if (/dualsense|dualshock|playstation|054c|ps5|ps4|wireless controller/.test(s)) return 'playstation';
+  if (/xbox|xinput|045e/.test(s)) return 'xbox';
+  return 'generic';
+}
 
 type Listener = (a: Action, repeat: boolean) => void;
 
@@ -88,6 +107,14 @@ export class Input {
   private deviceCbs: ((d: Device) => void)[] = [];
   gamepadConnected = false;
   enabled = true;
+  /** Controller bindings in use: defaults overlaid with the player's own. */
+  padMap: Partial<Record<Action, number[]>> = { ...DEFAULT_PAD };
+  padKind: PadKind = 'generic';
+  padName = '';
+  private padCapture: ((button: number) => void) | null = null;
+  private padPrev: boolean[] = [];
+  /** A button just used for a rebind is ignored until it is let go. */
+  private padHold = -1;
   /** When each stick was clicked in (0 = up), and whether both were clicked together. */
   private l3At = 0;
   private r3At = 0;
@@ -224,28 +251,50 @@ export class Input {
     for (const p of pads) if (p && p.connected) { gp = p; break; }
     if (gp) {
       this.gamepadConnected = true;
+      if (gp.id !== this.padName) {
+        this.padName = gp.id;
+        this.padKind = padKindOf(gp.id);
+      }
+      const btn = (i: number) => i !== this.padHold && !!gp!.buttons[i] && (gp!.buttons[i].pressed || gp!.buttons[i].value > 0.5);
+      if (this.padHold >= 0 && !gp.buttons[this.padHold]?.pressed) this.padHold = -1;
+      // Rebinding: the next button pressed goes to the waiting callback.
+      if (this.padCapture) {
+        for (let i = 0; i < gp.buttons.length; i++) {
+          const down = !!gp.buttons[i]?.pressed;
+          if (down && !this.padPrev[i]) {
+            const cb = this.padCapture;
+            this.padCapture = null;
+            this.padHold = i;
+            cb(i);
+            break;
+          }
+        }
+        this.padPrev = gp.buttons.map((b) => !!b?.pressed);
+        return;
+      }
+      this.padPrev = gp.buttons.map((b) => !!b?.pressed);
       let any = false;
+      // Stick clicks: while the Mantle has no button of its own, L3 + R3
+      // together call it. A lone click waits a few frames for its partner so
+      // the chord never also fires what L3 or R3 do alone.
+      const chord = !(this.padMap.transform?.length);
+      const l3 = btn(10), r3 = btn(11);
+      this.l3At = l3 ? this.l3At || now : 0;
+      this.r3At = r3 ? this.r3At || now : 0;
+      if (chord && l3 && r3) this.stickCombo = true;
+      else if (!l3 && !r3) this.stickCombo = false;
+      const l3Solo = !this.stickCombo && l3 && (!chord || now - this.l3At > 70);
+      const r3Solo = !this.stickCombo && r3 && (!chord || now - this.r3At > 70);
       for (const a of ACTIONS) {
-        const idx = PAD[a];
-        if (!idx) continue;
-        const pressed = idx.some((i) => gp!.buttons[i] && (gp!.buttons[i].pressed || gp!.buttons[i].value > 0.5));
+        // Directions come from the stick and D-pad below.
+        if (a === 'left' || a === 'right' || a === 'up' || a === 'down') continue;
+        const idx = PAD_FIXED[a] ?? this.padMap[a];
+        let pressed = false;
+        if (idx) for (const i of idx) if (i === 10 ? l3Solo : i === 11 ? r3Solo : btn(i)) pressed = true;
+        if (a === 'transform' && chord && this.stickCombo) pressed = true;
         if (pressed) any = true;
         if (pressed !== this.pad.has(a)) this.setSource(this.pad, a, pressed);
       }
-      // Stick clicks: L3 alone opens the Echo wheel, R3 alone rallies, both
-      // together call the Shadow Mantle. A lone click waits a few frames for
-      // its partner so the combo never also opens the wheel.
-      const l3 = !!gp.buttons[10]?.pressed, r3 = !!gp.buttons[11]?.pressed;
-      this.l3At = l3 ? this.l3At || now : 0;
-      this.r3At = r3 ? this.r3At || now : 0;
-      if (l3 && r3) this.stickCombo = true;
-      else if (!l3 && !r3) this.stickCombo = false;
-      const stick: [Action, boolean][] = [
-        ['transform', this.stickCombo],
-        ['echo', !this.stickCombo && l3 && now - this.l3At > 70],
-        ['ultimate', !this.stickCombo && r3 && now - this.r3At > 70],
-      ];
-      for (const [a, v] of stick) if (v !== this.pad.has(a)) this.setSource(this.pad, a, v);
       if (l3 || r3) any = true;
       const ax = gp.axes[0] ?? 0, ay = gp.axes[1] ?? 0;
       const dz = 0.28;
@@ -325,6 +374,44 @@ export class Input {
     return this.isDownRaw(a);
   }
 
+  /** A controller button's name in the style of the connected pad. */
+  buttonName(i: number) {
+    const names = this.padKind === 'playstation' ? PS_NAMES : XB_NAMES;
+    return names[i] ?? `Button ${i}`;
+  }
+
+  /** The controller button(s) for an action, as the player would read them. */
+  padLabel(a: Action): string {
+    if (a === 'transform' && !(this.padMap.transform?.length)) return `${this.buttonName(10)}+${this.buttonName(11)}`;
+    const idx = PAD_FIXED[a] ?? this.padMap[a];
+    if (a === 'up') return this.buttonName(12);
+    if (a === 'down') return this.buttonName(13);
+    if (a === 'map') return this.buttonName(9);
+    return idx && idx.length ? idx.map((i) => this.buttonName(i)).join(' / ') : '—';
+  }
+
+  /** Wait for the next controller button (for rebinding). */
+  capturePadButton(cb: ((button: number) => void) | null) {
+    this.padCapture = cb;
+  }
+  get capturingPad() {
+    return !!this.padCapture;
+  }
+
+  /** Rumble the controller, where the browser allows it (DualSense and Xbox pads in Safari 16.4+ and Chrome). */
+  rumble(strong: number, weak: number, ms: number) {
+    if (!this.rumbleOn || this.lastDevice !== 'gamepad') return;
+    const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+    for (const p of pads) {
+      const act = (p as (Gamepad & { vibrationActuator?: { playEffect?: (t: string, o: object) => Promise<unknown> } }) | null)?.vibrationActuator;
+      if (act?.playEffect) {
+        act.playEffect('dual-rumble', { duration: ms, strongMagnitude: Math.min(1, strong), weakMagnitude: Math.min(1, weak) }).catch(() => { /* unsupported */ });
+        return;
+      }
+    }
+  }
+  rumbleOn = true;
+
   keyName(code: string) {
     if (code.startsWith('Key')) return code.slice(3);
     if (code.startsWith('Digit')) return code.slice(5);
@@ -338,13 +425,7 @@ export class Input {
 
   /** Human label for the first binding of an action on the current device. */
   label(a: Action): string {
-    if (this.lastDevice === 'gamepad') {
-      const names: Partial<Record<Action, string>> = {
-        jump: 'A', dodge: 'B', attack: 'X', heavy: 'Y', parry: 'LB', skill1: 'RB', skill2: 'LT', skill3: 'RT',
-        interact: 'D-pad ↑', ultimate: 'R3', echo: 'L3', transform: 'L3+R3', menu: 'Start', map: 'Select', heal: 'D-pad ↓', confirm: 'A', back: 'B',
-      };
-      return names[a] ?? a;
-    }
+    if (this.lastDevice === 'gamepad') return this.padLabel(a);
     if (this.lastDevice === 'touch') {
       const names: Partial<Record<Action, string>> = {
         interact: '⬆', attack: '⚔', jump: '⤒', heal: '✚',

@@ -1253,6 +1253,7 @@ export class Player extends Entity {
       G.save.ce = Math.min(d.maxCe, G.save.ce + (skillRank(s, 'g_timing') ? 12 : 5));
       G.world.addRally(10);
       mantleGain(8);
+      input.rumble(0.25, 0.8, 110);
       if (h.src) h.src.parried(this);
       if (G.ui) G.ui.hint(null);
       return false;
@@ -1282,6 +1283,7 @@ export class Player extends Entity {
     fx.number(this.x, this.y - 40, dmg, false, '#ff8a8a');
     fx.hitSparks(this.x, this.y - 20, -this.face, '#ff9a9a', 8, 0.8);
     sfx('hurt');
+    input.rumble(0.7, 0.4, 180);
     G.camera.addTrauma(0.3 * shakeScale());
     fx.flash('#8a1020', 0.12);
     if (s.hp <= 0) {

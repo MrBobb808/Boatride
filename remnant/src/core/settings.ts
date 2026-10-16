@@ -1,4 +1,4 @@
-import { DEFAULT_KEYS, input, type Action } from './input';
+import { DEFAULT_KEYS, DEFAULT_PAD, input, type Action } from './input';
 
 export interface Settings {
   master: number;
@@ -26,6 +26,10 @@ export interface Settings {
   /** Settings format, for one-time migrations. */
   v: number;
   keys: Record<Action, string[]>;
+  /** Controller buttons the player has moved; anything absent keeps its default. */
+  pad: Partial<Record<Action, number[]>>;
+  /** Controller rumble on big moments. */
+  rumble: boolean;
 }
 
 export const isTouchDevice = () =>
@@ -62,6 +66,8 @@ const DEFAULTS: Settings = {
   showFps: false,
   v: 2,
   keys: structuredClone(DEFAULT_KEYS),
+  pad: {},
+  rumble: true,
 };
 
 const KEY = 'remnant-settings-v1';
@@ -113,12 +119,20 @@ function load(): Settings {
 
 export const settings: Settings = load();
 input.keys = settings.keys;
+applyPad();
+
+/** Push controller bindings and rumble into the input layer. */
+export function applyPad() {
+  input.padMap = { ...structuredClone(DEFAULT_PAD), ...structuredClone(settings.pad ?? {}) };
+  input.rumbleOn = settings.rumble;
+}
 
 const subs: (() => void)[] = [];
 export function onSettingsChange(cb: () => void) {
   subs.push(cb);
 }
 export function saveSettings() {
+  applyPad();
   store.set(KEY, JSON.stringify(settings));
   for (const cb of subs) cb();
 }
@@ -126,6 +140,7 @@ export function resetSettings() {
   const keys = structuredClone(DEFAULT_KEYS);
   Object.assign(settings, structuredClone(DEFAULTS), { keys });
   input.keys = settings.keys;
+  applyPad();
   saveSettings();
 }
 

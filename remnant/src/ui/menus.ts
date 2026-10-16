@@ -25,6 +25,7 @@ import { FINISHERS } from '../game/finishers';
 import { MANTLE_LV, mantlePerks } from '../game/mantle';
 import { nextChapter, travelToChapter, trainingOpen, startTraining } from '../game/chapters';
 import { chaptersTab } from './chapters';
+import { controllerBox, cancelPadCapture } from './controller';
 import { saveSlot, listSlots, deleteSlot, loadSlot, exportCode, importCode, SLOT_COUNT } from '../game/save';
 import { formatTime, clamp } from '../core/math';
 import { solve, newJoints } from '../render/skeleton';
@@ -101,6 +102,7 @@ export function openMenu(t?: string, settingsOnly = false) {
 
 export function closeMenu() {
   if (!menuEl) return;
+  cancelPadCapture();
   popLayer(menuEl);
   menuEl = null;
   pause(false);
@@ -767,7 +769,7 @@ const row = (label: string, sub: string, ctl: HTMLElement) => h('div', { class: 
 
 function settingsTab() {
   const st = settings;
-  const binds = (['left', 'right', 'up', 'down', 'jump', 'attack', 'heavy', 'dodge', 'parry', 'skill1', 'skill2', 'skill3', 'interact', 'heal', 'echo', 'ultimate', 'menu', 'map'] as Action[]).map((a) =>
+  const binds = (['left', 'right', 'up', 'down', 'jump', 'attack', 'heavy', 'dodge', 'parry', 'skill1', 'skill2', 'skill3', 'interact', 'heal', 'echo', 'ultimate', 'switch', 'transform', 'menu', 'map'] as Action[]).map((a) =>
     row(ACTION_LABELS[a] ?? a, '', h('div', { class: 'bind' }, h('button', {
       class: 'key' + (listening === a ? ' listen' : ''), 'data-nav': '', 'data-k': 'kb_' + a,
       onclick: () => {
@@ -813,8 +815,9 @@ function settingsTab() {
       row('Button labels', 'Show the name under each touch button.', toggle(st.buttonLabels, (v) => (st.buttonLabels = v), 'bl')),
       row('Dynamic Island indicator', 'On iPhones with a Dynamic Island, a living status ring around it: low health, the Shadow Mantle, Rally and news.', toggle(st.island, (v) => (st.island = v), 'di')),
     ) : null,
-    h('div', { class: 'box' }, h('h3', null, 'Keyboard'), h('p', { class: 'muted', style: 'margin:0 0 6px;font-size:0.85em' }, 'Select a binding, then press the new key. Controllers use a fixed layout: A jump, X attack, Y heavy, B dodge, LB parry, RB/LT/RT skills, D-pad ↑ interact, D-pad ↓ Balm, L3 Echoes, R3 Rally, View switch Echo, Start menu.'),
+    h('div', { class: 'box' }, h('h3', null, 'Keyboard'), h('p', { class: 'muted', style: 'margin:0 0 6px;font-size:0.85em' }, 'Select a binding, then press the new key.'),
       binds, h('div', { style: 'margin-top:8px' }, btn('Reset all settings', () => { resetSettings(); applyTextSize(); renderAny(); }, 'btn small', { 'data-k': 'reset' }))),
+    controllerBox(renderAny),
     h('div', { class: 'box' }, h('h3', null, 'Save backup'),
       h('p', { class: 'muted', style: 'margin:0 0 6px;font-size:0.85em' }, 'On iPhone, the Home Screen app and Safari keep separate saves. Copy a code from one and import it in the other.'),
       h('div', { style: 'display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px' },

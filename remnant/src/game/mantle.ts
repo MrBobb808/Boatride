@@ -16,6 +16,7 @@ import { rand, choose, TAU } from '../core/math';
 import { shakeScale } from '../core/settings';
 import { isSovereign, bolt } from './power';
 import { islandNotify } from '../ui/island';
+import { input } from '../core/input';
 
 export const MANTLE_LV = 25;
 const TIER_LV = [25, 50, 75, 100];
@@ -180,6 +181,7 @@ function burst(p: Player) {
     }, struck);
   }
   G.camera.addTrauma(0.7 * shakeScale());
+  input.rumble(1, 1, 450);
   G.camera.punch = 0.09;
   G.camera.zoomTarget = 1;
   G.camera.focus = null;

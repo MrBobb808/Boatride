@@ -220,23 +220,37 @@ left-handed layout, and turns haptics on or off.
 
 Every key can be rebound in **Settings → Keyboard**.
 
-### Controller (standard layout, Xbox names)
+### Controller (PS5 DualSense, PS4, Xbox and others)
 
-| Button | Action |
-|---|---|
-| A | Jump |
-| B | Dodge |
-| X | Attack |
-| Y | Heavy |
-| LB | Parry / block |
-| RB / LT / RT | Abilities |
-| R3 (right stick click) | Rally the Remnant |
-| L3 (left stick click) | Echo command wheel |
-| L3 + R3 together | Shadow Mantle (transform) |
-| D-pad ↑ | Interact |
-| D-pad ↓ | Balm |
-| View | Switch support Echo |
-| Menu | Menu (the map is a tab inside it) |
+Pair the controller with the iPhone first: on a PS5 DualSense, hold **PS**
+and **Create** until the light bar flashes, then pick it in the iPhone's
+**Settings → Bluetooth**. Open the game and press any button. The game sees
+which kind of pad it is and names buttons to match (✕ ○ □ △ and L1/R1 on
+PlayStation, A B X Y and LB/RB on Xbox).
+
+| PlayStation | Xbox | Action |
+|---|---|---|
+| ✕ | A | Jump |
+| ○ | B | Dodge |
+| □ | X | Attack |
+| △ | Y | Heavy |
+| L1 | LB | Parry / block |
+| R1 / L2 / R2 | RB / LT / RT | Abilities |
+| L3 (left stick click) | L3 | Echo command wheel |
+| R3 (right stick click) | R3 | Rally the Remnant |
+| L3 + R3 together | L3 + R3 | Shadow Mantle (transform) |
+| D-pad ↑ | D-pad ↑ | Interact |
+| D-pad ↓ | D-pad ↓ | Balm |
+| Create | View | Switch support Echo |
+| Options | Menu | Menu (the map is a tab inside it) |
+
+- **Remapping:** move any action to any button in **Settings → Controller**.
+  Select an action, then press the button you want. Two actions that share
+  a button swap.
+- **Menus:** they always use ✕ / A to confirm and ○ / B to go back.
+- **Rumble:** the controller vibrates on hits, parries, finishers and the
+  Mantle where the browser supports it. You can turn it off in the same
+  section.
 
 ## Development
 
