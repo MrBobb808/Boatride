@@ -548,6 +548,14 @@ const BABYLON_CALL: Record<number, number> = { 0: 69, 4: 74, 6: 72, 8: 70, 12: 6
 const FURNACE_HITS = [0, 3, 6, 8, 11, 14];
 const IMAGE_PROG = [[36, [60, 63, 67]], [32, [60, 63, 68]], [34, [62, 65, 70]], [31, [59, 62, 67]]] as const;
 const IMAGE_KICK = [0, 6, 8, 11];
+// Chapter V: the night of the feast.
+const FEAST_PROG = [[38, [62, 66, 69]], [36, [60, 64, 67]], [38, [62, 66, 69]], [40, [64, 67, 71]]] as const;
+const FEAST_LYRE = [0, 2, 4, 2, 7, 4, 2, 4, 0, 4, 7, 9, 7, 4, 2, 4];
+const FEAST_MEL: Record<number, number> = { 0: 74, 2: 76, 4: 78, 6: 76, 8: 74, 10: 72, 12: 71, 14: 69 };
+const GARDEN_PROG = [[41, [65, 69, 72]], [43, [67, 71, 74]], [41, [65, 69, 72]], [38, [62, 65, 69]]] as const;
+const GARDEN_MEL: Record<number, number> = { 0: 81, 4: 79, 6: 77, 8: 76, 12: 72 };
+const PALACE_PROG = [[38, [62, 65, 69]], [39, [63, 67, 70]], [36, [60, 63, 67]], [37, [61, 65, 68]]] as const;
+const WEIGH_PROG = [[38, [62, 65, 69]], [34, [62, 65, 70]], [36, [60, 63, 67]], [37, [61, 64, 69]]] as const;
 const TRIAL_PROG = [[38, [62, 65, 69]], [34, [62, 65, 70]], [41, [60, 65, 69]], [36, [60, 64, 67]]] as const;
 const TRIAL_OST = [0, 0, 7, 0, 12, 0, 7, 0, 0, 0, 7, 0, 12, 7, 5, 7];
 const TRIAL_CALL: Record<number, number>[] = [
@@ -1096,6 +1104,170 @@ export const TRACKS: Record<string, TrackDef> = {
         if (p === 0 && b % 2 === 0) m.gong(d, r, t, 0.6, 4);
         if (p === 8 && b % 4 === 3) m.swell(d, t, beat * 2, 1);
       }
+    },
+  },
+  // Chapter V: the dry riverbed at night. Hushed: the water is gone, the city
+  // drinks behind its walls, and far off the army's drums keep a slow count.
+  riverbed: {
+    bpm: 60,
+    ambience: 'wind',
+    gen(m, d, s, t, I) {
+      const b = bar(s), p = pos(s);
+      const beat = 1;
+      if (p === 0) {
+        m.strings(d, 26, t, beat * 4, 0.8, 300, 1.6);
+        m.strings(d, 38, t, beat * 4, 0.35, 420, 1.6);
+        if (b % 4 === 2) m.choir(d, 57, t, beat * 6, 0.18, 'oo');
+      }
+      // the army, miles off: two low beats and a long rest
+      if ((p === 0 || p === 3) && b % 2 === 0) m.taiko(d, t, 0.18, 0.55);
+      if (p === 8 && b % 8 === 5) m.brass(d, 38, t, beat * 3, 0.22, 1.2);
+      // a last drop of water on stone, here and there
+      if (Math.random() < 0.06 && p % 2 === 1) m.harp(d, [74, 77, 81, 84, 86][Math.floor(rand(0, 5))], t, 0.3, 2.4);
+      if (p === 12 && b % 4 === 3) m.bell(d, 62, t, 0.35, 5);
+      if (I > 0.12) {
+        const v = Math.min(1, I * 1.3);
+        if (p === 0 || p === 10) m.taiko(d, t, 0.5 * v, 0.75);
+        if (p % 2 === 0) m.strings(d, 50 + [0, 1, 0, 3][(p >> 1) % 4], t, 0.16, 0.5 * v, 1800, 0.005);
+      }
+    },
+  },
+  // Chapter V: the feast. Court music, lyres and frame drums and a reed, too bright,
+  // while underneath a low cluster rises a semitone every four bars.
+  feast: {
+    bpm: 108,
+    ambience: 'fire',
+    gen(m, d, s, t, I) {
+      const b = bar(s), p = pos(s);
+      const beat = 60 / 108;
+      const [r, ch] = FEAST_PROG[b % 4];
+      const dread = Math.floor(b / 4) % 6;
+      if (p === 0) {
+        m.bass(d, r, t, beat * 4, 0.5);
+        for (const n of ch) m.choir(d, n, t, beat * 4, 0.16, 'ah');
+        // the dread: a dark cluster creeping upward under the revelry
+        m.strings(d, 37 + dread, t, beat * 4, 0.45, 380, 1.2);
+        m.strings(d, 38 + dread, t, beat * 4, 0.3, 380, 1.2);
+      }
+      m.harp(d, ch[0] + 12 + FEAST_LYRE[p] - (FEAST_LYRE[p] > 5 ? 12 : 0), t, 0.32, 0.7);
+      if (p === 0 || p === 8) m.frame(d, t, 0.6);
+      if (p === 4 || p === 10 || p === 12) m.frame(d, t, p === 10 ? 0.35 : 0.6, true);
+      if (p % 2 === 1 && Math.random() < 0.3) m.frame(d, t, 0.2, true);
+      const n = FEAST_MEL[p];
+      if (Math.floor(b / 2) % 2 === 1 && n !== undefined) m.flute(d, n + (b % 4 === 3 ? -2 : 0), t, beat * 0.9, 0.55);
+      else if (p % 4 === 2 && Math.random() < 0.5) m.oud(d, ch[(p >> 2) % 3] + 12, t, 0.6, 0.6);
+      // a cup raised, laughter of bells, now and then
+      if (p === 14 && b % 4 === 1) m.bell(d, 86, t, 0.3, 1.5);
+      if (I > 0.12) {
+        const v = Math.min(1, I * 1.3);
+        if (p === 0 || p === 6) m.taiko(d, t, 0.55 * v, 0.85);
+        if (p % 2 === 1) m.strings(d, r + 24 + (p % 4 === 1 ? 0 : 1), t, 0.1, 0.45 * v, 2400, 0.004);
+        if (p === 0 && b % 2 === 1) m.brass(d, r + 12, t, beat * 2, 0.5 * v);
+      }
+    },
+  },
+  // Chapter V: the hanging gardens by moonlight. Gentle, F lydian, a harp and a flute.
+  gardens: {
+    bpm: 66,
+    ambience: 'wind',
+    gen(m, d, s, t, I) {
+      const b = bar(s), p = pos(s);
+      const beat = 60 / 66;
+      const [r, ch] = GARDEN_PROG[b % 4];
+      if (p === 0) {
+        m.strings(d, r - 12, t, beat * 4, 0.8, 900, 0.9);
+        for (const n of ch) m.choir(d, n - 12, t, beat * 4, 0.26, 'oo');
+      }
+      if (p % 2 === 0) m.harp(d, ch[[0, 1, 2, 1, 2, 0, 1, 2][(p >> 1) % 8]] + 12, t, 0.45, 2);
+      const n = GARDEN_MEL[p];
+      if (Math.floor(b / 2) % 2 === 1 && n !== undefined) m.flute(d, n - (b % 4 === 3 ? 2 : 0), t, beat * 1.6, 0.6);
+      if (p === 8 && b % 4 === 0) m.bell(d, ch[2] + 24, t, 0.3, 3);
+      if (I > 0.12) {
+        const v = Math.min(1, I * 1.3);
+        if (p === 0 || p === 10) m.taiko(d, t, 0.45 * v, 0.85);
+        if (p % 2 === 1) m.strings(d, r + 12 + [0, 4, 7, 4][(p >> 1) % 4], t, 0.14, 0.45 * v, 2200, 0.005);
+      }
+    },
+  },
+  // Chapter V: the palace. Tense and building: an ostinato that will not rest,
+  // brass swelling, a figure climbing a step each bar.
+  palace: {
+    bpm: 92,
+    ambience: 'drone',
+    gen(m, d, s, t, I) {
+      const b = bar(s), p = pos(s);
+      const beat = 60 / 92;
+      const [r, ch] = PALACE_PROG[b % 4];
+      const climb = b % 8;
+      m.strings(d, r + 12 + [0, 0, 7, 0, 3, 0, 7, 0][p % 8], t, 0.12, 0.45 + climb * 0.04, 1800, 0.004);
+      if (p % 4 === 0) m.bass(d, r, t, beat * 0.9, 0.7);
+      if (p === 0) {
+        for (const n of ch) m.choir(d, n - 12, t, beat * 4, 0.3, 'oo');
+        m.brass(d, r + 12, t, beat * 3.6, 0.35 + climb * 0.04, 1);
+      }
+      if (p % 4 === 2) m.harp(d, ch[(p >> 2) % 3] + 12 + climb, t, 0.35, 1.4);
+      if (p === 0 || p === 7 || p === 10) m.taiko(d, t, 0.4, 0.8);
+      if (climb === 7 && p === 8) m.swell(d, t, beat * 2, 0.7);
+      if (I > 0.12) {
+        const v = Math.min(1, I * 1.3);
+        if (p === 4 || p === 12) m.snare(d, t, 0.3 * v);
+        if (p % 2 === 1) m.tick2(d, t, 0.5 * v);
+      }
+    },
+  },
+  // The Weigher. Phase 0 MENE, numbered: a bell tolls the count over a steady march.
+  // Phase 1 TEKEL, weighed: the rhythm tips off balance, brass answers. Phase 2 PERES,
+  // divided: everything at once, double time, the choir at full voice.
+  weigher: {
+    bpm: 126,
+    ambience: 'none',
+    gen(m, d, s, t) {
+      const b = bar(s), p = pos(s);
+      const ph = m.phase;
+      const beat = 60 / 126;
+      const [r, ch] = WEIGH_PROG[b % 4];
+      m.strings(d, r + 24 + [0, 0, 7, 0, 3, 0, 8, 7][p % 8], t, 0.11, 0.7 + ph * 0.12, 2600, 0.003);
+      if (p % 4 === 0) m.bass(d, r, t, beat * 0.9, 0.9);
+      if (p === 0) for (const n of ch) m.choir(d, n, t, beat * 4, 0.45 + ph * 0.15, 'ah');
+      if (p === 0 && b % 2 === 0) m.gong(d, r + 12, t, 0.5, 4);
+      // MENE: the count
+      if (p % 4 === 0) m.bell(d, 74 - (b % 4), t, 0.3, 1.6);
+      if (p === 0 || p === 8) m.taiko(d, t, 0.8, 0.7);
+      if (p === 4 || p === 12) m.snare(d, t, 0.35);
+      if (ph >= 1) {
+        // TEKEL: the beat lands late on one side, as a pan drops
+        if (p === 3 || p === 6 || p === 11 || p === 14) m.taiko(d, t, 0.6, 1.1);
+        if (p === 0) {
+          m.brass(d, r + 12, t, beat * 1.5, 0.85);
+          m.brass(d, r + 19, t, beat * 1.5, 0.6);
+        }
+        if (p === 10 && b % 2 === 1) m.brass(d, r + 24, t, beat * 1.2, 0.6);
+        if (p % 2 === 1) m.tick2(d, t, 0.6);
+      }
+      if (ph >= 2) {
+        // PERES: divided, doubled
+        if (p % 2 === 0) m.taiko(d, t, 0.45, 1.25);
+        m.strings(d, r + 36 + [0, 7, 3, 7][p % 4], t, 0.08, 0.4, 3400, 0.003);
+        if (p === 8 && b % 4 === 3) m.swell(d, t, beat * 2, 1);
+        if (b % 4 === 3 && p >= 12) m.snare(d, t, 0.25 + (p - 12) * 0.08);
+      }
+    },
+  },
+  // A quiet bed while the hand writes: a high, held stillness and a bell far away.
+  writing: {
+    bpm: 40,
+    ambience: 'none',
+    gen(m, d, s, t) {
+      const b = bar(s), p = pos(s);
+      const beat = 60 / 40;
+      if (p === 0) {
+        m.strings(d, 86, t, beat * 4, 0.22, 4200, 2);
+        m.strings(d, 93, t, beat * 4, 0.12, 4200, 2);
+        m.strings(d, 26, t, beat * 4, 0.6, 260, 2);
+        m.choir(d, 62 + (b % 2 ? 1 : 0), t, beat * 4, 0.2, 'oo');
+      }
+      if (p === 8 && b % 2 === 1) m.bell(d, 50, t, 0.45, 6);
+      if (p === 4) m.breath(d, t, beat * 2, 0.5, b % 2 === 1);
     },
   },
   victory: {
