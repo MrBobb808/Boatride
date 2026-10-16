@@ -165,7 +165,7 @@ export class Weigher extends BossBase {
   }
 
   get dmg() {
-    return 74 * this.ngMul * (this.phase >= 3 ? 1.12 : 1);
+    return 66 * this.ngMul * (this.phase >= 3 ? 1.12 : 1);
   }
   get spd() {
     return this.phase >= 3 ? 1.2 : this.phase === 2 ? 1.12 : 1;
@@ -516,7 +516,7 @@ export class Weigher extends BossBase {
         // Rigid chains: a pan rises over a marked spot, then slams; both at once makes waves.
         const both = a.atk === 'both';
         const reps = both ? 1 : n === 2 ? 2 : this.phase >= 2 ? 3 : 2;
-        const tel = (a.step === 0 ? 0.8 : 0.55) / sp;
+        const tel = (a.step === 0 ? 0.9 : 0.62) / sp;
         const slam = 0.12, rest = both ? 0.95 : 0.6;
         const cyc = tel + slam + rest;
         const k = Math.floor(t / cyc);
