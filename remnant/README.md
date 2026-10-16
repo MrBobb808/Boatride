@@ -11,7 +11,7 @@ is original fiction inspired by biblical themes, not part of the Bible.
 
 > *True greatness is not found in the power to rule, but in the strength to remain faithful.*
 
-This build contains four chapters:
+This build contains five chapters:
 
 - **Chapter I — The Ashen Village.** 12 rooms, the full combat and Echo
   systems, abilities and skill trees, gear, crafting and merchants, and the
@@ -32,7 +32,7 @@ This build contains four chapters:
     blindingly fast and has claw strings, aerial dives, acid and a paralysing
     screech; he calls his swarm and devours his own drones to heal. Beaten,
     he is raised as your Echo.
-  - **The Trial of the Remnant** is an endless wave arena that keeps pace
+  - **The Trial of the Remnant** is an endless rounds arena that keeps pace
     with your level. It is the way to level 100 and beyond.
 - **Chapter IV — The Plain of Dura.** By the rivers of Babylon, after the book
   of Daniel.
@@ -44,23 +44,58 @@ This build contains four chapters:
   - Hold the furnace mouth, then stand while the whole plain kneels.
   - **The Image of Gold:** head of gold, arms of silver, belly of brass,
     legs of iron and feet of clay. Strike its feet.
+- **Chapter V — The Writing on the Wall.** Daniel 5: Babylon on the night of
+  the great feast.
+  - An army from the east has turned the river aside. Walk into the city
+    along the dry riverbed while a thousand lords drink.
+  - Cross the lantern-lit streets and climb the Hanging Gardens. Vessel
+    Wraiths (stolen temple cups full of the Veil) pour burning wine, and
+    Scribes of the Veil write letters that strike.
+  - Find the three vessels of the temple for Hanan, an old exile scribe.
+  - In the banquet hall a hand writes on the plaster: MENE, MENE, TEKEL,
+    UPHARSIN.
+  - **The Weigher:** the Lord of the Feast, given to the Veil, with great
+    bronze scales. Three phases: Numbered, Weighed, Divided.
 - Each chapter has an ending, plus New Game+.
 
 Each chapter begins from the previous chapter's ending screen, from any
 altar once the one before is done (**Journey on**), or from the
 **Chapters** tab in the menu.
 
-### Chapter select and training
+### Chapter select and the Trial
 
 - **Menu → Chapters** lists every chapter with its status.
   - Travel to any chapter you have reached; you arrive at its camp altar.
   - Begin the next one once the chapter before it is complete.
-- **Training Grounds** (also under Chapters, and at any altar) opens the
-  Trial of the Remnant from anywhere after the opening.
-  - It is endless waves of stronger and stronger foes, with experience scaled
-    to your level and rewards every five waves.
-  - Once you have reached waves 10, 20, 30 and so on, you can start from them.
-  - Leaving by the west door returns you to where you started.
+- **The Trial of the Remnant** is an endless rounds mode in the spirit of
+  *Call of Duty* Zombies. Enter it from **Menu → Chapters** or any altar once
+  the opening is done.
+  - Foes pour in from both sides, round after round. Each round brings more
+    of them, with more health, harder hits and a little more speed.
+  - A big blood-red counter shows the round: tally marks for rounds 1 to 5,
+    then the number. It flashes when a new round begins.
+  - Every fifth round **the Pack runs** (Gloom Hounds, later Brazen Lions).
+    Every tenth a **Champion of the Trial** comes. Every fifth round held
+    pays out silver, materials and gear.
+  - Fallen foes sometimes drop a **blessing**:
+
+    | Blessing | Effect |
+    |---|---|
+    | Judgment | Fire falls on every foe in the arena |
+    | Wrath | Every foe falls to one blow for 18 seconds |
+    | Double Portion | Twice the experience for 25 seconds |
+    | Manna | Health, Balm, energy and hearts restored |
+
+  - **Falling ends the run.** The Game Over card shows the rounds you
+    survived, your kills, time and levels gained.
+  - **Leaderboard:** runs that start at round 1 are ranked by the round they
+    reached, on this device's board (shared by all save slots). You can put
+    your name on it from the Game Over card. In the claude.ai preview there
+    is also an **Everyone** board shared by all players there. Open it any
+    time from **Menu → Chapters → Leaderboard**.
+  - Once you have reached rounds 10, 20, 30 and so on, you can practise from
+    them (unranked). Every foe pays experience scaled to your level, so the
+    Trial is also the endless way to level 100 and beyond.
 
 ### Lamps, hearts and sub-weapons
 
@@ -315,9 +350,12 @@ not move Elior; it holds quick actions, so using one never makes him step.
   Select an action, then press the button you want. Two actions that share
   a button swap.
 - **Menus:** they always use ✕ / A to confirm and ○ / B to go back.
-- **Rumble:** the controller vibrates on hits, parries, finishers and the
-  Mantle where the browser supports it. You can turn it off in the same
-  section.
+- **Rumble:** the controller vibrates on every hit (harder for finishers and
+  crits), parries, plunges, the Mantle, boss kills and new Trial rounds,
+  where the browser supports it. **Settings → Controller → Rumble → Test**
+  tells you whether yours does. Safari on iPhone has not supported controller
+  vibration so far (Safari on a Mac and Chrome do); the game uses it as soon
+  as the browser allows.
 
 ## Development
 

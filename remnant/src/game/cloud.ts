@@ -7,7 +7,9 @@
 
 interface DocSnap { exists: boolean; data(): Record<string, unknown> | undefined }
 interface DocRef { get(): Promise<DocSnap>; set(d: Record<string, unknown>): Promise<void>; delete(): Promise<void> }
-interface CloudDb { doc(path: string): DocRef }
+interface QuerySnap { docs: (DocSnap & { id: string })[] }
+interface Query { orderBy(f: string, dir?: 'asc' | 'desc'): Query; limit(n: number): Query; get(): Promise<QuerySnap> }
+interface CloudDb { doc(path: string): DocRef; collection(path: string): Query }
 interface CloudUser { id(): Promise<string | null> }
 interface ClaudeHost { use(name: string): Promise<unknown> }
 
@@ -93,4 +95,35 @@ export function flush() {
 export function removeSlot(slot: number) {
   pending.delete(slot);
   if (db) db.doc(slotPath(slot)).delete().catch(() => {});
+}
+
+// ---------------------------------------------------------------- shared Trial leaderboard
+// Each viewer keeps their single best run at leaderboard/<their id>; everyone
+// reads the whole collection. Writes the artifact does not allow just fail.
+
+/** Post a run if it beats this viewer's best on the shared board. */
+export async function pushBest(entry: Record<string, string | number>) {
+  if (!(await initCloud()) || !db) return;
+  try {
+    const ref = db.doc(`leaderboard/${uid}`);
+    const snap = await ref.get();
+    const cur = snap.exists ? snap.data() : undefined;
+    if (cur && Number(cur.rounds) > Number(entry.rounds)) return;
+    // Same order as the device board: rounds, then kills, then the faster time.
+    // An exact tie (the same run, renamed) is written so the new name shows.
+    if (cur && Number(cur.rounds) === Number(entry.rounds) && Number(cur.kills) > Number(entry.kills)) return;
+    if (cur && Number(cur.rounds) === Number(entry.rounds) && Number(cur.kills) === Number(entry.kills) && Number(cur.time) < Number(entry.time)) return;
+    await ref.set(entry);
+  } catch { /* read-only viewer or no network */ }
+}
+
+/** The shared board, best first, or null where there is none. */
+export async function pullBoard(n = 20): Promise<Record<string, unknown>[] | null> {
+  if (!(await initCloud()) || !db) return null;
+  try {
+    const q = await db.collection('leaderboard').orderBy('rounds', 'desc').limit(n).get();
+    return q.docs.map((d) => ({ ...(d.data() ?? {}), me: d.id === uid }));
+  } catch {
+    return null;
+  }
 }

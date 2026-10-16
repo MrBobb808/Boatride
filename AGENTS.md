@@ -42,6 +42,9 @@ up next starts from the latest version.
   - III, *The Valley of Bones*: `game/rooms3.ts` and `game/story3.ts`.
   - IV, *The Plain of Dura*: `game/rooms4.ts` and `game/story4.ts`. Its art
     is in `render/env4.ts`.
+  - V, *The Writing on the Wall* (Daniel 5): `game/rooms5.ts` and
+    `game/story5.ts`. Its art is in `render/env5.ts`; the writing on the
+    banquet-hall wall is driven through `game/writing.ts`.
   - `game/chapters.ts` lists the chapters for chapter select (`ui/chapters.ts`)
     and starts training (the Trial of the Remnant from the menu).
 - **Bosses:**
@@ -49,6 +52,7 @@ up next starts from the latest version.
   - `game/bosses2.ts`: the Gatekeeper and the Crimson Marshal.
   - `game/bosses3.ts`: the Locust King.
   - `game/bosses4.ts`: the Image of Gold.
+  - `game/bosses5.ts`: the Weigher.
 - **Combat:**
   - `game/player.ts`: the player.
   - `game/weapons.ts`: movesets and animation clips.
@@ -62,6 +66,7 @@ up next starts from the latest version.
   - `game/tanks.ts`: brute, bulwark and knight.
   - `game/locusts.ts`: drone and soldier.
   - `game/babylon.ts`: Brazen Lion and Chaldean Fire-Priest.
+  - `game/feast.ts`: Vessel Wraith and Scribe of the Veil.
 - **Echoes** (purified allies): `game/echoes.ts` holds the kits, `game/data.ts`
   the species.
 - **Saves:**
@@ -100,7 +105,8 @@ up next starts from the latest version.
 
 ## Where the story stands
 
-Chapters I–IV are complete, each with a chapter-end screen. The Chapter IV
-end screen says Chapter V is in development. The Trial of the Remnant
-(`trial_arena`, entered from any altar after Chapter II) is the endless way
-to level 100 and beyond.
+Chapters I–V are complete, each with a chapter-end screen. The Chapter V
+end screen says Chapter VI is in development. The Trial of the Remnant
+(`trial_arena`) is an endless Zombies-style rounds mode (`game/rounds.ts`) with
+a Game Over card and leaderboard (`game/board.ts`, `ui/leaderboard.ts`); it is
+also the endless way to level 100 and beyond.

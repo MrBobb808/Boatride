@@ -1132,6 +1132,192 @@ export const SFX: Record<string, SfxFn> = {
     for (let i = 0; i < 12; i++) a.noiseHit(s + rand(0.05, 1.2), 0.05, d, 'bandpass', rand(500, 2200), 2, 0.25 * v);
     a.noiseHit(s + 0.2, 2.4, d, 'lowpass', 140, 0.8, 0.6 * v, 45, 0.3);
   },
+  // ----- Chapter V: the feast, the writing, the Hall of Scales
+  handWrite(a, t, v, p, pan) {
+    // A burning finger drawn across plaster: a dry scrape that rises and falls, a sizzle behind it.
+    const d = a.out(pan, 0.4);
+    const ctx = a.ctx!;
+    const s = ctx.createBufferSource();
+    s.buffer = a.noise;
+    const f = ctx.createBiquadFilter();
+    f.type = 'bandpass';
+    f.Q.value = 3;
+    f.frequency.setValueAtTime(1400 * p, t);
+    f.frequency.linearRampToValueAtTime(2600 * p, t + 0.1);
+    f.frequency.linearRampToValueAtTime(1700 * p, t + 0.22);
+    const am = chopped(a, t, 0.25, 38 * p, 0.5);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(0.28 * v, t + 0.03);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.24);
+    s.connect(f);
+    f.connect(am);
+    am.connect(g);
+    g.connect(d);
+    s.start(t, rand(0, 1.5));
+    s.stop(t + 0.3);
+    a.noiseHit(t + 0.04, 0.3, d, 'highpass', 6000, 0.7, 0.05 * v, undefined, 0.03);
+  },
+  glyphBurn(a, t, v, p) {
+    // A word catching fire on the wall: a breath drawn in, the flare, a low bell under it.
+    const d = a.out(0, 1.4);
+    a.noiseHit(t, 0.35, d, 'bandpass', 400 * p, 1, 0.3 * v, 2600 * p, 0.3);
+    a.noiseHit(t + 0.32, 0.9, d, 'lowpass', 1800 * p, 0.7, 0.45 * v, 300, 0.01);
+    for (let i = 0; i < 8; i++) a.noiseHit(t + 0.34 + rand(0, 0.6), 0.012, d, 'highpass', rand(3000, 6000), 1, 0.12 * v, undefined, 0.001);
+    bell(a, t + 0.33, mtof(50) * p, 0.5 * v, d, 3);
+    bell(a, t + 0.35, mtof(57) * p, 0.3 * v, d, 2.6);
+    a.osc('sine', 55 * p, t + 0.32, 1.2, d, 0.4 * v, 0.01, 40);
+  },
+  scaleClang(a, t, v, p, pan) {
+    // A bronze pan the size of a cart striking the stone floor: boom, clang, and a long ring.
+    const d = a.out(pan, 1);
+    a.osc('sine', 60 * p, t, 0.9, d, 0.8 * v, 0.002, 30);
+    a.noiseHit(t, 0.35, d, 'lowpass', 1600, 0.7, 0.6 * v, 120, 0.002);
+    metal(a, t, 150 * p, 1.2 * v, d, 2.2);
+    metal(a, t + 0.01, 237 * p, 0.7 * v, d, 1.6);
+    bell(a, t + 0.005, 330 * p, 0.35 * v, d, 2.8);
+  },
+  chainRattle(a, t, v, p, pan) {
+    // Heavy chains shaken: a run of uneven links against links.
+    const d = a.out(pan, 0.6);
+    const n = 10 + Math.floor(rand(0, 6));
+    for (let i = 0; i < n; i++) metal(a, t + rand(0, 0.6) * (i / n + 0.2), rand(500, 1300) * p, 0.35 * v, d, rand(0.12, 0.3));
+    a.noiseHit(t, 0.5, d, 'bandpass', 3000 * p, 2, 0.06 * v, 2000, 0.05);
+  },
+  wineSplash(a, t, v, p, pan) {
+    // Wine thrown or spilled: a wet slap and droplets falling after.
+    const d = a.out(pan, 0.3);
+    a.noiseHit(t, 0.18, d, 'bandpass', 1100 * p, 1.2, 0.4 * v, 400, 0.004);
+    a.noiseHit(t, 0.12, d, 'lowpass', 700 * p, 4, 0.25 * v, 200, 0.004);
+    for (let i = 0; i < 6; i++) a.osc('sine', rand(900, 1700) * p, t + 0.06 + rand(0, 0.3), 0.04, d, 0.05 * v, 0.002, rand(400, 700) * p);
+  },
+  cupShatter(a, t, v, p, pan) {
+    // A cup of the feast shattering: a sharp crack, then glittering pieces.
+    const d = a.out(pan, 0.6);
+    a.noiseHit(t, 0.06, d, 'highpass', 2500 * p, 1, 0.5 * v, undefined, 0.001);
+    for (let i = 0; i < 10; i++) {
+      const tt = t + rand(0, 0.35);
+      a.osc('sine', rand(2500, 5200) * p, tt, rand(0.05, 0.18), d, 0.05 * v, 0.001);
+      a.noiseHit(tt, 0.015, d, 'highpass', 5000, 1, 0.08 * v, undefined, 0.001);
+    }
+    metal(a, t, 880 * p, 0.4 * v, d, 0.3);
+  },
+  inkBurst(a, t, v, p, pan) {
+    // The Veil spilling like ink: a dark wet bloom with a shudder in it.
+    const d = a.out(pan, 0.7);
+    a.noiseHit(t, 0.4, d, 'lowpass', 900 * p, 3, 0.45 * v, 120, 0.01);
+    a.osc('sine', 120 * p, t, 0.35, d, 0.3 * v, 0.004, 40);
+    const ctx = a.ctx!;
+    const o = ctx.createOscillator();
+    o.type = 'sawtooth';
+    o.frequency.setValueAtTime(70 * p, t);
+    o.frequency.exponentialRampToValueAtTime(40 * p, t + 0.5);
+    const f = ctx.createBiquadFilter();
+    f.type = 'lowpass';
+    f.frequency.value = 380;
+    const am = chopped(a, t, 0.55, 16, 0.5);
+    const g = ctx.createGain();
+    a.env(g, t, 0.02, 0.3 * v, 0.5);
+    o.connect(f);
+    f.connect(am);
+    am.connect(g);
+    g.connect(d);
+    o.start(t);
+    o.stop(t + 0.6);
+  },
+  veilTear(a, t, v, p, pan) {
+    // The Veil torn like heavy cloth: a ragged rip that runs, with a rasp in its throat.
+    const d = a.out(pan, 1);
+    const ctx = a.ctx!;
+    const s = ctx.createBufferSource();
+    s.buffer = a.noise;
+    const sh = ctx.createWaveShaper();
+    sh.curve = rasp();
+    const f = ctx.createBiquadFilter();
+    f.type = 'bandpass';
+    f.Q.value = 1.2;
+    f.frequency.setValueAtTime(600 * p, t);
+    f.frequency.exponentialRampToValueAtTime(3200 * p, t + 0.5);
+    f.frequency.exponentialRampToValueAtTime(900 * p, t + 0.9);
+    const am = chopped(a, t, 0.95, 60, 0.6);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(0.4 * v, t + 0.05);
+    g.gain.setValueAtTime(0.35 * v, t + 0.6);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.95);
+    s.connect(sh);
+    sh.connect(f);
+    f.connect(am);
+    am.connect(g);
+    g.connect(d);
+    s.start(t, rand(0, 1));
+    s.stop(t + 1);
+    a.osc('sine', 48 * p, t, 0.9, d, 0.4 * v, 0.05, 30);
+  },
+  armyHorns(a, t, v) {
+    // The horns of the army from the east, far off and answering each other across the night.
+    const d = a.out(0, 2);
+    const ctx = a.ctx!;
+    const calls = [[50, 0, 1.6], [57, 0.5, 1.4], [50, 1.6, 2.2], [45, 2.2, 1.8]] as const;
+    for (const [m, dt, dur] of calls) {
+      const f = ctx.createBiquadFilter();
+      f.type = 'lowpass';
+      f.frequency.value = 700;
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.0001, t + dt);
+      g.gain.linearRampToValueAtTime(0.09 * v, t + dt + 0.25);
+      g.gain.setValueAtTime(0.08 * v, t + dt + dur * 0.7);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + dt + dur);
+      f.connect(g);
+      g.connect(d);
+      for (const det of [-10, 0, 9]) {
+        const o = ctx.createOscillator();
+        o.type = 'sawtooth';
+        o.frequency.setValueAtTime(mtof(m - 1), t + dt);
+        o.frequency.exponentialRampToValueAtTime(mtof(m), t + dt + 0.18);
+        o.detune.value = det;
+        o.connect(f);
+        o.start(t + dt);
+        o.stop(t + dt + dur + 0.1);
+      }
+    }
+    a.noiseHit(t, 3.6, d, 'lowpass', 180, 0.8, 0.12 * v, 90, 1);
+  },
+  gatesOpen(a, t, v) {
+    // Great bronze gates dragged open: a groan of hinges, stone grinding, and the stop.
+    const d = a.out(0, 1.4);
+    const ctx = a.ctx!;
+    const o = ctx.createOscillator();
+    o.type = 'sawtooth';
+    o.frequency.setValueAtTime(70, t);
+    o.frequency.linearRampToValueAtTime(95, t + 0.8);
+    o.frequency.linearRampToValueAtTime(62, t + 1.8);
+    const lfo = ctx.createOscillator();
+    lfo.frequency.value = 9;
+    const lg = ctx.createGain();
+    lg.gain.value = 12;
+    lfo.connect(lg);
+    lg.connect(o.frequency);
+    const f = ctx.createBiquadFilter();
+    f.type = 'bandpass';
+    f.frequency.value = 520;
+    f.Q.value = 3;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(0.25 * v, t + 0.3);
+    g.gain.setValueAtTime(0.22 * v, t + 1.6);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 2);
+    o.connect(f);
+    f.connect(g);
+    g.connect(d);
+    o.start(t);
+    lfo.start(t);
+    o.stop(t + 2.1);
+    lfo.stop(t + 2.1);
+    a.noiseHit(t, 1.9, d, 'lowpass', 300, 0.8, 0.35 * v, 120, 0.3);
+    a.osc('sine', 50, t + 1.95, 0.9, d, 0.7 * v, 0.003, 26);
+    metal(a, t + 1.95, 110, 0.6 * v, d, 1.4);
+  },
   // Elemental accents, layered on an ordinary hit.
   elemFire(a, t, v, p, pan) {
     const d = a.out(pan, 0.3);

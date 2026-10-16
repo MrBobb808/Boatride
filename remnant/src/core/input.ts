@@ -494,17 +494,56 @@ export class Input {
   }
 
   /** Rumble the controller, where the browser allows it (DualSense and Xbox pads in Safari 16.4+ and Chrome). */
-  rumble(strong: number, weak: number, ms: number) {
-    if (!this.rumbleOn || this.lastDevice !== 'gamepad') return;
+  rumble(strong: number, weak: number, ms: number, force = false) {
+    if (!this.rumbleOn && !force) return false;
+    if (!force && (this.lastDevice !== 'gamepad' || !this.gamepadConnected)) return false;
+    const now = performance.now();
+    const level = Math.max(strong, weak);
+    // A light buzz never cuts short a heavier one that is still playing.
+    if (!force && now < this.rumbleUntil && level < this.rumbleLevel) return true;
+    const pad = this.livePad();
+    if (!pad) return false;
+    const p = pad as Gamepad & {
+      vibrationActuator?: { playEffect?: (t: string, o: object) => Promise<unknown>; effects?: string[]; type?: string };
+      hapticActuators?: { pulse?: (v: number, ms: number) => Promise<unknown> }[];
+    };
+    const act = p.vibrationActuator;
+    let ok = false;
+    // A missing or disconnected motor must never interrupt combat.
     try {
-      const act = (this.activePad as (Gamepad & { vibrationActuator?: { playEffect?: (t: string, o: object) => Promise<unknown> } }) | null)?.vibrationActuator;
-      if (act?.playEffect) {
-        act.playEffect('dual-rumble', { duration: ms, strongMagnitude: Math.min(1, strong), weakMagnitude: Math.min(1, weak) })?.catch(() => { /* unsupported */ });
+      if (act?.playEffect && (!act.effects || act.effects.includes('dual-rumble'))) {
+        act.playEffect('dual-rumble', { startDelay: 0, duration: ms, strongMagnitude: Math.min(1, strong), weakMagnitude: Math.min(1, weak) })?.catch(() => { /* unsupported */ });
+        ok = true;
+      } else if (p.hapticActuators?.[0]?.pulse) {
+        // Older Firefox: one motor, one strength.
+        p.hapticActuators[0].pulse(Math.min(1, level), ms)?.catch(() => { /* unsupported */ });
+        ok = true;
       }
     } catch {
-      /* A missing/disconnected motor must never interrupt combat. */
+      ok = false;
     }
+    if (ok) {
+      this.rumbleUntil = now + ms;
+      this.rumbleLevel = level;
+    }
+    return ok;
   }
+  /** Whether the browser can make the connected controller vibrate. */
+  canRumble() {
+    const p = this.livePad() as (Gamepad & { vibrationActuator?: { playEffect?: unknown }; hapticActuators?: { pulse?: unknown }[] }) | null;
+    if (!p) return null;
+    return !!(p.vibrationActuator?.playEffect || p.hapticActuators?.[0]?.pulse);
+  }
+  /** The connected pad as the browser reports it right now (snapshots go stale). */
+  private livePad(): Gamepad | null {
+    const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+    const want = this.activePad;
+    if (want) for (const p of pads) if (p && p.connected && p.index === want.index && p.id === want.id) return p;
+    for (const p of pads) if (p && p.connected) return p;
+    return null;
+  }
+  private rumbleUntil = 0;
+  private rumbleLevel = 0;
   rumbleOn = true;
 
   keyName(code: string) {

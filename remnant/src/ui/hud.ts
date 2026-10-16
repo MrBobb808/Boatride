@@ -245,11 +245,8 @@ export function drawHud(ctx: Ctx, dt: number) {
     text(ctx, `${s.silver} silver`, rx, my + mh + 9 * u, `600 ${8.5 * u}px ${FONT_DISPLAY}`, '#ece4d4', 'right');
     ctx.globalAlpha = base;
   }
-  // ----- training: the wave you are on
-  if (room.id === 'trial_arena') {
-    const wave = G.world.story.ch3.trialWave;
-    if (wave > 0) text(ctx, `WAVE ${wave}  ·  BEST ${Number(s.flags.trial_best ?? 0)}`, W / 2, y0 + 8 * u, `700 ${10 * u}px ${FONT_DISPLAY}`, '#f6dea0', 'center');
-  }
+  // ----- the Trial: a round counter in blood red, as in Zombies
+  if (room.id === 'trial_arena') drawRounds(ctx, W, y0, u);
 
   // ----- boss bar
   if (bossName && G.world.boss && !G.inCutscene) {
@@ -555,4 +552,64 @@ function minimap(ctx: Ctx, x: number, y: number, w: number, h: number) {
   ctx.arc(px, py, 2, 0, Math.PI * 2);
   ctx.fill();
   ctx.restore();
+}
+
+/**
+ * Rounds 1 to 5 are chalked as tally marks, later rounds as a numeral. A new
+ * round flashes white and settles to red; between rounds the counter pulses.
+ */
+function drawRounds(ctx: CanvasRenderingContext2D, W: number, y0: number, u: number) {
+  const R = G.world.story.ch3.rounds;
+  if (!R.active || R.round <= 0) return;
+  const n = R.round;
+  const flash = clamp(1 - R.changeT / 1.6, 0, 1);
+  const pulse = R.breakT > 0 ? 0.55 + 0.45 * Math.abs(Math.sin(R.breakT * 3)) : 1;
+  const col = flash > 0 ? mixHex('#b3121c', '#fff4e0', flash) : '#b3121c';
+  const cx = W / 2, top = y0 + 4 * u;
+  ctx.save();
+  ctx.globalAlpha *= pulse;
+  if (n <= 5) {
+    // Chalk tallies: four strokes and a slash across them.
+    const h = 30 * u, gap = 8 * u;
+    const w = Math.min(n, 4) * gap;
+    ctx.lineCap = 'round';
+    for (let pass = 0; pass < 2; pass++) {
+      ctx.strokeStyle = pass ? col : 'rgba(10,0,2,0.75)';
+      ctx.lineWidth = (pass ? 4 : 7) * u;
+      ctx.beginPath();
+      for (let i = 0; i < Math.min(n, 4); i++) {
+        const x = cx - w / 2 + i * gap + gap / 2;
+        ctx.moveTo(x - 0.8 * u, top + 1 * u);
+        ctx.lineTo(x + 0.8 * u, top + h);
+      }
+      if (n === 5) {
+        ctx.moveTo(cx - w / 2 - 2 * u, top + h * 0.75);
+        ctx.lineTo(cx + w / 2 + 2 * u, top + h * 0.3);
+      }
+      ctx.stroke();
+    }
+  } else {
+    const size = (36 + flash * 10) * u;
+    ctx.font = `700 ${size}px ${FONT_DISPLAY}`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    ctx.lineWidth = 4 * u;
+    ctx.strokeStyle = 'rgba(10,0,2,0.8)';
+    ctx.strokeText(`${n}`, cx, top);
+    ctx.fillStyle = col;
+    ctx.fillText(`${n}`, cx, top);
+  }
+  ctx.restore();
+  const best = Math.max(Number(G.save.flags.trial_best ?? 0), n);
+  const line = R.breakT > 0 ? `Round ${n + 1} in ${Math.ceil(R.breakT)}` : `${R.left} left  ·  ${R.kills} kills  ·  best ${best}`;
+  text(ctx, line, cx, top + 42 * u, `600 ${8 * u}px ${FONT_DISPLAY}`, '#d8c8b0', 'center');
+  const boons = [R.wrathT > 0 ? `WRATH ${Math.ceil(R.wrathT)}` : '', R.doubleT > 0 ? `DOUBLE PORTION ${Math.ceil(R.doubleT)}` : ''].filter(Boolean).join('   ');
+  if (boons) text(ctx, boons, cx, top + 53 * u, `700 ${8 * u}px ${FONT_DISPLAY}`, '#ffb35a', 'center');
+}
+
+/** Blend two #rrggbb colours. */
+function mixHex(a: string, b: string, t: number) {
+  const p = (h: string, i: number) => parseInt(h.slice(1 + i * 2, 3 + i * 2), 16);
+  const c = (i: number) => Math.round(p(a, i) + (p(b, i) - p(a, i)) * t).toString(16).padStart(2, '0');
+  return `#${c(0)}${c(1)}${c(2)}`;
 }

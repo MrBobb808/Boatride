@@ -1,3 +1,4 @@
+import { islandCalibrate, ISLAND_LEN } from './island';
 // The pause menu (character, equipment, skills, Echoes, map, journal,
 // crafting, settings, system), plus the merchant, the forge and altar menus.
 
@@ -553,7 +554,7 @@ function mapTab() {
       h('span', null, h('i', { style: 'background:#6a5a8a' }), 'Explored'),
       h('span', null, h('i', { style: 'background:#ffcf6b;clip-path:polygon(50% 0,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%)' }), 'Objective'),
       h('span', null, `Altars kindled: ${lit.join(', ')}`),
-      h('span', { 'data-k': 'explored' }, `Explored: ${ex.ch}% of Chapter ${['', 'I', 'II', 'III', 'IV'][ex.n]} · ${ex.all}% in all`),
+      h('span', { 'data-k': 'explored' }, `Explored: ${ex.ch}% of Chapter ${['', 'I', 'II', 'III', 'IV', 'V'][ex.n]} · ${ex.all}% in all`),
     ),
   );
 }
@@ -572,12 +573,14 @@ const ALTAR_NAMES: Record<string, string> = {
   shinar_camp: 'Camp at the Pass', tower_lower: 'The First Course', tower_upper: 'The Crimson Guard',
   valley_camp: 'Camp at the Valley\'s Edge', hive_mouth: 'Mouth of the Hive',
   river_camp: 'Camp by the Rivers', dura_plain: 'The Plain of Dura',
+  reed_camp: 'Camp in the Reeds', hanging_gardens: 'The Hanging Gardens', palace_stair: 'The Palace Stair',
 };
 const ALTAR_ROOMS: Record<string, string> = {
   sanctuary: 'sanctuary', temple_hall: 'temple_hall', chamber: 'covenant_chamber', antechamber: 'idol_antechamber',
   shinar_camp: 'shinar_camp', tower_lower: 'tower_lower', tower_upper: 'tower_upper',
   valley_camp: 'valley_camp', hive_mouth: 'hive_mouth',
   river_camp: 'river_camp', dura_plain: 'dura_plain',
+  reed_camp: 'reed_camp', hanging_gardens: 'hanging_gardens', palace_stair: 'palace_stair',
 };
 
 function drawMap(c: HTMLCanvasElement) {
@@ -831,7 +834,9 @@ function settingsTab() {
       row('Button opacity', '', slider(st.touchOpacity, 0.3, 1, 0.05, (v) => (st.touchOpacity = v), 'top')),
       row('Left-handed layout', 'Moves the buttons to the left and the stick to the right.', toggle(st.leftHanded, (v) => (st.leftHanded = v), 'lh')),
       row('Button labels', 'Show the name under each touch button.', toggle(st.buttonLabels, (v) => (st.buttonLabels = v), 'bl')),
-      row('Dynamic Island indicator', 'On iPhones with a Dynamic Island, a living status ring around it: low health, the Shadow Mantle, Rally and news.', toggle(st.island, (v) => (st.island = v), 'di')),
+      row('Dynamic Island indicator', 'On iPhones with a Dynamic Island, a living status ring around it: low health, boss life, Rally and news. On the iPhone 18 Pro\'s smaller island, your Echoes and the Shadow Mantle bud off it too.', toggle(st.island, (v) => (st.island = v), 'di')),
+      row('Island size', 'Which iPhone the ring should hug. Auto suits the iPhone 18 Pro and Pro Max; choose 14–17 Pro for the older, longer island.', seg(st.islandSize ?? 'auto', [['auto', 'Auto'], ['compact', '18 Pro'], ['classic', '14–17 Pro'], ['custom', 'Measured']], (v) => { st.islandSize = v; islandCalibrate(); }, 'dis')),
+      row('Island length', 'Turn the phone sideways and slide until the bright outline just hugs the island. Sets the size to Measured.', slider(st.islandLen ?? ISLAND_LEN.compact, 70, 140, 1, (v) => { st.islandLen = v; st.islandSize = 'custom'; islandCalibrate(); }, 'dil')),
     ) : null,
     h('div', { class: 'box' }, h('h3', null, 'Keyboard'), h('p', { class: 'muted', style: 'margin:0 0 6px;font-size:0.85em' }, 'Select a binding, then press the new key.'),
       binds, h('div', { style: 'margin-top:8px' }, btn('Reset all settings', () => { resetSettings(); applyTextSize(); renderAny(); }, 'btn small', { 'data-k': 'reset' }))),
@@ -1046,7 +1051,7 @@ export function openAltar(id: string) {
         const nx = nextChapter();
         return nx ? [btn([h('b', null, 'Journey on'), h('span', null, `Chapter ${nx.roman} · ${nx.title}`)], () => { done(); travelToChapter(nx); }, 'btn opt')] : [];
       })(),
-      trainingOpen() ? btn([h('b', null, 'Enter the Trial of the Remnant'), h('span', null, `Training: endless waves that grow with you${s.flags.trial_best ? ` · best: wave ${s.flags.trial_best}` : ''}`)], () => {
+      trainingOpen() ? btn([h('b', null, 'Enter the Trial of the Remnant'), h('span', null, `Endless rounds that grow with you${s.flags.trial_best ? ` · best: round ${s.flags.trial_best}` : ''}`)], () => {
         done();
         startTraining(1);
       }, 'btn opt') : null,

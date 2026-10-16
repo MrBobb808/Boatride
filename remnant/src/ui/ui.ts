@@ -18,6 +18,7 @@ import { SECRET_IDS } from '../game/story';
 import { CH2_SECRETS } from '../game/story2';
 import { CH3_SECRETS } from '../game/story3';
 import { CH4_SECRETS } from '../game/story4';
+import { CH5_SECRETS } from '../game/story5';
 
 let uiRoot: HTMLElement;
 let toastBox: HTMLElement;
@@ -27,6 +28,11 @@ let captionEl: HTMLElement | null = null;
 let fadeEl: HTMLElement;
 let blocking = 0;
 let wheelEl: HTMLElement | null = null;
+
+/** Hold the game still while a card from another module is up (+1 on, -1 off). */
+export function holdUI(d: number) {
+  blocking = Math.max(0, blocking + d);
+}
 
 export function blockingUI() {
   return blocking > 0 || isMenuOpen() || !!wheelEl;
@@ -40,7 +46,7 @@ export function initUI() {
   G.ui = hooks;
 }
 
-function waitAdvance(el: HTMLElement, onAdvance: () => void) {
+function waitAdvance(el: HTMLElement, onAdvance: () => void): { off: () => void; go: () => void } {
   // One physical press can map to several actions (Space = jump + confirm); debounce.
   let last = 0;
   const go = () => {
@@ -58,7 +64,7 @@ function waitAdvance(el: HTMLElement, onAdvance: () => void) {
     e.preventDefault();
     go();
   });
-  return off;
+  return { off, go };
 }
 
 const hooks: UIHooks = {
@@ -164,12 +170,15 @@ const hooks: UIHooks = {
         show();
       };
       // A tap anywhere advances, not only on the box: the layer covers the screen anyway.
-      const off = waitAdvance(layer, () => {
+      const { off, go } = waitAdvance(layer, () => {
         if (lines[i]?.choices && !typing) return;
         advance();
       });
+      // Menu navigation consumes confirm before later listeners hear it, so
+      // the dialogue layer advances on confirm itself (Enter on a keyboard).
       pushLayer({ el: layer, onAction: (a) => {
         if (lines[i]?.choices && !typing) return false;
+        if (a === 'confirm') go();
         return a === 'confirm';
       } });
       show();
@@ -366,8 +375,9 @@ const hooks: UIHooks = {
         { n: 'Chapter I', title: 'THE ASHEN VILLAGE', secrets: SECRET_IDS, sl: 'Hidden chambers', theme: 'True greatness is not found in the power to rule, but in the strength to remain faithful.', next: 'The road east leads down to the Plain of Shinar, where a red tower has risen in a single month.', go: 'Begin Chapter II', stay: 'Stay in Hearthward', music: 'sanctuary' },
         { n: 'Chapter II', title: 'THE TOWER OF SHINAR', secrets: CH2_SECRETS, sl: 'Hidden caches', theme: 'Pride builds towers to make a name. Faithfulness keeps an oath when no one is watching.', next: 'Two days east lies the Valley of Bones, where a swarm has eaten everything that grew.', go: 'Begin Chapter III', stay: 'Stay in Shinar', music: 'shinar' },
         { n: 'Chapter III', title: 'THE VALLEY OF BONES', secrets: CH3_SECRETS, sl: 'Hidden caches', theme: 'The locust takes; the covenant restores. An army raised by mercy follows further than one driven by fear.', next: 'South, by the rivers of Babylon, an image of gold has been raised on the plain of Dura, and three captives are bound for the furnace.', go: 'Begin Chapter IV', stay: 'Stay in the valley', music: 'valley' },
-        { n: 'Chapter IV', title: 'THE PLAIN OF DURA', secrets: CH4_SECRETS, sl: 'Hidden caches', theme: 'The furnace could not burn those who would not bow. Every image of gold stands on feet of clay.', next: 'Chapter V is in development. Your journey continues: train in the Trial of the Remnant, grow your army toward level 100, or begin New Game+ at any altar.', go: '', stay: 'Continue exploring', music: 'dura' },
-      ][Math.min(3, Math.max(1, chapter) - 1)];
+        { n: 'Chapter IV', title: 'THE PLAIN OF DURA', secrets: CH4_SECRETS, sl: 'Hidden caches', theme: 'The furnace could not burn those who would not bow. Every image of gold stands on feet of clay.', next: 'Across the river, Babylon holds a feast for a thousand lords, and they mean to drink from the vessels of the temple.', go: 'Begin Chapter V', stay: 'Stay by the river', music: 'dura' },
+        { n: 'Chapter V', title: 'THE WRITING ON THE WALL', secrets: CH5_SECRETS, sl: 'Treasures and vessels', theme: 'Pride drinks from holy things and calls itself a god. It is weighed in a single night, and found wanting.', next: 'Chapter VI is in development. Your journey continues: train in the Trial of the Remnant, grow your army toward level 100, or begin New Game+ at any altar.', go: '', stay: 'Continue exploring', music: 'riverbed' },
+      ][Math.min(4, Math.max(1, chapter) - 1)];
       const card = h('div', { class: 'chapter panel scroll' },
         h('div', { class: 'eyebrow' }, C.n),
         h('h2', null, C.title),

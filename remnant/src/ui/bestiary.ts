@@ -22,6 +22,8 @@ const NOTES: Record<EnemyKind, Entry> = {
   drone: { ch: 3, icon: 'feather', note: 'The swarm\'s small mouths. Weak alone, dangerous in clouds.' },
   soldier: { ch: 3, icon: 'spear', note: 'Plated in hive chitin. Its spear reaches far; parry the thrust.' },
   lion: { ch: 4, icon: 'lion', note: 'A bronze beast cast after the lions on the city gate. It crouches before it pounces, and its roar quickens every foe nearby.' },
+  vessel: { ch: 5, icon: 'flask', note: 'A cup from the temple, stolen for the feast and filled with the Veil. It pours burning wine on whoever stands beneath it.' },
+  scribe: { ch: 5, icon: 'book', note: 'A palace scribe who wrote what the Veil told him to. Its letters hang in the air and strike; break its tablet to stop the writing.' },
   priest: { ch: 4, icon: 'lamp', note: 'Keeper of the furnace. It lobs fire, calls flame under a ring on the ground, and vanishes when cornered.' },
 };
 
@@ -37,9 +39,12 @@ const GREAT: { id: string; name: string; ch: number; boss: boolean }[] = [
   { id: 'den_lion', name: 'Lion of the Den', ch: 4, boss: false },
   { id: 'furnace_warden', name: 'The Furnace Warden', ch: 4, boss: false },
   { id: 'golden_image', name: 'The Image of Gold', ch: 4, boss: true },
+  { id: 'garden_keeper', name: 'Keeper of the Gardens', ch: 5, boss: false },
+  { id: 'treasury_captain', name: 'Captain of the Treasury', ch: 5, boss: false },
+  { id: 'weigher', name: 'The Weigher', ch: 5, boss: true },
 ];
 
-const ROMAN = ['', 'I', 'II', 'III', 'IV', 'V'];
+const ROMAN = ['', 'I', 'II', 'III', 'IV', 'V', 'VI'];
 const KINDS = Object.keys(NOTES) as EnemyKind[];
 
 export function bestiaryCount() {

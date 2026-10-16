@@ -1186,6 +1186,9 @@ export class Player extends Entity {
       G.camera.addTrauma(a.shake * shakeScale() * (1 + tier * 0.08));
       if (tier >= 1) G.world.hitstop((a.stop ?? 0.04) * tier * 0.08);
       if (a.finisher || crit) G.camera.punch = 0.035 + tier * 0.006;
+      // Every landed cut is felt in the hands; finishers and crits hit harder.
+      if (a.finisher || crit) input.rumble(0.45, 0.7, 120);
+      else input.rumble(0.08, 0.32, 50);
     }
   }
 
@@ -1257,6 +1260,7 @@ export class Player extends Entity {
     this.atkT = 0;
     this.atkHit.clear();
     this.anim.play('slam', 0.02, true, 1 / slam.dur);
+    input.rumble(0.8, 0.5, 160);
     sfx('hitHeavy', { pitch: 0.8 });
     sfx('land');
     fx.dust(this.x, this.y, 12, 1.6);
@@ -1365,6 +1369,7 @@ export class Player extends Entity {
     this.deadT = 0;
     this.anim.play('death', 0.05, true);
     sfx('death');
+    input.rumble(0.9, 0.9, 520);
     G.world.slowmo(0.8, 0.3);
     G.world.onPlayerDeath();
   }

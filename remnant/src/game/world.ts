@@ -13,6 +13,7 @@ import { Idol } from './boss';
 import { BossBase, Gatekeeper, Marshal } from './bosses2';
 import { LocustKing } from './bosses3';
 import { GoldenImage } from './bosses4';
+import { Weigher } from './bosses5';
 import { Npc, Chest, Altar, LoreStone, Shrine, Pickup, Drop, RelicVisual, type Interactable } from './props';
 import { Proj } from './projectiles';
 import { Story } from './story';
@@ -29,7 +30,7 @@ import { shakeScale, settings } from '../core/settings';
 import { guidePoint } from './guide';
 import { tickStatus, powerTier, SOVEREIGN_LV } from './power';
 import { MANTLE_LV, mantleTier, mantlePerks, announceMantle } from './mantle';
-import { islandNotify } from '../ui/island';
+import { islandNotify, islandRipple } from '../ui/island';
 import { placeLamps } from './lamps';
 import { updatePending, applyUpdate } from '../core/update';
 import { FINISHERS } from './finishers';
@@ -216,8 +217,8 @@ export class World {
         return;
       case 'boss':
         // The beaten Image stays on its dais until the stone falls (the story finishes it).
-        if (s.defeated.includes(e.k) && !(e.k === 'golden_image' && !flag('ch4_image_done'))) return;
-        this.boss = e.k === 'gatekeeper' ? new Gatekeeper(x, y) : e.k === 'marshal' ? new Marshal(x, y) : e.k === 'locust_king' ? new LocustKing(x, y) : e.k === 'golden_image' ? new GoldenImage(x, y) : new Idol(x, y);
+        if (s.defeated.includes(e.k) && !(e.k === 'golden_image' && !flag('ch4_image_done')) && !(e.k === 'weigher' && !flag('ch5_weigher_done'))) return;
+        this.boss = e.k === 'gatekeeper' ? new Gatekeeper(x, y) : e.k === 'marshal' ? new Marshal(x, y) : e.k === 'locust_king' ? new LocustKing(x, y) : e.k === 'golden_image' ? new GoldenImage(x, y) : e.k === 'weigher' ? new Weigher(x, y) : new Idol(x, y);
         this.add(this.boss);
         return;
     }
@@ -304,6 +305,7 @@ export class World {
         t.fn();
       }
     }
+    if (this.room.id === 'trial_arena') this.story.ch3.rounds.update(dt);
     this.syncCd = Math.max(0, this.syncCd - dt);
     this.switchCd = Math.max(0, this.switchCd - dt);
     const rallying = this.rallyT >= 0;
@@ -550,7 +552,7 @@ export class World {
     for (const e of this.ents) {
       if (!e.executable()) continue;
       if (e.isBoss) {
-        if (Math.abs(e.x - p.x) < (e instanceof Gatekeeper ? 120 : e instanceof GoldenImage ? 96 : e instanceof Marshal || e instanceof LocustKing ? 56 : 80) && Math.abs(e.y - p.y) < 60) return e;
+        if (Math.abs(e.x - p.x) < (e instanceof Gatekeeper ? 120 : e instanceof GoldenImage || e instanceof Weigher ? 96 : e instanceof Marshal || e instanceof LocustKing ? 56 : 80) && Math.abs(e.y - p.y) < 60) return e;
       } else if (Math.abs(e.x - p.x) < 36 && Math.abs(e.y - p.y) < 30) return e;
     }
     return null;
@@ -708,7 +710,7 @@ export class World {
     const st = e.stats;
     s.kills++;
     (s.bestiary ??= {})[e.kind] = (s.bestiary[e.kind] ?? 0) + 1;
-    const tier = e.tier === 4 ? 3.6 : e.tier === 3 ? 2.6 : e.tier === 2 ? 1.7 : 1;
+    const tier = e.tier === 5 ? 4.8 : e.tier === 4 ? 3.6 : e.tier === 3 ? 2.6 : e.tier === 2 ? 1.7 : 1;
     const xp = e.xpOverride ?? Math.round(st.xp * (e.elite ? 4 : 1) * G.d.xpMult * (1 + s.ng * 0.5) * tier);
     this.giveXp(xp);
     const loot: Loot[] = [{ silver: Math.round(randInt(st.silver[0], st.silver[1]) * (e.elite ? 4 : 1) * tier) }];
@@ -738,6 +740,7 @@ export class World {
       this.player.styleKey = '';
       G.ui.levelUp(levels);
       islandNotify(`LEVEL ${s.level}`, '#f6dea0', 'stats', 2.8);
+      islandRipple('#ffd27a');
       for (const ec of this.echoes) ec.refreshStats();
       // New finishers and power tiers announce themselves.
       const fins = FINISHERS.filter((f) => f.level > lvBefore && f.level <= s.level && f.level > 1);
@@ -850,6 +853,28 @@ export class World {
     const s = G.save;
     s.deaths++;
     G.ui.bossBar(null);
+    const R = this.story.ch3.rounds;
+    if (this.room.id === 'trial_arena' && R.active) {
+      // The Trial: falling ends the run. Show what it came to, then go again or leave.
+      this.after(1.8, async () => {
+        const choice = await R.onDeath();
+        await G.ui.fade(1, 0.3);
+        R.clearArena();
+        this.rest();
+        this.player.revive();
+        // Entering the arena starts a fresh run from round 1.
+        if (choice === 'again') this.load('trial_arena', 'start');
+        else {
+          const back = s.flags.trial_return;
+          delete s.flags.trial_return;
+          const [room, spawn] = typeof back === 'string' ? back.split('|') : [s.altar.room, s.altar.spawn];
+          this.load(ROOMS[room] ? room : s.altar.room, ROOMS[room]?.spawns[spawn] ? spawn : s.altar.spawn);
+        }
+        this.autosave(true);
+        await G.ui.fade(0, 0.5);
+      });
+      return;
+    }
     this.after(1.6, async () => {
       await G.ui.death();
       await G.ui.fade(1, 0.3);
@@ -1245,6 +1270,8 @@ export class World {
 
   onBossDefeated(b: Idol | BossBase) {
     this.bossActive = false;
+    input.rumble(1, 1, 800);
+    islandRipple('#ffe6a8', true);
     const key = b instanceof BossBase ? b.key : 'idol';
     if (!G.save.defeated.includes(key)) G.save.defeated.push(key);
     if (b instanceof Gatekeeper) {
@@ -1253,6 +1280,7 @@ export class World {
     } else if (b instanceof Marshal) this.story.marshalDefeated(b);
     else if (b instanceof LocustKing) this.story.kingDefeated(b);
     else if (b instanceof GoldenImage) this.story.ch4.imageDefeated(b);
+    else if (b instanceof Weigher) this.story.ch5.weigherDefeated(b);
     else if (b instanceof Idol) {
       this.closeGate(false);
       this.story.bossDefeated(b);
