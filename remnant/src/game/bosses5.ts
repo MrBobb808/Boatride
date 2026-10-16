@@ -354,6 +354,8 @@ export class Weigher extends BossBase {
         if (n === 1) want = clamp(p.x + sign(this.homeX - p.x || 1) * 130, left + 60, right - 60);
         else if (i === 0) want = clamp(p.x + (p.x < this.homeX - 120 ? 170 : -170), left, right);
         else want = clamp(p.x + (p.x < this.acts[0].x ? -80 : 80), left, right);
+        // The halves keep their sides: the left half stays left of the right one.
+        if (n === 2) want = i === 0 ? Math.min(want, this.acts[1].x - 70) : Math.max(want, this.acts[0].x + 70);
         a.vx = approach(a.vx, clamp((want - a.x) * 1.2, -70, 70) * this.spd, 160 * dt);
         a.x += a.vx * dt;
         a.lift = approach(a.lift, this.phase >= 2 ? 0.8 : 0.35, dt);
@@ -364,6 +366,11 @@ export class Weigher extends BossBase {
       } else this.runAttack(a, i, dt, n);
     }
     if (n === 1) this.acts[1].x = this.acts[0].x;
+    else if (this.acts[0].x > this.acts[1].x - 40) {
+      const mid = (this.acts[0].x + this.acts[1].x) / 2;
+      this.acts[0].x = Math.max(left, mid - 20);
+      this.acts[1].x = Math.min(right, mid + 20);
+    }
     this.x = this.acts[0].x;
   }
 
