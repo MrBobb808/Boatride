@@ -35,8 +35,9 @@ function assign(a: Action, i: number) {
 
 export function controllerBox(rerender: () => void): HTMLElement {
   const st = settings;
-  const kind = input.padKind === 'playstation' ? 'PlayStation controller' : input.padKind === 'xbox' ? 'Xbox controller' : 'Controller';
-  const connected = input.gamepadConnected && !!input.padName;
+  const status = h('p', { class: 'muted', role: 'status', 'data-controller-status': '', style: 'margin:0 0 6px;font-size:0.85em;overflow-wrap:anywhere' });
+  const reading = h('p', { class: 'muted', 'data-controller-reading': '', style: 'margin:0 0 8px;font-size:0.85em;font-variant-numeric:tabular-nums' });
+  const direct = h('a', { class: 'btn small', 'data-nav': '', href: 'https://mrbobb808.github.io/Boatride/', target: '_blank', rel: 'noopener' }, 'Open game directly');
   const rows = PAD_REMAPPABLE.map((a) => h('div', { class: 'set-row' },
     h('label', null, ACTION_LABELS[a] ?? a),
     h('div', { class: 'bind' }, h('button', {
@@ -57,11 +58,14 @@ export function controllerBox(rerender: () => void): HTMLElement {
       },
     }, waiting === a ? 'Press a button…' : input.padLabel(a))),
   ));
-  return h('div', { class: 'box' },
+  const box = h('div', { class: 'box', 'data-controller-box': '' },
     h('h3', null, 'Controller'),
+    status,
+    reading,
+    h('div', { style: 'display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px' },
+      btn('Check controller', () => { input.poll(); refresh(); }, 'btn small', { 'data-k': 'pad_check' }), direct),
     h('p', { class: 'muted', style: 'margin:0 0 6px;font-size:0.85em' },
-      connected ? `${kind} connected: ${prettyName(input.padName)}.` : 'No controller yet. Pair it in the iPhone\'s Settings → Bluetooth (on a PS5 DualSense, hold PS and Create until the light flashes), then press any button.',
-    ),
+      'Pair in your device’s Bluetooth settings first. On a PS5 DualSense, hold PS and Create until the light flashes. Return to the game, tap Check controller, then press ✕ / A or move the left stick.'),
     h('p', { class: 'muted', style: 'margin:0 0 6px;font-size:0.85em' },
       'Select an action, then press the controller button you want for it. Menus always use ✕ / A to confirm and ○ / B to go back. Move and aim combos with the left stick (up + Attack launches, down + Attack plunges); the D-pad holds quick actions. The Shadow Mantle is L3 + R3 together unless you give it a button of its own. Leave the PS / Home button alone; the iPhone uses it.'),
     rows,
@@ -85,4 +89,36 @@ export function controllerBox(rerender: () => void): HTMLElement {
     rumbleNote ? h('p', { class: 'muted', 'data-k': 'rum_note', style: 'margin:0 0 6px;font-size:0.85em' }, rumbleNote) : null,
     h('div', { style: 'margin-top:8px' }, btn('Reset controller buttons', () => { cancelPadCapture(); st.pad = {}; saveSettings(); rerender(); }, 'btn small', { 'data-k': 'pad_reset' })),
   );
+  function refresh() {
+    const messages = {
+      connected: `Connected: ${prettyName(input.padName)}.`,
+      waiting: 'Waiting for controller input. Press ✕ / A or move the left stick while this game is open.',
+      unavailable: 'This browser does not provide controller access. Open the game directly in Safari or Chrome.',
+      blocked: 'Controller access is blocked in this preview. Open the game directly in Safari or Chrome.',
+      background: 'Return to this game to use your controller.',
+      error: 'Controller access was interrupted. Reconnect it in Bluetooth settings, then check again.',
+    };
+    const text = messages[input.gamepadStatus];
+    if (status.textContent !== text) status.textContent = text;
+    const live = input.gamepadConnected
+      ? `Left stick: X ${input.controllerX.toFixed(2)} · Y ${input.controllerY.toFixed(2)} · Last button: ${input.lastPadButton < 0 ? '—' : input.buttonName(input.lastPadButton)}`
+      : 'Stick movement and button presses will appear here once detected.';
+    if (reading.textContent !== live) reading.textContent = live;
+    direct.style.display = input.gamepadStatus === 'blocked' || input.gamepadStatus === 'unavailable' ? '' : 'none';
+    for (const a of PAD_REMAPPABLE) {
+      const button = box.querySelector(`[data-k="pad_${a}"]`)!;
+      const label = waiting === a ? 'Press a button…' : input.padLabel(a);
+      if (button.textContent !== label) button.textContent = label;
+    }
+  }
+  refresh();
+  // Keep an already-open Settings screen honest through pairing and reconnects.
+  let last = 0;
+  const tick = (now: number) => {
+    if (!box.isConnected) return;
+    if (now - last >= 120) { last = now; refresh(); }
+    requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+  return box;
 }

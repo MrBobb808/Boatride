@@ -4,7 +4,8 @@
   "description": "REMNANT: ASCENSION — a biblical dark fantasy action RPG",
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && vite build && node scripts/postbuild.mjs",
+    "build": "tsc --noEmit && npm run test:controller && vite build && node scripts/postbuild.mjs",
+    "test:controller": "node --test scripts/controller.test.mjs",
     "preview": "vite preview --host",
     "typecheck": "tsc --noEmit"
   },

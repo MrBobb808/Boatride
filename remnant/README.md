@@ -295,6 +295,17 @@ and **Create** until the light bar flashes, then pick it in the iPhone's
 which kind of pad it is and names buttons to match (✕ ○ □ △ and L1/R1 on
 PlayStation, A B X Y and LB/RB on Xbox).
 
+**Settings → Controller** shows the connection live, with left-stick values
+and the last button received. Tap **Check controller** after returning from
+Bluetooth settings, then press **✕ / A** or move the stick. The first press
+also works when switching from touch, and unplugging or losing a connection
+releases held actions and brings touch controls back on a phone.
+
+If a preview blocks controller access, Settings explains it and offers
+**Open game directly**: https://mrbobb808.github.io/Boatride/. Pairing happens
+in the device's settings; the game reads the controller through the browser.
+Touch and keyboard controls remain available if that access is blocked.
+
 | PlayStation | Xbox | Action |
 |---|---|---|
 | Left stick | Left stick | Move, and aim combos: ↑ + □ launches, ↓ + □ in the air plunges, ↓ + ✕ drops through a ledge |
@@ -352,7 +363,8 @@ not move Elior; it holds quick actions, so using one never makes him step.
 cd remnant
 npm install
 npm run dev        # http://localhost:5173 (also reachable from a phone on the same Wi-Fi)
-npm run build      # type-checks, then writes dist/ (index.html + PWA files)
+npm run build      # type-checks, tests controller input, then writes dist/
+npm run test:controller # controller handoff, reconnect, menu and input regressions
 npm run preview    # serves dist/
 ```
 

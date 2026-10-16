@@ -113,6 +113,7 @@ export function closeMenu() {
 }
 
 function setTab(t: string) {
+  cancelPadCapture();
   tab = t;
   sfx('ui');
   renderTabs();

@@ -141,26 +141,32 @@ function move(dir: 'left' | 'right' | 'up' | 'down') {
 }
 
 export function installNav() {
+  input.onDevice((device) => {
+    const top = topLayer();
+    if (device !== 'touch' && top && !top.el.contains(document.activeElement)) focusFirst(top.el);
+  });
   input.onAction((a) => {
     const top = topLayer();
     if (!top) return;
     if (input.lastDevice === 'touch') return;
-    if (top.onAction && top.onAction(a)) return;
+    if (top.onAction && top.onAction(a)) return true;
     const cur = document.activeElement as HTMLInputElement | null;
     if (cur && cur.tagName === 'INPUT' && cur.type === 'range' && (a === 'left' || a === 'right')) {
       const step = parseFloat(cur.step || '0.05');
       cur.value = String(Math.min(parseFloat(cur.max), Math.max(parseFloat(cur.min), parseFloat(cur.value) + (a === 'right' ? step : -step))));
       cur.dispatchEvent(new Event('input'));
-      return;
+      return true;
     }
-    if (a === 'left' || a === 'right' || a === 'up' || a === 'down') move(a);
+    if (a === 'left' || a === 'right' || a === 'up' || a === 'down') { move(a); return true; }
     else if (a === 'confirm') {
       if (cur && top.el.contains(cur) && cur.hasAttribute('data-nav')) {
         if (cur.tagName === 'INPUT') return;
         cur.click();
       }
+      return true;
     } else if (a === 'back') {
       top.onBack?.();
+      return true;
     }
   });
 }
