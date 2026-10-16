@@ -111,6 +111,22 @@ export const NPC_DEFS: Record<NpcKind, { name: string; title: string; style: Hum
       outline: '#0a070c', weapon: 'staff', offhand: 'none', bulk: 0.95,
     },
   },
+  hanan: {
+    name: 'Hanan', title: 'Exile and Scribe', base: { ...NPC_BASE, fUA: 0.5, fFA: 1.25 }, dims: { ...PDIMS, torso: 12 }, scale: 0.97,
+    style: {
+      skin: '#b98a64', hair: '#d8d4cc', hairKind: 'long', beard: '#e4e0d8', coat: '#3a4a6a', coatDark: '#24304a', skirt: 20, trim: '#c9b27a',
+      pants: '#24304a', boots: '#2a2018', glove: '#b98a64', belt: '#6a5a3a', plate: null, helm: 'none', eye: '#fff', eyeGlow: 0,
+      outline: '#0a070c', weapon: 'staff', offhand: 'none', bulk: 0.95,
+    },
+  },
+  feastlord: {
+    name: 'The Lord of the Feast', title: 'Regent of Babylon', base: { ...NPC_BASE, fUA: 0.55, fFA: 1.15, bUA: 0.45, bFA: 1.2 }, dims: { ...PDIMS, torso: 13.5, thigh: 8.6, shin: 8.6 }, scale: 1.12,
+    style: {
+      skin: '#a8724e', hair: '#0e0a0a', hairKind: 'braid', beard: '#0e0a0a', coat: '#4a1a5a', coatDark: '#2a0c34', skirt: 20, trim: '#f2d68e',
+      pants: '#2a0c34', boots: '#1e1208', glove: '#a8724e', belt: '#d8b04a', plate: null, helm: 'crown', helmColor: '#e8c25a',
+      eye: '#ffcf6b', eyeGlow: 0.4, outline: '#0a0406', weapon: 'none', offhand: 'none', bulk: 1.15,
+    },
+  },
   marshal: {
     name: 'The Crimson Marshal', title: 'Commander of the Tower', base: { ...NPC_BASE, fUA: 0.65, fFA: 0.6, bUA: 0.7, bFA: 0.75, wpn: 1.35 }, dims: { ...PDIMS, torso: 14, thigh: 9.2, shin: 9.2 }, scale: 1.3,
     style: {

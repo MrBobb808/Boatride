@@ -11,7 +11,7 @@ is original fiction inspired by biblical themes, not part of the Bible.
 
 > *True greatness is not found in the power to rule, but in the strength to remain faithful.*
 
-This build contains four chapters:
+This build contains five chapters:
 
 - **Chapter I — The Ashen Village.** 12 rooms, the full combat and Echo
   systems, abilities and skill trees, gear, crafting and merchants, and the
@@ -32,7 +32,7 @@ This build contains four chapters:
     blindingly fast and has claw strings, aerial dives, acid and a paralysing
     screech; he calls his swarm and devours his own drones to heal. Beaten,
     he is raised as your Echo.
-  - **The Trial of the Remnant** is an endless wave arena that keeps pace
+  - **The Trial of the Remnant** is an endless rounds arena that keeps pace
     with your level. It is the way to level 100 and beyond.
 - **Chapter IV — The Plain of Dura.** By the rivers of Babylon, after the book
   of Daniel.
@@ -44,6 +44,18 @@ This build contains four chapters:
   - Hold the furnace mouth, then stand while the whole plain kneels.
   - **The Image of Gold:** head of gold, arms of silver, belly of brass,
     legs of iron and feet of clay. Strike its feet.
+- **Chapter V — The Writing on the Wall.** Daniel 5: Babylon on the night of
+  the great feast.
+  - An army from the east has turned the river aside. Walk into the city
+    along the dry riverbed while a thousand lords drink.
+  - Cross the lantern-lit streets and climb the Hanging Gardens. Vessel
+    Wraiths (stolen temple cups full of the Veil) pour burning wine, and
+    Scribes of the Veil write letters that strike.
+  - Find the three vessels of the temple for Hanan, an old exile scribe.
+  - In the banquet hall a hand writes on the plaster: MENE, MENE, TEKEL,
+    UPHARSIN.
+  - **The Weigher:** the Lord of the Feast, given to the Veil, with great
+    bronze scales. Three phases: Numbered, Weighed, Divided.
 - Each chapter has an ending, plus New Game+.
 
 Each chapter begins from the previous chapter's ending screen, from any

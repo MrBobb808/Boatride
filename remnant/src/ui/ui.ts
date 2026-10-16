@@ -18,6 +18,7 @@ import { SECRET_IDS } from '../game/story';
 import { CH2_SECRETS } from '../game/story2';
 import { CH3_SECRETS } from '../game/story3';
 import { CH4_SECRETS } from '../game/story4';
+import { CH5_SECRETS } from '../game/story5';
 
 let uiRoot: HTMLElement;
 let toastBox: HTMLElement;
@@ -371,8 +372,9 @@ const hooks: UIHooks = {
         { n: 'Chapter I', title: 'THE ASHEN VILLAGE', secrets: SECRET_IDS, sl: 'Hidden chambers', theme: 'True greatness is not found in the power to rule, but in the strength to remain faithful.', next: 'The road east leads down to the Plain of Shinar, where a red tower has risen in a single month.', go: 'Begin Chapter II', stay: 'Stay in Hearthward', music: 'sanctuary' },
         { n: 'Chapter II', title: 'THE TOWER OF SHINAR', secrets: CH2_SECRETS, sl: 'Hidden caches', theme: 'Pride builds towers to make a name. Faithfulness keeps an oath when no one is watching.', next: 'Two days east lies the Valley of Bones, where a swarm has eaten everything that grew.', go: 'Begin Chapter III', stay: 'Stay in Shinar', music: 'shinar' },
         { n: 'Chapter III', title: 'THE VALLEY OF BONES', secrets: CH3_SECRETS, sl: 'Hidden caches', theme: 'The locust takes; the covenant restores. An army raised by mercy follows further than one driven by fear.', next: 'South, by the rivers of Babylon, an image of gold has been raised on the plain of Dura, and three captives are bound for the furnace.', go: 'Begin Chapter IV', stay: 'Stay in the valley', music: 'valley' },
-        { n: 'Chapter IV', title: 'THE PLAIN OF DURA', secrets: CH4_SECRETS, sl: 'Hidden caches', theme: 'The furnace could not burn those who would not bow. Every image of gold stands on feet of clay.', next: 'Chapter V is in development. Your journey continues: train in the Trial of the Remnant, grow your army toward level 100, or begin New Game+ at any altar.', go: '', stay: 'Continue exploring', music: 'dura' },
-      ][Math.min(3, Math.max(1, chapter) - 1)];
+        { n: 'Chapter IV', title: 'THE PLAIN OF DURA', secrets: CH4_SECRETS, sl: 'Hidden caches', theme: 'The furnace could not burn those who would not bow. Every image of gold stands on feet of clay.', next: 'Across the river, Babylon holds a feast for a thousand lords, and they mean to drink from the vessels of the temple.', go: 'Begin Chapter V', stay: 'Stay by the river', music: 'dura' },
+        { n: 'Chapter V', title: 'THE WRITING ON THE WALL', secrets: CH5_SECRETS, sl: 'Treasures and vessels', theme: 'Pride drinks from holy things and calls itself a god. It is weighed in a single night, and found wanting.', next: 'Chapter VI is in development. Your journey continues: train in the Trial of the Remnant, grow your army toward level 100, or begin New Game+ at any altar.', go: '', stay: 'Continue exploring', music: 'riverbed' },
+      ][Math.min(4, Math.max(1, chapter) - 1)];
       const card = h('div', { class: 'chapter panel scroll' },
         h('div', { class: 'eyebrow' }, C.n),
         h('h2', null, C.title),

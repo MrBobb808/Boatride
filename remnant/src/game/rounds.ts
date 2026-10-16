@@ -168,7 +168,7 @@ export class Rounds {
     const px = W.player.x / TILE;
     const lanes = LANES.filter((l) => Math.abs(l - px) > 7);
     const x = choose(lanes.length ? lanes : LANES) * TILE + rand(-12, 12);
-    const flier = k === 'drone' || k === 'wisp';
+    const flier = k === 'drone' || k === 'wisp' || k === 'vessel';
     const e = W.spawnEnemy(k, x, flier ? SKY_Y : FLOOR_Y, champion ? 'trial_champion' : null);
     const lvScale = 1 + Math.max(0, s.level - 12) * 0.05;
     const hpMul = (n < 10 ? 1 + 0.18 * (n - 1) : 2.62 * Math.pow(1.09, n - 10)) * lvScale * (champion ? 3 : 1);
@@ -189,7 +189,8 @@ export class Rounds {
     if (n <= 5) return ['husk', 'hound', 'archer', 'drone', 'wisp'];
     if (n <= 9) return ['husk', 'archer', 'drone', 'soldier', 'knight', 'priest'];
     if (n <= 15) return ['archer', 'drone', 'soldier', 'knight', 'bulwark', 'priest', 'lion', 'sentinel'];
-    return ['drone', 'soldier', 'knight', 'bulwark', 'brute', 'priest', 'lion', 'sentinel'];
+    if (n <= 22) return ['drone', 'soldier', 'knight', 'bulwark', 'brute', 'priest', 'lion', 'sentinel'];
+    return ['soldier', 'knight', 'bulwark', 'brute', 'priest', 'lion', 'vessel', 'scribe', 'vessel', 'scribe'];
   }
 
   private reward(n: number) {

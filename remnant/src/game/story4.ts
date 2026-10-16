@@ -459,7 +459,7 @@ export class Chapter4 {
     setFlag('ch4_done');
     G.world.autosave(true);
     st.cine(false);
-    await G.ui.chapterEnd(4);
+    if ((await G.ui.chapterEnd(4)) === 'next') await this.st.ch5.beginFromChapterFour();
   }
 
   // ---------------------------------------------------------------- talk

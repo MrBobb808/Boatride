@@ -14,6 +14,7 @@ import { Idol } from './boss';
 import { Chapter2, QUESTS2, type Gatekeeper, type Marshal } from './story2';
 import { Chapter3, QUESTS3, type LocustKing } from './story3';
 import { Chapter4, QUESTS4 } from './story4';
+import { Chapter5, QUESTS5 } from './story5';
 import { LORE, ITEMS, ECHO_SPECIES } from './data';
 import { setQuest, makeEcho, grantAbility, derive, makeItem, addMaterial, hasMaterials, payMaterials, getItem, MAX_PLUS } from './state';
 import { rand } from '../core/math';
@@ -51,6 +52,7 @@ export const QUESTS: QuestDef[] = [
   ...QUESTS2,
   ...QUESTS3,
   ...QUESTS4,
+  ...QUESTS5,
 ];
 
 const TEMPLE_LORE = ['eph610', 'eph612', 'cor104', 'isa4031', 'josh620'];
@@ -62,6 +64,7 @@ export class Story {
   ch2 = new Chapter2(this);
   ch3 = new Chapter3(this);
   ch4 = new Chapter4(this);
+  ch5 = new Chapter5(this);
   // ---------------------------------------------------------------- helpers
   fmt(text: string) {
     const L = (a: Parameters<typeof input.label>[0]) => {
@@ -126,6 +129,7 @@ export class Story {
     const s = G.save;
     if (this.ch3.onEnter(id, first)) return;
     if (this.ch4.onEnter(id, first)) return;
+    if (this.ch5.onEnter(id, first)) return;
     if (this.ch2.onEnter(id, first)) return;
     if (id === 'sanctuary' && !flag('intro_done')) {
       this.opening();
@@ -199,6 +203,7 @@ export class Story {
   onTrigger(id: string) {
     if (this.ch3.onTrigger(id)) return;
     if (this.ch4.onTrigger(id)) return;
+    if (this.ch5.onTrigger(id)) return;
     if (this.ch2.onTrigger(id)) return;
     switch (id) {
       case 'steps_cutscene': if (!flag('collapsed')) this.collapse(); break;
@@ -433,6 +438,7 @@ export class Story {
     n.talkT = 4;
     if (await this.ch3.talk(n)) return;
     if (await this.ch4.talk(n)) return;
+    if (await this.ch5.talk(n)) return;
     if (await this.ch2.talk(n)) return;
     switch (n.kind) {
       case 'mara': return this.talkMara();
@@ -557,6 +563,7 @@ export class Story {
       this.ch2.onLore(id);
       this.ch3.onLore(id);
       this.ch4.onLore(id);
+      this.ch5.onLore(id);
     }
     this.checkMara();
   }
@@ -608,6 +615,7 @@ export class Story {
     if (this.ch2.secret(key)) return;
     if (this.ch3.secret(key)) return;
     if (this.ch4.secret(key)) return;
+    if (this.ch5.secret(key)) return;
     if (!SECRET_IDS.includes(key) || s.secrets.includes(key)) return;
     s.secrets.push(key);
     sfx('lootRare', { vol: 0.6 });
@@ -701,6 +709,7 @@ export class Story {
     this.ch2.onPurified(e.elite);
     this.ch3.onPurified(e.elite);
     this.ch4.onPurified(e.elite);
+    this.ch5.onPurified(e.elite);
     if (e.elite === 'chamber_sentinel') {
       setFlag('chamber_done');
       setFlag('has_echo');

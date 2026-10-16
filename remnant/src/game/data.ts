@@ -89,6 +89,7 @@ export const ITEMS: Record<string, ItemBase> = {
   stormcaller: { id: 'stormcaller', name: 'Stormcaller', slot: 'weapon', rarity: 4, icon: 'greatsword', family: 'greatsword', element: 'storm', mods: { atk: 44, poise: 16, crit: 3 }, value: 420, desc: 'Storm element. Lightning leaps from every blow to the foes nearby.', look: 2 },
   umbral_fang: { id: 'umbral_fang', name: 'Umbral Fang', slot: 'weapon', rarity: 4, icon: 'sword', family: 'blade', element: 'shadow', mods: { atk: 40, crit: 8, lifesteal: 2 }, value: 440, desc: 'Shadow element. Cut from the Locust King\'s carapace; a second, darker blade follows each strike.', look: 2 },
   stonecutter: { id: 'stonecutter', name: 'Stonecutter', slot: 'weapon', rarity: 5, icon: 'greatsword', family: 'greatsword', element: 'holy', mods: { atk: 82, crit: 8, poise: 30, abil: 20 }, value: 999, desc: 'Light element. Hewn from the stone that broke the Image, cut without hands. It grows heavier against those who would be worshipped.', look: 2, unique: true, lore: '"Thou sawest till that a stone was cut out without hands, which smote the image upon his feet that were of iron and clay, and brake them to pieces." — Daniel 2:34 (KJV)' },
+  even_balance: { id: 'even_balance', name: 'The Even Balance', slot: 'weapon', rarity: 5, icon: 'sword', family: 'blade', element: 'holy', mods: { atk: 96, crit: 12, abil: 24, poise: 18 }, value: 999, desc: 'Light element. Forged from the beam of the Weigher\'s scales. Its strikes land true, and they land hardest on the proud.', look: 2, unique: true, lore: '"Let me be weighed in an even balance, that God may know mine integrity." — Job 31:6 (KJV)' },
   dawnbreaker: { id: 'dawnbreaker', name: 'Dawnbreaker', slot: 'weapon', rarity: 5, icon: 'greatsword', family: 'greatsword', element: 'holy', mods: { atk: 64, crit: 6, poise: 24, abil: 15 }, value: 999, desc: 'Light element. Forged where the dry bones stood up. It burns brightest against the greatest foes.', look: 2, unique: true, lore: '"So I prophesied as he commanded me, and the breath came into them, and they lived, and stood up upon their feet, an exceeding great army." — Ezekiel 37:10 (KJV)' },
   rusted_greatsword: { id: 'rusted_greatsword', name: 'Rusted Greatsword', slot: 'weapon', rarity: 1, icon: 'greatsword', family: 'greatsword', mods: { atk: 20, poise: 10 }, value: 60, desc: 'Heavy and blunt with age, but it still breaks shields.', look: 0 },
   // Helms
@@ -123,6 +124,8 @@ export const ITEMS: Record<string, ItemBase> = {
   tower_greaves: { id: 'tower_greaves', name: 'Tower Greaves', slot: 'boots', rarity: 2, icon: 'boot', mods: { def: 4, poise: 10, speed: 3 }, value: 140, desc: 'Red-lacquered plate from the Tower\'s honour guard.', look: 1 },
   unsinged_robe: { id: 'unsinged_robe', name: 'Unsinged Robe', slot: 'armor', rarity: 4, icon: 'armor', mods: { def: 12, hp: 60, poise: 20 }, value: 420, desc: 'Barak\'s robe, worn into the furnace and out again. It does not even smell of smoke.', look: 2, unique: true },
   lion_mane_helm: { id: 'lion_mane_helm', name: 'Lionmane Helm', slot: 'helm', rarity: 4, icon: 'helm', mods: { def: 9, atk: 10, crit: 5 }, value: 400, desc: 'Dov beat it from a brazen lion\'s mane. It roars when it is struck.', look: 2, unique: true },
+  vessel_keepers_mantle: { id: 'vessel_keepers_mantle', name: 'Mantle of the Vessel-Keeper', slot: 'armor', rarity: 4, icon: 'armor', mods: { def: 14, hp: 80, ce: 20, ceRegen: 10 }, value: 520, desc: 'Hanan wore it in the temple as a boy, when the vessels were still in their places. He says it is your turn.', look: 2, unique: true },
+  night_watch_hood: { id: 'night_watch_hood', name: 'Night-Watch Hood', slot: 'helm', rarity: 4, icon: 'hood', mods: { def: 10, crit: 8, atk: 12 }, value: 480, desc: 'Dov cut it from a palace curtain, the night the city fell. It is darker than the dark around it.', look: 2, unique: true },
   crimson_mantle: { id: 'crimson_mantle', name: 'Crimson Mantle', slot: 'armor', rarity: 3, icon: 'armor', mods: { def: 8, hp: 30, atk: 6 }, value: 280, desc: 'A guardsman\'s red coat over black mail. It was made to be seen from far away.', look: 2 },
   overseer_sigil: { id: 'overseer_sigil', name: 'Overseer\'s Brand', slot: 'relic', rarity: 3, icon: 'sigil', mods: { poise: 15, str: 2, echoDmg: 8 }, value: 220, desc: 'The iron that marked every brick. Cold now, and lighter than it looks.' },
   oathblade: { id: 'oathblade', name: 'The Oathblade', slot: 'weapon', rarity: 5, icon: 'greatsword', family: 'greatsword', mods: { atk: 46, crit: 6, poise: 18, critDmg: 20 }, value: 999, desc: 'The Marshal\'s sword, given freely. It is heavy only for those who would misuse it.', look: 2, unique: true, element: 'blood', lore: '"I have fought a good fight, I have finished my course, I have kept the faith:" — 2 Timothy 4:7 (KJV)' },
@@ -476,6 +479,72 @@ export const LORE: Record<string, LoreEntry> = {
     id: 'dan244', title: 'A Kingdom Never Destroyed', ref: 'Daniel 2:44 (KJV)',
     text: 'And in the days of these kings shall the God of heaven set up a kingdom, which shall never be destroyed: and the kingdom shall not be left to other people, but it shall break in pieces and consume all these kingdoms, and it shall stand for ever.',
     note: 'Barak recited it by the river, the night the plain was empty.',
+  },
+  // ---------------------------------------------------------------- Chapter V: the writing on the wall
+  jer5136: {
+    id: 'jer5136', title: 'Her Sea Dried Up', ref: 'Jeremiah 51:36 (KJV)',
+    text: 'Therefore thus saith the LORD; Behold, I will plead thy cause, and take vengeance for thee; and I will dry up her sea, and make her springs dry.',
+    note: 'Carved on a mooring post where the river used to be. The mud around it is still wet.',
+  },
+  jer5038: {
+    id: 'jer5038', title: 'A Drought upon Her Waters', ref: 'Jeremiah 50:38 (KJV)',
+    text: 'A drought is upon her waters; and they shall be dried up: for it is the land of graven images, and they are mad upon their idols.',
+    note: 'Scratched into the hull of a stranded boat, in an exile\'s careful hand.',
+  },
+  isa219: {
+    id: 'isa219', title: 'Babylon Is Fallen', ref: 'Isaiah 21:9 (KJV)',
+    text: 'And, behold, here cometh a chariot of men, with a couple of horsemen. And he answered and said, Babylon is fallen, is fallen; and all the graven images of her gods he hath broken unto the ground.',
+    note: 'Written in charcoal under a feast lantern, while the whole street sang. Someone in the city still remembered.',
+  },
+  ps629: {
+    id: 'ps629', title: 'Lighter than Vanity', ref: 'Psalm 62:9 (KJV)',
+    text: 'Surely men of low degree are vanity, and men of high degree are a lie: to be laid in the balance, they are altogether lighter than vanity.',
+    note: 'Cut into the rim of a fountain in the hanging gardens, where the great of Babylon walk.',
+  },
+  dan52: {
+    id: 'dan52', title: 'The Vessels of the Temple', ref: 'Daniel 5:2 (KJV)',
+    text: 'Belshazzar, whiles he tasted the wine, commanded to bring the golden and silver vessels which his father Nebuchadnezzar had taken out of the temple which was in Jerusalem; that the king, and his princes, his wives, and his concubines, might drink therein.',
+    note: 'Hanan says the treasurers kept a list of everything taken from the house of God. This page of it is torn out and nailed to the treasury door.',
+  },
+  dan54: {
+    id: 'dan54', title: 'Gods of Gold and of Stone', ref: 'Daniel 5:4 (KJV)',
+    text: 'They drank wine, and praised the gods of gold, and of silver, of brass, of iron, of wood, and of stone.',
+    note: 'The feast\'s own toast, painted on the wall above the tables. The paint is still wet.',
+  },
+  isa451: {
+    id: 'isa451', title: 'The Two-Leaved Gates', ref: 'Isaiah 45:1 (KJV)',
+    text: 'Thus saith the LORD to his anointed, to Cyrus, whose right hand I have holden, to subdue nations before him; and I will loose the loins of kings, to open before him the two leaved gates; and the gates shall not be shut;',
+    note: 'An old prophecy, copied out by an exile and hidden behind a roof tile above the city.',
+  },
+  prov1611: {
+    id: 'prov1611', title: 'A Just Weight', ref: 'Proverbs 16:11 (KJV)',
+    text: 'A just weight and balance are the LORD\'s: all the weights of the bag are his work.',
+    note: 'Engraved on the foot of the great scales, by the craftsman who made them. He knew whose they were.',
+  },
+  dan55: {
+    id: 'dan55', title: 'The Fingers of a Hand', ref: 'Daniel 5:5 (KJV)',
+    text: 'In the same hour came forth fingers of a man\'s hand, and wrote over against the candlestick upon the plaister of the wall of the king\'s palace: and the king saw the part of the hand that wrote.',
+    note: 'What you saw in the banquet hall, by the light of the great lampstand.',
+  },
+  dan525: {
+    id: 'dan525', title: 'The Writing That Was Written', ref: 'Daniel 5:25 (KJV)',
+    text: 'And this is the writing that was written, MENE, MENE, TEKEL, UPHARSIN.',
+    note: 'Four words on the plaster. No one at the feast could read them.',
+  },
+  dan526: {
+    id: 'dan526', title: 'Numbered, Weighed, Divided', ref: 'Daniel 5:26–28 (KJV)',
+    text: 'This is the interpretation of the thing: MENE; God hath numbered thy kingdom, and finished it. TEKEL; Thou art weighed in the balances, and art found wanting. PERES; Thy kingdom is divided, and given to the Medes and Persians.',
+    note: 'As old Hanan read it aloud to the whole hall.',
+  },
+  dan530: {
+    id: 'dan530', title: 'In That Night', ref: 'Daniel 5:30 (KJV)',
+    text: 'In that night was Belshazzar the king of the Chaldeans slain.',
+    note: 'The king\'s night, and the Lord of the Feast\'s too. By morning the city had new masters.',
+  },
+  dan221: {
+    id: 'dan221', title: 'He Removeth Kings', ref: 'Daniel 2:21 (KJV)',
+    text: 'And he changeth the times and the seasons: he removeth kings, and setteth up kings: he giveth wisdom unto the wise, and knowledge to them that know understanding:',
+    note: 'Hanan\'s blessing over the camp in the reeds, the morning after.',
   },
   isa432: {
     id: 'isa432', title: 'Through the Fire', ref: 'Isaiah 43:2 (KJV)',

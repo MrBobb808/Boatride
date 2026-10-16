@@ -6,12 +6,15 @@ import { Enemy, Husk, Hound, Archer, Sentinel, Wisp } from './enemies';
 import { Brute, Bulwark, Knight } from './tanks';
 import { Drone, Soldier } from './locusts';
 import { Lion, Priest } from './babylon';
+import { Vessel, Scribe } from './feast';
 
 /** Named elites. Classes give a generic elite title; these placed foes have their own. */
 const ELITE_NAMES: Record<string, string> = {
   bone_colossus: 'Colossus of the Valley',
   den_lion: 'Lion of the Den',
   furnace_warden: 'The Furnace Warden',
+  garden_keeper: 'Keeper of the Gardens',
+  treasury_captain: 'Captain of the Treasury',
 };
 
 function build(kind: EnemyKind, x: number, y: number, elite: string | null): Enemy {
@@ -28,6 +31,8 @@ function build(kind: EnemyKind, x: number, y: number, elite: string | null): Ene
     case 'soldier': return new Soldier(x, y, elite);
     case 'lion': return new Lion(x, y, elite);
     case 'priest': return new Priest(x, y, elite);
+    case 'vessel': return new Vessel(x, y, elite);
+    case 'scribe': return new Scribe(x, y, elite);
   }
 }
 

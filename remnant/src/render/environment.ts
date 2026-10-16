@@ -93,6 +93,22 @@ export const BIOMES: Record<Biome, BiomePal> = {
     stone: '#2e2420', stoneDark: '#140e0c', cap: '#3e2c22', capTuft: '#ff8a3a', back: '#1e1410', backLine: '#2e1e16', moon: null,
     plat: '#4a3424', ambient: '#1a0804',
   },
+  // Chapter V: Babylon on the night of the feast.
+  riverbed: {
+    sky: ['#03040a', '#0a1428', '#1a2440'], far: '#0c1220', mid: '#0a0e18', near: '#06080e', fog: '#2a3a5a',
+    stone: '#3a3228', stoneDark: '#1a160e', cap: '#4a3e2c', capTuft: '#5a6a3a', back: '#14120e', backLine: '#221e16', moon: '#e8e4d0',
+    plat: '#4a3a26', ambient: '#0a0e1a',
+  },
+  gardens: {
+    sky: ['#02040a', '#0a1830', '#1e2c48'], far: '#0a1a16', mid: '#08140e', near: '#040a06', fog: '#3a5a4a',
+    stone: '#4a4236', stoneDark: '#22201a', cap: '#2e4a26', capTuft: '#6a9a4a', back: '#1a1e16', backLine: '#262a1e', moon: '#ece8d4',
+    plat: '#5a4a32', ambient: '#06100c',
+  },
+  palace: {
+    sky: ['#04020a', '#140a24', '#2a1638'], far: '#1a0e22', mid: '#120a18', near: '#08040c', fog: '#ffb35a',
+    stone: '#3e3446', stoneDark: '#1c1622', cap: '#c9a04a', capTuft: '#e8c25a', back: '#221a2a', backLine: '#33263c', moon: null,
+    plat: '#5a4430', ambient: '#140a10',
+  },
 };
 
 // ---------------------------------------------------------------- Parallax

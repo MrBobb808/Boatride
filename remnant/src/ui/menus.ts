@@ -552,7 +552,7 @@ function mapTab() {
       h('span', null, h('i', { style: 'background:#6a5a8a' }), 'Explored'),
       h('span', null, h('i', { style: 'background:#ffcf6b;clip-path:polygon(50% 0,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%)' }), 'Objective'),
       h('span', null, `Altars kindled: ${lit.join(', ')}`),
-      h('span', { 'data-k': 'explored' }, `Explored: ${ex.ch}% of Chapter ${['', 'I', 'II', 'III', 'IV'][ex.n]} · ${ex.all}% in all`),
+      h('span', { 'data-k': 'explored' }, `Explored: ${ex.ch}% of Chapter ${['', 'I', 'II', 'III', 'IV', 'V'][ex.n]} · ${ex.all}% in all`),
     ),
   );
 }
@@ -571,12 +571,14 @@ const ALTAR_NAMES: Record<string, string> = {
   shinar_camp: 'Camp at the Pass', tower_lower: 'The First Course', tower_upper: 'The Crimson Guard',
   valley_camp: 'Camp at the Valley\'s Edge', hive_mouth: 'Mouth of the Hive',
   river_camp: 'Camp by the Rivers', dura_plain: 'The Plain of Dura',
+  reed_camp: 'Camp in the Reeds', hanging_gardens: 'The Hanging Gardens', palace_stair: 'The Palace Stair',
 };
 const ALTAR_ROOMS: Record<string, string> = {
   sanctuary: 'sanctuary', temple_hall: 'temple_hall', chamber: 'covenant_chamber', antechamber: 'idol_antechamber',
   shinar_camp: 'shinar_camp', tower_lower: 'tower_lower', tower_upper: 'tower_upper',
   valley_camp: 'valley_camp', hive_mouth: 'hive_mouth',
   river_camp: 'river_camp', dura_plain: 'dura_plain',
+  reed_camp: 'reed_camp', hanging_gardens: 'hanging_gardens', palace_stair: 'palace_stair',
 };
 
 function drawMap(c: HTMLCanvasElement) {

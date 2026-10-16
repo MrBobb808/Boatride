@@ -43,7 +43,7 @@ function spr(c: string) {
   return SPR[c] ?? (SPR[c] = glowSprite(c));
 }
 /** Elliptical glow; caller sets the composite mode. */
-function blob(ctx: Ctx, c: string, x: number, y: number, rx: number, ry: number, a: number) {
+export function blob(ctx: Ctx, c: string, x: number, y: number, rx: number, ry: number, a: number) {
   if (a <= 0.003) return;
   const p = ctx.globalAlpha;
   ctx.globalAlpha = p * Math.min(1, a);
@@ -52,7 +52,7 @@ function blob(ctx: Ctx, c: string, x: number, y: number, rx: number, ry: number,
 }
 
 /** Outline first, then fill: overlapping sub-shapes read as one silhouette. */
-function solidify(ctx: Ctx, fill: string | CanvasGradient, out: string, lw: number) {
+export function solidify(ctx: Ctx, fill: string | CanvasGradient, out: string, lw: number) {
   ctx.lineJoin = 'round';
   ctx.lineWidth = lw * 2;
   ctx.strokeStyle = out;
@@ -62,19 +62,19 @@ function solidify(ctx: Ctx, fill: string | CanvasGradient, out: string, lw: numb
 }
 
 /** Quality tier, read from the particle cap that main sets per tier (2 high, 1 medium, 0 low). */
-function tier() {
+export function tier() {
   return fx.cap >= 900 ? 2 : fx.cap >= 500 ? 1 : 0;
 }
 
 /** Periodic noise across the strip width so the strip tiles without a seam. */
-function wrapNoise(w: number, scale: number, sd: number, oct = 4) {
+export function wrapNoise(w: number, scale: number, sd: number, oct = 4) {
   return (x: number) => {
     const xx = ((x % w) + w) % w, f = xx / w;
     return (1 - f) * fbm1(xx / scale, sd, oct) + f * fbm1((xx - w) / scale, sd, oct);
   };
 }
 
-function fillRidge(ctx: Ctx, w: number, h: number, hy: (x: number) => number, col: string | CanvasGradient) {
+export function fillRidge(ctx: Ctx, w: number, h: number, hy: (x: number) => number, col: string | CanvasGradient) {
   ctx.fillStyle = col;
   ctx.beginPath();
   ctx.moveTo(0, h);
@@ -84,7 +84,7 @@ function fillRidge(ctx: Ctx, w: number, h: number, hy: (x: number) => number, co
   ctx.fill();
 }
 
-function strokeRidge(ctx: Ctx, w: number, hy: (x: number) => number, col: string, lw: number, dy = 0.6) {
+export function strokeRidge(ctx: Ctx, w: number, hy: (x: number) => number, col: string, lw: number, dy = 0.6) {
   ctx.strokeStyle = col;
   ctx.lineWidth = lw;
   ctx.beginPath();
@@ -96,7 +96,7 @@ function strokeRidge(ctx: Ctx, w: number, hy: (x: number) => number, col: string
 }
 
 /** The part of a baked chunk this prop can touch, in the prop's local space (no rotation in bakes). */
-function localView(ctx: Ctx): [number, number, number, number] {
+export function localView(ctx: Ctx): [number, number, number, number] {
   const m = ctx.getTransform();
   const W = ctx.canvas.width, H = ctx.canvas.height;
   const ax = -m.e / m.a, bx = (W - m.e) / m.a, ay = -m.f / m.d, by = (H - m.f) / m.d;
@@ -108,7 +108,7 @@ function localView(ctx: Ctx): [number, number, number, number] {
  * shows. Bricks are batched into one path per tint, so a whole wall costs a
  * few fills; joints go in one stroke.
  */
-function brickField(ctx: Ctx, x0: number, y0: number, x1: number, y1: number, bw: number, bh: number, tints: readonly string[], seed: number, mortar: string | null, lw = 0.6) {
+export function brickField(ctx: Ctx, x0: number, y0: number, x1: number, y1: number, bw: number, bh: number, tints: readonly string[], seed: number, mortar: string | null, lw = 0.6) {
   const v = localView(ctx);
   const cx0 = Math.max(x0, v[0] - bw), cx1 = Math.min(x1, v[2] + bw), cy0 = Math.max(y0, v[1] - bh), cy1 = Math.min(y1, v[3] + bh);
   if (cx0 >= cx1 || cy0 >= cy1) return;
@@ -153,7 +153,7 @@ function brickField(ctx: Ctx, x0: number, y0: number, x1: number, y1: number, bw
 }
 
 /** Babylonian stepped crenellations along a wall top from x0 to x1 (merlon width m). */
-function merlons(ctx: Ctx, x0: number, x1: number, top: number, m: number, col: string | CanvasGradient) {
+export function merlons(ctx: Ctx, x0: number, x1: number, top: number, m: number, col: string | CanvasGradient) {
   const step = m * 1.6;
   ctx.fillStyle = col;
   ctx.beginPath();
@@ -173,7 +173,7 @@ function merlons(ctx: Ctx, x0: number, x1: number, top: number, m: number, col: 
 }
 
 /** Horizontal shading for a metal part lit from the left (the low sun). */
-function metalGrad(ctx: Ctx, x0: number, x1: number, c: readonly string[]) {
+export function metalGrad(ctx: Ctx, x0: number, x1: number, c: readonly string[]) {
   const g = ctx.createLinearGradient(x0, 0, x1, 0);
   g.addColorStop(0, c[1]);
   g.addColorStop(0.28, c[0]);
@@ -186,7 +186,7 @@ function metalGrad(ctx: Ctx, x0: number, x1: number, c: readonly string[]) {
  * Quad strip from (x0,y0) width w0 to (x1,y1) width w1, added to the current path.
  * Wound clockwise like arc() and rect(), so overlapping parts fill solid under nonzero.
  */
-function taper(ctx: Ctx, x0: number, y0: number, w0: number, x1: number, y1: number, w1: number) {
+export function taper(ctx: Ctx, x0: number, y0: number, w0: number, x1: number, y1: number, w1: number) {
   const dx = x1 - x0, dy = y1 - y0, L = Math.hypot(dx, dy) || 1;
   const nx = dy / L, ny = -dx / L;
   ctx.moveTo(x0 + (nx * w0) / 2, y0 + (ny * w0) / 2);
@@ -597,7 +597,7 @@ function furnaceSky(ctx: Ctx, w: number, h: number, t: number) {
 // ---------------------------------------------------------------- parallax pieces
 
 /** A date palm silhouette: tapering curved trunk and a crown of drooping fronds. */
-function palmSil(ctx: Ctx, x: number, base: number, h: number, col: string, rng: RNG, rim: string | null = null, rimDir = -1) {
+export function palmSil(ctx: Ctx, x: number, base: number, h: number, col: string, rng: RNG, rim: string | null = null, rimDir = -1) {
   const lean = rng.range(-0.22, 0.22);
   const tx = x + lean * h, ty = base - h;
   const bw = Math.max(1.2, h * 0.032), tw = bw * 0.62;
@@ -661,7 +661,7 @@ function palmSil(ctx: Ctx, x: number, base: number, h: number, col: string, rng:
 }
 
 /** A reed bed: thin stems with cattail heads. */
-function reedSil(ctx: Ctx, x: number, base: number, w: number, h: number, col: string, rng: RNG) {
+export function reedSil(ctx: Ctx, x: number, base: number, w: number, h: number, col: string, rng: RNG) {
   ctx.strokeStyle = col;
   ctx.fillStyle = col;
   ctx.lineCap = 'round';
@@ -686,7 +686,7 @@ function reedSil(ctx: Ctx, x: number, base: number, w: number, h: number, col: s
 }
 
 /** A stepped ziggurat silhouette with a central stair; the lit face takes a rim line. */
-function zigguratSil(ctx: Ctx, cx: number, base: number, w: number, h: number, tiers: number, col: string, rim: string, rimDir: number) {
+export function zigguratSil(ctx: Ctx, cx: number, base: number, w: number, h: number, tiers: number, col: string, rim: string, rimDir: number) {
   const th = h / (tiers + 0.6);
   for (let i = 0; i < tiers; i++) {
     const tw = w * (1 - i * (0.72 / tiers));
@@ -723,7 +723,7 @@ function zigguratSil(ctx: Ctx, cx: number, base: number, w: number, h: number, t
 }
 
 /** A city wall with towers and stepped crenellations. */
-function wallSil(ctx: Ctx, x0: number, x1: number, base: number, h: number, col: string, rim: string, every: number, rimDir: number) {
+export function wallSil(ctx: Ctx, x0: number, x1: number, base: number, h: number, col: string, rim: string, every: number, rimDir: number) {
   ctx.fillStyle = col;
   ctx.fillRect(x0, base - h, x1 - x0, h + 1);
   merlons(ctx, x0, x1, base - h, Math.max(2, h * 0.2), col);
@@ -742,7 +742,7 @@ function wallSil(ctx: Ctx, x0: number, x1: number, base: number, h: number, col:
 }
 
 /** Flat-roofed mud-brick houses with dark doors and a few lit windows. */
-function housesSil(ctx: Ctx, x0: number, x1: number, base: number, k: number, col: string, rim: string, rng: RNG, lit: number) {
+export function housesSil(ctx: Ctx, x0: number, x1: number, base: number, k: number, col: string, rim: string, rng: RNG, lit: number) {
   let x = x0;
   while (x < x1) {
     const bw = rng.range(14, 30) * k, bh = rng.range(10, 22) * k;
@@ -1779,7 +1779,7 @@ export function drawLiquidCh4(ctx: Ctx, biome: Biome, tt: T, x: number, y: numbe
 }
 
 /** Ishtar Gate rosette: white petals around a gold heart. */
-function rosette(ctx: Ctx, x: number, y: number, r: number) {
+export function rosette(ctx: Ctx, x: number, y: number, r: number) {
   ctx.fillStyle = '#e8e2cc';
   ctx.beginPath();
   for (let i = 0; i < 8; i++) {
@@ -1802,7 +1802,7 @@ const LION_SH = 'rgba(120,64,10,0.5)';
 const RELIEF_OUT = '#08122a';
 
 /** A striding lion in glazed relief, feet on y, facing dir; s = 1 is 40 units nose to tail. */
-function lionRelief(ctx: Ctx, x: number, y: number, s: number, dir: number) {
+export function lionRelief(ctx: Ctx, x: number, y: number, s: number, dir: number) {
   ctx.save();
   ctx.translate(x, y);
   ctx.scale(s * dir, s);
@@ -1889,7 +1889,7 @@ function lionRelief(ctx: Ctx, x: number, y: number, s: number, dir: number) {
 }
 
 /** The mušḫuššu of the Ishtar Gate: serpent head and horn, lion forelegs, eagle talons, a scorpion's tail. */
-function dragonRelief(ctx: Ctx, x: number, y: number, s: number, dir: number) {
+export function dragonRelief(ctx: Ctx, x: number, y: number, s: number, dir: number) {
   ctx.save();
   ctx.translate(x, y);
   ctx.scale(s * dir, s);
@@ -1975,7 +1975,7 @@ function dragonRelief(ctx: Ctx, x: number, y: number, s: number, dir: number) {
 }
 
 /** A frieze of rosettes on a navy band between ochre borders, y is the band's top. */
-function rosetteBand(ctx: Ctx, x0: number, x1: number, y: number, hgt: number) {
+export function rosetteBand(ctx: Ctx, x0: number, x1: number, y: number, hgt: number) {
   ctx.fillStyle = '#0e2246';
   ctx.fillRect(x0, y, x1 - x0, hgt);
   ctx.fillStyle = '#c8962e';
@@ -1987,7 +1987,7 @@ function rosetteBand(ctx: Ctx, x0: number, x1: number, y: number, hgt: number) {
 }
 
 /** A storage jar: narrow foot, swelling belly, a short neck and lip. */
-function jar(ctx: Ctx, cx: number, base: number, rw: number, h: number, col: string, band: string | null) {
+export function jar(ctx: Ctx, cx: number, base: number, rw: number, h: number, col: string, band: string | null) {
   ctx.beginPath();
   ctx.moveTo(cx - rw * 0.42, base);
   ctx.bezierCurveTo(cx - rw * 1.1, base - h * 0.22, cx - rw * 1.08, base - h * 0.62, cx - rw * 0.42, base - h * 0.84);
@@ -2020,7 +2020,7 @@ function jar(ctx: Ctx, cx: number, base: number, rw: number, h: number, col: str
 }
 
 /** A date palm: scarred trunk, a crown of feathered fronds lit by the low sun, hanging dates. */
-function palmTree(ctx: Ctx, x: number, base: number, H: number, lean: number, rng: RNG) {
+export function palmTree(ctx: Ctx, x: number, base: number, H: number, lean: number, rng: RNG) {
   const s = H / 144;
   const tx = x + lean * H, ty = base - H * 0.84;
   const cxp = x + lean * H * 0.15, cyp = base - H * 0.45;
@@ -2957,7 +2957,7 @@ const lightShaft: PropFn = (ctx, e) => {
 const SOOT_T = ['#221a16', '#1c1512', '#2a201a', '#18110e'] as const;
 
 /** Glowing joints where the heat comes through; caller sets 'lighter'. */
-function emberCrack(ctx: Ctx, x: number, y: number, rng: RNG, len: number) {
+export function emberCrack(ctx: Ctx, x: number, y: number, rng: RNG, len: number) {
   ctx.beginPath();
   ctx.moveTo(x, y);
   let cx = x, cy = y;

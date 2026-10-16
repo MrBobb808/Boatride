@@ -131,7 +131,7 @@ export function showTitle() {
       h('div', { class: 'verse' }, '“For we wrestle not against flesh and blood, but against principalities, against powers, against the rulers of the darkness of this world, against spiritual wickedness in high places.” ', h('b', null, 'EPHESIANS 6:12 (KJV)')),
     ),
     menu,
-    h('div', { class: 'title-foot' }, 'Chapters I–IV · The Ashen Village, The Tower of Shinar, The Valley of Bones, The Plain of Dura. A work of fiction; scripture quoted from the KJV.'),
+    h('div', { class: 'title-foot' }, 'Chapters I–V · The Ashen Village, The Tower of Shinar, The Valley of Bones, The Plain of Dura, The Writing on the Wall. A work of fiction; scripture quoted from the KJV.'),
   );
   let last = lastSlot();
   const build = () => {

@@ -40,6 +40,11 @@ export const CHAPTERS: ChapterDef[] = [
     blurb: 'By the rivers of Babylon an image of gold demands every knee, and three captives are bound for the furnace.',
     reached: () => flag('ch4_intro'), done: () => flag('ch4_done'),
   },
+  {
+    n: 5, roman: 'V', title: 'The Writing on the Wall', hub: 'reed_camp', level: 42,
+    blurb: 'The river is turned aside and Babylon feasts on holy vessels. A hand writes on the palace wall.',
+    reached: () => flag('ch5_intro'), done: () => flag('ch5_done'),
+  },
 ];
 
 /** A chapter can be played once you have reached it or finished the one before. */
