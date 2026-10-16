@@ -36,6 +36,9 @@ const DJUMP_V = 400;
 
 export const DIMS = { torso: 12.5, head: 4.6, neck: 1.5, upperArm: 7, foreArm: 6.6, thigh: 8.2, shin: 8.2, shoulderSpread: 1.4, hipSpread: 1.5 };
 
+/** How long the pause branch after the second strike stays open. */
+const LINGER_LONG = 0.62;
+
 type PState = 'free' | 'attack' | 'charge' | 'dodge' | 'airdash' | 'parry' | 'block' | 'hurt' | 'heal' | 'cast' | 'execute' | 'plunge' | 'dead' | 'scripted' | 'phantom' | 'transform';
 
 /** Covenant Energy spent per Phantom Step blink, and for Judgment Cross. */
@@ -433,7 +436,7 @@ export class Player extends Entity {
         if (Math.abs(ax) > 0.2) this.face = sign(ax);
         // jump / drop / double jump
         if (this.jumpBuf > 0) {
-          if (input.down('down') && b.onGround && this.onOneWay()) {
+          if (input.aimDown && b.onGround && this.onOneWay()) {
             b.dropT = 0.25;
             b.onGround = false;
             this.jumpBuf = 0;
@@ -601,9 +604,21 @@ export class Player extends Entity {
     // Branches that open for a moment after an attack ends.
     if (this.linger) {
       const m = this.moves;
+      // A beat late after the first strike still carries the combo on, so an
+      // easy rhythm on a controller isn't punished with a restart.
+      if (this.queued === 'attack' && b.onGround && this.linger === m.combo[0].id) {
+        this.queued = null;
+        this.combo = 1;
+        this.startAttack(m.combo[1]);
+        return;
+      }
       if (this.queued === 'attack' && b.onGround && this.linger === m.combo[1].id) {
         this.queued = null;
-        this.startAttack(m.flurry);
+        // Right on the beat it is the third strike; a real pause is the Flurry.
+        if (LINGER_LONG - this.lingerT < 0.12) {
+          this.combo = 2;
+          this.startAttack(m.combo[2]);
+        } else this.startAttack(m.flurry);
         return;
       }
       if (this.queued === 'attack' && this.linger === m.dash.id) {
@@ -629,7 +644,7 @@ export class Player extends Entity {
       return;
     }
     // Sub-weapon: its own button, or the old way, up + Heavy.
-    if (input.pressed('sub') || ((input.pressed('heavy') || this.heavyQ > 0) && input.down('up'))) {
+    if (input.pressed('sub') || ((input.pressed('heavy') || this.heavyQ > 0) && input.aimUp)) {
       this.heavyQ = 0;
       throwSub(this);
       return;
@@ -643,12 +658,12 @@ export class Player extends Entity {
     if (this.queued === 'attack') {
       this.queued = null;
       if (!b.onGround) {
-        if (input.down('down')) this.startPlunge();
+        if (input.aimDown) this.startPlunge();
         else if (this.airAttacks < 3) {
           this.startAttack(this.moves.air[Math.min(this.airAttacks, 2)]);
           this.airAttacks++;
         }
-      } else if (input.down('up') && !G.world.nearInteractable()) {
+      } else if (input.aimUp && !G.world.nearInteractable()) {
         this.startAttack(this.moves.launch);
       } else if (this.sinceDodge < 0.18) {
         this.startAttack(this.moves.dash);
@@ -805,7 +820,7 @@ export class Player extends Entity {
     this.linger = null;
     this.setState('attack');
     this.anim.play(a.clip, 0.04, true, 1 / (a.dur / this.aspd()));
-    if (a.rise && (input.down('up') || a.forceRise)) {
+    if (a.rise && (input.aimUp || a.forceRise)) {
       this.body.vy = a.rise;
       this.body.onGround = false;
       this.launchCarry = true;
@@ -911,7 +926,7 @@ export class Player extends Entity {
         }
         this.queued = null;
         if (a.air) {
-          if (input.down('down')) return this.startPlunge();
+          if (input.aimDown) return this.startPlunge();
           if (this.airAttacks < 3) {
             this.startAttack(this.moves.air[Math.min(this.airAttacks, 2)]);
             this.airAttacks++;
@@ -954,7 +969,8 @@ export class Player extends Entity {
       this.atk = null;
       if (!a.air) this.combo = 0;
       this.linger = a.id;
-      this.lingerT = 0.34;
+      // The second strike waits longer, so a deliberate pause has room to land.
+      this.lingerT = a.id === this.moves.combo[1].id ? LINGER_LONG : 0.34;
     }
   }
 

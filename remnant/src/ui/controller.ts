@@ -62,7 +62,7 @@ export function controllerBox(rerender: () => void): HTMLElement {
       connected ? `${kind} connected: ${prettyName(input.padName)}.` : 'No controller yet. Pair it in the iPhone\'s Settings → Bluetooth (on a PS5 DualSense, hold PS and Create until the light flashes), then press any button.',
     ),
     h('p', { class: 'muted', style: 'margin:0 0 6px;font-size:0.85em' },
-      'Select an action, then press the controller button you want for it. Menus always use ✕ / A to confirm and ○ / B to go back. The Shadow Mantle is L3 + R3 together unless you give it a button of its own. Leave the PS / Home button alone; the iPhone uses it.'),
+      'Select an action, then press the controller button you want for it. Menus always use ✕ / A to confirm and ○ / B to go back. Move and aim combos with the left stick (up + Attack launches, down + Attack plunges); the D-pad holds quick actions. The Shadow Mantle is L3 + R3 together unless you give it a button of its own. Leave the PS / Home button alone; the iPhone uses it.'),
     rows,
     h('div', { class: 'set-row' },
       h('label', null, 'Rumble', h('small', null, 'Controller vibration on hits, parries, finishers and the Mantle, where the browser supports it.')),

@@ -58,15 +58,18 @@ export const DEFAULT_KEYS: Record<Action, string[]> = {
 // PlayStation pads: 0 A/✕, 1 B/○, 2 X/□, 3 Y/△, 4 LB/L1, 5 RB/R1, 6 LT/L2,
 // 7 RT/R2, 8 View/Create, 9 Menu/Options, 10 L3, 11 R3, 12–15 D-pad, 16 home.
 // The Shadow Mantle has no button of its own by default: L3 + R3 together.
+// In play the D-pad holds quick actions, as in Souls games (↑ interact,
+// ↓ Balm, ← Switch, → sub-weapon); movement and combo directions come from
+// the left stick only, so a quick action never also moves or launches.
 export const DEFAULT_PAD: Partial<Record<Action, number[]>> = {
   jump: [0], dodge: [1], attack: [2], heavy: [3], parry: [4], skill1: [5], skill2: [6], skill3: [7],
-  switch: [8], menu: [9], echo: [10], ultimate: [11], transform: [], sub: [],
-  interact: [12], heal: [13],
+  map: [17, 8], menu: [9], echo: [10], ultimate: [11], transform: [],
+  interact: [12], heal: [13], switch: [14], sub: [15],
 };
 // Menus always navigate the same way: ✕/A confirm, ○/B back, L1/R1 tabs.
 const PAD_FIXED: Partial<Record<Action, number[]>> = { confirm: [0], back: [1], tabL: [4], tabR: [5] };
 /** Actions a player may move to other controller buttons. */
-export const PAD_REMAPPABLE: Action[] = ['jump', 'attack', 'heavy', 'dodge', 'parry', 'skill1', 'skill2', 'skill3', 'interact', 'heal', 'echo', 'ultimate', 'switch', 'transform', 'sub', 'menu'];
+export const PAD_REMAPPABLE: Action[] = ['jump', 'attack', 'heavy', 'dodge', 'parry', 'skill1', 'skill2', 'skill3', 'interact', 'heal', 'echo', 'ultimate', 'switch', 'transform', 'sub', 'map', 'menu'];
 
 export type PadKind = 'playstation' | 'xbox' | 'generic';
 const PS_NAMES = ['✕', '○', '□', '△', 'L1', 'R1', 'L2', 'R2', 'Create', 'Options', 'L3', 'R3', 'D-pad ↑', 'D-pad ↓', 'D-pad ←', 'D-pad →', 'PS', 'Touchpad'];
@@ -324,8 +327,8 @@ export class Input {
     }
     // Combine analog axes.
     let x = 0, y = 0;
-    if (this.kb.has('left') || this.pad.has('left') && !this.padAxisX) x -= 1;
-    if (this.kb.has('right') || this.pad.has('right') && !this.padAxisX) x += 1;
+    if (this.kb.has('left')) x -= 1;
+    if (this.kb.has('right')) x += 1;
     if (this.kb.has('up')) y -= 1;
     if (this.kb.has('down')) y += 1;
     if (this.padAxisX) x = this.padAxisX;
@@ -333,6 +336,18 @@ export class Input {
     if (this.touchAxisX || this.touchAxisY) { x = this.touchAxisX; y = this.touchAxisY; }
     this.axisX = Math.max(-1, Math.min(1, x));
     this.axisY = Math.max(-1, Math.min(1, y));
+  }
+
+  /**
+   * Up / down for moves (launcher, plunge, drop-through, rising strikes).
+   * The stick must point mostly that way, so running diagonally and
+   * attacking stays a plain combo. Keys count as fully up or down.
+   */
+  get aimUp() {
+    return this.enabled && this.axisY < -0.5 && -this.axisY >= Math.abs(this.axisX) * 0.9;
+  }
+  get aimDown() {
+    return this.enabled && this.axisY > 0.5 && this.axisY >= Math.abs(this.axisX) * 0.9;
   }
 
   /** Called at the start of each fixed logic step. */
@@ -384,11 +399,10 @@ export class Input {
   /** The controller button(s) for an action, as the player would read them. */
   padLabel(a: Action): string {
     if (a === 'transform' && !(this.padMap.transform?.length)) return `${this.buttonName(10)}+${this.buttonName(11)}`;
-    if (a === 'sub' && !(this.padMap.sub?.length)) return `↑+${this.buttonName(3)}`;
+    if (a === 'sub' && !(this.padMap.sub?.length)) return `L-stick ↑+${this.buttonName(3)}`;
     const idx = PAD_FIXED[a] ?? this.padMap[a];
-    if (a === 'up') return this.buttonName(12);
-    if (a === 'down') return this.buttonName(13);
-    if (a === 'map') return this.buttonName(9);
+    if (a === 'up') return 'L-stick ↑';
+    if (a === 'down') return 'L-stick ↓';
     return idx && idx.length ? idx.map((i) => this.buttonName(i)).join(' / ') : '—';
   }
 

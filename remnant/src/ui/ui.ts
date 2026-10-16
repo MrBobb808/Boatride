@@ -286,6 +286,7 @@ const hooks: UIHooks = {
     ];
     const ring = h('div', { class: 'wheel-ring' });
     const n = items.length;
+    const btns: HTMLElement[] = [];
     items.forEach((it, i) => {
       const a = -Math.PI / 2 + (i / n) * Math.PI * 2;
       const b = btn([img(it.icon, '#f6dea0'), it.label], () => {
@@ -294,6 +295,7 @@ const hooks: UIHooks = {
       }, 'wheel-btn' + (it.on ? ' on' : ''), i === 0 ? { 'data-autofocus': '' } : {});
       b.style.left = 50 + Math.cos(a) * 42 + '%';
       b.style.top = 50 + Math.sin(a) * 42 + '%';
+      btns.push(b);
       ring.appendChild(b);
     });
     ring.appendChild(h('div', { class: 'wheel-center' }, 'Command the Remnant', h('div', { class: 'muted', style: 'font-family:var(--font-body);letter-spacing:0;font-size:1.2em;margin-top:4px;text-transform:none' }, `${W.echoes.length} of ${s.echoes.length} present`)));
@@ -303,6 +305,22 @@ const hooks: UIHooks = {
     });
     uiRoot.appendChild(layer);
     wheelEl = layer;
+    // On a controller the stick points straight at a command (✕ picks it),
+    // the way radial menus work on consoles.
+    const stickMag = () => Math.hypot(input.axisX, input.axisY);
+    const aim = () => {
+      if (wheelEl !== layer) return;
+      if (input.lastDevice === 'gamepad' && stickMag() > 0.55) {
+        const ang = Math.atan2(input.axisY, input.axisX) + Math.PI / 2;
+        const i = ((Math.round((ang / (Math.PI * 2)) * n) % n) + n) % n;
+        if (document.activeElement !== btns[i]) {
+          btns[i].focus({ preventScroll: true });
+          sfx('ui', { vol: 0.5 });
+        }
+      }
+      requestAnimationFrame(aim);
+    };
+    requestAnimationFrame(aim);
     const close = () => {
       if (!wheelEl) return;
       popLayer(layer);
@@ -312,6 +330,8 @@ const hooks: UIHooks = {
     };
     pushLayer({ el: layer, onBack: close, onAction: (a) => {
       if (a === 'echo' || a === 'menu') { close(); return true; }
+      // The stick aims radially above; only the D-pad steps between buttons.
+      if ((a === 'left' || a === 'right' || a === 'up' || a === 'down') && stickMag() > 0.5) return true;
       return false;
     } });
   },

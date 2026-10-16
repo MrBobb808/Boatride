@@ -262,20 +262,43 @@ PlayStation, A B X Y and LB/RB on Xbox).
 
 | PlayStation | Xbox | Action |
 |---|---|---|
-| ✕ | A | Jump |
-| ○ | B | Dodge |
-| □ | X | Attack |
-| △ | Y | Heavy |
+| Left stick | Left stick | Move, and aim combos: ↑ + □ launches, ↓ + □ in the air plunges, ↓ + ✕ drops through a ledge |
+| ✕ | A | Jump (double jump after the Plume) |
+| ○ | B | Dodge / air dash; right after a hit, Phantom Step |
+| □ | X | Attack (hold to charge) |
+| △ | Y | Heavy (hold to charge; in the air, plunge) |
 | L1 | LB | Parry / block |
 | R1 / L2 / R2 | RB / LT / RT | Abilities |
-| L3 (left stick click) | L3 | Echo command wheel |
+| L3 (left stick click) | L3 | Echo command wheel (point the stick at a command, ✕ to pick) |
 | R3 (right stick click) | R3 | Rally the Remnant |
 | L3 + R3 together | L3 + R3 | Shadow Mantle (transform) |
-| ↑ + △ | ↑ + Y | Throw sub-weapon (or give it its own button) |
 | D-pad ↑ | D-pad ↑ | Interact |
 | D-pad ↓ | D-pad ↓ | Balm |
-| Create | View | Switch support Echo |
-| Options | Menu | Menu (the map is a tab inside it) |
+| D-pad ← | D-pad ← | Switch support Echo |
+| D-pad → | D-pad → | Throw sub-weapon (or stick ↑ + △) |
+| Touchpad or Create | View | Map |
+| Options | Menu | Menu |
+
+Combos on the controller, all also listed in **Menu → Skills → Techniques**
+with the buttons of whatever you are holding:
+
+| Combo | Input |
+|---|---|
+| Combo | □ □ □ |
+| Seventy Times Seven | □ □, pause, □ |
+| Storm of Edges | □ □ □ △ |
+| Phantom Step | land a hit, then ○ (again to blink around every foe) |
+| Judgment Cross | after 3 Phantom Steps, □ |
+| Rising Comet | ○ □ (dash strike), then □ |
+| Launcher → air combo → Heaven's Rend | stick ↑ + □, ✕, □ □ □, △ |
+| Plunge | in the air, stick ↓ + □ (or △) |
+| Charged Strike | hold △ |
+| Parry & Counter | L1 as a blow lands, then □ |
+| Execution | □ on a staggered foe |
+
+The stick has to point mostly up or down for a launcher or plunge, so
+attacking while running diagonally stays a normal combo. The D-pad does
+not move Elior; it holds quick actions, so using one never makes him step.
 
 - **Remapping:** move any action to any button in **Settings → Controller**.
   Select an action, then press the button you want. Two actions that share
