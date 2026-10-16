@@ -36,6 +36,8 @@ export interface Settings {
   rumble: boolean;
   /** The name put on the Trial leaderboard. */
   name: string;
+  /** How hard the bosses fight (game/difficulty.ts). */
+  bossDifficulty: 'normal' | 'hard' | 'merciless';
 }
 
 export const isTouchDevice = () =>
@@ -77,6 +79,7 @@ const DEFAULTS: Settings = {
   pad: {},
   rumble: true,
   name: 'Elior',
+  bossDifficulty: 'hard',
 };
 
 const KEY = 'remnant-settings-v1';

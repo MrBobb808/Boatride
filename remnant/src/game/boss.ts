@@ -2,6 +2,7 @@
 // kingdom. Three phases, readable telegraphs, a poise/stagger system with a
 // kneeling execution window, a cinematic awakening and a shattering death.
 
+import { bossScale } from './difficulty';
 import { Entity, type HitInfo } from './entity';
 import { solve, newJoints, BASE_POSE, type Joints, type Pose, type RigDims } from '../render/skeleton';
 import { glow, rgba, poly, circle, ellipse, limbShaded, limbStroke, rGrad, type Ctx } from '../render/draw';
@@ -57,7 +58,7 @@ export class Idol extends Entity {
     this.heavyBody = true;
     this.collide = true;
     const ng = 1 + (G.save?.ng ?? 0) * 0.6;
-    this.maxHp = this.hp = Math.round(2100 * ng);
+    this.maxHp = this.hp = Math.round(2100 * ng * bossScale().hp);
     this.face = 1;
     this.layer = 4;
     this.invuln = 999;
@@ -80,7 +81,7 @@ export class Idol extends Entity {
   }
 
   get dmg() {
-    return 22 * (1 + (G.save?.ng ?? 0) * 0.6) * (this.phase >= 3 ? 1.15 : 1);
+    return 22 * (1 + (G.save?.ng ?? 0) * 0.6) * (this.phase >= 3 ? 1.15 : 1) * bossScale().dmg;
   }
 
   // ---------------------------------------------------------------- lifecycle
@@ -91,6 +92,7 @@ export class Idol extends Entity {
   }
 
   update(dt: number) {
+    if (this.state === 'idle' || this.state === 'attack') dt *= bossScale().tempo;
     this.st += dt;
     this.staggerFlash = Math.max(0, this.staggerFlash - dt);
     this.flash = Math.max(0, this.flash - dt);

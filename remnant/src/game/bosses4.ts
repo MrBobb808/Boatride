@@ -149,6 +149,9 @@ const SP = {
   stompDown: { ...REST, lean: 0.14, head: 0.14, fUA: 0.3, bUA: 0.12, y: 4 },
   summon: { ...REST, lean: -0.16, head: -0.38, fUA: 2.6, fFA: 0.35, bUA: 2.45, bFA: 0.35 },
   stepA: { ...REST, lean: 0.08, fUA: -0.12, bUA: 0.4 },
+  // A pivot: the shoulders swing through (front arm back, far arm forward), the head leads.
+  turnA: { ...REST, lean: 0.1, head: -0.3, fUA: -0.75, fFA: 0.5, bUA: 0.95, bFA: 0.5, y: 3 },
+  turnB: { ...REST, lean: 0.06, head: 0.2, fUA: 0.75, fFA: 0.45, bUA: -0.5, bFA: 0.4, y: 2 },
   kneel: { ...REST, lean: 0.48, head: 0.5, fUA: 0.75, fFA: 0.25, bUA: 0.3, bFA: 0.55, y: 24 },
   dead: { ...REST, lean: 0.56, head: 0.7, fUA: 0.5, fFA: 0.45, bUA: 0.2, bFA: 0.5, y: 27 },
 };
@@ -203,6 +206,8 @@ export class GoldenImage extends BossBase {
   crHead = 0;
   feetFlash = 0;
   feetTold = false;
+  /** Seconds the player has spent at the feet (reset when they leave). */
+  feetT = 0;
   topY = 0;
   bellyX = 0;
   bellyY = 0;
@@ -382,6 +387,7 @@ export class GoldenImage extends BossBase {
     const dx = p.x - this.x;
     const dist = Math.abs(dx);
     this.summonCd -= dt;
+    this.feetT = dist < 80 ? this.feetT + dt : Math.max(0, this.feetT - dt * 2);
     if (this.phase >= 3) this.fireRain(dt, p.x);
     if (this.state === 'idle') {
       this.tgt = SP.rest;
@@ -414,6 +420,8 @@ export class GoldenImage extends BossBase {
   private choose(dist: number) {
     if (this.phase >= 2 && this.summonCd <= 0 && this.adds() < 2 && Math.random() < 0.5) return this.start('summon');
     let pool: IAtk[];
+    // Camping at the feet earns more stomps the longer it lasts.
+    if (dist < 85 && this.feetT > 2.5 && Math.random() < Math.min(0.75, this.feetT * 0.12)) return this.start('stomp');
     if (dist < 85) pool = ['stomp', 'stomp', 'sweep', 'slam'];
     else if (dist < 220) pool = ['slam', 'sweep', 'breath', 'gaze', 'slam', 'sweep'];
     else pool = ['gaze', 'slam', 'step', 'gaze', 'breath', 'step'];
@@ -439,7 +447,10 @@ export class GoldenImage extends BossBase {
     this.tickT = 0;
     this.hitSet.clear();
     if (a === 'step') this.beginStep();
-    if (a === 'stomp') this.placeMarkers(this.phase >= 2 ? 5 : 3);
+    if (a === 'stomp') {
+      this.placeMarkers(this.phase >= 2 ? 5 : 3);
+      this.feetT = 0;
+    }
     if (a === 'gaze') sfx('beamCharge', { pan: G.world.pan(this.x), vol: 0.7, pitch: 0.7 });
     if (a === 'breath') sfx('furnaceBlast', { pan: G.world.pan(this.x), vol: 0.35, pitch: 0.6 });
     if (a === 'summon') sfx('goldGong', { pan: G.world.pan(this.x), vol: 0.9 });
@@ -716,9 +727,10 @@ export class GoldenImage extends BossBase {
         // Pivot on the spot: the silhouette narrows, the face flips, a footfall.
         const D = 0.75 / sp;
         const u = clamp(t / D, 0, 1);
-        this.tgt = SP.stepA;
-        this.rate = 4;
-        this.turnSq = Math.max(0.2, Math.abs(Math.cos(u * Math.PI)));
+        this.tgt = u < 0.5 ? SP.turnA : SP.turnB;
+        this.rate = 7;
+        // The silhouette narrows only partly; the arms swinging through sell the turn.
+        this.turnSq = 0.5 + 0.5 * Math.abs(Math.cos(u * Math.PI));
         this.footL[0] = Math.sin(u * Math.PI) * 12;
         if (u >= 0.5 && this.step === 0) {
           this.step = 1;

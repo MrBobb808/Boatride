@@ -357,6 +357,13 @@ not move Elior; it holds quick actions, so using one never makes him step.
   vibration so far (Safari on a Mac and Chrome do); the game uses it as soon
   as the browser allows.
 
+### Boss difficulty
+
+**Settings → Challenge → Boss difficulty** sets how hard every boss fights.
+The default is **Hard**: bosses have about 30% more health, hit 25% harder
+and move 10% faster. **Normal** is the original balance, and **Merciless**
+goes further still. A change applies from the next boss room.
+
 ## Development
 
 ```sh

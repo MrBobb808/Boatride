@@ -30,7 +30,7 @@ function reedCamp() {
     { t: 'decor', k: 'dead_reeds', x: 33, y: 18 },
     { t: 'decor', k: 'dead_reeds', x: 43, y: 18, flip: true },
     { t: 'decor', k: 'dead_reeds', x: 9, y: 18 },
-    { t: 'decor', k: 'stranded_boat', x: 38, y: 18, w: 10 },
+    { t: 'decor', k: 'stranded_boat', x: 38.5, y: 20, w: 8 },
     { t: 'decor', k: 'mooring_post', x: 30, y: 18 },
     { t: 'decor', k: 'tent', x: 14, y: 18 },
     { t: 'decor', k: 'tent', x: 54, y: 18, flip: true },
