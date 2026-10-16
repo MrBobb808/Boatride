@@ -46,7 +46,7 @@ export function initUI() {
   G.ui = hooks;
 }
 
-function waitAdvance(el: HTMLElement, onAdvance: () => void) {
+function waitAdvance(el: HTMLElement, onAdvance: () => void): { off: () => void; go: () => void } {
   // One physical press can map to several actions (Space = jump + confirm); debounce.
   let last = 0;
   const go = () => {
@@ -64,7 +64,7 @@ function waitAdvance(el: HTMLElement, onAdvance: () => void) {
     e.preventDefault();
     go();
   });
-  return off;
+  return { off, go };
 }
 
 const hooks: UIHooks = {
@@ -170,12 +170,15 @@ const hooks: UIHooks = {
         show();
       };
       // A tap anywhere advances, not only on the box: the layer covers the screen anyway.
-      const off = waitAdvance(layer, () => {
+      const { off, go } = waitAdvance(layer, () => {
         if (lines[i]?.choices && !typing) return;
         advance();
       });
+      // Menu navigation consumes confirm before later listeners hear it, so
+      // the dialogue layer advances on confirm itself (Enter on a keyboard).
       pushLayer({ el: layer, onAction: (a) => {
         if (lines[i]?.choices && !typing) return false;
+        if (a === 'confirm') go();
         return a === 'confirm';
       } });
       show();

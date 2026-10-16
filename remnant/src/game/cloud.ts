@@ -109,7 +109,10 @@ export async function pushBest(entry: Record<string, string | number>) {
     const snap = await ref.get();
     const cur = snap.exists ? snap.data() : undefined;
     if (cur && Number(cur.rounds) > Number(entry.rounds)) return;
+    // Same order as the device board: rounds, then kills, then the faster time.
+    // An exact tie (the same run, renamed) is written so the new name shows.
     if (cur && Number(cur.rounds) === Number(entry.rounds) && Number(cur.kills) > Number(entry.kills)) return;
+    if (cur && Number(cur.rounds) === Number(entry.rounds) && Number(cur.kills) === Number(entry.kills) && Number(cur.time) < Number(entry.time)) return;
     await ref.set(entry);
   } catch { /* read-only viewer or no network */ }
 }

@@ -57,11 +57,13 @@ export class Rounds {
   private spawnT = 0;
   private boonsThisRound = 0;
   private foes: Enemy[] = [];
+  /** Foes standing, as of the last update (the HUD reads it every frame). */
+  private alive = 0;
   private ending = false;
 
   /** Foes still to beat this round (spawned or not). */
   get left() {
-    return this.total - this.spawned + this.foes.filter((f) => !f.dying && !f.remove).length;
+    return this.total - this.spawned + this.alive;
   }
 
   start(from = 1) {
@@ -74,7 +76,7 @@ export class Rounds {
     this.time = 0;
     this.level0 = G.save.level;
     this.wrathT = this.doubleT = 0;
-    this.total = this.spawned = 0;
+    this.total = this.spawned = this.alive = 0;
     this.pack = false;
     this.foes = [];
     this.breakT = 3.2;
@@ -97,22 +99,28 @@ export class Rounds {
     this.changeT += dt;
     this.wrathT = Math.max(0, this.wrathT - dt);
     this.doubleT = Math.max(0, this.doubleT - dt);
-    // Count the fallen.
-    for (const f of this.foes) {
+    // Count the fallen, drop the removed and count the living in one pass,
+    // in place: this runs every logic step, so it must not allocate.
+    let n = 0, alive = 0;
+    for (let i = 0; i < this.foes.length; i++) {
+      const f = this.foes[i];
       if (f.dying && !(f as Enemy & { _counted?: boolean })._counted) {
         (f as Enemy & { _counted?: boolean })._counted = true;
         this.kills++;
         this.maybeBoon(f);
       }
       if (this.wrathT > 0 && !f.dying) f.hp = Math.min(f.hp, 1);
+      if (f.remove) continue;
+      if (!f.dying) alive++;
+      this.foes[n++] = f;
     }
-    this.foes = this.foes.filter((f) => !f.remove);
+    this.foes.length = n;
+    this.alive = alive;
     if (this.breakT > 0) {
       this.breakT -= dt;
       if (this.breakT <= 0) this.beginRound();
       return;
     }
-    const alive = this.foes.filter((f) => !f.dying).length;
     if (this.spawned < this.total) {
       this.spawnT -= dt;
       if (this.spawnT <= 0 && alive < this.maxAlive()) {
