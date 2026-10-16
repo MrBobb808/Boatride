@@ -209,6 +209,7 @@ export class Chapter5 {
       await wait(2.6);
       G.camera.focus = { x: 54 * TILE, y: 13 * TILE };
       G.camera.viewMultTarget = 1.25;
+      music.play('writing', 0.8);
       WRITING.hand = true;
       WRITING.p = 0;
       const t0 = performance.now();
