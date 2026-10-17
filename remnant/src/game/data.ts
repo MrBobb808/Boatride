@@ -292,6 +292,19 @@ export const ECHO_SPECIES: Record<string, EchoSpecies> = {
       { name: 'Dawnmane', title: 'Stage III', desc: 'A mane of white-gold fire.', ability: 'Dawnmane: its pounce lands with a wave of light both ways.' },
     ],
   },
+  undying: {
+    id: 'undying',
+    cls: 'Vanguard',
+    baseHp: 280,
+    baseAtk: 32,
+    evolveLv: [6, 10],
+    evolveCost: [{ covenant_fragment: 3, radiant_core: 1 }, { covenant_fragment: 5, radiant_core: 2 }],
+    stages: [
+      { name: 'Captain of the Undying', title: 'Stage I', desc: 'The shape of how a captain of the fallen host fought, cleansed: black plate, a long spear, the stubs of wings.', ability: 'Spear Line: spear strings and a driving lunge.' },
+      { name: 'Captain of the Remnant', title: 'Stage II', desc: 'Gold runs along its plate where the pale host-light used to burn.', ability: 'Long Reach: its lunge carries farther and strikes harder.' },
+      { name: 'Unbowed', title: 'Stage III', desc: 'Its spear burns with white fire, and it does not kneel.', ability: 'Unbowed: its spear string ends in a wave of light.' },
+    ],
+  },
   sentinel: {
     id: 'sentinel',
     cls: 'Sentinel',

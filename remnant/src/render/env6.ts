@@ -39,6 +39,8 @@ const STORM_SEED = 739;
  * room load) records which variant the room wants.
  */
 let skyVariant: 'dawn' | 'dusk' | 'day' | 'storm' = 'day';
+/** The room is the hall of columns: its ceiling tiles get cedar beams. */
+let hall = false;
 
 // ---------------------------------------------------------------- skies
 
@@ -101,7 +103,7 @@ export function drawSkyCh6(ctx: Ctx, biome: Ch6Biome, pal: BiomePal, w: number, 
     for (let i = 0; i < 30; i++) {
       const y = hash2(i, 61) * h * 0.3;
       ctx.globalAlpha = (0.2 + 0.4 * hash2(i, 63)) * (1 - y / (h * 0.3));
-      ctx.fillRect(hash2(i, 65) * w, y, 1.4 * k, 1.4 * k);
+      ctx.fillRect(hash2(i, 65) * w, y, Math.max(1, 1.4 * k), Math.max(1, 1.4 * k));
     }
     ctx.globalAlpha = 1;
     for (let i = 0; i < 4; i++) {
@@ -151,7 +153,7 @@ function lightning(ctx: Ctx, w: number, h: number, t: number, k: number) {
   ctx.fillRect(0, 0, w, h);
   let x = w * (0.2 + hash2(n, 1, 71) * 0.7), y = 0;
   ctx.strokeStyle = '#e8eeff';
-  ctx.lineWidth = 2.4 * k;
+  ctx.lineWidth = Math.max(1.5, 2.4 * k);
   ctx.beginPath();
   ctx.moveTo(x, y);
   for (let i = 0; i < 10; i++) {
@@ -187,7 +189,7 @@ function heavenSky(ctx: Ctx, w: number, h: number, t: number, k: number) {
   for (let i = 0; i < 40; i++) {
     const life = (t * 0.05 + hash2(i, 81)) % 1;
     ctx.globalAlpha = Math.sin(life * Math.PI) * 0.7;
-    ctx.fillRect(hash2(i, 83) * w, h * (0.9 - life * 0.8), 1.6 * k, 1.6 * k);
+    ctx.fillRect(hash2(i, 83) * w, h * (0.9 - life * 0.8), Math.max(1, 1.6 * k), Math.max(1, 1.6 * k));
   }
   ctx.globalAlpha = 1;
   ctx.globalCompositeOperation = 'source-over';
@@ -226,8 +228,8 @@ function citadelSil(ctx: Ctx, x0: number, x1: number, base: number, k: number, c
   for (let c = 0; c <= 8; c++) ctx.fillRect(ax - aw / 2 + (aw * c) / 8 - 1.2 * k, ay - 40 * k, 2.4 * k, 40 * k);
   ctx.fillRect(ax - aw / 2 - 8 * k, ay - 46 * k, aw + 16 * k, 7 * k);
   ctx.fillStyle = rim;
-  ctx.fillRect(ax - aw / 2 - 8 * k, ay - 46 * k, aw + 16 * k, 0.8);
-  ctx.fillRect(x0 + 30 * k, wy - 16 * k, x1 - x0 - 60 * k, 0.8);
+  ctx.fillRect(ax - aw / 2 - 8 * k, ay - 46 * k, aw + 16 * k, 1);
+  ctx.fillRect(x0 + 30 * k, wy - 16 * k, x1 - x0 - 60 * k, 1);
 }
 
 /** A floating island of bright stone with a broken column or arch on it. */
@@ -262,6 +264,7 @@ function floatIsle(ctx: Ctx, cx: number, cy: number, s: number, col: string, rim
 // ---------------------------------------------------------------- parallax
 
 export function buildParallaxCh6(biome: Ch6Biome, pal: BiomePal, seed: number, interior: boolean, viewH: number, res: number): Layer[] {
+  hall = biome === 'shushan' && interior;
   skyVariant = biome === 'hiddekel' ? (seed === DUSK_SEED ? 'dusk' : 'dawn') : seed === STORM_SEED ? 'storm' : 'day';
   const layers: Layer[] = [];
   const W = 1024;
@@ -303,7 +306,7 @@ export function buildParallaxCh6(biome: Ch6Biome, pal: BiomePal, seed: number, i
       ctx.fillStyle = mix(pal.mid, dusk ? '#c86a4a' : '#d8a080', 0.35);
       ctx.fillRect(0, water - 1, w, h - water);
       ctx.fillStyle = rgba(dusk ? '#ffb07a' : '#ffe0c0', 0.5);
-      for (let i = 0; i < 70; i++) ctx.fillRect(fr.range(0, w), water + fr.range(2, h - water - 4), fr.range(8, 40), 0.8);
+      for (let i = 0; i < 70; i++) ctx.fillRect(fr.range(0, w), water + fr.range(2, h - water - 4), fr.range(8, 40), 1);
       fillRidge(ctx, w, water, (x) => bank, col);
       let x = fr.range(0, 40);
       while (x < w - 20) {
@@ -457,3 +460,1162 @@ export function buildParallaxCh6(biome: Ch6Biome, pal: BiomePal, seed: number, i
   }
   return layers;
 }
+
+// ---------------------------------------------------------------- tiles
+// Pixel art draws one world unit per art pixel, so tile detail keeps to whole units.
+
+function box(ctx: Ctx, c: string, x: number, y: number, w: number, h: number) {
+  ctx.fillStyle = c;
+  ctx.fillRect(x, y, w, h);
+}
+
+/** Solid tiles: river loam under grass, Susa's limestone with glazed bands, white-gold marble that frays into light. */
+export function drawSolidCh6(ctx: Ctx, biome: Ch6Biome, pal: BiomePal, tx: number, ty: number, t: T, depth: number, v: number, solid: (a: number, b: number) => boolean) {
+  const x = tx * TILE, y = ty * TILE;
+  const up = solid(tx, ty - 1), dn = solid(tx, ty + 1), lf = solid(tx - 1, ty), rt = solid(tx + 1, ty);
+  let base = t === T.Brick ? shade(pal.stone, -0.08) : pal.stone;
+  if (t === T.Seal) base = '#7a5a28';
+  if (t === T.Wood) base = pal.plat;
+  const dark = mix(base, pal.stoneDark, Math.min(1, depth / 3 + 0.1));
+  ctx.fillStyle = mix(dark, '#000000', v * 0.1);
+  ctx.fillRect(x, y, TILE, TILE);
+  if (biome === 'hiddekel') loamTile(ctx, pal, x, y, tx, ty, depth, v, up);
+  else if (biome === 'shushan') susaTile(ctx, pal, x, y, tx, ty, depth, up, dn);
+  else marbleTile(ctx, x, y, tx, ty, depth, up, dn);
+  if (!dn && biome !== 'highplaces') box(ctx, 'rgba(0,0,0,0.38)', x, y + TILE - 2, TILE, 2);
+  if (!lf) box(ctx, biome === 'highplaces' ? 'rgba(255,244,214,0.35)' : 'rgba(255,214,170,0.14)', x, y, 1, TILE);
+  if (!rt) box(ctx, 'rgba(0,0,0,0.3)', x + TILE - 2, y, 2, TILE);
+}
+
+function loamTile(ctx: Ctx, pal: BiomePal, x: number, y: number, tx: number, ty: number, depth: number, v: number, up: boolean) {
+  if (depth <= 1) {
+    // silt laid in bands by the floods, a pebble or a root in it
+    const b0 = 4 + Math.floor(hash2(tx, ty, 601) * 3), b1 = 10 + Math.floor(hash2(tx, ty, 602) * 3);
+    box(ctx, 'rgba(16,10,6,0.3)', x, y + b0, TILE, 1);
+    box(ctx, 'rgba(16,10,6,0.3)', x, y + b1, TILE, 1);
+    box(ctx, 'rgba(220,190,150,0.08)', x, y + b0 + 1, TILE, 1);
+    const k = hash2(tx, ty, 603);
+    if (k < 0.12) box(ctx, shade(pal.stone, 0.25), x + 2 + Math.floor(hash2(tx, ty, 604) * 10), y + b0 + 2, 3, 2);
+    else if (k < 0.2 && !up) {
+      box(ctx, '#2a1c10', x + 5, y + 4, 1, 5);
+      box(ctx, '#2a1c10', x + 6, y + 8, 3, 1);
+    }
+  }
+  if (!up) {
+    box(ctx, 'rgba(10,6,2,0.4)', x, y + 3, TILE, 2);
+    box(ctx, pal.cap, x, y, TILE, 4);
+    // a ragged lower edge to the turf
+    ctx.fillStyle = pal.cap;
+    for (let i = 0; i < 4; i++) if (hash2(tx, i, 605) < 0.5) ctx.fillRect(x + i * 4 + 1, y + 4, 2, 1);
+    box(ctx, skyVariant === 'dusk' ? 'rgba(255,170,120,0.3)' : 'rgba(255,214,170,0.3)', x, y, TILE, 1);
+    ctx.fillStyle = pal.capTuft;
+    for (let i = 0; i < 4; i++) {
+      const gx = x + Math.floor(hash2(tx, i, 606) * 15), gh = 1 + Math.floor(hash2(tx, i, 607) * 3 + v);
+      ctx.fillRect(gx, y - gh, 1, gh);
+    }
+    if (hash2(tx, ty, 608) < 0.12) box(ctx, hash2(tx, ty, 609) < 0.5 ? '#e8d890' : '#f0e8e0', x + 3 + Math.floor(hash2(tx, ty, 610) * 10), y - 2, 1, 1);
+  }
+}
+
+function susaTile(ctx: Ctx, pal: BiomePal, x: number, y: number, tx: number, ty: number, depth: number, up: boolean, dn: boolean) {
+  if (depth <= 1) {
+    if (ty % 5 === 2 && up && !hall) {
+      // a course of glazed brick: turquoise between gold, white studs
+      box(ctx, TURQ, x, y + 4, TILE, 8);
+      box(ctx, GOLD, x, y + 4, TILE, 1);
+      box(ctx, GOLD, x, y + 11, TILE, 1);
+      box(ctx, TURQ_HI, x, y + 5, TILE, 1);
+      box(ctx, '#e8e0c8', x + ((tx & 1) ? 3 : 11), y + 7, 2, 2);
+      box(ctx, LAPIS, x + ((tx & 1) ? 11 : 3), y + 7, 2, 2);
+    } else {
+      // limestone ashlar, half-bond
+      const off = ty & 1 ? 8 : 0;
+      box(ctx, 'rgba(20,12,6,0.35)', x, y, TILE, 1);
+      box(ctx, 'rgba(20,12,6,0.35)', x + off, y, 1, TILE);
+      box(ctx, 'rgba(20,12,6,0.25)', x, y + 8, TILE, 1);
+      box(ctx, 'rgba(255,236,200,0.1)', x, y + 1, TILE, 1);
+      box(ctx, 'rgba(255,236,200,0.1)', x + off + 1, y + 1, 1, TILE - 1);
+    }
+  }
+  if (!up) {
+    if (hall) {
+      // the polished floor of the hall, its lamps in it
+      box(ctx, '#4a3424', x, y, TILE, 5);
+      box(ctx, '#7a5a40', x, y, TILE, 3);
+      box(ctx, 'rgba(255,200,130,0.35)', x, y, TILE, 1);
+      box(ctx, 'rgba(255,190,110,0.18)', x + ((tx * 5) % 11), y + 1, 4, 1);
+      box(ctx, 'rgba(0,0,0,0.35)', x + (tx & 1 ? 0 : 15), y, 1, 5);
+    } else {
+      // the paving of the royal road and the citadel
+      box(ctx, shade(pal.cap, -0.35), x, y, TILE, 5);
+      box(ctx, pal.cap, x, y, TILE, 4);
+      box(ctx, 'rgba(255,248,224,0.45)', x, y, TILE, 1);
+      box(ctx, 'rgba(40,28,16,0.5)', x + (tx % 3 === 0 ? 5 : 12), y, 1, 4);
+      if (hash2(tx, ty, 611) < 0.18) box(ctx, 'rgba(60,40,20,0.3)', x + 2 + Math.floor(hash2(tx, ty, 612) * 10), y + 2, 3, 1);
+    }
+  }
+  if (!dn && hall) {
+    // cedar beams under the roof, gold-studded
+    box(ctx, '#2a160a', x, y + TILE - 6, TILE, 6);
+    box(ctx, '#5a3418', x, y + TILE - 6, TILE, 4);
+    box(ctx, 'rgba(255,190,120,0.25)', x, y + TILE - 2, TILE, 1);
+    if ((tx & 1) === 0) box(ctx, GOLD, x + 7, y + TILE - 5, 2, 2);
+  }
+}
+
+function marbleTile(ctx: Ctx, x: number, y: number, tx: number, ty: number, depth: number, up: boolean, dn: boolean) {
+  if (depth <= 1) {
+    box(ctx, 'rgba(255,250,236,0.22)', x, y, TILE, TILE);
+    // veins of gold-grey running through the stone
+    const k = hash2(tx, ty, 621);
+    if (k < 0.45) {
+      ctx.fillStyle = k < 0.15 ? 'rgba(200,150,60,0.4)' : 'rgba(110,100,90,0.3)';
+      let vx = x + Math.floor(hash2(tx, ty, 622) * 12);
+      for (let i = 0; i < 16; i += 2) {
+        ctx.fillRect(vx, y + i, 1, 2);
+        vx += hash2(tx, ty * 16 + i, 623) < 0.5 ? 1 : -1;
+        if (vx < x) vx = x;
+        if (vx > x + 15) vx = x + 15;
+      }
+    }
+  }
+  if (!up) {
+    box(ctx, '#f6f0e2', x, y, TILE, 4);
+    box(ctx, GOLD, x, y + 4, TILE, 1);
+    box(ctx, '#ffffff', x, y, TILE, 1);
+    box(ctx, 'rgba(90,70,40,0.3)', x, y + 5, TILE, 1);
+  }
+  if (!dn) {
+    // the underside does not end; it frays into light
+    ctx.globalCompositeOperation = 'lighter';
+    box(ctx, 'rgba(255,230,170,0.25)', x, y + TILE - 4, TILE, 4);
+    for (let r = 0; r < 6; r++) {
+      const keep = 1 - r / 6;
+      ctx.fillStyle = r < 2 ? 'rgba(255,240,200,0.5)' : 'rgba(255,226,160,0.35)';
+      for (let c = 0; c < 8; c++) if (hash2(tx * 8 + c, ty * 6 + r, 624) < keep) ctx.fillRect(x + c * 2, y + TILE + r * 2, 2, 2);
+    }
+    ctx.globalCompositeOperation = 'source-over';
+  }
+}
+
+/** One-way platforms: palm logs lashed with rope, cedar beams with glazed ends, slabs of marble floating on light. */
+export function drawOneWayCh6(ctx: Ctx, biome: Ch6Biome, pal: BiomePal, tx: number, ty: number, l: boolean, r: boolean) {
+  const x = tx * TILE, y = ty * TILE;
+  if (biome === 'hiddekel') {
+    box(ctx, '#2a1c10', x, y, TILE, 6);
+    box(ctx, '#6a4a2a', x, y, TILE, 4);
+    box(ctx, '#9a7448', x, y, TILE, 1);
+    box(ctx, 'rgba(20,12,6,0.5)', x, y + 2, TILE, 1);
+    if ((tx & 1) === 0) {
+      box(ctx, '#b89a64', x + 7, y - 1, 2, 7);
+      box(ctx, '#6a5434', x + 7, y + 3, 2, 1);
+    }
+    if (l || r) {
+      const px = l ? x + 2 : x + TILE - 5;
+      box(ctx, '#3a2614', px, y + 4, 3, 10);
+      box(ctx, '#5a4024', px, y + 4, 1, 10);
+      // the log end, its rings
+      box(ctx, '#8a6a40', l ? x : x + TILE - 2, y, 2, 5);
+    }
+    return;
+  }
+  if (biome === 'shushan') {
+    box(ctx, '#22120a', x, y, TILE, 7);
+    box(ctx, '#6a3e1e', x, y, TILE, 5);
+    box(ctx, 'rgba(255,200,140,0.35)', x, y, TILE, 1);
+    box(ctx, 'rgba(30,14,6,0.45)', x, y + 3, TILE, 1);
+    if (tx % 3 === 0) {
+      box(ctx, GOLD, x + 6, y + 1, 2, 2);
+      box(ctx, GOLD_HI, x + 6, y + 1, 1, 1);
+    }
+    if (l || r) {
+      // a glazed end-tile, turquoise in gold
+      const ex = l ? x : x + TILE - 6;
+      box(ctx, GOLD_DK, ex, y - 1, 6, 9);
+      box(ctx, TURQ, ex + 1, y, 4, 7);
+      box(ctx, TURQ_HI, ex + 1, y, 4, 1);
+      box(ctx, '#e8e0c8', ex + 2, y + 3, 2, 2);
+    }
+    return;
+  }
+  box(ctx, '#8a7c66', x, y, TILE, 6);
+  box(ctx, '#f2ecdc', x, y, TILE, 4);
+  box(ctx, '#ffffff', x, y, TILE, 1);
+  box(ctx, GOLD, x, y + 4, TILE, 1);
+  ctx.globalCompositeOperation = 'lighter';
+  blob(ctx, '#ffe0a0', x + 8, y + 9, 12, 5, 0.3);
+  if (l || r) {
+    // the slab's broken end, crumbs of it floating loose
+    const ex = l ? x : x + TILE - 2;
+    box(ctx, 'rgba(255,236,190,0.5)', ex, y + 6, 2, 2);
+    box(ctx, 'rgba(255,236,190,0.35)', l ? x - 3 : x + TILE + 1, y + 2, 2, 2);
+    box(ctx, 'rgba(255,236,190,0.25)', l ? x - 5 : x + TILE + 3, y + 8, 1, 1);
+  }
+  ctx.globalCompositeOperation = 'source-over';
+}
+
+let abyssSpr: HTMLCanvasElement | null = null;
+/** A fade from nothing to gold-white, 16 × 48, drawn over the abyss rows. */
+function abyss() {
+  if (abyssSpr) return abyssSpr;
+  const m = makeCanvas(16, 48);
+  const g = m.ctx.createLinearGradient(0, 0, 0, 48);
+  g.addColorStop(0, 'rgba(255,236,190,0)');
+  g.addColorStop(0.45, 'rgba(255,232,180,0.35)');
+  g.addColorStop(1, 'rgba(255,248,226,0.95)');
+  m.ctx.fillStyle = g;
+  m.ctx.fillRect(0, 0, 16, 48);
+  abyssSpr = m.c;
+  return abyssSpr;
+}
+
+/** The high places have no floor: the spike rows are a drop into light, far clouds glowing below. */
+export function drawSpikesCh6(ctx: Ctx, biome: Ch6Biome, tx: number, ty: number, top: boolean): boolean {
+  if (biome !== 'highplaces') return false;
+  const x = tx * TILE, y = ty * TILE;
+  if (top) {
+    ctx.drawImage(abyss(), x, y - 16, TILE, 48);
+    // cloud tops far below, small for the distance
+    ctx.fillStyle = 'rgba(255,250,236,0.55)';
+    const c0 = Math.floor(hash2(tx, 0, 631) * 10);
+    ctx.fillRect(x + c0, y + 9, 6, 2);
+    ctx.fillRect(x + c0 + 1, y + 8, 4, 1);
+    if (hash2(tx, 1, 631) < 0.5) ctx.fillRect(x + ((c0 + 9) % 14), y + 12, 4, 1);
+    ctx.globalCompositeOperation = 'lighter';
+    blob(ctx, '#ffe6b0', x + 8, y + 12, 18, 8, 0.35);
+    ctx.globalCompositeOperation = 'source-over';
+  } else {
+    box(ctx, 'rgba(255,248,226,0.95)', x, y, TILE, TILE);
+  }
+  return true;
+}
+
+// ---------------------------------------------------------------- liquids
+
+/** The great river at first light (or the marsh pools at dusk): slow water with the sky in it and mist on it. */
+export function drawLiquidCh6(ctx: Ctx, biome: Biome, tt: T, x: number, y: number, top: boolean, tx: number, t: number): boolean {
+  if (biome !== 'hiddekel' || tt !== T.Water) return false;
+  const dusk = skyVariant === 'dusk';
+  const wy = top ? 5 : 0;
+  ctx.fillStyle = dusk ? 'rgba(52,30,44,0.92)' : 'rgba(36,50,70,0.9)';
+  ctx.fillRect(x, y + wy, TILE, TILE - wy);
+  if (!top) return true;
+  ctx.fillStyle = dusk ? 'rgba(232,148,106,0.85)' : 'rgba(244,204,170,0.85)';
+  ctx.fillRect(x, y + wy, TILE, 1);
+  ctx.fillStyle = dusk ? 'rgba(200,100,90,0.3)' : 'rgba(200,170,190,0.3)';
+  ctx.fillRect(x, y + wy + 2, TILE, 1);
+  // light lying on the water in short strokes, drifting downstream
+  const g = (t * 5 + hash2(tx, 0, 641) * 16) % 16;
+  ctx.fillStyle = dusk ? 'rgba(255,190,130,0.7)' : 'rgba(255,236,210,0.7)';
+  ctx.fillRect(x + Math.floor(g), y + wy + 3, 3, 1);
+  if (hash2(tx, 1, 641) < 0.5) ctx.fillRect(x + Math.floor((g + 7) % 14), y + wy + 6, 2, 1);
+  if (tier() > 0) {
+    ctx.globalCompositeOperation = 'lighter';
+    blob(ctx, dusk ? '#c08080' : '#d8d0d8', x + 8 + Math.sin(t * 0.3 + tx * 0.7) * 6, y + wy - 2, 16, 4, 0.12);
+    ctx.globalCompositeOperation = 'source-over';
+  }
+  return true;
+}
+
+// ---------------------------------------------------------------- props: by the river
+
+type PropFn = (ctx: Ctx, e: Decor, pal: BiomePal, rng: RNG) => void;
+
+const MUD = '#3a2c1e';
+const REED = ['#4a5a2e', '#5e6e36', '#7a8644'] as const;
+const PLUME = '#8a6a3e';
+
+/** A clump of reeds, 1-unit stalks, a plume on some; feet on y. */
+function reedClump(ctx: Ctx, x: number, y: number, n: number, hgt: number, rng: RNG) {
+  for (let i = 0; i < n; i++) {
+    const sx = Math.round(x + (i - n / 2) * 2 + rng.range(-1, 1)), sh = Math.round(hgt * rng.range(0.55, 1));
+    const lean = rng.int(-2, 2);
+    ctx.fillStyle = REED[i % 3];
+    ctx.fillRect(sx, y - sh * 0.5, 1, sh * 0.5);
+    ctx.fillRect(sx + (lean > 0 ? 1 : lean < 0 ? -1 : 0), y - sh, 1, sh * 0.5);
+    if (rng.chance(0.4)) box(ctx, PLUME, sx + (lean > 0 ? 1 : lean < 0 ? -2 : 0) - 0.5, y - sh - 4, 2, 5);
+  }
+}
+
+const riverBank: PropFn = (ctx, e, pal, rng) => {
+  // The far bank across the channel: mud and reeds above the waterline, a reed skiff tied up.
+  const W = (e.w ?? 24) * TILE, hw = W / 2;
+  const dusk = skyVariant === 'dusk';
+  ctx.fillStyle = MUD;
+  ctx.beginPath();
+  ctx.moveTo(-hw, 24);
+  for (let x = -hw; x <= hw; x += 8) ctx.lineTo(x, 8 + Math.round(Math.sin(x * 0.05) * 2 + hash2(Math.floor(x), 0, 651) * 2));
+  ctx.lineTo(hw, 24);
+  ctx.fill();
+  // wet mud at the waterline, the turf on top lit by the low sun
+  box(ctx, '#2a2018', -hw, 17, W, 6);
+  box(ctx, 'rgba(255,200,160,0.15)', -hw, 17, W, 1);
+  ctx.fillStyle = shade(pal.cap, -0.25);
+  for (let x = -hw; x < hw; x += 8) ctx.fillRect(x, 7 + Math.round(Math.sin(x * 0.05) * 2 + hash2(Math.floor(x), 0, 651) * 2), 8, 2);
+  ctx.fillStyle = dusk ? 'rgba(255,150,110,0.35)' : 'rgba(255,214,170,0.35)';
+  for (let x = -hw; x < hw; x += 8) ctx.fillRect(x, 7 + Math.round(Math.sin(x * 0.05) * 2 + hash2(Math.floor(x), 0, 651) * 2), 8, 1);
+  for (let x = -hw + 10; x < hw - 6; x += rng.range(18, 34)) reedClump(ctx, x, 10, rng.int(4, 8), rng.range(12, 24), rng);
+  for (let i = 0; i < 5; i++) ellipse(ctx, rng.range(-hw + 10, hw - 10), 16, rng.range(2, 4), 1.5, 0, '#5a4c3a');
+  // the skiff: a bundle of reeds bound into a crescent, tied to a stake
+  const bx = hw * 0.35;
+  box(ctx, '#3a2614', bx + 30, 2, 2, 18);
+  box(ctx, '#5a4024', bx + 30, 2, 1, 18);
+  ctx.beginPath();
+  ctx.moveTo(bx - 22, 13);
+  ctx.quadraticCurveTo(bx - 18, 21, bx, 21);
+  ctx.quadraticCurveTo(bx + 18, 21, bx + 22, 13);
+  ctx.lineTo(bx + 18, 17);
+  ctx.quadraticCurveTo(bx, 19, bx - 18, 17);
+  ctx.closePath();
+  solidify(ctx, '#a08a52', OUT, 0.5);
+  ctx.fillStyle = '#6a5a34';
+  for (let i = -14; i <= 14; i += 6) ctx.fillRect(bx + i, 17, 1, 3);
+  box(ctx, '#c8b07a', bx - 16, 17, 32, 1);
+  ctx.strokeStyle = '#c8b07a';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(bx + 21, 14);
+  ctx.quadraticCurveTo(bx + 26, 12, bx + 30, 6);
+  ctx.stroke();
+};
+
+const prayerMat: PropFn = (ctx) => {
+  // Where Hanan has knelt three full weeks: a worn red mat, a water jar, a cold lamp, a scroll.
+  ctx.beginPath();
+  ctx.moveTo(-15, 0);
+  ctx.lineTo(-12, -3);
+  ctx.lineTo(15, -3);
+  ctx.lineTo(13, 0);
+  ctx.closePath();
+  solidify(ctx, '#7a2420', OUT, 0.5);
+  box(ctx, GOLD_DK, -12, -3, 27, 1);
+  box(ctx, '#a83a2a', -10, -2, 22, 1);
+  box(ctx, GOLD, -2, -2, 3, 1);
+  ctx.fillStyle = '#e0d4b4';
+  for (let i = -15; i <= -13; i += 2) ctx.fillRect(i, -1, 1, 1);
+  for (let i = 13; i <= 15; i += 2) ctx.fillRect(i, -1, 1, 1);
+  jar(ctx, -21, 0, 3, 9, '#8a5a34', '#c8a070');
+  // the lamp, cold
+  ctx.beginPath();
+  ctx.ellipse(19, -1.5, 4, 1.8, 0, 0, TAU);
+  ctx.moveTo(23, -2);
+  ctx.lineTo(25, -3);
+  ctx.lineTo(23, -1);
+  solidify(ctx, '#6a4a30', OUT, 0.5);
+  box(ctx, '#2a1a10', 24, -4, 1, 1);
+  // the scroll, half unrolled
+  box(ctx, OUT, 4, -6, 8, 3);
+  box(ctx, '#e8dcb8', 5, -5, 6, 1);
+  box(ctx, '#c8b890', 4, -6, 2, 3);
+};
+
+const marshHeron: PropFn = (ctx) => {
+  // A grey heron standing in the marsh, quite still, watching the water.
+  const GREY = '#8a929c', DARK = '#2e323c', PALE = '#dce0e4', LEG = '#8a7a50';
+  box(ctx, LEG, -2, -15, 1, 15);
+  box(ctx, LEG, 1, -15, 1, 8);
+  box(ctx, LEG, 2, -7, 1, 7);
+  box(ctx, LEG, -4, 0, 4, 1);
+  box(ctx, LEG, 1, 0, 4, 1);
+  ctx.beginPath();
+  ctx.ellipse(-2, -19, 8, 4.5, -0.3, 0, TAU);
+  ctx.moveTo(-8, -15);
+  ctx.lineTo(-12, -12);
+  ctx.lineTo(-6, -16);
+  solidify(ctx, GREY, OUT, 0.5);
+  // the folded wing, darker at its tips
+  ctx.fillStyle = DARK;
+  ctx.beginPath();
+  ctx.moveTo(-9, -15);
+  ctx.lineTo(-3, -20);
+  ctx.lineTo(2, -19);
+  ctx.lineTo(-4, -16);
+  ctx.closePath();
+  ctx.fill();
+  box(ctx, '#b8bec6', -6, -22, 8, 1);
+  // the long neck in its S, white at the front
+  ctx.lineCap = 'round';
+  ctx.strokeStyle = OUT;
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.moveTo(4, -21);
+  ctx.quadraticCurveTo(8, -24, 4, -28);
+  ctx.quadraticCurveTo(2, -31, 7, -33);
+  ctx.stroke();
+  ctx.strokeStyle = PALE;
+  ctx.lineWidth = 2.2;
+  ctx.stroke();
+  box(ctx, DARK, 6, -27, 1, 1);
+  box(ctx, DARK, 5, -25, 1, 1);
+  ctx.beginPath();
+  ctx.ellipse(8, -33.5, 3, 2.2, 0, 0, TAU);
+  solidify(ctx, PALE, OUT, 0.5);
+  // the dagger bill, the black crest streaming back
+  ctx.fillStyle = '#d8a83a';
+  ctx.beginPath();
+  ctx.moveTo(10, -34.5);
+  ctx.lineTo(19, -33);
+  ctx.lineTo(10, -32.5);
+  ctx.closePath();
+  ctx.fill();
+  box(ctx, DARK, 4, -35, 5, 1);
+  box(ctx, DARK, 1, -34, 4, 1);
+  box(ctx, '#ffe060', 9, -34, 1, 1);
+  ctx.lineCap = 'butt';
+};
+
+const stoneMarker: PropFn = (ctx, e, pal, rng) => {
+  // A boundary stone at the edge of Elam, its carving worn shallow.
+  ctx.save();
+  ctx.rotate(-0.05);
+  ctx.beginPath();
+  ctx.moveTo(-7, 0);
+  ctx.lineTo(-7, -20);
+  ctx.quadraticCurveTo(-7, -28, 0, -28);
+  ctx.quadraticCurveTo(7, -28, 7, -20);
+  ctx.lineTo(7, 0);
+  ctx.closePath();
+  solidify(ctx, '#8a8270', OUT, 0.5);
+  box(ctx, 'rgba(255,240,210,0.25)', -6, -24, 2, 23);
+  box(ctx, 'rgba(0,0,0,0.25)', 4, -24, 2, 24);
+  ctx.fillStyle = '#4a4436';
+  ctx.fillRect(-6, -18, 12, 1);
+  ctx.fillRect(-6, -9, 12, 1);
+  // rows of wedge-marks between the bands
+  for (let r = 0; r < 3; r++) for (let c = 0; c < 4; c++) if (rng.chance(0.8)) ctx.fillRect(-5 + c * 3, -16 + r * 2, 2, 1);
+  for (let r = 0; r < 3; r++) for (let c = 0; c < 4; c++) if (rng.chance(0.7)) ctx.fillRect(-5 + c * 3, -7 + r * 2, 1, 1);
+  // a crack, and moss at the foot
+  box(ctx, '#2a261e', 2, -27, 1, 4);
+  box(ctx, '#2a261e', 3, -24, 1, 3);
+  ctx.restore();
+  ctx.fillStyle = '#4a5a2a';
+  ctx.fillRect(-9, -2, 6, 2);
+  ctx.fillRect(3, -1, 7, 1);
+  box(ctx, pal.capTuft, -8, -3, 2, 1);
+};
+
+// ---------------------------------------------------------------- props: the royal road
+
+const LIME = '#c8b894';
+const LIME_LIT = '#e8dcb8';
+const LIME_DK = '#7a6c50';
+
+const royalMilestone: PropFn = (ctx, e, pal, rng) => {
+  // A marker of the King's road, a station's distance cut into it.
+  ctx.beginPath();
+  ctx.rect(-9, -5, 18, 5);
+  ctx.rect(-6, -29, 12, 24);
+  ctx.rect(-8, -33, 16, 4);
+  ctx.rect(-6, -36, 12, 3);
+  solidify(ctx, LIME, OUT, 0.5);
+  box(ctx, LIME_LIT, -6, -29, 2, 24);
+  box(ctx, LIME_DK, 4, -29, 2, 24);
+  box(ctx, LIME_LIT, -8, -33, 16, 1);
+  box(ctx, LIME_DK, -9, -1, 18, 1);
+  merlons(ctx, -6, 6, -36, 5, LIME);
+  // the inscription panel
+  box(ctx, LIME_DK, -3, -26, 6, 15);
+  ctx.fillStyle = '#4a3e2a';
+  for (let r = 0; r < 6; r++) for (let c = 0; c < 2; c++) if (rng.chance(0.85)) ctx.fillRect(-2 + c * 3, -25 + r * 2 + (c & 1), 2, 1);
+  box(ctx, TURQ, -6, -31, 12, 1);
+  // a fallen piece of the cap at its foot
+  ctx.beginPath();
+  ctx.rect(10, -3, 5, 3);
+  solidify(ctx, LIME_DK, OUT, 0.5);
+};
+
+const MUDBRICK = ['#a8845a', '#9a784e', '#b48e62', '#a07c52'] as const;
+
+const waystation: PropFn = (ctx, e, pal, rng) => {
+  // A post-house of the King's road: mud brick, a gate arch, a shade of reed mats, a lookout.
+  const W = (e.w ?? 14) * TILE, hw = W / 2, H = 60;
+  ctx.beginPath();
+  ctx.rect(-hw + 30, -H, W - 60, H);
+  ctx.rect(hw - 52, -H - 26, 34, 26);
+  solidify(ctx, MUDBRICK[0], OUT, 0.5);
+  brickField(ctx, -hw + 30, -H, hw - 30, 0, 12, 6, MUDBRICK, 657, 'rgba(50,30,14,0.4)', 1);
+  brickField(ctx, hw - 52, -H - 26, hw - 18, -H, 12, 6, MUDBRICK, 659, 'rgba(50,30,14,0.4)', 1);
+  merlons(ctx, -hw + 30, hw - 30, -H, 8, MUDBRICK[1]);
+  merlons(ctx, hw - 52, hw - 18, -H - 26, 7, MUDBRICK[1]);
+  box(ctx, 'rgba(255,230,190,0.3)', -hw + 30, -H, W - 60, 1);
+  box(ctx, 'rgba(0,0,0,0.22)', -hw + 30, -12, W - 60, 12);
+  // the lookout's window, a lamp in it
+  box(ctx, '#1a0e08', hw - 40, -H - 18, 8, 10);
+  box(ctx, '#ffb850', hw - 37, -H - 13, 2, 3);
+  // the gate arch with a glazed band
+  ctx.beginPath();
+  ctx.moveTo(-18, 0);
+  ctx.lineTo(-18, -30);
+  ctx.arc(0, -30, 18, Math.PI, 0);
+  ctx.lineTo(18, 0);
+  ctx.closePath();
+  ctx.fillStyle = TURQ;
+  ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(-14, 0);
+  ctx.lineTo(-14, -30);
+  ctx.arc(0, -30, 14, Math.PI, 0);
+  ctx.lineTo(14, 0);
+  ctx.closePath();
+  ctx.fillStyle = '#140a06';
+  ctx.fill();
+  ctx.globalCompositeOperation = 'lighter';
+  blob(ctx, '#ff9a3a', 0, -6, 14, 10, 0.4);
+  ctx.globalCompositeOperation = 'source-over';
+  box(ctx, GOLD, -18, -31, 4, 1);
+  box(ctx, GOLD, 14, -31, 4, 1);
+  box(ctx, TURQ_HI, -18, -29, 1, 29);
+  // slit windows
+  for (const wx of [-hw + 44, -40, 40]) box(ctx, '#1a0e08', wx, -H + 14, 3, 12);
+  // the shade: posts, a beam, a sloping roof of reed mats
+  const sx0 = -hw + 2, sx1 = -hw + 64;
+  ctx.beginPath();
+  ctx.rect(sx0 + 2, -34, 3, 34);
+  ctx.rect(sx1 - 30, -34, 3, 34);
+  ctx.moveTo(sx0 - 4, -32);
+  ctx.lineTo(sx1, -40);
+  ctx.lineTo(sx1, -35);
+  ctx.lineTo(sx0 - 4, -28);
+  ctx.closePath();
+  solidify(ctx, '#6a4a2a', OUT, 0.5);
+  ctx.fillStyle = '#a89058';
+  for (let x = sx0; x < sx1; x += 4) ctx.fillRect(x, -32 - ((x - sx0) / (sx1 - sx0 + 4)) * 8, 2, 3);
+  // under it: a stone trough, jars and fodder
+  ctx.beginPath();
+  ctx.rect(sx0 + 8, -8, 22, 8);
+  solidify(ctx, '#8a7a62', OUT, 0.5);
+  box(ctx, '#3a5a6a', sx0 + 9, -8, 20, 2);
+  box(ctx, '#8ac0d0', sx0 + 10, -8, 6, 1);
+  jar(ctx, sx0 + 38, 0, 4, 12, '#9a6a40', '#c8a060');
+  jar(ctx, sx0 + 46, 0, 3, 9, '#8a5a34', null);
+  ctx.beginPath();
+  ctx.rect(hw - 30, -10, 18, 10);
+  ctx.rect(hw - 26, -16, 12, 6);
+  solidify(ctx, '#c8a85a', OUT, 0.5);
+  ctx.fillStyle = '#8a6a30';
+  for (let i = 0; i < 4; i++) ctx.fillRect(hw - 28 + i * 4, -9 + (i & 1), 3, 1);
+  box(ctx, '#8a6a30', hw - 25, -14, 10, 1);
+};
+
+/** A camel standing, facing +x, feet on y; s = 1 is about 44 units long. */
+function camel(ctx: Ctx, x: number, s: number, rng: RNG, rug: string) {
+  const C = '#a8845a', DK = '#6a4c2e';
+  ctx.save();
+  ctx.translate(x, 0);
+  ctx.scale(s, s);
+  ctx.beginPath();
+  taper(ctx, -14, -26, 5, -15, 0, 3);
+  taper(ctx, -9, -26, 5, -8, 0, 3);
+  taper(ctx, 10, -26, 5, 11, 0, 3);
+  taper(ctx, 15, -26, 5, 16, 0, 3);
+  ctx.moveTo(18, -28);
+  ctx.ellipse(0, -29, 18, 8, 0, 0, TAU);
+  ctx.moveTo(10, -36);
+  ctx.ellipse(0, -36, 10, 7, 0, 0, TAU);
+  taper(ctx, 14, -30, 8, 24, -28, 6);
+  taper(ctx, 24, -28, 6, 27, -42, 5);
+  ctx.moveTo(35, -43);
+  ctx.ellipse(30, -43, 5.5, 3.2, 0.15, 0, TAU);
+  solidify(ctx, C, OUT, 0.5);
+  // knees, the far legs darker, a fringe on the neck
+  box(ctx, DK, -15, -13, 4, 2);
+  box(ctx, DK, 10, -13, 4, 2);
+  box(ctx, DK, -9, -24, 2, 22);
+  box(ctx, DK, 15, -24, 2, 22);
+  box(ctx, '#c8a474', -14, -36, 20, 1);
+  box(ctx, OUT, 31, -45, 1, 1);
+  box(ctx, DK, 34, -41, 2, 1);
+  box(ctx, DK, 27, -47, 2, 2);
+  // the load: a rug thrown over, two bales roped on
+  ctx.beginPath();
+  ctx.rect(-10, -38, 20, 12);
+  solidify(ctx, rug, OUT, 0.5);
+  box(ctx, GOLD, -10, -31, 20, 1);
+  box(ctx, '#e8dcb8', -10, -35, 20, 1);
+  ctx.beginPath();
+  ctx.rect(-16, -42, 12, 9);
+  ctx.rect(4, -42, 12, 9);
+  solidify(ctx, '#c8b48a', OUT, 0.5);
+  box(ctx, '#6a5434', -11, -42, 1, 9);
+  box(ctx, '#6a5434', 9, -42, 1, 9);
+  if (rng.chance(0.6)) jar(ctx, 0, -42, 3, 7, '#9a6a40', null);
+  // the tail
+  box(ctx, DK, -19, -30, 1, 9);
+  ctx.restore();
+}
+
+const caravan: PropFn = (ctx, e, pal, rng) => {
+  // A string of camels resting on the King's road, roped head to tail, their loads still on.
+  const W = (e.w ?? 10) * TILE;
+  camel(ctx, -W * 0.28, 1, rng, '#7a2a2a');
+  camel(ctx, W * 0.2, 0.95, rng, '#2a3a6a');
+  ctx.strokeStyle = '#c8b07a';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(-W * 0.28 + 33, -42);
+  ctx.quadraticCurveTo(-W * 0.05, -26, W * 0.2 - 18, -28);
+  ctx.stroke();
+  // goods set down between them
+  ctx.beginPath();
+  ctx.rect(-8, -8, 14, 8);
+  solidify(ctx, '#8a6a40', OUT, 0.5);
+  box(ctx, '#c8a060', -8, -5, 14, 1);
+  jar(ctx, 12, 0, 4, 12, '#9a6a40', '#c8a060');
+  ctx.beginPath();
+  ctx.rect(W * 0.2 + 30, -6, 12, 6);
+  solidify(ctx, '#3a4a7a', OUT, 0.5);
+  box(ctx, GOLD, W * 0.2 + 30, -4, 12, 1);
+};
+
+const foreignShrine: PropFn = (ctx, e, pal, rng) => {
+  // A roadside shrine to some god of the land: a faceless figure in a sooted niche, old offerings.
+  ctx.beginPath();
+  ctx.rect(-18, -4, 36, 4);
+  ctx.rect(-14, -8, 28, 4);
+  ctx.rect(-11, -40, 22, 32);
+  ctx.rect(-13, -44, 26, 4);
+  solidify(ctx, '#9a8a6a', OUT, 0.5);
+  box(ctx, '#c8b890', -14, -8, 28, 1);
+  box(ctx, '#c8b890', -13, -44, 26, 1);
+  merlons(ctx, -11, 11, -44, 6, '#9a8a6a');
+  box(ctx, 'rgba(0,0,0,0.25)', 7, -40, 4, 32);
+  // the niche, blackened with old smoke
+  box(ctx, '#1a140e', -7, -34, 14, 22);
+  box(ctx, 'rgba(20,14,8,0.6)', -6, -42, 12, 8);
+  // the figure, its face worn away
+  ctx.beginPath();
+  ctx.moveTo(-3, -12);
+  ctx.lineTo(-2, -24);
+  ctx.lineTo(2, -24);
+  ctx.lineTo(3, -12);
+  ctx.closePath();
+  ctx.moveTo(2.5, -26);
+  ctx.arc(0, -26, 2.5, 0, TAU);
+  ctx.moveTo(-2, -28);
+  ctx.lineTo(0, -32);
+  ctx.lineTo(2, -28);
+  solidify(ctx, '#5a5040', OUT, 0.5);
+  // bowls and a burnt-out censer on the step, rags tied to a stake
+  ellipse(ctx, -10, -9, 3, 1.4, 0, '#7a5a3a');
+  ellipse(ctx, 10, -9, 3, 1.4, 0, '#6a4a30');
+  box(ctx, '#3a2a1a', 9, -11, 2, 2);
+  box(ctx, '#4a3a28', 20, -24, 2, 24);
+  box(ctx, '#8a3a2a', 22, -22, 4, 2);
+  box(ctx, '#c8b48a', 22, -18, 3, 2);
+  box(ctx, '#3a4a6a', 22, -14, 4, 1);
+  if (rng.chance(0.5)) box(ctx, '#e8dcb8', 21, -10, 3, 1);
+};
+
+// ---------------------------------------------------------------- props: Shushan the palace
+
+const WALL_BRICK = ['#b89a6a', '#a88a5a', '#c4a676', '#ae9262'] as const;
+const ARCHER_ROBE = ['#e8d8a8', '#c89a3a', '#e4e6dc'] as const;
+const ARCHER_DOT = ['#7a5a2a', '#5a3a14', '#3a5a7a'] as const;
+
+/** One of the Immortals in glazed relief, spear upright, bow on the shoulder; feet on y, facing +x. */
+function archer(ctx: Ctx, x: number, y: number, dir: number, v: number) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.scale(dir, 1);
+  // the spear, taller than the man, its silver head and gold counterweight
+  box(ctx, '#3a2410', 6, -37, 1, 37);
+  ctx.fillStyle = '#e0e0d8';
+  ctx.beginPath();
+  ctx.moveTo(5, -37);
+  ctx.lineTo(6.5, -42);
+  ctx.lineTo(8, -37);
+  ctx.fill();
+  box(ctx, GOLD, 5, -2, 3, 2);
+  // quiver and bow on the back
+  box(ctx, OUT, -8, -27, 5, 16);
+  box(ctx, GOLD, -7, -26, 3, 14);
+  box(ctx, GOLD_HI, -7, -26, 1, 14);
+  ctx.strokeStyle = '#5a3a1a';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.arc(-3, -21, 9, Math.PI * 0.62, Math.PI * 1.45);
+  ctx.stroke();
+  // the robe
+  ctx.beginPath();
+  ctx.moveTo(-4, -24);
+  ctx.lineTo(4, -24);
+  ctx.lineTo(5, -2);
+  ctx.lineTo(-6, -2);
+  ctx.closePath();
+  ctx.moveTo(4.5, -28);
+  ctx.arc(1, -28, 3.5, 0, TAU);
+  solidify(ctx, ARCHER_ROBE[v], OUT, 0.5);
+  ctx.fillStyle = ARCHER_DOT[v];
+  for (let r = 0; r < 5; r++) for (let c = 0; c < 3; c++) ctx.fillRect(-3 + c * 3 + (r & 1), -21 + r * 4, 1, 1);
+  box(ctx, ARCHER_DOT[v], -5, -5, 10, 1);
+  // the face, dark; beard, hair and the twisted headband
+  box(ctx, '#4a2e1a', -1, -31, 5, 6);
+  box(ctx, '#101828', 1, -27, 3, 4);
+  box(ctx, '#101828', -3, -31, 3, 6);
+  box(ctx, TURQ_HI, -2, -31, 6, 1);
+  box(ctx, '#f0e8d8', 3, -29, 1, 1);
+  // the forearm forward, gripping the spear; the shoes
+  box(ctx, '#4a2e1a', 1, -19, 5, 2);
+  box(ctx, '#c8a040', -4, -2, 4, 2);
+  box(ctx, '#c8a040', 1, -2, 4, 2);
+  ctx.restore();
+}
+
+const shushanWall: PropFn = (ctx, e) => {
+  // The palace wall of Shushan in glazed brick: the archers of the King's guard in procession
+  // toward the gate, rosettes over them, towers and stepped battlements against the sky.
+  const W = (e.w ?? 60) * TILE, H = (e.h ?? 16) * TILE, hw = W / 2;
+  const GW = 46, GT = -150;
+  const [vx0, , vx1] = localView(ctx);
+  ctx.fillStyle = WALL_BRICK[1];
+  ctx.fillRect(-hw, -H, W, H);
+  // towers at the ends and either side of the gate stand a little higher
+  const towers = [-hw, -hw + 220, -GW - 50, GW, hw - 268, hw - 48];
+  for (const tx of towers) ctx.fillRect(tx, -H - 30, 48, 30);
+  brickField(ctx, -hw, -H, hw, 0, 16, 8, WALL_BRICK, 671, 'rgba(60,40,20,0.45)', 1);
+  for (const tx of towers) {
+    brickField(ctx, tx, -H - 30, tx + 48, -H, 16, 8, WALL_BRICK, 673, 'rgba(60,40,20,0.45)', 1);
+    merlons(ctx, tx, tx + 48, -H - 30, 10, WALL_BRICK[3]);
+    box(ctx, 'rgba(255,240,210,0.25)', tx, -H - 30, 2, H + 30);
+    box(ctx, 'rgba(0,0,0,0.2)', tx + 46, -H - 30, 2, H + 30);
+    box(ctx, TURQ, tx, -H - 16, 48, 4);
+    box(ctx, GOLD, tx, -H - 16, 48, 1);
+  }
+  merlons(ctx, -hw, hw, -H, 12, WALL_BRICK[3]);
+  box(ctx, 'rgba(255,240,210,0.3)', -hw, -H, W, 1);
+  // the frieze of archers on a blue ground, rosettes above and below
+  const fy = -H + 70, fh = 48;
+  for (let side = 0; side < 2; side++) {
+    const x0 = side ? GW + 14 : -hw + 6, x1 = side ? hw - 6 : -GW - 14;
+    if (x1 < vx0 - 20 || x0 > vx1 + 20) continue;
+    box(ctx, GOLD_DK, x0 - 2, fy - 2, x1 - x0 + 4, fh + 4);
+    box(ctx, LAPIS, x0, fy, x1 - x0, fh);
+    box(ctx, '#2a5294', x0, fy, x1 - x0, 1);
+    rosetteBandCh6(ctx, x0, x1, fy - 14, 12, vx0, vx1);
+    rosetteBandCh6(ctx, x0, x1, fy + fh + 2, 10, vx0, vx1);
+    let i = 0;
+    for (let ax = x0 + 12; ax < x1 - 6; ax += 22, i++) {
+      if (ax < vx0 - 30 || ax > vx1 + 30) continue;
+      archer(ctx, ax, fy + fh - 3, side ? -1 : 1, i % 3);
+    }
+  }
+  // turquoise glazed courses lower down
+  box(ctx, TURQ, -hw, -44, W, 6);
+  box(ctx, GOLD, -hw, -44, W, 1);
+  box(ctx, TURQ_HI, -hw, -43, W, 1);
+  // the shade at the foot of the wall
+  box(ctx, 'rgba(0,0,0,0.25)', -hw, -14, W, 14);
+  // the gate: a glazed arch moulding round a deep passage, bronze leaves folded back
+  ctx.beginPath();
+  ctx.moveTo(-GW - 10, 0);
+  ctx.lineTo(-GW - 10, GT);
+  ctx.arc(0, GT, GW + 10, Math.PI, 0);
+  ctx.lineTo(GW + 10, 0);
+  ctx.closePath();
+  ctx.fillStyle = GOLD_DK;
+  ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(-GW - 7, 0);
+  ctx.lineTo(-GW - 7, GT);
+  ctx.arc(0, GT, GW + 7, Math.PI, 0);
+  ctx.lineTo(GW + 7, 0);
+  ctx.closePath();
+  ctx.fillStyle = TURQ;
+  ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(-GW, 0);
+  ctx.lineTo(-GW, GT);
+  ctx.arc(0, GT, GW, Math.PI, 0);
+  ctx.lineTo(GW, 0);
+  ctx.closePath();
+  ctx.fillStyle = '#120c0a';
+  ctx.fill();
+  ctx.fillStyle = '#e8e0c8';
+  for (let a = 0; a <= 12; a++) {
+    const ang = Math.PI + (a / 12) * Math.PI;
+    ctx.fillRect(Math.round(Math.cos(ang) * (GW + 4)) - 1, Math.round(GT + Math.sin(ang) * (GW + 4)) - 1, 2, 2);
+  }
+  // light at the far end of the passage: the courtyard beyond
+  ctx.globalCompositeOperation = 'lighter';
+  blob(ctx, '#ffb060', 0, -20, GW * 0.9, 40, 0.35);
+  ctx.globalCompositeOperation = 'source-over';
+  box(ctx, '#2a1a10', -GW * 0.5, -60, GW, 60);
+  box(ctx, 'rgba(255,190,110,0.35)', -GW * 0.5, -60, GW, 60);
+  for (const s of [-1, 1]) {
+    const lx = s < 0 ? -GW : GW - 12;
+    ctx.beginPath();
+    ctx.rect(lx, GT + 10, 12, -GT - 10);
+    solidify(ctx, '#6a4a22', OUT, 0.5);
+    box(ctx, s < 0 ? '#9a7a3a' : '#4a3214', lx + (s < 0 ? 0 : 10), GT + 10, 2, -GT - 10);
+    ctx.fillStyle = GOLD;
+    for (let y = GT + 18; y < -6; y += 14) {
+      ctx.fillRect(lx + 3, y, 2, 2);
+      ctx.fillRect(lx + 7, y, 2, 2);
+    }
+  }
+};
+
+/** A band of white-and-gold rosettes on dark blue, clipped to the view. */
+function rosetteBandCh6(ctx: Ctx, x0: number, x1: number, y: number, hgt: number, vx0: number, vx1: number) {
+  box(ctx, '#0e2246', x0, y, x1 - x0, hgt);
+  box(ctx, GOLD, x0, y, x1 - x0, 1);
+  box(ctx, GOLD, x0, y + hgt - 1, x1 - x0, 1);
+  const r = hgt * 0.36, step = hgt * 1.2;
+  for (let x = x0 + step / 2; x < x1; x += step) if (x > vx0 - 8 && x < vx1 + 8) rosette(ctx, Math.round(x), y + hgt / 2, r);
+}
+
+const LAMASSU = '#c8b48a', LAMASSU_DK = '#6a5a3e', LAMASSU_LIT = '#ece0c0';
+
+const wingedBull: PropFn = (ctx) => {
+  // A guardian bull of the gate: a bull's body striding on its plinth, great wings swept up behind,
+  // a bearded man's head under a tall horned crown. Carved stone, not a god.
+  ctx.beginPath();
+  ctx.rect(-48, -10, 96, 10);
+  solidify(ctx, '#8a7a5c', OUT, 0.5);
+  box(ctx, LAMASSU_LIT, -48, -10, 96, 1);
+  box(ctx, 'rgba(0,0,0,0.3)', -48, -3, 96, 3);
+  // the wing, behind the body, feathers in rows sweeping up and back
+  ctx.beginPath();
+  ctx.moveTo(18, -60);
+  ctx.quadraticCurveTo(-6, -88, -44, -104);
+  ctx.lineTo(-48, -96);
+  ctx.quadraticCurveTo(-40, -66, -26, -50);
+  ctx.closePath();
+  solidify(ctx, LAMASSU, OUT, 0.5);
+  ctx.fillStyle = LAMASSU_DK;
+  for (let r = 0; r < 6; r++) {
+    const u = r / 6;
+    ctx.fillRect(Math.round(-42 + u * 22), Math.round(-98 + u * 40), Math.round(30 + u * 22), 1);
+  }
+  for (let i = 0; i < 6; i++) ctx.fillRect(-44 + i * 4, -97 + i * 3, 1, 34 - i * 3);
+  box(ctx, LAMASSU_LIT, -44, -104, 6, 2);
+  // the body and five legs
+  ctx.beginPath();
+  ctx.ellipse(-4, -46, 34, 16, 0, 0, TAU);
+  ctx.moveTo(38, -50);
+  ctx.ellipse(26, -50, 12, 18, 0, 0, TAU);
+  ctx.rect(-36, -46, 9, 36);
+  ctx.rect(-22, -40, 8, 30);
+  ctx.rect(18, -42, 9, 32);
+  ctx.rect(30, -42, 9, 32);
+  ctx.rect(26, -40, 8, 30);
+  solidify(ctx, LAMASSU, OUT, 0.5);
+  // hooves, the belly's shade, curls of hair along flank and chest
+  ctx.fillStyle = LAMASSU_DK;
+  for (const lx of [-36, -22, 18, 30]) ctx.fillRect(lx, -14, 9, 4);
+  box(ctx, 'rgba(60,44,24,0.35)', -34, -36, 60, 6);
+  for (let r = 0; r < 3; r++) for (let c = 0; c < 5; c++) ctx.fillRect(-30 + c * 8 + (r & 1) * 4, -58 + r * 5, 2, 2);
+  for (let r = 0; r < 4; r++) ctx.fillRect(30 + (r & 1) * 3, -60 + r * 6, 3, 2);
+  box(ctx, LAMASSU_LIT, -30, -61, 50, 1);
+  // the tail, ending in a tuft
+  box(ctx, LAMASSU_DK, -40, -48, 2, 26);
+  box(ctx, LAMASSU_DK, -42, -24, 5, 5);
+  // the head: beard in tiers of curls, the face, the crown with its horns
+  ctx.beginPath();
+  ctx.rect(26, -82, 14, 16);
+  ctx.rect(24, -68, 16, 16);
+  ctx.rect(26, -98, 14, 16);
+  solidify(ctx, LAMASSU, OUT, 0.5);
+  ctx.fillStyle = LAMASSU_DK;
+  for (let r = 0; r < 4; r++) for (let c = 0; c < 4; c++) ctx.fillRect(25 + c * 4, -66 + r * 4, 2, 2);
+  box(ctx, LAMASSU_LIT, 38, -80, 3, 12);
+  box(ctx, OUT, 36, -76, 2, 1);
+  box(ctx, LAMASSU_DK, 39, -72, 2, 1);
+  box(ctx, LAMASSU_DK, 26, -96, 14, 1);
+  box(ctx, LAMASSU_DK, 26, -90, 14, 1);
+  box(ctx, LAMASSU_DK, 26, -86, 14, 1);
+  box(ctx, LAMASSU_LIT, 26, -98, 14, 1);
+  // the horns wrapped round the crown's foot
+  box(ctx, LAMASSU_DK, 24, -84, 18, 2);
+  box(ctx, LAMASSU_DK, 40, -88, 3, 4);
+  // the shade side
+  box(ctx, 'rgba(0,0,0,0.18)', -38, -60, 6, 50);
+};
+
+const persianBanner: PropFn = (ctx, e) => {
+  // The standard's rod and finials; the cloth is drawn live. Near a ceiling it hangs on cords,
+  // in the open it stands on a pole that runs down out of sight behind the ground.
+  const hang = e.y <= 3;
+  if (hang) {
+    box(ctx, '#3a2a18', -7, 0, 1, 8);
+    box(ctx, '#3a2a18', 6, 0, 1, 8);
+  } else {
+    ctx.beginPath();
+    ctx.rect(-1, -14, 3, 30 * TILE);
+    solidify(ctx, '#4a3018', OUT, 0.5);
+    box(ctx, '#7a5430', -1, -14, 1, 30 * TILE);
+    circle(ctx, 0.5, -16, 3, GOLD);
+    box(ctx, GOLD_HI, -1, -18, 2, 1);
+  }
+  const cy = hang ? 8 : 0;
+  ctx.beginPath();
+  ctx.rect(-12, cy - 2, 25, 3);
+  solidify(ctx, GOLD_DK, OUT, 0.5);
+  box(ctx, GOLD, -12, cy - 2, 25, 1);
+  circle(ctx, -13, cy - 0.5, 2, GOLD);
+  circle(ctx, 14, cy - 0.5, 2, GOLD);
+};
+
+const COL = '#a89470', COL_LIT = '#d0bc94', COL_DK = '#5a4a34';
+
+/** A double-bull capital: two kneeling bulls back to back, a beam seat between their necks. */
+function bullCapital(ctx: Ctx, y: number) {
+  ctx.beginPath();
+  ctx.rect(-26, y, 52, 12);
+  for (const s of [-1, 1]) {
+    ctx.moveTo(s * 34 + 7, y + 4);
+    ctx.ellipse(s * 34, y + 4, 9, 7, 0, 0, TAU);
+    ctx.rect(s > 0 ? 34 : -40, y + 8, 6, 12);
+    ctx.rect(s > 0 ? 24 : -30, y + 10, 6, 10);
+  }
+  solidify(ctx, COL, OUT, 0.5);
+  ctx.fillStyle = COL_DK;
+  for (const s of [-1, 1]) {
+    // horn, ear, eye, the folded forelegs
+    ctx.fillRect(s > 0 ? 34 : -40, y - 6, 6, 3);
+    ctx.fillRect(s > 0 ? 38 : -41, y - 9, 3, 4);
+    ctx.fillRect(s > 0 ? 37 : -39, y + 1, 2, 2);
+    ctx.fillRect(s > 0 ? 26 : -32, y + 18, 16, 2);
+    for (let r = 0; r < 3; r++) ctx.fillRect(s > 0 ? 18 + r * 3 : -21 - r * 3, y + 2 + r * 3, 2, 2);
+  }
+  box(ctx, COL_LIT, -26, y, 52, 1);
+  box(ctx, COL_DK, -26, y + 11, 52, 1);
+  // the saddle where the roof beam rests
+  box(ctx, '#4a2a14', -10, y - 4, 20, 4);
+}
+
+const bullColumn: PropFn = (ctx, e) => {
+  // A column of the Apadana: bell base, fluted shaft, scrolls, then the double bull holding the roof.
+  const H = (e.h ?? 24) * TILE;
+  ctx.beginPath();
+  ctx.moveTo(-18, 0);
+  ctx.quadraticCurveTo(-16, -12, -11, -16);
+  ctx.lineTo(11, -16);
+  ctx.quadraticCurveTo(16, -12, 18, 0);
+  ctx.closePath();
+  ctx.rect(-13, -20, 26, 4);
+  ctx.rect(-9, -H + 52, 18, H - 72);
+  ctx.rect(-13, -H + 34, 26, 18);
+  solidify(ctx, COL, OUT, 0.5);
+  // the bell's petals
+  ctx.fillStyle = COL_DK;
+  for (let i = -14; i <= 14; i += 4) ctx.fillRect(i, -10, 1, 9);
+  box(ctx, COL_LIT, -13, -20, 26, 1);
+  // flutes
+  ctx.fillStyle = COL_DK;
+  for (let x = -7; x <= 7; x += 3) ctx.fillRect(x, -H + 54, 1, H - 76);
+  box(ctx, COL_LIT, -9, -H + 52, 2, H - 72);
+  box(ctx, 'rgba(0,0,0,0.25)', 6, -H + 52, 3, H - 72);
+  // the scrolls: paired volutes stacked under the bulls
+  for (const s of [-1, 1]) {
+    ctx.strokeStyle = COL_DK;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(s * 10, -H + 42, 4, 0, TAU);
+    ctx.stroke();
+  }
+  box(ctx, COL_DK, -13, -H + 34, 26, 1);
+  box(ctx, GOLD, -13, -H + 51, 26, 1);
+  bullCapital(ctx, -H + 14);
+};
+
+const tributeRelief: PropFn = (ctx, e, pal, rng) => {
+  // The peoples of the empire bringing gifts: bearers with vessels and bowls, led animals,
+  // each delegation parted from the next by a cypress, all in pale relief.
+  const W = (e.w ?? 80) * TILE, H = (e.h ?? 6) * TILE, hw = W / 2;
+  const [vx0, , vx1] = localView(ctx);
+  const x0 = Math.max(-hw, vx0 - 40), x1 = Math.min(hw, vx1 + 40);
+  if (x0 >= x1) return;
+  box(ctx, OUT, x0, -H - 1, x1 - x0, H + 2);
+  box(ctx, '#8a7656', x0, -H, x1 - x0, H);
+  box(ctx, '#a8946c', x0, -H, x1 - x0, 10);
+  box(ctx, '#a8946c', x0, -10, x1 - x0, 10);
+  box(ctx, COL_DK, x0, -H + 10, x1 - x0, 1);
+  box(ctx, COL_DK, x0, -11, x1 - x0, 1);
+  for (let x = Math.ceil((x0 + hw) / 12) * 12 - hw; x < x1; x += 12) {
+    circle(ctx, x + 6, -H + 5, 3, '#c8b48a');
+    circle(ctx, x + 6, -5, 3, '#c8b48a');
+    box(ctx, GOLD_DK, x + 5, -H + 4, 2, 2);
+    box(ctx, GOLD_DK, x + 5, -6, 2, 2);
+  }
+  // the procession, in 30-unit steps across the band
+  const base = -12;
+  const s0 = Math.floor((x0 + hw) / 30) - 1, s1 = Math.ceil((x1 + hw) / 30) + 1;
+  for (let s = Math.max(0, s0); s <= s1; s++) {
+    const x = -hw + 15 + s * 30;
+    if (x > hw - 10) break;
+    const kind = s % 6;
+    if (kind === 0) reliefCypress(ctx, x, base, H - 24);
+    else if (kind === 4) reliefAnimal(ctx, x, base, s % 12 === 4 ? 0 : 1);
+    else reliefBearer(ctx, x, base, kind, s);
+  }
+};
+
+const RELIEF = '#c0aa82', RELIEF_DK = '#4a3a24', RELIEF_LIT = '#e0cca4';
+
+function reliefCypress(ctx: Ctx, x: number, y: number, h: number) {
+  ctx.beginPath();
+  ctx.moveTo(x, y - h);
+  ctx.quadraticCurveTo(x + 7, y - h * 0.5, x + 4, y - 4);
+  ctx.lineTo(x - 4, y - 4);
+  ctx.quadraticCurveTo(x - 7, y - h * 0.5, x, y - h);
+  ctx.rect(x - 1, y - 4, 2, 4);
+  solidify(ctx, RELIEF, RELIEF_DK, 0.5);
+  ctx.fillStyle = RELIEF_DK;
+  for (let yy = y - h + 8; yy < y - 6; yy += 5) ctx.fillRect(x - 3, yy, 6, 1);
+}
+
+/** A tribute-bearer walking right; kind picks the gift and the hat. */
+function reliefBearer(ctx: Ctx, x: number, y: number, kind: number, s: number) {
+  ctx.beginPath();
+  ctx.moveTo(x - 5, y - 30);
+  ctx.lineTo(x + 4, y - 30);
+  ctx.lineTo(x + 7, y - 2);
+  ctx.lineTo(x - 7, y - 2);
+  ctx.closePath();
+  ctx.moveTo(x + 3.5, y - 34);
+  ctx.arc(x, y - 34, 3.5, 0, TAU);
+  ctx.rect(x - 5, y - 2, 4, 2);
+  ctx.rect(x + 1, y - 2, 5, 2);
+  solidify(ctx, RELIEF, RELIEF_DK, 0.5);
+  box(ctx, RELIEF_LIT, x - 5, y - 29, 1, 26);
+  box(ctx, RELIEF_DK, x + 2, y - 33, 2, 4);
+  // hats: felt cap, hood, or a tall tiara
+  if (s % 3 === 0) box(ctx, RELIEF_DK, x - 4, y - 39, 7, 2);
+  else if (s % 3 === 1) {
+    box(ctx, RELIEF, x - 4, y - 41, 6, 4);
+    box(ctx, RELIEF_DK, x - 4, y - 37, 7, 1);
+  } else box(ctx, RELIEF_DK, x - 4, y - 38, 1, 6);
+  // the gift held out before him
+  if (kind === 1) {
+    jar(ctx, x + 9, y - 18, 4, 11, RELIEF, null);
+    box(ctx, RELIEF, x + 2, y - 22, 6, 2);
+  } else if (kind === 2) {
+    box(ctx, RELIEF, x + 2, y - 22, 7, 2);
+    ellipse(ctx, x + 10, y - 24, 5, 2, 0, RELIEF_LIT);
+    box(ctx, RELIEF_DK, x + 5, y - 23, 10, 1);
+    ellipse(ctx, x + 10, y - 26, 3, 1.5, 0, RELIEF_LIT);
+  } else {
+    // a folded garment over the arms
+    ctx.beginPath();
+    ctx.rect(x + 2, y - 24, 10, 6);
+    solidify(ctx, RELIEF_LIT, RELIEF_DK, 0.5);
+    box(ctx, RELIEF_DK, x + 2, y - 21, 10, 1);
+  }
+}
+
+/** A led animal: a ram with a curled horn, or a humped bull. */
+function reliefAnimal(ctx: Ctx, x: number, y: number, kind: number) {
+  ctx.beginPath();
+  ctx.ellipse(x, y - 14, 11, 6, 0, 0, TAU);
+  ctx.rect(x - 9, y - 12, 3, 12);
+  ctx.rect(x - 4, y - 12, 3, 12);
+  ctx.rect(x + 4, y - 12, 3, 12);
+  ctx.rect(x + 8, y - 12, 3, 12);
+  ctx.moveTo(x + 18, y - 20);
+  ctx.ellipse(x + 14, y - 20, 4.5, 3.5, 0.3, 0, TAU);
+  if (kind === 1) {
+    ctx.moveTo(x + 4, y - 20);
+    ctx.ellipse(x - 1, y - 20, 5, 4, 0, 0, TAU);
+  }
+  solidify(ctx, RELIEF, RELIEF_DK, 0.5);
+  if (kind === 0) {
+    ctx.strokeStyle = RELIEF_DK;
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.arc(x + 12, y - 21, 3, Math.PI * 0.9, Math.PI * 2.4);
+    ctx.stroke();
+    ctx.fillStyle = RELIEF_DK;
+    for (let i = -8; i <= 6; i += 3) ctx.fillRect(x + i, y - 17 + ((i / 3) & 1), 2, 1);
+  } else box(ctx, RELIEF_DK, x + 12, y - 25, 4, 1);
+  box(ctx, RELIEF_LIT, x - 8, y - 20, 14, 1);
+}
+
+const STORM_BRICK = ['#3a3a48', '#34343f', '#42424f', '#2e2e38'] as const;
+
+const zigguratSummit: PropFn = (ctx, e) => {
+  // The top terraces of the high place, wet with rain, a stair up the middle.
+  const W = (e.w ?? 70) * TILE, H = (e.h ?? 10) * TILE, hw = W / 2;
+  const tiers = [[hw, H * 0.4], [hw * 0.74, H * 0.7], [hw * 0.5, H]] as const;
+  for (let i = 0; i < 3; i++) {
+    const [w, top] = tiers[i], y0 = i ? -tiers[i - 1][1] : 0;
+    ctx.fillStyle = STORM_BRICK[0];
+    ctx.fillRect(-w, -top, w * 2, top + y0);
+    brickField(ctx, -w, -top, w, y0, 16, 8, STORM_BRICK, 691 + i, 'rgba(8,8,14,0.6)', 1);
+    // a glazed course at each terrace's lip, the rain shining on it
+    box(ctx, LAPIS, -w, -top, w * 2, 5);
+    box(ctx, GOLD_DK, -w, -top + 5, w * 2, 1);
+    box(ctx, 'rgba(160,190,255,0.3)', -w, -top, w * 2, 1);
+    box(ctx, 'rgba(160,190,255,0.18)', -w, -top, 2, top + y0);
+    box(ctx, 'rgba(0,0,0,0.35)', w - 3, -top, 3, top + y0);
+    merlons(ctx, -w, w, -top, 8, STORM_BRICK[3]);
+  }
+  // the stair
+  const sw = 34;
+  box(ctx, '#4a4a58', -sw, -H, sw * 2, H);
+  ctx.fillStyle = '#26262e';
+  for (let y = -H + 4; y < 0; y += 5) ctx.fillRect(-sw, y, sw * 2, 1);
+  box(ctx, 'rgba(160,190,255,0.25)', -sw, -H, 1, H);
+  box(ctx, 'rgba(0,0,0,0.35)', sw - 2, -H, 2, H);
+  // streaks of rain running down
+  ctx.fillStyle = 'rgba(150,170,220,0.12)';
+  for (let x = -hw + 7; x < hw; x += 23) ctx.fillRect(x, -H * 0.4 + ((x * 7) & 15), 1, 30);
+};
+
+const stormAltar: PropFn = (ctx, e) => {
+  // The altar on the summit, horned at its corners, and the great bronze wheel standing behind it.
+  const W = (e.w ?? 10) * TILE, hw = W / 2;
+  // the wheel
+  const wy = -82, R = 36;
+  ctx.strokeStyle = OUT;
+  ctx.lineWidth = 7;
+  ctx.beginPath();
+  ctx.arc(0, wy, R, 0, TAU);
+  ctx.stroke();
+  ctx.strokeStyle = '#6a5a2e';
+  ctx.lineWidth = 5;
+  ctx.stroke();
+  ctx.strokeStyle = 'rgba(120,180,160,0.5)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.arc(0, wy, R + 1, Math.PI * 0.1, Math.PI * 0.9);
+  ctx.stroke();
+  ctx.strokeStyle = '#4a3e20';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  for (let i = 0; i < 8; i++) {
+    const a = (i / 8) * TAU + 0.2;
+    ctx.moveTo(Math.cos(a) * 6, wy + Math.sin(a) * 6);
+    ctx.lineTo(Math.cos(a) * (R - 2), wy + Math.sin(a) * (R - 2));
+  }
+  ctx.stroke();
+  circle(ctx, 0, wy, 7, '#6a5a2e');
+  circle(ctx, 0, wy, 3, OUT);
+  box(ctx, 'rgba(170,200,255,0.4)', -R, wy - 1, 4, 1);
+  // its stand
+  ctx.beginPath();
+  ctx.rect(-4, wy + R - 4, 8, -wy - R - 8);
+  solidify(ctx, '#3a3020', OUT, 0.5);
+  // the steps and the altar block
+  ctx.beginPath();
+  ctx.rect(-hw, -6, W, 6);
+  ctx.rect(-hw + 14, -12, W - 28, 6);
+  ctx.rect(-26, -36, 52, 24);
+  ctx.moveTo(-26, -36);
+  ctx.lineTo(-26, -44);
+  ctx.lineTo(-18, -36);
+  ctx.moveTo(26, -36);
+  ctx.lineTo(18, -36);
+  ctx.lineTo(26, -44);
+  solidify(ctx, '#2c2c36', OUT, 0.5);
+  box(ctx, 'rgba(160,190,255,0.35)', -hw, -6, W, 1);
+  box(ctx, 'rgba(160,190,255,0.35)', -hw + 14, -12, W - 28, 1);
+  box(ctx, 'rgba(160,190,255,0.3)', -26, -36, 52, 1);
+  box(ctx, LAPIS, -22, -30, 44, 4);
+  box(ctx, GOLD_DK, -22, -26, 44, 1);
+  box(ctx, 'rgba(0,0,0,0.35)', 22, -36, 4, 24);
+  // scorch where the lightning has struck it
+  ctx.globalCompositeOperation = 'lighter';
+  blob(ctx, '#6a8ad8', 0, -38, 20, 6, 0.3);
+  ctx.globalCompositeOperation = 'source-over';
+};

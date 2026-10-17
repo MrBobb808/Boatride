@@ -19,6 +19,7 @@ import { SENT_CLIPS, SENT_BASE, SENT_DIMS, ARCH_CLIPS, ARCH_BASE, ARCH_DIMS, sen
 import { BRUTE_CLIPS, BRUTE_BASE, BRUTE_DIMS, BULW_CLIPS, BULW_BASE, BULW_DIMS, bruteStyle, bulwarkStyle, knightEchoStyle, marshalStyle } from './tanks';
 import { LOCUST_DIMS, locustStyle, drawLocustWings, drawLocustHead, drawLocustScythes } from './locusts';
 import { drawLion, newLionPose } from './babylon';
+import { undyingEchoStyle, drawHostWings } from './princes';
 import { ECHO_SPECIES, echoXpToNext, type EchoInst, type EchoOrder } from './data';
 import { echoAtk, echoMaxHp, skillRank } from './state';
 import { Proj } from './projectiles';
@@ -156,6 +157,18 @@ KITS.locust = {
     drawLocustScythes(ctx, u.j, 'echo', 12);
     drawLocustHead(ctx, u.j, 'echo', G.time + u.id, u.state === 'slash' ? 1 : 0);
   },
+};
+
+// The Captain of the Undying: a spear duelist, black and gold, with the stubs of wings.
+KITS.undying = {
+  clips: SENT_CLIPS, base: SENT_BASE, dims: SENT_DIMS, w: 18, h: 42, style: (st) => undyingEchoStyle(st),
+  guard: 0.3, armor: 0.8, speed: 135, reach: 50, guardian: false, idle: 'guard',
+  cape: [10, 13], capeColor: (st) => (st >= 1 ? '#e8dcc0' : '#2a2420'),
+  moves: [
+    { state: 'slash', clip: 'slash', T: 0.5, hitU: 0.56, box: { x: -4, y: -46, w: 56, h: 48 }, mult: 1.15, poise: 28, kx: 150, ky: -120, weight: 1, chain: 1, waveStage: 2, sound: 'swingSpear' },
+    { state: 'lunge', clip: 'bash', T: 0.62, hitU: 0.48, box: { x: 0, y: -38, w: 52, h: 24 }, mult: 1.7, poise: 45, kx: 280, ky: -90, dash: 360, weight: 0.6, sound: 'swingSpear' },
+  ],
+  under: (ctx, u) => drawHostWings(ctx, u.j.shBX - 1, u.j.shBY + 1, u.move ? 0.8 : 0.2, '#1c1a1f', '#0a0806'),
 };
 
 // The lion keeps a humanoid rig only for the shared brain; it is drawn as a beast.
