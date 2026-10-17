@@ -231,10 +231,11 @@ export class World {
     if (this.layerGen !== r.generation) {
       this.layerGen = r.generation;
       for (const l of this.layers) releaseCanvas(l.c);
-      const res = r.tier === 2 ? r.scale * 0.5 : r.scale * 0.4;
+      // Pixel art draws the backdrop at full art resolution; it is small enough to be cheap.
+      const res = r.pixel ? r.scale : r.tier === 2 ? r.scale * 0.5 : r.scale * 0.4;
       this.layers = buildParallax(this.room.biome, this.room.seed, this.room.interior, r.viewH * 1.35, res);
       this.cache.dispose();
-      this.cache.scale = r.scale * (r.tier === 2 ? 1 : r.tier === 1 ? 0.85 : 0.7);
+      this.cache.scale = r.scale * (r.pixel || r.tier === 2 ? 1 : r.tier === 1 ? 0.85 : 0.7);
     }
   }
 

@@ -769,7 +769,7 @@ function bevelBlade(ctx: Ctx, bx: number, by: number, tx: number, ty: number, dx
   ctx.stroke();
 }
 
-function drawWeapon(ctx: Ctx, j: Joints, S: HumanStyle, time: number): WeaponPts {
+export function drawWeapon(ctx: Ctx, j: Joints, S: HumanStyle, time: number): WeaponPts {
   const w = tmpW;
   const [dx, dy] = dir(j.wpnA);
   const px = -dy, py = dx;

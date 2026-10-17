@@ -38,6 +38,8 @@ export interface Settings {
   name: string;
   /** How hard the bosses fight (game/difficulty.ts). */
   bossDifficulty: 'normal' | 'hard' | 'merciless';
+  /** Pixel: the world is drawn at one pixel per world unit and scaled up crisply. */
+  artStyle: 'pixel' | 'smooth';
 }
 
 export const isTouchDevice = () =>
@@ -80,6 +82,7 @@ const DEFAULTS: Settings = {
   rumble: true,
   name: 'Elior',
   bossDifficulty: 'hard',
+  artStyle: 'pixel',
 };
 
 const KEY = 'remnant-settings-v1';

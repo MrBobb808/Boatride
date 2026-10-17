@@ -40,7 +40,7 @@ export class Lighting {
 
   render(ctx: Ctx, cam: Camera, r: Renderer, darkness: number, tint: string) {
     if (darkness <= 0.01) return;
-    const div = r.tier === 0 ? 6 : 4;
+    const div = r.pixel ? 2 : r.tier === 0 ? 6 : 4;
     const w = Math.max(1, Math.ceil(r.bw / div)), h = Math.max(1, Math.ceil(r.bh / div));
     if (this.c.width !== w || this.c.height !== h) {
       this.c.width = w;
