@@ -119,6 +119,8 @@ export class World {
     this.gateAmt = 0;
     this.priorityTarget = null;
     this.player.lastFoe = null;
+    this.player.weaponFlight = null;
+    this.player.weaponCd = 0;
     this.purifyTarget = null;
     this.timers = [];
     this.weather = [];
@@ -247,6 +249,11 @@ export class World {
 
   spawnEnemy(kind: Parameters<typeof makeEnemy>[0], x: number, y: number, elite: string | null = null) {
     const e = makeEnemy(kind, x, y, elite);
+    // This variant is bosses only, including when their normal kits call minions.
+    if (this.room.id === 'trial_arena' && this.story.ch3.rounds.bossOnly && this.story.ch3.rounds.active) {
+      e.remove = true;
+      return e;
+    }
     e.aggro = true;
     this.add(e);
     return e;
@@ -1344,6 +1351,7 @@ export class World {
   }
 
   tobiahAssist(idol: Idol) {
+    if (this.room.id === 'trial_arena' && this.story.ch3.rounds.bossOnly) return;
     const p = this.player;
     const side = p.x < idol.x ? -1 : 1;
     const startX = clamp(idol.x + side * 240, 30, this.grid.w * TILE - 60);
@@ -1369,6 +1377,10 @@ export class World {
   }
 
   onBossDefeated(b: Idol | BossBase) {
+    if (this.room.id === 'trial_arena' && this.story.ch3.rounds.bossOnly) {
+      this.story.ch3.rounds.bossDefeated(b);
+      return;
+    }
     this.bossActive = false;
     input.rumble(1, 1, 800);
     islandRipple('#ffe6a8', true);

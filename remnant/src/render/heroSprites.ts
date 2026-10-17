@@ -1,15 +1,19 @@
-// Original hand-authored raster sprite sheet: 16 frames (32x48), three outfits.
+// Original illustrated Elior: 16 poses, packed into a transparent 4 × 4 atlas.
 // Equipment and Mantle stay on the same pixel-art path as the base outfit.
 // Imported as a Vite asset so it works under the GitHub Pages /Boatride/ base path.
-import atlasUrl from '../assets/elior-sprites.png';
+import atlasUrl from '../assets/elior-v3.png';
 import { drawWeapon, type HumanStyle, type WeaponPts } from './actors';
 import type { Joints } from './skeleton';
 import type { Ctx } from './draw';
+import { drawChain } from '../game/chain';
 
-const FRAME_W = 32;
-const FRAME_H = 48;
-/** The row under each frame's feet: crouched dodges and the hurt pose sit lower in their cell. */
-const FOOT = [45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 48, 48, 47, 45];
+const FRAME_W = 128;
+const FRAME_H = 128;
+/** Shared foot origin; attachments follow each illustrated pose. */
+const FOOT = 120;
+const DRAW_SIZE = 56;
+const HEAD = [[84,24],[84,24],[84,24],[84,24],[90,34],[90,34],[90,34],[90,39],[84,53],[84,31],[84,43],[83,38],[86,48],[100,65],[31,37],[69,37]];
+const HAND = [[102,68],[102,68],[103,65],[103,68],[109,67],[98,65],[112,65],[106,67],[92,80],[104,69],[58,22],[113,50],[98,83],[114,93],[69,56],[114,49]];
 const art = new Image();
 const mantleArt = document.createElement('canvas');
 let mantleReady = false;
@@ -18,8 +22,16 @@ art.onload = () => {
   const c = mantleArt.getContext('2d')!;
   c.drawImage(art, 0, 0);
   c.globalCompositeOperation = 'source-atop';
-  c.fillStyle = 'rgba(34,16,65,0.72)';
+  c.fillStyle = 'rgba(34,16,65,0.42)';
   c.fillRect(0, 0, mantleArt.width, mantleArt.height);
+  c.globalCompositeOperation = 'source-over';
+  // The transformation changes cloth, while his dark skin and white hair stay visible.
+  for (let i = 0; i < 16; i++) {
+    const x = i % 4 * FRAME_W + HEAD[i][0] - 10;
+    const y = Math.floor(i / 4) * FRAME_H + HEAD[i][1] - 13;
+    c.clearRect(x, y, 20, 27);
+    c.drawImage(art, x, y, 20, 27, x, y, 20, 27);
+  }
   mantleReady = true;
 };
 art.decoding = 'async';
@@ -30,7 +42,7 @@ export type HeroSpriteAction = string;
 
 export function heroSpriteReady(_style: HumanStyle, _action: string, _mantle: number): boolean {
   if (classicArt) return false;
-  return art.complete && art.naturalWidth === FRAME_W * 16 && art.naturalHeight === FRAME_H * 3;
+  return art.complete && art.naturalWidth === FRAME_W * 4 && art.naturalHeight === FRAME_H * 4;
 }
 
 function frameAt(action: HeroSpriteAction, t: number, speed: number, grounded: boolean, vy: number, attackProgress: number) {
@@ -53,10 +65,9 @@ function frameAt(action: HeroSpriteAction, t: number, speed: number, grounded: b
 export function drawHeroSprite(
   ctx: Ctx, j: Joints, style: HumanStyle, time: number,
   action: HeroSpriteAction, speed: number, grounded: boolean, vy: number,
-  attackProgress: number, rotation: number, mantle = 0,
+  attackProgress: number, rotation: number, mantle = 0, extension = 0, hideWeapon = false,
 ): WeaponPts {
   const frame = frameAt(action, time, speed, grounded, vy, attackProgress);
-  const row = style.plate ? (style.eye === '#c9a8ff' ? 2 : 1) : 0;
   ctx.save();
   if (rotation) {
     ctx.translate(j.hipX, j.hipY - 4);
@@ -65,30 +76,48 @@ export function drawHeroSprite(
   }
   // The sword is behind the illustrated gripping hand; geometry still comes
   // from the combat skeleton so equipped blades and polearms are unchanged.
+  const weapon = style.weapon;
+  if (hideWeapon) style.weapon = 'none';
+  const scale = DRAW_SIZE / FRAME_W;
+  const handX = HAND[frame][0] * scale - DRAW_SIZE / 2;
+  const handY = (HAND[frame][1] - FOOT) * scale;
+  const dx = handX - j.haFX, dy = handY - j.haFY;
+  if (extension > 1 && !hideWeapon) drawChain(ctx, handX, handY, handX + extension, handY, mantle > 0, 2);
+  ctx.save(); ctx.translate(dx + extension, dy);
   const w = drawWeapon(ctx, j, style, time);
+  ctx.restore();
+  style.weapon = weapon;
+  w.bx += dx + extension; w.tx += dx + extension; w.by += dy; w.ty += dy;
   const smooth = ctx.imageSmoothingEnabled;
   ctx.imageSmoothingEnabled = false;
   const source = mantle > 0 && mantleReady ? mantleArt : art;
-  ctx.drawImage(source, frame * FRAME_W, row * FRAME_H, FRAME_W, FRAME_H, -16, -FOOT[frame], FRAME_W, FRAME_H);
+  ctx.drawImage(source, frame % 4 * FRAME_W, Math.floor(frame / 4) * FRAME_H, FRAME_W, FRAME_H, -DRAW_SIZE / 2, -FOOT / FRAME_H * DRAW_SIZE, DRAW_SIZE, DRAW_SIZE);
+  // Equipment still changes the visible shoulder plate over the base coat.
+  if (style.plate && frame < 8) {
+    ctx.fillStyle = style.plate.dark; ctx.fillRect(-3, -36, 6, 4);
+    ctx.fillStyle = style.plate.c; ctx.fillRect(-3, -36, 5, 2);
+    ctx.fillStyle = style.plate.hi; ctx.fillRect(-3, -37, 5, 1);
+  }
   // Pixel headgear sits over the atlas head, rather than disabling the sprite.
-  const hy = frame >= 12 && frame <= 13 ? -34 : frame === 14 ? -39 : -42;
+  const hx = HEAD[frame][0] * scale - DRAW_SIZE / 2 - 4;
+  const hy = (HEAD[frame][1] - FOOT) * scale - 3;
   if (style.helm !== 'none' && style.helm !== 'hood_down') {
     const hood = style.helm === 'hood_up';
     ctx.fillStyle = style.outline;
-    ctx.fillRect(-5, hy, 9, 7);
+    ctx.fillRect(hx, hy, 9, 5);
     ctx.fillStyle = style.helmColor ?? style.plate?.c ?? style.coat;
-    ctx.fillRect(-4, hy + 1, 7, 4);
+    ctx.fillRect(hx + 1, hy + 1, 7, 3);
     ctx.fillStyle = style.helmTrim ?? style.plate?.hi ?? '#d3b675';
-    ctx.fillRect(-3, hy, 5, 1);
+    ctx.fillRect(hx + 2, hy, 5, 1);
     ctx.fillStyle = hood ? style.skin : '#171521';
-    ctx.fillRect(0, hy + 3, 4, 2);
+    ctx.fillRect(hx + 5, hy + 2, 4, 2);
     if (style.helm === 'crown') {
       ctx.fillStyle = '#ebc56e';
-      ctx.fillRect(-4, hy - 2, 2, 3); ctx.fillRect(-1, hy - 3, 2, 4); ctx.fillRect(2, hy - 2, 2, 3);
+      ctx.fillRect(hx + 1, hy - 2, 2, 3); ctx.fillRect(hx + 4, hy - 3, 2, 4); ctx.fillRect(hx + 7, hy - 2, 2, 3);
     }
   }
   if (mantle > 0) {
-    ctx.fillStyle = '#d5b8ff'; ctx.fillRect(1, hy + 4, 3, 1);
+    ctx.fillStyle = '#d5b8ff'; ctx.fillRect(hx + 6, hy + 2, 2, 1);
     ctx.fillStyle = '#9c67dd'; ctx.fillRect(-3, -30, 1, 9);
   }
   ctx.imageSmoothingEnabled = smooth;

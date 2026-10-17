@@ -562,6 +562,14 @@ function drawRounds(ctx: CanvasRenderingContext2D, W: number, y0: number, u: num
   const R = G.world.story.ch3.rounds;
   if (!R.active || R.round <= 0) return;
   const n = R.round;
+  if (R.bossOnly) {
+    // Leave room for the phone's boss health bar above this compact round label.
+    const y = y0 + (input.lastDevice === 'touch' && G.world.bossActive ? 38 : 10) * u;
+    const best = Number(G.save.flags.boss_trial_best ?? 0);
+    text(ctx, R.breakT > 0 ? `BOSS ROUND ${n + 1} IN ${Math.ceil(R.breakT)}` : `BOSS ROUND ${n}`, W / 2, y, `700 ${10 * u}px ${FONT_DISPLAY}`, '#c8ccff', 'center');
+    text(ctx, `${R.kills} defeated · best ${best}`, W / 2, y + 13 * u, `600 ${8 * u}px ${FONT_DISPLAY}`, '#d8c8b0', 'center');
+    return;
+  }
   const flash = clamp(1 - R.changeT / 1.6, 0, 1);
   const pulse = R.breakT > 0 ? 0.55 + 0.45 * Math.abs(Math.sin(R.breakT * 3)) : 1;
   const col = flash > 0 ? mixHex('#b3121c', '#fff4e0', flash) : '#b3121c';

@@ -22,6 +22,8 @@ import { islandNotify } from '../ui/island';
 import { icon } from '../ui/icons';
 import { gameOver } from '../ui/leaderboard';
 import { rand, choose, overlaps } from '../core/math';
+import { gauntletBoss, BOSS_COUNT } from './gauntlet';
+import { bossScale } from './difficulty';
 
 const BREAK = 7;
 const FLOOR_Y = 18 * TILE;
@@ -38,6 +40,11 @@ const BOONS: Record<Boon, { name: string; sub: string; icon: string; color: stri
 
 export class Rounds {
   active = false;
+  bossOnly = false;
+  completed = 0;
+  private boss: Entity | null = null;
+  private bossHp = 1800;
+  private bossDamage = 12;
   /** The round in play (0 before the first). */
   round = 0;
   /** The round the run began at; only runs from round 1 are ranked. */
@@ -66,11 +73,17 @@ export class Rounds {
     return this.total - this.spawned + this.alive;
   }
 
-  start(from = 1) {
+  start(from = 1, bossOnly = false) {
     this.stop(false);
     this.active = true;
+    this.bossOnly = bossOnly;
+    this.boss = null;
+    // Snapshot entry strength so leveling during a run never changes its rules.
+    this.bossHp = Math.max(1800, G.d.atk * G.d.meleeMult * 65) * bossScale().hp;
+    this.bossDamage = Math.max(10, G.d.maxHp * 0.1) * bossScale().dmg;
     this.ending = false;
-    this.from = Math.max(1, from);
+    this.from = Math.max(1, Math.floor(Number(from) || 1));
+    this.completed = this.from - 1;
     this.round = this.from - 1;
     this.kills = 0;
     this.time = 0;
@@ -80,13 +93,14 @@ export class Rounds {
     this.pack = false;
     this.foes = [];
     this.breakT = 3.2;
-    G.ui.banner('THE TRIAL OF THE REMNANT', `Endless rounds${this.from > 1 ? ` from round ${this.from} (unranked)` : ''} · survive as long as you can`, 'boss');
+    G.ui.banner(bossOnly ? 'THE BOSS GAUNTLET' : 'THE TRIAL OF THE REMNANT', `${bossOnly ? 'Bosses only · escalating power' : 'Endless rounds'}${this.from > 1 ? ` from round ${this.from} (unranked)` : ''} · survive as long as you can`, 'boss');
   }
 
   /** End the run. Leaving mid-run still records how far it got. */
   stop(record = true) {
     if (this.active && record && this.round > 0) this.record();
     this.active = false;
+    this.boss = null;
     this.foes = [];
     this.round = 0;
   }
@@ -97,6 +111,13 @@ export class Rounds {
     if (W.player.state === 'dead') return;
     this.time += dt;
     this.changeT += dt;
+    if (this.bossOnly) {
+      if (this.breakT > 0) {
+        this.breakT = Math.max(0, this.breakT - dt);
+        if (this.breakT === 0) this.beginRound();
+      }
+      return;
+    }
     this.wrathT = Math.max(0, this.wrathT - dt);
     this.doubleT = Math.max(0, this.doubleT - dt);
     // Count the fallen, drop the removed and count the living in one pass,
@@ -136,6 +157,19 @@ export class Rounds {
 
   private beginRound() {
     const n = ++this.round;
+    if (this.bossOnly) {
+      this.changeT = 0;
+      this.total = this.spawned = this.alive = 1;
+      const p = G.world.player;
+      p.x = 14 * TILE; p.y = FLOOR_Y;
+      p.body.vx = p.body.vy = 0;
+      p.face = 1;
+      p.revive();
+      p.lastSafe = { x: p.x, y: p.y };
+      this.boss = gauntletBoss(n, this.bossHp, this.bossDamage);
+      G.ui.banner(`BOSS ROUND ${n}`, `${this.boss.name} · cycle ${1 + Math.floor((n - 1) / BOSS_COUNT)}`, 'boss');
+      return;
+    }
     this.pack = n % 5 === 0 && n % 10 !== 0;
     this.total = this.pack ? 6 + n : Math.min(70, 4 + n * 2 + (n > 10 ? n - 10 : 0));
     this.spawned = 0;
@@ -153,12 +187,42 @@ export class Rounds {
   private endRound() {
     const n = this.round;
     const s = G.save;
+    this.completed = n;
     if (n > Number(s.flags.trial_best ?? 0)) s.flags.trial_best = n;
     if (n >= 10 && s.quests.s_trial && !s.quests.s_trial.done) G.world.story.quest('s_trial', 0, true);
     if (n % 5 === 0) this.reward(n);
     this.breakT = BREAK;
     this.changeT = 0;
     sfx('rally', { vol: 0.5 });
+  }
+
+  /** Called after the boss's real defeat animation, before any chapter logic. */
+  bossDefeated(b: Entity): boolean {
+    if (!this.active || !this.bossOnly || this.boss !== b) return false;
+    const W = G.world, s = G.save;
+    this.kills++;
+    this.completed = this.round;
+    s.flags.boss_trial_best = Math.max(Number(s.flags.boss_trial_best ?? 0), this.completed);
+    b.remove = true;
+    this.boss = null;
+    this.alive = 0;
+    W.boss = null;
+    W.bossActive = false;
+    G.inCutscene = false;
+    G.camera.focus = null;
+    G.ui.cinematicBars(false);
+    G.ui.bossBar(null);
+    W.giveXp(Math.round(xpToNext(s.level) * (0.18 + Math.min(0.4, this.round * 0.02))));
+    // Clear hostile hazards and multipart hitboxes before the recovery break.
+    for (const e of W.ents) if (e.isFoe || e.team === 'enemy') e.remove = true;
+    s.hp = Math.min(G.d.maxHp, s.hp + G.d.maxHp * 0.2);
+    s.ce = G.d.maxCe;
+    if (this.round % BOSS_COUNT === 0) { s.balm = Math.min(s.balmMax, s.balm + 1); this.reward(this.round); }
+    this.breakT = BREAK;
+    this.changeT = 0;
+    G.ui.toast(`Boss ${this.round} defeated. Next: +22% health, +10% damage.`, 'good');
+    W.autosave(true);
+    return true;
   }
 
   private spawnOne() {
@@ -246,19 +310,25 @@ export class Rounds {
   // ---------------------------------------------------------------- the end of a run
   private record(): { entry: RunEntry | null; place: number; best: boolean } {
     const s = G.save;
-    const prevBest = bestRounds();
-    if (this.round > Number(s.flags.trial_best ?? 0)) s.flags.trial_best = this.round;
+    const prevBest = bestRounds(this.bossOnly);
+    const rounds = this.bossOnly ? this.completed : this.round;
+    const key = this.bossOnly ? 'boss_trial_best' : 'trial_best';
+    if (rounds > Number(s.flags[key] ?? 0)) s.flags[key] = rounds;
     if (this.from > 1) return { entry: null, place: 0, best: false };
-    const { entry, place } = recordRun({ rounds: this.round, kills: this.kills, time: this.time, level: s.level });
-    return { entry, place, best: this.round > prevBest };
+    const { entry, place } = recordRun({ rounds, kills: this.kills, time: this.time, level: s.level }, this.bossOnly);
+    return { entry, place, best: rounds > prevBest };
   }
 
   /** Elior fell in the arena: show the Game Over card. Resolves when the player has chosen. */
   async onDeath(): Promise<'again' | 'leave'> {
     this.ending = true;
+    G.inCutscene = false;
+    G.camera.focus = null;
+    G.world.bossActive = false;
+    G.ui.cinematicBars(false);
     for (const f of this.foes) f.aggro = false;
     const res = this.record();
-    const stats = { rounds: this.round, kills: this.kills, time: this.time, level: G.save.level, levels: G.save.level - this.level0, from: this.from };
+    const stats = { rounds: this.bossOnly ? this.completed : this.round, kills: this.kills, time: this.time, level: G.save.level, levels: G.save.level - this.level0, from: this.from, bossOnly: this.bossOnly };
     this.active = false;
     const choice = await gameOver(stats, res.entry, res.place, res.best);
     return choice;

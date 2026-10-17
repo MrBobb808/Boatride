@@ -116,8 +116,8 @@ export class Chapter3 {
       // Training from the menu may skip ahead to a wave near your best.
       const from = Math.max(1, Number(s.flags.trial_from ?? 1));
       delete s.flags.trial_from;
-      this.rounds.start(from);
-      if (!s.quests.s_trial) this.st.quest('s_trial', 0);
+      this.rounds.start(from, s.flags.trial_mode === 'boss');
+      if (!this.rounds.bossOnly && !s.quests.s_trial) this.st.quest('s_trial', 0);
     }
     return true;
   }

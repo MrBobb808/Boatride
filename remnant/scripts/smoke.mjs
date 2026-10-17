@@ -20,7 +20,10 @@ const server = createServer(async (req, res) => {
 });
 await new Promise(r => server.listen(0, '127.0.0.1', r));
 const base = `http://localhost:${server.address().port}/Boatride/`;
-const browser = await chromium.launch({headless:true});
+const browser = await chromium.launch({headless:true,
+  ...(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH ? {executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH} : {}),
+  args: process.env.PLAYWRIGHT_CHROMIUM_ARGS ? JSON.parse(process.env.PLAYWRIGHT_CHROMIUM_ARGS) : [],
+});
 await mkdir('qa', {recursive:true});
 const kinds = ['husk','hound','archer','sentinel','wisp','brute','bulwark','knight','drone','soldier','lion','priest','vessel','scribe'];
 const species = ['sentinel','archer','brute','bulwark','knight','marshal','locust','lion'];

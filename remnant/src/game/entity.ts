@@ -57,6 +57,9 @@ export abstract class Entity {
   /** Hostile to Elior (enemies and bosses). */
   isFoe = false;
   isBoss = false;
+  /** Encounter modifiers leave campaign boss balance unchanged. */
+  encounterTempo = 1;
+  encounterDamage = 1;
   dying = false;
   /** Elemental status (seconds left, and damage per second). */
   burn = 0;

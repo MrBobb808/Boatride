@@ -1,7 +1,7 @@
 // The Shadow Mantle: Elior's transformation. From level 25 a gauge fills as
 // he fights; spending it wraps him in a black, blue-violet-edged cloak of
 // living shadow for a while. He moves faster, takes half damage, cannot be
-// staggered, every swing looses a shadow wave and the fallen may rise to
+// staggered, blinks into melee and throws his chained weapon; the fallen may rise to
 // serve. The Mantle deepens at levels 50, 75 and 100.
 
 import { G, flag, setFlag } from './ctx';
@@ -56,7 +56,7 @@ export function mantleDuration(level = G.save.level) {
 /** What the Mantle grants, for banners and the move list. */
 export function mantlePerks(level = G.save.level) {
   const mul = [1, 1.5, 1.7, 1.9, 2.2][mantleTier(level)];
-  return `${Math.round(mantleDuration(level))} seconds of ${mul}× strength, quicker blade and feet, half damage taken, no stagger, free Phantom Steps, a shadow wave on every swing, and the fallen rise to serve`;
+  return `${Math.round(mantleDuration(level))} seconds of ${mul}× strength, quicker blade and feet, half damage taken, no stagger, free Phantom Steps, attack-to-blink pursuit, weapon throw-and-blink combos, and the fallen rise to serve`;
 }
 
 // ---------------------------------------------------------------- the gauge
@@ -266,10 +266,10 @@ function eyePos(p: Player): [number, number] {
 export function mantleStyle(base: HumanStyle): HumanStyle {
   return {
     ...base,
-    skin: '#9c7c6e', hair: '#07060c', coat: SHADE.cloak, coatDark: SHADE.deep, trim: SHADE.edge,
+    skin: base.skin, hair: base.hair, beard: base.beard, coat: SHADE.cloak, coatDark: SHADE.deep, trim: SHADE.edge,
     pants: '#0d0b14', boots: '#08070d', glove: '#100d18', belt: '#16121f',
     plate: base.plate ? { c: '#14111d', dark: '#09070e', hi: SHADE.edge, tier: base.plate.tier } : null,
-    helm: 'hood_up', helmColor: '#0c0a13', helmTrim: SHADE.edge,
+    helm: 'hood_down', helmColor: '#0c0a13', helmTrim: SHADE.edge,
     eye: SHADE.hi, eyeGlow: 1,
     weaponGlow: SHADE.violet, weaponGlowAmt: 1, weaponFlame: true,
     runes: SHADE.edge, scarf: '#140e24',

@@ -21,9 +21,9 @@ export interface RunEntry {
 const KEY = 'remnant.board.v1';
 const KEEP = 20;
 
-export function loadBoard(): RunEntry[] {
+export function loadBoard(bossOnly = false): RunEntry[] {
   try {
-    const raw = localStorage.getItem(KEY);
+    const raw = localStorage.getItem(bossOnly ? 'remnant.boss-board.v1' : KEY);
     const list = raw ? (JSON.parse(raw) as RunEntry[]) : [];
     return Array.isArray(list) ? list.filter((e) => e && typeof e.rounds === 'number') : [];
   } catch {
@@ -31,34 +31,34 @@ export function loadBoard(): RunEntry[] {
   }
 }
 
-function saveBoard(list: RunEntry[]) {
+function saveBoard(list: RunEntry[], bossOnly = false) {
   try {
-    localStorage.setItem(KEY, JSON.stringify(list));
+    localStorage.setItem(bossOnly ? 'remnant.boss-board.v1' : KEY, JSON.stringify(list));
   } catch { /* private mode: the board lasts this session */ }
 }
 
 const better = (a: RunEntry, b: RunEntry) => b.rounds - a.rounds || b.kills - a.kills || a.time - b.time;
 
 /** Add a ranked run. Returns its place (1 = top), or 0 if it fell off the board. */
-export function recordRun(r: Omit<RunEntry, 'id' | 'name' | 'date'>): { entry: RunEntry; place: number } {
+export function recordRun(r: Omit<RunEntry, 'id' | 'name' | 'date'>, bossOnly = false): { entry: RunEntry; place: number } {
   const entry: RunEntry = { ...r, id: Date.now(), name: settings.name || 'Elior', date: new Date().toISOString().slice(0, 10) };
-  const list = [...loadBoard(), entry].sort(better).slice(0, KEEP);
-  saveBoard(list);
-  void pushBest({ name: entry.name, rounds: entry.rounds, kills: entry.kills, time: Math.round(entry.time), level: entry.level, date: entry.date });
+  const list = [...loadBoard(bossOnly), entry].sort(better).slice(0, KEEP);
+  saveBoard(list, bossOnly);
+  if (!bossOnly) void pushBest({ name: entry.name, rounds: entry.rounds, kills: entry.kills, time: Math.round(entry.time), level: entry.level, date: entry.date });
   const i = list.findIndex((e) => e.id === entry.id);
   return { entry, place: i + 1 };
 }
 
 /** Rename a run already on the board (the name box on the Game Over card). */
-export function renameRun(id: number, name: string) {
-  const list = loadBoard();
+export function renameRun(id: number, name: string, bossOnly = false) {
+  const list = loadBoard(bossOnly);
   const e = list.find((x) => x.id === id);
   if (!e) return;
   e.name = name;
-  saveBoard(list);
-  void pushBest({ name: e.name, rounds: e.rounds, kills: e.kills, time: Math.round(e.time), level: e.level, date: e.date });
+  saveBoard(list, bossOnly);
+  if (!bossOnly) void pushBest({ name: e.name, rounds: e.rounds, kills: e.kills, time: Math.round(e.time), level: e.level, date: e.date });
 }
 
-export function bestRounds() {
-  return loadBoard().reduce((m, e) => Math.max(m, e.rounds), 0);
+export function bestRounds(bossOnly = false) {
+  return loadBoard(bossOnly).reduce((m, e) => Math.max(m, e.rounds), 0);
 }

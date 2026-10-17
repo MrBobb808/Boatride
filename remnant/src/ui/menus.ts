@@ -1,4 +1,5 @@
 import { islandCalibrate, ISLAND_LEN } from './island';
+import eliorBoard from '../assets/elior-board.webp';
 // The pause menu (character, equipment, skills, Echoes, map, journal,
 // crafting, settings, system), plus the merchant, the forge and altar menus.
 
@@ -198,6 +199,7 @@ function characterTab() {
     h('div', { style: 'display:flex;gap:12px;flex-wrap:wrap' },
       h('div', { class: 'box', style: 'flex:1.3;min-width:280px' },
         h('h3', null, `Elior — Level ${s.level}`),
+        btn('Character board', () => openCharacterBoard(), 'btn small', { 'data-k': 'elior_board' }),
         h('div', { class: 'muted', style: 'font-size:0.9em;margin-bottom:6px' }, `Experience ${Math.floor(s.xp)} / ${xpToNext(s.level)} · Points to spend: `, h('b', { style: 'color:var(--gold-hi)' }, String(s.statPoints))),
         h('div', { class: 'bar', style: 'margin-bottom:8px' }, h('i', { style: `width:${(s.xp / xpToNext(s.level)) * 100}%` })),
         rows,
@@ -215,6 +217,19 @@ function characterTab() {
       ),
     ),
   );
+}
+
+function openCharacterBoard() {
+  const card = h('div', { class: 'panel scroll', style: 'width:min(1100px,96vw);max-height:92dvh;padding:12px' },
+    h('div', { class: 'row', style: 'justify-content:space-between;align-items:center;margin-bottom:10px' },
+      h('h3', null, 'Elior · Character board'),
+      btn('Close', () => popLayer(layer), 'btn small', { 'data-autofocus': '', 'data-k': 'board_close' }),
+    ),
+    h('img', { src: eliorBoard, alt: 'Elior, a Black swordsman with white hair and beard, navy and gold armor, chain attacks, and his Shadow Mantle transformation.', style: 'display:block;width:100%;height:auto;border-radius:4px' }),
+  );
+  const layer = h('div', { class: 'layer dim' }, card);
+  document.getElementById('ui')!.appendChild(layer);
+  pushLayer({ el: layer, onBack: () => popLayer(layer) });
 }
 
 function spendStat(k: StatKey) {
@@ -403,6 +418,9 @@ function techniques() {
     ['Parry & Counter', `${K('parry')} as a blow lands, then ${K('attack')}`, 'Turn their strength against them.', true],
     ['Execution', `${K('attack')} a staggered foe`, 'Plays a finisher, picked at random from those you have learned.', true],
     ['Sub-weapon', touch ? 'the Sub button' : `${K('sub')}, or ${K('up')} + ${K('heavy')}`, 'Throw the sub-weapon you carry. Costs hearts; lamps drop more.', !!s.sub],
+    ['Chain Reach', 'heavy strikes and combo finishers', 'A linked chain extends selected attacks by 30 units. The blade retracts after the strike.', true],
+    ['Mantle Pursuit', 'Attack while transformed', 'Blink into melee range of a visible foe ahead. Dodge can blink before your first hit, with no energy cost.', s.level >= MANTLE_LV],
+    ['Throw + Blink', touch ? 'the Throw button while transformed' : `${K('sub')} while transformed`, 'Throw your weapon; a confirmed hit teleports you to the foe and starts the next combo strike. No hearts. 2.4 second cooldown. A miss returns the weapon.', s.level >= MANTLE_LV],
     ['Shadow Mantle', `${touch ? 'the Mantle button' : K('transform')} with a full gauge${s.level >= MANTLE_LV ? '' : ` · level ${MANTLE_LV}`}`,
       `Transform: a black cloak edged in blue-violet light and trailing shadow. ${mantlePerks(Math.max(MANTLE_LV, s.level))}. Fill the gauge by fighting.`, s.level >= MANTLE_LV],
     ...FINISHERS.map((f): [string, string, string, boolean] => [
@@ -1059,6 +1077,10 @@ export function openAltar(id: string) {
       trainingOpen() ? btn([h('b', null, 'Enter the Trial of the Remnant'), h('span', null, `Endless rounds that grow with you${s.flags.trial_best ? ` · best: round ${s.flags.trial_best}` : ''}`)], () => {
         done();
         startTraining(1);
+      }, 'btn opt') : null,
+      trainingOpen() ? btn([h('b', null, 'Enter the Boss Gauntlet'), h('span', null, `Bosses only · stronger every round · best: ${s.flags.boss_trial_best ?? 0}`)], () => {
+        done();
+        startTraining(1, true);
       }, 'btn opt') : null,
       flag('ch1_done') ? btn([h('b', null, 'Begin New Game+'), h('span', null, 'Start Chapter I again with everything you have earned. Foes grow stronger.')], () => { done(); startNewGamePlus(); }, 'btn opt') : null,
     ),
