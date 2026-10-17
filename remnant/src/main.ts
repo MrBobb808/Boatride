@@ -171,7 +171,8 @@ function loop(now: number) {
     if (G.debug) perf.update += performance.now() - u0;
     if (!G.d && G.save) G.d = derive(G.save);
     const t0 = performance.now();
-    G.world.draw(ctx);
+    G.world.draw(r.wctx);
+    r.present();
     const t1 = performance.now();
     drawHud(ctx, dt);
     if (G.debug) {
@@ -188,8 +189,8 @@ function loop(now: number) {
     input.endStep();
     if (app.mode === 'intro') {
       updateIntro(dt);
-      drawIntro(ctx, r.bw, r.bh, dt);
-    } else drawTitleScene(ctx, r.bw, r.bh, dt);
+      drawIntro(ctx, r.cw, r.ch, dt);
+    } else drawTitleScene(ctx, r.cw, r.ch, dt);
   }
   adaptQuality(dt);
 }
