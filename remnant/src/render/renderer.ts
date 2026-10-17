@@ -15,8 +15,16 @@ export class Renderer {
   dpr = 1;
   /** Backing pixels per CSS pixel. */
   px = 1;
+  /** The canvas's backing size. */
+  cw = 0;
+  ch = 0;
+  /** The world target's size: the canvas, or in pixel-art mode a small canvas scaled up by k. */
   bw = 0;
   bh = 0;
+  pixel = false;
+  k = 1;
+  world: HTMLCanvasElement;
+  wctx: CanvasRenderingContext2D;
   /** Backing pixels per world unit. */
   scale = 1;
   viewW = 0;
@@ -27,48 +35,14 @@ export class Renderer {
   autoPenalty = 0;
   generation = 0;
   private resizeCbs: (() => void)[] = [];
-  readonly pixelArt = !new URLSearchParams(location.search).has('classicArt');
-  private worldCanvas = document.createElement('canvas');
-  private worldCtx = this.worldCanvas.getContext('2d', { alpha: false })!;
-  private display = { w: 0, h: 0, px: 1, scale: 1, viewW: 0 };
-
-  /** One backing pixel per world unit; UI keeps the screen's full resolution. */
-  get worldScale() { return this.pixelArt ? 1 : this.scale; }
-
-  beginWorld(): CanvasRenderingContext2D {
-    if (!this.pixelArt) return this.ctx;
-    const d = this.display;
-    d.w = this.bw; d.h = this.bh; d.px = this.px; d.scale = this.scale; d.viewW = this.viewW;
-    this.bh = Math.max(1, Math.round(this.viewH));
-    this.bw = Math.max(1, Math.round(d.w / d.h * this.bh));
-    this.px = this.bh / this.cssH;
-    this.scale = this.bh / this.viewH;
-    this.viewW = this.bw / this.scale;
-    if (this.worldCanvas.width !== this.bw || this.worldCanvas.height !== this.bh) {
-      this.worldCanvas.width = this.bw; this.worldCanvas.height = this.bh;
-    }
-    this.worldCtx.imageSmoothingEnabled = false;
-    return this.worldCtx;
-  }
-
-  endWorld() {
-    if (!this.pixelArt) return;
-    const d = this.display;
-    this.bw = d.w; this.bh = d.h; this.px = d.px; this.scale = d.scale; this.viewW = d.viewW;
-    const ctx = this.ctx;
-    ctx.save();
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
-    ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(this.worldCanvas, 0, 0, this.bw, this.bh);
-    ctx.restore();
-  }
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
     const ctx = canvas.getContext('2d', { alpha: false, desynchronized: true } as CanvasRenderingContext2DSettings);
     if (!ctx) throw new Error('Canvas 2D is not available');
     this.ctx = ctx;
+    this.world = canvas;
+    this.wctx = ctx;
     window.addEventListener('resize', () => this.resize());
     window.visualViewport?.addEventListener('resize', () => this.resize());
     window.addEventListener('orientationchange', () => setTimeout(() => this.resize(), 250));
@@ -93,15 +67,16 @@ export class Renderer {
     this.cssH = h;
     this.dpr = window.devicePixelRatio || 1;
     this.tier = this.qualityTier();
-    const cap = this.tier === 2 ? 2 : this.tier === 1 ? 1.5 : 1;
+    // Pixel art only scales a small image onto the screen, so it can use the full density.
+    const cap = settings.artStyle !== 'smooth' ? 3 : this.tier === 2 ? 2 : this.tier === 1 ? 1.5 : 1;
     this.px = Math.min(this.dpr, cap);
     // Very large desktop windows don't need more than ~1440 backing rows.
     if (h * this.px > 1440) this.px = 1440 / h;
-    this.bw = Math.round(w * this.px);
-    this.bh = Math.round(h * this.px);
-    if (this.canvas.width !== this.bw || this.canvas.height !== this.bh) {
-      this.canvas.width = this.bw;
-      this.canvas.height = this.bh;
+    this.cw = Math.round(w * this.px);
+    this.ch = Math.round(h * this.px);
+    if (this.canvas.width !== this.cw || this.canvas.height !== this.ch) {
+      this.canvas.width = this.cw;
+      this.canvas.height = this.ch;
     }
     this.canvas.style.width = w + 'px';
     this.canvas.style.height = h + 'px';
@@ -109,10 +84,50 @@ export class Renderer {
     let vh = phone ? 268 : 300;
     if (settings.zoom === 'close') vh *= 0.88;
     if (settings.zoom === 'wide') vh *= 1.14;
+    this.pixel = settings.artStyle !== 'smooth';
+    if (this.pixel) {
+      // One world unit is one art pixel. A whole number of screen pixels per art pixel
+      // keeps them all the same size; take it when it moves the view by little.
+      const kn = Math.max(1, Math.round(this.ch / vh));
+      this.k = Math.abs(this.ch / kn - vh) / vh <= 0.05 ? kn : this.ch / Math.round(vh);
+      this.bh = Math.round(this.ch / this.k);
+      this.bw = Math.ceil(this.cw / this.k);
+      vh = this.bh;
+      if (this.world === this.canvas) {
+        this.world = document.createElement('canvas');
+        this.wctx = this.world.getContext('2d', { alpha: false }) as CanvasRenderingContext2D;
+      }
+      if (this.world.width !== this.bw || this.world.height !== this.bh) {
+        this.world.width = this.bw;
+        this.world.height = this.bh;
+      }
+    } else {
+      this.k = 1;
+      this.bw = this.cw;
+      this.bh = this.ch;
+      if (this.world !== this.canvas) {
+        this.world.width = this.world.height = 1;
+        this.world = this.canvas;
+        this.wctx = this.ctx;
+      }
+    }
     this.baseViewH = vh;
     this.applyView(vh);
     this.generation++;
     for (const cb of this.resizeCbs) cb();
+  }
+
+  /** Scale the pixel-art world up onto the screen, hard-edged. */
+  present() {
+    if (!this.pixel) return;
+    const c = this.ctx;
+    c.setTransform(1, 0, 0, 1, 0, 0);
+    c.globalAlpha = 1;
+    c.globalCompositeOperation = 'copy';
+    c.imageSmoothingEnabled = false;
+    c.drawImage(this.world, 0, 0, this.bw * this.k, this.bh * this.k);
+    c.imageSmoothingEnabled = true;
+    c.globalCompositeOperation = 'source-over';
   }
 
   applyView(vh: number) {

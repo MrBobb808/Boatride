@@ -8,6 +8,8 @@ import type { Ctx } from './draw';
 
 const FRAME_W = 32;
 const FRAME_H = 48;
+/** The row under each frame's feet: crouched dodges and the hurt pose sit lower in their cell. */
+const FOOT = [45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 48, 48, 47, 45];
 const art = new Image();
 const mantleArt = document.createElement('canvas');
 let mantleReady = false;
@@ -67,7 +69,7 @@ export function drawHeroSprite(
   const smooth = ctx.imageSmoothingEnabled;
   ctx.imageSmoothingEnabled = false;
   const source = mantle > 0 && mantleReady ? mantleArt : art;
-  ctx.drawImage(source, frame * FRAME_W, row * FRAME_H, FRAME_W, FRAME_H, -16, -46, 32, 48);
+  ctx.drawImage(source, frame * FRAME_W, row * FRAME_H, FRAME_W, FRAME_H, -16, -FOOT[frame], FRAME_W, FRAME_H);
   // Pixel headgear sits over the atlas head, rather than disabling the sprite.
   const hy = frame >= 12 && frame <= 13 ? -34 : frame === 14 ? -39 : -42;
   if (style.helm !== 'none' && style.helm !== 'hood_down') {
