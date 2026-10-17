@@ -118,6 +118,7 @@ input, textarea { -webkit-user-select: text; user-select: text; }
 .title-menu .btn.cont { flex-direction: column; align-items: flex-start; gap: 1px; padding-top: 6px; padding-bottom: 6px; }
 .title-menu .cont-meta { font-size: 0.72em; opacity: 0.8; letter-spacing: 0.02em; text-transform: none; }
 .title-foot { position: absolute; left: calc(24px + var(--sal)); right: calc(24px + var(--sar)); bottom: calc(10px + var(--sab)); font-size: 0.75em; color: var(--muted); }
+.art-release { display: inline-block; margin: 10px 0 2px; padding: 5px 9px; border: 1px solid #806338; color: #ddbd78; font: 10px/1.2 monospace; letter-spacing: 0.14em; background: #100d16; }
 .install-hint { margin-top: 10px; padding: 10px 12px; border: 1px solid var(--line); font-size: 0.85em; color: var(--text); background: rgba(13,10,19,0.75); }
 .install-hint b { color: var(--gold-hi); font-weight: 600; }
 

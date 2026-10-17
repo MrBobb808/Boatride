@@ -10,7 +10,10 @@ import { audio } from './audio/audio';
 import { music } from './audio/music';
 import { G } from './game/ctx';
 import { World } from './game/world';
+import { makeEnemy } from './game/foes';
+import type { EnemyKind } from './game/tiles';
 import { setDetail } from './render/actors';
+import { loadCreatureSprites, creatureArtStatus } from './render/creatureSprites';
 import { fx } from './render/fx';
 import { initUI, blockingUI } from './ui/ui';
 import { installNav, layerCount } from './ui/dom';
@@ -30,7 +33,7 @@ const STEP = 1 / 120;
 async function boot() {
   const canvas = document.getElementById('game') as HTMLCanvasElement;
   applyTextSize();
-  await loadFonts();
+  await Promise.all([loadFonts(), loadCreatureSprites()]);
   const renderer = new Renderer(canvas);
   const camera = new Camera(renderer);
   G.renderer = renderer;
@@ -219,7 +222,9 @@ function registerSW() {
   if (location.protocol !== 'https:' && location.hostname !== 'localhost') return;
   if (import.meta.env.DEV) return;
   if (window.top !== window) return; // embedded (e.g. Artifact viewer): no workers there
-  const reg = () => navigator.serviceWorker.register('sw.js').catch(() => {
+  const reg = () => navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then((r) => {
+    void r.update().catch(() => {});
+  }).catch(() => {
     /* sandboxed frames (e.g. embedded previews) cannot register workers */
   });
   if (document.readyState === 'complete') reg();
@@ -232,6 +237,10 @@ function setupDebug() {
   G.debug = true;
   const api = {
     G,
+    art: creatureArtStatus,
+    spawn(kind: EnemyKind, x = G.world.player.x + 90, y = G.world.player.y) {
+      return G.world.add(makeEnemy(kind, x, y, null));
+    },
     warp(room: string, spawn = 'altar') {
       G.world.transition(room, spawn);
     },

@@ -12,6 +12,7 @@ const current = () => document.querySelector('meta[name="remnant-build"]')?.getA
 let pending = false;
 let checking = false;
 let lastCheck = 0;
+let nextBuild = '';
 
 /** True once a newer build has been found and is waiting for a safe moment. */
 export const updatePending = () => pending;
@@ -25,13 +26,14 @@ export async function checkForUpdate(): Promise<boolean> {
   checking = true;
   lastCheck = Date.now();
   try {
-    const res = await fetch(location.pathname + '?v=' + Date.now(), { cache: 'no-store' });
-    const html = await res.text();
-    const m = html.match(/<meta name="remnant-build" content="(\d+)"/);
-    const latest = m?.[1] ?? '';
-    // Only move forward, and only try a given build once per session (no loops).
-    if (latest && latest > here && sessionStorage.getItem(TRIED) !== latest) {
+    const res = await fetch(new URL('version.json?v=' + Date.now(), location.href), { cache: 'no-store' });
+    if (!res.ok) return false;
+    const info = await res.json() as { build?: string };
+    const latest = info.build ?? '';
+    // One attempt per build per session also permits an intentional rollback.
+    if (latest && latest !== here && sessionStorage.getItem(TRIED) !== latest) {
       pending = true;
+      nextBuild = latest;
       sessionStorage.setItem(TRIED, latest);
     }
   } catch {
@@ -49,7 +51,10 @@ export function applyUpdate(slot: number | null) {
   } catch {
     /* storage unavailable: the title screen's Continue still works */
   }
-  location.reload();
+  // A new URL also bypasses Safari's HTTP document cache after a successful probe.
+  const url = new URL(location.href);
+  url.searchParams.set('v', nextBuild || Date.now().toString());
+  location.replace(url.href);
 }
 
 /** After an update reload: the slot to resume, if any (cleared once read). */

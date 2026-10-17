@@ -7,6 +7,7 @@ import { Grid, T, TILE, isSolid, type EntDef, type Loot } from './tiles';
 import { Player } from './player';
 import { Entity, type HitInfo } from './entity';
 import { Enemy } from './enemies';
+import { drawFoeSprite } from '../render/creatureSprites';
 import { makeEnemy } from './foes';
 import { EchoUnit } from './echoes';
 import { Idol } from './boss';
@@ -1415,7 +1416,7 @@ export class World {
       ctx.closePath();
       ctx.clip();
       ctx.translate(nx * side * sep + (side > 0 ? 0 : 0), ny * side * sep + (side < 0 ? t * t * 30 : 0));
-      e.draw(ctx);
+      this.drawActor(ctx, e);
       ctx.restore();
     }
     if (t < 0.35) {
@@ -1539,6 +1540,11 @@ export class World {
   }
 
   // ---------------------------------------------------------------- rendering
+  private drawActor(ctx: Ctx, e: Entity) {
+    if (e instanceof Enemy && drawFoeSprite(ctx, e)) return;
+    e.draw(ctx);
+  }
+
   draw(ctx: Ctx) {
     const r = G.renderer;
     const cam = G.camera;
@@ -1579,7 +1585,7 @@ export class World {
     for (const e of list) {
       if (e.x < v.x - 260 || e.x > v.x + v.w + 260) continue;
       if (e.slice) this.drawSliced(ctx, e);
-      else e.draw(ctx);
+      else this.drawActor(ctx, e);
     }
     fx.drawBack(ctx);
     drawLiveProps(ctx, this.room.ents, G.time, v, this.cond, true);
