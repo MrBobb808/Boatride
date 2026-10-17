@@ -128,6 +128,7 @@ export function showTitle() {
     h('div', { class: 'logo' },
       h('h1', null, 'REMNANT'),
       h('div', { class: 'sub' }, 'Ascension'),
+      h('div', { class: 'art-release' }, 'PIXEL ART · 2.0'),
       h('div', { class: 'verse' }, '“For we wrestle not against flesh and blood, but against principalities, against powers, against the rulers of the darkness of this world, against spiritual wickedness in high places.” ', h('b', null, 'EPHESIANS 6:12 (KJV)')),
     ),
     menu,

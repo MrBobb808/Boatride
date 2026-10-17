@@ -27,6 +27,42 @@ export class Renderer {
   autoPenalty = 0;
   generation = 0;
   private resizeCbs: (() => void)[] = [];
+  readonly pixelArt = !new URLSearchParams(location.search).has('classicArt');
+  private worldCanvas = document.createElement('canvas');
+  private worldCtx = this.worldCanvas.getContext('2d', { alpha: false })!;
+  private display = { w: 0, h: 0, px: 1, scale: 1, viewW: 0 };
+
+  /** One backing pixel per world unit; UI keeps the screen's full resolution. */
+  get worldScale() { return this.pixelArt ? 1 : this.scale; }
+
+  beginWorld(): CanvasRenderingContext2D {
+    if (!this.pixelArt) return this.ctx;
+    const d = this.display;
+    d.w = this.bw; d.h = this.bh; d.px = this.px; d.scale = this.scale; d.viewW = this.viewW;
+    this.bh = Math.max(1, Math.round(this.viewH));
+    this.bw = Math.max(1, Math.round(d.w / d.h * this.bh));
+    this.px = this.bh / this.cssH;
+    this.scale = this.bh / this.viewH;
+    this.viewW = this.bw / this.scale;
+    if (this.worldCanvas.width !== this.bw || this.worldCanvas.height !== this.bh) {
+      this.worldCanvas.width = this.bw; this.worldCanvas.height = this.bh;
+    }
+    this.worldCtx.imageSmoothingEnabled = false;
+    return this.worldCtx;
+  }
+
+  endWorld() {
+    if (!this.pixelArt) return;
+    const d = this.display;
+    this.bw = d.w; this.bh = d.h; this.px = d.px; this.scale = d.scale; this.viewW = d.viewW;
+    const ctx = this.ctx;
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(this.worldCanvas, 0, 0, this.bw, this.bh);
+    ctx.restore();
+  }
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;

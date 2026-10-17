@@ -10,6 +10,7 @@ import { Entity, type HitInfo } from './entity';
 import { moveBody, groundAhead, wallAhead } from './physics';
 import { Animator, solve, newJoints, Chain, drawRibbon, type Joints, type Pose, type Clip, type RigDims, BASE_POSE } from '../render/skeleton';
 import { drawHumanoid, type HumanStyle } from '../render/actors';
+import { drawEchoSprite } from '../render/creatureSprites';
 import { glow, rgba, type Ctx } from '../render/draw';
 import { fx, PK } from '../render/fx';
 import { sfx } from '../audio/audio';
@@ -796,13 +797,20 @@ export class EchoUnit extends Entity {
       ctx.clip();
     }
     ctx.globalAlpha = (this.recallT > 0 ? 0.5 : 0.95) * fade;
-    if (this.kit.cape) drawRibbon(ctx, this.cape, this.kit.cape[0], this.kit.cape[1], this.kit.capeColor(this.inst.stage), '#0a0806');
     ctx.translate(this.x, this.y);
     ctx.scale(this.face, 1);
-    this.kit.under?.(ctx, this);
-    if (this.kit.body) this.kit.body(ctx, this);
-    else drawHumanoid(ctx, this.j, style, G.time + this.id, this.pose.rot, this.body.vx * this.face, this.body.vy);
-    this.kit.over?.(ctx, this);
+    if (!drawEchoSprite(ctx, this)) {
+      // World-space cloth belongs only to the procedural fallback.
+      if (this.kit.cape) {
+        ctx.save(); ctx.scale(this.face, 1); ctx.translate(-this.x, -this.y);
+        drawRibbon(ctx, this.cape, this.kit.cape[0], this.kit.cape[1], this.kit.capeColor(this.inst.stage), '#0a0806');
+        ctx.restore();
+      }
+      this.kit.under?.(ctx, this);
+      if (this.kit.body) this.kit.body(ctx, this);
+      else drawHumanoid(ctx, this.j, style, G.time + this.id, this.pose.rot, this.body.vx * this.face, this.body.vy);
+      this.kit.over?.(ctx, this);
+    }
     ctx.restore();
     ctx.globalAlpha = 1;
     if (this.flash > 0) {

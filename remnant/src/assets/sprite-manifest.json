@@ -1,0 +1,185 @@
+{
+  "cell": 96,
+  "sheets": {
+    "foes-ashen": [
+      {
+        "id": "husk",
+        "row": 0,
+        "originX": 38,
+        "originY": 88,
+        "height": 54
+      },
+      {
+        "id": "sentinel",
+        "row": 1,
+        "originX": 32,
+        "originY": 88,
+        "height": 54
+      },
+      {
+        "id": "archer",
+        "row": 2,
+        "originX": 35,
+        "originY": 88,
+        "height": 54
+      },
+      {
+        "id": "knight",
+        "row": 3,
+        "originX": 37,
+        "originY": 88,
+        "height": 54
+      }
+    ],
+    "foes-shinar": [
+      {
+        "id": "brute",
+        "row": 0,
+        "originX": 31,
+        "originY": 88,
+        "height": 54
+      },
+      {
+        "id": "bulwark",
+        "row": 1,
+        "originX": 42,
+        "originY": 88,
+        "height": 54
+      },
+      {
+        "id": "priest",
+        "row": 2,
+        "originX": 28,
+        "originY": 88,
+        "height": 54
+      },
+      {
+        "id": "scribe",
+        "row": 3,
+        "originX": 30,
+        "originY": 88,
+        "height": 54
+      }
+    ],
+    "foes-beasts": [
+      {
+        "id": "hound",
+        "row": 0,
+        "originX": 47,
+        "originY": 88,
+        "height": 37
+      },
+      {
+        "id": "lion",
+        "row": 1,
+        "originX": 36,
+        "originY": 88,
+        "height": 44
+      },
+      {
+        "id": "drone",
+        "row": 2,
+        "originX": 41,
+        "originY": 88,
+        "height": 54
+      },
+      {
+        "id": "soldier",
+        "row": 3,
+        "originX": 29,
+        "originY": 88,
+        "height": 54
+      }
+    ],
+    "foes-veil": [
+      {
+        "id": "wisp",
+        "row": 0,
+        "originX": 36,
+        "originY": 88,
+        "height": 54
+      },
+      {
+        "id": "vessel",
+        "row": 1,
+        "originX": 33,
+        "originY": 88,
+        "height": 54
+      },
+      {
+        "id": "marshal",
+        "row": 2,
+        "originX": 46,
+        "originY": 88,
+        "height": 54
+      },
+      {
+        "id": "warden",
+        "row": 3,
+        "originX": 35,
+        "originY": 88,
+        "height": 54
+      }
+    ],
+    "echo-sovereign": [
+      {
+        "id": "knight",
+        "row": 0,
+        "originX": 35,
+        "originY": 88,
+        "height": 54
+      },
+      {
+        "id": "marshal",
+        "row": 1,
+        "originX": 29,
+        "originY": 88,
+        "height": 54
+      },
+      {
+        "id": "locust",
+        "row": 2,
+        "originX": 35,
+        "originY": 88,
+        "height": 54
+      },
+      {
+        "id": "lion",
+        "row": 3,
+        "originX": 62,
+        "originY": 88,
+        "height": 41
+      }
+    ],
+    "echo-vanguard": [
+      {
+        "id": "sentinel",
+        "row": 0,
+        "originX": 34,
+        "originY": 88,
+        "height": 54
+      },
+      {
+        "id": "archer",
+        "row": 1,
+        "originX": 36,
+        "originY": 88,
+        "height": 54
+      },
+      {
+        "id": "brute",
+        "row": 2,
+        "originX": 36,
+        "originY": 88,
+        "height": 54
+      },
+      {
+        "id": "bulwark",
+        "row": 3,
+        "originX": 35,
+        "originY": 88,
+        "height": 54
+      }
+    ]
+  }
+}

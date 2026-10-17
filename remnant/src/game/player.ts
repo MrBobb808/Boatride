@@ -1536,10 +1536,10 @@ export class Player extends Entity {
     if (blink) ctx.globalAlpha = 0.55;
     const eye = this.mantleT > 0 || this.state === 'transform' ? 1 : this.state === 'cast' || this.lion > 0 || this.armorLight > 0 || this.state === 'execute' ? 0.9 : 0;
     s.eyeGlow = eye;
-    const attackProgress = this.atk ? clamp(this.atkT / Math.max(0.01, this.atk.dur / this.aspd()), 0, 1) : 0;
+    const attackProgress = this.atk ? clamp(this.atkT / Math.max(0.01, this.atk.dur / this.aspd()), 0, 1) : this.anim.u;
     const w = illustrated
       ? drawHeroSprite(ctx, this.j, s, t, this.state as HeroSpriteAction, this.body.vx * this.face,
-          this.body.onGround, this.body.vy, attackProgress, this.pose.rot)
+          this.body.onGround, this.body.vy, attackProgress, this.pose.rot, this.mantleT)
       : drawHumanoid(ctx, this.j, s, t, this.pose.rot, this.body.vx * this.face, this.body.onGround ? 0 : this.body.vy);
     this.lastWpn.bx = w.bx; this.lastWpn.by = w.by; this.lastWpn.tx = w.tx; this.lastWpn.ty = w.ty;
     if (this.flash > 0) {

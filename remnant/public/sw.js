@@ -5,7 +5,7 @@ const CACHE = 'remnant-' + VERSION;
 const CORE = ['./', './index.html', './manifest.webmanifest', './icons/apple-touch-icon.png', './icons/icon-192.png', './icons/icon-512.png'];
 
 self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(CORE)).then(() => self.skipWaiting()));
+  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(CORE.map((url) => new Request(url, { cache: 'reload' })))).then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', (e) => {
@@ -18,16 +18,26 @@ self.addEventListener('activate', (e) => {
 
 self.addEventListener('fetch', (e) => {
   const req = e.request;
-  if (req.method !== 'GET' || new URL(req.url).origin !== location.origin) return;
+  const url = new URL(req.url);
+  if (req.method !== 'GET' || url.origin !== location.origin) return;
+  // Update probes must never get trapped in an installed copy's offline cache.
+  if (url.pathname.endsWith('/version.json') || (req.mode !== 'navigate' && url.searchParams.has('v'))) {
+    e.respondWith(fetch(req, { cache: 'no-store' }));
+    return;
+  }
   if (req.mode === 'navigate') {
     // Network first so updates arrive, falling back to the cached game offline.
+    const network = fetch(req, { cache: 'no-store' }).then(async (res) => {
+      if (!res.ok || !(res.headers.get('content-type') ?? '').includes('text/html')) throw new Error('Game unavailable');
+      const c = await caches.open(CACHE);
+      await c.put('./index.html', res.clone());
+      return res;
+    });
+    // Keep the refresh alive even when the timeout has already served an offline copy.
+    e.waitUntil(network.then(() => {}, () => {}));
     e.respondWith(
       Promise.race([
-        fetch(req).then((res) => {
-          const copy = res.clone();
-          caches.open(CACHE).then((c) => c.put('./index.html', copy));
-          return res;
-        }),
+        network,
         new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 3500)),
       ]).catch(() => caches.match('./index.html').then((r) => r || caches.match('./'))),
     );
