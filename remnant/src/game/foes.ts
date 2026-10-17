@@ -33,6 +33,9 @@ function build(kind: EnemyKind, x: number, y: number, elite: string | null): Ene
     case 'priest': return new Priest(x, y, elite);
     case 'vessel': return new Vessel(x, y, elite);
     case 'scribe': return new Scribe(x, y, elite);
+    // Stand-ins until game/princes.ts lands.
+    case 'undying': return new Knight(x, y, elite);
+    case 'gale': return new Wisp(x, y, elite);
   }
 }
 

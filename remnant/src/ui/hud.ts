@@ -61,6 +61,10 @@ export function objectiveText(): string {
     const st = s.quests[q.id];
     if (st && !st.done) return q.stages[Math.min(st.stage, q.stages.length - 1)];
   }
+  if (flag('ch6_done')) return 'Chapter VI complete. Chapter VII is coming. Brave the Trial of the Remnant, grow your army, or begin New Game+ at an altar.';
+  if (flag('ch5_done') && !flag('ch6_intro')) return 'Chapter V complete. Journey on to the great river Hiddekel from any altar.';
+  if (flag('ch4_done') && !flag('ch5_intro')) return 'Chapter IV complete. Journey on to Babylon from any altar.';
+  if (flag('ch3_done') && !flag('ch4_intro')) return 'Chapter III complete. Journey on to the plain of Dura from any altar.';
   if (flag('ch3_done')) return 'Chapter III complete. Brave the Trial of the Remnant, grow your army, or begin New Game+ at an altar.';
   if (flag('ch2_done')) return 'Chapter II complete. Journey on to the Valley of Bones from any altar.';
   if (flag('ending_done')) return 'Chapter I complete. Journey east to Shinar from any altar, or begin New Game+.';

@@ -713,7 +713,7 @@ export class World {
     const st = e.stats;
     s.kills++;
     (s.bestiary ??= {})[e.kind] = (s.bestiary[e.kind] ?? 0) + 1;
-    const tier = e.tier === 5 ? 4.8 : e.tier === 4 ? 3.6 : e.tier === 3 ? 2.6 : e.tier === 2 ? 1.7 : 1;
+    const tier = e.tier === 6 ? 6.0 : e.tier === 5 ? 4.8 : e.tier === 4 ? 3.6 : e.tier === 3 ? 2.6 : e.tier === 2 ? 1.7 : 1;
     const xp = e.xpOverride ?? Math.round(st.xp * (e.elite ? 4 : 1) * G.d.xpMult * (1 + s.ng * 0.5) * tier);
     this.giveXp(xp);
     const loot: Loot[] = [{ silver: Math.round(randInt(st.silver[0], st.silver[1]) * (e.elite ? 4 : 1) * tier) }];

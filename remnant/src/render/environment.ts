@@ -111,6 +111,22 @@ export const BIOMES: Record<Biome, BiomePal> = {
     stone: '#24386a', stoneDark: '#10182e', cap: '#d8ccb4', capTuft: '#e8c25a', back: '#221a2a', backLine: '#33263c', moon: '#eae6d6',
     plat: '#5a4430', ambient: '#120a18',
   },
+  // Chapter VI: Persia, and the high places above it.
+  hiddekel: {
+    sky: ['#0a0c18', '#2a3a5a', '#8a7a6a'], far: '#22283a', mid: '#161a26', near: '#0a0c12', fog: '#8aa0b8',
+    stone: '#6a5a44', stoneDark: '#2a2218', cap: '#5a6a3a', capTuft: '#8a9a5a', back: '#1e1a14', backLine: '#2a241a', moon: '#f0e8d0',
+    plat: '#5a4a32', ambient: '#0c0e18',
+  },
+  shushan: {
+    sky: ['#06060e', '#2a2440', '#5a4a5a'], far: '#1e1a2a', mid: '#14101c', near: '#0a080e', fog: '#c8a878',
+    stone: '#8a7656', stoneDark: '#3a3024', cap: '#c8b48a', capTuft: '#3a6aa8', back: '#241e18', backLine: '#342a20', moon: null,
+    plat: '#6a5438', ambient: '#100c14',
+  },
+  highplaces: {
+    sky: ['#0a0614', '#3a2a5a', '#c89a6a'], far: '#2a2240', mid: '#1c162c', near: '#100c1a', fog: '#ffd89a',
+    stone: '#c8c0b0', stoneDark: '#5a5448', cap: '#f0e8d8', capTuft: '#ffd88a', back: '#2a2434', backLine: '#3a3248', moon: null,
+    plat: '#d8ccb0', ambient: '#140e1e',
+  },
 };
 
 // ---------------------------------------------------------------- Parallax
