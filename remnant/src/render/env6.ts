@@ -1619,3 +1619,297 @@ const stormAltar: PropFn = (ctx, e) => {
   blob(ctx, '#6a8ad8', 0, -38, 20, 6, 0.3);
   ctx.globalCompositeOperation = 'source-over';
 };
+
+// ---------------------------------------------------------------- props: the marsh and the high places
+
+const deadTree: PropFn = (ctx, e, pal, rng) => {
+  // A tamarisk killed by salt, bleached grey, its branches bare against the sky.
+  const BARK = '#6a6258', BARK_DK = '#3a342c', BARK_LIT = '#a8a090';
+  ctx.beginPath();
+  ctx.moveTo(-5, 0);
+  ctx.lineTo(-3, -24);
+  ctx.lineTo(-6, -40);
+  ctx.lineTo(-2, -40);
+  ctx.lineTo(1, -26);
+  ctx.lineTo(3, -36);
+  ctx.lineTo(6, -35);
+  ctx.lineTo(3, -22);
+  ctx.lineTo(5, 0);
+  ctx.closePath();
+  solidify(ctx, BARK, OUT, 0.5);
+  box(ctx, BARK_LIT, -3, -22, 1, 21);
+  box(ctx, BARK_DK, 2, -20, 1, 20);
+  // bare limbs, a crook at each end
+  ctx.strokeStyle = OUT;
+  ctx.lineWidth = 2.4;
+  ctx.lineCap = 'round';
+  const limbs = [[-4, -38, -16, -50, -20, -49], [-3, -30, -14, -34, -18, -40], [4, -34, 14, -48, 18, -47], [3, -26, 12, -28, 15, -33], [-1, -40, 0, -54, 3, -57]];
+  for (const [x0, y0, x1, y1, x2, y2] of limbs) {
+    ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+  }
+  ctx.strokeStyle = BARK;
+  ctx.lineWidth = 1;
+  for (const [x0, y0, x1, y1, x2, y2] of limbs) {
+    ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+  }
+  ctx.lineCap = 'butt';
+  // roots and a ring of salt crust
+  box(ctx, BARK_DK, -9, -1, 4, 1);
+  box(ctx, BARK_DK, 5, -1, 5, 1);
+  box(ctx, '#d8d4c4', -11, 0, 22, 1);
+  if (rng.chance(0.5)) box(ctx, '#2e323c', 12, -47, 3, 2);
+  void pal; void e;
+};
+
+const RIFT = '#fff1c4', RIFT_HOT = '#fffaf0', RIFT_DEEP = '#c8945a';
+
+const heavenRift: PropFn = (ctx, e, pal, rng) => {
+  // The heavens opened behind the high places: a vertical tear of gold-white light,
+  // shafts falling from it, and faint stairs of light climbing toward it.
+  const W = (e.w ?? 96) * TILE, H = (e.h ?? 30) * TILE;
+  const top = -H;
+  ctx.globalCompositeOperation = 'lighter';
+  blob(ctx, RIFT_DEEP, 0, top + H * 0.32, W * 0.34, H * 0.42, 0.35);
+  blob(ctx, RIFT, 0, top + H * 0.3, W * 0.16, H * 0.3, 0.45);
+  ctx.globalCompositeOperation = 'source-over';
+  // the tear itself, ragged-edged
+  ctx.beginPath();
+  ctx.moveTo(0, top + 6);
+  for (let i = 1; i <= 12; i++) ctx.lineTo(Math.round(((i & 1) ? 9 : 4) + rng.range(-2, 2) + i * 0.8), Math.round(top + 6 + i * H * 0.05));
+  for (let i = 12; i >= 1; i--) ctx.lineTo(Math.round(-((i & 1) ? 4 : 9) - rng.range(-2, 2) - i * 0.6), Math.round(top + 6 + i * H * 0.05));
+  ctx.closePath();
+  ctx.fillStyle = RIFT;
+  ctx.fill();
+  box(ctx, RIFT_HOT, -2, top + 10, 4, Math.round(H * 0.56));
+  // shafts of light falling out of it
+  ctx.globalAlpha = 0.18;
+  ctx.fillStyle = RIFT;
+  for (let i = -3; i <= 3; i++) {
+    if (!i) continue;
+    ctx.beginPath();
+    ctx.moveTo(i * 3, top + H * 0.3);
+    ctx.lineTo(i * 3 + 2, top + H * 0.3);
+    ctx.lineTo(i * W * 0.11 + 14, 0);
+    ctx.lineTo(i * W * 0.11 - 14, 0);
+    ctx.closePath();
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+  // stairs of light climbing toward the tear
+  for (let s = 0; s < 9; s++) {
+    const y = Math.round(-H * 0.28 - s * 14), x = Math.round(-W * 0.2 + s * 9);
+    box(ctx, 'rgba(255,241,196,0.32)', x, y, 22, 2);
+    box(ctx, 'rgba(255,250,240,0.55)', x, y, 22, 1);
+  }
+  // motes drifting in the light
+  for (let i = 0; i < 40; i++) box(ctx, 'rgba(255,240,200,0.6)', Math.round(rng.range(-W * 0.3, W * 0.3)), Math.round(rng.range(top, 0)), 1, 1);
+  void pal;
+};
+
+const throneProp: PropFn = (ctx, e) => {
+  // The throne of the prince of Persia, set on clouds: a high back of beaten gold with a winged disc
+  // at its crown, lions on its arms, six steps up to it. It is empty when he stands to fight.
+  const W = (e.w ?? 16) * TILE, H = (e.h ?? 14) * TILE, hw = W / 2;
+  // steps
+  for (let s = 0; s < 6; s++) {
+    const sw = W - s * 14, y = -s * 6;
+    ctx.beginPath();
+    ctx.rect(-sw / 2, y - 6, sw, 6);
+    solidify(ctx, s & 1 ? '#d8ccb0' : '#e8dcc0', OUT, 0.5);
+    box(ctx, '#fff6e0', -sw / 2, y - 6, sw, 1);
+    box(ctx, GOLD_DK, -sw / 2, y - 1, sw, 1);
+  }
+  const base = -36;
+  // the high back
+  ctx.beginPath();
+  ctx.moveTo(-26, base);
+  ctx.lineTo(-26, base - H * 0.62);
+  ctx.quadraticCurveTo(0, base - H * 0.86, 26, base - H * 0.62);
+  ctx.lineTo(26, base);
+  ctx.closePath();
+  solidify(ctx, GOLD, OUT, 0.6);
+  box(ctx, GOLD_HI, -24, Math.round(base - H * 0.6), 3, Math.round(H * 0.58));
+  box(ctx, GOLD_DK, 20, Math.round(base - H * 0.6), 4, Math.round(H * 0.6));
+  // inset panel of lapis with a gold rosette
+  ctx.beginPath();
+  ctx.rect(-16, Math.round(base - H * 0.56), 32, Math.round(H * 0.42));
+  solidify(ctx, LAPIS, OUT, 0.5);
+  box(ctx, TURQ, -16, Math.round(base - H * 0.56), 32, 1);
+  rosette(ctx, 0, Math.round(base - H * 0.38), 6);
+  // seat, arms and their lions
+  ctx.beginPath();
+  ctx.rect(-30, base - 14, 60, 14);
+  solidify(ctx, '#b8862e', OUT, 0.5);
+  box(ctx, GOLD_HI, -30, base - 14, 60, 1);
+  for (const sx of [-1, 1]) {
+    ctx.beginPath();
+    ctx.rect(sx * 30 - (sx > 0 ? 8 : 0), base - 28, 8, 28);
+    solidify(ctx, GOLD, OUT, 0.5);
+    // a couchant lion's head on the arm
+    ctx.beginPath();
+    ctx.ellipse(sx * 34, base - 30, 6, 5, 0, 0, TAU);
+    solidify(ctx, GOLD, OUT, 0.5);
+    box(ctx, GOLD_DK, sx * 34 - 3, base - 31, 6, 1);
+    box(ctx, OUT, sx * 34 + sx * 2, base - 31, 1, 1);
+  }
+  // purple cushion
+  box(ctx, '#3a1440', -26, base - 18, 52, 4);
+  box(ctx, '#5a2a66', -26, base - 18, 52, 1);
+  void hw;
+};
+
+const wingedDisc: PropFn = (ctx, e) => {
+  // A winged sun-disc hung high over the throne: the emblem of a kingdom, gilded and cold.
+  const W = (e.w ?? 22) * TILE, hw = W / 2;
+  for (const sx of [-1, 1]) {
+    ctx.beginPath();
+    ctx.moveTo(sx * 8, -4);
+    ctx.lineTo(sx * hw, -10);
+    ctx.lineTo(sx * (hw - 6), -2);
+    ctx.lineTo(sx * hw * 0.9, 2);
+    ctx.lineTo(sx * (hw * 0.9 - 8), 6);
+    ctx.lineTo(sx * hw * 0.7, 9);
+    ctx.lineTo(sx * 8, 6);
+    ctx.closePath();
+    solidify(ctx, GOLD, OUT, 0.5);
+    ctx.fillStyle = GOLD_DK;
+    for (let r = 0; r < 3; r++) ctx.fillRect(Math.min(sx * 10, sx * (hw - 10)), -3 + r * 4, Math.abs(hw - 20), 1);
+    box(ctx, GOLD_HI, Math.min(sx * 10, sx * (hw - 4)), -6, Math.abs(hw - 14), 1);
+  }
+  // the tail feathers below and the disc
+  ctx.beginPath();
+  ctx.moveTo(-6, 6);
+  ctx.lineTo(6, 6);
+  ctx.lineTo(3, 18);
+  ctx.lineTo(-3, 18);
+  ctx.closePath();
+  solidify(ctx, GOLD, OUT, 0.5);
+  box(ctx, GOLD_DK, -1, 7, 1, 10);
+  ctx.beginPath();
+  ctx.arc(0, 0, 8, 0, TAU);
+  solidify(ctx, '#e8b84a', OUT, 0.5);
+  circle(ctx, 0, 0, 5, GOLD_HI);
+  box(ctx, '#fffaf0', -2, -3, 2, 2);
+};
+
+const BOUNDS: Record<string, (e: Decor) => [number, number, number, number]> = {
+  heaven_rift: (e) => { const W = (e.w ?? 96) * TILE, H = (e.h ?? 30) * TILE; return [-W / 2, -H - 10, W / 2, 4]; },
+  shushan_wall: (e) => { const W = (e.w ?? 60) * TILE, H = (e.h ?? 16) * TILE; return [-W / 2 - 10, -H - 30, W / 2 + 10, 4]; },
+  tribute_relief: (e) => { const W = (e.w ?? 80) * TILE, H = (e.h ?? 6) * TILE; return [-W / 2 - 4, -H - 4, W / 2 + 4, 4]; },
+  ziggurat_summit: (e) => { const W = (e.w ?? 70) * TILE, H = (e.h ?? 10) * TILE; return [-W / 2 - 4, -H - 40, W / 2 + 4, 4]; },
+  river_bank: (e) => { const W = (e.w ?? 24) * TILE; return [-W / 2 - 4, -40, W / 2 + 40, 30]; },
+};
+
+const PROPS: Record<string, PropFn> = {
+  river_bank: riverBank,
+  prayer_mat: prayerMat,
+  marsh_heron: marshHeron,
+  dead_tree: deadTree,
+  stone_marker: stoneMarker,
+  royal_milestone: royalMilestone,
+  waystation,
+  caravan,
+  foreign_shrine: foreignShrine,
+  shushan_wall: shushanWall,
+  winged_bull: wingedBull,
+  persian_banner: persianBanner,
+  bull_column: bullColumn,
+  tribute_relief: tributeRelief,
+  ziggurat_summit: zigguratSummit,
+  storm_altar: stormAltar,
+  heaven_rift: heavenRift,
+  broken_chain: () => {},
+  cloud_bank: () => {},
+  prince_throne: throneProp,
+  winged_disc: wingedDisc,
+};
+
+/** Decor baked before the rest of a chunk's props, so columns, bulls and people stand in front of it. */
+export const BACKDROP_CH6: ReadonlySet<string> = new Set(['shushan_wall', 'tribute_relief', 'ziggurat_summit', 'heaven_rift', 'river_bank']);
+
+/** Chapter VI props. Returns false for kinds it does not know. */
+export function drawPropCh6(ctx: Ctx, e: Decor, pal: BiomePal, seed: number): boolean {
+  const fn = PROPS[e.k];
+  if (!fn) return false;
+  // Tile chunks are baked with a plain scale+translate; skip props that miss this chunk entirely.
+  const b = BOUNDS[e.k]?.(e);
+  const m = ctx.getTransform();
+  if (b && m.b === 0 && m.c === 0) {
+    const x = e.x * TILE, y = e.y * TILE;
+    const x0 = e.flip ? x - b[2] : x + b[0], x1 = e.flip ? x - b[0] : x + b[2];
+    const X0 = m.a * x0 + m.e, X1 = m.a * x1 + m.e, Y0 = m.d * (y + b[1]) + m.f, Y1 = m.d * (y + b[3]) + m.f;
+    if (Math.max(X0, X1) < 0 || Math.min(X0, X1) > ctx.canvas.width || Math.max(Y0, Y1) < 0 || Math.min(Y0, Y1) > ctx.canvas.height) return true;
+  }
+  ctx.save();
+  ctx.translate(e.x * TILE, e.y * TILE);
+  if (e.flip) ctx.scale(-1, 1);
+  fn(ctx, e, pal, new RNG(seed + Math.floor(e.x * 31 + e.y * 7)));
+  ctx.restore();
+  return true;
+}
+
+// ---------------------------------------------------------------- live props
+
+/** Decor that moves every frame: standards in the wind, chains over the void, drifting cloud. */
+export const LIVE_CH6: ReadonlySet<string> = new Set(['persian_banner', 'broken_chain', 'cloud_bank']);
+
+export function drawLivePropCh6(ctx: Ctx, e: Decor, t: number) {
+  const x = e.x * TILE, y = e.y * TILE;
+  switch (e.k) {
+    case 'persian_banner': {
+      // A long purple standard with a gold border and a sun-disc, rippling.
+      const hang = e.y <= 3;
+      const top = Math.round(y + (hang ? 10 : 2)), H = (e.h ?? 5) * TILE, W = 22;
+      const wind = skyVariant === 'storm' ? 2.5 : 1;
+      for (let row = 0; row < H; row++) {
+        const u = row / H;
+        const off = Math.round(Math.sin(t * 2.4 * wind - row * 0.18 + e.x) * u * 3 * wind);
+        const narrow = row > H - 8 ? (row - (H - 8)) : 0;
+        const w0 = Math.round(-W / 2 + narrow), w1 = Math.round(W / 2 - narrow);
+        ctx.fillStyle = OUT;
+        ctx.fillRect(x + w0 - 1 + off, top + row, w1 - w0 + 2, 1);
+        ctx.fillStyle = (row % 18) < 2 ? GOLD : '#4a1a58';
+        ctx.fillRect(x + w0 + off, top + row, w1 - w0, 1);
+        ctx.fillStyle = GOLD;
+        ctx.fillRect(x + w0 + off, top + row, 1, 1);
+        ctx.fillRect(x + w1 - 1 + off, top + row, 1, 1);
+        if (row > 8 && row < 18) ctx.fillRect(x - 3 + off + (row > 10 && row < 16 ? -1 : 0), top + row, row > 10 && row < 16 ? 8 : 6, 1);
+      }
+      break;
+    }
+    case 'broken_chain': {
+      // A fallen angel's chain hanging over nothing, its last links snapped.
+      const n = Math.max(4, Math.floor(((e.h ?? 10) * TILE) / 7));
+      const sw = Math.sin(t * 0.8 + e.x) * 0.06;
+      for (let i = 0; i < n; i++) {
+        const lx = Math.round(x + Math.sin(sw * i) * i * 7), ly = Math.round(y + i * 7);
+        const side = i & 1;
+        ctx.fillStyle = OUT;
+        ctx.fillRect(lx - (side ? 2 : 4), ly - 1, side ? 4 : 8, 9);
+        ctx.fillStyle = '#6a6470';
+        if (side) ctx.fillRect(lx - 1, ly, 2, 7);
+        else { ctx.fillRect(lx - 3, ly, 6, 7); ctx.fillStyle = OUT; ctx.fillRect(lx - 1, ly + 2, 2, 3); ctx.fillStyle = '#a8a2b0'; ctx.fillRect(lx - 3, ly, 1, 6); }
+      }
+      // the snapped end glints
+      const ex = Math.round(x + Math.sin(sw * n) * n * 7), ey = Math.round(y + n * 7);
+      ctx.fillStyle = '#c8c2d0';
+      ctx.fillRect(ex - 2, ey, 1, 2);
+      ctx.fillRect(ex + 1, ey + 1, 1, 2);
+      break;
+    }
+    case 'cloud_bank': {
+      // The floor of the high places: rolling cloud, lit from above.
+      const W = (e.w ?? 40) * TILE, hw = W / 2;
+      const drift = (t * 4) % 24;
+      for (let i = -1; i < W / 24 + 1; i++) {
+        const cx = Math.round(x - hw + i * 24 + drift), r = 10 + ((i * 7 + Math.floor(e.x)) % 3) * 3;
+        if (cx < x - hw - 12 || cx > x + hw + 12) continue;
+        ellipse(ctx, cx, y - 4, r + 2, r * 0.55 + 1, 0, 'rgba(120,96,140,0.55)');
+        ellipse(ctx, cx, y - 5, r, r * 0.5, 0, 'rgba(240,226,236,0.8)');
+        ctx.fillStyle = 'rgba(255,250,240,0.9)';
+        ctx.fillRect(cx - Math.round(r * 0.5), Math.round(y - 5 - r * 0.45), Math.round(r), 1);
+      }
+      break;
+    }
+  }
+}
