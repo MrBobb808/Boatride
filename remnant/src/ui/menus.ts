@@ -816,6 +816,7 @@ function settingsTab() {
       row('Respect the silent switch', 'On: iPhone\'s ring/silent switch mutes the game and lets your own music keep playing.', toggle(st.respectSilent, (v) => (st.respectSilent = v), 'rs')),
     ),
     h('div', { class: 'box' }, h('h3', null, 'Display'),
+      row('Art style', 'Pixel draws the world as crisp pixel art.', seg(st.artStyle ?? 'pixel', [['pixel', 'Pixel'], ['smooth', 'Smooth']], (v) => { st.artStyle = v; setTimeout(() => G.renderer.resize(), 0); }, 'art')),
       row('Graphics quality', 'Auto lowers resolution if frames drop.', seg(st.quality, [['auto', 'Auto'], ['high', 'High'], ['medium', 'Medium'], ['low', 'Low']], (v) => { st.quality = v; G.renderer.autoPenalty = 0; setTimeout(() => G.renderer.resize(), 0); }, 'q')),
       row('Frame rate', 'Auto runs at your display\'s rate (120 Hz ProMotion). 60 saves battery.', seg(st.fps, [['auto', 'Auto'], ['60', '60 FPS']], (v) => (st.fps = v), 'fps')),
       row('Camera distance', '', seg(st.zoom, [['close', 'Close'], ['normal', 'Normal'], ['wide', 'Wide']], (v) => { st.zoom = v; setTimeout(() => G.renderer.resize(), 0); }, 'z')),

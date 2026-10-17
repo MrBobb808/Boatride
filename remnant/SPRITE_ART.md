@@ -9,7 +9,8 @@ This is a deliberate pilot rather than a wholesale art replacement.
 
 - `src/assets/elior-sprites.png` is **original raster pixel art** created for
   this project. It is not lifted from an external game or third-party pack.
-- Atlas size: **512 × 144** pixels (16 columns × 3 rows).
+- Atlas size: **512 × 144** pixels (16 columns × 3 rows). Frames are drawn
+  1:1, with the feet on row 45 (48 for the dodge frames, 47 for hurt).
 - Frames: **32 × 48** pixels, top-left origin.
 - Row 0 = tunic; row 1 = plate armor; row 2 = sovereign-style armor.
 - Columns 0–3 = idle, 4–7 = run, 8 = jump, 9 = fall, 10–11 = attack/charge,
@@ -18,6 +19,20 @@ This is a deliberate pilot rather than a wholesale art replacement.
   Until it loads, the game safely uses its existing procedural character art.
 - `render/heroSprites.ts` maps character states to frames with no per-frame
   image allocations and disables smoothing to keep the illustrated pixels crisp.
+
+## Pixel-art rendering (the whole game)
+
+- Settings → Display → **Art style** chooses **Pixel** (default) or **Smooth**.
+- In Pixel mode `render/renderer.ts` draws the world into a small canvas at
+  **one pixel per world unit** (the same scale as the atlas: a 32 × 48 frame
+  is 32 × 48 world units) and `Renderer.present()` scales it onto the screen
+  with smoothing off. Every room, foe, boss, effect and light gets the same
+  pixel grid as Elior's sprites. The HUD, menus and dialogue stay sharp.
+- The view keeps its usual height (268 units on a phone, 300 elsewhere). A
+  whole number of screen pixels per art pixel is used when it moves the view
+  by 5% or less; otherwise the scale is fractional (on a 3× iPhone that is
+  about 4.4 screen pixels per art pixel, where the difference is invisible).
+- It is also cheaper: the world is filled at roughly a tenth of the pixels.
 
 ## Integration safeguards
 

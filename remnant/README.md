@@ -396,6 +396,9 @@ Debug helpers are available when you add `?debug` to the URL.
   - No `shadowBlur`, which is slow in Safari.
   - Pre-baked tile chunks and pooled particles.
   - Automatic quality scaling.
+  - Pixel-art mode (the default art style) draws the world at one pixel per
+    world unit and scales it up hard-edged, so the world costs a fraction of
+    the fill. Settings → Display → Art style switches back to Smooth.
 - **Fonts:** Cinzel and Cormorant Garamond, used under the SIL Open Font
   License.
 

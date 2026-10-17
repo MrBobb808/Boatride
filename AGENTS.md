@@ -88,6 +88,12 @@ up next starts from the latest version.
   - Death respawns the player at the doorway of the current room.
 - **Guidance:** `game/guide.ts` maps quest stages to targets and draws the
   golden objective marker.
+- **Pixel art:** Settings → Art style (default Pixel) draws the world at one
+  pixel per world unit and scales it up hard-edged (`Renderer.world`,
+  `Renderer.present`). Elior's illustrated frames are in
+  `assets/elior-sprites.png` (`render/heroSprites.ts`, see `SPRITE_ART.md`).
+  World drawing must use `r.bw`/`r.bh` (the world target); the HUD uses
+  `r.px` and CSS pixels; `r.cw`/`r.ch` is the screen canvas.
 - **UI:** `ui/` holds the HUD, menus, touch controls, dialogue and title
   screen.
   - `ui/island.ts` draws game status around the Dynamic Island in landscape

@@ -8,6 +8,8 @@ import type { Ctx } from './draw';
 
 const FRAME_W = 32;
 const FRAME_H = 48;
+/** The row under each frame's feet: crouched dodges and the hurt pose sit lower in their cell. */
+const FOOT = [45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 48, 48, 47, 45];
 const art = new Image();
 art.decoding = 'async';
 art.src = atlasUrl;
@@ -56,7 +58,8 @@ export function drawHeroSprite(
   const w = drawWeapon(ctx, j, style, time);
   const smooth = ctx.imageSmoothingEnabled;
   ctx.imageSmoothingEnabled = false;
-  ctx.drawImage(art, frame * FRAME_W, row * FRAME_H, FRAME_W, FRAME_H, -16, -43, 32, 43);
+  // One atlas pixel per world unit (one art pixel on screen), feet on the ground line.
+  ctx.drawImage(art, frame * FRAME_W, row * FRAME_H, FRAME_W, FRAME_H, -16, -FOOT[frame], FRAME_W, FRAME_H);
   ctx.imageSmoothingEnabled = smooth;
   ctx.restore();
 
