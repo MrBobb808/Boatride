@@ -6,7 +6,7 @@ import { moveBody, touchesTile } from './physics';
 import { T } from './tiles';
 import { Animator, solve, Chain, drawRibbon, newJoints, type Joints, type Pose, BASE_POSE } from '../render/skeleton';
 import { drawHumanoid, drawTrail, type HumanStyle } from '../render/actors';
-import { drawHeroSprite, heroSpriteReady, type HeroSpriteAction } from '../render/heroSprites';
+import { setPixelExtras, type PixelExtras } from '../render/pixelHero';
 import { glow, rgba, circle, type Ctx } from '../render/draw';
 import { fx, PK } from '../render/fx';
 import { input } from '../core/input';
@@ -34,6 +34,9 @@ const MAX_FALL = 560;
 const RUN = 142;
 const JUMP_V = 430;
 const DJUMP_V = 400;
+
+/** Reused every frame for the pixel painter's cape and scarf. */
+const PX: PixelExtras = { x: 0, y: 0, cape: null, capeColor: '#3a1418', capeTrim: null, scarf: null };
 
 export const DIMS = { torso: 12.5, head: 4.6, neck: 1.5, upperArm: 7, foreArm: 6.6, thigh: 8.2, shin: 8.2, shoulderSpread: 1.4, hipSpread: 1.5 };
 
@@ -1499,17 +1502,18 @@ export class Player extends Entity {
       ctx.globalCompositeOperation = 'source-over';
       return;
     }
-    // The illustrated atlas handles Elior's scarf; classic poses retain the old ribbon.
-    const illustrated = heroSpriteReady(s, this.state, this.mantleT);
+    // In pixel art the cape and scarf are painted with the body, in one pass.
+    const pixelArt = G.renderer.pixel && this.mantleT <= 0;
     // cape & scarf (world space, behind body)
     const lv = G.save.level;
+    const caped = lv >= 7 || !!(s.plate && s.plate.tier >= 2);
     if (this.mantleT > 0) {
       drawMantleBack(ctx, this);
-    } else if (lv >= 7 || (s.plate && s.plate.tier >= 2)) {
+    } else if (caped && !pixelArt) {
       drawRibbon(ctx, this.cape, 9, 13, '#3a1418', '#0a070c');
       if (lv >= 7) drawRibbon(ctx, this.cape, 1.5, 2, '#e2b85a');
     }
-    if (!illustrated) drawRibbon(ctx, this.scarf, 3.4, 1.4, s.scarf ?? '#8f2a2a', '#0a070c');
+    if (!pixelArt) drawRibbon(ctx, this.scarf, 3.4, 1.4, s.scarf ?? '#8f2a2a', '#0a070c');
     // aura
     if (this.aura > 0.01) {
       ctx.globalCompositeOperation = 'lighter';
@@ -1536,11 +1540,14 @@ export class Player extends Entity {
     if (blink) ctx.globalAlpha = 0.55;
     const eye = this.mantleT > 0 || this.state === 'transform' ? 1 : this.state === 'cast' || this.lion > 0 || this.armorLight > 0 || this.state === 'execute' ? 0.9 : 0;
     s.eyeGlow = eye;
-    const attackProgress = this.atk ? clamp(this.atkT / Math.max(0.01, this.atk.dur / this.aspd()), 0, 1) : 0;
-    const w = illustrated
-      ? drawHeroSprite(ctx, this.j, s, t, this.state as HeroSpriteAction, this.body.vx * this.face,
-          this.body.onGround, this.body.vy, attackProgress, this.pose.rot)
-      : drawHumanoid(ctx, this.j, s, t, this.pose.rot, this.body.vx * this.face, this.body.onGround ? 0 : this.body.vy);
+    if (pixelArt) {
+      PX.x = this.x; PX.y = this.y;
+      PX.cape = caped ? this.cape : null;
+      PX.capeTrim = lv >= 7 ? '#e2b85a' : null;
+      PX.scarf = this.scarf;
+      setPixelExtras(PX);
+    }
+    const w = drawHumanoid(ctx, this.j, s, t, this.pose.rot, this.body.vx * this.face, this.body.onGround ? 0 : this.body.vy);
     this.lastWpn.bx = w.bx; this.lastWpn.by = w.by; this.lastWpn.tx = w.tx; this.lastWpn.ty = w.ty;
     if (this.flash > 0) {
       ctx.globalCompositeOperation = 'lighter';
