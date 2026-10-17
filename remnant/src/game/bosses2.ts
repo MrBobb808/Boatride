@@ -102,7 +102,7 @@ export abstract class BossBase extends Entity {
   update(dt: number) {
     if (this.chill > 0 && this.fighting) dt *= 0.75;
     // Harder settings make the fight itself quicker, never the cutscenes.
-    if (this.fighting && this.state !== 'kneel') dt *= bossScale().tempo;
+    if (this.fighting && this.state !== 'kneel') dt *= bossScale().tempo * this.encounterTempo;
     this.st += dt;
     this.flash = Math.max(0, this.flash - dt);
     this.staggerFlash = Math.max(0, this.staggerFlash - dt);

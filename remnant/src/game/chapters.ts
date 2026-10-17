@@ -78,17 +78,18 @@ export function nextChapter(): ChapterDef | null {
 export const trainingOpen = () => flag('relic_taken');
 
 /** Wave choices: from the start, or skip ahead to within reach of your best. */
-export function trainingStarts(): number[] {
-  const best = Number(G.save.flags.trial_best ?? 0);
+export function trainingStarts(bossOnly = false): number[] {
+  const best = Number(G.save.flags[bossOnly ? 'boss_trial_best' : 'trial_best'] ?? 0);
   const out = [1];
   for (const w of [10, 20, 30, 40, 50, 75, 100]) if (best >= w) out.push(w);
   return out;
 }
 
 /** Enter the Trial from anywhere; leaving it returns you to this spot. */
-export function startTraining(fromWave = 1) {
+export function startTraining(fromWave = 1, bossOnly = false) {
   const W = G.world;
   const s = G.save;
+  if (W.room.id === 'trial_arena' && W.story.ch3.rounds.active) W.story.ch3.rounds.stop();
   if (W.room.id !== 'trial_arena') {
     // Come back through the nearest named spawn of the room you left.
     const p = W.player;
@@ -100,5 +101,6 @@ export function startTraining(fromWave = 1) {
     s.flags.trial_return = `${W.room.id}|${best}`;
   }
   s.flags.trial_from = fromWave;
+  s.flags.trial_mode = bossOnly ? 'boss' : 'survival';
   W.transition('trial_arena', 'start');
 }

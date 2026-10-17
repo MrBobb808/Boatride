@@ -43,5 +43,15 @@ export function chaptersTab(close: () => void): HTMLElement {
   return h('div', { class: 'col scroll', style: 'flex:1' },
     h('div', { class: 'box' }, h('h3', null, 'Chapters'), h('div', { class: 'list' }, rows)),
     training,
+    trainingOpen() ? h('div', { class: 'box boss-trial' },
+      h('div', { class: 'eyebrow' }, 'Endless challenge'),
+      h('h3', null, 'The Boss Gauntlet'),
+      h('p', { class: 'muted' }, 'One chapter boss at a time. The Gilded Idol, Gatekeeper, Crimson Marshal, Locust King, Image of Gold and Weigher repeat forever. Each round adds 22% health and 10% damage; attacks gradually accelerate. No ordinary enemies. Recover 20% health between fights; earn a Balm and loot each full cycle. Campaign progress stays intact.'),
+      h('div', { class: 'ch-waves' },
+        busy ? h('span', { class: 'muted' }, 'Not during a boss fight.') : trainingStarts(true).map((w) => btn(w === 1 ? 'Start boss round 1' : `Boss round ${w} (unranked)`, () => { close(); startTraining(w, true); }, 'btn small' + (w === 1 ? ' primary' : ''), { 'data-k': 'bt_' + w })),
+        btn('Boss leaderboard', () => openLeaderboard(true), 'btn small', { 'data-k': 'bt_board' }),
+      ),
+      h('small', { class: 'muted' }, `Best: ${Number(s.flags.boss_trial_best ?? 0)} bosses defeated. Records are separate from survival.`),
+    ) : null,
   );
 }

@@ -79,6 +79,7 @@ const fillOf = (c: string, g: () => CanvasGradient): string | CanvasGradient => 
 
 /** Fine detail (seams, creases, rivets, eye glints) is drawn on the top quality tier only. */
 let fine = true, tierShading = true;
+export const fineDetail = () => fine;
 export function setDetail(tier: number) {
   fine = tier >= 2;
   tierShading = tier >= 1;

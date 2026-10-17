@@ -1,0 +1,25 @@
+{
+  "cell": 128,
+  "baseline": 120,
+  "columns": 4,
+  "frames": 16,
+  "scale": 0.34951456310679613,
+  "poses": [
+    "idle-a",
+    "idle-b",
+    "idle-c",
+    "idle-d",
+    "run-a",
+    "run-b",
+    "run-c",
+    "run-d",
+    "jump",
+    "fall",
+    "windup",
+    "strike",
+    "dodge-a",
+    "dodge-b",
+    "hurt",
+    "throw"
+  ]
+}

@@ -1,5 +1,7 @@
 # Pixel Art 2.0
 
+Elior's current redesign, character board, sixteen-pose atlas, chain moves and Boss Gauntlet are documented in [ELIOR_UPGRADE.md](ELIOR_UPGRADE.md). The new runtime atlas is `elior-v3.png`; older Elior atlas notes below describe the previous implementation.
+
 The world renders at one pixel per authored world unit, enlarged without smoothing. The HUD, touch controls and menus retain full screen resolution. Sprites, scenery, NPCs, bosses, effects and special poses share a consistent pixel grid.
 
 ## Original artwork

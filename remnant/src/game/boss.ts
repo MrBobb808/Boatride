@@ -81,7 +81,7 @@ export class Idol extends Entity {
   }
 
   get dmg() {
-    return 22 * (1 + (G.save?.ng ?? 0) * 0.6) * (this.phase >= 3 ? 1.15 : 1) * bossScale().dmg;
+    return 22 * (1 + (G.save?.ng ?? 0) * 0.6) * (this.phase >= 3 ? 1.15 : 1) * bossScale().dmg * this.encounterDamage;
   }
 
   // ---------------------------------------------------------------- lifecycle
@@ -92,7 +92,7 @@ export class Idol extends Entity {
   }
 
   update(dt: number) {
-    if (this.state === 'idle' || this.state === 'attack') dt *= bossScale().tempo;
+    if (this.state === 'idle' || this.state === 'attack') dt *= bossScale().tempo * this.encounterTempo;
     this.st += dt;
     this.staggerFlash = Math.max(0, this.staggerFlash - dt);
     this.flash = Math.max(0, this.flash - dt);

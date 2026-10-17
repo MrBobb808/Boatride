@@ -2,7 +2,7 @@
 // executions, healing, ability casting, and his evolving appearance.
 
 import { Entity, type HitInfo } from './entity';
-import { moveBody, touchesTile } from './physics';
+import { moveBody, touchesTile, los } from './physics';
 import { T } from './tiles';
 import { Animator, solve, Chain, drawRibbon, newJoints, type Joints, type Pose, BASE_POSE } from '../render/skeleton';
 import { drawHumanoid, drawTrail, type HumanStyle } from '../render/actors';
@@ -22,6 +22,7 @@ import { shakeScale } from '../core/settings';
 import { Proj } from './projectiles';
 import { beginFinisher, updateFinisher, killBlow, riseAsShadow, type FinState } from './finishers';
 import { throwSub } from './subweapons';
+import { ChainBlade, drawChain, chainReach } from './chain';
 import { strikeLamps } from './lamps';
 import { weaponElement, elementHit, powerTier, powerDamage, isSovereign, slashColors, drawAura, auraLight, ELEMENTS } from './power';
 import {
@@ -150,6 +151,9 @@ export class Player extends Entity {
   eyeN = 0;
   /** Seconds before another sub-weapon can be thrown. */
   subCd = 0;
+  weaponCd = 0;
+  weaponFlight: ChainBlade | null = null;
+  mantleBlinkCd = 0;
 
   constructor(x: number, y: number) {
     super(x, y, 12, 34);
@@ -208,8 +212,9 @@ export class Player extends Entity {
     // The Sovereign: black and gold, eyes burning violet.
     const sov = lv >= 100;
     this.style = {
-      skin: '#e0b28c',
-      hair: '#1a1316',
+      skin: '#70452f',
+      hair: '#f1f3ed',
+      beard: '#e9ede7',
       hairKind: 'spiky',
       coat: sov ? '#16131e' : lv >= 7 ? '#1f2a48' : '#26304e',
       coatDark: sov ? '#0c0a12' : '#19203a',
@@ -295,6 +300,8 @@ export class Player extends Entity {
     this.shieldT = Math.max(0, this.shieldT - dt);
     this.veiled = Math.max(0, this.veiled - dt);
     this.subCd = Math.max(0, this.subCd - dt);
+    this.weaponCd = Math.max(0, this.weaponCd - dt);
+    this.mantleBlinkCd = Math.max(0, this.mantleBlinkCd - dt);
     this.landT = Math.max(0, this.landT - dt);
     this.lingerT = Math.max(0, this.lingerT - dt);
     if (this.lingerT <= 0) this.linger = null;
@@ -651,7 +658,8 @@ export class Player extends Entity {
     // Sub-weapon: its own button, or the old way, up + Heavy.
     if (input.pressed('sub') || ((input.pressed('heavy') || this.heavyQ > 0) && input.aimUp)) {
       this.heavyQ = 0;
-      throwSub(this);
+      if (this.mantleT > 0) this.throwWeapon();
+      else throwSub(this);
       return;
     }
     if (input.pressed('heavy') || this.heavyQ > 0) {
@@ -817,6 +825,12 @@ export class Player extends Entity {
   }
 
   startAttack(a: AttackDef) {
+    if (this.weaponFlight) return;
+    // Close the distance before a Mantle swing instead of firing a wave.
+    if (this.mantleT > 0 && this.mantleBlinkCd <= 0 && a.id !== 'pstrike' && a.id !== 'cross') {
+      const target = this.findMantleTarget(245);
+      if (target && (Math.abs(target.x - this.x) > target.body.w / 2 + 28 || a.finisher) && this.blinkToFoe(target)) this.mantleBlinkCd = 0.55;
+    }
     this.atk = a;
     this.atkT = 0;
     this.atkSeg = -1;
@@ -889,6 +903,7 @@ export class Player extends Entity {
     }
     // cancels
     if (u >= a.cancel) {
+      if (this.mantleT > 0 && input.pressed('sub') && this.throwWeapon()) return;
       const m = this.moves;
       // Branch combos.
       if (this.heavyQ > 0 && b.onGround && (a.id === m.combo[2].id || a.id === m.extra.id)) {
@@ -1027,10 +1042,85 @@ export class Player extends Entity {
     }
   }
 
+  // ---------------------------------------------------------------- chain weapon & Mantle pursuit
+  private findMantleTarget(range: number): Entity | null {
+    let best: Entity | null = null, dist = Infinity;
+    for (const e of G.world.foes()) {
+      if (!e.canBeTargeted() || Math.abs(e.y - this.y) > 100) continue;
+      const dx = e.x - this.x;
+      if (dx * this.face < -20 || Math.abs(dx) > range) continue;
+      const d = Math.hypot(dx, e.cy - this.cy);
+      if (d < dist && los(G.world.grid, G.world.solid, this.cx, this.cy, e.cx, e.cy)) { best = e; dist = d; }
+    }
+    return best;
+  }
+
+  /** Check the whole body at both sides, including hazards and room boundaries. */
+  private blinkSpot(target: Entity, side = sign(target.x - this.x) || this.face): { x: number; y: number } | null {
+    const W = G.world;
+    const off = target.body.w / 2 + this.body.w / 2 + 5;
+    const ty = target.y;
+    for (const dir of [side, -side]) {
+      const tx = target.x + dir * off;
+      if (tx < this.body.w || tx > W.grid.w * 16 - this.body.w || ty < this.body.h || ty > W.grid.h * 16) continue;
+      let blocked = false;
+      for (let y = ty - this.body.h + 1; y < ty; y += 6) for (let x = tx - this.body.w / 2; x <= tx + this.body.w / 2; x += 6) {
+        const tile = W.grid.get(Math.floor(x / 16), Math.floor(y / 16));
+        if (W.solid(tile) || tile === T.Spikes || tile === T.Veil) blocked = true;
+      }
+      const floor = W.grid.get(Math.floor(tx / 16), Math.floor(ty / 16));
+      if (blocked || floor === T.Spikes || floor === T.Veil || !los(W.grid, W.solid, this.x, this.cy, tx, ty - this.body.h / 2)) continue;
+      return { x: tx, y: ty };
+    }
+    return null;
+  }
+
+  blinkToFoe(target: Entity): boolean {
+    const spot = this.blinkSpot(target);
+    if (!spot) return false;
+    this.ghosts.push({ x: this.x, y: this.y, face: this.face, pose: { ...this.pose }, a: 0.85, rot: this.pose.rot, shade: true });
+    fx.streak(this.x, this.cy, spot.x, spot.y - 20, SHADE.hi, 0.2, 3);
+    fx.ring(this.x, this.cy, 4, 23, SHADE.violet, 0.18, 2);
+    this.x = spot.x; this.y = spot.y;
+    this.body.vx = this.body.vy = 0;
+    this.body.onGround = false;
+    this.face = sign(target.x - spot.x) || this.face;
+    this.invuln = Math.max(this.invuln, 0.13);
+    fx.ring(spot.x, spot.y - 20, 4, 28, SHADE.hi, 0.22, 2);
+    sfx('dash', { pitch: 1.6, vol: 0.6 });
+    return true;
+  }
+
+  throwWeapon(): boolean {
+    if (this.mantleT <= 0 || this.weaponCd > 0 || this.weaponFlight || (this.state !== 'free' && this.state !== 'attack')) return false;
+    this.weaponCd = 2.4;
+    this.weaponFlight = new ChainBlade(this, this.findMantleTarget(330));
+    G.world.add(this.weaponFlight);
+    this.atk = null;
+    this.queued = null;
+    this.castId = null;
+    this.setState('cast');
+    this.anim.play('cast', 0.025, true, 1.6);
+    sfx('swingHeavy', { pitch: 1.4 });
+    return true;
+  }
+
+  weaponImpact(target: Entity) {
+    this.registerHit();
+    this.lastFoe = target;
+    if (this.mantleT <= 0 || G.inCutscene || !['free', 'attack', 'cast', 'dodge', 'airdash', 'block', 'parry'].includes(this.state) || target.dying) return;
+    if (!this.blinkToFoe(target)) return;
+    this.mantleBlinkCd = 0.5;
+    this.combo = 1;
+    this.startAttack(this.moves.combo[1]);
+    this.comboT = 2.1;
+    input.rumble(0.35, 0.65, 100);
+  }
+
   // ---------------------------------------------------------------- Phantom Step
   /** A foe worth blinking to, or null. Prefers ones this chain has not struck yet. */
   private findPhantomTarget(): Entity | null {
-    const foes = G.world.foes().filter((e) => e.canBeTargeted() && Math.abs(e.x - this.x) < 150 && Math.abs(e.y - this.y) < 100);
+    const foes = G.world.foes().filter((e) => e.canBeTargeted() && Math.abs(e.x - this.x) < (this.mantleT > 0 ? 245 : 150) && Math.abs(e.y - this.y) < 100 && los(G.world.grid, G.world.solid, this.cx, this.cy, e.cx, e.cy));
     if (!foes.length) return null;
     const dist = (e: Entity) => Math.hypot(e.x - this.x, (e.y - this.y) * 0.7);
     foes.sort((a, b) => dist(a) - dist(b));
@@ -1044,28 +1134,25 @@ export class Player extends Entity {
   }
 
   canPhantom(): boolean {
-    if (!flag('phantom')) return false;
+    if (!flag('phantom') && this.mantleT <= 0) return false;
     if (this.state === 'phantom') return false;
-    const recent = G.time - this.lastHitAt < 0.65 || (this.phantomN > 0 && G.time < this.phantomUntil);
+    const recent = this.mantleT > 0 || G.time - this.lastHitAt < 0.65 || (this.phantomN > 0 && G.time < this.phantomUntil);
     if (!recent || (G.save.ce < PHANTOM_COST && !isSovereign() && this.mantleT <= 0)) return false;
-    return !!this.findPhantomTarget();
+    const target = this.findPhantomTarget();
+    return !!target && !!this.blinkSpot(target);
   }
 
   startPhantom() {
     const t = this.findPhantomTarget();
     if (!t) return;
-    if (!isSovereign() && this.mantleT <= 0) G.save.ce -= PHANTOM_COST;
-    this.ceRegenDelay = 0.6;
     // Arrive on the far side of the foe; if a wall is there, take the near side.
     const side = this.phantomN > 0 && t === this.phantomLast ? -sign(this.x - t.x) || this.face : sign(t.x - this.x) || this.face;
-    const off = t.body.w / 2 + 11;
-    let tx = t.x + side * off;
-    const ty = t.y;
-    const blocked = (x: number) => G.world.solidAt(x, ty - 6) || G.world.solidAt(x, ty - 26) || x < 8 || x > G.world.grid.w * 16 - 8;
-    if (blocked(tx)) tx = t.x - side * off;
-    if (blocked(tx)) tx = this.x;
+    const spot = this.blinkSpot(t, side);
+    if (!spot) return;
+    if (!isSovereign() && this.mantleT <= 0) G.save.ce -= PHANTOM_COST;
+    this.ceRegenDelay = 0.6;
     this.phantomFrom = { x: this.x, y: this.y };
-    this.phantomTo = { x: tx, y: ty };
+    this.phantomTo = spot;
     this.phantomTarget = t;
     this.phantomLast = t;
     this.phantomStruck.add(t.id);
@@ -1140,8 +1227,7 @@ export class Player extends Entity {
     }
     // Sword waves: finishers from level 35, every third swing from 75, every swing as a Sovereign.
     this.waveN++;
-    // In the Shadow Mantle, every grounded swing looses one.
-    const wave = (tier >= 3 && a.finisher) || (tier >= 5 && this.waveN % 3 === 0) || tier >= 6 || shade;
+    const wave = !shade && ((tier >= 3 && a.finisher) || (tier >= 5 && this.waveN % 3 === 0) || tier >= 6);
     if (wave && !a.air) {
       const big = tier >= 6 || shade;
       const c = shade ? SHADE.edge : el ? ELEMENTS[el].c : isSovereign() ? '#ffb347' : '#ffd27a';
@@ -1209,7 +1295,7 @@ export class Player extends Entity {
 
   attackBox(a: AttackDef): Rect {
     const reach = this.moves.reach;
-    const w = a.box.w * (this.family === 'spear' ? 1 : reach);
+    const w = a.box.w * (this.family === 'spear' ? 1 : reach) + chainReach(a);
     const x = this.face > 0 ? this.x + a.box.x : this.x - a.box.x - w;
     return { x, y: this.y + a.box.y, w, h: a.box.h };
   }
@@ -1537,9 +1623,12 @@ export class Player extends Entity {
     const eye = this.mantleT > 0 || this.state === 'transform' ? 1 : this.state === 'cast' || this.lion > 0 || this.armorLight > 0 || this.state === 'execute' ? 0.9 : 0;
     s.eyeGlow = eye;
     const attackProgress = this.atk ? clamp(this.atkT / Math.max(0.01, this.atk.dur / this.aspd()), 0, 1) : this.anim.u;
+    const extension = this.atk && this.state === 'attack'
+      ? chainReach(this.atk) * clamp(Math.min(attackProgress / this.atk.hit[0], (1 - attackProgress) / Math.max(0.01, 1 - this.atk.hit[1])), 0, 1) : 0;
+    if (!illustrated && extension > 1 && !this.weaponFlight) drawChain(ctx, this.j.haFX, this.j.haFY, this.j.haFX + extension, this.j.haFY, this.mantleT > 0, 2);
     const w = illustrated
       ? drawHeroSprite(ctx, this.j, s, t, this.state as HeroSpriteAction, this.body.vx * this.face,
-          this.body.onGround, this.body.vy, attackProgress, this.pose.rot, this.mantleT)
+          this.body.onGround, this.body.vy, attackProgress, this.pose.rot, this.mantleT, extension, !!this.weaponFlight)
       : drawHumanoid(ctx, this.j, s, t, this.pose.rot, this.body.vx * this.face, this.body.onGround ? 0 : this.body.vy);
     this.lastWpn.bx = w.bx; this.lastWpn.by = w.by; this.lastWpn.tx = w.tx; this.lastWpn.ty = w.ty;
     if (this.flash > 0) {
