@@ -90,10 +90,11 @@ up next starts from the latest version.
   golden objective marker.
 - **Pixel art:** Settings → Art style (default Pixel) draws the world at one
   pixel per world unit and scales it up hard-edged (`Renderer.world`,
-  `Renderer.present`). Elior's illustrated frames are in
-  `assets/elior-sprites.png` (`render/heroSprites.ts`, see `SPRITE_ART.md`).
-  World drawing must use `r.bw`/`r.bh` (the world target); the HUD uses
-  `r.px` and CSS pixels; `r.cw`/`r.ch` is the screen canvas.
+  `Renderer.present`). Every humanoid (Elior, NPCs, foes, Echoes) is painted
+  pixel by pixel from its skeleton by `render/pixelHero.ts`, which
+  `drawHumanoid` calls first. See `PIXEL_ART.md`. World drawing must use
+  `r.bw`/`r.bh` (the world target); the HUD uses `r.px` and CSS pixels;
+  `r.cw`/`r.ch` is the screen canvas.
 - **UI:** `ui/` holds the HUD, menus, touch controls, dialogue and title
   screen.
   - `ui/island.ts` draws game status around the Dynamic Island in landscape
