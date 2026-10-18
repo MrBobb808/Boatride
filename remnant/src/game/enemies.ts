@@ -218,6 +218,8 @@ export abstract class Enemy extends Entity {
   spawnY: number;
   dmg: number;
   hurtT = 0;
+  impactDir = 0;
+  impactForce = 0;
   airborne = false;
   superArmor = false;
   target: Entity | null = null;
@@ -393,10 +395,12 @@ export abstract class Enemy extends Entity {
     this.hp -= dmg;
     this.hpBarT = 3;
     this.flash = 0.12;
+    this.impactDir = sign(h.dir);
+    this.impactForce = h.heavy ? 1 : 0.45;
     const px = h.px ?? this.cx - sign(h.dir || 1) * this.body.w * 0.3;
     const py = h.py ?? this.cy - 4;
     fx.number(this.x, this.y - this.body.h - 6, dmg, h.crit);
-    fx.hitSparks(px, py, h.dir || 1, h.crit ? '#ffe08a' : '#fff1c4', h.crit ? 14 : 9, h.crit ? 1.3 : 1);
+    fx.hitSparks(px, py, h.dir || 1, h.crit ? '#ffe08a' : '#fff1c4', h.kind === 'echo' ? 5 : h.heavy ? 12 : 8, h.heavy || h.crit ? 1.25 : 1);
     fx.veilBurst(px, py, 4, 0.5);
     sfx(h.crit ? 'crit' : h.heavy ? 'hitHeavy' : 'hit', { pan: G.world.pan(this.x), pitch: rand(0.9, 1.1) });
     if (h.stop) G.world.hitstop(h.stop * (h.kind === 'echo' ? 0.3 : 1));
@@ -434,8 +438,8 @@ export abstract class Enemy extends Entity {
     return false;
   }
 
-  flinch(_h: HitInfo) {
-    this.hurtT = 0.22;
+  flinch(h: HitInfo) {
+    this.hurtT = h.heavy ? 0.28 : 0.22;
     this.setState('hurt', 'hurt', 0.02);
   }
 

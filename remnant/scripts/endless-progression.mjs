@@ -72,20 +72,23 @@ try {
     s.flags.trial_best = 0; s.flags.trial_mode = 'survival';
     W.load('trial_arena', 'start');
     const R = W.story.ch3.rounds;
+    const choice = G.ui.choice;
+    G.ui.choice = () => new Promise(() => {});
+    const step = dt => { if (R.awaitingBlessing) R.chooseBlessing(R.pendingBlessings[0]); R.update(dt); };
     for (let wave = 1; wave <= 10; wave++) {
-      R.breakT = 0.001; R.update(1 / 120);
+      R.breakT = 0.001; step(1 / 120);
       if (R.round !== wave) throw Error('Wrong round ' + R.round);
       for (let t = 0; t < 300 && R.completed < wave; t++) {
         R.spawnT = 0;
         for (const f of R.foes) { if (!f.dying) { f.hp = 0; f.die(); } f.remove = true; }
-        R.update(1 / 120);
+        step(1 / 120);
       }
       if (R.completed !== wave) throw Error('Wave did not complete ' + wave);
     }
     const earned10 = s.inventory.filter(i => i.trialWave === 10).length;
     const shifted = W.room.biome === 'valley' && W.arenaSector === 1;
     const heldRecord = R.completed === 10 && R.kills > 50 && R.round === 10;
-    R.breakT = 0.001; R.update(1 / 120);
+    R.breakT = 0.001; step(1 / 120);
     const nextRound = R.round === 11 && W.arenaSector === 1;
     const themes = [], layouts = [];
     for (const wave of [1, 11, 21, 31, 41, 51]) {
@@ -98,15 +101,15 @@ try {
     const before = W.cache;
     const unchanged = !W.configureTrial(29) && before === W.cache;
     for (const wave of [20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140]) {
-      R.round = wave; R.spawned = R.total = 1; R.foes = []; R.breakT = 0; R.update(1 / 120);
+      R.round = wave; R.spawned = R.total = 1; R.foes = []; R.breakT = 0; step(1 / 120);
     }
     const count = s.inventory.length;
-    R.round = 140; R.spawned = R.total = 1; R.foes = []; R.breakT = 0; R.update(1 / 120);
+    R.round = 140; R.spawned = R.total = 1; R.foes = []; R.breakT = 0; step(1 / 120);
     const noReplay = s.inventory.length === count;
     const gear = s.inventory.filter(i => i.trialWave).map(i => ({ id: i.id, wave: i.trialWave, tier: i.trialTier, rarity: i.rarity, uid: i.uid }));
     const saved = JSON.parse(localStorage.getItem('remnant-save-2')).trialMilestones;
     R.start(31, false); const correctPractice = W.room.biome === 'gardens' && R.from === 31;
-    R.stop(false);
+    R.stop(false); G.ui.choice = choice;
     return { earned10, shifted, heldRecord, nextRound, themes, layouts: layouts.slice(0, 5), unchanged, noReplay, gear, saved, correctPractice };
   });
   for (const key of ['shifted', 'heldRecord', 'nextRound', 'unchanged', 'noReplay', 'correctPractice']) assert.ok(run[key], key);

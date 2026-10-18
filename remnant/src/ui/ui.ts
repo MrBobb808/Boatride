@@ -20,6 +20,7 @@ import { CH2_SECRETS } from '../game/story2';
 import { CH3_SECRETS } from '../game/story3';
 import { CH4_SECRETS } from '../game/story4';
 import { CH5_SECRETS } from '../game/story5';
+import { openVoiceOrders } from './voiceOrders';
 
 let uiRoot: HTMLElement;
 let toastBox: HTMLElement;
@@ -69,6 +70,7 @@ function waitAdvance(el: HTMLElement, onAdvance: () => void): { off: () => void;
 }
 
 const hooks: UIHooks = {
+  voiceOrders: openVoiceOrders,
   toast(text, kind = 'info', color) {
     const t = h('div', { class: 'toast ' + kind }, text);
     if (color) t.style.borderColor = color;
@@ -366,25 +368,33 @@ const hooks: UIHooks = {
     return blockingUI();
   },
 
-  choice(title, body, options) {
+  choice(title, body, options, kind, signal) {
     return new Promise<number>((resolve) => {
+      if (signal?.aborted) { resolve(-1); return; }
       blocking++;
-      const card = h('div', { class: 'choice-card panel scroll' },
-        h('div', { class: 'eyebrow' }, 'A choice'),
+      let closed = false;
+      const card = h('div', { class: 'choice-card panel scroll' + (kind === 'blessing' ? ' blessing-choice' : ''), role: 'dialog', 'aria-modal': 'true', 'aria-label': title },
+        h('div', { class: 'eyebrow' }, kind === 'blessing' ? 'Trial blessings · choose your path' : 'A choice'),
         h('h2', { class: 'title-text' }, title),
         h('p', null, body),
-        h('div', { class: 'opts' }, options.map((o, i) => btn([h('b', null, o.label), o.sub ? h('span', null, o.sub) : null], () => done(i), 'btn opt', i === 0 ? { 'data-autofocus': '' } : {}))),
+        h('div', { class: 'opts' }, options.map((o, i) => btn([o.icon ? img(o.icon, o.risk ? '#ffb18e' : '#f6dea0') : null, h('b', null, o.label), o.sub ? h('span', null, o.sub) : null], () => done(i), 'btn opt' + (o.risk ? ' risk' : ''), { 'data-k': 'choice_' + i, ...(i === 0 ? { 'data-autofocus': '' } : {}) }))),
+        kind === 'blessing' ? btn('Continue without a blessing', () => done(-1), 'btn small', { 'data-k': 'blessing_skip' }) : null,
       );
-      const layer = h('div', { class: 'layer dim' }, card);
+      const layer = h('div', { class: 'layer dim' + (kind === 'blessing' ? ' feature-dialog' : '') }, card);
       uiRoot.appendChild(layer);
       const done = (i: number) => {
+        if (closed) return;
+        closed = true;
+        signal?.removeEventListener('abort', abort);
         popLayer(layer);
         blocking--;
         sfx('uiConfirm');
         input.flush();
         resolve(i);
       };
-      pushLayer({ el: layer });
+      const abort = () => done(-1);
+      signal?.addEventListener('abort', abort, { once: true });
+      pushLayer({ el: layer, onBack: kind === 'blessing' ? () => done(-1) : undefined });
     });
   },
 
@@ -504,6 +514,7 @@ function openWheel(page: 'main' | 'squad' | 'orders') {
   });
   ring.appendChild(h('div', { class: 'wheel-center' }, title, h('div', { class: 'muted', style: 'font-family:var(--font-body);letter-spacing:0;font-size:1.2em;margin-top:4px;text-transform:none' }, sub)));
   const layer = h('div', { class: 'wheel' }, ring);
+  if (page === 'main') layer.appendChild(btn([img('voice', '#f6dea0'), 'Voice orders'], () => { closeWheel(); hooks.voiceOrders(); }, 'btn wheel-voice', { 'data-k': 'wheel_voice' }));
   layer.addEventListener('pointerup', (e) => {
     if (e.target === layer) closeWheel();
   });

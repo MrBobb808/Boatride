@@ -7,12 +7,12 @@ export type Action =
   | 'jump' | 'attack' | 'heavy' | 'dodge' | 'parry'
   | 'skill1' | 'skill2' | 'skill3'
   | 'interact' | 'heal' | 'echo' | 'ultimate' | 'switch' | 'transform' | 'sub'
-  | 'menu' | 'map'
+  | 'menu' | 'map' | 'voice'
   | 'confirm' | 'back' | 'tabL' | 'tabR';
 
 export const ACTIONS: Action[] = [
   'left', 'right', 'up', 'down', 'jump', 'attack', 'heavy', 'dodge', 'parry',
-  'skill1', 'skill2', 'skill3', 'interact', 'heal', 'echo', 'ultimate', 'switch', 'transform', 'sub', 'menu', 'map',
+  'skill1', 'skill2', 'skill3', 'interact', 'heal', 'echo', 'ultimate', 'switch', 'transform', 'sub', 'menu', 'map', 'voice',
   'confirm', 'back', 'tabL', 'tabR',
 ];
 
@@ -21,7 +21,7 @@ export const ACTION_LABELS: Partial<Record<Action, string>> = {
   jump: 'Jump', attack: 'Attack (hold: charge)', heavy: 'Heavy attack', dodge: 'Dodge / Dash',
   parry: 'Parry (hold: block)', skill1: 'Skill 1', skill2: 'Skill 2', skill3: 'Skill 3',
   interact: 'Interact', heal: 'Balm (heal)', echo: 'Echo command wheel', ultimate: 'Rally the Remnant', switch: 'Switch support Echo', transform: 'Shadow Mantle (transform)', sub: 'Sub-weapon (or hold up + Heavy)',
-  menu: 'Pause menu', map: 'World map',
+  menu: 'Pause menu', map: 'World map', voice: 'Voice squad orders',
 };
 
 export type Device = 'keyboard' | 'gamepad' | 'touch';
@@ -48,6 +48,7 @@ export const DEFAULT_KEYS: Record<Action, string[]> = {
   sub: ['KeyU'],
   menu: ['Escape', 'Tab'],
   map: ['KeyM'],
+  voice: ['KeyV'],
   confirm: ['Enter', 'Space', 'KeyJ'],
   back: ['Escape', 'Backspace'],
   tabL: ['KeyQ', 'BracketLeft'],

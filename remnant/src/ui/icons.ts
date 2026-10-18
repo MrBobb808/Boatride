@@ -23,6 +23,12 @@ const fillPoly = (ctx: Ctx, pts: number[]) => {
 };
 
 const ICONS: Record<string, Draw> = {
+  voice: (x) => {
+    x.lineWidth = 2;
+    x.beginPath(); x.roundRect(12, 4, 8, 15, 4); x.stroke();
+    x.beginPath(); x.arc(16, 15, 9, 0, Math.PI); x.stroke();
+    line(x, [16, 24, 16, 29, 10, 29, 22, 29], 2);
+  },
   sword: (x) => {
     line(x, [7, 25, 24, 8], 3);
     line(x, [10, 18, 14, 22], 2.4);

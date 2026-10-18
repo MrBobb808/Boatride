@@ -24,6 +24,7 @@ import { ROOMS, chapterOf } from '../game/rooms';
 import { CH2_ROOM_IDS } from '../game/rooms2';
 import { guidePoint } from '../game/guide';
 import { FINISHERS } from '../game/finishers';
+import { ECHO_COMBOS } from '../game/echoCombos';
 import { MANTLE_LV, mantlePerks } from '../game/mantle';
 import { nextChapter, travelToChapter, trainingOpen, startTraining } from '../game/chapters';
 import { chaptersTab, gameModes } from './chapters';
@@ -514,6 +515,11 @@ function echoesTab() {
       G.world.autosave(true); sfx('uiConfirm'); render();
     }, 'btn small' + (echoRole(sel) === id ? ' primary' : ''), { 'data-k': 'role_' + id, 'aria-pressed': String(echoRole(sel) === id) }))),
     h('p', { class: 'muted', style: 'font-size:0.85em' }, ECHO_ROLES[echoRole(sel)].desc),
+    h('details', { class: 'combo-guide', 'data-k': 'echo_combinations' },
+      h('summary', null, 'Squad combination attacks'),
+      h('p', { class: 'muted' }, 'Summon the two roles together. Their special moves open a short window for an automatic link. Each pair rests for 7 seconds after a link.'),
+      ECHO_COMBOS.map(c => h('p', null, h('strong', { style: `color:${c.color}` }, c.name + ' · '), c.desc))),
+    btn('Voice squad orders', () => { closeMenu(); G.ui.voiceOrders(); }, 'btn', { 'data-k': 'echo_voice' }),
     h('div', { style: 'display:flex;gap:6px;flex-wrap:wrap;margin-top:8px' },
       btn('Rematch original form', () => { closeMenu(); startTraining(1, true, sel.species); }, 'btn primary', { disabled: G.world.bossActive || G.inCutscene || G.world.story.ch3.rounds.active, 'data-k': 'echo_rematch' }),
       btn(active ? 'Move to reserve' : 'Make active', () => {

@@ -23,6 +23,7 @@ import { drawLion, newLionPose } from './babylon';
 import { ECHO_SPECIES, defaultEchoRole, echoRole, type EchoInst, type EchoOrder, type EchoRole } from './data';
 import { tickEchoRole, drawEchoRole, echoSpot } from './echoRoles';
 import { echoAtk, echoMaxHp, gainEchoXp, skillRank } from './state';
+import { preferredSquadTarget } from './squadOrders';
 import { Proj } from './projectiles';
 import { lighting } from '../render/lighting';
 
@@ -257,6 +258,7 @@ export class EchoUnit extends Entity {
   private guardXpCd = 0;
   /** Seconds spent circling for a foe's back without getting there. */
   private flankT = 0;
+  private priorityPoll = 0;
 
   get order(): EchoOrder | undefined {
     return this.inst.order;
@@ -265,6 +267,8 @@ export class EchoUnit extends Entity {
   /** Give this Echo an order. Hold marks Elior's spot; focus takes his current foe. */
   setOrder(o: EchoOrder | undefined, foe: Entity | null = null) {
     this.inst.order = o;
+    this.inst.targetPriority = undefined;
+    this.priorityPoll = 0;
     this.focus = o === 'focus' ? foe : null;
     if (o === 'hold') {
       const p = G.world.player;
@@ -378,6 +382,7 @@ export class EchoUnit extends Entity {
       return;
     }
     this.handoffT = Math.max(0, this.handoffT - dt);
+    this.priorityPoll = Math.max(0, this.priorityPoll - dt);
     this.guardXpCd = Math.max(0, this.guardXpCd - dt);
     if (this.ignoreT > 0 && (this.ignoreT -= dt) <= 0) this.ignore = null;
     const order = this.order;
@@ -424,6 +429,12 @@ export class EchoUnit extends Entity {
         this.focus = null;
         this.inst.order = 'hunt';
       }
+    }
+    if (this.inst.targetPriority && order === 'hunt') {
+      if (this.priorityPoll > 0 && this.usable(this.target)) return;
+      this.priorityPoll = 0.25;
+      const preferred = preferredSquadTarget(this, this.inst.targetPriority);
+      if (preferred) { this.target = preferred; return; }
     }
     const prio = W.priorityTarget;
     if (order !== 'hold' && this.usable(prio)) { this.target = prio; return; }

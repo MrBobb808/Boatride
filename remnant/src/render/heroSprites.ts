@@ -5,7 +5,7 @@ import atlasUrl from '../assets/elior-v3.png';
 import { drawWeapon, type HumanStyle, type WeaponPts } from './actors';
 import type { Joints } from './skeleton';
 import type { Ctx } from './draw';
-import { heroFrameAt } from './heroMotion';
+import { heroFrameAt, sampleAttackVisual } from './heroMotion';
 import { drawChain } from '../game/chain';
 
 const FRAME_W = 128;
@@ -13,6 +13,7 @@ const FRAME_H = 128;
 /** Shared foot origin; attachments follow each illustrated pose. */
 const FOOT = 120;
 const DRAW_SIZE = 56;
+const attackVisual = { x: 0, y: 0, sx: 1, sy: 1 };
 const HEAD = [[84,24],[84,24],[84,24],[84,24],[90,34],[90,34],[90,34],[90,39],[84,53],[84,31],[84,43],[83,38],[86,48],[100,65],[31,37],[69,37]];
 const HAND = [[102,68],[102,68],[103,65],[103,68],[109,67],[98,65],[112,65],[106,67],[92,80],[104,69],[58,22],[113,50],[98,83],[114,93],[69,56],[114,49]];
 const art = new Image();
@@ -55,8 +56,11 @@ export function drawHeroSprite(
   ctx: Ctx, j: Joints, style: HumanStyle, time: number,
   action: HeroSpriteAction, speed: number, grounded: boolean, vy: number,
   attackProgress: number, rotation: number, mantle = 0, extension = 0, hideWeapon = false, stateTime = 0, stride?: number,
+  hitStart = 0.46, hitEnd = 0.7, heavy = false,
 ): WeaponPts {
-  const frame = heroFrameAt(action, time, speed, grounded, vy, attackProgress, stateTime, stride);
+  const frame = heroFrameAt(action, time, speed, grounded, vy, attackProgress, stateTime, stride, hitStart);
+  if (action === 'attack') sampleAttackVisual(attackVisual, attackProgress, hitStart, hitEnd, heavy, !grounded);
+  else { attackVisual.x = attackVisual.y = 0; attackVisual.sx = attackVisual.sy = 1; }
   // These poses are already tucked: a second skeleton spin clips them through the floor.
   if (action === 'dodge' || action === 'airdash') rotation = 0;
   ctx.save();
@@ -65,6 +69,8 @@ export function drawHeroSprite(
     ctx.rotate(rotation);
     ctx.translate(-j.hipX, -(j.hipY - 4));
   }
+  ctx.translate(attackVisual.x, attackVisual.y);
+  ctx.scale(attackVisual.sx, attackVisual.sy);
   // The sword is behind the illustrated gripping hand; geometry still comes
   // from the combat skeleton so equipped blades and polearms are unchanged.
   const weapon = style.weapon;
@@ -118,6 +124,10 @@ export function drawHeroSprite(
   ctx.imageSmoothingEnabled = smooth;
   ctx.restore();
 
+  w.bx = w.bx * attackVisual.sx + attackVisual.x;
+  w.by = w.by * attackVisual.sy + attackVisual.y;
+  w.tx = w.tx * attackVisual.sx + attackVisual.x;
+  w.ty = w.ty * attackVisual.sy + attackVisual.y;
   if (rotation) {
     const cx = j.hipX, cy = j.hipY - 4, c = Math.cos(rotation), s = Math.sin(rotation);
     const bx = cx + (w.bx - cx) * c - (w.by - cy) * s;

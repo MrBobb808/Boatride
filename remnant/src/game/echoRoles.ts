@@ -59,8 +59,12 @@ export function tickEchoRole(u: EchoUnit, dt: number) {
     p.shieldT = Math.max(p.shieldT, 0.65 + st * 0.25);
     for (const e of W.echoes) if (Math.hypot(e.x - u.x, e.y - u.y) < 150 && !e.remove && e.despawn <= 0) e.invuln = Math.max(e.invuln, 0.65 + st * 0.25);
     fx.ring(p.x, p.cy, 8, 34, '#8ecbff', 0.55, 3);
+    W.echoCombinations.prime('sanctuary', u, p);
     u.specialCd = 8;
   } else if (role === 'mage') {
+    t.chill = Math.max(t.chill, 1.8);
+    fx.ring(t.x, t.cy, 4, 22, '#a6e8ff', 0.3, 1.5);
+    W.echoCombinations.prime('frostbreak', u, t);
     for (let i = -1; i <= 1; i++) bolt(u, t, 0.85, 'arcbolt', i * 0.18);
     if (st >= 1) W.add(new Proj('pillar', t.x, W.groundY(t.x, t.y), 'player', atk * 0.32, { life: 1.1, w: 46, h: 150, color: '#a9a3ff', echo: true }));
     if (st >= 2) {
@@ -89,6 +93,7 @@ export function tickEchoRole(u: EchoUnit, dt: number) {
   } else if (role === 'fighter') {
     if (Math.hypot(t.x - u.x, t.cy - u.cy) > 95) return;
     W.hitEnemies({ x: u.x - 65, y: u.y - 90, w: 130, h: 100 }, { dmg: atk * 2.8, poise: 85, kx: u.face * 80, ky: -360, dir: u.face, kind: 'echo', src: u, launch: true, guardBreak: true }, new Set());
+    if (t.canBeTargeted()) W.echoCombinations.prime('skyfall', u, t);
     fx.ring(u.x, u.y - 8, 8, 65, '#ffad7d', 0.4, 4, 0.4);
     if (st >= 1) W.add(new Proj('wave', u.x, u.y, 'player', atk * 1.3, { vx: u.face * 270, life: 0.9, w: 18, h: 30, color: '#ffad7d', echo: true }));
     sfx('hitHeavy', { vol: 0.75 });

@@ -7,6 +7,7 @@ import {
   type ItemInst, type Slot, type StatKey, type ModKey, type AbilityId, type EchoInst, type Rarity,
 } from './data';
 import { uid, randInt, rand } from '../core/math';
+import { runBlessings } from './blessings';
 
 export interface QuestState {
   stage: number;
@@ -236,7 +237,7 @@ export function derive(s: SaveData): Derived {
     speed: 1 + m('speed') / 100,
     abil: 1 + stats.wis * 0.05 + m('abil') / 100 + r('l_lamp') * 0.1,
     ceRegen: (1 + m('ceRegen') / 100) * (r('l_radiance') ? 1.5 : 1),
-    echoDmg: 1 + m('echoDmg') / 100 + r('c_kin') * 0.1,
+    echoDmg: (1 + m('echoDmg') / 100 + r('c_kin') * 0.1) * runBlessings.echoes,
     echoHp: 1 + m('echoHp') / 100 + r('c_kin') * 0.1,
     parryWin: (0.15 + stats.res * 0.004) * (1 + m('parry') / 100) * (r('g_timing') ? 1.5 : 1),
     poise: 20 + stats.end * 2 + m('poise'),
@@ -248,8 +249,8 @@ export function derive(s: SaveData): Derived {
     weaponRarity: weapon?.rarity ?? 0,
     echoSlots: echoSlotsFor(s.level, s.storySlots, r('c_banner') > 0),
     defense,
-    meleeMult: 1 + r('w_edge') * 0.08,
-    hpRegen: r('g_regen') * 0.005,
+    meleeMult: (1 + r('w_edge') * 0.08) * runBlessings.weapon,
+    hpRegen: r('g_regen') * 0.005 + runBlessings.regen,
   };
 }
 
@@ -265,6 +266,7 @@ export function migrateSave(s: SaveData) {
   for (const e of s.echoes) {
     e.absorptions ??= e.stage + 1;
     if (e.role && !ECHO_ROLES[e.role]) e.role = undefined;
+    if (e.targetPriority && !['ranged', 'boss', 'crowd'].includes(e.targetPriority)) e.targetPriority = undefined;
   }
   unlockCombatSkills(s);
   s.equippedSkills = Array.from({ length: 3 }, (_, i) => {

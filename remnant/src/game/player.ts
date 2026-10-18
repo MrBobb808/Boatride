@@ -12,6 +12,7 @@ import { fx, PK } from '../render/fx';
 import { input } from '../core/input';
 import { clamp, approach, rand, sign, type Rect } from '../core/math';
 import { G, flag } from './ctx';
+import { runBlessings } from './blessings';
 import { sfx } from '../audio/audio';
 import { MOVESETS, clipsFor, extraFor, type AttackDef, type Moveset } from './weapons';
 import { ITEMS, RARITY_COLORS, ABILITIES, type AbilityId, type WeaponFamily } from './data';
@@ -308,8 +309,8 @@ export class Player extends Entity {
     this.shieldT = Math.max(0, this.shieldT - dt);
     this.veiled = Math.max(0, this.veiled - dt);
     this.subCd = Math.max(0, this.subCd - dt);
-    this.weaponCd = Math.max(0, this.weaponCd - dt);
-    this.mantleBlinkCd = Math.max(0, this.mantleBlinkCd - dt);
+    this.weaponCd = Math.max(0, this.weaponCd - dt * runBlessings.recharge);
+    this.mantleBlinkCd = Math.max(0, this.mantleBlinkCd - dt * runBlessings.recharge);
     this.landT = Math.max(0, this.landT - dt);
     this.lingerT = Math.max(0, this.lingerT - dt);
     if (this.lingerT <= 0) this.linger = null;
@@ -322,7 +323,7 @@ export class Player extends Entity {
       this.comboT -= dt;
       if (this.comboT <= 0) this.endCombo();
     }
-    for (const k of Object.keys(this.cds) as AbilityId[]) this.cds[k] = Math.max(0, (this.cds[k] ?? 0) - dt);
+    for (const k of Object.keys(this.cds) as AbilityId[]) this.cds[k] = Math.max(0, (this.cds[k] ?? 0) - dt * runBlessings.recharge);
     // Covenant Energy regeneration
     if (flag('relic_taken')) {
       this.ceRegenDelay = Math.max(0, this.ceRegenDelay - dt);
@@ -880,6 +881,7 @@ export class Player extends Entity {
       if (target && (Math.abs(target.x - this.x) > target.body.w / 2 + 28 || a.finisher) && this.blinkToFoe(target)) this.mantleBlinkCd = 0.55;
     }
     this.atk = a;
+    this.trail.length = 0; this.trailFade = 0;
     this.atkT = 0;
     this.atkSeg = -1;
     this.atkStartAt = G.time;
@@ -1447,7 +1449,7 @@ export class Player extends Entity {
     }
     // Block.
     if ((this.state === 'block' || this.state === 'parry') && facingAttack && !h.unblockable && h.kind !== 'hazard') {
-      const dmg = Math.max(1, h.dmg * 0.25 * (1 - d.dr));
+      const dmg = Math.max(1, h.dmg * runBlessings.incoming * 0.25 * (1 - d.dr));
       s.hp -= dmg;
       this.sinceHurt = 0;
       sfx('block');
@@ -1461,8 +1463,8 @@ export class Player extends Entity {
       G.ui.refreshHud();
       return true;
     }
-    let dmg = h.dmg * (1 - d.dr) * (this.armorLight > 0 ? 0.6 : 1) * (this.mantleT > 0 ? 0.5 : 1) * G.world.guardianAura(this.x, this.y);
-    if (h.kind === 'hazard') dmg = h.dmg * (1 - d.dr * 0.5);
+    let dmg = h.dmg * runBlessings.incoming * (1 - d.dr) * (this.armorLight > 0 ? 0.6 : 1) * (this.mantleT > 0 ? 0.5 : 1) * G.world.guardianAura(this.x, this.y);
+    if (h.kind === 'hazard') dmg = h.dmg * runBlessings.incoming * (1 - d.dr * 0.5);
     dmg = Math.max(1, Math.round(dmg));
     s.hp -= dmg;
     this.sinceHurt = 0;
@@ -1592,7 +1594,9 @@ export class Player extends Entity {
   private updateTrail(dt: number) {
     const w = this.lastWpn;
     const f = this.face;
-    const active = this.state === 'attack' || this.state === 'execute' || this.state === 'plunge' || (this.state === 'charge' && this.chargeLvl >= 2);
+    const progress = this.atk ? this.atkT / (this.atk.dur / this.aspd()) : 0;
+    const striking = this.state === 'attack' && this.atk && progress >= this.atk.hit[0] - 0.035 && progress <= this.atk.hit[1] + 0.07;
+    const active = striking || this.state === 'execute' || this.state === 'plunge' || (this.state === 'charge' && this.chargeLvl >= 2);
     if (active) {
       this.trail.unshift(this.x + f * w.bx, this.y + w.by, this.x + f * w.tx, this.y + w.ty);
       if (this.trail.length > 4 * 7) this.trail.length = 4 * 7;
@@ -1677,7 +1681,8 @@ export class Player extends Entity {
     if (!illustrated && extension > 1 && !this.weaponFlight) drawChain(ctx, this.j.haFX, this.j.haFY, this.j.haFX + extension, this.j.haFY, this.mantleT > 0, 2);
     const w = illustrated
       ? drawHeroSprite(ctx, this.j, s, t, this.state as HeroSpriteAction, this.body.vx * this.face,
-          this.body.onGround, this.body.vy, attackProgress, this.pose.rot, this.mantleT, extension, !!this.weaponFlight, this.st, this.spriteStride)
+          this.body.onGround, this.body.vy, attackProgress, this.pose.rot, this.mantleT, extension, !!this.weaponFlight, this.st, this.spriteStride,
+          this.atk?.hit[0], this.atk?.hit[1], !!this.atk?.finisher || this.atk?.id === 'heavy')
       : drawHumanoid(ctx, this.j, s, t, this.pose.rot, this.body.vx * this.face, this.body.onGround ? 0 : this.body.vy);
     this.lastWpn.bx = w.bx; this.lastWpn.by = w.by; this.lastWpn.tx = w.tx; this.lastWpn.ty = w.ty;
     if (this.flash > 0) {

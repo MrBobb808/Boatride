@@ -6,6 +6,8 @@ import { ROOMS, type RoomData } from './rooms';
 import { Grid, T, TILE, isSolid, type EntDef, type Loot } from './tiles';
 import { Player } from './player';
 import { Entity, type HitInfo } from './entity';
+import { EchoCombinations } from './echoCombos';
+import { runBlessings } from './blessings';
 import { Enemy } from './enemies';
 import { drawFoeSprite } from '../render/creatureSprites';
 import { makeEnemy } from './foes';
@@ -93,6 +95,7 @@ export class World {
   arenaSector = -1;
   private drawList: Entity[] = [];
   private liveDecor: EntDef[] = [];
+  echoCombinations = new EchoCombinations();
 
   constructor() {
     this.player = new Player(0, 0);
@@ -107,6 +110,11 @@ export class World {
 
   // ---------------------------------------------------------------- loading
   load(id: string, spawnName: string) {
+    this.story.ch3.rounds.cancelBlessing();
+    this.echoCombinations.reset();
+    // A fresh load is a new run, including switching save slots.
+    runBlessings.reset();
+    G.d = derive(G.save);
     const r = ROOMS[id] ?? ROOMS.sanctuary;
     this.cache?.dispose();
     for (const l of this.layers) releaseCanvas(l.c);
@@ -356,6 +364,7 @@ export class World {
       }
     }
     if (this.room.id === 'trial_arena') this.story.ch3.rounds.update(dt);
+    if (this.story.ch3.rounds.awaitingBlessing) return;
     this.syncCd = Math.max(0, this.syncCd - dt);
     this.switchCd = Math.max(0, this.switchCd - dt);
     this.player.swapStrikeT = Math.max(0, this.player.swapStrikeT - dt);
@@ -363,6 +372,7 @@ export class World {
     const rallying = this.rallyT >= 0;
     this.player.update(dt);
     for (const e of this.echoes) if (!rallying) e.update(dt);
+    if (!rallying) this.echoCombinations.update(dt);
     for (const e of this.ents) {
       if (rallying && e.isFoe) continue;
       e.update(dt);
