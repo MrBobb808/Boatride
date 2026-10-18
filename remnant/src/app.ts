@@ -83,6 +83,8 @@ export function startNewGamePlus() {
   s.skills = { ...old.skills };
   s.abilities = [...old.abilities];
   s.equippedSkills = [...old.equippedSkills];
+  s.equippedSuper = old.equippedSuper;
+  s.echoImprints = { ...old.echoImprints };
   s.inventory = old.inventory;
   s.equipment = { ...old.equipment };
   s.materials = { ...old.materials };

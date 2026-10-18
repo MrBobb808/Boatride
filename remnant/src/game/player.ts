@@ -86,6 +86,8 @@ export class Player extends Entity {
   veiled = 0;
   untouchable = 0;
   cds: Partial<Record<AbilityId, number>> = {};
+  sinceHurt = 0;
+  mendT = 0;
   trail: number[] = [];
   trailFade = 0;
   scarf: Chain;
@@ -321,6 +323,13 @@ export class Player extends Entity {
       if (this.ceRegenDelay <= 0 && this.veiled <= 0) G.save.ce = Math.min(d.maxCe, G.save.ce + 2.6 * d.ceRegen * dt);
     }
     G.save.hp = Math.min(G.save.hp, d.maxHp);
+    if (this.state !== 'dead' && !G.inCutscene) {
+      this.sinceHurt += dt;
+      const mending = this.mendT > 0 ? Math.min(dt, this.mendT) * 0.03 : 0;
+      this.mendT = Math.max(0, this.mendT - dt);
+      const healing = (this.sinceHurt >= 4 ? d.hpRegen * dt : 0) + mending;
+      if (healing > 0 && G.save.hp > 0) G.save.hp = Math.min(d.maxHp, G.save.hp + d.maxHp * healing);
+    }
 
     if (this.state === 'dead') {
       this.deadT += dt;
@@ -748,6 +757,15 @@ export class Player extends Entity {
       sfx('denied');
       return false;
     }
+    if (!G.save.abilities.includes(id)) return false;
+    if (id === 'blink_strike' || id === 'chain_snare') {
+      const target = G.world.nearestEnemy(this.x, this.cy, 260, this.face);
+      if (!target || !this.blinkSpot(target)) {
+        G.ui.toast('No reachable enemy ahead.', 'warn');
+        sfx('denied');
+        return false;
+      }
+    }
     const def = ABILITIES[id].cost;
     if ((this.cds[id] ?? 0) > 0) {
       sfx('denied');
@@ -1056,7 +1074,7 @@ export class Player extends Entity {
   }
 
   /** Check the whole body at both sides, including hazards and room boundaries. */
-  private blinkSpot(target: Entity, side = sign(target.x - this.x) || this.face): { x: number; y: number } | null {
+  blinkSpot(target: Entity, side = sign(target.x - this.x) || this.face): { x: number; y: number } | null {
     const W = G.world;
     const off = target.body.w / 2 + this.body.w / 2 + 5;
     const ty = target.y;
@@ -1404,6 +1422,7 @@ export class Player extends Entity {
     if ((this.state === 'block' || this.state === 'parry') && facingAttack && !h.unblockable && h.kind !== 'hazard') {
       const dmg = Math.max(1, h.dmg * 0.25 * (1 - d.dr));
       s.hp -= dmg;
+      this.sinceHurt = 0;
       sfx('block');
       fx.hitSparks(this.x + this.face * 8, this.y - 22, this.face, '#ffe6a8', 8);
       this.body.vx = -this.face * 140;
@@ -1419,6 +1438,7 @@ export class Player extends Entity {
     if (h.kind === 'hazard') dmg = h.dmg * (1 - d.dr * 0.5);
     dmg = Math.max(1, Math.round(dmg));
     s.hp -= dmg;
+    this.sinceHurt = 0;
     this.flash = 0.15;
     this.invuln = h.kind === 'hazard' ? 0.5 : 0.8;
     this.ceRegenDelay = 1;
@@ -1477,6 +1497,8 @@ export class Player extends Entity {
 
   revive() {
     this.setState('free');
+    this.sinceHurt = 0;
+    this.mendT = 0;
     this.anim.play('idle', 0, true);
     this.invuln = 1.2;
     this.ghosts.length = 0;

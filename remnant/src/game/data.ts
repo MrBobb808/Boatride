@@ -165,7 +165,7 @@ export interface ItemInst {
 
 // ---------- Abilities ----------
 
-export type AbilityId = 'sword_word' | 'trumpet' | 'shield_faith' | 'lion' | 'still_waters' | 'pillar_fire' | 'chains' | 'armor_light';
+export type AbilityId = 'sword_word' | 'trumpet' | 'shield_faith' | 'lion' | 'still_waters' | 'pillar_fire' | 'chains' | 'armor_light' | 'chain_snare' | 'blink_strike' | 'mending_light' | 'frost_ring';
 export interface AbilityDef {
   id: AbilityId;
   name: string;
@@ -176,6 +176,10 @@ export interface AbilityDef {
   verse: string;
 }
 export const ABILITIES: Record<AbilityId, AbilityDef> = {
+  chain_snare: { id: 'chain_snare', name: 'Chain Snare', cost: 24, cd: 6, icon: 'chains', desc: 'Bind the nearest visible foe ahead, pull ordinary enemies close, and interrupt their attack. Bosses resist the pull.', verse: '' },
+  blink_strike: { id: 'blink_strike', name: 'Rift Assault', cost: 32, cd: 7, icon: 'dagger', desc: 'Blink beside a visible enemy and deliver a powerful guard-breaking cut. Requires a clear path.', verse: '' },
+  mending_light: { id: 'mending_light', name: 'Mending Light', cost: 34, cd: 16, icon: 'water', desc: 'Regenerate 18% of your maximum health over 6 seconds while you move and fight.', verse: '' },
+  frost_ring: { id: 'frost_ring', name: 'Winter Halo', cost: 38, cd: 10, icon: 'arc', desc: 'A ring of cold light damages nearby enemies and slows their movement and attacks for 4 seconds.', verse: '' },
   sword_word: { id: 'sword_word', name: 'Sword of the Word', cost: 22, cd: 1.2, icon: 'arc', desc: 'Loose a brilliant golden arc that pierces every foe in its path.', verse: '"For the word of God is quick, and powerful, and sharper than any twoedged sword..." — Hebrews 4:12 (KJV)' },
   trumpet: { id: 'trumpet', name: 'Trumpet of Victory', cost: 30, cd: 4, icon: 'horn', desc: 'A shockwave that damages and staggers nearby foes, breaks guards, and shatters cracked walls.', verse: '"So the people shouted when the priests blew with the trumpets..." — Joshua 6:20 (KJV)' },
   shield_faith: { id: 'shield_faith', name: 'Shield of Faith', cost: 25, cd: 6, icon: 'shield', desc: 'Raise a barrier for 1.4s. Blocks all harm, reflects projectiles, and counters melee attackers.', verse: '"Above all, taking the shield of faith, wherewith ye shall be able to quench all the fiery darts of the wicked." — Ephesians 6:16 (KJV)' },
@@ -216,6 +220,7 @@ export const SKILLS: SkillNode[] = [
   { id: 'w_exec', tree: 'warrior', name: 'Executioner', desc: 'Executions deal +60% damage and restore 25 Covenant Energy.', ranks: 1, cost: 2, req: ['w_lion', 'w_mastery'], row: 3, col: 1 },
 
   { id: 'g_skin', tree: 'guardian', name: 'Iron Skin', desc: '+5% damage reduction per rank.', ranks: 3, cost: 1, req: [], row: 0, col: 1 },
+  { id: 'g_regen', tree: 'guardian', name: 'Regeneration', desc: 'After 4 seconds without taking damage, regenerate 0.5% of maximum health each second per rank. Three ranks maximum.', ranks: 3, cost: 1, req: [], row: 0, col: 0 },
   { id: 'g_timing', tree: 'guardian', name: 'Perfect Timing', desc: 'Parry window +50%. Perfect parries restore 12 Covenant Energy.', ranks: 1, cost: 1, req: ['g_skin'], row: 1, col: 0 },
   { id: 'g_balm', tree: 'guardian', name: 'Steadfast', desc: '+1 Balm charge, and Balm heals 15% more.', ranks: 1, cost: 1, req: ['g_skin'], row: 1, col: 2 },
   { id: 'g_shield', tree: 'guardian', name: 'Shield of Faith', desc: 'Learn the Shield of Faith ability.', ranks: 1, cost: 2, req: ['g_timing'], row: 2, col: 0, grants: 'shield_faith' },
@@ -381,7 +386,31 @@ export interface EchoInst {
   nickname?: string;
   /** Its standing order in battle; none follows the army's mode. */
   order?: EchoOrder;
+  /** Specialization is independent of the original creature's appearance. */
+  role?: EchoRole;
+  /** Original-form imprints absorbed, including the first. */
+  absorptions?: number;
 }
+
+export type SuperId = 'rally' | 'tempest' | 'dawnfall' | 'renewal';
+export const SUPER_MOVES: Record<SuperId, { name: string; icon: string; color: string; desc: string }> = {
+  rally: { name: 'Rally the Remnant', icon: 'rally', color: '#ffe6a8', desc: 'An army of light strikes every visible foe twice. Balanced crowd damage.' },
+  tempest: { name: 'Umbral Tempest', icon: 'sword', color: '#b7a1ff', desc: 'Five teleporting cuts focus one visible opponent, ending with a devastating guard break. Needs a reachable target.' },
+  dawnfall: { name: 'Dawnfall', icon: 'pillar', color: '#ffbb74', desc: 'Three waves of falling light strike every visible foe. Wide-area damage and stagger.' },
+  renewal: { name: 'Covenant Renewal', icon: 'water', color: '#a0efc4', desc: 'Restore 45% health and full Energy, revive your active Echoes, and release a defensive burst.' },
+};
+
+export type EchoRole = 'guardian' | 'ranger' | 'mage' | 'ninja' | 'fighter' | 'herald';
+export const ECHO_ROLES: Record<EchoRole, { name: string; color: string; icon: string; desc: string; signature: string[] }> = {
+  guardian: { name: 'Guardian', color: '#8ecbff', icon: 'shield', desc: 'A durable defender that intercepts shots, draws attacks, and grants brief barriers.', signature: ['Aegis: protects nearby allies.', 'Aegis lasts longer; stronger guard.', 'Bastion: the longest barrier and strongest guard.'] },
+  ranger: { name: 'Ranger', color: '#f4d388', icon: 'archer_echo', desc: 'A marksman that keeps range, pierces lines, and rains arrows.', signature: ['Rapid light arrows.', 'Every third shot pierces.', 'Rain of Dawn adds six falling arrows.'] },
+  mage: { name: 'Mage', color: '#a9a3ff', icon: 'pillar', desc: 'Ranged spellcaster with homing arcane volleys, fire pillars, and chain lightning.', signature: ['Arcane Volley: three homing bolts.', 'Starfire: a targeted pillar joins each volley.', 'Chain Lightning: arcs through three nearby foes.'] },
+  ninja: { name: 'Ninja', color: '#c4a0ff', icon: 'dagger', desc: 'Fast flanker with throwing stars, blink combos, and attacking shadow doubles.', signature: ['Mirage Rush: a blink strike and throwing star.', 'Twin Mirage: two shadow doubles strike.', 'Spiral Burst: a third double and a heavy energy hit.'] },
+  fighter: { name: 'Fighter', color: '#ffad7d', icon: 'fist', desc: 'A close-range brawler with rapid strings, launching uppercuts, and seismic finishers.', signature: ['Breaker Rush: a powerful launching strike.', 'Seismic finishers send a shockwave.', 'Iron Resolve: each landed blow restores its health.'] },
+  herald: { name: 'Healer', color: '#9de6bb', icon: 'water', desc: 'Keeps you and nearby Echoes alive, restores Energy, and fires supporting light bolts.', signature: ['Mending pulse: restores 10% ally health.', 'Restores 14% health and 12 Energy.', 'Restores 18% health and 16 Energy.'] },
+};
+export const defaultEchoRole = (species: string): EchoRole => species === 'archer' ? 'mage' : species === 'bulwark' ? 'herald' : species === 'marshal' || species === 'locust' || species === 'knight' ? 'ninja' : species === 'brute' || species === 'lion' ? 'fighter' : 'guardian';
+export const echoRole = (e: EchoInst): EchoRole => e.role && ECHO_ROLES[e.role] ? e.role : defaultEchoRole(e.species);
 
 /**
  * Individual orders. guard: shield Elior and cut off foes that close on him.

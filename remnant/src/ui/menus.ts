@@ -12,12 +12,12 @@ import { sfx, audio } from '../audio/audio';
 import { music } from '../audio/music';
 import {
   ITEMS, SLOTS, SLOT_NAMES, STAT_KEYS, STAT_INFO, MOD_LABEL, RARITY_COLORS, RARITY_NAMES, TREES, SKILLS, ABILITIES,
-  ECHO_SPECIES, ECHO_CLASS_INFO, LORE, FAMILY_NAMES, echoXpToNext, xpToNext,
+  ECHO_SPECIES, ECHO_CLASS_INFO, ECHO_ROLES, SUPER_MOVES, echoRole, LORE, FAMILY_NAMES, echoXpToNext, xpToNext,
   type ItemInst, type Slot, type ModKey, type AbilityId, type EchoInst, type StatKey,
 } from '../game/data';
 import {
   derive, getItem, itemMods, upgradeCost, MAX_PLUS, hasMaterials, payMaterials, makeItem, canLearn, learn, skillRank,
-  echoMaxHp, echoAtk, addMaterial,
+  echoMaxHp, echoAtk, addMaterial, equipAbility, unlockCombatSkills, COMBAT_UNLOCKS,
 } from '../game/state';
 import { QUESTS } from '../game/story';
 import { ROOMS, chapterOf } from '../game/rooms';
@@ -42,6 +42,7 @@ let menuEl: HTMLElement | null = null;
 let tab = 'character';
 let bodyEl: HTMLElement;
 let tabsEl: HTMLElement;
+let skillsPage: 'abilities' | 'supers' | 'training' = 'abilities';
 
 export const isMenuOpen = () => !!menuEl || !!shopEl;
 
@@ -177,6 +178,7 @@ function characterTab() {
   const pct = (v: number) => (v * 100).toFixed(1) + '%';
   const derived = h('div', { class: 'kv' },
     'Health', `${Math.ceil(s.hp)} / ${d.maxHp}`,
+    'Health regeneration', `${(d.hpRegen * 100).toFixed(1)}% / sec · after 4s unharmed`,
     'Attack power', d.atk.toFixed(1),
     'Damage reduction', pct(d.dr),
     'Critical chance', pct(d.crit),
@@ -185,7 +187,7 @@ function characterTab() {
     'Move speed', '×' + d.speed.toFixed(2),
     'Ability power', '×' + d.abil.toFixed(2),
     'Parry window', (d.parryWin * 1000).toFixed(0) + ' ms',
-    'Rally charge rate', '×' + d.rallyMult.toFixed(2),
+    'Super charge rate', '×' + d.rallyMult.toFixed(2),
     'Echo damage', '×' + d.echoDmg.toFixed(2),
     'Echo health', '×' + d.echoHp.toFixed(2),
     'Weapon', FAMILY_NAMES[d.family],
@@ -339,6 +341,7 @@ let loadoutSlot = 0;
 
 function skillsTab() {
   const s = G.save;
+  unlockCombatSkills(s);
   const node = SKILLS.find((n) => n.id === skSel)!;
   const trees = h('div', { class: 'trees' }, TREES.map((t) => {
     const grid = h('div', { class: 'tree-grid' });
@@ -369,31 +372,43 @@ function skillsTab() {
       }
     }, 'btn primary', { disabled: !canLearn(s, node.id), 'data-k': 'learn' })),
   );
-  // ability loadout
-  const loadout = h('div', { class: 'slots' }, [0, 1, 2].map((i) => {
+  const nav = h('div', { class: 'modes', style: 'flex-wrap:wrap' },
+    (['abilities', 'supers', 'training'] as const).map((v) => btn(v === 'abilities' ? 'Equip abilities' : v === 'supers' ? 'Super moves' : 'Passive skills', () => { skillsPage = v; render(); }, 'btn small' + (skillsPage === v ? ' primary' : ''), { 'data-k': 'skills_' + v, 'aria-pressed': String(skillsPage === v) })));
+  const loadout = h('div', { class: 'slots ability-slots' }, [0, 1, 2].map((i) => {
     const id = s.equippedSkills[i];
-    return h('button', { class: 'slot' + (i === loadoutSlot ? ' sel' : ''), 'data-nav': '', 'data-k': 'ls_' + i, onclick: () => { loadoutSlot = i; render(); } },
-      id ? img(ABILITIES[id].icon, '#f6dea0') : img('shard', '#3a3448'), `Slot ${i + 1} · ${input.lastDevice === 'touch' ? '' : input.label((['skill1', 'skill2', 'skill3'] as const)[i])}`);
+    return btn([id ? img(ABILITIES[id].icon, '#f6dea0') : img('shard', '#6e6385'), h('span', null, `Slot ${i + 1}`, h('small', null, id ? ABILITIES[id].name : 'Empty'))], () => { loadoutSlot = i; render(); }, 'slot' + (i === loadoutSlot ? ' sel' : ''), { 'data-k': 'ls_' + i, 'aria-label': `Select ability slot ${i + 1}`, 'aria-pressed': String(i === loadoutSlot) });
   }));
-  const owned = h('div', { class: 'list' }, s.abilities.length ? s.abilities.map((a: AbilityId) => {
-    const def = ABILITIES[a];
-    const where = s.equippedSkills.indexOf(a);
-    return h('button', { class: 'row-item', 'data-nav': '', 'data-k': 'ab_' + a, onclick: () => {
-      const prev = s.equippedSkills[loadoutSlot];
-      if (where >= 0) s.equippedSkills[where] = prev ?? null;
-      s.equippedSkills[loadoutSlot] = a;
-      sfx('uiConfirm');
-      render();
-    } }, img(def.icon, '#f6dea0'), h('div', null, h('div', { class: 'nm' }, def.name), h('div', { class: 'sub' }, `${def.cost} energy · ${def.cd}s · ${def.desc}`)), where >= 0 ? h('span', { class: 'tag' }, 'SLOT ' + (where + 1)) : h('span'));
-  }) : h('div', { class: 'muted', style: 'padding:6px' }, 'No abilities yet. The temple holds something that may change that.'));
-  return h('div', { class: 'col scroll', style: 'flex:1' },
-    h('div', { style: 'display:flex;gap:12px;flex-wrap:wrap;align-items:flex-start' },
-      h('div', { class: 'box', style: 'flex:1;min-width:260px' }, h('h3', null, `Ability loadout · ${s.skillPoints} skill point${s.skillPoints === 1 ? '' : 's'}`), h('p', { class: 'muted', style: 'margin:0 0 6px;font-size:0.85em' }, 'Pick a slot, then an ability.'), loadout, h('div', { style: 'margin-top:8px' }, owned)),
-      h('div', { style: 'flex:1;min-width:260px' }, detail),
-    ),
-    techniques(),
-    trees,
-  );
+  const catalog = h('div', { class: 'ability-catalog' }, Object.values(ABILITIES).map((def) => {
+    const owned = s.abilities.includes(def.id), where = s.equippedSkills.indexOf(def.id);
+    const node = SKILLS.find((n) => n.grants === def.id), level = COMBAT_UNLOCKS[def.id];
+    const lock = level ? `Relic required · Level ${level}` : node ? `Learn ${node.name} in Passive skills` : 'Unlocked during the temple story';
+    return h('div', { class: 'ability-card' + (where >= 0 ? ' equipped' : '') },
+      h('div', { class: 'row', style: 'align-items:center;gap:10px' }, img(def.icon, owned ? '#f6dea0' : '#746684'), h('div', null, h('h3', null, def.name), h('div', { class: 'eyebrow' }, `${def.cost} Energy · ${def.cd}s cooldown`))),
+      h('p', null, def.desc),
+      !owned ? h('div', { class: 'muted', style: 'font-size:0.85em;margin-bottom:8px' }, lock) : null,
+      btn(!owned ? 'Locked' : where === loadoutSlot ? `Equipped · Slot ${where + 1}` : `Equip in Slot ${loadoutSlot + 1}`, () => {
+        if (equipAbility(s, def.id, loadoutSlot)) { sfx('uiConfirm'); G.world.autosave(true); render(); }
+      }, 'btn small' + (where === loadoutSlot ? ' primary' : ''), { disabled: !owned, 'data-k': 'ab_' + def.id }),
+      where >= 0 && where !== loadoutSlot ? h('span', { class: 'tag', style: 'margin-left:8px' }, `SLOT ${where + 1}`) : null);
+  }));
+  const regenRank = skillRank(s, 'g_regen');
+  const regeneration = h('div', { class: 'box' }, h('h3', null, `Health regeneration · ${regenRank}/3`),
+    h('p', { class: 'muted' }, 'Recover 0.5% maximum health per second per rank after 4 seconds without taking damage. Mending Light and Covenant Renewal add healing during combat.'),
+    btn(regenRank === 3 ? 'Regeneration mastered' : 'Train Regeneration · 1 point', () => {
+      if (learn(s, 'g_regen')) { G.d = derive(s); G.world.autosave(true); sfx('levelup', { vol: 0.5 }); render(); }
+    }, 'btn small', { disabled: !canLearn(s, 'g_regen'), 'data-k': 'learn_regen' }));
+  const supers = h('div', { class: 'ability-catalog' }, Object.entries(SUPER_MOVES).map(([id, def]) => h('div', { class: 'ability-card' + ((s.equippedSuper ?? 'rally') === id ? ' equipped' : '') },
+    h('div', { class: 'row', style: 'align-items:center;gap:10px' }, img(def.icon, def.color), h('h3', null, def.name)),
+    h('p', null, def.desc),
+    btn((s.equippedSuper ?? 'rally') === id ? 'Equipped super' : 'Equip super', () => {
+      s.equippedSuper = id as keyof typeof SUPER_MOVES; G.world.autosave(true); sfx('uiConfirm'); render();
+    }, 'btn small', { disabled: !s.flags.relic_taken, 'data-k': 'super_' + id, 'aria-pressed': String((s.equippedSuper ?? 'rally') === id) }))));
+  return h('div', { class: 'col scroll', style: 'flex:1' }, nav,
+    skillsPage === 'abilities' ? h('div', { class: 'col' },
+      h('div', { class: 'box' }, h('h3', null, 'Ability loadout'), h('p', { class: 'muted' }, 'Select a slot, then equip a skill from the catalog. Each ability can occupy one slot.'), loadout,
+        btn('Clear selected slot', () => { equipAbility(s, null, loadoutSlot); G.world.autosave(true); render(); }, 'btn small', { 'data-k': 'ability_clear', style: 'margin-top:8px' })), catalog, regeneration) :
+    skillsPage === 'supers' ? h('div', { class: 'col' }, h('div', { class: 'box' }, h('h3', null, 'Choose your super move'), h('p', { class: 'muted' }, 'All four options use the same full Super gauge, charged through battle. The Shadow Mantle remains your separate transformation.'), !s.flags.relic_taken ? h('p', { class: 'muted' }, 'Recover the relic in the temple to unlock supers.') : null), supers) :
+    h('div', { class: 'col' }, h('div', { class: 'eyebrow' }, `${s.skillPoints} skill points available`), regeneration, detail, trees, techniques()));
 }
 
 /** Move list: every combo route, with inputs shown for the device in use. */
@@ -442,7 +457,7 @@ let ecSel: string | null = null;
 function echoPortrait(e: EchoInst) {
   const c = h('canvas', { width: '140', height: '168' });
   const ctx = c.getContext('2d')!;
-  const kit = kitFor(e.species);
+  const kit = kitFor(e.species, echoRole(e));
   const j = solve(kit.base, kit.dims, true, newJoints());
   ctx.translate(70, 160);
   const sc = 2.6 * Math.min(1, 42 / kit.h);
@@ -454,9 +469,10 @@ function echoPortrait(e: EchoInst) {
 function echoesTab() {
   const s = G.save;
   const d = G.d;
+  const imprints = echoImprintPanel();
   if (!s.echoes.length) {
     return h('div', { class: 'col', style: 'flex:1;align-items:center;justify-content:center;text-align:center' },
-      h('div', { class: 'title-text', style: 'font-size:1.2em' }, 'No Echoes yet'),
+      h('div', { class: 'title-text', style: 'font-size:1.2em' }, 'Your Remnant'), imprints,
       h('p', { class: 'muted', style: 'max-width:30em' }, 'When an elite foe falls, the shape of how it fought lingers. With the covenant\'s light you may purify that imprint into an Echo — a construct of black-gold and white fire that fights beside you. It is not a soul, and it is no one\'s prisoner.'));
   }
   if (!ecSel || !s.echoes.some((e) => e.uid === ecSel)) ecSel = s.echoes[0].uid;
@@ -467,21 +483,18 @@ function echoesTab() {
     const active = s.active.includes(e.uid);
     return h('button', { class: 'row-item' + (e.uid === ecSel ? ' sel' : ''), 'data-nav': '', 'data-k': 'ec_' + e.uid, onclick: () => { ecSel = e.uid; render(); } },
       img(e.species === 'archer' ? 'archer_echo' : 'sentinel_echo', '#fff3c4'),
-      h('div', null, h('div', { class: 'nm' }, esp.stages[e.stage].name + (e.commander ? ' ★' : '')), h('div', { class: 'sub' }, `${esp.cls} · Level ${e.level} · ${esp.stages[e.stage].title}`)),
+      h('div', null, h('div', { class: 'nm' }, esp.stages[e.stage].name + (e.commander ? ' ★' : '')), h('div', { class: 'sub' }, `${ECHO_ROLES[echoRole(e)].name} · Level ${e.level} · ${esp.stages[e.stage].title}`)),
       h('span', { class: 'tag' }, active ? 'ACTIVE' : 'RESERVE'));
   }));
   const active = s.active.includes(sel.uid);
   const canActivate = active || s.active.length < d.echoSlots;
   const maxHp = echoMaxHp(s, sel, d);
-  const next = sel.stage < 2 ? { lv: sp.evolveLv[sel.stage], cost: sp.evolveCost[sel.stage] } : null;
-  const canEvolve = !!next && sel.level >= next.lv && hasMaterials(s, next.cost);
-  const costText = next ? Object.entries(next.cost).map(([k, v]) => `${v}× ${ITEMS[k].name} (have ${s.materials[k] ?? 0})`).join(', ') : '';
   const detail = h('div', { class: 'box' },
     h('div', { class: 'echo-card' }, echoPortrait(sel),
       h('div', null,
         h('div', { class: 'title-text', style: 'font-size:1.05em' }, sp.stages[sel.stage].name + (sel.commander ? ' — Commander' : '')),
-        h('div', { class: 'eyebrow' }, `${sp.cls} · ${sp.stages[sel.stage].title}`),
-        h('div', { class: 'muted', style: 'font-size:0.85em;margin:4px 0' }, ECHO_CLASS_INFO[sp.cls]),
+        h('div', { class: 'eyebrow' }, `${ECHO_ROLES[echoRole(sel)].name} · ${sp.stages[sel.stage].title}`),
+        h('div', { class: 'muted', style: 'font-size:0.85em;margin:4px 0' }, `Original form: ${sp.stages[0].name}`),
         h('div', { class: 'kv', style: 'margin-top:4px' },
           h('span', null, 'Level'), h('span', null, String(sel.level)),
           h('span', null, 'Health'), h('span', null, `${Math.ceil(sel.hp > 0 ? Math.min(sel.hp, maxHp) : 0)} / ${maxHp}`),
@@ -490,15 +503,22 @@ function echoesTab() {
         h('div', { class: 'bar', style: 'margin-top:6px' }, h('i', { style: `width:${(sel.xp / echoXpToNext(sel.level)) * 100}%` })),
       )),
     h('p', { style: 'margin:8px 0 4px' }, sp.stages[sel.stage].desc),
-    h('p', { style: 'margin:0 0 6px;color:var(--gold-hi)' }, sp.stages[sel.stage].ability),
-    next ? h('div', { class: 'muted', style: 'font-size:0.85em' }, `Evolves into ${sp.stages[sel.stage + 1].name} at level ${next.lv} with ${costText}.`) : h('div', { class: 'muted', style: 'font-size:0.85em' }, 'Final form reached.'),
+    h('p', { style: 'margin:0 0 6px;color:var(--gold-hi)' }, ECHO_ROLES[echoRole(sel)].signature[sel.stage]),
+    h('p', { class: 'muted' }, sel.stage < 2 ? `Defeat its original form and absorb another imprint to evolve into ${sp.stages[sel.stage + 1].name}. No level or material cost. Start its rematch below.` : 'Final form reached. Further absorptions restore health and raise its level, up to 30.'),
+    h('h3', null, 'Combat role'),
+    h('div', { class: 'echo-roles' }, Object.entries(ECHO_ROLES).map(([id, role]) => btn([img(role.icon, role.color), h('span', null, role.name)], () => {
+      sel.role = id as keyof typeof ECHO_ROLES;
+      G.world.echoes.find((e) => e.inst.uid === sel.uid && !e.remove)?.setRole(sel.role);
+      G.world.autosave(true); sfx('uiConfirm'); render();
+    }, 'btn small' + (echoRole(sel) === id ? ' primary' : ''), { 'data-k': 'role_' + id, 'aria-pressed': String(echoRole(sel) === id) }))),
+    h('p', { class: 'muted', style: 'font-size:0.85em' }, ECHO_ROLES[echoRole(sel)].desc),
     h('div', { style: 'display:flex;gap:6px;flex-wrap:wrap;margin-top:8px' },
+      btn('Rematch original form', () => { closeMenu(); startTraining(1, true, sel.species); }, 'btn primary', { disabled: G.world.bossActive || G.inCutscene || G.world.story.ch3.rounds.active, 'data-k': 'echo_rematch' }),
       btn(active ? 'Move to reserve' : 'Make active', () => {
         if (active) s.active = s.active.filter((u) => u !== sel.uid);
         else if (s.active.length < d.echoSlots) s.active.push(sel.uid);
         syncArmy();
       }, 'btn', { disabled: !canActivate, 'data-k': 'ec_act' }),
-      btn('Evolve', () => evolve(sel), 'btn primary', { disabled: !canEvolve, 'data-k': 'ec_evo' }),
       skillRank(s, 'c_warden') ? btn(sel.commander ? 'Relieve command' : 'Promote to Commander', () => {
         const was = sel.commander;
         for (const e of s.echoes) e.commander = false;
@@ -521,7 +541,7 @@ function echoesTab() {
     }));
   return h('div', { style: 'display:flex;gap:12px;flex:1;min-height:0;width:100%' },
     h('div', { class: 'col scroll', style: 'flex:0.9;min-height:0' },
-      h('div', { class: 'box' }, h('h3', null, `Your Remnant · ${s.active.length}/${d.echoSlots} active`), roster),
+      imprints, h('div', { class: 'box' }, h('h3', null, `Your Remnant · ${s.active.length}/${d.echoSlots} active`), roster),
       h('div', { class: 'box' }, h('h3', null, 'Stance'), modes, h('p', { class: 'muted', style: 'font-size:0.82em;margin:6px 0 0' }, 'Aggressive: hunt the nearest foe. Defensive: hold a line before you and shield you from arrows. Follow: stay close and strike what comes near.')),
     ),
     h('div', { class: 'col scroll', style: 'flex:1.1;min-height:0' }, detail, h('div', { class: 'box' }, h('h3', null, 'Formations'), forms)),
@@ -536,22 +556,11 @@ function syncArmy() {
   render();
 }
 
-function evolve(e: EchoInst) {
-  const s = G.save;
-  const sp = ECHO_SPECIES[e.species];
-  if (e.stage >= 2) return;
-  const req = sp.evolveCost[e.stage];
-  if (e.level < sp.evolveLv[e.stage] || !payMaterials(s, req)) return;
-  e.stage++;
-  e.hp = echoMaxHp(s, e, G.d);
-  sfx('purify');
-  const unit = G.world.echoes.find((u) => u.inst.uid === e.uid);
-  if (unit) {
-    unit.refreshStats();
-    unit.name = sp.stages[e.stage].name;
-  }
-  G.ui.banner('ECHO EVOLVED', `${sp.stages[e.stage].name} · ${sp.stages[e.stage].title}`, 'echo');
-  render();
+function echoImprintPanel() {
+  const pending = Object.entries(G.save.echoImprints ?? {}).filter(([id, n]) => n > 0 && ECHO_SPECIES[id]);
+  return h('div', { class: 'box' }, h('h3', null, 'Original-form imprints'),
+    h('p', { class: 'muted', style: 'font-size:0.85em' }, 'Rematch an Echo’s original form to earn its imprint. The Marshal and Locust King also leave imprints in the Boss Gauntlet. Absorb here to evolve, up to Stage III.'),
+    pending.length ? pending.map(([id, n]) => btn(`Absorb ${ECHO_SPECIES[id].stages[0].name} · ${n} available`, () => { G.world.absorb(id, true); render(); }, 'btn small', { 'data-k': 'absorb_' + id, style: 'margin:4px 4px 0 0' })) : h('p', { class: 'muted', style: 'font-size:0.85em' }, 'No unabsorbed imprints.'));
 }
 
 // ---------------------------------------------------------------- map

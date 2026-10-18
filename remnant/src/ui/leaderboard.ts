@@ -11,7 +11,7 @@ import { formatTime } from '../core/math';
 import { loadBoard, renameRun, type RunEntry } from '../game/board';
 import { pullBoard, cloudActive } from '../game/cloud';
 
-export interface RunStats { rounds: number; kills: number; time: number; level: number; levels: number; from: number; bossOnly?: boolean }
+export interface RunStats { rounds: number; kills: number; time: number; level: number; levels: number; from: number; bossOnly?: boolean; rematch?: boolean }
 
 const root = () => document.getElementById('ui')!;
 
@@ -83,8 +83,8 @@ export function gameOver(st: RunStats, entry: RunEntry | null, place: number, be
     const card = h('div', { class: 'chapter panel scroll gameover' },
       h('div', { class: 'go-cols' },
         h('div', { class: 'go-left' },
-          h('div', { class: 'eyebrow' }, st.bossOnly ? 'The Boss Gauntlet' : 'The Trial of the Remnant'),
-          h('h2', null, st.bossOnly ? 'BOSSES DEFEATED' : 'YOU SURVIVED'),
+          h('div', { class: 'eyebrow' }, st.rematch ? 'Original-form rematch' : st.bossOnly ? 'The Boss Gauntlet' : 'The Trial of the Remnant'),
+          h('h2', null, st.rematch ? 'FORMS DEFEATED' : st.bossOnly ? 'BOSSES DEFEATED' : 'YOU SURVIVED'),
           h('div', { class: 'go-round' }, `${st.rounds}`),
           h('div', { class: 'go-sub' }, st.bossOnly ? `REACHED ROUND ${st.rounds + 1}` : st.rounds === 1 ? 'ROUND' : 'ROUNDS'),
           best ? h('div', { class: 'go-best' }, 'NEW BEST') : null,
@@ -93,14 +93,14 @@ export function gameOver(st: RunStats, entry: RunEntry | null, place: number, be
         h('div', { class: 'go-right' },
           entry
             ? h('div', { class: 'go-name' }, h('span', null, place > 0 ? `Place ${place} on this device as` : 'Ranked as'), nameBox)
-            : h('p', { class: 'muted' }, `This run began at round ${st.from}, so it is not ranked. Start from round 1 to get on the board.`),
-          boardBox(entry?.id ?? null, 5, st.bossOnly),
+            : h('p', { class: 'muted' }, st.rematch ? 'Original-form rematches are unranked. Your earned imprints are saved; absorb them in Echoes.' : `This run began at round ${st.from}, so it is not ranked. Start from round 1 to get on the board.`),
+          st.rematch ? null : boardBox(entry?.id ?? null, 5, st.bossOnly),
         ),
       ),
       h('p', { class: 'muted go-verse' }, '“Be thou faithful unto death, and I will give thee a crown of life.” Revelation 2:10 (KJV)'),
       h('div', { class: 'row', style: 'justify-content:center;gap:10px;margin-top:8px' },
         btn('Again from round 1', () => done('again'), 'btn primary', { 'data-autofocus': '', 'data-k': 'go_again' }),
-        btn(st.bossOnly ? 'Leave the Gauntlet' : 'Leave the Trial', () => done('leave'), 'btn', { 'data-k': 'go_leave' })),
+        btn(st.rematch ? 'Leave rematch' : st.bossOnly ? 'Leave the Gauntlet' : 'Leave the Trial', () => done('leave'), 'btn', { 'data-k': 'go_leave' })),
     );
     const layer = h('div', { class: 'layer death' }, card);
     root().appendChild(layer);

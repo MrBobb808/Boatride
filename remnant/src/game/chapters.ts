@@ -5,6 +5,7 @@
 
 import { G, flag } from './ctx';
 import { ROOMS } from './rooms';
+import { ECHO_SPECIES } from './data';
 
 export interface ChapterDef {
   n: number;
@@ -86,9 +87,10 @@ export function trainingStarts(bossOnly = false): number[] {
 }
 
 /** Enter the Trial from anywhere; leaving it returns you to this spot. */
-export function startTraining(fromWave = 1, bossOnly = false) {
+export function startTraining(fromWave = 1, bossOnly = false, original?: string) {
   const W = G.world;
   const s = G.save;
+  s.flags.echo_trial_species = original && ECHO_SPECIES[original] && s.echoes.some((e) => e.species === original) ? original : '';
   if (W.room.id === 'trial_arena' && W.story.ch3.rounds.active) W.story.ch3.rounds.stop();
   if (W.room.id !== 'trial_arena') {
     // Come back through the nearest named spawn of the room you left.

@@ -7,7 +7,8 @@ import { G, flag } from '../game/ctx';
 import { input } from '../core/input';
 import { settings } from '../core/settings';
 import { icon } from './icons';
-import { ABILITIES, ECHO_SPECIES, xpToNext } from '../game/data';
+import { ABILITIES, ECHO_SPECIES, SUPER_MOVES, xpToNext } from '../game/data';
+import { selectedSuper } from '../game/supers';
 import { QUESTS } from '../game/story';
 import { ROOMS, chapterOf } from '../game/rooms';
 import { CH2_ROOM_IDS } from '../game/rooms2';
@@ -338,7 +339,8 @@ export function drawHud(ctx: Ctx, dt: number) {
         glow(ctx, cx, cyy, rr * 1.8, '#ffd27a', 0.5 + Math.sin(G.time * 5) * 0.2);
         ctx.globalCompositeOperation = 'source-over';
       }
-      ctx.drawImage(icon('rally', f >= 1 ? '#fff3c4' : '#8a6e3a', 64), cx - rr * 0.55, cyy - rr * 0.55, rr * 1.1, rr * 1.1);
+      const superDef = SUPER_MOVES[selectedSuper()];
+      ctx.drawImage(icon(superDef.icon, f >= 1 ? superDef.color : '#8a6e3a', 64), cx - rr * 0.55, cyy - rr * 0.55, rr * 1.1, rr * 1.1);
       text(ctx, input.label('ultimate'), x + 4 * u, yb + 6 * u, `700 ${7 * u}px ${FONT_DISPLAY}`, '#ece4d4', 'left');
     }
   }

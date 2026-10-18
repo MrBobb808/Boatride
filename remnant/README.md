@@ -254,7 +254,7 @@ deploys it to GitHub Pages on every push to the default branch that touches
 | **Balm** | Heal |
 | **Echoes** | Echo command wheel: summon or dismiss, Aggressive / Defensive / Follow stance, mark target, recall, sync strike, switch |
 | **Switch** | Switch support: the next Echo tags in, or you trade places with one. It appears while Echoes are out. |
-| **Rally** | *Rally the Remnant* (once the gauge is full) |
+| **Super** | Your equipped super move (once the gauge is full) |
 | **Mantle** | Transform into the *Shadow Mantle* (from level 25, once its gauge is full) |
 | **Sub** | Throw your sub-weapon. The badge shows your hearts. |
 | Context button | Talk, open, rest, purify. It appears only when something is in reach. |
@@ -278,7 +278,7 @@ left-handed layout, and turns haptics on or off.
 | H | Balm (heal) |
 | C | Echo command wheel |
 | X | Switch support Echo |
-| T | Rally the Remnant |
+| T | Equipped super move |
 | G | Shadow Mantle (transform) |
 | U (or W + K) | Throw sub-weapon |
 | F | Interact / purify |
@@ -316,7 +316,7 @@ Touch and keyboard controls remain available if that access is blocked.
 | L1 | LB | Parry / block |
 | R1 / L2 / R2 | RB / LT / RT | Abilities |
 | L3 (left stick click) | L3 | Echo command wheel (point the stick at a command, ✕ to pick) |
-| R3 (right stick click) | R3 | Rally the Remnant |
+| R3 (right stick click) | R3 | Equipped super move |
 | L3 + R3 together | L3 + R3 | Shadow Mantle (transform) |
 | D-pad ↑ | D-pad ↑ | Interact |
 | D-pad ↓ | D-pad ↓ | Balm |
@@ -409,3 +409,5 @@ Debug helpers are available when you add `?debug` to the URL.
 | `src/audio` | Sound effects and the music sequencer |
 | `src/game` | World, player, weapons, enemies and tanks, Echoes, bosses, rooms, story (one file per chapter), data, saves |
 | `src/ui` | HUD, touch controls, menus, screens, dialogue |
+
+See [SKILLS_ECHOES.md](SKILLS_ECHOES.md) for the twelve-skill loadout catalog, four supers, health regeneration, Echo specializations, and original-form evolution rematches.
