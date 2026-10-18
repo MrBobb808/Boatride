@@ -70,6 +70,8 @@ export class Player extends Entity {
   combo = 0;
   queued: 'attack' | null = null;
   queuedT = 0;
+  dodgeBuf = 0;
+  parryBuf = 0;
   chargeT = 0;
   chargeLvl = 0;
   chargeFromTap = false;
@@ -292,6 +294,9 @@ export class Player extends Entity {
     this.parryT = Math.max(0, this.parryT - dt);
     this.parryCd = Math.max(0, this.parryCd - dt);
     this.counterT = Math.max(0, this.counterT - dt);
+    this.dodgeBuf = Math.max(0, this.dodgeBuf - dt);
+    this.parryBuf = Math.max(0, this.parryBuf - dt);
+    this.heavyQ = Math.max(0, this.heavyQ - dt);
     this.queuedT = Math.max(0, this.queuedT - dt);
     if (this.queuedT <= 0) this.queued = null;
     this.sinceDodge += dt;
@@ -435,6 +440,30 @@ export class Player extends Entity {
   }
 
   // ---------------------------------------------------------------- input-driven states
+  /** Impact freeze consumes input edges too; retain one intent until a legal window. */
+  bufferCombatInput() {
+    if (G.inCutscene || this.state === 'dead' || this.state === 'scripted') return;
+    if (input.pressed('jump')) this.jumpBuf = 0.16;
+    if (input.pressed('attack')) {
+      this.queued = 'attack';
+      this.queuedT = 0.32;
+      this.attackHeldFrom = G.time;
+    }
+    if (input.pressed('heavy')) this.heavyQ = 0.26;
+    if (input.pressed('dodge')) { this.dodgeBuf = 0.18; this.parryBuf = 0; }
+    if (input.pressed('parry')) { this.parryBuf = 0.18; this.dodgeBuf = 0; }
+  }
+
+  /** Defending wins over a buffered follow-up, without bypassing recovery or dash limits. */
+  private tryDefense(): boolean {
+    if (this.dodgeBuf > 0) {
+      if (this.body.onGround) { this.startDodge(); return true; }
+      if (this.airDash > 0) { this.startAirDash(); return true; }
+    }
+    if (this.parryBuf > 0 && this.parryCd <= 0) { this.startParry(); return true; }
+    return false;
+  }
+
   private handleInput(dt: number) {
     const b = this.body;
     const d = G.d;
@@ -444,13 +473,7 @@ export class Player extends Entity {
     if (input.pressed('transform') && this.state !== 'transform' && this.state !== 'execute' && this.state !== 'phantom' && this.state !== 'heal' && this.state !== 'plunge') {
       if (this.tryTransform()) return;
     }
-    if (input.pressed('jump')) this.jumpBuf = 0.13;
-    if (input.pressed('attack')) {
-      this.queued = 'attack';
-      this.queuedT = 0.28;
-      this.attackHeldFrom = G.time;
-    }
-    this.heavyQ = input.pressed('heavy') ? 0.26 : Math.max(0, this.heavyQ - dt);
+    this.bufferCombatInput();
 
     switch (this.state) {
       case 'free': {
@@ -494,7 +517,8 @@ export class Player extends Entity {
       case 'dodge': {
         const t = this.st / 0.34;
         b.vx = this.face * 300 * (1 - t * 0.55) * speedMul;
-        if (this.st > 0.16 && input.pressed('attack')) {
+        if (this.st > 0.16 && this.queued === 'attack') {
+          this.queued = null;
           this.startAttack(this.moves.dash);
           break;
         }
@@ -520,7 +544,7 @@ export class Player extends Entity {
       }
       case 'parry': {
         b.vx = approach(b.vx, 0, 1400 * dt);
-        if (this.st > 0.12 && this.counterT > 0 && input.pressed('attack')) {
+        if (this.st > 0.12 && this.counterT > 0 && this.queued === 'attack') {
           this.startCounter();
           break;
         }
@@ -532,13 +556,13 @@ export class Player extends Entity {
       }
       case 'block': {
         b.vx = approach(b.vx, ax * 40, 900 * dt);
-        if (this.counterT > 0 && input.pressed('attack')) {
+        if (this.counterT > 0 && this.queued === 'attack') {
           this.startCounter();
           break;
         }
         if (!input.down('parry')) this.setState('free');
-        if (input.pressed('dodge')) this.startDodge();
-        if (input.pressed('jump') && b.onGround) {
+        if (this.dodgeBuf > 0 && this.tryDefense()) break;
+        if (this.jumpBuf > 0 && b.onGround) {
           this.setState('free');
           this.jumpBuf = 0.13;
         }
@@ -561,7 +585,7 @@ export class Player extends Entity {
           G.ui.refreshHud();
         }
         if (this.st >= 0.9) this.setState('free');
-        if (this.healDone && input.pressed('dodge')) this.startDodge();
+        if (this.healDone && this.dodgeBuf > 0) this.tryDefense();
         break;
       }
       case 'cast': {
@@ -572,7 +596,7 @@ export class Player extends Entity {
         }
         // No castId: a sub-weapon throw, which only borrows the pose.
         if (this.st >= (this.castId === 'armor_light' || this.castId === 'lion' ? 0.6 : this.castId ? 0.36 : 0.2)) this.setState('free');
-        if (this.castFired && this.st > 0.2 && input.pressed('dodge')) this.startDodge();
+        if (this.castFired && this.st > 0.2 && this.dodgeBuf > 0) this.tryDefense();
         break;
       }
       case 'execute':
@@ -602,6 +626,12 @@ export class Player extends Entity {
   private tryActions(dt: number) {
     const b = this.body;
     const s = G.save;
+    // Phantom Step: Dodge right after landing a hit blinks behind the foe.
+    if (this.dodgeBuf > 0 && this.canPhantom()) {
+      this.startPhantom();
+      return;
+    }
+    if (this.tryDefense()) return;
     if (this.queued === 'attack' && this.phantomN >= 3 && G.time < this.phantomUntil && G.save.ce >= CROSS_COST) {
       this.queued = null;
       this.startCross();
@@ -618,11 +648,6 @@ export class Player extends Entity {
     }
     if (this.counterT > 0 && this.queued === 'attack') {
       this.startCounter();
-      return;
-    }
-    // Phantom Step: Dodge right after landing a hit blinks behind the foe.
-    if (input.pressed('dodge') && this.canPhantom()) {
-      this.startPhantom();
       return;
     }
     // Branches that open for a moment after an attack ends.
@@ -662,11 +687,6 @@ export class Player extends Entity {
         return;
       }
     }
-    if (input.pressed('dodge')) {
-      if (b.onGround) this.startDodge();
-      else if (this.airDash > 0) this.startAirDash();
-      return;
-    }
     // Sub-weapon: its own button, or the old way, up + Heavy.
     if (input.pressed('sub') || ((input.pressed('heavy') || this.heavyQ > 0) && input.aimUp)) {
       this.heavyQ = 0;
@@ -696,10 +716,6 @@ export class Player extends Entity {
         this.combo = 0;
         this.startAttack(this.moves.combo[0]);
       }
-      return;
-    }
-    if (input.pressed('parry') && this.parryCd <= 0) {
-      this.startParry();
       return;
     }
     if (input.pressed('heal')) {
@@ -798,6 +814,9 @@ export class Player extends Entity {
   }
 
   startDodge() {
+    this.dodgeBuf = this.parryBuf = 0;
+    this.queued = null;
+    this.heavyQ = 0;
     this.setState('dodge');
     this.atk = null;
     if (Math.abs(input.axisX) > 0.2) this.face = sign(input.axisX);
@@ -806,6 +825,9 @@ export class Player extends Entity {
     fx.dust(this.x, this.y, 4, 0.8);
   }
   startAirDash() {
+    this.dodgeBuf = this.parryBuf = 0;
+    this.queued = null;
+    this.heavyQ = 0;
     this.airDash--;
     this.setState('airdash');
     this.atk = null;
@@ -815,6 +837,10 @@ export class Player extends Entity {
     fx.ring(this.x - this.face * 6, this.y - 18, 4, 18, '#ffe6a8', 0.25, 2, 0.6);
   }
   startParry() {
+    this.atk = null;
+    this.dodgeBuf = this.parryBuf = 0;
+    this.queued = null;
+    this.heavyQ = 0;
     this.setState('parry');
     this.parryT = G.d.parryWin;
     this.parryCd = 0.32;
@@ -838,6 +864,7 @@ export class Player extends Entity {
     sfx('swingHeavy', { pitch: 0.8 });
   }
   startCounter() {
+    this.queued = null;
     const c = { ...this.moves.counter };
     c.dmg *= skillRank(G.save, 'g_counter') ? 1.7 : 1;
     this.counterT = 0;
@@ -909,22 +936,28 @@ export class Player extends Entity {
       this.activeHits(a, 1);
     }
     // Phantom Step out of any swing that has connected.
-    if (u >= a.hit[0] && input.pressed('dodge') && this.canPhantom()) {
+    if (u >= a.hit[0] && this.dodgeBuf > 0 && this.canPhantom()) {
       this.startPhantom();
       return;
     }
+    if (u >= a.cancel && this.tryDefense()) return;
     // Holding attack through the third strike whirls into Storm of Edges (touch-friendly).
-    if (b.onGround && a.id === this.moves.combo[2].id && input.down('attack') && G.time - this.attackHeldFrom > 0.24 && u > 0.5) {
+    if (this.dodgeBuf <= 0 && this.parryBuf <= 0 && b.onGround && a.id === this.moves.combo[2].id && input.down('attack') && G.time - this.attackHeldFrom > 0.24 && u > 0.5) {
       return this.startAttack(this.moves.storm);
     }
     // charge on hold (touch-friendly): still holding attack after the first swing
-    if (!a.air && input.down('attack') && G.time - this.attackHeldFrom > 0.26 && u > 0.45 && this.combo === 0 && a.id === this.moves.combo[0].id) {
+    if (this.dodgeBuf <= 0 && this.parryBuf <= 0 && !a.air && input.down('attack') && G.time - this.attackHeldFrom > 0.26 && u > 0.45 && this.combo === 0 && a.id === this.moves.combo[0].id) {
       this.startCharge(true);
       return;
     }
     // cancels
     if (u >= a.cancel) {
       if (this.mantleT > 0 && input.pressed('sub') && this.throwWeapon()) return;
+      if (this.jumpBuf > 0 && b.onGround) {
+        this.setState('free');
+        this.jumpBuf = 0.13;
+        return;
+      }
       const m = this.moves;
       // Branch combos.
       if (this.heavyQ > 0 && b.onGround && (a.id === m.combo[2].id || a.id === m.extra.id)) {
@@ -952,11 +985,6 @@ export class Player extends Entity {
         }
         this.combo = 1;
         return this.startAttack(m.combo[1]);
-      }
-      if (input.pressed('dodge')) {
-        if (b.onGround) this.startDodge();
-        else if (this.airDash > 0) this.startAirDash();
-        return;
       }
       if (this.queued === 'attack') {
         const ex = G.world.executionTarget(this);
@@ -990,12 +1018,6 @@ export class Player extends Entity {
         this.combo = 0;
         return this.startAttack(this.moves.combo[0]);
       }
-      if (input.pressed('jump') && b.onGround) {
-        this.setState('free');
-        this.jumpBuf = 0.13;
-        return;
-      }
-      if (input.pressed('parry')) return this.startParry();
       if (Math.abs(input.axisX) > 0.5 && u > a.cancel + 0.1 && b.onGround) {
         this.setState('free');
         return;
@@ -1171,6 +1193,8 @@ export class Player extends Entity {
     const spot = this.blinkSpot(t, side);
     if (!spot) return;
     if (!isSovereign() && this.mantleT <= 0) G.save.ce -= PHANTOM_COST;
+    this.dodgeBuf = this.parryBuf = 0;
+    this.heavyQ = 0;
     this.ceRegenDelay = 0.6;
     this.phantomFrom = { x: this.x, y: this.y };
     this.phantomTo = spot;
@@ -1335,7 +1359,7 @@ export class Player extends Entity {
       fx.holyBurst(this.x + this.face * 4, this.y - 34, 4 + lvl * 3, 0.4);
     }
     if (Math.random() < dt * 30) fx.spawn(PK.Ember, this.x + rand(-10, 10), this.y - rand(0, 30), 0, -40, 0.5, 1.2, 0.2, '#ffd27a');
-    if (input.pressed('dodge')) return this.startDodge();
+    if (this.tryDefense()) return;
     const held = input.down('attack') || input.down('heavy');
     if (!held) {
       const mults = [1, 1.35, 1.8, 2.5];

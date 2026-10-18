@@ -317,6 +317,7 @@ export class World {
     if (this.transitioning) return;
     G.camera.update(dtRaw, this.player.x, this.player.y, this.player.face, this.player.body.vx, shakeScale());
     if (this.hitstopT > 0) {
+      this.player.bufferCombatInput();
       this.hitstopT -= dtRaw;
       fx.update(dtRaw * 0.15);
       return;
@@ -1751,11 +1752,13 @@ export class World {
     this.drawRally(ctx);
     this.drawWeather(ctx);
     fx.drawNumbers(ctx);
+    this.drawCombatFocus(ctx);
     // screen-space finishing
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     this.drawVignette(ctx);
     if (fx.flashA > 0.01) {
-      ctx.globalAlpha = fx.flashA;
+      // Repeated impacts must leave the next enemy tell visible.
+      ctx.globalAlpha = !G.inCutscene && this.player.comboT > 0 ? Math.min(0.18, fx.flashA) : fx.flashA;
       ctx.fillStyle = fx.flashC;
       ctx.fillRect(0, 0, r.bw, r.bh);
       ctx.globalAlpha = 1;
@@ -1769,6 +1772,29 @@ export class World {
       ctx.fillStyle = g;
       ctx.fillRect(0, 0, r.bw, r.bh);
     }
+  }
+
+  private drawCombatFocus(ctx: Ctx) {
+    const p = this.player;
+    if (G.inCutscene || p.state === 'dead' || p.comboT <= 0) return;
+    // Small anchors stay readable through allied spell effects.
+    ctx.save();
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.globalAlpha = 0.85;
+    ctx.beginPath();
+    ctx.moveTo(p.x - 10, p.y - 3); ctx.lineTo(p.x - 7, p.y + 1); ctx.lineTo(p.x - 3, p.y + 1);
+    ctx.moveTo(p.x + 10, p.y - 3); ctx.lineTo(p.x + 7, p.y + 1); ctx.lineTo(p.x + 3, p.y + 1);
+    ctx.strokeStyle = '#17121d'; ctx.lineWidth = 3; ctx.stroke();
+    ctx.strokeStyle = '#ffe6a8'; ctx.lineWidth = 1; ctx.stroke();
+    const t = p.lastFoe;
+    if (t && !t.remove && t.canBeTargeted()) {
+      const y = t.y - t.body.h - 7;
+      ctx.beginPath();
+      ctx.moveTo(t.x - 4, y - 3); ctx.lineTo(t.x, y); ctx.lineTo(t.x + 4, y - 3);
+      ctx.strokeStyle = '#17121d'; ctx.lineWidth = 3; ctx.stroke();
+      ctx.strokeStyle = '#ffe6a8'; ctx.lineWidth = 1; ctx.stroke();
+    }
+    ctx.restore();
   }
 
   private drawVignette(ctx: Ctx) {
