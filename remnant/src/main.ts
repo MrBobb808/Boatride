@@ -89,6 +89,7 @@ async function boot() {
     if (app.mode !== 'game' || layerCount() > 0 || G.inCutscene) return;
     if (a === 'menu') openMenu();
     else if (a === 'map') openMenu('map');
+    else if (a === 'voice') G.ui.voiceOrders();
   });
 
   // Leaving the app (home button, app switcher, closing the tab) saves first.

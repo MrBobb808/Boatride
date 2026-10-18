@@ -85,6 +85,11 @@ export function drawFoeSprite(ctx: Ctx, e: Enemy): boolean {
   ctx.save();
   ctx.translate(Math.round(e.x), Math.round(e.y));
   ctx.scale(e.face, 1);
+  if (e.flash > 0 && !e.dying) {
+    const impact = Math.min(1, e.flash / 0.12) * e.impactForce;
+    if (!e.heavyBody) ctx.translate(e.impactDir * e.face * impact * 3, 0);
+    ctx.scale(1 - impact * 0.045, 1 + impact * 0.025);
+  }
   if (e.state === 'vanish') ctx.globalAlpha *= 0.25;
   if (e.dying && !e.awaitingPurify) {
     const fall = clamp(e.deathT / 0.45, 0, 1);

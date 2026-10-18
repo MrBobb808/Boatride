@@ -47,6 +47,7 @@ const BTNS: TBtn[] = [
   { id: 'sub', act: 'sub', icon: 'dagger', size: 40, dx: 212, dy: 170, label: 'Sub' },
   { id: 'menu', icon: 'menu', size: 40, dx: 0, dy: 0, label: '', corner: 'tr', ui: () => G.ui.openMenu() },
   { id: 'map', icon: 'map', size: 40, dx: 0, dy: 48, label: '', corner: 'tr', ui: () => G.ui.openMenu('map') },
+  { id: 'voice', icon: 'voice', size: 40, dx: 0, dy: 96, label: '', corner: 'tr', ui: () => G.ui.voiceOrders() },
 ];
 
 let root: HTMLElement;
@@ -78,6 +79,7 @@ export function initTouch(el: HTMLElement) {
   for (const b of BTNS) {
     const d = document.createElement('div');
     d.className = 'tc' + (b.id === 'attack' ? ' big' : '') + (b.corner ? ' sq' : '');
+    d.setAttribute('aria-label', b.id === 'voice' ? 'Voice squad orders' : b.label || b.id);
     const im = document.createElement('img');
     im.src = iconUrl(b.icon, b.id === 'mantle' ? '#d4d0ff' : '#f6dea0');
     im.alt = '';
@@ -240,6 +242,8 @@ export function updateTouch() {
         b.cd!.style.background = cd > 0 ? `conic-gradient(rgba(0,0,0,0.65) ${cd * 360}deg, transparent 0)` : 'none';
         el.style.filter = s.ce < def.cost ? 'grayscale(0.8) brightness(0.6)' : '';
       }
+    } else if (b.id === 'voice') {
+      show = !G.inCutscene && p.state !== 'dead';
     } else if (b.id === 'heal') {
       b.cnt!.textContent = String(s.balm);
       el.style.filter = s.balm > 0 ? '' : 'grayscale(1) brightness(0.5)';

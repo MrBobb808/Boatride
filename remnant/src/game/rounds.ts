@@ -10,7 +10,8 @@ import { Entity } from './entity';
 import { Enemy } from './enemies';
 import { TILE, type EnemyKind } from './tiles';
 import { xpToNext, ECHO_SPECIES, ITEMS } from './data';
-import { claimTrialMilestone } from './state';
+import { claimTrialMilestone, derive } from './state';
+import { BLESSINGS, runBlessings, type BlessingId } from './blessings';
 import { rollGear } from './world';
 import { moveBody } from './physics';
 import { recordRun, bestRounds, type RunEntry } from './board';
@@ -69,6 +70,15 @@ export class Rounds {
   /** Foes standing, as of the last update (the HUD reads it every frame). */
   private alive = 0;
   private ending = false;
+  pendingBlessings: BlessingId[] = [];
+  private blessingEpoch = 0;
+  private blessingAbort: AbortController | null = null;
+  get awaitingBlessing() { return this.pendingBlessings.length > 0; }
+  cancelBlessing() {
+    this.blessingEpoch++;
+    this.pendingBlessings = [];
+    this.blessingAbort?.abort(); this.blessingAbort = null;
+  }
 
   /** Foes still to beat this round (spawned or not). */
   get left() {
@@ -79,6 +89,8 @@ export class Rounds {
     this.stop(false);
     this.active = true;
     this.bossOnly = bossOnly;
+    runBlessings.reset(!bossOnly);
+    G.d = derive(G.save);
     const original = String(G.save.flags.echo_trial_species ?? '');
     this.rematchSpecies = bossOnly && ECHO_SPECIES[original] && G.save.echoes.some((e) => e.species === original) ? original : null;
     this.boss = null;
@@ -105,13 +117,16 @@ export class Rounds {
   stop(record = true) {
     if (this.active && record && this.round > 0) this.record();
     this.active = false;
+    this.cancelBlessing();
+    runBlessings.reset();
+    if (G.save) G.d = derive(G.save);
     this.boss = null;
     this.foes = [];
     this.round = 0;
   }
 
   update(dt: number) {
-    if (!this.active || this.ending) return;
+    if (!this.active || this.ending || this.awaitingBlessing) return;
     const W = G.world;
     if (W.player.state === 'dead') return;
     this.time += dt;
@@ -203,6 +218,37 @@ export class Rounds {
     this.changeT = 0;
     sfx('rally', { vol: 0.5 });
     G.world.autosave(true);
+    this.offerBlessing();
+  }
+
+  private offerBlessing() {
+    this.pendingBlessings = runBlessings.offer();
+    const epoch = ++this.blessingEpoch;
+    this.blessingAbort = new AbortController();
+    const carried = runBlessings.summary();
+    void G.ui.choice(`Wave ${this.completed} cleared`,
+      `Choose one blessing for this run. Bonuses stack up to rank 5 and reset when you leave or fall.${carried ? ` Carrying: ${carried}.` : ''}`,
+      this.pendingBlessings.map(id => ({ label: BLESSINGS[id].name + (BLESSINGS[id].cap ? ` · Rank ${runBlessings.rank(id) + 1}` : ''), sub: BLESSINGS[id].desc, icon: BLESSINGS[id].icon, risk: id === 'bloodprice' })),
+      'blessing', this.blessingAbort.signal).then(index => {
+        if (epoch !== this.blessingEpoch || !this.active) return;
+        if (index < 0) { this.pendingBlessings = []; this.blessingEpoch++; this.blessingAbort = null; return; }
+        this.chooseBlessing(this.pendingBlessings[index]);
+      });
+  }
+
+  chooseBlessing(id: BlessingId): boolean {
+    if (!this.active || this.bossOnly || !this.pendingBlessings.includes(id) || !runBlessings.take(id)) return false;
+    this.pendingBlessings = [];
+    this.blessingEpoch++;
+    this.blessingAbort?.abort(); this.blessingAbort = null;
+    G.d = derive(G.save);
+    if (id === 'health') G.save.hp = Math.min(G.d.maxHp, G.save.hp + G.d.maxHp * 0.3);
+    if (id === 'energy') G.save.ce = G.d.maxCe;
+    if (id === 'balm') G.save.balm = Math.min(G.save.balmMax, G.save.balm + 1);
+    sfx('lootRare', { vol: 0.55 });
+    G.ui.toast(`${BLESSINGS[id].name}${BLESSINGS[id].cap ? ` ${runBlessings.rank(id)}` : ''} · this run`, 'good');
+    G.ui.refreshHud();
+    return true;
   }
 
   /** Called after the boss's real defeat animation, before any chapter logic. */
@@ -341,6 +387,7 @@ export class Rounds {
 
   /** Elior fell in the arena: show the Game Over card. Resolves when the player has chosen. */
   async onDeath(): Promise<'again' | 'leave'> {
+    this.cancelBlessing();
     this.ending = true;
     G.inCutscene = false;
     G.camera.focus = null;
@@ -350,6 +397,8 @@ export class Rounds {
     const res = this.record();
     const stats = { rounds: this.bossOnly ? this.completed : this.round, kills: this.kills, time: this.time, level: G.save.level, levels: G.save.level - this.level0, from: this.from, bossOnly: this.bossOnly, rematch: !!this.rematchSpecies };
     this.active = false;
+    runBlessings.reset();
+    G.d = derive(G.save);
     const choice = await gameOver(stats, res.entry, res.place, res.best);
     return choice;
   }

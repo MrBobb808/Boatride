@@ -400,6 +400,8 @@ export interface EchoInst {
   order?: EchoOrder;
   /** Specialization is independent of the original creature's appearance. */
   role?: EchoRole;
+  /** Preferred enemy group, assigned through squad orders. */
+  targetPriority?: 'ranged' | 'boss' | 'crowd';
   /** Original-form imprints absorbed, including the first. */
   absorptions?: number;
 }
@@ -416,7 +418,7 @@ export type EchoRole = 'guardian' | 'ranger' | 'mage' | 'ninja' | 'fighter' | 'h
 export const ECHO_ROLES: Record<EchoRole, { name: string; color: string; icon: string; desc: string; signature: string[] }> = {
   guardian: { name: 'Guardian', color: '#8ecbff', icon: 'shield', desc: 'A durable defender that intercepts shots, draws attacks, and grants brief barriers.', signature: ['Aegis: protects nearby allies.', 'Aegis lasts longer; stronger guard.', 'Bastion: the longest barrier and strongest guard.'] },
   ranger: { name: 'Ranger', color: '#f4d388', icon: 'archer_echo', desc: 'A marksman that keeps range, pierces lines, and rains arrows.', signature: ['Rapid light arrows.', 'Every third shot pierces.', 'Rain of Dawn adds six falling arrows.'] },
-  mage: { name: 'Mage', color: '#a9a3ff', icon: 'pillar', desc: 'Ranged spellcaster with homing arcane volleys, fire pillars, and chain lightning.', signature: ['Arcane Volley: three homing bolts.', 'Starfire: a targeted pillar joins each volley.', 'Chain Lightning: arcs through three nearby foes.'] },
+  mage: { name: 'Mage', color: '#a9a3ff', icon: 'pillar', desc: 'Ranged spellcaster with chilling arcane volleys, fire pillars, and chain lightning. Chilled targets open Frostbreak with a fighter.', signature: ['Arcane Volley: chills the target and fires three homing bolts.', 'Starfire: a targeted pillar joins each volley.', 'Chain Lightning: arcs through three nearby foes.'] },
   ninja: { name: 'Ninja', color: '#c4a0ff', icon: 'dagger', desc: 'Fast flanker with throwing stars, blink combos, and attacking shadow doubles.', signature: ['Mirage Rush: a blink strike and throwing star.', 'Twin Mirage: two shadow doubles strike.', 'Spiral Burst: a third double and a heavy energy hit.'] },
   fighter: { name: 'Fighter', color: '#ffad7d', icon: 'fist', desc: 'A close-range brawler with rapid strings, launching uppercuts, and seismic finishers.', signature: ['Breaker Rush: a powerful launching strike.', 'Seismic finishers send a shockwave.', 'Iron Resolve: each landed blow restores its health.'] },
   herald: { name: 'Healer', color: '#9de6bb', icon: 'water', desc: 'Keeps you and nearby Echoes alive, restores Energy, and fires supporting light bolts.', signature: ['Mending pulse: restores 10% ally health.', 'Restores 14% health and 12 Energy.', 'Restores 18% health and 16 Energy.'] },
