@@ -67,8 +67,8 @@ export class Renderer {
     this.cssH = h;
     this.dpr = window.devicePixelRatio || 1;
     this.tier = this.qualityTier();
-    // Pixel art only scales a small image onto the screen, so it can use the full density.
-    const cap = settings.artStyle !== 'smooth' ? 3 : this.tier === 2 ? 2 : this.tier === 1 ? 1.5 : 1;
+    // Keep crisp world pixels; reduce high-density HUD fill when the frame budget tightens.
+    const cap = settings.artStyle !== 'smooth' ? [1.5, 2, 3][this.tier] : this.tier === 2 ? 2 : this.tier === 1 ? 1.5 : 1;
     this.px = Math.min(this.dpr, cap);
     // Very large desktop windows don't need more than ~1440 backing rows.
     if (h * this.px > 1440) this.px = 1440 / h;

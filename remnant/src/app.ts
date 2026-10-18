@@ -33,6 +33,12 @@ function enterGame(s: SaveData, slot: number, room: string, spawn: string) {
   app.mode = 'game';
   hooks.hideTitle();
   input.flush();
+  const merged = Number(s.flags.echo_merge_notice ?? 0);
+  if (merged > 0) {
+    delete s.flags.echo_merge_notice;
+    G.ui.toast(`${merged} duplicate Echo${merged === 1 ? '' : 'es'} merged. Their evolution and combat experience strengthen your remaining Echoes.`, 'good');
+  }
+  saveSlot(slot, s);
   requestPersistence();
 }
 
@@ -85,6 +91,7 @@ export function startNewGamePlus() {
   s.equippedSkills = [...old.equippedSkills];
   s.equippedSuper = old.equippedSuper;
   s.echoImprints = { ...old.echoImprints };
+  s.trialMilestones = [...(old.trialMilestones ?? [])];
   s.inventory = old.inventory;
   s.equipment = { ...old.equipment };
   s.materials = { ...old.materials };

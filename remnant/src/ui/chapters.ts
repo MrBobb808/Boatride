@@ -3,6 +3,7 @@
 
 import { G } from '../game/ctx';
 import { h, btn } from './dom';
+import { ITEMS, TRIAL_REWARDS, RARITY_NAMES, RARITY_COLORS, SLOT_NAMES } from '../game/data';
 import { chapterOf } from '../game/rooms';
 import { openLeaderboard } from './leaderboard';
 import { CHAPTERS, chapterOpen, travelToChapter, trainingOpen, trainingStarts, startTraining } from '../game/chapters';
@@ -33,6 +34,15 @@ export function chaptersTab(close: () => void): HTMLElement {
     ? h('div', { class: 'box' },
       h('h3', null, 'The Trial: endless rounds'),
       h('p', { class: 'muted' }, 'Survive round after round of foes that grow stronger, faster and more numerous. Every fifth round the Pack runs; every tenth a Champion comes. Fallen foes sometimes drop a blessing. The run ends when you fall, and runs from round 1 go on the leaderboard. Every foe pays experience scaled to your level.'),
+      h('p', { class: 'muted' }, 'Every ten cleared waves guarantees a powerful weapon or armor piece directly in Equipment, and the next sector changes the environment and platforms. Leave through Chapters when you are ready.'),
+      h('div', { class: 'list trial-rewards' }, TRIAL_REWARDS.map((id, i) => {
+        const wave = (i + 1) * 10, item = ITEMS[id], earned = (s.trialMilestones ?? []).includes(wave);
+        return h('div', { class: 'row-item', 'data-wave': String(wave) },
+          h('span', { class: 'tag' }, `WAVE ${wave}`),
+          h('div', null, h('b', { style: `color:${RARITY_COLORS[item.rarity ?? 0]}` }, item.name),
+            h('div', { class: 'sub' }, `${RARITY_NAMES[item.rarity ?? 0]} · ${SLOT_NAMES[item.slot as keyof typeof SLOT_NAMES]} · ${earned ? 'Claimed' : 'Guaranteed reward'}`)));
+      })),
+      h('small', { class: 'muted' }, 'Beyond wave 100: Worldbreaker, Eternal Bastion and Heart of Ascendancy repeat with higher Ascension ranks. Each rank adds 15% base gear power, up to +1500%.'),
       h('div', { class: 'ch-waves' },
         busy ? h('span', { class: 'muted' }, 'Not during a boss fight.') : trainingStarts().map((w) => btn(w === 1 ? 'Start at round 1' : `Round ${w} (unranked)`, () => { close(); startTraining(w); }, 'btn small' + (w === 1 ? ' primary' : ''), { 'data-k': 'tw_' + w })),
         btn('Leaderboard', () => openLeaderboard(), 'btn small', { 'data-k': 'tw_board' }),

@@ -77,6 +77,26 @@ altar once the one before is done (**Journey on**), or from the
   - Every fifth round **the Pack runs** (Gloom Hounds, later Brazen Lions).
     Every tenth a **Champion of the Trial** comes. Every fifth round held
     pays out silver, materials and gear.
+  - Every ten **cleared** waves guarantees a trophy directly in Equipment:
+    Veilreaver (10), Legendary Tempest Reign (20), Ascendant Plate (30),
+    Titan Grasp (40), Covenant Sovereign Edge (50), Crown of the Unbroken
+    (60), Riftstrider Greaves (70), Worldbreaker (80), Eternal Bastion (90),
+    and Heart of Ascendancy (100). After 100, the last three trophies repeat
+    with increasing Ascension ranks (+15% base modifiers per rank, capped at
+    +1500%). Each milestone pays once per save; prior best waves credit
+    milestones 10–100 when loading. Claimed gear and milestones carry to NG+.
+  - At waves 11, 21, 31 and 41, the arena changes to a valley, furnace,
+    midnight garden and palace, with different platform routes. The five
+    environments cycle with new scenery seeds. Changes happen between
+    rounds with safe player/Echo positions, keeping pickups and run records.
+    The left wall is sealed; use Chapters to leave.
+  - Duplicate Echoes merge into one stronger entry per species on load.
+    Absorptions evolve that entry; fighting, guard work and team kills earn
+    combat experience up to level 100. Every level improves health and attack.
+  - iOS defaults to 60 FPS with 120 Hz game logic, adaptive rendering density,
+    cached render lists and 30 Hz touch-label updates. Auto display rate is
+    still available in Settings. Browser stress checks do not substitute for
+    a physical iPhone frame-time measurement.
   - Fallen foes sometimes drop a **blessing**:
 
     | Blessing | Effect |

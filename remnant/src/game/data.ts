@@ -79,6 +79,16 @@ export interface ItemBase {
 }
 
 export const ITEMS: Record<string, ItemBase> = {
+  trial_reaver: {"id": "trial_reaver", "name": "Veilreaver", "slot": "weapon", "rarity": 3, "icon": "sword", "mods": {"atk": 70, "crit": 8, "lifesteal": 3}, "value": 800, "unique": true, "look": 2, "desc": "Wave 10 trophy. A chained edge that drinks the last light of the Veil.", "family": "blade", "element": "shadow"},
+  trial_tempest: {"id": "trial_tempest", "name": "Tempest Reign", "slot": "weapon", "rarity": 4, "icon": "spear", "mods": {"atk": 140, "abil": 30, "aspd": 12, "crit": 10}, "value": 1150, "unique": true, "look": 2, "desc": "Wave 20 trophy. Lightning turns each thrust into a storm.", "family": "spear", "element": "storm"},
+  trial_plate: {"id": "trial_plate", "name": "Ascendant Plate", "slot": "armor", "rarity": 4, "icon": "armor", "mods": {"def": 22, "hp": 260, "ce": 50, "echoHp": 40}, "value": 1500, "unique": true, "look": 2, "desc": "Wave 30 trophy. Black-gold armor built to withstand an army."},
+  trial_grasp: {"id": "trial_grasp", "name": "Titan Grasp", "slot": "gauntlets", "rarity": 4, "icon": "gauntlet", "mods": {"atk": 35, "aspd": 20, "crit": 10, "abil": 25}, "value": 1850, "unique": true, "look": 2, "desc": "Wave 40 trophy. Every blow carries the weight of a siege."},
+  trial_sovereign: {"id": "trial_sovereign", "name": "Sovereign Edge", "slot": "weapon", "rarity": 5, "icon": "sword", "mods": {"atk": 250, "abil": 55, "lifesteal": 6, "crit": 15}, "value": 2200, "unique": true, "look": 2, "desc": "Wave 50 trophy. A relentless shadow blade that restores its wielder with each strike.", "family": "blade", "element": "shadow"},
+  trial_crown: {"id": "trial_crown", "name": "Crown of the Unbroken", "slot": "helm", "rarity": 5, "icon": "crown", "mods": {"hp": 260, "def": 16, "atk": 35, "echoDmg": 65, "echoHp": 50}, "value": 2550, "unique": true, "look": 2, "desc": "Wave 60 trophy. Your Remnant fights with the strength of an army."},
+  trial_stride: {"id": "trial_stride", "name": "Riftstrider Greaves", "slot": "boots", "rarity": 5, "icon": "boot", "mods": {"speed": 18, "def": 16, "ceRegen": 70, "poise": 25, "hp": 150}, "value": 2900, "unique": true, "look": 2, "desc": "Wave 70 trophy. Impossible speed and a font of Covenant Energy."},
+  trial_worldbreaker: {"id": "trial_worldbreaker", "name": "Worldbreaker", "slot": "weapon", "rarity": 5, "icon": "greatsword", "mods": {"atk": 380, "abil": 85, "poise": 55, "critDmg": 55}, "value": 3250, "unique": true, "look": 2, "desc": "Wave 80 trophy. A storm-forged blade beyond the strength of any campaign weapon.", "family": "greatsword", "element": "storm"},
+  trial_bastion: {"id": "trial_bastion", "name": "Eternal Bastion", "slot": "armor", "rarity": 5, "icon": "armor", "mods": {"hp": 650, "def": 32, "poise": 60, "echoHp": 100, "ce": 90}, "value": 3600, "unique": true, "look": 2, "desc": "Wave 90 trophy. Stand against the endless dark with an unbroken army."},
+  trial_ascendancy: {"id": "trial_ascendancy", "name": "Heart of Ascendancy", "slot": "relic", "rarity": 5, "icon": "core", "mods": {"echoDmg": 130, "echoHp": 100, "rally": 85, "ce": 120, "abil": 65}, "value": 3950, "unique": true, "look": 2, "desc": "Wave 100 trophy. Supers charge faster, abilities surge, and every Echo grows mightier."},
   // Weapons
   militia_sword: { id: 'militia_sword', name: 'Militia Sword', slot: 'weapon', rarity: 0, icon: 'sword', family: 'blade', mods: { atk: 10 }, value: 10, desc: 'Notched steel issued to the Hearthward watch. Light and quick.', look: 0 },
   covenant_blade: { id: 'covenant_blade', name: 'Covenant Blade', slot: 'weapon', rarity: 3, icon: 'sword', family: 'blade', mods: { atk: 22, crit: 5, abil: 10 }, value: 220, desc: 'Reforged around a shard of the covenant relic. Its edge hums near the Veil.', look: 2, unique: true, element: 'holy' },
@@ -161,6 +171,8 @@ export interface ItemInst {
   affixes: { key: ModKey; v: number }[];
   qty?: number;
   isNew?: boolean;
+  trialWave?: number;
+  trialTier?: number;
 }
 
 // ---------- Abilities ----------
@@ -420,7 +432,9 @@ export const echoRole = (e: EchoInst): EchoRole => e.role && ECHO_ROLES[e.role] 
  */
 export type EchoOrder = 'guard' | 'hunt' | 'flank' | 'hold' | 'focus';
 
-export const echoXpToNext = (lv: number) => Math.round(30 + lv * lv * 14);
+export const ECHO_LEVEL_CAP = 100;
+export const echoXpToNext = (lv: number) => Math.round(lv <= 30 ? 30 + lv * lv * 14 : 12630 + (lv - 30) * 220);
+export const TRIAL_REWARDS = ["trial_reaver", "trial_tempest", "trial_plate", "trial_grasp", "trial_sovereign", "trial_crown", "trial_stride", "trial_worldbreaker", "trial_bastion", "trial_ascendancy"];
 /** XP for the next level. Past level 30 the climb is linear, so level 100 and beyond is within reach. */
 export const xpToNext = (lv: number) => (lv <= 30 ? Math.round(30 * Math.pow(lv, 1.55) + 6) : Math.round(30 * Math.pow(30, 1.55) + 6) + (lv - 30) * 60);
 

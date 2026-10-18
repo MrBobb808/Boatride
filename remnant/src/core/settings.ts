@@ -60,7 +60,7 @@ const DEFAULTS: Settings = {
   sfx: 0.85,
   respectSilent: false,
   quality: 'auto',
-  fps: 'auto',
+  fps: isTouchDevice() ? '60' : 'auto',
   shake: 'full',
   reduceFlashes: false,
   dmgNumbers: true,
@@ -76,7 +76,7 @@ const DEFAULTS: Settings = {
   islandSize: 'auto',
   islandLen: 96,
   showFps: false,
-  v: 2,
+  v: 3,
   keys: structuredClone(DEFAULT_KEYS),
   pad: {},
   rumble: true,
@@ -124,6 +124,12 @@ function load(): Settings {
       if (!parsed.v) {
         if (parsed.touchOpacity === 0.75) s.touchOpacity = DEFAULTS.touchOpacity;
         s.v = 2;
+      }
+      // Prefer a steady 60 on iOS; this runs once and keeps later choices.
+      if ((parsed.v ?? 1) < 3) {
+        if (isIOS()) s.fps = '60';
+        s.v = 3;
+        store.set(KEY, JSON.stringify(s));
       }
     } catch {
       /* corrupt settings — use defaults */
