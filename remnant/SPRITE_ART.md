@@ -95,3 +95,20 @@ MARSHAL ECHO: towering black-gold commander, narrow crowned helmet, flowing deep
 LOCUST ECHO: upright humanoid locust sovereign in obsidian chitin with gold seams, luminous ivory mandibles, pale pixel wings and two long ivory scythe forearms
 
 LION ECHO: broad muscular quadrupedal lion made of black obsidian armor, ornate gold mane, white fire eyes, ivory claws and curved gold tail
+
+## Elior presentation and motion
+
+The title uses the same illustrated Elior renderer as gameplay, with his dark
+skin, white hair and beard, armor and red scarf. Keep the phone hero below the
+logo and clear of the menu. The old silhouette remains only as a renderer
+fallback, using Elior's current colors.
+
+Headgear is open-faced and anchored above the atlas brow; never add an opaque
+rectangle over the eyes. Shoulder plates follow each pose's shoulder anchor.
+Charge holds the windup, dodges use time since the action began without a
+second skeleton rotation on already-tucked artwork, and grounded
+run frames advance with distance moved rather than the global clock.
+
+`hero-motion.test.mjs` checks action timing. `hero-visuals.mjs` verifies unchanged
+face pixels under cap/visor/crown in normal and Mantle modes, desktop/phone title
+layout, and writes a twenty-pose contact sheet for visual inspection.

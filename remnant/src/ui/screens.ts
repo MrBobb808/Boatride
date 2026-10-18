@@ -10,8 +10,9 @@ import { sfx } from '../audio/audio';
 import { ROOMS } from '../game/rooms';
 import { formatTime, rand, RNG } from '../core/math';
 import { glow, rgba, poly, circle, type Ctx } from '../render/draw';
-import { solve, newJoints, Chain, drawRibbon, BASE_POSE } from '../render/skeleton';
+import { solve, newJoints, BASE_POSE } from '../render/skeleton';
 import { drawHumanoid, type HumanStyle } from '../render/actors';
+import { drawHeroSprite, heroSpriteReady } from '../render/heroSprites';
 import { DIMS } from '../game/player';
 import { openSettingsStandalone } from './settingsStandalone';
 import { input } from '../core/input';
@@ -22,13 +23,14 @@ let titleEl: HTMLElement | null = null;
 
 interface Mote { x: number; y: number; vx: number; vy: number; s: number; a: number }
 const motes: Mote[] = [];
-const scarf = new Chain(8, 0.012, 0, 0);
+const titleJoints = newJoints();
+const titlePose = { ...BASE_POSE, head: -0.12, bUA: -0.1, bFA: 0.2, fUA: 0.05, fFA: 0.1, wpn: -0.2, fTh: 0.08, fSh: -0.05, bTh: -0.1, bSh: -0.05 };
 let sceneT = 0;
 
-const SIL: HumanStyle = {
-  skin: '#0b0910', hair: '#0b0910', hairKind: 'spiky', coat: '#0d0b12', coatDark: '#0d0b12', skirt: 9, trim: null, pants: '#0b0910', boots: '#0b0910',
-  glove: '#0b0910', belt: null, plate: null, helm: 'none', eye: '#ffd27a', eyeGlow: 0, outline: '#050408', weapon: 'blade', weaponColor: '#1a1620',
-  offhand: 'none', bulk: 1, scarf: '#0d0b12', flat: true,
+const ELIOR_STYLE: HumanStyle = {
+  skin: '#70452f', hair: '#f1f3ed', beard: '#e9ede7', hairKind: 'spiky', coat: '#1f2a48', coatDark: '#19203a', skirt: 9, trim: '#e2b85a', pants: '#38302e', boots: '#3d2c22',
+  glove: '#4a3426', belt: '#3a2a1a', plate: null, helm: 'none', eye: '#ffd27a', eyeGlow: 0, outline: '#050408', weapon: 'blade', weaponColor: '#d8d1be',
+  offhand: 'none', bulk: 1, scarf: '#8f2a2a', flat: false,
 };
 
 export function drawTitleScene(ctx: Ctx, w: number, hgt: number, dt: number) {
@@ -86,18 +88,16 @@ export function drawTitleScene(ctx: Ctx, w: number, hgt: number, dt: number) {
   ctx.lineTo(w * 0.58, hgt);
   ctx.closePath();
   ctx.fill();
-  const ex = w * 0.47, ey = hgt * 0.705;
-  const s = u * 0.42;
-  const pose = { ...BASE_POSE, lean: 0.02 + Math.sin(t * 1.2) * 0.01, head: -0.12, bUA: -0.1, bFA: 0.2, fUA: 0.05, fFA: 0.1, wpn: -0.2, fTh: 0.08, fSh: -0.05, bTh: -0.1, bSh: -0.05 };
-  const j = solve(pose, DIMS, true, newJoints());
-  // scarf in screen space
-  scarf.update(ex + (j.neckX - 1.5) * s, ey + j.neckY * s + s, dt, -380 * s + Math.sin(t * 1.7) * 60 * s, 30 * s, 0.9);
-  scarf.seg = 3.4 * s;
-  drawRibbon(ctx, scarf, 3.6 * s, 1.2 * s, '#5a1a1e');
+  const ex = w * (w / hgt > 1.7 ? 0.55 : 0.58), ey = hgt * (hgt / G.renderer.px < 480 ? 0.84 : 0.79);
+  const s = u * 0.72;
+  titlePose.lean = 0.02 + Math.sin(t * 1.2) * 0.01;
+  const j = solve(titlePose, DIMS, true, titleJoints);
+  // The same illustrated hero and attachments used during play, with a clear face.
   ctx.save();
   ctx.translate(ex, ey);
   ctx.scale(s, s);
-  drawHumanoid(ctx, j, SIL, t);
+  if (heroSpriteReady(ELIOR_STYLE, 'free', 0)) drawHeroSprite(ctx, j, ELIOR_STYLE, t, 'free', 0, true, 0, 0, 0);
+  else drawHumanoid(ctx, j, ELIOR_STYLE, t);
   ctx.restore();
   // embers
   if (motes.length < 70) motes.push({ x: rand(0, w), y: hgt + 10, vx: rand(-10, 10) * u * 0.1, vy: rand(-30, -10) * u * 0.1, s: rand(0.3, 0.8) * u, a: rand(0.4, 1) });
@@ -128,7 +128,7 @@ export function showTitle() {
     h('div', { class: 'logo' },
       h('h1', null, 'REMNANT'),
       h('div', { class: 'sub' }, 'Ascension'),
-      h('div', { class: 'art-release' }, 'PIXEL ART · 2.0'),
+      h('div', { class: 'art-release' }, 'THE REMNANT AWAKENS'),
       h('div', { class: 'verse' }, '“For we wrestle not against flesh and blood, but against principalities, against powers, against the rulers of the darkness of this world, against spiritual wickedness in high places.” ', h('b', null, 'EPHESIANS 6:12 (KJV)')),
     ),
     menu,
@@ -393,7 +393,7 @@ export function drawIntro(ctx: Ctx, w: number, hgt: number, dt: number) {
       ctx.save();
       ctx.translate(w * 0.24, base - 14 * u);
       ctx.scale(s, s);
-      drawHumanoid(ctx, j, { ...SIL, offhand: 'lantern', weapon: 'spear' }, t);
+      drawHumanoid(ctx, j, { ...ELIOR_STYLE, offhand: 'lantern', weapon: 'spear' }, t);
       ctx.restore();
     }
   }

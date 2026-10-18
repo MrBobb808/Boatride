@@ -32,8 +32,9 @@ jobs:
           cache-dependency-path: remnant/package-lock.json
       - run: npm ci
       - run: npm run build
-      - run: node --test scripts/update.test.mjs scripts/frame-budget.test.mjs
+      - run: node --test scripts/update.test.mjs scripts/frame-budget.test.mjs scripts/hero-motion.test.mjs
       - run: npx playwright install --with-deps chromium
+      - run: node scripts/hero-visuals.mjs
       - run: node scripts/smoke.mjs
       - run: node scripts/combat-gauntlet.mjs
       - run: node scripts/skills-echoes.mjs

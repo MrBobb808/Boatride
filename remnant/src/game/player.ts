@@ -58,6 +58,7 @@ export class Player extends Entity {
   pose: Pose = { ...BASE_POSE };
   state: PState = 'free';
   st = 0;
+  private spriteStride = 0;
   coyote = 0;
   jumpBuf = 0;
   airJumps = 0;
@@ -353,7 +354,9 @@ export class Player extends Entity {
     if (b.vy < 0 && !input.down('jump') && this.state === 'free' && !this.launchCarry) b.vy += GRAV * 0.9 * dt;
     b.vy = Math.min(this.state === 'plunge' ? 620 : MAX_FALL, b.vy + g * dt);
     const preVy = b.vy;
+    const beforeX = b.x;
     moveBody(b, dt, G.world.grid, G.world.solid);
+    if (b.onGround && this.state === 'free') this.spriteStride += Math.min(12, Math.abs(b.x - beforeX)) * 0.08;
     if (b.onGround) {
       if (!this.wasGround) this.onLand(preVy);
       this.coyote = 0.1;
@@ -1650,7 +1653,7 @@ export class Player extends Entity {
     if (!illustrated && extension > 1 && !this.weaponFlight) drawChain(ctx, this.j.haFX, this.j.haFY, this.j.haFX + extension, this.j.haFY, this.mantleT > 0, 2);
     const w = illustrated
       ? drawHeroSprite(ctx, this.j, s, t, this.state as HeroSpriteAction, this.body.vx * this.face,
-          this.body.onGround, this.body.vy, attackProgress, this.pose.rot, this.mantleT, extension, !!this.weaponFlight)
+          this.body.onGround, this.body.vy, attackProgress, this.pose.rot, this.mantleT, extension, !!this.weaponFlight, this.st, this.spriteStride)
       : drawHumanoid(ctx, this.j, s, t, this.pose.rot, this.body.vx * this.face, this.body.onGround ? 0 : this.body.vy);
     this.lastWpn.bx = w.bx; this.lastWpn.by = w.by; this.lastWpn.tx = w.tx; this.lastWpn.ty = w.ty;
     if (this.flash > 0) {
