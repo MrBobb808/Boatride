@@ -561,7 +561,7 @@ export class Player extends Entity {
           break;
         }
         if (!input.down('parry')) this.setState('free');
-        if (this.dodgeBuf > 0) this.startDodge();
+        if (this.dodgeBuf > 0 && this.tryDefense()) break;
         if (this.jumpBuf > 0 && b.onGround) {
           this.setState('free');
           this.jumpBuf = 0.13;
@@ -585,7 +585,7 @@ export class Player extends Entity {
           G.ui.refreshHud();
         }
         if (this.st >= 0.9) this.setState('free');
-        if (this.healDone && this.dodgeBuf > 0) this.startDodge();
+        if (this.healDone && this.dodgeBuf > 0) this.tryDefense();
         break;
       }
       case 'cast': {
@@ -596,7 +596,7 @@ export class Player extends Entity {
         }
         // No castId: a sub-weapon throw, which only borrows the pose.
         if (this.st >= (this.castId === 'armor_light' || this.castId === 'lion' ? 0.6 : this.castId ? 0.36 : 0.2)) this.setState('free');
-        if (this.castFired && this.st > 0.2 && this.dodgeBuf > 0) this.startDodge();
+        if (this.castFired && this.st > 0.2 && this.dodgeBuf > 0) this.tryDefense();
         break;
       }
       case 'execute':
