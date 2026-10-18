@@ -26,10 +26,10 @@ import { guidePoint } from '../game/guide';
 import { FINISHERS } from '../game/finishers';
 import { MANTLE_LV, mantlePerks } from '../game/mantle';
 import { nextChapter, travelToChapter, trainingOpen, startTraining } from '../game/chapters';
-import { chaptersTab } from './chapters';
+import { chaptersTab, gameModes } from './chapters';
 import { bestiaryPanes, bestiaryCount } from './bestiary';
 import { controllerBox, cancelPadCapture } from './controller';
-import { saveSlot, listSlots, deleteSlot, loadSlot, exportCode, importCode, SLOT_COUNT } from '../game/save';
+import { saveSlot, listSlots, lastSlot, deleteSlot, loadSlot, exportCode, importCode, SLOT_COUNT } from '../game/save';
 import { formatTime, clamp } from '../core/math';
 import { solve, newJoints } from '../render/skeleton';
 import { drawHumanoid } from '../render/actors';
@@ -838,6 +838,13 @@ function settingsTab() {
     }, listening === a ? 'Press a key…' : st.keys[a].map((c) => input.keyName(c)).join(' / ')))));
   const codeArea = h('textarea', { class: 'code', 'data-nav': '', placeholder: 'Paste a save code here to import it into the current slot.' }) as HTMLTextAreaElement;
   return h('div', { class: 'col scroll', style: 'flex:1' },
+    only ? h('div', { class: 'box game-modes' }, h('h3', null, 'Game modes'),
+      h('p', { class: 'muted' }, 'Continue your journey to choose endless monster waves, unlocked round checkpoints, or the Boss Gauntlet.'),
+      lastSlot() !== null ? btn('Continue to game modes', () => {
+        const slot = lastSlot(); closeMenu();
+        if (slot !== null && loadGameSlot(slot)) openMenu('settings');
+      }, 'btn primary', { 'data-k': 'load_game_modes' }) : h('small', { class: 'muted' }, 'Start a journey first.'),
+    ) : gameModes(closeMenu),
     h('div', { class: 'box' }, h('h3', null, 'Audio'),
       row('Master volume', '', slider(st.master, 0, 1, 0.05, (v) => (st.master = v), 'vm')),
       row('Music', '', slider(st.music, 0, 1, 0.05, (v) => (st.music = v), 'vmu')),
