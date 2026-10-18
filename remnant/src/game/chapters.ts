@@ -5,6 +5,7 @@
 
 import { G, flag } from './ctx';
 import { ROOMS } from './rooms';
+import { bestRounds } from './board';
 import { ECHO_SPECIES } from './data';
 
 export interface ChapterDef {
@@ -76,14 +77,18 @@ export function nextChapter(): ChapterDef | null {
 
 // ---------------------------------------------------------------- training
 
-export const trainingOpen = () => flag('relic_taken');
+/** Practice can be recovered from a journey's trophies or this device's ranked runs. */
+export function trainingBest(bossOnly = false) {
+  const values = [Number(G.save.flags[bossOnly ? 'boss_trial_best' : 'trial_best'] ?? 0), bestRounds(bossOnly)];
+  if (!bossOnly) values.push(...(G.save.trialMilestones ?? []));
+  return Math.floor(Math.max(0, ...values.filter((n) => Number.isFinite(n) && n >= 0)));
+}
+export const trainingOpen = () => flag('relic_taken') || trainingBest() > 0 || trainingBest(true) > 0;
 
-/** Wave choices: from the start, or skip ahead to within reach of your best. */
+/** Earlier milestones plus the exact highest available round; all skips are unranked. */
 export function trainingStarts(bossOnly = false): number[] {
-  const best = Number(G.save.flags[bossOnly ? 'boss_trial_best' : 'trial_best'] ?? 0);
-  const out = [1];
-  for (const w of [10, 20, 30, 40, 50, 75, 100]) if (best >= w) out.push(w);
-  return out;
+  const best = trainingBest(bossOnly);
+  return [...new Set([1, ...[10, 20, 30, 40, 50, 75, 100].filter((w) => best >= w), ...(best > 1 ? [best] : [])])].sort((a, b) => a - b);
 }
 
 /** Enter the Trial from anywhere; leaving it returns you to this spot. */
