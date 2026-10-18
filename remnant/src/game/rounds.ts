@@ -9,7 +9,7 @@ import { G } from './ctx';
 import { Entity } from './entity';
 import { Enemy } from './enemies';
 import { TILE, type EnemyKind } from './tiles';
-import { xpToNext } from './data';
+import { xpToNext, ECHO_SPECIES } from './data';
 import { rollGear } from './world';
 import { moveBody } from './physics';
 import { recordRun, bestRounds, type RunEntry } from './board';
@@ -22,7 +22,7 @@ import { islandNotify } from '../ui/island';
 import { icon } from '../ui/icons';
 import { gameOver } from '../ui/leaderboard';
 import { rand, choose, overlaps } from '../core/math';
-import { gauntletBoss, BOSS_COUNT } from './gauntlet';
+import { gauntletBoss, gauntletImprint, originalForm, BOSS_COUNT } from './gauntlet';
 import { bossScale } from './difficulty';
 
 const BREAK = 7;
@@ -42,6 +42,7 @@ export class Rounds {
   active = false;
   bossOnly = false;
   completed = 0;
+  rematchSpecies: string | null = null;
   private boss: Entity | null = null;
   private bossHp = 1800;
   private bossDamage = 12;
@@ -77,6 +78,8 @@ export class Rounds {
     this.stop(false);
     this.active = true;
     this.bossOnly = bossOnly;
+    const original = String(G.save.flags.echo_trial_species ?? '');
+    this.rematchSpecies = bossOnly && ECHO_SPECIES[original] && G.save.echoes.some((e) => e.species === original) ? original : null;
     this.boss = null;
     // Snapshot entry strength so leveling during a run never changes its rules.
     this.bossHp = Math.max(1800, G.d.atk * G.d.meleeMult * 65) * bossScale().hp;
@@ -93,7 +96,7 @@ export class Rounds {
     this.pack = false;
     this.foes = [];
     this.breakT = 3.2;
-    G.ui.banner(bossOnly ? 'THE BOSS GAUNTLET' : 'THE TRIAL OF THE REMNANT', `${bossOnly ? 'Bosses only · escalating power' : 'Endless rounds'}${this.from > 1 ? ` from round ${this.from} (unranked)` : ''} · survive as long as you can`, 'boss');
+    G.ui.banner(this.rematchSpecies ? 'ORIGINAL-FORM REMATCH' : bossOnly ? 'THE BOSS GAUNTLET' : 'THE TRIAL OF THE REMNANT', this.rematchSpecies ? `${ECHO_SPECIES[this.rematchSpecies].stages[0].name} · earn its imprint each victory · unranked` : `${bossOnly ? 'Bosses only · escalating power' : 'Endless rounds'}${this.from > 1 ? ` from round ${this.from} (unranked)` : ''} · survive as long as you can`, 'boss');
   }
 
   /** End the run. Leaving mid-run still records how far it got. */
@@ -112,6 +115,7 @@ export class Rounds {
     this.time += dt;
     this.changeT += dt;
     if (this.bossOnly) {
+      if (this.rematchSpecies && this.boss instanceof Enemy && this.boss.remove) this.bossDefeated(this.boss);
       if (this.breakT > 0) {
         this.breakT = Math.max(0, this.breakT - dt);
         if (this.breakT === 0) this.beginRound();
@@ -166,7 +170,7 @@ export class Rounds {
       p.face = 1;
       p.revive();
       p.lastSafe = { x: p.x, y: p.y };
-      this.boss = gauntletBoss(n, this.bossHp, this.bossDamage);
+      this.boss = this.rematchSpecies ? originalForm(this.rematchSpecies, n, this.bossHp, this.bossDamage) : gauntletBoss(n, this.bossHp, this.bossDamage);
       G.ui.banner(`BOSS ROUND ${n}`, `${this.boss.name} · cycle ${1 + Math.floor((n - 1) / BOSS_COUNT)}`, 'boss');
       return;
     }
@@ -202,7 +206,12 @@ export class Rounds {
     const W = G.world, s = G.save;
     this.kills++;
     this.completed = this.round;
-    s.flags.boss_trial_best = Math.max(Number(s.flags.boss_trial_best ?? 0), this.completed);
+    const species = this.rematchSpecies ?? gauntletImprint(this.round);
+    if (species) {
+      s.echoImprints ??= {};
+      s.echoImprints[species] = (s.echoImprints[species] ?? 0) + 1;
+    }
+    if (!this.rematchSpecies) s.flags.boss_trial_best = Math.max(Number(s.flags.boss_trial_best ?? 0), this.completed);
     b.remove = true;
     this.boss = null;
     this.alive = 0;
@@ -220,7 +229,7 @@ export class Rounds {
     if (this.round % BOSS_COUNT === 0) { s.balm = Math.min(s.balmMax, s.balm + 1); this.reward(this.round); }
     this.breakT = BREAK;
     this.changeT = 0;
-    G.ui.toast(`Boss ${this.round} defeated. Next: +22% health, +10% damage.`, 'good');
+    G.ui.toast(species ? 'Original-form imprint earned — absorb it in Echoes.' : `Boss ${this.round} defeated. Next: +22% health, +10% damage.`, 'good');
     W.autosave(true);
     return true;
   }
@@ -309,6 +318,7 @@ export class Rounds {
 
   // ---------------------------------------------------------------- the end of a run
   private record(): { entry: RunEntry | null; place: number; best: boolean } {
+    if (this.rematchSpecies) return { entry: null, place: 0, best: false };
     const s = G.save;
     const prevBest = bestRounds(this.bossOnly);
     const rounds = this.bossOnly ? this.completed : this.round;
@@ -328,7 +338,7 @@ export class Rounds {
     G.ui.cinematicBars(false);
     for (const f of this.foes) f.aggro = false;
     const res = this.record();
-    const stats = { rounds: this.bossOnly ? this.completed : this.round, kills: this.kills, time: this.time, level: G.save.level, levels: G.save.level - this.level0, from: this.from, bossOnly: this.bossOnly };
+    const stats = { rounds: this.bossOnly ? this.completed : this.round, kills: this.kills, time: this.time, level: G.save.level, levels: G.save.level - this.level0, from: this.from, bossOnly: this.bossOnly, rematch: !!this.rematchSpecies };
     this.active = false;
     const choice = await gameOver(stats, res.entry, res.place, res.best);
     return choice;

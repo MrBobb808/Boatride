@@ -12,7 +12,7 @@ import { Npc, Altar } from './props';
 import { Enemy } from './enemies';
 import { Gatekeeper, Marshal } from './bosses2';
 import { ECHO_SPECIES } from './data';
-import { makeEcho, derive, makeItem, addMaterial } from './state';
+import { derive, makeItem, addMaterial } from './state';
 import { CH2_ROOM_IDS } from './rooms2';
 import { shakeScale } from '../core/settings';
 import type { Story, QuestDef } from './story';
@@ -364,8 +364,8 @@ export class Chapter2 {
       fx.ring(m.x, m.y - 2, 8, 160, '#ffe6a8', 0.9, 5, 0.3);
       G.camera.addTrauma(0.6 * shakeScale());
       m.remove = true;
-      const inst = makeEcho('marshal');
-      s.echoes.push(inst);
+      const absorbed = W.absorb('marshal')!;
+      const inst = absorbed.echo;
       G.d = derive(s);
       // The Marshal leads: he takes the first place in the line.
       s.active = [inst.uid, ...s.active.filter((u) => u !== inst.uid)].slice(0, G.d.echoSlots);
@@ -381,7 +381,7 @@ export class Chapter2 {
       sfx('summon');
       G.ui.caption(null);
       const sp = ECHO_SPECIES.marshal;
-      G.ui.banner('ECHO RAISED', `${sp.stages[0].name} · ${sp.cls}`, 'echo');
+      G.ui.banner(absorbed.evolved ? 'ECHO EVOLVED' : 'ECHO RAISED', `${sp.stages[inst.stage].name} · ${sp.cls}`, 'echo');
       await wait(2.6);
       if (!s.lore.includes('ruth116')) s.lore.push('ruth116');
       await G.ui.lore('ruth116');

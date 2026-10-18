@@ -16,7 +16,7 @@ import { Chapter3, QUESTS3, type LocustKing } from './story3';
 import { Chapter4, QUESTS4 } from './story4';
 import { Chapter5, QUESTS5 } from './story5';
 import { LORE, ITEMS, ECHO_SPECIES } from './data';
-import { setQuest, makeEcho, grantAbility, derive, makeItem, addMaterial, hasMaterials, payMaterials, getItem, MAX_PLUS } from './state';
+import { setQuest, grantAbility, derive, makeItem, addMaterial, hasMaterials, payMaterials, getItem, MAX_PLUS } from './state';
 import { rand } from '../core/math';
 import { shakeScale } from '../core/settings';
 import type { Entity } from './entity';
@@ -679,11 +679,9 @@ export class Story {
     G.camera.addTrauma(0.5 * shakeScale());
     e.remove = true;
     if (e.elite) s.defeated.push(e.elite);
-    const inst = makeEcho(species);
-    s.echoes.push(inst);
+    const absorbed = W.absorb(species)!;
+    const inst = absorbed.echo;
     G.d = derive(s);
-    const slots = G.d.echoSlots;
-    if (s.active.length < slots) s.active.push(inst.uid);
     W.summonEchoes(true);
     const unit = W.echoes.find((u) => u.inst.uid === inst.uid);
     if (unit) {
@@ -694,7 +692,7 @@ export class Story {
     }
     sfx('summon');
     const sp = ECHO_SPECIES[species];
-    G.ui.banner('ECHO PURIFIED', `${sp.stages[0].name} · ${sp.cls}`, 'echo');
+    G.ui.banner(absorbed.evolved ? 'ECHO EVOLVED' : absorbed.created ? 'ECHO PURIFIED' : 'ECHO REINFORCED', `${sp.stages[inst.stage].name} · ${sp.cls}`, 'echo');
     await wait(2.4);
     G.camera.focus = null;
     G.camera.zoomTarget = 1;

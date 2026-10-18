@@ -3,6 +3,7 @@
 
 import {
   ITEMS, STAT_KEYS, SKILLS, AFFIX_POOL, RARITY_AFFIX_COUNT, ECHO_SPECIES, xpToNext,
+  ABILITIES, SUPER_MOVES, ECHO_ROLES, type SuperId,
   type ItemInst, type Slot, type StatKey, type ModKey, type AbilityId, type EchoInst, type Rarity,
 } from './data';
 import { uid, randInt, rand } from '../core/math';
@@ -70,6 +71,9 @@ export interface SaveData {
   squadPick?: string[];
   /** Longest combo ever landed. */
   bestCombo?: number;
+  equippedSuper?: SuperId;
+  /** Earned by defeating originals; consumed only when the player absorbs one. */
+  echoImprints?: Record<string, number>;
 }
 
 export function makeItem(id: string, rarity?: Rarity, plus = 0, rollAffixes = true): ItemInst {
@@ -186,6 +190,7 @@ export interface Derived {
   echoSlots: number;
   defense: number;
   meleeMult: number;
+  hpRegen: number;
 }
 
 export const skillRank = (s: SaveData, id: string) => s.skills[id] ?? 0;
@@ -243,6 +248,7 @@ export function derive(s: SaveData): Derived {
     echoSlots: echoSlotsFor(s.level, s.storySlots, r('c_banner') > 0),
     defense,
     meleeMult: 1 + r('w_edge') * 0.08,
+    hpRegen: r('g_regen') * 0.005,
   };
 }
 
@@ -250,6 +256,35 @@ export function derive(s: SaveData): Derived {
 export function migrateSave(s: SaveData) {
   if (s.flags.relic_taken && !s.flags.phantom) s.flags.phantom = true;
   if (s.bestCombo === undefined) s.bestCombo = 0;
+  if (!s.equippedSuper || !SUPER_MOVES[s.equippedSuper]) s.equippedSuper = 'rally';
+  s.echoImprints ??= {};
+  for (const e of s.echoes) {
+    e.absorptions ??= e.stage + 1;
+    if (e.role && !ECHO_ROLES[e.role]) e.role = undefined;
+  }
+  unlockCombatSkills(s);
+  s.equippedSkills = Array.from({ length: 3 }, (_, i) => {
+    const id = s.equippedSkills[i];
+    return id && ABILITIES[id] && s.abilities.includes(id) && s.equippedSkills.indexOf(id) === i ? id : null;
+  });
+}
+
+export const COMBAT_UNLOCKS: Partial<Record<AbilityId, number>> = { chain_snare: 1, mending_light: 1, blink_strike: 5, frost_ring: 10 };
+export function unlockCombatSkills(s: SaveData) {
+  if (!s.flags.relic_taken) return;
+  for (const [id, level] of Object.entries(COMBAT_UNLOCKS)) {
+    if (s.level >= level && !s.abilities.includes(id as AbilityId)) s.abilities.push(id as AbilityId);
+  }
+}
+
+/** Swapping an equipped ability exchanges slots, so a skill appears only once. */
+export function equipAbility(s: SaveData, id: AbilityId | null, slot: number) {
+  if (slot < 0 || slot > 2 || (id && !s.abilities.includes(id))) return false;
+  const old = s.equippedSkills[slot] ?? null;
+  const other = id ? s.equippedSkills.indexOf(id) : -1;
+  if (other >= 0) s.equippedSkills[other] = old;
+  s.equippedSkills[slot] = id;
+  return true;
 }
 
 export function addMaterial(s: SaveData, id: string, n = 1) {
@@ -288,21 +323,41 @@ export function gainXp(s: SaveData, amount: number): number {
     s.skillPoints += 1;
     levels++;
   }
+  unlockCombatSkills(s);
   return levels;
 }
 
 export function makeEcho(species: string): EchoInst {
   const sp = ECHO_SPECIES[species];
-  return { uid: uid(), species, level: 1, xp: 0, stage: 0, hp: sp.baseHp };
+  return { uid: uid(), species, level: 1, xp: 0, stage: 0, hp: sp.baseHp, absorptions: 1 };
+}
+
+export function absorbEcho(s: SaveData, species: string, d: Derived) {
+  if (!ECHO_SPECIES[species]) return null;
+  const owned = s.echoes.find((e) => e.species === species && s.active.includes(e.uid)) ?? s.echoes.find((e) => e.species === species);
+  const e = owned ?? makeEcho(species);
+  const evolved = !!owned && e.stage < 2;
+  if (!owned) s.echoes.push(e);
+  else {
+    e.absorptions = (e.absorptions ?? e.stage + 1) + 1;
+    if (evolved) e.stage++;
+    else e.level = Math.min(30, e.level + 1);
+  }
+  e.hp = echoMaxHp(s, e, d);
+  e.downFor = 0;
+  if (!owned && s.active.length < d.echoSlots) s.active.push(e.uid);
+  return { echo: e, created: !owned, evolved };
 }
 
 export function echoMaxHp(s: SaveData, e: EchoInst, d: Derived) {
   const sp = ECHO_SPECIES[e.species];
-  return Math.round(sp.baseHp * (1 + (e.level - 1) * 0.12) * (1 + e.stage * 0.35) * d.echoHp);
+  const level = Math.max(e.level, Math.min(30, Math.floor(s.level * 0.65)));
+  return Math.round(sp.baseHp * (1 + (level - 1) * 0.12) * (1 + e.stage * 0.45) * d.echoHp * 1.2);
 }
 export function echoAtk(s: SaveData, e: EchoInst, d: Derived) {
   const sp = ECHO_SPECIES[e.species];
-  return sp.baseAtk * (1 + (e.level - 1) * 0.1) * (1 + e.stage * 0.4) * d.echoDmg;
+  const level = Math.max(e.level, Math.min(30, Math.floor(s.level * 0.65)));
+  return (sp.baseAtk * (1 + (level - 1) * 0.1) + d.atk * 0.28) * (1 + e.stage * 0.45) * d.echoDmg * 1.2;
 }
 
 export function canLearn(s: SaveData, id: string) {
@@ -334,6 +389,7 @@ export function learn(s: SaveData, id: string) {
 }
 
 export function grantAbility(s: SaveData, id: AbilityId) {
+  unlockCombatSkills(s);
   if (s.abilities.includes(id)) return;
   s.abilities.push(id);
   const free = s.equippedSkills.indexOf(null);

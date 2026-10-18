@@ -5,7 +5,8 @@
 import { input, type Action } from '../core/input';
 import { settings, onSettingsChange, isIOS } from '../core/settings';
 import { G, flag } from '../game/ctx';
-import { ABILITIES } from '../game/data';
+import { ABILITIES, SUPER_MOVES } from '../game/data';
+import { selectedSuper } from '../game/supers';
 import { iconUrl } from './icons';
 import { safe } from './safe';
 import { mantleUnlocked } from '../game/mantle';
@@ -231,6 +232,7 @@ export function updateTouch() {
       show = !!id;
       if (id) {
         const def = ABILITIES[id];
+        el.setAttribute('aria-label', def.name);
         const img = el.firstChild as HTMLImageElement;
         const want = iconUrl(def.icon, '#f6dea0');
         if (img.src !== want) img.src = want;
@@ -243,6 +245,11 @@ export function updateTouch() {
       el.style.filter = s.balm > 0 ? '' : 'grayscale(1) brightness(0.5)';
     } else if (b.id === 'rally') {
       show = flag('relic_taken');
+      const def = SUPER_MOVES[selectedSuper()];
+      el.setAttribute('aria-label', def.name);
+      if (b.lbl) b.lbl.textContent = 'Super';
+      const im = el.firstChild as HTMLImageElement, want = iconUrl(def.icon, def.color);
+      if (im.src !== want) im.src = want;
       const ready = s.rally >= 100;
       el.classList.toggle('glow', ready);
       b.cd!.style.background = ready ? 'none' : `conic-gradient(transparent ${(s.rally / 100) * 360}deg, rgba(0,0,0,0.6) 0)`;

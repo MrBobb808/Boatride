@@ -35,8 +35,9 @@ import { islandNotify, islandRipple } from '../ui/island';
 import { placeLamps } from './lamps';
 import { updatePending, applyUpdate } from '../core/update';
 import { FINISHERS } from './finishers';
-import { ITEMS, ECHO_SPECIES, type Rarity, type EchoOrder } from './data';
-import { gainXp, makeItem, addMaterial, derive, makeEcho, echoMaxHp, skillRank, type SaveData } from './state';
+import { ITEMS, ECHO_SPECIES, SUPER_MOVES, type SuperId, type Rarity, type EchoOrder } from './data';
+import { selectedSuper, superTarget, alternateSuper, drawAlternateSuper } from './supers';
+import { gainXp, makeItem, addMaterial, derive, makeEcho, absorbEcho, echoMaxHp, skillRank, type SaveData } from './state';
 import { saveSlot } from './save';
 import { noteSaved } from '../ui/hud';
 import { solve, newJoints, BASE_POSE } from '../render/skeleton';
@@ -76,6 +77,8 @@ export class World {
   weather: Weather[] = [];
   timers: Timer[] = [];
   rallyT = -1;
+  superMove: SuperId = 'rally';
+  superFoe: Entity | null = null;
   rallyX = 0;
   rallyY = 0;
   rallyWarriors: { x: number; y: number; kind: 'sentinel' | 'archer'; face: number }[] = [];
@@ -125,6 +128,7 @@ export class World {
     this.timers = [];
     this.weather = [];
     this.rallyT = -1;
+    this.superFoe = null;
     this.lostT = 0;
     this.firedTriggers.clear();
     fx.clear();
@@ -622,7 +626,7 @@ export class World {
       G.ui.refreshHud();
     }
     for (const e of this.echoes) {
-      if (e.x >= x0 && e.x <= x1 && Math.abs(e.y - y) < 40) {
+      if (!e.remove && e.despawn <= 0 && e.x >= x0 && e.x <= x1 && Math.abs(e.y - y) < 40) {
         e.hp = Math.min(e.maxHp, e.hp + e.maxHp * frac);
         e.inst.hp = e.hp;
       }
@@ -712,7 +716,7 @@ export class World {
     const before = s.rally;
     s.rally = Math.min(100, s.rally + n * G.d.rallyMult);
     if (before < 100 && s.rally >= 100) {
-      G.ui.toast(`RALLY THE REMNANT is ready — ${this.keyLabel('ultimate')}`, 'good');
+      G.ui.toast(`${SUPER_MOVES[selectedSuper()].name.toUpperCase()} is ready — ${this.keyLabel('ultimate')}`, 'good');
       sfx('chargeFull', { pitch: 0.8 });
     }
   }
@@ -1191,16 +1195,42 @@ export class World {
   }
 
   // ---------------------------------------------------------------- Rally the Remnant
+  absorb(species: string, fromImprint = false) {
+    if (fromImprint && (G.save.echoImprints?.[species] ?? 0) < 1) return null;
+    const result = absorbEcho(G.save, species, G.d);
+    if (!result) return null;
+    if (fromImprint) G.save.echoImprints![species]--;
+    const e = result.echo;
+    const unit = this.echoes.find((u) => u.inst.uid === e.uid && !u.remove);
+    if (unit) {
+      unit.refreshStats();
+      unit.hp = e.hp;
+      unit.name = ECHO_SPECIES[species].stages[e.stage].name;
+    }
+    this.summonEchoes(true);
+    sfx('purify');
+    G.ui.banner(result.evolved ? 'ECHO EVOLVED' : result.created ? 'ECHO ABSORBED' : 'ECHO REINFORCED', `${ECHO_SPECIES[species].stages[e.stage].name} · ${ECHO_SPECIES[species].stages[e.stage].title}`, 'echo');
+    this.autosave(true);
+    return result;
+  }
+
   tryRally() {
     const s = G.save;
     if (!flag('relic_taken')) return;
     if (this.duel) return this.duelRefuse();
     if (s.rally < 100) {
-      G.ui.toast(`Rally the Remnant charges as you fight (${Math.floor(s.rally)}%)`, 'warn');
+      G.ui.toast(`${SUPER_MOVES[selectedSuper()].name} charges as you fight (${Math.floor(s.rally)}%)`, 'warn');
       sfx('denied');
       return;
     }
     if (this.rallyT >= 0) return;
+    this.superMove = selectedSuper();
+    this.superFoe = this.superMove === 'tempest' ? superTarget() : null;
+    if (this.superMove === 'tempest' && !this.superFoe) {
+      G.ui.toast('Umbral Tempest needs a reachable enemy.', 'warn');
+      sfx('denied');
+      return;
+    }
     s.rally = 0;
     this.rallyT = 0;
     this.rallyX = this.player.x;
@@ -1208,7 +1238,7 @@ export class World {
     this.rallyWarriors = [];
     const v = G.camera.view();
     const kinds: ('sentinel' | 'archer')[] = ['sentinel', 'archer'];
-    const n = 8;
+    const n = this.superMove === 'rally' ? 8 : 0;
     for (let i = 0; i < n; i++) {
       const x = v.x + v.w * (0.08 + (i / (n - 1)) * 0.84);
       const gy = this.groundY(x, this.player.y);
@@ -1220,6 +1250,7 @@ export class World {
     G.ui.cinematicBars(true);
     sfx('rally');
     G.camera.zoomTarget = 0.92;
+    fx.number(this.player.x, this.player.y - 60, SUPER_MOVES[this.superMove].name.toUpperCase(), true, SUPER_MOVES[this.superMove].color);
   }
 
   groundY(x: number, fromY: number) {
@@ -1235,6 +1266,11 @@ export class World {
     const t0 = this.rallyT;
     this.rallyT += dt;
     const t = this.rallyT;
+    if (this.superMove !== 'rally') {
+      alternateSuper(this.superMove, t0, t, this.superFoe);
+      if (t >= 2.7) this.finishRally();
+      return;
+    }
     const crossed = (x: number) => t0 < x && t >= x;
     if (crossed(0.5)) for (const w of this.rallyWarriors) fx.column(w.x, w.y, 30, 260, '#fff3c4', 1.6);
     if (crossed(1.3) || crossed(2.1)) {
@@ -1254,18 +1290,22 @@ export class World {
       fx.flash(final ? '#ffffff' : '#fff1c4', final ? 0.6 : 0.3);
       if (final) fx.ring(this.rallyX, this.rallyY - 20, 20, 400, '#ffe6a8', 0.8, 6);
     }
-    if (t >= 2.7) {
-      this.rallyT = -1;
-      G.inCutscene = false;
-      G.ui.cinematicBars(false);
-      G.camera.zoomTarget = 1;
-      for (const ec of this.echoes) ec.gainXp(6);
-    }
+    if (t >= 2.7) this.finishRally();
+  }
+
+  private finishRally() {
+    this.rallyT = -1;
+    this.superFoe = null;
+    G.inCutscene = false;
+    G.ui.cinematicBars(false);
+    G.camera.zoomTarget = 1;
+    for (const ec of this.echoes) ec.gainXp(6);
   }
 
   private drawRally(ctx: Ctx) {
     const t = this.rallyT;
     if (t < 0) return;
+    if (this.superMove !== 'rally') { drawAlternateSuper(ctx, this.superMove, t, this.rallyX, this.rallyY); return; }
     const x = this.rallyX, y = this.rallyY;
     // darken the world
     const dark = Math.min(0.55, t * 2) * (t > 2.4 ? Math.max(0, (2.7 - t) / 0.3) : 1);
