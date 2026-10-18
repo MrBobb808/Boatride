@@ -58,6 +58,13 @@ try {
      const got = render('none', 0).getContext('2d').getImageData(0, 0, 96, 96).data;
      stableEvades.push(expected.every((v, i) => v === got[i]));
    }
+   // Scripted walking uses the same stride progression as player-controlled movement.
+   G.world.grid.set(2, 5, 1); G.world.grid.set(3, 5, 1);
+   p.x = 48; p.y = 80; p.state = 'scripted'; p.spriteStride = 0;
+   p.scriptX = 108; p.scriptSpeed = 60;
+   for (let i = 0; i < 10; i++) p.update(1 / 120);
+   const scriptedStride = p.spriteStride > 0;
+   p.scriptX = null; p.x = 48; p.y = 76;
    const cases = [
      ['Uncovered', 'free', 'idle', 'none', 0], ['Open cap', 'free', 'idle', 'cap', 0], ['Open visor', 'free', 'idle', 'visor', 0], ['Crown', 'free', 'idle', 'crown', 0],
      ...[0,1,2,3].map(n => ['Run '+(n+1), 'free', 'run', 'visor', 0, n]),
@@ -80,8 +87,9 @@ try {
      c.fillStyle = '#edd79b'; c.font = '14px sans-serif'; c.fillText(label,i%4*220+12,Math.floor(i/4)*190+183);
    }
    board.id = 'hero-visual-board'; board.style.cssText = 'position:fixed;inset:0;z-index:99999;width:880px;height:950px'; document.body.append(board);
-   return { sameFace, stableEvades, identity: { skin: p.style.skin, hair: p.style.hair, beard: p.style.beard } };
+   return { sameFace, stableEvades, scriptedStride, identity: { skin: p.style.skin, hair: p.style.hair, beard: p.style.beard } };
  });
+ assert.ok(result.scriptedStride, 'Scripted walking must advance the illustrated stride');
  assert.ok(result.stableEvades.every(Boolean), 'Tucked dodge/dash artwork must not receive a second rotation');
  for (const row of result.sameFace) assert.ok(row.intact, `Face changed under ${row.helm}, mantle ${row.mantle}`);
  assert.deepEqual(result.identity, { skin: '#70452f', hair: '#f1f3ed', beard: '#e9ede7' });

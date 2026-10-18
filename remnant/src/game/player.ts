@@ -356,7 +356,7 @@ export class Player extends Entity {
     const preVy = b.vy;
     const beforeX = b.x;
     moveBody(b, dt, G.world.grid, G.world.solid);
-    if (b.onGround && this.state === 'free') this.spriteStride += Math.min(12, Math.abs(b.x - beforeX)) * 0.08;
+    if (b.onGround && (this.state === 'free' || this.state === 'scripted')) this.spriteStride += Math.min(12, Math.abs(b.x - beforeX)) * 0.08;
     if (b.onGround) {
       if (!this.wasGround) this.onLand(preVy);
       this.coyote = 0.1;

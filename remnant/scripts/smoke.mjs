@@ -96,7 +96,7 @@ try {
       localStorage.setItem('remnant-save-0',JSON.stringify(s));
     });
     await page.goto(base+'?debug');
-    await page.getByText('PIXEL ART · 2.0',{exact:true}).waitFor();
+    await page.locator('.title-screen').waitFor();
     const resumed=await page.evaluate(()=>{const a=window.__remnant;return a.load(0)&&{name:a.G.save.name,level:a.G.save.level,silver:a.G.save.silver};});
     assert.deepEqual(resumed,{name:'Continuity check',level:42,silver:1234});
     await page.evaluate(()=>navigator.serviceWorker.ready);
@@ -104,7 +104,7 @@ try {
     await page.waitForFunction(()=>!!navigator.serviceWorker.controller);
     await context.setOffline(true);
     await page.reload();
-    await page.getByText('PIXEL ART · 2.0',{exact:true}).waitFor();
+    await page.locator('.title-screen').waitFor();
     assert.deepEqual(errors,[],`${mobile?'Mobile':'Desktop'} runtime errors`);
     await context.close();
     console.log(`${mobile?'Mobile':'Desktop'}: 14 foes, 8 Echoes, movement, equipment, Mantle, save resume and offline launch passed`);
