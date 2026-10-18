@@ -49,13 +49,21 @@ export function contractBoard(close: () => void) {
   const R = G.world.story.ch3.rounds;
   const busy = G.world.bossActive || G.world.transitioning;
   const starts = trainingStarts();
-  const from = h('select', { 'data-nav': '', 'data-k': 'contract_from', 'aria-label': 'Contract starting wave' }, starts.map(w => h('option', { value: String(w) }, w === 1 ? 'Wave 1 — fresh start' : `Wave ${w} — unlocked start`))) as HTMLSelectElement;
+  let from = 1;
+  const waveButtons: HTMLButtonElement[] = [];
+  const wavePicker = h('div', { class: 'ch-waves', role: 'group', 'aria-label': 'Contract starting wave' }, starts.map(w => {
+    const button = btn(`Wave ${w}`, () => {
+      from = w;
+      for (const b of waveButtons) { const selected = b.dataset.wave === String(w); b.classList.toggle('primary', selected); b.setAttribute('aria-pressed', String(selected)); }
+    }, 'btn small' + (w === 1 ? ' primary' : ''), { 'data-wave': String(w), 'data-k': 'contract_from_' + w, 'aria-pressed': String(w === 1) });
+    waveButtons.push(button); return button;
+  }));
   return h('div', { class: 'contract-board' },
     h('div', { class: 'eyebrow' }, 'Choose your next hunt'),
     h('h3', null, 'Five-wave contracts'),
     h('p', { class: 'muted' }, 'Clear five consecutive waves for guaranteed legendary set gear, silver and forge fragments. Keep fighting afterward with the restrictions lifted. Falling or leaving early ends the attempt. Contracts are optional and unranked; blessings and normal wave rewards still apply.'),
     R.active && R.contract ? h('p', { class: 'up', 'data-k': 'contract_status' }, `${CONTRACTS[R.contract].name} · ${R.contractCleared}/5 cleared${R.contractComplete ? ' · reward saved; restrictions lifted' : ' · contract active'}`) : null,
-    h('label', { class: 'contract-start' }, 'Starting wave ', from),
+    h('div', { class: 'contract-start' }, h('span', null, 'Starting wave'), wavePicker),
     h('div', { class: 'progression-grid' }, CONTRACT_IDS.map(id => {
       const c = CONTRACTS[id], prize = contractPrize(G.save, id), tier = contractTier(G.save, id), set = GEAR_SETS[id];
       const existing = G.save.inventory.find(it => it.id === prize.id);
@@ -67,7 +75,7 @@ export function contractBoard(close: () => void) {
         tier ? h('small', { class: 'muted' }, `Tier adds ${tier * 10}% enemy health and ${tier * 5}% enemy damage, multiplied with this contract's rules.`) : null,
         h('p', { class: 'contract-prize' }, `${existing ? 'Improve' : 'Collect'} ${ITEMS[prize.id].name}${prize.plus ? ` to at least +${prize.plus}` : ''}`),
         h('small', { class: 'muted' }, `${set.name} · ${250 * (prize.plus + 1)} silver · ${2 + prize.plus} covenant fragments${!hasGain ? ' · piece already at this rank' : ''}`),
-        btn(`Take ${c.name}`, () => { const wave = Number(from.value); close(); startTraining(wave, false, undefined, id); }, 'btn small', { disabled: busy || R.active, 'data-k': 'contract_' + id }),
+        btn(`Take ${c.name}`, () => { close(); startTraining(from, false, undefined, id); }, 'btn small', { disabled: busy || R.active, 'data-k': 'contract_' + id }),
       );
     })),
     h('small', { class: 'muted' }, R.active ? 'Finish or leave the current run before taking a new contract.' : 'Every three completions raises the tier and next gear rank, up to tier 11 and +10 gear. No time limits or daily resets.'),

@@ -111,7 +111,8 @@ try {
 
     await page.evaluate(() => { const { G } = window.__remnant; G.world.story.ch3.rounds.stop(false); G.ui.openMenu('settings'); });
     assert.equal(await page.locator('[data-contract]').count(), 3);
-    await page.locator('[data-k=contract_from]').selectOption('10');
+    await page.locator('[data-k=contract_from_10]').click();
+    assert.equal(await page.locator('[data-k=contract_from_10]').getAttribute('aria-pressed'), 'true');
     await page.locator('[data-k=contract_vigil]').click();
     await page.waitForFunction(() => { const { G } = window.__remnant; return !G.world.transitioning && G.world.story.ch3.rounds.from === 10 && G.world.story.ch3.rounds.contract === 'vigil'; });
     await page.evaluate(() => {
