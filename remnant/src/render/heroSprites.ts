@@ -5,6 +5,7 @@ import atlasUrl from '../assets/elior-v3.png';
 import { drawWeapon, type HumanStyle, type WeaponPts } from './actors';
 import type { Joints } from './skeleton';
 import type { Ctx } from './draw';
+import { heroFrameAt } from './heroMotion';
 import { drawChain } from '../game/chain';
 
 const FRAME_W = 128;
@@ -45,18 +46,6 @@ export function heroSpriteReady(_style: HumanStyle, _action: string, _mantle: nu
   return art.complete && art.naturalWidth === FRAME_W * 4 && art.naturalHeight === FRAME_H * 4;
 }
 
-function frameAt(action: HeroSpriteAction, t: number, speed: number, grounded: boolean, vy: number, attackProgress: number) {
-  if (action === 'attack' || action === 'charge' || action === 'execute') return attackProgress < 0.46 ? 10 : 11;
-  if (action === 'plunge') return 11;
-  if (action === 'block' || action === 'parry') return 10;
-  if (action === 'dodge' || action === 'airdash') return 12 + (Math.floor(t * 12) % 2);
-  if (action === 'hurt' || action === 'dead') return 14;
-  if (action === 'cast' || action === 'heal' || action === 'transform') return 15;
-  if (!grounded) return vy < 0 ? 8 : 9;
-  if (Math.abs(speed) > 24) return 4 + (Math.floor(t * 11) % 4);
-  return Math.floor(t * 3.8) % 4;
-}
-
 /**
  * Draw Elior from genuine pixel-authored PNG frames, preserving the existing
  * skeleton-driven weapon for equipment, impact positions and combat trails.
@@ -65,9 +54,11 @@ function frameAt(action: HeroSpriteAction, t: number, speed: number, grounded: b
 export function drawHeroSprite(
   ctx: Ctx, j: Joints, style: HumanStyle, time: number,
   action: HeroSpriteAction, speed: number, grounded: boolean, vy: number,
-  attackProgress: number, rotation: number, mantle = 0, extension = 0, hideWeapon = false,
+  attackProgress: number, rotation: number, mantle = 0, extension = 0, hideWeapon = false, stateTime = 0, stride?: number,
 ): WeaponPts {
-  const frame = frameAt(action, time, speed, grounded, vy, attackProgress);
+  const frame = heroFrameAt(action, time, speed, grounded, vy, attackProgress, stateTime, stride);
+  // These poses are already tucked: a second skeleton spin clips them through the floor.
+  if (action === 'dodge' || action === 'airdash') rotation = 0;
   ctx.save();
   if (rotation) {
     ctx.translate(j.hipX, j.hipY - 4);
@@ -92,32 +83,36 @@ export function drawHeroSprite(
   ctx.imageSmoothingEnabled = false;
   const source = mantle > 0 && mantleReady ? mantleArt : art;
   ctx.drawImage(source, frame % 4 * FRAME_W, Math.floor(frame / 4) * FRAME_H, FRAME_W, FRAME_H, -DRAW_SIZE / 2, -FOOT / FRAME_H * DRAW_SIZE, DRAW_SIZE, DRAW_SIZE);
-  // Equipment still changes the visible shoulder plate over the base coat.
+  // Follow the illustrated shoulder instead of leaving a fixed plate floating in a run.
   if (style.plate && frame < 8) {
-    ctx.fillStyle = style.plate.dark; ctx.fillRect(-3, -36, 6, 4);
-    ctx.fillStyle = style.plate.c; ctx.fillRect(-3, -36, 5, 2);
-    ctx.fillStyle = style.plate.hi; ctx.fillRect(-3, -37, 5, 1);
+    const sx = (HEAD[frame][0] - 22) * scale - DRAW_SIZE / 2;
+    const sy = (HEAD[frame][1] + 16 - FOOT) * scale;
+    ctx.fillStyle = style.plate.dark;
+    ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(sx + 5, sy - 1); ctx.lineTo(sx + 6, sy + 2); ctx.lineTo(sx + 1, sy + 3); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = style.plate.c; ctx.fillRect(sx + 1, sy, 4, 2);
+    ctx.fillStyle = style.plate.hi; ctx.fillRect(sx + 1, sy, 4, 0.7);
   }
-  // Pixel headgear sits over the atlas head, rather than disabling the sprite.
-  const hx = HEAD[frame][0] * scale - DRAW_SIZE / 2 - 4;
-  const hy = (HEAD[frame][1] - FOOT) * scale - 3;
+  // Open-face headgear stays above the brow. Never paint a visor over his eyes.
+  const hx = (HEAD[frame][0] - 10) * scale - DRAW_SIZE / 2;
+  const hy = (HEAD[frame][1] - 13 - FOOT) * scale;
   if (style.helm !== 'none' && style.helm !== 'hood_down') {
-    const hood = style.helm === 'hood_up';
-    ctx.fillStyle = style.outline;
-    ctx.fillRect(hx, hy, 9, 5);
     ctx.fillStyle = style.helmColor ?? style.plate?.c ?? style.coat;
-    ctx.fillRect(hx + 1, hy + 1, 7, 3);
+    ctx.beginPath();
+    ctx.moveTo(hx, hy + 3 * scale); ctx.lineTo(hx + 2 * scale, hy + scale);
+    ctx.lineTo(hx + 16 * scale, hy + scale); ctx.lineTo(hx + 18 * scale, hy + 3 * scale);
+    ctx.lineTo(hx + 16 * scale, hy + 4 * scale); ctx.lineTo(hx + 2 * scale, hy + 4 * scale);
+    ctx.closePath(); ctx.fill();
     ctx.fillStyle = style.helmTrim ?? style.plate?.hi ?? '#d3b675';
-    ctx.fillRect(hx + 2, hy, 5, 1);
-    ctx.fillStyle = hood ? style.skin : '#171521';
-    ctx.fillRect(hx + 5, hy + 2, 4, 2);
+    ctx.fillRect(hx + 2 * scale, hy + 3 * scale, 14 * scale, scale);
     if (style.helm === 'crown') {
       ctx.fillStyle = '#ebc56e';
-      ctx.fillRect(hx + 1, hy - 2, 2, 3); ctx.fillRect(hx + 4, hy - 3, 2, 4); ctx.fillRect(hx + 7, hy - 2, 2, 3);
+      ctx.fillRect(hx + 2 * scale, hy - 3 * scale, 2 * scale, 4 * scale);
+      ctx.fillRect(hx + 8 * scale, hy - 5 * scale, 2 * scale, 6 * scale);
+      ctx.fillRect(hx + 14 * scale, hy - 3 * scale, 2 * scale, 4 * scale);
     }
   }
   if (mantle > 0) {
-    ctx.fillStyle = '#d5b8ff'; ctx.fillRect(hx + 6, hy + 2, 2, 1);
+    // Keep the painted facial features intact in the Mantle too.
     ctx.fillStyle = '#9c67dd'; ctx.fillRect(-3, -30, 1, 9);
   }
   ctx.imageSmoothingEnabled = smooth;
