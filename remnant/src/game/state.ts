@@ -8,13 +8,14 @@ import {
 } from './data';
 import { uid, randInt, rand } from '../core/math';
 import { runBlessings } from './blessings';
+import { masteryRank, migrateProgression, contractPrize, contractWins, type GearSetId, type ContractId, type ProgressionData } from './progression';
 
 export interface QuestState {
   stage: number;
   done: boolean;
 }
 
-export interface SaveData {
+export interface SaveData extends ProgressionData {
   version: 1;
   name: string;
   created: number;
@@ -193,6 +194,12 @@ export interface Derived {
   defense: number;
   meleeMult: number;
   hpRegen: number;
+  masteryRank: number;
+  sets: Record<GearSetId, number>;
+  skillRecharge: number;
+  pursuitRecharge: number;
+  heavyMult: number;
+  heavyPoiseMult: number;
 }
 
 export const skillRank = (s: SaveData, id: string) => s.skills[id] ?? 0;
@@ -212,9 +219,12 @@ export function nextSlotLevel(level: number) {
 
 export function derive(s: SaveData): Derived {
   const mods: Partial<Record<ModKey, number>> = {};
+  const sets = { vigil: 0, rift: 0, legion: 0 };
   for (const slot of Object.keys(s.equipment) as Slot[]) {
     const it = getItem(s, s.equipment[slot]);
-    if (!it) continue;
+    if (!it || ITEMS[it.id].slot !== slot) continue;
+    const set = ITEMS[it.id].set;
+    if (set) sets[set]++;
     for (const [k, v] of Object.entries(itemMods(it))) mods[k as ModKey] = (mods[k as ModKey] ?? 0) + (v as number);
   }
   const m = (k: ModKey) => mods[k] ?? 0;
@@ -223,6 +233,10 @@ export function derive(s: SaveData): Derived {
   const r = (id: string) => skillRank(s, id);
   const weapon = getItem(s, s.equipment.weapon);
   const wb = weapon ? ITEMS[weapon.id] : ITEMS.militia_sword;
+  const family = wb.family ?? 'blade';
+  const rank = masteryRank(s, family);
+  const blade = family === 'blade' ? rank : 0, spear = family === 'spear' ? rank : 0, great = family === 'greatsword' ? rank : 0;
+  const recharge = spear >= 10 ? 1.25 : 1;
   const defense = m('def');
   const drRaw = stats.end * 0.016 + defense * 0.012 + r('g_skin') * 0.05;
   return {
@@ -231,31 +245,36 @@ export function derive(s: SaveData): Derived {
     maxCe: Math.round(40 + stats.wis * 8 + m('ce') + r('l_lamp') * 8),
     atk: Math.max(1, m('atk')) * (1 + stats.str * 0.06),
     dr: Math.min(0.65, drRaw),
-    crit: Math.min(0.75, 0.05 + stats.agi * 0.008 + m('crit') / 100 + (r('w_keen') ? 0.08 : 0)),
+    crit: Math.min(0.75, 0.05 + stats.agi * 0.008 + m('crit') / 100 + (r('w_keen') ? 0.08 : 0) + (blade >= 3 ? 0.05 : 0)),
     critDmg: 1.5 + m('critDmg') / 100 + (r('w_keen') ? 0.25 : 0),
-    aspd: 1 + stats.agi * 0.012 + m('aspd') / 100,
-    speed: 1 + m('speed') / 100,
-    abil: 1 + stats.wis * 0.05 + m('abil') / 100 + r('l_lamp') * 0.1,
-    ceRegen: (1 + m('ceRegen') / 100) * (r('l_radiance') ? 1.5 : 1),
-    echoDmg: (1 + m('echoDmg') / 100 + r('c_kin') * 0.1) * runBlessings.echoes,
-    echoHp: 1 + m('echoHp') / 100 + r('c_kin') * 0.1,
-    parryWin: (0.15 + stats.res * 0.004) * (1 + m('parry') / 100) * (r('g_timing') ? 1.5 : 1),
+    aspd: 1 + stats.agi * 0.012 + m('aspd') / 100 + (blade >= 6 ? 0.08 : 0),
+    speed: 1 + m('speed') / 100 + (sets.rift >= 2 ? 0.08 : 0),
+    abil: 1 + stats.wis * 0.05 + m('abil') / 100 + r('l_lamp') * 0.1 + (spear >= 3 ? 0.15 : 0) + (sets.rift >= 2 ? 0.25 : 0),
+    ceRegen: (1 + m('ceRegen') / 100 + (spear >= 6 ? 0.3 : 0)) * (r('l_radiance') ? 1.5 : 1),
+    echoDmg: (1 + m('echoDmg') / 100 + r('c_kin') * 0.1 + (sets.legion >= 2 ? 0.3 : 0)) * runBlessings.echoes,
+    echoHp: 1 + m('echoHp') / 100 + r('c_kin') * 0.1 + (sets.legion >= 2 ? 0.25 : 0),
+    parryWin: (0.15 + stats.res * 0.004) * (1 + m('parry') / 100) * (r('g_timing') ? 1.5 : 1) * (sets.vigil >= 2 ? 1.2 : 1),
     poise: 20 + stats.end * 2 + m('poise'),
     xpMult: 1 + m('xp') / 100,
     rallyMult: (1 + stats.res * 0.04 + m('rally') / 100),
-    lifesteal: m('lifesteal') / 100,
-    family: (wb.family ?? 'blade'),
+    lifesteal: m('lifesteal') / 100 + (blade >= 10 ? 0.03 : 0),
+    family,
     weaponPlus: weapon?.plus ?? 0,
     weaponRarity: weapon?.rarity ?? 0,
     echoSlots: echoSlotsFor(s.level, s.storySlots, r('c_banner') > 0),
     defense,
-    meleeMult: (1 + r('w_edge') * 0.08) * runBlessings.weapon,
-    hpRegen: r('g_regen') * 0.005 + runBlessings.regen,
+    meleeMult: (1 + r('w_edge') * 0.08) * runBlessings.weapon * (1 + rank * 0.03),
+    hpRegen: r('g_regen') * 0.005 + runBlessings.regen + (sets.vigil >= 2 ? 0.005 : 0),
+    masteryRank: rank, sets, skillRecharge: recharge,
+    pursuitRecharge: recharge * (sets.rift >= 3 ? 1.75 : 1),
+    heavyMult: great >= 6 ? 1.2 : 1,
+    heavyPoiseMult: great >= 3 ? 1.15 : 1,
   };
 }
 
 /** Bring older saves up to date with features added since they were written. */
 export function migrateSave(s: SaveData) {
+  migrateProgression(s);
   mergeDuplicateEchoes(s);
   s.trialMilestones ??= [];
   for (let wave = 10; wave <= Math.min(100, Number(s.flags.trial_best ?? 0)); wave += 10) claimTrialMilestone(s, wave);
@@ -273,6 +292,20 @@ export function migrateSave(s: SaveData) {
     const id = s.equippedSkills[i];
     return id && ABILITIES[id] && s.abilities.includes(id) && s.equippedSkills.indexOf(id) === i ? id : null;
   });
+}
+
+/** One deterministic piece per five-wave contract, then upgrade that same piece. */
+export function claimContractReward(s: SaveData, id: ContractId): ItemInst {
+  const prize = contractPrize(s, id);
+  let item = s.inventory.find(it => it.id === prize.id);
+  if (!item) { item = makeItem(prize.id, undefined, prize.plus, false); s.inventory.push(item); }
+  else item.plus = Math.max(item.plus, prize.plus);
+  // At the upgrade cap, repeats still pay useful forge materials and silver.
+  s.silver += 250 * (prize.plus + 1);
+  addMaterial(s, 'covenant_fragment', 2 + prize.plus);
+  item.isNew = true;
+  (s.contracts ??= {})[id] = contractWins(s, id) + 1;
+  return item;
 }
 
 /** Milestones are permanent inventory awards, independent of pickup positions. */

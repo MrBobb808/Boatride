@@ -10,7 +10,8 @@ import { Entity } from './entity';
 import { Enemy } from './enemies';
 import { TILE, type EnemyKind } from './tiles';
 import { xpToNext, ECHO_SPECIES, ITEMS } from './data';
-import { claimTrialMilestone, derive } from './state';
+import { claimTrialMilestone, claimContractReward, derive } from './state';
+import { CONTRACTS, contractTier, isContract, type ContractId } from './progression';
 import { BLESSINGS, runBlessings, type BlessingId } from './blessings';
 import { rollGear } from './world';
 import { moveBody } from './physics';
@@ -71,6 +72,12 @@ export class Rounds {
   private alive = 0;
   private ending = false;
   pendingBlessings: BlessingId[] = [];
+  contract: ContractId | null = null;
+  contractComplete = false;
+  contractReward: string | null = null;
+  contractTier = 0;
+  get contractCleared() { return Math.max(0, Math.min(5, this.completed - this.from + 1)); }
+  get balmSealed() { return this.active && this.contract === 'vigil' && !this.contractComplete; }
   private blessingEpoch = 0;
   private blessingAbort: AbortController | null = null;
   get awaitingBlessing() { return this.pendingBlessings.length > 0; }
@@ -89,6 +96,11 @@ export class Rounds {
     this.stop(false);
     this.active = true;
     this.bossOnly = bossOnly;
+    const chosen = G.save.flags.trial_contract;
+    this.contract = !bossOnly && isContract(chosen) ? chosen : null;
+    this.contractComplete = false;
+    this.contractReward = null;
+    this.contractTier = this.contract ? contractTier(G.save, this.contract) : 0;
     runBlessings.reset(!bossOnly);
     G.d = derive(G.save);
     const original = String(G.save.flags.echo_trial_species ?? '');
@@ -111,12 +123,16 @@ export class Rounds {
     this.breakT = 3.2;
     if (!bossOnly) G.world.configureTrial(this.from);
     G.ui.banner(this.rematchSpecies ? 'ORIGINAL-FORM REMATCH' : bossOnly ? 'THE BOSS GAUNTLET' : 'THE TRIAL OF THE REMNANT', this.rematchSpecies ? `${ECHO_SPECIES[this.rematchSpecies].stages[0].name} · earn its imprint each victory · unranked` : `${bossOnly ? 'Bosses only · escalating power' : 'Endless rounds'}${this.from > 1 ? ` from round ${this.from} (unranked)` : ''} · survive as long as you can`, 'boss');
+    if (this.contract) G.ui.toast(`${CONTRACTS[this.contract].name} · clear waves ${this.from}–${this.from + 4} · unranked`, 'good');
   }
 
   /** End the run. Leaving mid-run still records how far it got. */
   stop(record = true) {
     if (this.active && record && this.round > 0) this.record();
     this.active = false;
+    this.contract = null;
+    this.contractComplete = false;
+    this.contractReward = null;
     this.cancelBlessing();
     runBlessings.reset();
     if (G.save) G.d = derive(G.save);
@@ -210,6 +226,15 @@ export class Rounds {
     const n = this.round;
     const s = G.save;
     this.completed = n;
+    if (this.contract && !this.contractComplete && this.contractCleared >= 5) {
+      this.contractComplete = true; // Claim once, before autosave or the next UI callback.
+      const prize = claimContractReward(s, this.contract);
+      this.contractReward = `${ITEMS[prize.id].name}${prize.plus ? ` +${prize.plus}` : ''}`;
+      G.d = derive(s);
+      for (const e of G.world.echoes) e.refreshStats();
+      sfx('lootRare');
+      G.ui.toast(`CONTRACT COMPLETE · ${this.contractReward} · Equipment. Contract restrictions lifted; keep fighting or leave.`, 'good');
+    }
     if (n > Number(s.flags.trial_best ?? 0)) s.flags.trial_best = n;
     if (n >= 10 && s.quests.s_trial && !s.quests.s_trial.done) G.world.story.quest('s_trial', 0, true);
     if (n % 5 === 0) this.reward(n);
@@ -226,8 +251,9 @@ export class Rounds {
     const epoch = ++this.blessingEpoch;
     this.blessingAbort = new AbortController();
     const carried = runBlessings.summary();
+    const award = this.contractReward && this.completed === this.from + 4 ? `Contract complete! ${this.contractReward} is saved in Equipment. Restrictions are lifted; you can continue the waves or leave through Chapters. ` : '';
     void G.ui.choice(`Wave ${this.completed} cleared`,
-      `Choose one blessing for this run. Bonuses stack up to rank 5 and reset when you leave or fall.${carried ? ` Carrying: ${carried}.` : ''}`,
+      `${award}Choose one blessing for this run. Bonuses stack up to rank 5 and reset when you leave or fall.${carried ? ` Carrying: ${carried}.` : ''}`,
       this.pendingBlessings.map(id => ({ label: BLESSINGS[id].name + (BLESSINGS[id].cap ? ` · Rank ${runBlessings.rank(id) + 1}` : ''), sub: BLESSINGS[id].desc, icon: BLESSINGS[id].icon, risk: id === 'bloodprice' })),
       'blessing', this.blessingAbort.signal).then(index => {
         if (epoch !== this.blessingEpoch || !this.active) return;
@@ -307,6 +333,12 @@ export class Rounds {
     e.maxHp = e.hp = Math.round(e.maxHp * hpMul);
     e.dmg *= Math.min(5, 1 + (n - 1) * 0.07) * Math.pow(lvScale, 0.8);
     e.tempo = Math.min(1.4, 1 + (n - 1) * 0.012) * (this.pack ? 1.1 : 1);
+    if (this.contract && !this.contractComplete) {
+      const c = CONTRACTS[this.contract], tier = this.contractTier;
+      e.maxHp = e.hp = Math.round(e.maxHp * c.hp * (1 + tier * 0.1));
+      e.dmg *= c.damage * (1 + tier * 0.05);
+      e.tempo *= c.tempo;
+    }
     e.xpOverride = Math.max(10, Math.round((xpToNext(s.level) / 26) * (1 + n * 0.03) * (champion ? 8 : 1) * (this.doubleT > 0 ? 2 : 1)));
     if (champion) {
       e.purifiable = false;
@@ -380,7 +412,7 @@ export class Rounds {
     const rounds = this.bossOnly ? this.completed : this.round;
     const key = this.bossOnly ? 'boss_trial_best' : 'trial_best';
     if (rounds > Number(s.flags[key] ?? 0)) s.flags[key] = rounds;
-    if (this.from > 1) return { entry: null, place: 0, best: false };
+    if (this.from > 1 || this.contract) return { entry: null, place: 0, best: false };
     const { entry, place } = recordRun({ rounds, kills: this.kills, time: this.time, level: s.level }, this.bossOnly);
     return { entry, place, best: rounds > prevBest };
   }
@@ -395,7 +427,7 @@ export class Rounds {
     G.ui.cinematicBars(false);
     for (const f of this.foes) f.aggro = false;
     const res = this.record();
-    const stats = { rounds: this.bossOnly ? this.completed : this.round, kills: this.kills, time: this.time, level: G.save.level, levels: G.save.level - this.level0, from: this.from, bossOnly: this.bossOnly, rematch: !!this.rematchSpecies };
+    const stats = { rounds: this.bossOnly ? this.completed : this.round, kills: this.kills, time: this.time, level: G.save.level, levels: G.save.level - this.level0, from: this.from, bossOnly: this.bossOnly, rematch: !!this.rematchSpecies, contract: this.contract ? `${CONTRACTS[this.contract].name} · ${this.contractCleared}/5 waves${this.contractComplete ? ' · reward saved' : ' · incomplete'}` : undefined };
     this.active = false;
     runBlessings.reset();
     G.d = derive(G.save);

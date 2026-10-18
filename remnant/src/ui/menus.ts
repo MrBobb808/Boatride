@@ -28,6 +28,8 @@ import { ECHO_COMBOS } from '../game/echoCombos';
 import { MANTLE_LV, mantlePerks } from '../game/mantle';
 import { nextChapter, travelToChapter, trainingOpen, startTraining } from '../game/chapters';
 import { chaptersTab, gameModes } from './chapters';
+import { progressionTab } from './progression';
+import { GEAR_SETS } from '../game/progression';
 import { bestiaryPanes, bestiaryCount } from './bestiary';
 import { controllerBox, cancelPadCapture } from './controller';
 import { saveSlot, listSlots, lastSlot, deleteSlot, loadSlot, exportCode, importCode, SLOT_COUNT } from '../game/save';
@@ -50,6 +52,7 @@ export const isMenuOpen = () => !!menuEl || !!shopEl;
 const TABS: { id: string; label: string; icon: string }[] = [
   { id: 'character', label: 'Character', icon: 'stats' },
   { id: 'equipment', label: 'Equipment', icon: 'armor' },
+  { id: 'progression', label: 'Progression', icon: 'sword' },
   { id: 'skills', label: 'Skills', icon: 'skills' },
   { id: 'echoes', label: 'Echoes', icon: 'echo' },
   { id: 'map', label: 'Map', icon: 'map' },
@@ -150,6 +153,7 @@ function render() {
   switch (tab) {
     case 'character': bodyEl.appendChild(characterTab()); break;
     case 'equipment': bodyEl.appendChild(equipmentTab()); break;
+    case 'progression': bodyEl.appendChild(progressionTab()); break;
     case 'skills': bodyEl.appendChild(skillsTab()); break;
     case 'echoes': bodyEl.appendChild(echoesTab()); break;
     case 'map': bodyEl.appendChild(mapTab()); break;
@@ -305,6 +309,11 @@ function equipmentTab() {
       h('hr', { class: 'rule' }),
       h('div', null, modLines(mods, !isEq && eq ? itemMods(eq) : undefined)),
       h('p', { class: 'muted', style: 'margin:8px 0 0' }, base.desc),
+      base.set ? h('div', { class: 'set-detail' },
+        h('b', { style: `color:${GEAR_SETS[base.set].color}` }, `${GEAR_SETS[base.set].name} · ${G.d.sets[base.set]}/3 equipped`),
+        h('p', { class: G.d.sets[base.set] >= 2 ? 'up' : 'muted' }, `2 pieces: ${GEAR_SETS[base.set].two}`),
+        h('p', { class: G.d.sets[base.set] >= 3 ? 'up' : 'muted' }, `3 pieces: ${GEAR_SETS[base.set].three}`),
+      ) : null,
       sel.trialWave ? h('p', { class: 'muted' }, `Earned at Trial wave ${sel.trialWave}${sel.trialTier ? ` · +${Math.min(100, sel.trialTier) * 15}% base gear power` : ''}.`) : null,
       base.lore ? h('p', { style: 'font-style:italic;margin:6px 0 0;font-size:0.92em' }, base.lore) : null,
       !isEq && eq ? h('div', { class: 'muted', style: 'font-size:0.82em;margin-top:6px' }, `Compared with ${itemName(eq)} (equipped).`) : null,
@@ -318,7 +327,7 @@ function equipmentTab() {
   const mats = Object.entries(s.materials).filter(([, n]) => n > 0);
   return h('div', { style: 'display:flex;gap:12px;flex:1;min-height:0;width:100%' },
     h('div', { class: 'col', style: 'flex:1.1;min-height:0' }, slotChips, h('div', { class: 'scroll', style: 'flex:1' }, list)),
-    h('div', { class: 'col scroll', style: 'flex:1;min-height:0' }, detail,
+    h('div', { class: 'col scroll', style: 'flex:1;min-height:0' }, btn('Weapon mastery & armor sets', () => setTab('progression'), 'btn small', { 'data-k': 'view_progression' }), detail,
       h('div', { class: 'box' }, h('h3', null, 'Materials & relics'),
         h('div', { class: 'mats' }, mats.length ? mats.map(([k, n]) => h('span', null, h('b', null, `${n}× `), ITEMS[k].name)) : h('span', null, 'None yet.')),
         s.keyItems.length ? h('div', { class: 'mats', style: 'margin-top:6px' }, s.keyItems.map((k) => h('span', { style: 'color:var(--gold-hi)' }, ITEMS[k]?.name ?? k))) : null,

@@ -11,7 +11,7 @@ import { formatTime } from '../core/math';
 import { loadBoard, renameRun, type RunEntry } from '../game/board';
 import { pullBoard, cloudActive } from '../game/cloud';
 
-export interface RunStats { rounds: number; kills: number; time: number; level: number; levels: number; from: number; bossOnly?: boolean; rematch?: boolean }
+export interface RunStats { rounds: number; kills: number; time: number; level: number; levels: number; from: number; bossOnly?: boolean; rematch?: boolean; contract?: string }
 
 const root = () => document.getElementById('ui')!;
 
@@ -93,7 +93,7 @@ export function gameOver(st: RunStats, entry: RunEntry | null, place: number, be
         h('div', { class: 'go-right' },
           entry
             ? h('div', { class: 'go-name' }, h('span', null, place > 0 ? `Place ${place} on this device as` : 'Ranked as'), nameBox)
-            : h('p', { class: 'muted' }, st.rematch ? 'Original-form rematches are unranked. Your earned imprints are saved; absorb them in Echoes.' : `This run began at round ${st.from}, so it is not ranked. Start from round 1 to get on the board.`),
+            : h('p', { class: 'muted' }, st.contract ? `${st.contract}. Contracts are unranked. Mastery and earned gear stay with you.` : st.rematch ? 'Original-form rematches are unranked. Your earned imprints are saved; absorb them in Echoes.' : `This run began at round ${st.from}, so it is not ranked. Start from round 1 to get on the board.`),
           st.rematch ? null : boardBox(entry?.id ?? null, 5, st.bossOnly),
         ),
       ),

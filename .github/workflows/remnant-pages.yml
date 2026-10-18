@@ -32,7 +32,7 @@ jobs:
           cache-dependency-path: remnant/package-lock.json
       - run: npm ci
       - run: npm run build
-      - run: node --test scripts/update.test.mjs scripts/frame-budget.test.mjs scripts/hero-motion.test.mjs scripts/combat-feedback.test.mjs scripts/squad-systems.test.mjs
+      - run: node --test scripts/update.test.mjs scripts/frame-budget.test.mjs scripts/hero-motion.test.mjs scripts/combat-feedback.test.mjs scripts/squad-systems.test.mjs scripts/progression.test.mjs
       - run: npx playwright install --with-deps chromium
       - run: node scripts/hero-visuals.mjs
       - run: node scripts/smoke.mjs
@@ -42,6 +42,7 @@ jobs:
       - run: node scripts/endless-progression.mjs
       - run: node scripts/wave-access.mjs
       - run: node scripts/squad-expansion.mjs
+      - run: node scripts/replay-progression.mjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:

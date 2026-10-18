@@ -510,3 +510,17 @@ textarea.code { width: 100%; height: 70px; background: rgba(10,8,14,0.9); color:
   .voice-orders { padding: 16px; }
   .voice-form { flex-direction: column; }
 }
+.progression-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; }
+.progression-card { padding:12px; border:1px solid rgba(220,192,135,.23); border-radius:7px; background:rgba(6,8,16,.5); min-width:0; }
+.progression-card h4 { margin:5px 0 10px; color:var(--gold-hi); }
+.progression-card p { font-size:.91em; line-height:1.45; margin:10px 0; }
+.progression-card small { display:block; line-height:1.4; }
+.progression-card progress { display:block; width:100%; height:7px; margin:10px 0 6px; accent-color:#d7b878; }
+.progression-card .btn { margin-top:12px; width:100%; white-space:normal; }
+.contract-start { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin:12px 0; }
+.contract-start select { min-height:36px; max-width:100%; padding:7px; background:#17131f; color:#eee0ce; border:1px solid #6a5b47; border-radius:4px; }
+.contract-prize { color:#f4d295; font-weight:700; }
+.contract-board { margin:14px 0; }
+#ui:has(.menu) > .banner, #ui:has(.menu) > .toasts { visibility:hidden; }
+.set-detail { border-top:1px solid rgba(220,192,135,.23); margin-top:10px; padding-top:10px; font-size:.9em; }
+@media (max-width:700px) { .progression-grid { grid-template-columns:1fr; } }

@@ -7,6 +7,7 @@ import { ITEMS, TRIAL_REWARDS, RARITY_NAMES, RARITY_COLORS, SLOT_NAMES } from '.
 import { chapterOf } from '../game/rooms';
 import { openLeaderboard } from './leaderboard';
 import { CHAPTERS, chapterOpen, travelToChapter, trainingOpen, trainingBest, trainingStarts, startTraining } from '../game/chapters';
+import { contractBoard } from './progression';
 
 /** Kept at the top of Settings so wave entry never disappears below the trophy catalog. */
 export function gameModes(close: () => void): HTMLElement {
@@ -21,6 +22,7 @@ export function gameModes(close: () => void): HTMLElement {
       h('b', null, 'Boss Gauntlet'),
       h('div', { class: 'ch-waves' }, trainingStarts(true).map((w) => btn(w === 1 ? 'Start boss round 1' : `Boss round ${w}`, () => { close(); startTraining(w, true); }, 'btn small', { disabled: busy, 'data-k': 'settings_bt_' + w }))),
       busy ? h('small', { class: 'muted' }, 'Available after the current boss fight or room transition.') : null,
+      h('hr', { class: 'rule' }), contractBoard(close),
     ] : h('p', { class: 'muted' }, 'Recover the covenant relic to unlock endless waves and the Boss Gauntlet. Existing round records keep these modes unlocked.'),
   );
 }
@@ -70,6 +72,7 @@ export function chaptersTab(close: () => void): HTMLElement {
   return h('div', { class: 'col scroll', style: 'flex:1' },
     h('div', { class: 'box' }, h('h3', null, 'Chapters'), h('div', { class: 'list' }, rows)),
     training,
+    trainingOpen() ? h('div', { class: 'box' }, contractBoard(close)) : null,
     trainingOpen() ? h('div', { class: 'box boss-trial' },
       h('div', { class: 'eyebrow' }, 'Endless challenge'),
       h('h3', null, 'The Boss Gauntlet'),

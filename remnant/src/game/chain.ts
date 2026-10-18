@@ -78,8 +78,10 @@ export class ChainBlade extends Entity {
       for (const foe of W.foes()) {
         if (!foe.canBeTargeted() || !overlaps(this.hurtbox(), foe.hurtbox())) continue;
         const dir = sign(this.body.vx) || p.face;
+        const before = foe.hp;
         const hit = foe.takeHit({ dmg: G.d.atk * G.d.meleeMult * powerDamage() * 1.15, poise: 32, kx: dir * 25, ky: 0, dir, kind: 'melee', src: p, heavy: true, noKnock: true });
         if (!hit) continue;
+        p.practiceHit(foe, Math.max(0, before - foe.hp));
         fx.ring(this.x, this.y, 3, 24, '#b8bdff', 0.25, 2);
         this.finish();
         p.weaponImpact(foe);
