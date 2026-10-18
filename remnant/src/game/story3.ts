@@ -71,6 +71,7 @@ export class Chapter3 {
 
   /** Walking out of the arena mid-run still records how far the run got. */
   private leftTrial() {
+    G.save.flags.trial_contract = '';
     if (!this.rounds.active) return;
     const n = this.rounds.round;
     this.rounds.stop();

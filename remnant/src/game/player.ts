@@ -16,7 +16,8 @@ import { runBlessings } from './blessings';
 import { sfx } from '../audio/audio';
 import { MOVESETS, clipsFor, extraFor, type AttackDef, type Moveset } from './weapons';
 import { ITEMS, RARITY_COLORS, ABILITIES, type AbilityId, type WeaponFamily } from './data';
-import { getItem, skillRank } from './state';
+import { derive, getItem, skillRank } from './state';
+import { WeaponPractice } from './progression';
 import { castAbility } from './abilities';
 import { lighting } from '../render/lighting';
 import { shakeScale } from '../core/settings';
@@ -52,6 +53,8 @@ const COMBO_RANKS: [number, string][] = [[50, 'REMNANT'], [35, 'UNBROKEN'], [20,
 interface Ghost { x: number; y: number; face: number; pose: Pose; a: number; rot: number; shade?: boolean }
 
 export class Player extends Entity {
+  private practice = new WeaponPractice();
+  private vigilParryCd = 0;
   anim: Animator;
   family: WeaponFamily = 'blade';
   moves: Moveset = MOVESETS.blade;
@@ -309,8 +312,9 @@ export class Player extends Entity {
     this.shieldT = Math.max(0, this.shieldT - dt);
     this.veiled = Math.max(0, this.veiled - dt);
     this.subCd = Math.max(0, this.subCd - dt);
-    this.weaponCd = Math.max(0, this.weaponCd - dt * runBlessings.recharge);
-    this.mantleBlinkCd = Math.max(0, this.mantleBlinkCd - dt * runBlessings.recharge);
+    this.vigilParryCd = Math.max(0, this.vigilParryCd - dt);
+    this.weaponCd = Math.max(0, this.weaponCd - dt * runBlessings.recharge * d.pursuitRecharge);
+    this.mantleBlinkCd = Math.max(0, this.mantleBlinkCd - dt * runBlessings.recharge * d.pursuitRecharge);
     this.landT = Math.max(0, this.landT - dt);
     this.lingerT = Math.max(0, this.lingerT - dt);
     if (this.lingerT <= 0) this.linger = null;
@@ -323,7 +327,7 @@ export class Player extends Entity {
       this.comboT -= dt;
       if (this.comboT <= 0) this.endCombo();
     }
-    for (const k of Object.keys(this.cds) as AbilityId[]) this.cds[k] = Math.max(0, (this.cds[k] ?? 0) - dt * runBlessings.recharge);
+    for (const k of Object.keys(this.cds) as AbilityId[]) this.cds[k] = Math.max(0, (this.cds[k] ?? 0) - dt * runBlessings.recharge * d.skillRecharge);
     // Covenant Energy regeneration
     if (flag('relic_taken')) {
       this.ceRegenDelay = Math.max(0, this.ceRegenDelay - dt);
@@ -720,6 +724,10 @@ export class Player extends Entity {
       return;
     }
     if (input.pressed('heal')) {
+      if (G.world.story.ch3.rounds.balmSealed) {
+        G.ui.toast('Iron Oath: Balm is sealed until five waves are cleared.', 'warn');
+        sfx('denied'); return;
+      }
       if (s.balm > 0 && b.onGround && s.hp < G.d.maxHp) {
         s.balm--;
         this.healDone = false;
@@ -1293,20 +1301,22 @@ export class Player extends Entity {
     strikeLamps(box);
     const d = G.d;
     const crit = Math.random() < d.crit;
-    let dmg = d.atk * a.dmg * d.meleeMult * mult * (this.lion > 0 ? 1.35 : 1) * G.world.commanderAura(this.x, this.y) * powerDamage();
+    const heavy = !!a.finisher || a.id === 'heavy';
+    let dmg = d.atk * a.dmg * d.meleeMult * mult * (heavy ? d.heavyMult : 1) * (this.lion > 0 ? 1.35 : 1) * G.world.commanderAura(this.x, this.y) * powerDamage();
     const el = weaponElement();
     const tier = powerTier();
     if (crit) dmg *= d.critDmg;
     const hit: HitInfo = {
-      dmg, poise: a.poise * (this.family === 'greatsword' ? 1.3 : 1) * (crit ? 1.3 : 1), kx: a.kx * this.face, ky: a.ky, dir: this.face, kind: 'melee', crit,
-      src: this, launch: a.launch, heavy: (a.finisher ?? false) || a.id === 'heavy', guardBreak: a.guardBreak, stop: a.stop,
+      dmg, poise: a.poise * (this.family === 'greatsword' ? 1.3 : 1) * (heavy ? d.heavyPoiseMult : 1) * (crit ? 1.3 : 1), kx: a.kx * this.face, ky: a.ky, dir: this.face, kind: 'melee', crit,
+      src: this, launch: a.launch, heavy, guardBreak: a.guardBreak || (heavy && this.family === 'greatsword' && d.masteryRank >= 10), stop: a.stop,
     };
     if (this.swapStrikeT > 0) {
       // Arriving from a swap: the first blow carries the momentum.
       hit.dmg *= 1.5;
       hit.poise *= 1.5;
     }
-    const n = G.world.hitEnemies(box, hit, this.atkHit, (e) => {
+    const n = G.world.hitEnemies(box, hit, this.atkHit, (e, dealt) => {
+      this.practiceHit(e, dealt, !!a.finisher);
       this.registerHit();
       this.lastFoe = e;
       if (this.swapStrikeT > 0) {
@@ -1318,7 +1328,7 @@ export class Player extends Entity {
       G.world.addRally(1.4);
       if (a.hang && !this.body.onGround) this.body.vy = Math.min(this.body.vy, a.hang);
       if (a.finisher) G.world.echoAssist(e);
-      if (d.lifesteal > 0) G.save.hp = Math.min(d.maxHp, G.save.hp + dmg * d.lifesteal);
+      if (d.lifesteal > 0 && dealt > 0) G.save.hp = Math.min(d.maxHp, G.save.hp + dealt * d.lifesteal);
       if (el) elementHit(e, el, dmg, this.face, !!a.finisher);
       // The Mantle drinks from every cut and answers it with a shadow blade.
       if (this.mantleT > 0 && el !== 'shadow') elementHit(e, 'shadow', dmg * 0.6, this.face, !!a.finisher);
@@ -1338,6 +1348,14 @@ export class Player extends Entity {
       if (a.finisher || crit) input.rumble(0.45, 0.7, 120);
       else input.rumble(0.08, 0.32, 50);
     }
+  }
+
+  /** Called only after real damage, including the Mantle's thrown weapon. */
+  practiceHit(foe: Entity, damage: number, finisher = false) {
+    if (!this.practice.hit(G.save, this.family, foe, damage, finisher)) return;
+    G.d = derive(G.save);
+    G.ui.toast(`${this.family === 'greatsword' ? 'Greatsword' : this.family === 'spear' ? 'Spear' : 'Blade'} mastery ${G.d.masteryRank} · +${G.d.masteryRank * 3}% weapon damage · see Progression`, 'good');
+    sfx('chargeFull', { vol: 0.45 });
   }
 
   attackBox(a: AttackDef): Rect {
@@ -1440,6 +1458,13 @@ export class Player extends Entity {
       G.world.hitstop(0.06);
       G.camera.addTrauma(0.2 * shakeScale());
       G.save.ce = Math.min(d.maxCe, G.save.ce + (skillRank(s, 'g_timing') ? 12 : 5));
+      if (d.sets.vigil >= 3 && this.vigilParryCd <= 0) {
+        this.vigilParryCd = 3;
+        s.hp = Math.min(d.maxHp, s.hp + d.maxHp * 0.05);
+        s.ce = Math.min(d.maxCe, s.ce + 8);
+        fx.ring(this.x, this.cy, 6, 30, '#f4d295', 0.3, 2);
+        G.ui.refreshHud();
+      }
       G.world.addRally(10);
       mantleGain(8);
       input.rumble(0.25, 0.8, 110);

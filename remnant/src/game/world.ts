@@ -536,7 +536,7 @@ export class World {
     return this.ents.filter((e) => e.isFoe && !e.dying && !e.remove);
   }
 
-  hitEnemies(box: Rect, h: HitInfo, set: Set<number>, onHit?: (e: Entity) => void): number {
+  hitEnemies(box: Rect, h: HitInfo, set: Set<number>, onHit?: (e: Entity, damage: number) => void): number {
     let n = 0;
     for (const e of this.ents) {
       if (!e.isFoe || e.dying || e.remove || set.has(e.id)) continue;
@@ -545,9 +545,10 @@ export class World {
       set.add(e.id);
       const ix = (Math.max(box.x, hb.x) + Math.min(box.x + box.w, hb.x + hb.w)) / 2;
       const iy = (Math.max(box.y, hb.y) + Math.min(box.y + box.h, hb.y + hb.h)) / 2;
+      const before = e.hp;
       if (e.takeHit({ ...h, px: ix, py: iy })) {
         n++;
-        onHit?.(e);
+        onHit?.(e, Math.max(0, before - e.hp));
       }
     }
     return n;
@@ -785,7 +786,10 @@ export class World {
     G.save.ce = Math.min(G.d.maxCe, G.save.ce + (flag('relic_taken') ? 5 : 0));
     this.addRally(6);
     const echoXp = Math.min(160, Math.max(4, Math.round(Math.sqrt(Math.max(1, xp)) * 1.5)));
-    for (const ec of this.echoes) if (!ec.remove && ec.hp > 0 && ec.despawn <= 0 && ec.tempT <= 0) ec.gainXp(echoXp);
+    for (const ec of this.echoes) if (!ec.remove && ec.hp > 0 && ec.despawn <= 0 && ec.tempT <= 0) {
+      ec.gainXp(echoXp);
+      if (G.d.sets.legion >= 3) ec.inst.hp = ec.hp = Math.min(ec.maxHp, ec.hp + ec.maxHp * 0.03);
+    }
     G.ui.refreshHud();
     if (this.priorityTarget === e) this.priorityTarget = null;
     this.story.onKill(e);

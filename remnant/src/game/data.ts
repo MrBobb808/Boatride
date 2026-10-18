@@ -75,10 +75,20 @@ export interface ItemBase {
   look?: number;
   value: number;
   unique?: boolean;
+  set?: 'vigil' | 'rift' | 'legion';
   lore?: string;
 }
 
 export const ITEMS: Record<string, ItemBase> = {
+  vigil_helm: { id: 'vigil_helm', name: 'Vigil Crown', slot: 'helm', rarity: 4, icon: 'helm', value: 1200, unique: true, set: 'vigil', look: 2, mods: { hp: 90, def: 8, parry: 10 }, desc: 'Iron Oath contract reward. Part of Unbroken Vigil.' },
+  vigil_plate: { id: 'vigil_plate', name: 'Vigil Plate', slot: 'armor', rarity: 4, icon: 'armor', value: 1200, unique: true, set: 'vigil', look: 2, mods: { hp: 160, def: 14, poise: 15 }, desc: 'Iron Oath contract reward. Part of Unbroken Vigil.' },
+  vigil_boots: { id: 'vigil_boots', name: 'Vigil Treads', slot: 'boots', rarity: 4, icon: 'boot', value: 1200, unique: true, set: 'vigil', look: 2, mods: { hp: 70, def: 8, speed: 8 }, desc: 'Iron Oath contract reward. Part of Unbroken Vigil.' },
+  rift_helm: { id: 'rift_helm', name: 'Riftstalker Hood', slot: 'helm', rarity: 4, icon: 'helm', value: 1200, unique: true, set: 'rift', look: 2, mods: { hp: 60, ce: 35, abil: 15 }, desc: 'Rift Hunt contract reward. Part of Riftstalker.' },
+  rift_mail: { id: 'rift_mail', name: 'Riftstalker Mail', slot: 'armor', rarity: 4, icon: 'armor', value: 1200, unique: true, set: 'rift', look: 2, mods: { hp: 110, def: 10, abil: 20 }, desc: 'Rift Hunt contract reward. Part of Riftstalker.' },
+  rift_boots: { id: 'rift_boots', name: 'Riftstalker Steps', slot: 'boots', rarity: 4, icon: 'boot', value: 1200, unique: true, set: 'rift', look: 2, mods: { def: 6, speed: 12, ceRegen: 30 }, desc: 'Rift Hunt contract reward. Part of Riftstalker.' },
+  legion_helm: { id: 'legion_helm', name: 'Legion Diadem', slot: 'helm', rarity: 4, icon: 'crown', value: 1200, unique: true, set: 'legion', look: 2, mods: { hp: 60, echoDmg: 20, echoHp: 15 }, desc: 'War of the Remnant contract reward. Part of Remnant Legion.' },
+  legion_mail: { id: 'legion_mail', name: 'Legion Raiment', slot: 'armor', rarity: 4, icon: 'armor', value: 1200, unique: true, set: 'legion', look: 2, mods: { hp: 130, def: 10, echoHp: 25 }, desc: 'War of the Remnant contract reward. Part of Remnant Legion.' },
+  legion_boots: { id: 'legion_boots', name: 'Legion March', slot: 'boots', rarity: 4, icon: 'boot', value: 1200, unique: true, set: 'legion', look: 2, mods: { def: 7, speed: 8, echoDmg: 15 }, desc: 'War of the Remnant contract reward. Part of Remnant Legion.' },
   trial_reaver: {"id": "trial_reaver", "name": "Veilreaver", "slot": "weapon", "rarity": 3, "icon": "sword", "mods": {"atk": 70, "crit": 8, "lifesteal": 3}, "value": 800, "unique": true, "look": 2, "desc": "Wave 10 trophy. A chained edge that drinks the last light of the Veil.", "family": "blade", "element": "shadow"},
   trial_tempest: {"id": "trial_tempest", "name": "Tempest Reign", "slot": "weapon", "rarity": 4, "icon": "spear", "mods": {"atk": 140, "abil": 30, "aspd": 12, "crit": 10}, "value": 1150, "unique": true, "look": 2, "desc": "Wave 20 trophy. Lightning turns each thrust into a storm.", "family": "spear", "element": "storm"},
   trial_plate: {"id": "trial_plate", "name": "Ascendant Plate", "slot": "armor", "rarity": 4, "icon": "armor", "mods": {"def": 22, "hp": 260, "ce": 50, "echoHp": 40}, "value": 1500, "unique": true, "look": 2, "desc": "Wave 30 trophy. Black-gold armor built to withstand an army."},

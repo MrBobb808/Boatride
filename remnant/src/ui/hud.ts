@@ -9,6 +9,7 @@ import { settings } from '../core/settings';
 import { icon } from './icons';
 import { ABILITIES, ECHO_SPECIES, SUPER_MOVES, xpToNext } from '../game/data';
 import { selectedSuper } from '../game/supers';
+import { CONTRACTS } from '../game/progression';
 import { QUESTS } from '../game/story';
 import { ROOMS, chapterOf } from '../game/rooms';
 import { CH2_ROOM_IDS } from '../game/rooms2';
@@ -615,6 +616,7 @@ function drawRounds(ctx: CanvasRenderingContext2D, W: number, y0: number, u: num
   text(ctx, line, cx, top + 42 * u, `600 ${8 * u}px ${FONT_DISPLAY}`, '#d8c8b0', 'center');
   const boons = [R.wrathT > 0 ? `WRATH ${Math.ceil(R.wrathT)}` : '', R.doubleT > 0 ? `DOUBLE PORTION ${Math.ceil(R.doubleT)}` : ''].filter(Boolean).join('   ');
   if (boons) text(ctx, boons, cx, top + 53 * u, `700 ${8 * u}px ${FONT_DISPLAY}`, '#ffb35a', 'center');
+  if (R.contract) text(ctx, `${CONTRACTS[R.contract].name} · ${R.contractComplete ? 'COMPLETE' : `${R.contractCleared}/5`}`, cx, top + (boons ? 64 : 53) * u, `600 ${8 * u}px ${FONT_DISPLAY}`, '#b6d7d4', 'center');
 }
 
 /** Blend two #rrggbb colours. */

@@ -92,6 +92,8 @@ export function startNewGamePlus() {
   s.equippedSuper = old.equippedSuper;
   s.echoImprints = { ...old.echoImprints };
   s.trialMilestones = [...(old.trialMilestones ?? [])];
+  s.weaponMastery = { ...old.weaponMastery };
+  s.contracts = { ...old.contracts };
   s.inventory = old.inventory;
   s.equipment = { ...old.equipment };
   s.materials = { ...old.materials };
