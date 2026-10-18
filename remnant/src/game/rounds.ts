@@ -9,7 +9,8 @@ import { G } from './ctx';
 import { Entity } from './entity';
 import { Enemy } from './enemies';
 import { TILE, type EnemyKind } from './tiles';
-import { xpToNext, ECHO_SPECIES } from './data';
+import { xpToNext, ECHO_SPECIES, ITEMS } from './data';
+import { claimTrialMilestone } from './state';
 import { rollGear } from './world';
 import { moveBody } from './physics';
 import { recordRun, bestRounds, type RunEntry } from './board';
@@ -96,6 +97,7 @@ export class Rounds {
     this.pack = false;
     this.foes = [];
     this.breakT = 3.2;
+    if (!bossOnly) G.world.configureTrial(this.from);
     G.ui.banner(this.rematchSpecies ? 'ORIGINAL-FORM REMATCH' : bossOnly ? 'THE BOSS GAUNTLET' : 'THE TRIAL OF THE REMNANT', this.rematchSpecies ? `${ECHO_SPECIES[this.rematchSpecies].stages[0].name} · earn its imprint each victory · unranked` : `${bossOnly ? 'Bosses only · escalating power' : 'Endless rounds'}${this.from > 1 ? ` from round ${this.from} (unranked)` : ''} · survive as long as you can`, 'boss');
   }
 
@@ -161,6 +163,7 @@ export class Rounds {
 
   private beginRound() {
     const n = ++this.round;
+    if (!this.bossOnly) G.world.configureTrial(n);
     if (this.bossOnly) {
       this.changeT = 0;
       this.total = this.spawned = this.alive = 1;
@@ -195,9 +198,11 @@ export class Rounds {
     if (n > Number(s.flags.trial_best ?? 0)) s.flags.trial_best = n;
     if (n >= 10 && s.quests.s_trial && !s.quests.s_trial.done) G.world.story.quest('s_trial', 0, true);
     if (n % 5 === 0) this.reward(n);
+    if (n % 10 === 0) G.world.configureTrial(n + 1);
     this.breakT = BREAK;
     this.changeT = 0;
     sfx('rally', { vol: 0.5 });
+    G.world.autosave(true);
   }
 
   /** Called after the boss's real defeat animation, before any chapter logic. */
@@ -276,8 +281,13 @@ export class Rounds {
 
   private reward(n: number) {
     const W = G.world;
+    const trophy = !this.bossOnly ? claimTrialMilestone(G.save, n) : null;
+    if (trophy) {
+      sfx('lootRare');
+      G.ui.toast(`WAVE ${n}: ${ITEMS[trophy.id].name}${trophy.trialTier ? ` · Ascension ${trophy.trialTier}` : ''} added to Equipment`, 'good');
+    }
     W.spawnLoot(28 * TILE, 16 * TILE, [{ silver: 60 * n }, { mat: 'covenant_fragment', n: 1 + Math.floor(n / 10) }, { mat: n >= 15 ? 'radiant_core' : 'sentinel_steel', n: 1 }, rollGear(Math.min(3, 1 + Math.floor(n / 10)))], true);
-    G.ui.toast(`Round ${n} held: the Trial rewards you.`, 'good');
+    if (!trophy) G.ui.toast(`Round ${n} held: the Trial rewards you.`, 'good');
     fx.column(28 * TILE, 18 * TILE, 40, 240, '#ffe6a8', 1.2);
   }
 

@@ -3,7 +3,7 @@
 
 import {
   ITEMS, STAT_KEYS, SKILLS, AFFIX_POOL, RARITY_AFFIX_COUNT, ECHO_SPECIES, xpToNext,
-  ABILITIES, SUPER_MOVES, ECHO_ROLES, type SuperId,
+  ABILITIES, SUPER_MOVES, ECHO_ROLES, TRIAL_REWARDS, ECHO_LEVEL_CAP, echoXpToNext, type SuperId,
   type ItemInst, type Slot, type StatKey, type ModKey, type AbilityId, type EchoInst, type Rarity,
 } from './data';
 import { uid, randInt, rand } from '../core/math';
@@ -74,6 +74,7 @@ export interface SaveData {
   equippedSuper?: SuperId;
   /** Earned by defeating originals; consumed only when the player absorbs one. */
   echoImprints?: Record<string, number>;
+  trialMilestones?: number[];
 }
 
 export function makeItem(id: string, rarity?: Rarity, plus = 0, rollAffixes = true): ItemInst {
@@ -158,7 +159,7 @@ export function itemMods(it: ItemInst): Partial<Record<ModKey, number>> {
   const rarityBoost = 1 + Math.max(0, it.rarity - base.rarity) * 0.18;
   for (const [k, v] of Object.entries(base.mods ?? {})) {
     const key = k as ModKey;
-    const mult = v > 0 && !STAT_KEYS.includes(key as StatKey) ? (1 + it.plus * 0.14) * rarityBoost : 1;
+    const mult = v > 0 && !STAT_KEYS.includes(key as StatKey) ? (1 + it.plus * 0.14) * rarityBoost * (1 + Math.min(100, Math.max(0, it.trialTier ?? 0)) * 0.15) : 1;
     out[key] = Math.round((v as number) * mult * 10) / 10;
   }
   for (const a of it.affixes) out[a.key] = (out[a.key] ?? 0) + a.v;
@@ -254,6 +255,9 @@ export function derive(s: SaveData): Derived {
 
 /** Bring older saves up to date with features added since they were written. */
 export function migrateSave(s: SaveData) {
+  mergeDuplicateEchoes(s);
+  s.trialMilestones ??= [];
+  for (let wave = 10; wave <= Math.min(100, Number(s.flags.trial_best ?? 0)); wave += 10) claimTrialMilestone(s, wave);
   if (s.flags.relic_taken && !s.flags.phantom) s.flags.phantom = true;
   if (s.bestCombo === undefined) s.bestCombo = 0;
   if (!s.equippedSuper || !SUPER_MOVES[s.equippedSuper]) s.equippedSuper = 'rally';
@@ -267,6 +271,74 @@ export function migrateSave(s: SaveData) {
     const id = s.equippedSkills[i];
     return id && ABILITIES[id] && s.abilities.includes(id) && s.equippedSkills.indexOf(id) === i ? id : null;
   });
+}
+
+/** Milestones are permanent inventory awards, independent of pickup positions. */
+export function claimTrialMilestone(s: SaveData, wave: number): ItemInst | null {
+  if (!Number.isSafeInteger(wave) || wave < 10 || wave % 10 !== 0) return null;
+  const earned = s.trialMilestones ??= [];
+  if (earned.includes(wave)) return null;
+  const id = wave <= 100 ? TRIAL_REWARDS[wave / 10 - 1] : ['trial_worldbreaker', 'trial_bastion', 'trial_ascendancy'][(wave / 10 - 11) % 3];
+  const item = makeItem(id, undefined, 0, false);
+  item.trialWave = wave;
+  item.trialTier = Math.max(0, Math.floor((wave - 100) / 10));
+  item.isNew = true;
+  s.inventory.push(item);
+  earned.push(wave);
+  return item;
+}
+
+export function gainEchoXp(e: EchoInst, amount: number) {
+  const before = e.level;
+  if (e.level >= ECHO_LEVEL_CAP) { e.xp = 0; return 0; }
+  e.xp += Math.max(0, amount);
+  while (e.level < ECHO_LEVEL_CAP && e.xp >= echoXpToNext(e.level)) {
+    e.xp -= echoXpToNext(e.level);
+    e.level++;
+  }
+  if (e.level >= ECHO_LEVEL_CAP) e.xp = 0;
+  return e.level - before;
+}
+
+/** Preserve the chosen identity and remap every lineup reference before removing duplicates. */
+export function mergeDuplicateEchoes(s: SaveData) {
+  const groups = new Map<string, EchoInst[]>(), aliases = new Map<string, string>();
+  for (const e of s.echoes) { const list = groups.get(e.species) ?? []; list.push(e); groups.set(e.species, list); }
+  const merged: EchoInst[] = [];
+  let removed = 0;
+  for (const list of groups.values()) {
+    const preferred = s.active.find((uid) => list.some((e) => e.uid === uid));
+    const lead = list.find((e) => e.uid === preferred) ?? list.find((e) => e.commander) ?? list.reduce((a, b) => b.stage > a.stage || (b.stage === a.stage && b.level > a.level) ? b : a);
+    for (const e of list) aliases.set(e.uid, lead.uid);
+    if (list.length > 1) {
+      let xp = 0, absorptions = 0, bestStage = 0, bestLevel = 1;
+      for (const e of list) {
+        xp += e.xp;
+        for (let lv = 1; lv < Math.min(ECHO_LEVEL_CAP, e.level); lv++) xp += echoXpToNext(lv);
+        absorptions += e.absorptions ?? e.stage + 1;
+        bestStage = Math.max(bestStage, e.stage); bestLevel = Math.max(bestLevel, e.level);
+      }
+      lead.stage = Math.max(bestStage, Math.min(2, absorptions - 1));
+      lead.absorptions = absorptions;
+      lead.commander = list.some((e) => e.commander);
+      lead.nickname ??= list.find((e) => e.nickname)?.nickname;
+      lead.role ??= list.find((e) => e.role)?.role;
+      lead.level = 1; lead.xp = 0;
+      gainEchoXp(lead, xp + (list.length - 1) * echoXpToNext(bestLevel));
+      lead.hp = Math.max(...list.map((e) => e.hp));
+      lead.downFor = Math.min(...list.map((e) => e.downFor ?? 0));
+      removed += list.length - 1;
+    }
+    merged.push(lead);
+  }
+  if (!removed) return 0;
+  const remap = (uids: string[]) => [...new Set(uids.map((u) => aliases.get(u) ?? u))].filter((u) => merged.some((e) => e.uid === u));
+  s.echoes = merged;
+  s.active = remap(s.active);
+  if (s.squadPick) s.squadPick = remap(s.squadPick);
+  for (const f of s.formations) f.uids = remap(f.uids);
+  s.flags.echo_merge_notice = Number(s.flags.echo_merge_notice ?? 0) + removed;
+  return removed;
 }
 
 export const COMBAT_UNLOCKS: Partial<Record<AbilityId, number>> = { chain_snare: 1, mending_light: 1, blink_strike: 5, frost_ring: 10 };
@@ -341,7 +413,7 @@ export function absorbEcho(s: SaveData, species: string, d: Derived) {
   else {
     e.absorptions = (e.absorptions ?? e.stage + 1) + 1;
     if (evolved) e.stage++;
-    else e.level = Math.min(30, e.level + 1);
+    else e.level = Math.min(ECHO_LEVEL_CAP, e.level + 1);
   }
   e.hp = echoMaxHp(s, e, d);
   e.downFor = 0;
@@ -351,12 +423,12 @@ export function absorbEcho(s: SaveData, species: string, d: Derived) {
 
 export function echoMaxHp(s: SaveData, e: EchoInst, d: Derived) {
   const sp = ECHO_SPECIES[e.species];
-  const level = Math.max(e.level, Math.min(30, Math.floor(s.level * 0.65)));
+  const level = e.level + Math.max(0, Math.min(30, Math.floor(s.level * 0.65)) - 1);
   return Math.round(sp.baseHp * (1 + (level - 1) * 0.12) * (1 + e.stage * 0.45) * d.echoHp * 1.2);
 }
 export function echoAtk(s: SaveData, e: EchoInst, d: Derived) {
   const sp = ECHO_SPECIES[e.species];
-  const level = Math.max(e.level, Math.min(30, Math.floor(s.level * 0.65)));
+  const level = e.level + Math.max(0, Math.min(30, Math.floor(s.level * 0.65)) - 1);
   return (sp.baseAtk * (1 + (level - 1) * 0.1) + d.atk * 0.28) * (1 + e.stage * 0.45) * d.echoDmg * 1.2;
 }
 

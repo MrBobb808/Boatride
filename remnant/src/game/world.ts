@@ -10,6 +10,7 @@ import { Enemy } from './enemies';
 import { drawFoeSprite } from '../render/creatureSprites';
 import { makeEnemy } from './foes';
 import { EchoUnit } from './echoes';
+import { trialArena, trialSector } from './trialArena';
 import { Idol } from './boss';
 import { BossBase, Gatekeeper, Marshal } from './bosses2';
 import { LocustKing } from './bosses3';
@@ -89,6 +90,9 @@ export class World {
   lostT = 0;
   firedTriggers = new Set<string>();
   echoSummonT = 0;
+  arenaSector = -1;
+  private drawList: Entity[] = [];
+  private liveDecor: EntDef[] = [];
 
   constructor() {
     this.player = new Player(0, 0);
@@ -109,6 +113,8 @@ export class World {
     this.layers = [];
     this.layerGen = -1;
     this.room = r;
+    this.arenaSector = -1;
+    this.liveDecor = r.ents.filter((e) => e.t === 'decor' && LIVE_DECOR.has(e.k));
     this.grid = new Grid(r.rows);
     this.applyRoomMods();
     this.ents = [];
@@ -176,6 +182,35 @@ export class World {
       const [x, y] = pair.split(',').map(Number);
       if (Number.isFinite(x)) g.set(x, y, T.Empty);
     }
+  }
+
+  configureTrial(wave: number) {
+    if (this.room.id !== 'trial_arena' || this.arenaSector === trialSector(wave)) return false;
+    this.arenaSector = trialSector(wave);
+    this.room = trialArena(ROOMS.trial_arena, wave);
+    this.grid = new Grid(this.room.rows);
+    this.cache?.dispose();
+    for (const l of this.layers) releaseCanvas(l.c);
+    this.layers = []; this.layerGen = -1;
+    this.cache = new TileCache(this.grid, this.room.biome, this.room.interior, this.room.seed, this.room.ents, this.solid, this.cond);
+    this.lights = this.room.ents.filter((e): e is Extract<EntDef, { t: 'light' }> => e.t === 'light');
+    this.liveDecor = this.room.ents.filter((e) => e.t === 'decor' && LIVE_DECOR.has(e.k));
+    this.weather.length = 0;
+    const p = this.player;
+    p.x = clamp(p.x, 5 * TILE, 51 * TILE); p.y = 18 * TILE;
+    p.body.vx = p.body.vy = 0; p.lastSafe = { x: p.x, y: p.y };
+    p.weaponFlight = null;
+    for (const e of this.ents) {
+      if (e.isFoe || e.team === 'enemy' || e.team === 'player') e.remove = true;
+      else { e.x = clamp(e.x, 4 * TILE, 52 * TILE); if (e.y > 18 * TILE) e.y = 17 * TILE; }
+    }
+    for (const e of this.echoes) {
+      e.x = clamp(p.x - p.face * (20 + e.slot * 18), 4 * TILE, 52 * TILE); e.y = p.y;
+      e.body.vx = e.body.vy = 0;
+    }
+    this.ensureCaches();
+    if (wave > 1) G.ui.banner('THE ARENA SHIFTS', `${this.room.name} · waves ${this.arenaSector * 10 + 1}–${this.arenaSector * 10 + 10}`, 'chapter');
+    return true;
   }
 
   private spawnDef(e: EntDef) {
@@ -738,7 +773,8 @@ export class World {
     this.spawnLoot(e.cx, e.cy, loot, true);
     G.save.ce = Math.min(G.d.maxCe, G.save.ce + (flag('relic_taken') ? 5 : 0));
     this.addRally(6);
-    for (const ec of this.echoes) ec.gainXp(3);
+    const echoXp = Math.min(160, Math.max(4, Math.round(Math.sqrt(Math.max(1, xp)) * 1.5)));
+    for (const ec of this.echoes) if (!ec.remove && ec.hp > 0 && ec.despawn <= 0 && ec.tempT <= 0) ec.gainXp(echoXp);
     G.ui.refreshHud();
     if (this.priorityTarget === e) this.priorityTarget = null;
     this.story.onKill(e);
@@ -1629,10 +1665,14 @@ export class World {
     this.cache?.draw(ctx, v);
     drawLiquids(ctx, this.grid, G.time, v, this.room.biome);
     drawLiveProps(ctx, this.lights, G.time, v, this.cond, false);
-    drawLiveProps(ctx, this.room.ents.filter((e) => e.t === 'decor' && LIVE_DECOR.has(e.k)), G.time, v, this.cond, false);
+    drawLiveProps(ctx, this.liveDecor, G.time, v, this.cond, false);
     drawGate(ctx, this.grid, this.gateAmt);
     // entities by layer
-    const list: Entity[] = [...this.ents, ...this.echoes, this.player];
+    const list = this.drawList;
+    list.length = 0;
+    for (const e of this.ents) if (!e.remove) list.push(e);
+    for (const e of this.echoes) if (!e.remove) list.push(e);
+    list.push(this.player);
     list.sort((a, b) => a.layer - b.layer);
     for (const e of list) {
       if (e.x < v.x - 260 || e.x > v.x + v.w + 260) continue;

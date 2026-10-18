@@ -20,9 +20,9 @@ import { SENT_CLIPS, SENT_BASE, SENT_DIMS, ARCH_CLIPS, ARCH_BASE, ARCH_DIMS, sen
 import { BRUTE_CLIPS, BRUTE_BASE, BRUTE_DIMS, BULW_CLIPS, BULW_BASE, BULW_DIMS, bruteStyle, bulwarkStyle, knightEchoStyle, marshalStyle } from './tanks';
 import { LOCUST_DIMS, locustStyle, drawLocustWings, drawLocustHead, drawLocustScythes } from './locusts';
 import { drawLion, newLionPose } from './babylon';
-import { ECHO_SPECIES, defaultEchoRole, echoRole, echoXpToNext, type EchoInst, type EchoOrder, type EchoRole } from './data';
+import { ECHO_SPECIES, defaultEchoRole, echoRole, type EchoInst, type EchoOrder, type EchoRole } from './data';
 import { tickEchoRole, drawEchoRole, echoSpot } from './echoRoles';
-import { echoAtk, echoMaxHp, skillRank } from './state';
+import { echoAtk, echoMaxHp, gainEchoXp, skillRank } from './state';
 import { Proj } from './projectiles';
 import { lighting } from '../render/lighting';
 
@@ -741,12 +741,9 @@ export class EchoUnit extends Entity {
 
   gainXp(n: number) {
     const mult = skillRank(G.save, 'c_glory') ? 1.6 : 1;
-    this.inst.xp += n * mult;
-    while (this.inst.xp >= echoXpToNext(this.inst.level) && this.inst.level < 30) {
-      this.inst.xp -= echoXpToNext(this.inst.level);
-      this.inst.level++;
+    if (gainEchoXp(this.inst, n * mult) > 0) {
       this.refreshStats();
-      this.hp = this.maxHp;
+      this.hp = this.inst.hp = this.maxHp;
       G.ui.toast(`${this.name} reached level ${this.inst.level}`, 'good');
       fx.holyBurst(this.x, this.y - 30, 12, 0.7);
       sfx('pickup', { pitch: 1.3 });

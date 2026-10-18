@@ -264,7 +264,7 @@ function trialArena() {
   const b = new MapBuilder(56, 22);
   b.rect(0, 0, 56, 2);
   b.rect(0, 18, 56, 4);
-  b.rect(0, 2, 2, 10).rect(54, 2, 2, 16);
+  b.rect(0, 2, 2, 16).rect(54, 2, 2, 16);
   b.plat(12, 13, 8).plat(36, 13, 8).plat(24, 9, 8);
   const ents: EntDef[] = [
     { t: 'decor', k: 'trial_ring', x: 28, y: 18, w: 14 },
@@ -280,7 +280,7 @@ function trialArena() {
     id: 'trial_arena', name: 'The Trial of the Remnant', region: 'A Proving Ground', biome: 'trial', music: 'trial',
     dark: 0.35, weather: 'motes', map: { x: 0, y: 6.5 }, seed: 467, interior: true,
     spawns: { start: { x: 4, y: 18, face: 1 } },
-    exits: [{ x: 0, y: 12, w: 1, h: 6, to: 'valley_camp', spawn: 'altar' }],
+    exits: [],
     ents,
   });
 }

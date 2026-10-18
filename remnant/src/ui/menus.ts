@@ -12,7 +12,7 @@ import { sfx, audio } from '../audio/audio';
 import { music } from '../audio/music';
 import {
   ITEMS, SLOTS, SLOT_NAMES, STAT_KEYS, STAT_INFO, MOD_LABEL, RARITY_COLORS, RARITY_NAMES, TREES, SKILLS, ABILITIES,
-  ECHO_SPECIES, ECHO_CLASS_INFO, ECHO_ROLES, SUPER_MOVES, echoRole, LORE, FAMILY_NAMES, echoXpToNext, xpToNext,
+  ECHO_SPECIES, ECHO_CLASS_INFO, ECHO_ROLES, SUPER_MOVES, ECHO_LEVEL_CAP, echoRole, LORE, FAMILY_NAMES, echoXpToNext, xpToNext,
   type ItemInst, type Slot, type ModKey, type AbilityId, type EchoInst, type StatKey,
 } from '../game/data';
 import {
@@ -256,7 +256,7 @@ function rarityStyle(r: number) {
 }
 
 function itemName(it: ItemInst) {
-  return ITEMS[it.id].name + (it.plus ? ` +${it.plus}` : '');
+  return ITEMS[it.id].name + (it.trialTier ? ` · Ascension ${it.trialTier}` : '') + (it.plus ? ` +${it.plus}` : '');
 }
 
 function modLines(m: Partial<Record<ModKey, number>>, cmp?: Partial<Record<ModKey, number>>) {
@@ -304,6 +304,7 @@ function equipmentTab() {
       h('hr', { class: 'rule' }),
       h('div', null, modLines(mods, !isEq && eq ? itemMods(eq) : undefined)),
       h('p', { class: 'muted', style: 'margin:8px 0 0' }, base.desc),
+      sel.trialWave ? h('p', { class: 'muted' }, `Earned at Trial wave ${sel.trialWave}${sel.trialTier ? ` · +${Math.min(100, sel.trialTier) * 15}% base gear power` : ''}.`) : null,
       base.lore ? h('p', { style: 'font-style:italic;margin:6px 0 0;font-size:0.92em' }, base.lore) : null,
       !isEq && eq ? h('div', { class: 'muted', style: 'font-size:0.82em;margin-top:6px' }, `Compared with ${itemName(eq)} (equipped).`) : null,
       h('div', { style: 'display:flex;gap:8px;margin-top:10px;flex-wrap:wrap' },
@@ -496,15 +497,16 @@ function echoesTab() {
         h('div', { class: 'eyebrow' }, `${ECHO_ROLES[echoRole(sel)].name} · ${sp.stages[sel.stage].title}`),
         h('div', { class: 'muted', style: 'font-size:0.85em;margin:4px 0' }, `Original form: ${sp.stages[0].name}`),
         h('div', { class: 'kv', style: 'margin-top:4px' },
-          h('span', null, 'Level'), h('span', null, String(sel.level)),
+          h('span', null, 'Level'), h('span', null, `${sel.level} / ${ECHO_LEVEL_CAP}`),
           h('span', null, 'Health'), h('span', null, `${Math.ceil(sel.hp > 0 ? Math.min(sel.hp, maxHp) : 0)} / ${maxHp}`),
           h('span', null, 'Attack'), h('span', null, echoAtk(s, sel, d).toFixed(1)),
         ),
-        h('div', { class: 'bar', style: 'margin-top:6px' }, h('i', { style: `width:${(sel.xp / echoXpToNext(sel.level)) * 100}%` })),
+        h('div', { class: 'bar', style: 'margin-top:6px' }, h('i', { style: `width:${sel.level >= ECHO_LEVEL_CAP ? 100 : (sel.xp / echoXpToNext(sel.level)) * 100}%` })),
       )),
     h('p', { style: 'margin:8px 0 4px' }, sp.stages[sel.stage].desc),
     h('p', { style: 'margin:0 0 6px;color:var(--gold-hi)' }, ECHO_ROLES[echoRole(sel)].signature[sel.stage]),
-    h('p', { class: 'muted' }, sel.stage < 2 ? `Defeat its original form and absorb another imprint to evolve into ${sp.stages[sel.stage + 1].name}. No level or material cost. Start its rematch below.` : 'Final form reached. Further absorptions restore health and raise its level, up to 30.'),
+    h('p', { class: 'muted' }, sel.stage < 2 ? `Defeat its original form and absorb another imprint to evolve into ${sp.stages[sel.stage + 1].name}. No level or material cost. Start its rematch below.` : `Final form reached. Further absorptions restore health and raise its level, up to ${ECHO_LEVEL_CAP}.`),
+    h('p', { class: 'muted' }, 'One Echo per original form. Duplicate imprints evolve and reinforce it. Fighting, defeating foes and protecting Elior earn experience; each level increases health and attack.'),
     h('h3', null, 'Combat role'),
     h('div', { class: 'echo-roles' }, Object.entries(ECHO_ROLES).map(([id, role]) => btn([img(role.icon, role.color), h('span', null, role.name)], () => {
       sel.role = id as keyof typeof ECHO_ROLES;
@@ -845,7 +847,7 @@ function settingsTab() {
     h('div', { class: 'box' }, h('h3', null, 'Display'),
       row('Art style', 'Pixel draws the world as crisp pixel art.', seg(st.artStyle ?? 'pixel', [['pixel', 'Pixel'], ['smooth', 'Smooth']], (v) => { st.artStyle = v; setTimeout(() => G.renderer.resize(), 0); }, 'art')),
       row('Graphics quality', 'Auto lowers resolution if frames drop.', seg(st.quality, [['auto', 'Auto'], ['high', 'High'], ['medium', 'Medium'], ['low', 'Low']], (v) => { st.quality = v; G.renderer.autoPenalty = 0; setTimeout(() => G.renderer.resize(), 0); }, 'q')),
-      row('Frame rate', 'Auto runs at your display\'s rate (120 Hz ProMotion). 60 saves battery.', seg(st.fps, [['auto', 'Auto'], ['60', '60 FPS']], (v) => (st.fps = v), 'fps')),
+      row('Frame rate', '60 FPS targets steady frame pacing. Auto follows your display’s refresh rate.', seg(st.fps, [['auto', 'Auto'], ['60', '60 FPS']], (v) => (st.fps = v), 'fps')),
       row('Camera distance', '', seg(st.zoom, [['close', 'Close'], ['normal', 'Normal'], ['wide', 'Wide']], (v) => { st.zoom = v; setTimeout(() => G.renderer.resize(), 0); }, 'z')),
       row('Show frame rate', '', toggle(st.showFps, (v) => (st.showFps = v), 'sf')),
     ),

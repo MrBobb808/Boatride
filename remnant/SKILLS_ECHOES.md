@@ -10,7 +10,7 @@ All supers use the existing battle-earned gauge. Choose Rally the Remnant for ar
 
 ## Echo roles and evolution
 
-Every owned Echo can freely choose one of six roles from its detail card. Its original creature silhouette, identity, level, order, and evolution remain. Small colored role emblems and caster orbs identify the new jobs. Signatures have independent cooldowns; role changes cannot reset a running cooldown. Echoes gain improved health and damage and scale with hero level up to effective Echo level thirty.
+Every owned Echo can freely choose one of six roles from its detail card. Its original creature silhouette, identity, level, order, and evolution remain. Small colored role emblems and caster orbs identify the new jobs. Signatures have independent cooldowns; role changes cannot reset a running cooldown. Echoes gain improved health and damage, keep a hero-level assistance bonus, and earn their own combat levels up to 100. Every earned level raises health and attack, including when the hero is much stronger.
 
 | Role | Behavior | Evolution additions |
 | --- | --- | --- |
@@ -23,7 +23,7 @@ Every owned Echo can freely choose one of six roles from its detail card. Its or
 
 Defaults: Sentinel → Guardian; Archer → Mage; Bulwark → Healer; Knight/Marshal/Locust King → Ninja; Brute/Lion → Fighter. Every role is selectable on every Echo. Heavy enemies and bosses retain their resistance to displacement.
 
-Choose **Rematch original form** on an Echo's card to enter an unranked, escalating series against its actual original creature. The Marshal and Locust King use their real boss encounters. Defeats earn matching imprints, saved until absorbed in Menu → Echoes. Matching bosses in the standard Boss Gauntlet also award their imprints. First absorption recruits; repeating a matching form advances the same Echo immediately to Stage II and then III, with no material or level requirement. Further absorptions heal and raise Echo level up to thirty. Existing duplicate roster entries and their stages are preserved. Rematches do not change campaign completion, quests, or ranked gauntlet records.
+Choose **Rematch original form** on an Echo's card to enter an unranked, escalating series against its actual original creature. The Marshal and Locust King use their real boss encounters. Defeats earn matching imprints, saved until absorbed in Menu → Echoes. Matching bosses in the standard Boss Gauntlet also award their imprints. First absorption recruits; repeating a matching form advances the same Echo immediately to Stage II and then III, with no material or level requirement. Further absorptions heal and raise Echo level up to 100. Older duplicate roster entries merge once by species, combining lifetime experience and absorptions, advancing evolution and adding reinforcement experience. The first active identity, role and nickname take priority; commander status and all squad/formation references are preserved. The migrated roster is saved immediately. Rematches do not change campaign completion, quests, or ranked gauntlet records.
 
 Save additions are optional: equippedSuper, echoImprints, EchoInst.role, and EchoInst.absorptions. Migration fills older saves; New Game+ carries these choices forward. No new runtime dependencies.
 
