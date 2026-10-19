@@ -44,23 +44,25 @@ export function moveBody(b: Body, dt: number, g: Grid, solid: SolidFn, collide =
     const top = Math.floor((b.y - b.h + EPS) / TILE);
     const bot = Math.floor((b.y - EPS) / TILE);
     if (dx > 0) {
-      const col = Math.floor((nx + b.w / 2 - EPS) / TILE);
-      for (let r = top; r <= bot; r++) {
+      const first = Math.floor((b.x + b.w / 2 - EPS) / TILE) + 1;
+      const last = Math.floor((nx + b.w / 2 - EPS) / TILE);
+      right: for (let col = first; col <= last; col++) for (let r = top; r <= bot; r++) {
         if (solid(g.get(col, r))) {
           nx = col * TILE - b.w / 2;
           b.vx = 0;
           b.wallDir = 1;
-          break;
+          break right;
         }
       }
     } else {
-      const col = Math.floor((nx - b.w / 2 + EPS) / TILE);
-      for (let r = top; r <= bot; r++) {
+      const first = Math.floor((b.x - b.w / 2 + EPS) / TILE) - 1;
+      const last = Math.floor((nx - b.w / 2 + EPS) / TILE);
+      left: for (let col = first; col >= last; col--) for (let r = top; r <= bot; r++) {
         if (solid(g.get(col, r))) {
           nx = (col + 1) * TILE + b.w / 2;
           b.vx = 0;
           b.wallDir = -1;
-          break;
+          break left;
         }
       }
     }
@@ -124,6 +126,17 @@ export function moveBody(b: Body, dt: number, g: Grid, solid: SolidFn, collide =
       }
     }
   }
+}
+
+/** Exact full-body tile test for teleports and scripted placement. Touching edges is safe. */
+export function bodyFits(b: Pick<Body, 'w' | 'h'>, g: Grid, blocked: SolidFn, x: number, y: number) {
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return false;
+  const l = Math.floor((x - b.w / 2 + EPS) / TILE);
+  const r = Math.floor((x + b.w / 2 - EPS) / TILE);
+  const top = Math.floor((y - b.h + EPS) / TILE);
+  const bot = Math.floor((y - EPS) / TILE);
+  for (let row = top; row <= bot; row++) for (let col = l; col <= r; col++) if (blocked(g.get(col, row))) return false;
+  return true;
 }
 
 /** True if the body overlaps any tile matching `pred`. */

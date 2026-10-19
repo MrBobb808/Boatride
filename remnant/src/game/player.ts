@@ -2,7 +2,7 @@
 // executions, healing, ability casting, and his evolving appearance.
 
 import { Entity, type HitInfo } from './entity';
-import { moveBody, touchesTile, los } from './physics';
+import { moveBody, touchesTile, los, bodyFits } from './physics';
 import { T } from './tiles';
 import { Animator, solve, Chain, drawRibbon, newJoints, type Joints, type Pose, BASE_POSE } from '../render/skeleton';
 import { drawHumanoid, drawTrail, type HumanStyle } from '../render/actors';
@@ -366,6 +366,12 @@ export class Player extends Entity {
     const preVy = b.vy;
     const beforeX = b.x;
     moveBody(b, dt, G.world.grid, G.world.solid);
+    // Recover old embedded positions without recording them as safe footing.
+    if (!bodyFits(b, G.world.grid, G.world.solid, b.x, b.y) && bodyFits(b, G.world.grid, G.world.solid, this.lastSafe.x, this.lastSafe.y)) {
+      b.x = this.lastSafe.x; b.y = this.lastSafe.y;
+      b.vx = b.vy = 0;
+      b.onGround = false;
+    }
     if (b.onGround && (this.state === 'free' || this.state === 'scripted')) this.spriteStride += Math.min(12, Math.abs(b.x - beforeX)) * 0.08;
     if (b.onGround) {
       if (!this.wasGround) this.onLand(preVy);
@@ -374,7 +380,7 @@ export class Player extends Entity {
       this.airDash = 1;
       this.airAttacks = 0;
       this.launchCarry = false;
-      if (!touchesTile(b, G.world.grid, (t) => t === T.Spikes || t === T.Veil, 0) && b.groundTile !== T.Collapse) {
+      if (bodyFits(b, G.world.grid, G.world.solid, b.x, b.y) && !touchesTile(b, G.world.grid, (t) => t === T.Spikes || t === T.Veil, 0) && b.groundTile !== T.Collapse) {
         this.lastSafe.x = b.x;
         this.lastSafe.y = b.y;
       }
@@ -1109,20 +1115,21 @@ export class Player extends Entity {
   }
 
   /** Check the whole body at both sides, including hazards and room boundaries. */
-  blinkSpot(target: Entity, side = sign(target.x - this.x) || this.face): { x: number; y: number } | null {
+  canPlace(x: number, y: number): boolean {
     const W = G.world;
+    if (x < this.body.w / 2 || x > W.grid.w * 16 - this.body.w / 2 || y < this.body.h || y > W.grid.h * 16) return false;
+    if (!bodyFits(this.body, W.grid, W.solid, x, y)) return false;
+    if (!bodyFits(this.body, W.grid, (t) => t === T.Spikes || t === T.Veil, x, y)) return false;
+    const floor = W.grid.get(Math.floor(x / 16), Math.floor(y / 16));
+    return floor !== T.Spikes && floor !== T.Veil && los(W.grid, W.solid, this.x, this.cy, x, y - this.body.h / 2);
+  }
+
+  blinkSpot(target: Entity, side = sign(target.x - this.x) || this.face): { x: number; y: number } | null {
     const off = target.body.w / 2 + this.body.w / 2 + 5;
     const ty = target.y;
     for (const dir of [side, -side]) {
       const tx = target.x + dir * off;
-      if (tx < this.body.w || tx > W.grid.w * 16 - this.body.w || ty < this.body.h || ty > W.grid.h * 16) continue;
-      let blocked = false;
-      for (let y = ty - this.body.h + 1; y < ty; y += 6) for (let x = tx - this.body.w / 2; x <= tx + this.body.w / 2; x += 6) {
-        const tile = W.grid.get(Math.floor(x / 16), Math.floor(y / 16));
-        if (W.solid(tile) || tile === T.Spikes || tile === T.Veil) blocked = true;
-      }
-      const floor = W.grid.get(Math.floor(tx / 16), Math.floor(ty / 16));
-      if (blocked || floor === T.Spikes || floor === T.Veil || !los(W.grid, W.solid, this.x, this.cy, tx, ty - this.body.h / 2)) continue;
+      if (!this.canPlace(tx, ty)) continue;
       return { x: tx, y: ty };
     }
     return null;
@@ -1227,6 +1234,11 @@ export class Player extends Entity {
   private updatePhantom() {
     if (this.st < 0.075) return;
     const t = this.phantomTarget;
+    if (!this.canPlace(this.phantomTo.x, this.phantomTo.y)) {
+      const safe = t && !t.remove && !t.dying ? this.blinkSpot(t) : null;
+      if (!safe) { this.setState('free'); return; }
+      this.phantomTo = safe;
+    }
     this.x = this.phantomTo.x;
     this.y = this.phantomTo.y;
     this.body.vx = this.body.vy = 0;
@@ -1249,11 +1261,11 @@ export class Player extends Entity {
     this.phantomStruck.clear();
     if (t) {
       const side = sign(this.x - t.x) || -this.face;
-      const tx = t.x + side * (t.body.w / 2 + 14);
-      if (!G.world.solidAt(tx, t.y - 10) && !G.world.solidAt(tx, t.y - 30)) {
-        fx.streak(this.x, this.y - 20, tx, t.y - 24, '#fff6dc', 0.25, 4);
-        this.x = tx;
-        this.y = t.y;
+      const spot = this.blinkSpot(t, side);
+      if (spot) {
+        fx.streak(this.x, this.y - 20, spot.x, spot.y - 24, '#fff6dc', 0.25, 4);
+        this.x = spot.x;
+        this.y = spot.y;
       }
       this.face = sign(t.x - this.x) || this.face;
     }
@@ -1324,7 +1336,7 @@ export class Player extends Entity {
         fx.ring(e.x, e.cy, 4, 34, '#ffe6a8', 0.3, 3);
       }
       // per-hit feedback
-      G.save.ce = Math.min(d.maxCe, G.save.ce + (flag('relic_taken') ? 2.4 * (skillRank(G.save, 'l_radiance') ? 1.3 : 1) : 0));
+      G.save.ce = Math.min(d.maxCe, G.save.ce + (flag('relic_taken') ? 2.4 * (1 + skillRank(G.save, 'l_radiance') * 0.3) : 0));
       G.world.addRally(1.4);
       if (a.hang && !this.body.onGround) this.body.vy = Math.min(this.body.vy, a.hang);
       if (a.finisher) G.world.echoAssist(e);

@@ -12,6 +12,7 @@ import { sfx } from '../audio/audio';
 import { rand, sign, choose } from '../core/math';
 import { lighting } from '../render/lighting';
 import { mantleMul } from './mantle';
+import { sovereignDamage } from './balance';
 
 export type Element = 'fire' | 'frost' | 'storm' | 'shadow' | 'holy' | 'blood';
 
@@ -47,8 +48,7 @@ export const isSovereign = () => (G.save?.level ?? 0) >= SOVEREIGN_LV;
 /** Outgoing damage multiplier from sheer power (on top of stats) and the Shadow Mantle. */
 export function powerDamage() {
   const lv = G.save?.level ?? 1;
-  const base = lv < SOVEREIGN_LV ? 1 : 1.5 + Math.min(1.5, (lv - SOVEREIGN_LV) * 0.01);
-  return base * mantleMul();
+  return sovereignDamage(lv) * mantleMul();
 }
 
 /** Slash colours for the current weapon and power. */

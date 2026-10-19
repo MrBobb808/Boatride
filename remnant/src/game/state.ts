@@ -8,6 +8,7 @@ import {
 } from './data';
 import { uid, randInt, rand } from '../core/math';
 import { runBlessings } from './blessings';
+import { ASCENDANT_LOOT, lootScale, waveLootPower, sovereignDamage } from './balance';
 import { masteryRank, migrateProgression, contractPrize, contractWins, type GearSetId, type ContractId, type ProgressionData } from './progression';
 
 export interface QuestState {
@@ -162,9 +163,10 @@ export function itemMods(it: ItemInst): Partial<Record<ModKey, number>> {
   for (const [k, v] of Object.entries(base.mods ?? {})) {
     const key = k as ModKey;
     const mult = v > 0 && !STAT_KEYS.includes(key as StatKey) ? (1 + it.plus * 0.14) * rarityBoost * (1 + Math.min(100, Math.max(0, it.trialTier ?? 0)) * 0.15) : 1;
-    out[key] = Math.round((v as number) * mult * 10) / 10;
+    const power = it.lootPower ? lootScale(it.lootPower, key === 'atk' || key === 'hp' || key === 'ce') : 1;
+    out[key] = Math.round((v as number) * mult * power * 10) / 10;
   }
-  for (const a of it.affixes) out[a.key] = (out[a.key] ?? 0) + a.v;
+  for (const a of it.affixes) out[a.key] = (out[a.key] ?? 0) + a.v * (it.lootPower ? lootScale(it.lootPower, false) : 1);
   return out;
 }
 
@@ -236,35 +238,37 @@ export function derive(s: SaveData): Derived {
   const family = wb.family ?? 'blade';
   const rank = masteryRank(s, family);
   const blade = family === 'blade' ? rank : 0, spear = family === 'spear' ? rank : 0, great = family === 'greatsword' ? rank : 0;
-  const recharge = spear >= 10 ? 1.25 : 1;
+  const recharge = (spear >= 10 ? 1.25 : 1) * (1 + Math.max(0, stats.wis - 5) * 0.012);
   const defense = m('def');
-  const drRaw = stats.end * 0.016 + defense * 0.012 + r('g_skin') * 0.05;
+  const vitality = Math.max(0, stats.vit - 5), endurance = Math.max(0, stats.end - 5);
+  const resolve = Math.max(0, stats.res - 5), level = Math.max(0, s.level - 1);
+  const incoming = Math.pow(0.94, r('g_skin')) / (1 + stats.end * 0.025 + defense * 0.04);
   return {
     stats,
-    maxHp: Math.round(80 + stats.vit * 12 + (s.level - 1) * 4 + m('hp')),
-    maxCe: Math.round(40 + stats.wis * 8 + m('ce') + r('l_lamp') * 8),
-    atk: Math.max(1, m('atk')) * (1 + stats.str * 0.06),
-    dr: Math.min(0.65, drRaw),
-    crit: Math.min(0.75, 0.05 + stats.agi * 0.008 + m('crit') / 100 + (r('w_keen') ? 0.08 : 0) + (blade >= 3 ? 0.05 : 0)),
-    critDmg: 1.5 + m('critDmg') / 100 + (r('w_keen') ? 0.25 : 0),
-    aspd: 1 + stats.agi * 0.012 + m('aspd') / 100 + (blade >= 6 ? 0.08 : 0),
+    maxHp: Math.round((80 + stats.vit * 12 + vitality * 12 + endurance * 8 + level * 10 + m('hp')) * (1 + vitality * 0.0075)),
+    maxCe: Math.round(40 + stats.wis * 12 + m('ce') + r('l_lamp') * 15),
+    atk: (Math.max(1, m('atk')) + Math.max(0, stats.str - 5) * 2 + level * 1.5) * (1 + stats.str * 0.1),
+    dr: Math.min(0.9, 1 - incoming),
+    crit: Math.min(0.9, 0.05 + stats.agi * 0.008 + m('crit') / 100 + r('w_keen') * 0.08 + (blade >= 3 ? 0.05 : 0)),
+    critDmg: 1.5 + m('critDmg') / 100 + r('w_keen') * 0.25 + (stats.agi + stats.res) * 0.01,
+    aspd: Math.min(4, 1 + stats.agi * 0.015 + m('aspd') / 100 + (blade >= 6 ? 0.08 : 0)),
     speed: 1 + m('speed') / 100 + (sets.rift >= 2 ? 0.08 : 0),
-    abil: 1 + stats.wis * 0.05 + m('abil') / 100 + r('l_lamp') * 0.1 + (spear >= 3 ? 0.15 : 0) + (sets.rift >= 2 ? 0.25 : 0),
-    ceRegen: (1 + m('ceRegen') / 100 + (spear >= 6 ? 0.3 : 0)) * (r('l_radiance') ? 1.5 : 1),
-    echoDmg: (1 + m('echoDmg') / 100 + r('c_kin') * 0.1 + (sets.legion >= 2 ? 0.3 : 0)) * runBlessings.echoes,
-    echoHp: 1 + m('echoHp') / 100 + r('c_kin') * 0.1 + (sets.legion >= 2 ? 0.25 : 0),
-    parryWin: (0.15 + stats.res * 0.004) * (1 + m('parry') / 100) * (r('g_timing') ? 1.5 : 1) * (sets.vigil >= 2 ? 1.2 : 1),
+    abil: (1 + stats.wis * 0.08 + m('abil') / 100 + (spear >= 3 ? 0.15 : 0) + (sets.rift >= 2 ? 0.25 : 0)) * (1 + r('l_lamp') * 0.25) * sovereignDamage(s.level),
+    ceRegen: (1 + m('ceRegen') / 100 + (spear >= 6 ? 0.3 : 0)) * (1 + r('l_radiance') * 0.5),
+    echoDmg: (1 + m('echoDmg') / 100 + (sets.legion >= 2 ? 0.3 : 0)) * (1 + r('c_kin') * 0.25) * (1 + resolve * 0.02) * sovereignDamage(s.level) * runBlessings.echoes,
+    echoHp: (1 + m('echoHp') / 100 + (sets.legion >= 2 ? 0.25 : 0)) * (1 + r('c_kin') * 0.25) * (1 + endurance * 0.01),
+    parryWin: Math.min(0.6, (0.15 + stats.res * 0.004) * (1 + m('parry') / 100) * (r('g_timing') ? 1.5 : 1) * (sets.vigil >= 2 ? 1.2 : 1)),
     poise: 20 + stats.end * 2 + m('poise'),
     xpMult: 1 + m('xp') / 100,
-    rallyMult: (1 + stats.res * 0.04 + m('rally') / 100),
+    rallyMult: (1 + stats.res * 0.06 + m('rally') / 100),
     lifesteal: m('lifesteal') / 100 + (blade >= 10 ? 0.03 : 0),
     family,
     weaponPlus: weapon?.plus ?? 0,
     weaponRarity: weapon?.rarity ?? 0,
     echoSlots: echoSlotsFor(s.level, s.storySlots, r('c_banner') > 0),
     defense,
-    meleeMult: (1 + r('w_edge') * 0.08) * runBlessings.weapon * (1 + rank * 0.03),
-    hpRegen: r('g_regen') * 0.005 + runBlessings.regen + (sets.vigil >= 2 ? 0.005 : 0),
+    meleeMult: (1 + r('w_edge') * 0.2) * runBlessings.weapon * (1 + rank * 0.03),
+    hpRegen: r('g_regen') * 0.0075 + runBlessings.regen + (sets.vigil >= 2 ? 0.005 : 0),
     masteryRank: rank, sets, skillRecharge: recharge,
     pursuitRecharge: recharge * (sets.rift >= 3 ? 1.75 : 1),
     heavyMult: great >= 6 ? 1.2 : 1,
@@ -321,6 +325,37 @@ export function claimTrialMilestone(s: SaveData, wave: number): ItemInst | null 
   s.inventory.push(item);
   earned.push(wave);
   return item;
+}
+
+/** Guaranteed random Legendary/Covenant gear, awarded before the wave autosave. */
+export function grantWaveLoot(s: SaveData, wave: number, random = Math.random): ItemInst {
+  const pool = wave % 5 === 0 ? ASCENDANT_LOOT.slice(0, 3) : ASCENDANT_LOOT;
+  const pick = Math.min(pool.length - 1, Math.floor(Math.max(0, random()) * pool.length));
+  const rarity: Rarity = random() < Math.min(0.6, 0.12 + wave * 0.008) ? 5 : 4;
+  const item = makeItem(pool[pick], rarity, 0, false);
+  item.lootPower = waveLootPower(s.level, wave); item.lootWave = wave; item.isNew = true;
+  const affixes = AFFIX_POOL.slice();
+  for (let n = 0; n < (rarity === 5 ? 3 : 2); n++) {
+    const index = Math.min(affixes.length - 1, Math.floor(Math.max(0, random()) * affixes.length));
+    const a = affixes.splice(index, 1)[0];
+    item.affixes.push({ key: a.key, v: Math.round(a.min + (a.max - a.min) * Math.min(1, Math.max(0, random()))) });
+  }
+  s.inventory.push(item);
+  return item;
+}
+
+export function allocateStat(s: SaveData, key: StatKey, requested = 1): number {
+  if (!STAT_KEYS.includes(key) || !Number.isSafeInteger(requested) || requested <= 0) return 0;
+  const amount = Math.min(requested, Math.max(0, Math.floor(s.statPoints)));
+  s.stats[key] += amount; s.statPoints -= amount;
+  return amount;
+}
+
+export function learnRanks(s: SaveData, id: string, requested = 1): number {
+  if (!Number.isSafeInteger(requested) || requested <= 0) return 0;
+  let learned = 0;
+  while (learned < Math.min(50, requested) && learn(s, id)) learned++;
+  return learned;
 }
 
 export function gainEchoXp(e: EchoInst, amount: number) {
@@ -458,12 +493,12 @@ export function absorbEcho(s: SaveData, species: string, d: Derived) {
 
 export function echoMaxHp(s: SaveData, e: EchoInst, d: Derived) {
   const sp = ECHO_SPECIES[e.species];
-  const level = e.level + Math.max(0, Math.min(30, Math.floor(s.level * 0.65)) - 1);
+  const level = e.level + Math.max(0, Math.floor(s.level * 0.65) - 1);
   return Math.round(sp.baseHp * (1 + (level - 1) * 0.12) * (1 + e.stage * 0.45) * d.echoHp * 1.2);
 }
 export function echoAtk(s: SaveData, e: EchoInst, d: Derived) {
   const sp = ECHO_SPECIES[e.species];
-  const level = e.level + Math.max(0, Math.min(30, Math.floor(s.level * 0.65)) - 1);
+  const level = e.level + Math.max(0, Math.floor(s.level * 0.65) - 1);
   return (sp.baseAtk * (1 + (level - 1) * 0.1) + d.atk * 0.28) * (1 + e.stage * 0.45) * d.echoDmg * 1.2;
 }
 

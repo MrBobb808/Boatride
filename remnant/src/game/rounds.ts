@@ -9,8 +9,9 @@ import { G } from './ctx';
 import { Entity } from './entity';
 import { Enemy } from './enemies';
 import { TILE, type EnemyKind } from './tiles';
-import { xpToNext, ECHO_SPECIES, ITEMS } from './data';
-import { claimTrialMilestone, claimContractReward, derive } from './state';
+import { xpToNext, ECHO_SPECIES, ITEMS, RARITY_NAMES, type ItemInst } from './data';
+import { claimTrialMilestone, claimContractReward, derive, grantWaveLoot } from './state';
+import { trialStrength } from './balance';
 import { CONTRACTS, contractTier, isContract, type ContractId } from './progression';
 import { BLESSINGS, runBlessings, type BlessingId } from './blessings';
 import { rollGear } from './world';
@@ -72,6 +73,7 @@ export class Rounds {
   private alive = 0;
   private ending = false;
   pendingBlessings: BlessingId[] = [];
+  lastWaveLoot: ItemInst | null = null;
   contract: ContractId | null = null;
   contractComplete = false;
   contractReward: string | null = null;
@@ -96,6 +98,7 @@ export class Rounds {
     this.stop(false);
     this.active = true;
     this.bossOnly = bossOnly;
+    this.lastWaveLoot = null;
     const chosen = G.save.flags.trial_contract;
     this.contract = !bossOnly && isContract(chosen) ? chosen : null;
     this.contractComplete = false;
@@ -130,6 +133,7 @@ export class Rounds {
   stop(record = true) {
     if (this.active && record && this.round > 0) this.record();
     this.active = false;
+    this.lastWaveLoot = null;
     this.contract = null;
     this.contractComplete = false;
     this.contractReward = null;
@@ -224,8 +228,12 @@ export class Rounds {
 
   private endRound() {
     const n = this.round;
+    if (n <= this.completed) return;
     const s = G.save;
     this.completed = n;
+    this.lastWaveLoot = grantWaveLoot(s, n);
+    sfx('lootRare', { vol: 0.55 });
+    G.ui.toast(`${RARITY_NAMES[this.lastWaveLoot.rarity]} · ${ITEMS[this.lastWaveLoot.id].name} · Power ${this.lastWaveLoot.lootPower} → Equipment`, 'good');
     if (this.contract && !this.contractComplete && this.contractCleared >= 5) {
       this.contractComplete = true; // Claim once, before autosave or the next UI callback.
       const prize = claimContractReward(s, this.contract);
@@ -252,8 +260,10 @@ export class Rounds {
     this.blessingAbort = new AbortController();
     const carried = runBlessings.summary();
     const award = this.contractReward && this.completed === this.from + 4 ? `Contract complete! ${this.contractReward} is saved in Equipment. Restrictions are lifted; you can continue the waves or leave through Chapters. ` : '';
+    const loot = this.lastWaveLoot;
+    const drop = loot ? `${RARITY_NAMES[loot.rarity]} reward: ${ITEMS[loot.id].name} · Power ${loot.lootPower}. Saved in Equipment; equip it from the pause menu after choosing a blessing. ` : '';
     void G.ui.choice(`Wave ${this.completed} cleared`,
-      `${award}Choose one blessing for this run. Bonuses stack up to rank 5 and reset when you leave or fall.${carried ? ` Carrying: ${carried}.` : ''}`,
+      `${award}${drop}Choose one blessing for this run. Bonuses stack up to rank 5 and reset when you leave or fall.${carried ? ` Carrying: ${carried}.` : ''}`,
       this.pendingBlessings.map(id => ({ label: BLESSINGS[id].name + (BLESSINGS[id].cap ? ` · Rank ${runBlessings.rank(id) + 1}` : ''), sub: BLESSINGS[id].desc, icon: BLESSINGS[id].icon, risk: id === 'bloodprice' })),
       'blessing', this.blessingAbort.signal).then(index => {
         if (epoch !== this.blessingEpoch || !this.active) return;
@@ -328,11 +338,11 @@ export class Rounds {
     const x = choose(lanes.length ? lanes : LANES) * TILE + rand(-12, 12);
     const flier = k === 'drone' || k === 'wisp' || k === 'vessel';
     const e = W.spawnEnemy(k, x, flier ? SKY_Y : FLOOR_Y, champion ? 'trial_champion' : null);
-    const lvScale = 1 + Math.max(0, s.level - 12) * 0.05;
-    const hpMul = (n < 10 ? 1 + 0.18 * (n - 1) : 2.62 * Math.pow(1.09, n - 10)) * lvScale * (champion ? 3 : 1);
+    const scale = trialStrength(n);
+    const hpMul = scale.hp * (champion ? 3 : 1);
     e.maxHp = e.hp = Math.round(e.maxHp * hpMul);
-    e.dmg *= Math.min(5, 1 + (n - 1) * 0.07) * Math.pow(lvScale, 0.8);
-    e.tempo = Math.min(1.4, 1 + (n - 1) * 0.012) * (this.pack ? 1.1 : 1);
+    e.dmg *= scale.damage;
+    e.tempo = scale.tempo * (this.pack ? 1.1 : 1);
     if (this.contract && !this.contractComplete) {
       const c = CONTRACTS[this.contract], tier = this.contractTier;
       e.maxHp = e.hp = Math.round(e.maxHp * c.hp * (1 + tier * 0.1));

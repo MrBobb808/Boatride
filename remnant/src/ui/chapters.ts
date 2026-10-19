@@ -57,7 +57,8 @@ export function chaptersTab(close: () => void): HTMLElement {
         btn('Leaderboard', () => openLeaderboard(), 'btn small', { 'data-k': 'tw_board' }),
       ),
       h('p', { class: 'muted' }, 'Survive round after round of foes that grow stronger, faster and more numerous. Every fifth round the Pack runs; every tenth a Champion comes. Fallen foes sometimes drop a blessing. The run ends when you fall, and runs from round 1 go on the leaderboard. Every foe pays experience scaled to your level.'),
-      h('p', { class: 'muted' }, 'Every ten cleared waves guarantees a powerful weapon or armor piece directly in Equipment, and the next sector changes the environment and platforms. Leave through Chapters when you are ready.'),
+      h('p', { class: 'muted' }, 'Every cleared wave awards a random Legendary or Covenant weapon or armor piece directly in Equipment. Every fifth wave guarantees a weapon. Higher waves and hero levels increase reward Power. Choose a blessing, then pause to equip your new gear. Enemies scale with the wave, so leveling up helps you overpower earlier rounds.'),
+      h('p', { class: 'muted' }, 'Every ten cleared waves also guarantees a milestone item, and the next sector changes the environment and platforms. Leave through Chapters when you are ready.'),
       h('div', { class: 'list trial-rewards' }, TRIAL_REWARDS.map((id, i) => {
         const wave = (i + 1) * 10, item = ITEMS[id], earned = (s.trialMilestones ?? []).includes(wave);
         return h('div', { class: 'row-item', 'data-wave': String(wave) },
