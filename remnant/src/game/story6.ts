@@ -80,6 +80,16 @@ registerGuide(() => {
 });
 
 export class Chapter6 {
+  private epoch = 0;
+  roomChanged() { this.epoch++; }
+  private bossReward(key: string, id: string, xp: number, silver: number, cores: number, fragments: number) {
+    if (flag(key)) return;
+    setFlag(key);
+    const s = G.save;
+    if (!s.inventory.some(i => i.id === id)) { const it = makeItem(id); s.inventory.push(it); G.ui.itemGet(it); }
+    s.silver += silver; addMaterial(s, 'radiant_core', cores); addMaterial(s, 'covenant_fragment', fragments);
+    G.world.giveXp(xp); G.world.autosave(true);
+  }
   constructor(private st: Story) {}
 
   // ---------------------------------------------------------------- rooms
@@ -121,14 +131,16 @@ export class Chapter6 {
       const b = G.world.boss as unknown as StormBoss | null;
       if (b) {
         b.yieldNow();
-        setTimeout(() => this.stormDefeated(b), 900);
+        const token = this.epoch;
+        setTimeout(() => { if (token === this.epoch && (G.world.boss as unknown) === b) void this.stormDefeated(b); }, 900);
       }
     }
     if (id === 'prince_throne' && s.defeated.includes('persia_prince') && !flag('ch6_prince_done')) {
       const b = G.world.boss as unknown as PersiaBoss | null;
       if (b) {
         b.yieldNow();
-        setTimeout(() => this.princeDefeated(b), 900);
+        const token = this.epoch;
+        setTimeout(() => { if (token === this.epoch && (G.world.boss as unknown) === b) void this.princeDefeated(b); }, 900);
       }
     }
     return true;
@@ -215,6 +227,7 @@ export class Chapter6 {
   }
 
   async stormDefeated(b: StormBoss) {
+    const token = this.epoch;
     const W = G.world;
     const s = G.save;
     const st = this.st;
@@ -223,16 +236,19 @@ export class Chapter6 {
     G.camera.focus = { x: b.x - 30, y: b.y - 80 };
     music.stop(1.5);
     await wait(0.8);
+    if (token !== this.epoch) return;
     await b.fall();
+    if (token !== this.epoch) return;
     input.rumble(1, 1, 600);
     if (!s.lore.includes('pet24')) s.lore.push('pet24');
     await G.ui.lore('pet24');
+    if (token !== this.epoch) return;
     await st.say([
       { who: 'narrator', text: 'The Prince of the Storm is thrown down onto the stones of the ziggurat. The wind he rode tears loose from him and goes back to being only wind.' },
       { who: 'narrator', text: 'Above the summit the clouds do not close again. Through them, impossibly, there are steps.' },
     ]);
-    W.giveXp(5200);
-    W.spawnLoot(W.player.x + W.player.face * 40, W.player.y - 30, [{ silver: 1200 }, { mat: 'radiant_core', n: 4 }, { mat: 'covenant_fragment', n: 5 }, { item: 'stormglass' }], true);
+    if (token !== this.epoch) return;
+    this.bossReward('ch6_storm_rewarded', 'stormglass', 5200, 1200, 4, 5);
     setFlag('ch6_storm_done');
     st.quest('m_persia', 3);
     W.bossActive = false;
@@ -277,6 +293,7 @@ export class Chapter6 {
   }
 
   async princeDefeated(b: PersiaBoss) {
+    const token = this.epoch;
     const W = G.world;
     const s = G.save;
     const st = this.st;
@@ -285,23 +302,28 @@ export class Chapter6 {
     G.camera.focus = { x: b.x - 30, y: b.y - 100 };
     music.stop(1.5);
     await wait(1.0);
+    if (token !== this.epoch) return;
     await st.say([
       { who: 'narrator', text: 'The prince of Persia staggers. The host around him gutters like lamps in wind. He lifts his spear again, and it is aimed past you, at the light gathering above.' },
       { who: 'persia_prince', text: 'No. Not him. Not now.' },
     ]);
+    if (token !== this.epoch) return;
     if (!s.lore.includes('dan1013')) s.lore.push('dan1013');
     await G.ui.lore('dan1013');
+    if (token !== this.epoch) return;
     await b.castDown();
+    if (token !== this.epoch) return;
     input.rumble(1, 1, 900);
     music.play('revelation', 2);
     if (!s.lore.includes('col215')) s.lore.push('col215');
     await G.ui.lore('col215');
+    if (token !== this.epoch) return;
     await st.say([
       { who: 'narrator', text: 'Where the throne stood, there is only light, and a sword lying on the clouds as if someone set it down for you.' },
       { who: 'elior', text: 'I did not throw him down. I only had to stand until help came.' },
     ]);
-    W.giveXp(7600);
-    W.spawnLoot(W.player.x + W.player.face * 40, W.player.y - 30, [{ silver: 2000 }, { mat: 'radiant_core', n: 6 }, { mat: 'covenant_fragment', n: 8 }, { item: 'twentyfirst_day' }], true);
+    if (token !== this.epoch) return;
+    this.bossReward('ch6_prince_rewarded', 'twentyfirst_day', 7600, 2000, 6, 8);
     st.quest('m_persia', 3, true);
     setFlag('ch6_prince_done');
     W.bossActive = false;
@@ -309,11 +331,14 @@ export class Chapter6 {
     G.camera.focus = null;
     G.camera.viewMultTarget = 1;
     await wait(2.4);
+    if (token !== this.epoch) return;
     W.autosave();
     await G.ui.fade(1, 1.2);
+    if (token !== this.epoch) return;
     st.cine(false);
     W.load('hiddekel_camp', 'start');
     await G.ui.fade(0, 1.0);
+    if (token !== this.epoch) return;
   }
 
   async ending() {

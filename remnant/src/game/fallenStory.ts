@@ -23,6 +23,7 @@ export class FallenStory {
   private epoch=0;private completing=false;private ownsCine=false;
   constructor(private st:Story){}
   begin(n:number){const c=FALLEN_CHAPTERS.find(c=>c.n===n);if(c)return G.world.transition(c.hub,'start');}
+  private current(token:number){if(token===this.epoch)return true;if(!this.ownsCine)this.st.cine(false);return false;}
   private cine(on:boolean){this.ownsCine=on;this.st.cine(on);}
   onEnter(id:string,first:boolean){
     this.epoch++;this.completing=false;if(this.ownsCine)this.cine(false);
@@ -37,8 +38,8 @@ export class FallenStory {
     const token=this.epoch,s=G.save;setFlag(`ch${c.n}_intro`);if(!s.altarsLit.includes(c.hub))s.altarsLit.push(c.hub);s.altar={room:c.hub,spawn:'altar'};
     this.st.quest(`m_crown${c.n}`,c.objectives.filter(o=>flag(o.flag)).length);this.st.quest(`s_crown${c.n}`,0);G.world.autosave(true);this.cine(true);G.ui.banner('CHAPTER '+c.roman,c.title,'chapter');
     const choice=await this.st.say([{who:'narrator',text:c.intro[0]},{who:'mara',text:c.intro[1]},{who:'azriel',text:c.intro[2]},{who:'elior',text:'We bring them home.',choices:[{label:'The survivors come first.'},{label:'Tell me how to break the crown.'}]}]);
-    if(token!==this.epoch)return;s.choices[`crown${c.n}`]=choice===0?'mercy':'resolve';
-    await this.st.say([{who:'azriel',text:c.tips},{who:'tobiah',text:'I will keep the road behind you. No one gets left on it.'}]);if(token!==this.epoch)return;this.cine(false);G.world.autosave(true);
+    if(!this.current(token))return;s.choices[`crown${c.n}`]=choice===0?'mercy':'resolve';
+    await this.st.say([{who:'azriel',text:c.tips},{who:'tobiah',text:'I will keep the road behind you. No one gets left on it.'}]);if(!this.current(token))return;this.cine(false);G.world.autosave(true);
   }
   onKill(e:Enemy){const c=chapterForRoom(G.world.room.id);if(!c||c.n!==7)return;const o=c.objectives.find(o=>o.id===e.elite);if(o)this.objective(c,o.id);}
   private objective(c:FallenChapter,id:string){
@@ -59,7 +60,7 @@ export class FallenStory {
     this.refresh(c);if(!flag(`ch${c.n}_boundary_open`)){G.ui.toast('Complete both objectives before entering the throne.','warn');return;}
     const W=G.world,b=W.boss as FallenMonarch|null,token=this.epoch;if(!b||b.key!==c.boss||b.state!=='dormant')return;
     W.bossActive=true;W.closeGate(true);W.player.body.vx=0;this.cine(true);G.camera.focus={x:b.x-90,y:b.y-65};G.camera.viewMultTarget=1.2;
-    await this.st.say(c.challenge.map((text,i)=>({who:i%2?'elior':c.name,text})));if(token!==this.epoch||W.boss!==b)return;this.ownsCine=false;b.awaken();
+    await this.st.say(c.challenge.map((text,i)=>({who:i%2?'elior':c.name,text})));if(!this.current(token)||W.boss!==b)return;this.ownsCine=false;b.awaken();
   }
   bossDefeated(b:FallenMonarch){const c=FALLEN_CHAPTERS.find(c=>c.boss===b.key);if(c)return this.complete(c);}
   private async complete(c:FallenChapter){
@@ -68,8 +69,8 @@ export class FallenStory {
     // Commit rewards and progress before any awaited dialogue. Reloads cannot duplicate them.
     if(!flag(`ch${c.n}_rewarded`)){setFlag(`ch${c.n}_rewarded`);for(const id of c.rewards)if(!s.inventory.some(i=>i.id===id)){const it=makeItem(id);s.inventory.push(it);G.ui.itemGet(it);}s.silver+=c.n===7?3000:4000;addMaterial(s,'radiant_core',c.n);addMaterial(s,'covenant_fragment',c.n+1);W.giveXp(c.n===7?10000:13000);}
     if(!s.defeated.includes(c.boss))s.defeated.push(c.boss);this.st.quest(`m_crown${c.n}`,2,true);setFlag(`ch${c.n}_done`);G.d=derive(s);G.camera.focus=null;G.camera.viewMultTarget=1;W.autosave(true);
-    await this.st.say(c.ending.map((text,i)=>({who:['narrator','elior','mara'][i],text})));if(token!==this.epoch)return;
-    this.cine(false);const next=await G.ui.chapterEnd(c.n);if(token!==this.epoch)return;if(next==='next'&&c.n===7)await this.begin(8);else await W.transition(c.hub,'altar');
+    await this.st.say(c.ending.map((text,i)=>({who:['narrator','elior','mara'][i],text})));if(!this.current(token))return;
+    this.cine(false);const next=await G.ui.chapterEnd(c.n);if(!this.current(token))return;if(next==='next'&&c.n===7)await this.begin(8);else await W.transition(c.hub,'altar');
   }
   async talk(n:Npc){
     const c=chapterForRoom(G.world.room.id);if(!c||n.kind==='dov'||n.kind==='ilan')return false;const s=G.save;

@@ -271,7 +271,7 @@ export class World {
         return;
       case 'boss':
         // The beaten Image stays on its dais until the stone falls (the story finishes it).
-        if (s.defeated.includes(e.k) && !(e.k === 'golden_image' && !flag('ch4_image_done')) && !(e.k === 'weigher' && !flag('ch5_weigher_done')) && !(e.k === 'storm_prince' && !flag('ch6_storm_done')) && !(e.k === 'persia_prince' && !flag('ch6_prince_done'))) return;
+        if (s.defeated.includes(e.k) && !(e.k === 'golden_image' && !flag('ch4_image_done')) && !(e.k === 'weigher' && !flag('ch5_weigher_done')) && !(e.k === 'storm_prince' && !flag('ch6_storm_done')) && !(e.k === 'persia_prince' && !flag('ch6_prince_done')) && !(e.k === 'storm_prince' && !flag('ch6_storm_done')) && !(e.k === 'persia_prince' && !flag('ch6_prince_done'))) return;
         this.boss = e.k === 'gatekeeper' ? new Gatekeeper(x, y) : e.k === 'marshal' ? new Marshal(x, y) : e.k === 'locust_king' ? new LocustKing(x, y) : e.k === 'golden_image' ? new GoldenImage(x, y) : e.k === 'weigher' ? new Weigher(x, y) : e.k === 'storm_prince' ? new StormPrince(x, y) : e.k === 'persia_prince' ? new PersiaPrince(x, y) : e.k === 'beast_monarch' ? new BeastMonarch(x,y) : e.k === 'plague_monarch' ? new PlagueMonarch(x,y) : new Idol(x, y);
         this.add(this.boss);
         return;

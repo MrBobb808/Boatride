@@ -133,6 +133,7 @@ export class Story {
   // ---------------------------------------------------------------- room entry
   onEnter(id: string, first: boolean) {
     const s = G.save;
+    this.ch6.roomChanged();
     if (this.fallen.onEnter(id, first)) return;
     if (this.ch3.onEnter(id, first)) return;
     if (this.ch4.onEnter(id, first)) return;

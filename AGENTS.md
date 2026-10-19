@@ -138,9 +138,13 @@ up next starts from the latest version.
 
 ## Where the story stands
 
-Chapters I–VI are complete, each with a chapter-end screen. The Chapter VI
-end screen says Chapter VII is in development: Daniel 10:20 promises "the
-prince of Grecia" next. The Trial of the Remnant
+Chapters I–VIII are implemented, each with a chapter-end screen. Chapter VI
+continues into the original Fallen Crown campaigns: VII, The Crown of the Hunt
+(Varkhos), and VIII, The Crown of Pestilence (Morvane). Their room definitions,
+quests and story wiring are in game/fallenChapters.ts and game/fallenStory.ts;
+the bosses are in game/fallenBosses.ts and use the PNG atlases through
+render/fallenArt.ts. Cinders is a future chapter, not implemented yet. See
+remnant/FALLEN_CHAPTERS.md for mechanics and verification. The Trial of the Remnant
 (`trial_arena`) is an endless Zombies-style rounds mode (`game/rounds.ts`) with
 a Game Over card and leaderboard (`game/board.ts`, `ui/leaderboard.ts`); it is
 also the endless way to level 100 and beyond.
