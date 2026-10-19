@@ -247,7 +247,7 @@ export function derive(s: SaveData): Derived {
     stats,
     maxHp: Math.round((80 + stats.vit * 12 + vitality * 12 + endurance * 8 + level * 10 + m('hp')) * (1 + vitality * 0.0075)),
     maxCe: Math.round(40 + stats.wis * 12 + m('ce') + r('l_lamp') * 15),
-    atk: (Math.max(1, m('atk')) + Math.max(0, stats.str - 5) * 2 + level * 1.5) * (1 + stats.str * 0.1),
+    atk: (Math.max(1, m('atk')) * (1 + level * 0.15) + Math.max(0, stats.str - 5) * 2) * (1 + stats.str * 0.1),
     dr: Math.min(0.9, 1 - incoming),
     crit: Math.min(0.9, 0.05 + stats.agi * 0.008 + m('crit') / 100 + r('w_keen') * 0.08 + (blade >= 3 ? 0.05 : 0)),
     critDmg: 1.5 + m('critDmg') / 100 + r('w_keen') * 0.25 + (stats.agi + stats.res) * 0.01,

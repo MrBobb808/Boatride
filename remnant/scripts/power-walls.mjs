@@ -76,8 +76,9 @@ try {
     const health = e.hp; p.activeHits(p.moves.combo[0], 1);
     const damage = health - e.hp, normalHits = Math.ceil(health / Math.max(1, damage));
     R.spawned = 1; R.spawnOne(); const champion = R.foes.at(-1);
-    const nonCrit = G.d.atk * p.moves.combo[0].dmg * G.d.meleeMult * 2.75;
-    const championHits = Math.ceil(champion.maxHp / nonCrit);
+    W.ents = [champion]; champion.x = 265; champion.y = 288; champion.face = 1; champion.invuln = 0;
+    p.atkHit.clear(); const championHealth = champion.hp; p.activeHits(p.moves.combo[0], 1);
+    const championHits = Math.ceil(championHealth / Math.max(1, championHealth - champion.hp));
     const hp = G.d.maxHp, incoming = high.damage * (1 - G.d.dr);
     Math.random = originalRandom; R.stop(false);
     return { low, high, normalHits, championHits, hp, incoming, attack: G.d.atk, ability: G.d.abil };

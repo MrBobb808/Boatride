@@ -2,7 +2,7 @@
 
 Survival enemy health, damage and tempo now depend on wave number, not hero level. Wave 30 no longer secretly becomes harder when Elior levels up. Boss Gauntlet keeps its separate entry-strength rules.
 
-Each hero level contributes 10 base health and 1.5 base attack. Strength adds base attack as well as a larger multiplier; Vitality multiplies total health; Endurance improves health, mitigation and Echo durability; Resolve improves critical damage, supers and Echo damage; Wisdom improves energy, ability damage and skill recharge. Agility improves critical damage in addition to speed and chance. Damage reduction caps at 90%, critical chance at 90%, attack speed at ×4 and parry timing at 600 ms.
+Each hero level contributes 10 base health and +15% equipment attack. Level growth scales equipment so stronger weapons retain their value even at very high levels. Strength adds base attack as well as a larger multiplier; Vitality multiplies total health; Endurance improves health, mitigation and Echo durability; Resolve improves critical damage, supers and Echo damage; Wisdom improves energy, ability damage and skill recharge. Agility improves critical damage in addition to speed and chance. Damage reduction caps at 90%, critical chance at 90%, attack speed at ×4 and parry timing at 600 ms.
 
 Honed Edge, Kinship and Lamp of the Word now support 50 ranks. Their bonuses multiply with stats and equipment. Iron Skin supports 20 ranks; Regeneration, Radiance and Keen Eye support 10. Previously spent points and learned ranks remain intact and receive the new effects. Character and Passive Skills offer 1/5/10/25/50-point batches. Character shows the result before spending; both screens save immediately. Prerequisites, point budgets and rank limits still apply.
 

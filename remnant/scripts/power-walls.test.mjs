@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
 import ts from 'typescript';
 const cache = new Map();
@@ -13,8 +14,9 @@ function load(file) {
   vm.runInNewContext(code, { exports, Date, Math, performance, crypto: globalThis.crypto, require: p => load(resolve(dirname(file), p + '.ts')) }, { filename: file });
   return exports;
 }
-const S = load('src/game/state.ts'), B = load('src/game/balance.ts');
-const P = load('src/game/physics.ts'), { Grid, T } = load('src/game/tiles.ts');
+const root = fileURLToPath(new URL('../', import.meta.url));
+const S = load(resolve(root, 'src/game/state.ts')), B = load(resolve(root, 'src/game/balance.ts'));
+const P = load(resolve(root, 'src/game/physics.ts')), { Grid, T } = load(resolve(root, 'src/game/tiles.ts'));
 test('level 150 grows stronger without increasing wave strength; invested stats have large effects', () => {
   const s = S.newGame(), base = S.derive(s);
   s.level = 150; const high = S.derive(s);
@@ -43,6 +45,15 @@ test('bulk passive learning respects prerequisites, budgets and rank limits', ()
   s.skillPoints = 1; assert.equal(S.learnRanks(s, 'w_keen', 10), 1);
   assert.equal(s.skillPoints, 0); assert.equal(S.learnRanks(s, 'w_keen', 10), 0);
 });
+test('equipment upgrades retain their damage advantage at high hero levels', () => {
+  const s = S.newGame(), weapon = S.makeItem('trial_reaver', 3, 0, false);
+  s.inventory.push(weapon);
+  for (const level of [50, 150, 500]) {
+    s.level = level; const oldUid = s.equipment.weapon, starter = S.derive(s).atk;
+    s.equipment.weapon = weapon.uid; assert.ok(S.derive(s).atk > starter * 3);
+    s.equipment.weapon = oldUid;
+  }
+});
 test('random wave gear covers every slot, has unique affixes, scales and survives migration', () => {
   const s = S.newGame(); s.level = 150;
   const ids = new Set();
@@ -55,7 +66,8 @@ test('random wave gear covers every slot, has unique affixes, scales and survive
   const first = S.grantWaveLoot(s, 5, () => .5), later = S.grantWaveLoot(s, 30, () => .5);
   assert.equal(first.id, 'ascendant_spear'); assert.equal(later.id, first.id);
   assert.ok(later.lootPower > first.lootPower); assert.ok(S.itemMods(later).atk > S.itemMods(first).atk * 2);
-  const legacy = s.inventory[0], before = JSON.stringify(S.itemMods(legacy));
+  const legacy = S.makeItem('trial_reaver', 3, 0, false); s.inventory.unshift(legacy);
+  const before = JSON.stringify(S.itemMods(legacy));
   const points = [s.statPoints, s.skillPoints], saved = JSON.parse(JSON.stringify(s)); S.migrateSave(saved);
   assert.equal(JSON.stringify(S.itemMods(saved.inventory[0])), before);
   assert.deepEqual([saved.statPoints, saved.skillPoints], points);
