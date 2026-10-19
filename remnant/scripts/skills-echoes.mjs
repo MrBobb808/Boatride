@@ -27,7 +27,7 @@ async function boot(context) {
   await page.evaluate(() => {
     const s = window.__remnant.G.save;
     s.flags.intro_done = true; s.flags.relic_taken = true; s.flags.phantom = true;
-    s.level = 50; s.skillPoints = 9; s.abilities = ['sword_word', 'trumpet'];
+    s.level = 50; s.skillPoints = 19; s.abilities = ['sword_word', 'trumpet'];
     s.equippedSkills = ['sword_word', 'trumpet', null];
     delete s.equippedSuper; delete s.echoImprints;
     localStorage.setItem('remnant-save-2', JSON.stringify(s));
@@ -51,7 +51,7 @@ try {
   await page.locator('[data-k=ls_1]').click(); await page.locator('[data-k=ab_blink_strike]').click();
   assert.deepEqual(await page.evaluate(() => window.__remnant.G.save.equippedSkills), ['trumpet', 'blink_strike', null]);
   await page.locator('[data-k=ls_2]').click(); await page.locator('[data-k=ab_mending_light]').click();
-  await page.locator('[data-k=learn_regen]').click(); await page.locator('[data-k=learn_regen]').click(); await page.locator('[data-k=learn_regen]').click();
+  for (let rank = 0; rank < 10; rank++) await page.locator('[data-k=learn_regen]').click();
   assert.ok(await page.locator('[data-k=learn_regen]').isDisabled());
   await page.screenshot({ path: 'qa/skills-catalog-desktop.png' });
   await page.locator('[data-k=skills_supers]').click();

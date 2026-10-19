@@ -17,7 +17,7 @@ import {
 } from '../game/data';
 import {
   derive, getItem, itemMods, upgradeCost, MAX_PLUS, hasMaterials, payMaterials, makeItem, canLearn, learn, skillRank,
-  echoMaxHp, echoAtk, addMaterial, equipAbility, unlockCombatSkills, COMBAT_UNLOCKS,
+  echoMaxHp, echoAtk, addMaterial, equipAbility, unlockCombatSkills, COMBAT_UNLOCKS, allocateStat, learnRanks,
 } from '../game/state';
 import { QUESTS } from '../game/story';
 import { ROOMS, chapterOf } from '../game/rooms';
@@ -46,6 +46,12 @@ let tab = 'character';
 let bodyEl: HTMLElement;
 let tabsEl: HTMLElement;
 let skillsPage: 'abilities' | 'supers' | 'training' = 'abilities';
+let pointBatch = 1;
+function pointBatchPicker() {
+  return h('div', { class: 'modes', style: 'flex-wrap:wrap;margin:8px 0' },
+    h('span', { class: 'muted', style: 'align-self:center' }, 'Spend at once:'),
+    [1, 5, 10, 25, 50].map((n) => btn(String(n), () => { pointBatch = n; render(); }, 'btn small' + (pointBatch === n ? ' primary' : ''), { 'data-k': 'points_' + n, 'aria-pressed': String(pointBatch === n) })));
+}
 
 export const isMenuOpen = () => !!menuEl || !!shopEl;
 
@@ -173,10 +179,21 @@ function render() {
 function characterTab() {
   const s = G.save;
   const d = G.d;
+  const amount = Math.min(pointBatch, s.statPoints);
+  const preview = (k: StatKey) => {
+    if (!amount) return '';
+    const next = derive({ ...s, stats: { ...s.stats, [k]: s.stats[k] + amount } });
+    const pair = (label: string, a: number, b: number, unit = '') => `${label} ${a.toFixed(1)}${unit} → ${b.toFixed(1)}${unit}`;
+    return k === 'vit' ? pair('HP', d.maxHp, next.maxHp) : k === 'str' ? pair('Attack', d.atk, next.atk) :
+      k === 'agi' ? pair('Attack speed', d.aspd, next.aspd, '×') + ' · ' + pair('Crit', d.crit * 100, next.crit * 100, '%') :
+      k === 'end' ? pair('HP', d.maxHp, next.maxHp) + ' · ' + pair('Reduction', d.dr * 100, next.dr * 100, '%') :
+      k === 'res' ? pair('Echo damage', d.echoDmg, next.echoDmg, '×') + ' · ' + pair('Super charge', d.rallyMult, next.rallyMult, '×') :
+      pair('Ability power', d.abil, next.abil, '×') + ' · ' + pair('Energy', d.maxCe, next.maxCe);
+  };
   const rows = STAT_KEYS.map((k) => h('div', { class: 'stat-row' },
-    h('div', null, h('div', { class: 'nm' }, STAT_INFO[k].name), h('div', { class: 'ds' }, STAT_INFO[k].desc)),
+    h('div', null, h('div', { class: 'nm' }, STAT_INFO[k].name), h('div', { class: 'ds' }, STAT_INFO[k].desc), amount ? h('div', { class: 'ds up', 'data-k': 'preview_' + k }, preview(k)) : null),
     h('div', { class: 'val' }, String(d.stats[k]), d.stats[k] !== s.stats[k] ? h('span', { class: 'up', style: 'font-size:0.7em;margin-left:4px' }, `(${s.stats[k]}+${d.stats[k] - s.stats[k]})`) : null),
-    btn('+', () => { spendStat(k); }, 'btn plus', { disabled: s.statPoints <= 0, 'data-k': 'st_' + k, 'aria-label': 'Raise ' + STAT_INFO[k].name }),
+    btn('+' + (amount || 1), () => { spendStat(k); }, 'btn plus', { disabled: s.statPoints <= 0, 'data-k': 'st_' + k, 'aria-label': 'Raise ' + STAT_INFO[k].name + ' by ' + amount }),
   ));
   rows.push(h('div', { class: 'stat-row' }, h('div', null, h('div', { class: 'nm' }, 'Covenant Energy'), h('div', { class: 'ds' }, flag('relic_taken') ? 'Fuels abilities. Grows with Wisdom.' : 'Dormant. Something in the temple may wake it.')), h('div', { class: 'val' }, flag('relic_taken') ? String(d.maxCe) : '—'), h('span')));
   rows.push(h('div', { class: 'stat-row' }, h('div', null, h('div', { class: 'nm' }, 'Summon Capacity'), h('div', { class: 'ds' }, 'Echoes that can fight beside you at once. Grows with the story and the Commander tree.')), h('div', { class: 'val' }, String(d.echoSlots)), h('span')));
@@ -191,6 +208,8 @@ function characterTab() {
     'Attack speed', '×' + d.aspd.toFixed(2),
     'Move speed', '×' + d.speed.toFixed(2),
     'Ability power', '×' + d.abil.toFixed(2),
+    'Skill recharge', '×' + d.skillRecharge.toFixed(2),
+    'Melee skill bonus', '×' + d.meleeMult.toFixed(2),
     'Parry window', (d.parryWin * 1000).toFixed(0) + ' ms',
     'Super charge rate', '×' + d.rallyMult.toFixed(2),
     'Echo damage', '×' + d.echoDmg.toFixed(2),
@@ -209,7 +228,8 @@ function characterTab() {
         btn('Character board', () => openCharacterBoard(), 'btn small', { 'data-k': 'elior_board' }),
         h('div', { class: 'muted', style: 'font-size:0.9em;margin-bottom:6px' }, `Experience ${Math.floor(s.xp)} / ${xpToNext(s.level)} · Points to spend: `, h('b', { style: 'color:var(--gold-hi)' }, String(s.statPoints))),
         h('div', { class: 'bar', style: 'margin-bottom:8px' }, h('i', { style: `width:${(s.xp / xpToNext(s.level)) * 100}%` })),
-        rows,
+        h('p', { class: 'muted', style: 'font-size:0.85em' }, 'Every level adds 10 base health and +15% equipment attack. Sovereign damage keeps growing after level 100.'),
+        pointBatchPicker(), rows,
       ),
       h('div', { class: 'col', style: 'flex:1;min-width:220px' },
         h('div', { class: 'box' }, h('h3', null, 'Derived'), derived),
@@ -241,12 +261,12 @@ function openCharacterBoard() {
 
 function spendStat(k: StatKey) {
   const s = G.save;
-  if (s.statPoints <= 0) return;
-  s.statPoints--;
-  s.stats[k]++;
   const before = G.d.maxHp;
+  if (!allocateStat(s, k, pointBatch)) return;
   G.d = derive(s);
-  if (k === 'vit') s.hp += G.d.maxHp - before;
+  s.hp = Math.min(G.d.maxHp, s.hp + Math.max(0, G.d.maxHp - before));
+  for (const echo of G.world.echoes) echo.refreshStats();
+  G.world.autosave(true);
   sfx('uiConfirm');
   render();
 }
@@ -261,7 +281,7 @@ function rarityStyle(r: number) {
 }
 
 function itemName(it: ItemInst) {
-  return ITEMS[it.id].name + (it.trialTier ? ` · Ascension ${it.trialTier}` : '') + (it.plus ? ` +${it.plus}` : '');
+  return ITEMS[it.id].name + (it.lootPower ? ` · Power ${it.lootPower}` : '') + (it.trialTier ? ` · Ascension ${it.trialTier}` : '') + (it.plus ? ` +${it.plus}` : '');
 }
 
 function modLines(m: Partial<Record<ModKey, number>>, cmp?: Partial<Record<ModKey, number>>) {
@@ -315,6 +335,7 @@ function equipmentTab() {
         h('p', { class: G.d.sets[base.set] >= 3 ? 'up' : 'muted' }, `3 pieces: ${GEAR_SETS[base.set].three}`),
       ) : null,
       sel.trialWave ? h('p', { class: 'muted' }, `Earned at Trial wave ${sel.trialWave}${sel.trialTier ? ` · +${Math.min(100, sel.trialTier) * 15}% base gear power` : ''}.`) : null,
+      sel.lootWave ? h('p', { class: 'up' }, `Wave ${sel.lootWave} reward · Power ${sel.lootPower}. Greater Power increases this item's stats. Equip it to gain the bonus.`) : null,
       base.lore ? h('p', { style: 'font-style:italic;margin:6px 0 0;font-size:0.92em' }, base.lore) : null,
       !isEq && eq ? h('div', { class: 'muted', style: 'font-size:0.82em;margin-top:6px' }, `Compared with ${itemName(eq)} (equipped).`) : null,
       h('div', { style: 'display:flex;gap:8px;margin-top:10px;flex-wrap:wrap' },
@@ -368,17 +389,21 @@ function skillsTab() {
     return h('div', { class: 'tree' }, h('h3', { style: `color:${t.color}` }, t.name), h('p', null, t.blurb), grid);
   }));
   const rk = skillRank(s, node.id);
+  const ranksToLearn = Math.max(0, Math.min(pointBatch, node.ranks - rk, Math.floor(s.skillPoints / node.cost)));
   const reqText = node.req.length ? 'Requires ' + node.req.map((r) => SKILLS.find((x) => x.id === r)!.name).join(node.row === 3 ? ' and ' : ' or ') : 'No prerequisite';
   const detail = h('div', { class: 'box' },
     h('div', { class: 'title-text' }, node.name), h('div', { class: 'eyebrow' }, `${TREES.find((t) => t.id === node.tree)!.name} · Rank ${rk}/${node.ranks} · Cost ${node.cost}`),
     h('p', { style: 'margin:6px 0' }, node.desc),
     node.grants ? h('p', { style: 'font-style:italic;font-size:0.9em;margin:4px 0' }, ABILITIES[node.grants].verse) : null,
     h('div', { class: 'muted', style: 'font-size:0.85em' }, reqText),
-    h('div', { style: 'margin-top:8px' }, btn(rk >= node.ranks ? 'Mastered' : 'Learn', () => {
-      if (learn(s, node.id)) {
+    pointBatchPicker(),
+    h('div', { style: 'margin-top:8px' }, btn(rk >= node.ranks ? 'Mastered' : ranksToLearn > 1 ? `Learn ${ranksToLearn} ranks · ${ranksToLearn * node.cost} points` : 'Learn', () => {
+      if (learnRanks(s, node.id, pointBatch)) {
         sfx('levelup', { vol: 0.5 });
         G.d = derive(s);
         G.world.player.styleKey = '';
+        for (const echo of G.world.echoes) echo.refreshStats();
+        G.world.autosave(true);
         render();
       }
     }, 'btn primary', { disabled: !canLearn(s, node.id), 'data-k': 'learn' })),
@@ -403,9 +428,9 @@ function skillsTab() {
       where >= 0 && where !== loadoutSlot ? h('span', { class: 'tag', style: 'margin-left:8px' }, `SLOT ${where + 1}`) : null);
   }));
   const regenRank = skillRank(s, 'g_regen');
-  const regeneration = h('div', { class: 'box' }, h('h3', null, `Health regeneration · ${regenRank}/3`),
-    h('p', { class: 'muted' }, 'Recover 0.5% maximum health per second per rank after 4 seconds without taking damage. Mending Light and Covenant Renewal add healing during combat.'),
-    btn(regenRank === 3 ? 'Regeneration mastered' : 'Train Regeneration · 1 point', () => {
+  const regeneration = h('div', { class: 'box' }, h('h3', null, `Health regeneration · ${regenRank}/10`),
+    h('p', { class: 'muted' }, 'Recover 0.75% maximum health per second per rank after 4 seconds without taking damage. Mending Light and Covenant Renewal add healing during combat.'),
+    btn(regenRank === 10 ? 'Regeneration mastered' : 'Train Regeneration · 1 point', () => {
       if (learn(s, 'g_regen')) { G.d = derive(s); G.world.autosave(true); sfx('levelup', { vol: 0.5 }); render(); }
     }, 'btn small', { disabled: !canLearn(s, 'g_regen'), 'data-k': 'learn_regen' }));
   const supers = h('div', { class: 'ability-catalog' }, Object.entries(SUPER_MOVES).map(([id, def]) => h('div', { class: 'ability-card' + ((s.equippedSuper ?? 'rally') === id ? ' equipped' : '') },

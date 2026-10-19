@@ -22,6 +22,7 @@ import { Npc, Chest, Altar, LoreStone, Shrine, Pickup, Drop, RelicVisual, type I
 import { Proj } from './projectiles';
 import { Story } from './story';
 import { G, flag, setFlag } from './ctx';
+import { los } from './physics';
 import { TileCache, buildParallax, drawSky, drawLiveProps, drawLiquids, drawGate, BIOMES, LIVE_DECOR, type Layer } from '../render/environment';
 import { lighting } from '../render/lighting';
 import { fx, PK } from '../render/fx';
@@ -614,6 +615,7 @@ export class World {
   executionTarget(p: Player): Entity | null {
     for (const e of this.ents) {
       if (!e.executable()) continue;
+      if (!los(this.grid, this.solid, p.cx, p.cy, e.cx, e.cy)) continue;
       if (e.isBoss) {
         if (Math.abs(e.x - p.x) < (e instanceof Gatekeeper ? 120 : e instanceof GoldenImage || e instanceof Weigher ? 96 : e instanceof Marshal || e instanceof LocustKing ? 56 : 80) && Math.abs(e.y - p.y) < 60) return e;
       } else if (Math.abs(e.x - p.x) < 36 && Math.abs(e.y - p.y) < 30) return e;
@@ -1163,6 +1165,10 @@ export class World {
       // The fight transfers: the Echo takes over Elior's foe where he stood.
       const foe = p.lastFoe && !p.lastFoe.dying && !p.lastFoe.remove && Math.abs(p.lastFoe.x - p.x) < 220 ? p.lastFoe : this.nearestEnemy(p.x, p.y - 20, 200, 0);
       const px = p.x, py = p.y;
+      if (!p.canPlace(far.x, far.y)) {
+        G.ui.toast('No safe opening for an Echo exchange here.', 'info');
+        return;
+      }
       fx.streak(px, py - 20, far.x, far.y - 20, '#ffe6a8', 0.25, 3);
       fx.streak(far.x, far.y - 20, px, py - 20, '#fff3c4', 0.25, 2);
       p.x = far.x;

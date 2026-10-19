@@ -14,12 +14,12 @@ export const SLOT_NAMES: Record<Slot, string> = {
 export type StatKey = 'vit' | 'str' | 'agi' | 'end' | 'res' | 'wis';
 export const STAT_KEYS: StatKey[] = ['vit', 'str', 'agi', 'end', 'res', 'wis'];
 export const STAT_INFO: Record<StatKey, { name: string; desc: string }> = {
-  vit: { name: 'Vitality', desc: '+12 maximum health per point.' },
-  str: { name: 'Strength', desc: '+6% weapon damage per point.' },
-  agi: { name: 'Agility', desc: '+1.2% attack speed and +0.8% critical chance per point.' },
-  end: { name: 'Endurance', desc: '+1.6% damage reduction and more poise per point.' },
-  res: { name: 'Resolve', desc: 'Wider parry window, +4% Rally charge rate per point.' },
-  wis: { name: 'Wisdom', desc: '+8 Covenant Energy, +5% ability power per point.' },
+  vit: { name: 'Vitality', desc: 'Each point above 5 adds 24 health and +0.75% total health. Also amplifies armor health.' },
+  str: { name: 'Strength', desc: '+10% Strength damage bonus per point, plus 2 base attack for every point above 5.' },
+  agi: { name: 'Agility', desc: '+1.5% attack speed, +0.8% critical chance and +1% critical damage per point. Speed caps at ×4; critical chance at 90%.' },
+  end: { name: 'Endurance', desc: 'More damage reduction and poise. Above 5: +8 health and +1% Echo health per point. Total damage reduction caps at 90%.' },
+  res: { name: 'Resolve', desc: '+6% super charge and +1% critical damage per point. Above 5: +2% Echo damage per point. Also widens parries.' },
+  wis: { name: 'Wisdom', desc: '+12 energy and +8% ability power per point. Above 5: +1.2% skill recharge per point.' },
 };
 
 /** Modifiers that items and skills can add. */
@@ -80,6 +80,15 @@ export interface ItemBase {
 }
 
 export const ITEMS: Record<string, ItemBase> = {
+  ascendant_blade: { id: 'ascendant_blade', name: 'Ascendant Veilblade', slot: 'weapon', rarity: 4, icon: 'sword', family: 'blade', element: 'shadow', look: 2, mods: { atk: 38, crit: 5, lifesteal: 2 }, value: 700, desc: 'A random wave-clear reward. Its Power increases its attack and bonuses.' },
+  ascendant_spear: { id: 'ascendant_spear', name: 'Ascendant Stormlance', slot: 'weapon', rarity: 4, icon: 'spear', family: 'spear', element: 'storm', look: 2, mods: { atk: 38, abil: 15, ceRegen: 15 }, value: 700, desc: 'A random wave-clear reward. Power scales its storm-forged edge.' },
+  ascendant_greatsword: { id: 'ascendant_greatsword', name: 'Ascendant Sunbreaker', slot: 'weapon', rarity: 4, icon: 'greatsword', family: 'greatsword', element: 'fire', look: 2, mods: { atk: 45, poise: 15, critDmg: 15 }, value: 800, desc: 'A random wave-clear reward. A crushing blade empowered by the waves conquered.' },
+  ascendant_helm: { id: 'ascendant_helm', name: 'Ascendant Warcrown', slot: 'helm', rarity: 4, icon: 'crown', look: 2, mods: { hp: 60, def: 6, echoDmg: 12 }, value: 600, desc: 'A random wave-clear reward. Power strengthens its health and army bonuses.' },
+  ascendant_armor: { id: 'ascendant_armor', name: 'Ascendant Warplate', slot: 'armor', rarity: 4, icon: 'armor', look: 2, mods: { hp: 100, def: 10, poise: 15, echoHp: 15 }, value: 750, desc: 'A random wave-clear reward. Enormous health potential grows with Power.' },
+  ascendant_gauntlets: { id: 'ascendant_gauntlets', name: 'Ascendant Titanfists', slot: 'gauntlets', rarity: 4, icon: 'gauntlet', look: 2, mods: { atk: 12, crit: 6, aspd: 6 }, value: 600, desc: 'A random wave-clear reward. Power turns each blow into a siege.' },
+  ascendant_boots: { id: 'ascendant_boots', name: 'Ascendant Riftmarch', slot: 'boots', rarity: 4, icon: 'boot', look: 2, mods: { hp: 35, def: 5, speed: 8 }, value: 600, desc: 'A random wave-clear reward. Health and mobility improve with Power.' },
+  ascendant_relic: { id: 'ascendant_relic', name: 'Ascendant Beacon', slot: 'relic', rarity: 4, icon: 'lamp', look: 2, mods: { ce: 40, abil: 18, ceRegen: 20, echoDmg: 15 }, value: 750, desc: 'A random wave-clear reward. Powers both your spells and the Remnant.' },
+  ascendant_ring: { id: 'ascendant_ring', name: 'Ascendant Dominion', slot: 'ring', rarity: 4, icon: 'ring', look: 2, mods: { atk: 12, hp: 40, critDmg: 15, lifesteal: 1 }, value: 750, desc: 'A random wave-clear reward. Its Power strengthens attack, health and critical blows.' },
   vigil_helm: { id: 'vigil_helm', name: 'Vigil Crown', slot: 'helm', rarity: 4, icon: 'helm', value: 1200, unique: true, set: 'vigil', look: 2, mods: { hp: 90, def: 8, parry: 10 }, desc: 'Iron Oath contract reward. Part of Unbroken Vigil.' },
   vigil_plate: { id: 'vigil_plate', name: 'Vigil Plate', slot: 'armor', rarity: 4, icon: 'armor', value: 1200, unique: true, set: 'vigil', look: 2, mods: { hp: 160, def: 14, poise: 15 }, desc: 'Iron Oath contract reward. Part of Unbroken Vigil.' },
   vigil_boots: { id: 'vigil_boots', name: 'Vigil Treads', slot: 'boots', rarity: 4, icon: 'boot', value: 1200, unique: true, set: 'vigil', look: 2, mods: { hp: 70, def: 8, speed: 8 }, desc: 'Iron Oath contract reward. Part of Unbroken Vigil.' },
@@ -183,6 +192,8 @@ export interface ItemInst {
   isNew?: boolean;
   trialWave?: number;
   trialTier?: number;
+  lootPower?: number;
+  lootWave?: number;
 }
 
 // ---------- Abilities ----------
@@ -234,31 +245,31 @@ export const TREES: { id: TreeId; name: string; blurb: string; color: string }[]
   { id: 'lightbearer', name: 'Lightbearer', blurb: 'Covenant light shaped into power.', color: '#f4f0e0' },
 ];
 export const SKILLS: SkillNode[] = [
-  { id: 'w_edge', tree: 'warrior', name: 'Honed Edge', desc: '+8% melee damage per rank.', ranks: 3, cost: 1, req: [], row: 0, col: 1 },
+  { id: 'w_edge', tree: 'warrior', name: 'Honed Edge', desc: '+20% melee damage per rank. Up to 50 ranks.', ranks: 50, cost: 1, req: [], row: 0, col: 1 },
   { id: 'w_relentless', tree: 'warrior', name: 'Relentless', desc: 'Your ground combo gains a fourth strike, Rising Verdict, which launches foes.', ranks: 1, cost: 1, req: ['w_edge'], row: 1, col: 0 },
-  { id: 'w_keen', tree: 'warrior', name: 'Keen Eye', desc: '+8% critical chance and +25% critical damage.', ranks: 1, cost: 1, req: ['w_edge'], row: 1, col: 2 },
+  { id: 'w_keen', tree: 'warrior', name: 'Keen Eye', desc: '+8% critical chance and +25% critical damage per rank. Up to 10 ranks; damage keeps growing after chance caps.', ranks: 10, cost: 1, req: ['w_edge'], row: 1, col: 2 },
   { id: 'w_lion', tree: 'warrior', name: 'Lion\'s Courage', desc: 'Learn the Lion\'s Courage ability.', ranks: 1, cost: 2, req: ['w_relentless'], row: 2, col: 0, grants: 'lion' },
   { id: 'w_mastery', tree: 'warrior', name: 'Weapon Mastery', desc: 'Charged attacks charge 35% faster and gain a third, devastating level.', ranks: 1, cost: 2, req: ['w_keen'], row: 2, col: 2 },
   { id: 'w_exec', tree: 'warrior', name: 'Executioner', desc: 'Executions deal +60% damage and restore 25 Covenant Energy.', ranks: 1, cost: 2, req: ['w_lion', 'w_mastery'], row: 3, col: 1 },
 
-  { id: 'g_skin', tree: 'guardian', name: 'Iron Skin', desc: '+5% damage reduction per rank.', ranks: 3, cost: 1, req: [], row: 0, col: 1 },
-  { id: 'g_regen', tree: 'guardian', name: 'Regeneration', desc: 'After 4 seconds without taking damage, regenerate 0.5% of maximum health each second per rank. Three ranks maximum.', ranks: 3, cost: 1, req: [], row: 0, col: 0 },
+  { id: 'g_skin', tree: 'guardian', name: 'Iron Skin', desc: 'Each rank reduces remaining incoming damage by 6%. Up to 20 ranks; total damage reduction caps at 90%.', ranks: 20, cost: 1, req: [], row: 0, col: 1 },
+  { id: 'g_regen', tree: 'guardian', name: 'Regeneration', desc: 'After 4 seconds unharmed, regenerate 0.75% of maximum health per second per rank. Up to 10 ranks.', ranks: 10, cost: 1, req: [], row: 0, col: 0 },
   { id: 'g_timing', tree: 'guardian', name: 'Perfect Timing', desc: 'Parry window +50%. Perfect parries restore 12 Covenant Energy.', ranks: 1, cost: 1, req: ['g_skin'], row: 1, col: 0 },
   { id: 'g_balm', tree: 'guardian', name: 'Steadfast', desc: '+1 Balm charge, and Balm heals 15% more.', ranks: 1, cost: 1, req: ['g_skin'], row: 1, col: 2 },
   { id: 'g_shield', tree: 'guardian', name: 'Shield of Faith', desc: 'Learn the Shield of Faith ability.', ranks: 1, cost: 2, req: ['g_timing'], row: 2, col: 0, grants: 'shield_faith' },
   { id: 'g_counter', tree: 'guardian', name: 'Shield Counter', desc: 'Counters after a parry deal +70% damage and always stagger.', ranks: 1, cost: 2, req: ['g_timing', 'g_balm'], row: 2, col: 2 },
   { id: 'g_chains', tree: 'guardian', name: 'Chains Broken', desc: 'Learn the Chains Broken ability.', ranks: 1, cost: 2, req: ['g_shield'], row: 3, col: 1, grants: 'chains' },
 
-  { id: 'c_kin', tree: 'commander', name: 'Kinship', desc: 'Echoes gain +10% damage and health per rank.', ranks: 3, cost: 1, req: [], row: 0, col: 1 },
+  { id: 'c_kin', tree: 'commander', name: 'Kinship', desc: 'Echoes gain +25% damage and health per rank, multiplying their equipment bonuses. Up to 50 ranks.', ranks: 50, cost: 1, req: [], row: 0, col: 1 },
   { id: 'c_glory', tree: 'commander', name: 'Shared Glory', desc: 'Echoes gain 60% more experience.', ranks: 1, cost: 1, req: ['c_kin'], row: 1, col: 0 },
   { id: 'c_recall', tree: 'commander', name: 'Swift Recall', desc: 'Recalled Echoes are untouchable for 2s and recover 25% health.', ranks: 1, cost: 1, req: ['c_kin'], row: 1, col: 2 },
   { id: 'c_banner', tree: 'commander', name: 'Second Banner', desc: '+1 active Echo slot.', ranks: 1, cost: 2, req: ['c_glory'], row: 2, col: 0 },
   { id: 'c_sync', tree: 'commander', name: 'Coordinated Strike', desc: 'Sync Strike cooldown −40% and damage +50%.', ranks: 1, cost: 2, req: ['c_recall'], row: 2, col: 2 },
   { id: 'c_warden', tree: 'commander', name: 'Warden\'s Mantle', desc: 'You may promote one Echo to Commander: it inspires your army and you (+15% damage nearby).', ranks: 1, cost: 2, req: ['c_banner', 'c_sync'], row: 3, col: 1 },
 
-  { id: 'l_lamp', tree: 'lightbearer', name: 'Lamp of the Word', desc: '+10% ability power and +8 Covenant Energy per rank.', ranks: 3, cost: 1, req: [], row: 0, col: 1 },
+  { id: 'l_lamp', tree: 'lightbearer', name: 'Lamp of the Word', desc: '+25% ability power per rank, multiplying Wisdom and equipment bonuses; +15 energy per rank. Up to 50 ranks.', ranks: 50, cost: 1, req: [], row: 0, col: 1 },
   { id: 'l_waters', tree: 'lightbearer', name: 'Still Waters', desc: 'Learn the Still Waters ability.', ranks: 1, cost: 1, req: ['l_lamp'], row: 1, col: 0, grants: 'still_waters' },
-  { id: 'l_radiance', tree: 'lightbearer', name: 'Radiance', desc: 'Covenant Energy regenerates 50% faster, and hits generate 30% more.', ranks: 1, cost: 1, req: ['l_lamp'], row: 1, col: 2 },
+  { id: 'l_radiance', tree: 'lightbearer', name: 'Radiance', desc: '+50% energy regeneration and +30% energy from hits per rank. Up to 10 ranks.', ranks: 10, cost: 1, req: ['l_lamp'], row: 1, col: 2 },
   { id: 'l_pillar', tree: 'lightbearer', name: 'Pillar of Fire', desc: 'Learn the Pillar of Fire ability.', ranks: 1, cost: 2, req: ['l_radiance'], row: 2, col: 2, grants: 'pillar_fire' },
   { id: 'l_well', tree: 'lightbearer', name: 'Wellspring', desc: 'Still Waters lasts 50% longer and also restores Covenant Energy.', ranks: 1, cost: 1, req: ['l_waters'], row: 2, col: 0 },
   { id: 'l_armor', tree: 'lightbearer', name: 'Armor of Light', desc: 'Learn the Armor of Light transformation.', ranks: 1, cost: 3, req: ['l_pillar', 'l_well'], row: 3, col: 1, grants: 'armor_light' },
