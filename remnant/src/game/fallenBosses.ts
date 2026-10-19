@@ -1,4 +1,5 @@
 import { BossBase } from './bosses2';
+import { cleansingBeacon } from './fallenChapters';
 import { Entity, type HitInfo } from './entity';
 import { G } from './ctx';
 import { bossScale } from './difficulty';
@@ -76,7 +77,7 @@ export class FallenMonarch extends BossBase {
   startAttack(a:Attack){
     this.attack=a;this.state='attack';this.st=0;this.released=this.second=false;this.hitSet.clear();this.huntStep=-1;this.attackCount++;
     this.face=sign(G.world.player.x-this.x)||this.face;this.lockTarget();
-    if(a==='hunt'||a==='purge'){this.ward=true;this.purgePulse=-1;this.beaconX=G.world.player.x<G.world.grid.w*8?208:G.world.grid.w*16-208;G.ui.toast(a==='hunt'?'Great Hunt: dodge each amber mark. Strike after the third landing.':'Great Miasma: enter the gold beacon. Strike after the veil breaks.','warn');}
+    if(a==='hunt'||a==='purge'){this.ward=true;this.purgePulse=-1;this.beaconX=cleansingBeacon(G.world.player.x,this.x,G.world.grid.w*16);G.ui.toast(a==='hunt'?'Great Hunt: dodge each amber mark. Strike after the third landing.':'Great Miasma: enter the gold beacon. Strike after the veil breaks.','warn');}
     if(a==='spores')for(const dx of [-110,0,110])this.spores.push({x:clamp(this.targetX+dx,100,G.world.grid.w*16-100),t:0,pulse:-1,hits:new Set()});
   }
   private lockTarget(){this.launchX=this.x;this.targetX=clamp(G.world.player.x,110,G.world.grid.w*16-110);}
