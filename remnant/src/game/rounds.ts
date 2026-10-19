@@ -11,7 +11,7 @@ import { Enemy } from './enemies';
 import { TILE, type EnemyKind } from './tiles';
 import { xpToNext, ECHO_SPECIES, ITEMS, RARITY_NAMES, type ItemInst } from './data';
 import { claimTrialMilestone, claimContractReward, derive, grantWaveLoot } from './state';
-import { trialStrength } from './balance';
+import { trialStrength, trialXpLevels } from './balance';
 import { CONTRACTS, contractTier, isContract, type ContractId } from './progression';
 import { BLESSINGS, runBlessings, type BlessingId } from './blessings';
 import { rollGear } from './world';
@@ -74,6 +74,7 @@ export class Rounds {
   private ending = false;
   pendingBlessings: BlessingId[] = [];
   lastWaveLoot: ItemInst | null = null;
+  private waveXp = 0;
   contract: ContractId | null = null;
   contractComplete = false;
   contractReward: string | null = null;
@@ -219,6 +220,7 @@ export class Rounds {
     this.boonsThisRound = 0;
     this.changeT = 0;
     if (n % 10 === 0) this.total += 1; // the Champion
+    this.waveXp = xpToNext(G.save.level) * trialXpLevels(n);
     sfx(this.pack ? 'horn' : 'bell', { pitch: this.pack ? 0.8 : 0.55 + Math.min(0.5, n * 0.015) });
     input.rumble(0.5, 0.5, 280);
     islandNotify(`ROUND ${n}`, this.pack ? '#ff6a5a' : '#ffe6a8', 'rally', 2);
@@ -349,7 +351,7 @@ export class Rounds {
       e.dmg *= c.damage * (1 + tier * 0.05);
       e.tempo *= c.tempo;
     }
-    e.xpOverride = Math.max(10, Math.round((xpToNext(s.level) / 26) * (1 + n * 0.03) * (champion ? 8 : 1) * (this.doubleT > 0 ? 2 : 1)));
+    e.xpOverride = Math.max(1, Math.round(this.waveXp / (this.total + (n % 10 === 0 ? 3 : 0)) * (champion ? 4 : 1) * (this.doubleT > 0 ? 2 : 1)));
     if (champion) {
       e.purifiable = false;
       e.name = 'Champion of the Trial';

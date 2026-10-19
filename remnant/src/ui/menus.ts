@@ -228,7 +228,7 @@ function characterTab() {
         btn('Character board', () => openCharacterBoard(), 'btn small', { 'data-k': 'elior_board' }),
         h('div', { class: 'muted', style: 'font-size:0.9em;margin-bottom:6px' }, `Experience ${Math.floor(s.xp)} / ${xpToNext(s.level)} · Points to spend: `, h('b', { style: 'color:var(--gold-hi)' }, String(s.statPoints))),
         h('div', { class: 'bar', style: 'margin-bottom:8px' }, h('i', { style: `width:${(s.xp / xpToNext(s.level)) * 100}%` })),
-        h('p', { class: 'muted', style: 'font-size:0.85em' }, 'Every level adds 10 base health and +15% equipment attack. Sovereign damage keeps growing after level 100.'),
+        h('p', { class: 'muted', style: 'font-size:0.85em' }, 'Controlled power growth: levels add health and equipment attack, with smaller attack gains after level 100. Offensive attributes soften above 60; every point still helps. Ability and Echo bonuses add together. Life steal restores at most 4% maximum health per second.'),
         pointBatchPicker(), rows,
       ),
       h('div', { class: 'col', style: 'flex:1;min-width:220px' },

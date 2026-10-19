@@ -1,11 +1,22 @@
 // Survival belongs to the wave, not the level or equipment of its challenger.
 export function sovereignDamage(level: number) {
-  return level < 100 ? 1 : 1.5 + Math.max(0, level - 100) * 0.025;
+  return level < 100 ? 1 : 1.2 + softGrowth(level - 100, 50, 0.25) * 0.004;
 }
+/** Every investment still helps, with a gentler slope after the knee. */
+export function softGrowth(value: number, knee: number, tail: number) {
+  const n = Math.max(0, value);
+  return Math.min(n, knee) + Math.max(0, n - knee) * tail;
+}
+export function trainingBonus(rank: number) {
+  const n = Math.max(0, rank);
+  return Math.min(n, 10) * 0.1 + Math.min(Math.max(0, n - 10), 15) * 0.05 + Math.max(0, n - 25) * 0.025;
+}
+/** A complete wave pays a level fraction, not that fraction for every enemy. */
+export const trialXpLevels = (wave: number) => 0.35 + Math.min(1, Math.max(1, wave) * 0.015);
 export function trialStrength(wave: number) {
   return {
     hp: wave < 10 ? 1 + 0.18 * (wave - 1) : 2.62 * Math.pow(1.09, wave - 10),
-    damage: Math.min(5, 1 + (wave - 1) * 0.07),
+    damage: Math.min(5, 1 + (wave - 1) * 0.07) * (1 + Math.max(0, wave - 30) * 0.04),
     tempo: Math.min(1.4, 1 + (wave - 1) * 0.012),
   };
 }
