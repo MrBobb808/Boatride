@@ -1,3 +1,4 @@
+import { fallenSky, fallenParallax, fallenProp, FALLEN_LIVE } from './fallenEnv';
 // Environment art: parallax backgrounds per biome, baked tile chunks with
 // stone/brick detail, static props, and the animated bits (water, veil pools,
 // banners, torches) drawn live each frame.
@@ -9,6 +10,7 @@ import { buildParallaxCh2, drawDuskSky, drawPropCh2, drawPitch } from './env2';
 import { buildParallaxCh3, drawValleySky, drawCaveSky, drawVoidSky, drawHiveWall, drawSolidCh3, drawOneWayCh3, drawLiquidCh3, drawPropCh3, drawLivePropCh3, isCh3, LIVE_CH3 } from './env3';
 import { DEN_SEED, FEAST_SEED, drawDenWall, drawDenTile } from './env4';
 import { buildParallaxCh4, drawSkyCh4, drawSolidCh4, drawOneWayCh4, drawSpikesCh4, drawLiquidCh4, drawPropCh4, drawLivePropCh4, isCh4, LIVE_CH4, BACKDROP_CH4 } from './env4';
+import { buildParallaxCh6, drawSkyCh6, drawSolidCh6, drawOneWayCh6, drawSpikesCh6, drawLiquidCh6, drawPropCh6, drawLivePropCh6, isCh6, LIVE_CH6, BACKDROP_CH6 } from './env6';
 import { buildParallaxCh5, drawSkyCh5, drawSolidCh5, drawOneWayCh5, drawSpikesCh5, drawLiquidCh5, drawPropCh5, drawLivePropCh5, isCh5, LIVE_CH5, BACKDROP_CH5 } from './env5';
 
 export interface BiomePal {
@@ -29,6 +31,8 @@ export interface BiomePal {
 }
 
 export const BIOMES: Record<Biome, BiomePal> = {
+  hunt: {sky:['#101323','#31353c','#8a6755'],far:'#35363e',mid:'#252832',near:'#171d27',fog:'#b78c6e',stone:'#514751',stoneDark:'#25232d',cap:'#9c8770',capTuft:'#b09269',back:'#211f29',backLine:'#3f3540',moon:'#f1cf9c',plat:'#9a7f64',ambient:'#1a1422'},
+  plague: {sky:['#101b22','#304e46','#7d9666'],far:'#374f46',mid:'#294637',near:'#192c29',fog:'#b6ce8d',stone:'#455947',stoneDark:'#202f2c',cap:'#9bb478',capTuft:'#bed28c',back:'#1b2e26',backLine:'#3c5941',moon:'#d4eda5',plat:'#a4b77b',ambient:'#12271f'},
   village: {
     sky: ['#0b0a16', '#2a1d3a', '#5a3550'], far: '#2a2338', mid: '#1c1727', near: '#120f19', fog: '#6b4a6a',
     stone: '#4a4250', stoneDark: '#26212c', cap: '#6d6070', capTuft: '#5a5560', back: '', backLine: '', moon: '#f1d9b0',
@@ -111,6 +115,22 @@ export const BIOMES: Record<Biome, BiomePal> = {
     stone: '#24386a', stoneDark: '#10182e', cap: '#d8ccb4', capTuft: '#e8c25a', back: '#221a2a', backLine: '#33263c', moon: '#eae6d6',
     plat: '#5a4430', ambient: '#120a18',
   },
+  // Chapter VI: Persia, and the high places above it.
+  hiddekel: {
+    sky: ['#0a0c18', '#2a3a5a', '#8a7a6a'], far: '#22283a', mid: '#161a26', near: '#0a0c12', fog: '#8aa0b8',
+    stone: '#6a5a44', stoneDark: '#2a2218', cap: '#5a6a3a', capTuft: '#8a9a5a', back: '#1e1a14', backLine: '#2a241a', moon: '#f0e8d0',
+    plat: '#5a4a32', ambient: '#0c0e18',
+  },
+  shushan: {
+    sky: ['#06060e', '#2a2440', '#5a4a5a'], far: '#1e1a2a', mid: '#14101c', near: '#0a080e', fog: '#c8a878',
+    stone: '#8a7656', stoneDark: '#3a3024', cap: '#c8b48a', capTuft: '#3a6aa8', back: '#241e18', backLine: '#342a20', moon: null,
+    plat: '#6a5438', ambient: '#100c14',
+  },
+  highplaces: {
+    sky: ['#0a0614', '#3a2a5a', '#c89a6a'], far: '#2a2240', mid: '#1c162c', near: '#100c1a', fog: '#ffd89a',
+    stone: '#c8c0b0', stoneDark: '#5a5448', cap: '#f0e8d8', capTuft: '#ffd88a', back: '#2a2434', backLine: '#3a3248', moon: null,
+    plat: '#d8ccb0', ambient: '#140e1e',
+  },
 };
 
 // ---------------------------------------------------------------- Parallax
@@ -129,10 +149,12 @@ export interface Layer {
 
 export function buildParallax(biome: Biome, seed: number, interior: boolean, viewH: number, res: number): Layer[] {
   const pal = BIOMES[biome];
+  if (biome==='hunt'||biome==='plague') return fallenParallax(seed,viewH,res,biome==='plague');
   if (biome === 'plain' || biome === 'tower') return buildParallaxCh2(biome, pal, seed, viewH, res);
   if (isCh3(biome)) return buildParallaxCh3(biome, pal, seed, viewH, res);
   if (isCh4(biome)) return buildParallaxCh4(biome, pal, seed, viewH, res);
   if (isCh5(biome)) return buildParallaxCh5(biome, pal, seed, interior, viewH, res);
+  if (isCh6(biome)) return buildParallaxCh6(biome, pal, seed, interior, viewH, res);
   const layers: Layer[] = [];
   const rng = new RNG(seed);
   const W = 1024;
@@ -306,6 +328,7 @@ function tree(ctx: Ctx, x: number, base: number, h: number, col: string, rng: RN
 }
 
 export function drawSky(ctx: Ctx, pal: BiomePal, w: number, h: number, interior: boolean, t: number) {
+  if (pal===BIOMES.hunt||pal===BIOMES.plague) return fallenSky(ctx,w,h,pal===BIOMES.plague,t);
   if (pal === BIOMES.plain && !interior) {
     drawDuskSky(ctx, pal, w, h, t);
     return;
@@ -319,6 +342,9 @@ export function drawSky(ctx: Ctx, pal: BiomePal, w: number, h: number, interior:
   if (pal === BIOMES.riverbed) return drawSkyCh5(ctx, 'riverbed', pal, w, h, interior, t);
   if (pal === BIOMES.gardens) return drawSkyCh5(ctx, 'gardens', pal, w, h, interior, t);
   if (pal === BIOMES.palace) return drawSkyCh5(ctx, 'palace', pal, w, h, interior, t);
+  if (pal === BIOMES.hiddekel) return drawSkyCh6(ctx, 'hiddekel', pal, w, h, interior, t);
+  if (pal === BIOMES.shushan) return drawSkyCh6(ctx, 'shushan', pal, w, h, interior, t);
+  if (pal === BIOMES.highplaces) return drawSkyCh6(ctx, 'highplaces', pal, w, h, interior, t);
   const g = ctx.createLinearGradient(0, 0, 0, h);
   g.addColorStop(0, pal.sky[0]);
   g.addColorStop(0.6, pal.sky[1]);
@@ -445,7 +471,7 @@ export class TileCache {
     for (let pass = 0; pass < 2; pass++)
       for (const e of this.ents) {
         if (e.t !== 'decor' || e.fg) continue;
-        const backdrop = BACKDROP_CH4.has(e.k) || BACKDROP_CH5.has(e.k);
+        const backdrop = BACKDROP_CH4.has(e.k) || BACKDROP_CH5.has(e.k) || BACKDROP_CH6.has(e.k);
         if (backdrop !== (pass === 0)) continue;
         if (!this.cond((e as { cond?: string }).cond, (e as { ncond?: string }).ncond)) continue;
         const px = e.x * TILE, py = e.y * TILE;
@@ -486,6 +512,10 @@ export class TileCache {
         drawOneWayCh5(ctx, this.biome, pal, tx, ty, g.get(tx - 1, ty) !== T.OneWay, g.get(tx + 1, ty) !== T.OneWay);
         return;
       }
+      if (isCh6(this.biome)) {
+        drawOneWayCh6(ctx, this.biome, pal, tx, ty, g.get(tx - 1, ty) !== T.OneWay, g.get(tx + 1, ty) !== T.OneWay);
+        return;
+      }
       // Plank or stone ledge with supports.
       const wood = this.biome === 'village' || this.biome === 'sanctuary' || this.biome === 'plain' || this.biome === 'tower';
       const c = wood ? pal.plat : pal.cap;
@@ -511,6 +541,7 @@ export class TileCache {
     if (t === T.Spikes) {
       if (isCh4(this.biome) && drawSpikesCh4(ctx, this.biome, tx, ty)) return;
       if (isCh5(this.biome) && drawSpikesCh5(ctx, this.biome, tx, ty)) return;
+      if (isCh6(this.biome) && drawSpikesCh6(ctx, this.biome, tx, ty, g.get(tx, ty - 1) !== T.Spikes)) return;
       const metal = this.biome === 'crypt' || this.biome === 'valley' ? '#c9c1b0' : this.biome === 'hive' ? '#4a2c14' : '#5a5560';
       for (let i = 0; i < 4; i++) {
         const sx = x + i * 4 + 2;
@@ -541,6 +572,11 @@ export class TileCache {
     }
     if (isCh5(this.biome)) {
       drawSolidCh5(ctx, this.biome, pal, tx, ty, t, depth, v, solid);
+      this.drawMarks(ctx, x, y, t);
+      return;
+    }
+    if (isCh6(this.biome)) {
+      drawSolidCh6(ctx, this.biome, pal, tx, ty, t, depth, v, solid);
       this.drawMarks(ctx, x, y, t);
       return;
     }
@@ -649,7 +685,7 @@ export function drawProp(ctx: Ctx, e: Extract<EntDef, { t: 'decor' }>, pal: Biom
   const rng = new RNG(seed + Math.floor(e.x * 31 + e.y * 7));
   const o = '#08060a';
   ctx.save();
-  if (drawPropCh2(ctx, e, pal, seed) || drawPropCh3(ctx, e, pal, seed) || drawPropCh4(ctx, e, pal, seed, isCh5(biome) || seed === FEAST_SEED) || drawPropCh5(ctx, e, pal, seed)) {
+  if (fallenProp(ctx,e) || drawPropCh2(ctx, e, pal, seed) || drawPropCh3(ctx, e, pal, seed) || drawPropCh4(ctx, e, pal, seed, isCh5(biome) || seed === FEAST_SEED) || drawPropCh5(ctx, e, pal, seed) || drawPropCh6(ctx, e, pal, seed)) {
     ctx.restore();
     return;
   }
@@ -1249,7 +1285,7 @@ function drawHallBack(ctx: Ctx, e: Extract<EntDef, { t: 'decor' }>, pal: BiomePa
 }
 
 /** Decor kinds animated by drawLiveProps behind the actors (pass these in the background pass). */
-export const LIVE_DECOR: ReadonlySet<string> = new Set(['banner', ...LIVE_CH3, ...LIVE_CH4, ...LIVE_CH5]);
+export const LIVE_DECOR: ReadonlySet<string> = new Set(['banner', ...LIVE_CH3, ...LIVE_CH4, ...LIVE_CH5, ...LIVE_CH6, ...FALLEN_LIVE]);
 let liveCh3Frame = -1;
 
 /** Animated props drawn every frame (banners, flames, water, veil pools, grass). */
@@ -1259,14 +1295,16 @@ export function drawLiveProps(ctx: Ctx, ents: EntDef[], t: number, view: { x: nu
     const x = e.x * TILE, y = e.y * TILE;
     if (x < view.x - 200 || x > view.x + view.w + 200 || y < view.y - 200 || y > view.y + view.h + 300) continue;
     if (e.t === 'decor') {
-      if (LIVE_CH3.has(e.k) || LIVE_CH4.has(e.k) || LIVE_CH5.has(e.k)) {
+      if (LIVE_CH3.has(e.k) || LIVE_CH4.has(e.k) || LIVE_CH5.has(e.k) || LIVE_CH6.has(e.k) || FALLEN_LIVE.has(e.k)) {
         // Chapter III and IV overlays belong to the background pass; if this frame's
         // background pass did not include them, the foreground pass draws them.
         if (!fg) liveCh3Frame = t;
         if (!e.fg && (!fg || liveCh3Frame !== t) && cond(e.cond, e.ncond)) {
-          if (LIVE_CH3.has(e.k)) drawLivePropCh3(ctx, e, t);
+          if (FALLEN_LIVE.has(e.k)) fallenProp(ctx,e);
+          else if (LIVE_CH3.has(e.k)) drawLivePropCh3(ctx, e, t);
           else if (LIVE_CH4.has(e.k)) drawLivePropCh4(ctx, e, t);
-          else drawLivePropCh5(ctx, e, t);
+          else if (LIVE_CH5.has(e.k)) drawLivePropCh5(ctx, e, t);
+          else drawLivePropCh6(ctx, e, t);
         }
         continue;
       }
@@ -1351,7 +1389,7 @@ export function flame(ctx: Ctx, x: number, y: number, s: number, t: number) {
 /** Water and veil pools, animated. */
 export function drawLiquids(ctx: Ctx, g: Grid, t: number, view: { x: number; y: number; w: number; h: number }, biome: Biome = 'village') {
   const pitch = biome === 'plain' || biome === 'tower';
-  const ch3 = isCh3(biome), ch4 = isCh4(biome), ch5 = isCh5(biome);
+  const ch3 = isCh3(biome), ch4 = isCh4(biome), ch5 = isCh5(biome), ch6 = isCh6(biome);
   const tx0 = Math.max(0, Math.floor(view.x / TILE)), tx1 = Math.min(g.w - 1, Math.floor((view.x + view.w) / TILE));
   const ty0 = Math.max(0, Math.floor(view.y / TILE)), ty1 = Math.min(g.h - 1, Math.floor((view.y + view.h) / TILE));
   for (let ty = ty0; ty <= ty1; ty++)
@@ -1362,6 +1400,7 @@ export function drawLiquids(ctx: Ctx, g: Grid, t: number, view: { x: number; y: 
       const top = g.get(tx, ty - 1) !== tt;
       if (ch4 && drawLiquidCh4(ctx, biome, tt, x, y, top, tx, t)) continue;
       if (ch5 && drawLiquidCh5(ctx, biome, tt, x, y, top, tx, t)) continue;
+      if (ch6 && drawLiquidCh6(ctx, biome, tt, x, y, top, tx, t)) continue;
       if (tt === T.Water) {
         if (ch3 && drawLiquidCh3(ctx, biome, x, y, top, tx, t)) continue;
         ctx.fillStyle = 'rgba(40,70,110,0.45)';

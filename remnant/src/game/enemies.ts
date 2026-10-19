@@ -1,3 +1,4 @@
+import { chapterForRoom } from './fallenChapters';
 // The corrupted: Husks, Gloom Hounds, Hollow Archers, Fallen Sentinels and
 // Veil Wisps. Each has a readable telegraph, a stagger state that opens an
 // execution, and its own sound signature.
@@ -19,6 +20,7 @@ import { CH2_ROOM_IDS } from './rooms2';
 import { CH3_ROOM_IDS } from './rooms3';
 import { CH4_ROOM_IDS } from './rooms4';
 import { CH5_ROOM_IDS } from './rooms5';
+import { CH6_ROOM_IDS } from './rooms6';
 
 export interface EnemyStats {
   hp: number;
@@ -44,6 +46,8 @@ export const ENEMY_STATS: Record<EnemyKind, EnemyStats> = {
   vessel: { hp: 80, dmg: 18, poise: 12, xp: 58, silver: [8, 14], name: 'Vessel Wraith' },
   scribe: { hp: 125, dmg: 19, poise: 26, xp: 66, silver: [10, 18], name: 'Scribe of the Veil' },
   priest: { hp: 120, dmg: 18, poise: 26, xp: 60, silver: [10, 16], name: 'Chaldean Fire-Priest' },
+  undying: { hp: 150, dmg: 21, poise: 40, xp: 70, silver: [12, 20], name: 'Undying Host' },
+  gale: { hp: 70, dmg: 20, poise: 10, xp: 64, silver: [10, 16], name: 'Fallen Gale' },
 };
 
 export const CORRUPT = { glow: '#b04cff', eye: '#ff3355', outline: '#07050a' };
@@ -254,8 +258,8 @@ export abstract class Enemy extends Entity {
     const em = elite ? 2.0 : 1;
     // Chapter II foes are tougher, and worth more.
     const rid = G.world?.room?.id ?? '';
-    this.tier = CH5_ROOM_IDS.has(rid) ? 5 : CH4_ROOM_IDS.has(rid) ? 4 : CH3_ROOM_IDS.has(rid) ? 3 : CH2_ROOM_IDS.has(rid) ? 2 : 1;
-    const th = [1, 1, 1.8, 3.0, 4.4, 6.2][this.tier], td = [1, 1, 1.4, 1.9, 2.4, 2.9][this.tier];
+    this.tier = chapterForRoom(rid)?.n ?? (CH6_ROOM_IDS.has(rid) ? 6 : CH5_ROOM_IDS.has(rid) ? 5 : CH4_ROOM_IDS.has(rid) ? 4 : CH3_ROOM_IDS.has(rid) ? 3 : CH2_ROOM_IDS.has(rid) ? 2 : 1);
+    const th = [1, 1, 1.8, 3.0, 4.4, 6.2, 8.4, 10.5, 13][this.tier], td = [1, 1, 1.4, 1.9, 2.4, 2.9, 3.4, 3.9, 4.4][this.tier];
     this.maxHp = this.hp = Math.round(this.stats.hp * ng * em * th);
     this.dmg = this.stats.dmg * ng * (elite ? 1.15 : 1) * td;
     this.maxPoise = this.poise = this.stats.poise * (elite ? 1.6 : 1);

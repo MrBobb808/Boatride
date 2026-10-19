@@ -1,3 +1,4 @@
+import { FallenStory, FALLEN_QUESTS } from './fallenStory';
 // Narrative: cutscenes, conversations, choices, quests, purification and the
 // chapter's ending. Scripture is quoted from the King James Version; the world
 // and its people are fictional.
@@ -15,6 +16,7 @@ import { Chapter2, QUESTS2, type Gatekeeper, type Marshal } from './story2';
 import { Chapter3, QUESTS3, type LocustKing } from './story3';
 import { Chapter4, QUESTS4 } from './story4';
 import { Chapter5, QUESTS5 } from './story5';
+import { Chapter6, QUESTS6 } from './story6';
 import { LORE, ITEMS, ECHO_SPECIES } from './data';
 import { setQuest, grantAbility, derive, makeItem, addMaterial, hasMaterials, payMaterials, getItem, MAX_PLUS } from './state';
 import { rand } from '../core/math';
@@ -53,6 +55,8 @@ export const QUESTS: QuestDef[] = [
   ...QUESTS3,
   ...QUESTS4,
   ...QUESTS5,
+  ...QUESTS6,
+  ...FALLEN_QUESTS,
 ];
 
 const TEMPLE_LORE = ['eph610', 'eph612', 'cor104', 'isa4031', 'josh620'];
@@ -65,6 +69,8 @@ export class Story {
   ch3 = new Chapter3(this);
   ch4 = new Chapter4(this);
   ch5 = new Chapter5(this);
+  ch6 = new Chapter6(this);
+  fallen = new FallenStory(this);
   // ---------------------------------------------------------------- helpers
   fmt(text: string) {
     const L = (a: Parameters<typeof input.label>[0]) => {
@@ -127,9 +133,12 @@ export class Story {
   // ---------------------------------------------------------------- room entry
   onEnter(id: string, first: boolean) {
     const s = G.save;
+    this.ch6.roomChanged();
+    if (this.fallen.onEnter(id, first)) return;
     if (this.ch3.onEnter(id, first)) return;
     if (this.ch4.onEnter(id, first)) return;
     if (this.ch5.onEnter(id, first)) return;
+    if (this.ch6.onEnter(id, first)) return;
     if (this.ch2.onEnter(id, first)) return;
     if (id === 'sanctuary' && !flag('intro_done')) {
       this.opening();
@@ -204,6 +213,8 @@ export class Story {
     if (this.ch3.onTrigger(id)) return;
     if (this.ch4.onTrigger(id)) return;
     if (this.ch5.onTrigger(id)) return;
+    if (this.fallen.onTrigger(id)) return;
+    if (this.ch6.onTrigger(id)) return;
     if (this.ch2.onTrigger(id)) return;
     switch (id) {
       case 'steps_cutscene': if (!flag('collapsed')) this.collapse(); break;
@@ -439,6 +450,8 @@ export class Story {
     if (await this.ch3.talk(n)) return;
     if (await this.ch4.talk(n)) return;
     if (await this.ch5.talk(n)) return;
+    if (await this.fallen.talk(n)) return;
+    if (await this.ch6.talk(n)) return;
     if (await this.ch2.talk(n)) return;
     switch (n.kind) {
       case 'mara': return this.talkMara();
@@ -564,6 +577,7 @@ export class Story {
       this.ch3.onLore(id);
       this.ch4.onLore(id);
       this.ch5.onLore(id);
+      this.ch6.onLore(id);
     }
     this.checkMara();
   }
@@ -575,6 +589,7 @@ export class Story {
   }
 
   async shrine(sh: Shrine) {
+    if (this.fallen.shrine(sh)) return;
     const s = G.save;
     const W = G.world;
     this.cine(true);
@@ -616,6 +631,8 @@ export class Story {
     if (this.ch3.secret(key)) return;
     if (this.ch4.secret(key)) return;
     if (this.ch5.secret(key)) return;
+    if (this.fallen.secret(key)) return;
+    if (this.ch6.secret(key)) return;
     if (!SECRET_IDS.includes(key) || s.secrets.includes(key)) return;
     s.secrets.push(key);
     sfx('lootRare', { vol: 0.6 });
@@ -646,7 +663,7 @@ export class Story {
     G.world.autosave(true);
   }
 
-  onKill(_e: Enemy) {}
+  onKill(e: Enemy) { this.fallen.onKill(e); }
 
   // ---------------------------------------------------------------- purification
   async purify(e: Enemy) {
@@ -708,6 +725,7 @@ export class Story {
     this.ch3.onPurified(e.elite);
     this.ch4.onPurified(e.elite);
     this.ch5.onPurified(e.elite);
+    this.ch6.onPurified(e.elite);
     if (e.elite === 'chamber_sentinel') {
       setFlag('chamber_done');
       setFlag('has_echo');

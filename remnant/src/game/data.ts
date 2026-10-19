@@ -80,6 +80,16 @@ export interface ItemBase {
 }
 
 export const ITEMS: Record<string, ItemBase> = {
+  fangbreak_greatsword: {id:'fangbreak_greatsword',name:'Fangbreak',slot:'weapon',family:'greatsword',rarity:5,icon:'greatsword',element:'blood',look:2,unique:true,value:3000,mods:{atk:360,poise:25,echoDmg:20},desc:'The broken antler crown forged into a greatsword. Trophy of Varkhos, Chapter VII.'},
+  oath_of_the_pack: {id:'oath_of_the_pack',name:'Oath of the Free Pack',slot:'relic',rarity:5,icon:'crown',unique:true,value:2400,mods:{echoDmg:30,echoHp:35,res:8},desc:'Strength shared freely, no longer commanded by a fallen king.'},
+  thorn_of_dawn: {id:'thorn_of_dawn',name:'Thorn of Dawn',slot:'weapon',family:'spear',rarity:5,icon:'spear',element:'holy',look:2,unique:true,value:3600,mods:{atk:420,abil:35,crit:10},desc:'A cleansed thorn from Morvane’s crown. Trophy of Chapter VIII.'},
+  covenant_of_breath: {id:'covenant_of_breath',name:'Covenant of Breath',slot:'relic',rarity:5,icon:'lamp',unique:true,value:2800,mods:{hp:250,ce:80,ceRegen:40,echoHp:30},desc:'The first clean breath after the swarm. Restores strength to the living.'},
+  trailwarden_grips: {id:'trailwarden_grips',name:'Trailwarden Grips',slot:'gauntlets',rarity:4,icon:'gauntlet',look:2,unique:true,value:1500,mods:{atk:60,parry:12,poise:18},desc:'Hidden on the high Riftwood trail.'},
+  moonpath_boots: {id:'moonpath_boots',name:'Moonpath Treads',slot:'boots',rarity:4,icon:'boot',look:2,unique:true,value:1500,mods:{hp:120,speed:12,def:9},desc:'Recovered from the Unhunted Grove.'},
+  antidote_greaves: {id:'antidote_greaves',name:'Antidote Greaves',slot:'boots',rarity:4,icon:'boot',look:2,unique:true,value:1800,mods:{hp:160,def:12,speed:10},desc:'Hidden above the Greenfall marsh.'},
+  quarantine_mantle: {id:'quarantine_mantle',name:'Quarantine Mantle',slot:'armor',rarity:4,icon:'armor',look:2,unique:true,value:2000,mods:{hp:240,def:16,ceRegen:30},desc:'An infirmary keeper’s final gift to the watch.'},
+  grove_lantern: {id:'grove_lantern',name:'Grove Lantern',slot:'relic',rarity:5,icon:'lamp',unique:true,value:1900,mods:{ce:60,echoHp:30,echoDmg:20},desc:'Mara’s reward for rescuing the grove and recovering its warning.'},
+  infirmary_lantern: {id:'infirmary_lantern',name:'Infirmary Lantern',slot:'relic',rarity:5,icon:'lamp',unique:true,value:2200,mods:{hp:200,ceRegen:35,abil:25},desc:'Mara’s reward for the survivors and the record of Cinders.'},
   ascendant_blade: { id: 'ascendant_blade', name: 'Ascendant Veilblade', slot: 'weapon', rarity: 4, icon: 'sword', family: 'blade', element: 'shadow', look: 2, mods: { atk: 38, crit: 5, lifesteal: 2 }, value: 700, desc: 'A random wave-clear reward. Its Power increases its attack and bonuses.' },
   ascendant_spear: { id: 'ascendant_spear', name: 'Ascendant Stormlance', slot: 'weapon', rarity: 4, icon: 'spear', family: 'spear', element: 'storm', look: 2, mods: { atk: 38, abil: 15, ceRegen: 15 }, value: 700, desc: 'A random wave-clear reward. Power scales its storm-forged edge.' },
   ascendant_greatsword: { id: 'ascendant_greatsword', name: 'Ascendant Sunbreaker', slot: 'weapon', rarity: 4, icon: 'greatsword', family: 'greatsword', element: 'fire', look: 2, mods: { atk: 45, poise: 15, critDmg: 15 }, value: 800, desc: 'A random wave-clear reward. A crushing blade empowered by the waves conquered.' },
@@ -159,6 +169,10 @@ export const ITEMS: Record<string, ItemBase> = {
   overseer_sigil: { id: 'overseer_sigil', name: 'Overseer\'s Brand', slot: 'relic', rarity: 3, icon: 'sigil', mods: { poise: 15, str: 2, echoDmg: 8 }, value: 220, desc: 'The iron that marked every brick. Cold now, and lighter than it looks.' },
   oathblade: { id: 'oathblade', name: 'The Oathblade', slot: 'weapon', rarity: 5, icon: 'greatsword', family: 'greatsword', mods: { atk: 46, crit: 6, poise: 18, critDmg: 20 }, value: 999, desc: 'The Marshal\'s sword, given freely. It is heavy only for those who would misuse it.', look: 2, unique: true, element: 'blood', lore: '"I have fought a good fight, I have finished my course, I have kept the faith:" — 2 Timothy 4:7 (KJV)' },
   hound_fang: { id: 'hound_fang', name: 'Gatekeeper\'s Fang', slot: 'relic', rarity: 4, icon: 'shard', mods: { atk: 10, lifesteal: 3, crit: 4 }, value: 320, desc: 'A fang the length of a forearm, still warm at the root.', unique: true },
+  // Chapter VI
+  stormglass: { id: 'stormglass', name: 'Stormglass', slot: 'relic', rarity: 4, icon: 'shard', mods: { atk: 14, crit: 6, aspd: 8, ceRegen: 12 }, value: 560, desc: 'A shard of the Prince of the Storm\'s crown, clear as water. Lightning still turns inside it, and does not get out.', unique: true },
+  twentyfirst_day: { id: 'twentyfirst_day', name: 'The Twenty-First Day', slot: 'weapon', rarity: 5, icon: 'sword', family: 'blade', element: 'holy', mods: { atk: 118, crit: 12, abil: 28, poise: 22, def: 6 }, value: 999, desc: 'Light element. Left lying on the clouds where the prince\'s throne stood, as if someone set it down for you. It is heaviest in the hand that keeps standing.', look: 2, unique: true, lore: '"...from the first day that thou didst set thine heart to understand... thy words were heard, and I am come for thy words." — Daniel 10:12 (KJV)' },
+  watch_breastplate: { id: 'watch_breastplate', name: 'Breastplate of the Watch', slot: 'armor', rarity: 5, icon: 'armor', mods: { def: 20, hp: 120, poise: 24, res: 3 }, value: 999, desc: 'Dov forged it by the great river from Persian bronze and Judean iron. A breastplate for standing in.', look: 2, unique: true, lore: '"Stand therefore, having your loins girt about with truth, and having on the breastplate of righteousness;" — Ephesians 6:14 (KJV)' },
   // Materials
   iron_scrap: { id: 'iron_scrap', name: 'Iron Scrap', slot: 'material', rarity: 0, icon: 'scrap', value: 3, desc: 'Salvaged metal. The smith can use it.' },
   veil_shard: { id: 'veil_shard', name: 'Veil Shard', slot: 'material', rarity: 1, icon: 'veil', value: 6, desc: 'Crystallized corruption. Five can be purified into a Covenant Fragment.' },
@@ -326,6 +340,19 @@ export const ECHO_SPECIES: Record<string, EchoSpecies> = {
       { name: 'Dawnmane', title: 'Stage III', desc: 'A mane of white-gold fire.', ability: 'Dawnmane: its pounce lands with a wave of light both ways.' },
     ],
   },
+  undying: {
+    id: 'undying',
+    cls: 'Vanguard',
+    baseHp: 280,
+    baseAtk: 32,
+    evolveLv: [6, 10],
+    evolveCost: [{ covenant_fragment: 3, radiant_core: 1 }, { covenant_fragment: 5, radiant_core: 2 }],
+    stages: [
+      { name: 'Captain of the Undying', title: 'Stage I', desc: 'The shape of how a captain of the fallen host fought, cleansed: black plate, a long spear, the stubs of wings.', ability: 'Spear Line: spear strings and a driving lunge.' },
+      { name: 'Captain of the Remnant', title: 'Stage II', desc: 'Gold runs along its plate where the pale host-light used to burn.', ability: 'Long Reach: its lunge carries farther and strikes harder.' },
+      { name: 'Unbowed', title: 'Stage III', desc: 'Its spear burns with white fire, and it does not kneel.', ability: 'Unbowed: its spear string ends in a wave of light.' },
+    ],
+  },
   sentinel: {
     id: 'sentinel',
     cls: 'Sentinel',
@@ -471,6 +498,8 @@ export interface LoreEntry {
   note: string;
 }
 export const LORE: Record<string, LoreEntry> = {
+  hunt_plague: {id:'hunt_plague',title:'The Green-Stained Record',ref:'Remnant chronicle · Original fiction',text:'Morvane’s wings carry a thousand smaller wings. The green dust is not pollen. It is a road for her army.',note:'Rescue Barak in the grove, then bring this record to Mara at Thawgate.'},
+  plague_cinders: {id:'plague_cinders',title:'Beyond the Last Clean Breath',ref:'Remnant chronicle · Original fiction',text:'Azkar’s shadow leaves ash where it falls. The Crown of Cinders has lit the furnaces beyond the marsh, but the swarm has not yet crossed his fire.',note:'Rescue Ezra in the infirmary and bring this warning to Mara. The Cinders campaign belongs to a future chapter.'},
   eze371: {
     id: 'eze371', title: 'The Valley Stone', ref: 'Ezekiel 37:1–2 (KJV)',
     text: 'The hand of the LORD was upon me, and carried me out in the spirit of the LORD, and set me down in the midst of the valley which was full of bones, And caused me to pass by them round about: and, behold, there were very many in the open valley; and, lo, they were very dry.',
@@ -621,6 +650,86 @@ export const LORE: Record<string, LoreEntry> = {
     id: 'dan221', title: 'He Removeth Kings', ref: 'Daniel 2:21 (KJV)',
     text: 'And he changeth the times and the seasons: he removeth kings, and setteth up kings: he giveth wisdom unto the wise, and knowledge to them that know understanding:',
     note: 'Hanan\'s blessing over the camp in the reeds, the morning after.',
+  },
+  dan104: {
+    id: 'dan104', title: 'By the Great River', ref: 'Daniel 10:4 (KJV)',
+    text: 'And in the four and twentieth day of the first month, as I was by the side of the great river, which is Hiddekel;',
+    note: 'Cut into a flat stone by the water, where Hanan kneels to pray.',
+  },
+  dan82: {
+    id: 'dan82', title: 'At Shushan in the Palace', ref: 'Daniel 8:2 (KJV)',
+    text: 'And I saw in a vision; and it came to pass, when I saw, that I was at Shushan in the palace, which is in the province of Elam; and I saw in a vision, and I was by the river of Ulai.',
+    note: 'Scratched on a reed-cutter\'s post in the marshes of Ulai. Someone stood here and saw further than the palace.',
+  },
+  deu3217: {
+    id: 'deu3217', title: 'Gods Whom They Knew Not', ref: 'Deuteronomy 32:17 (KJV)',
+    text: 'They sacrificed unto devils, not to God; to gods whom they knew not, to new gods that came newly up, whom your fathers feared not.',
+    note: 'Written in a Judean hand across the base of a roadside shrine. The offerings on it were still warm.',
+  },
+  ps827: {
+    id: 'ps827', title: 'Like One of the Princes', ref: 'Psalm 82:6–7 (KJV)',
+    text: 'I have said, Ye are gods; and all of you are children of the most High. But ye shall die like men, and fall like one of the princes.',
+    note: 'Painted small, low on the gate of Shushan, under the winged bulls. Whoever wrote it did not want the guards to see.',
+  },
+  isa1412: {
+    id: 'isa1412', title: 'Son of the Morning', ref: 'Isaiah 14:12 (KJV)',
+    text: 'How art thou fallen from heaven, O Lucifer, son of the morning! how art thou cut down to the ground, which didst weaken the nations!',
+    note: 'On a column in the hall of a hundred columns, where every other carving praises a king.',
+  },
+  eph22: {
+    id: 'eph22', title: 'The Prince of the Power of the Air', ref: 'Ephesians 2:2 (KJV)',
+    text: 'Wherein in time past ye walked according to the course of this world, according to the prince of the power of the air, the spirit that now worketh in the children of disobedience:',
+    note: 'Burned into the first step of the ziggurat, as if by lightning.',
+  },
+  jude16: {
+    id: 'jude16', title: 'Their First Estate', ref: 'Jude 1:6 (KJV)',
+    text: 'And the angels which kept not their first estate, but left their own habitation, he hath reserved in everlasting chains under darkness unto the judgment of the great day.',
+    note: 'Written on a broken link of chain as long as a man, hanging over nothing in the high places.',
+  },
+  ezek2817: {
+    id: 'ezek2817', title: 'Lifted Up Because of Thy Beauty', ref: 'Ezekiel 28:17 (KJV)',
+    text: 'Thine heart was lifted up because of thy beauty, thou hast corrupted thy wisdom by reason of thy brightness: I will cast thee to the ground, I will lay thee before kings, that they may behold thee.',
+    note: 'At the foot of the prince\'s throne, where a petitioner would kneel.',
+  },
+  pet24: {
+    id: 'pet24', title: 'The Angels That Sinned', ref: '2 Peter 2:4 (KJV)',
+    text: 'For if God spared not the angels that sinned, but cast them down to hell, and delivered them into chains of darkness, to be reserved unto judgment;',
+    note: 'What came to mind as the Prince of the Storm was thrown down.',
+  },
+  eph613: {
+    id: 'eph613', title: 'Having Done All, to Stand', ref: 'Ephesians 6:12–13 (KJV)',
+    text: 'For we wrestle not against flesh and blood, but against principalities, against powers, against the rulers of the darkness of this world, against spiritual wickedness in high places. Wherefore take unto you the whole armour of God, that ye may be able to withstand in the evil day, and having done all, to stand.',
+    note: 'Before the throne of the prince of Persia. You do not have to win. You have to stand.',
+  },
+  dan1013: {
+    id: 'dan1013', title: 'One and Twenty Days', ref: 'Daniel 10:13 (KJV)',
+    text: 'But the prince of the kingdom of Persia withstood me one and twenty days: but, lo, Michael, one of the chief princes, came to help me; and I remained there with the kings of Persia.',
+    note: 'The twenty-first day. The light above the throne, and the one who came down in it.',
+  },
+  col215: {
+    id: 'col215', title: 'Triumphing over Them', ref: 'Colossians 2:15 (KJV)',
+    text: 'And having spoiled principalities and powers, he made a shew of them openly, triumphing over them in it.',
+    note: 'Where the prince\'s throne stood, there is only light.',
+  },
+  dan1056: {
+    id: 'dan1056', title: 'A Certain Man Clothed in Linen', ref: 'Daniel 10:5–6 (KJV)',
+    text: 'Then I lifted up mine eyes, and looked, and behold a certain man clothed in linen, whose loins were girded with fine gold of Uphaz: His body also was like the beryl, and his face as the appearance of lightning, and his eyes as lamps of fire, and his arms and his feet like in colour to polished brass, and the voice of his words like the voice of a multitude.',
+    note: 'What Hanan saw by the river. The rest of the camp saw nothing, and were afraid anyway.',
+  },
+  dan1012: {
+    id: 'dan1012', title: 'Thy Words Were Heard', ref: 'Daniel 10:12 (KJV)',
+    text: 'Then said he unto me, Fear not, Daniel: for from the first day that thou didst set thine heart to understand, and to chasten thyself before thy God, thy words were heard, and I am come for thy words.',
+    note: 'As Hanan repeated it to the camp, weeping.',
+  },
+  dan1019: {
+    id: 'dan1019', title: 'Be Strong, Yea, Be Strong', ref: 'Daniel 10:19 (KJV)',
+    text: 'And said, O man greatly beloved, fear not: peace be unto thee, be strong, yea, be strong. And when he had spoken unto me, I was strengthened, and said, Let my lord speak; for thou hast strengthened me.',
+    note: 'Hanan stood up from the ground for the first time in three weeks.',
+  },
+  dan1020: {
+    id: 'dan1020', title: 'The Prince of Grecia Shall Come', ref: 'Daniel 10:20 (KJV)',
+    text: 'Then said he, Knowest thou wherefore I come unto thee? and now will I return to fight with the prince of Persia: and when I am gone forth, lo, the prince of Grecia shall come.',
+    note: 'The last thing Hanan heard by the river. The war is not over.',
   },
   isa432: {
     id: 'isa432', title: 'Through the Fire', ref: 'Isaiah 43:2 (KJV)',

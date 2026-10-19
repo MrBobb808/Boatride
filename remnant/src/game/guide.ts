@@ -83,7 +83,7 @@ function resolve(spec: Spec): GuideTarget | null {
         break outer;
       }
     } else {
-      const e = r.ents.find((en) => en.t === t && ((en as { id?: string }).id === id || (en as { k?: string }).k === id || (en as { grants?: string }).grants === id));
+      const e = r.ents.find((en) => en.t === t && ((en as { id?: string }).id === id || (en as { k?: string }).k === id || (en as { grants?: string }).grants === id || (en as { elite?: string }).elite === id));
       if (e && 'x' in e) {
         if (e.t === 'trigger') {
           x = (e.x + e.w / 2) * TILE;

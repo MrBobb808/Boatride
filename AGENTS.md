@@ -45,6 +45,12 @@ up next starts from the latest version.
   - V, *The Writing on the Wall* (Daniel 5): `game/rooms5.ts` and
     `game/story5.ts`. Its art is in `render/env5.ts`; the writing on the
     banquet-hall wall is driven through `game/writing.ts`.
+  - VI, *The Prince of Persia* (Daniel 10): `game/rooms6.ts` and
+    `game/story6.ts`. Its art is in `render/env6.ts`. Fallen angels appear
+    as "princes" over kingdoms and domains (the game's monarchs): the
+    Prince of the Storm and the prince of the kingdom of Persia. Elior
+    withstands them; he does not cast the great prince down (Michael's
+    light does, Daniel 10:13).
   - `game/chapters.ts` lists the chapters for chapter select (`ui/chapters.ts`)
     and starts training (the Trial of the Remnant from the menu).
 - **Bosses:**
@@ -53,6 +59,10 @@ up next starts from the latest version.
   - `game/bosses3.ts`: the Locust King.
   - `game/bosses4.ts`: the Image of Gold.
   - `game/bosses5.ts`: the Weigher.
+  - `game/bosses6.ts`: the Prince of the Power of the Air (storm) and the
+    Prince of the Kingdom of Persia (with the Twenty-First Day phase).
+  - `game/difficulty.ts`: Settings → Challenge → Boss difficulty (Normal,
+    Hard by default, Merciless) scales every boss's health, damage and tempo.
 - **Combat:**
   - `game/player.ts`: the player.
   - `game/weapons.ts`: movesets and animation clips.
@@ -67,6 +77,8 @@ up next starts from the latest version.
   - `game/locusts.ts`: drone and soldier.
   - `game/babylon.ts`: Brazen Lion and Chaldean Fire-Priest.
   - `game/feast.ts`: Vessel Wraith and Scribe of the Veil.
+  - `game/princes.ts`: Undying Host (rises again unless finished) and Fallen
+    Gale (a lightning flier).
 - **Echoes** (purified allies): `game/echoes.ts` holds the kits, `game/data.ts`
   the species.
   - **Squad control:** the command wheel (`ui/ui.ts`, `openWheel`) has a
@@ -126,8 +138,13 @@ up next starts from the latest version.
 
 ## Where the story stands
 
-Chapters I–V are complete, each with a chapter-end screen. The Chapter V
-end screen says Chapter VI is in development. The Trial of the Remnant
+Chapters I–VIII are implemented, each with a chapter-end screen. Chapter VI
+continues into the original Fallen Crown campaigns: VII, The Crown of the Hunt
+(Varkhos), and VIII, The Crown of Pestilence (Morvane). Their room definitions,
+quests and story wiring are in game/fallenChapters.ts and game/fallenStory.ts;
+the bosses are in game/fallenBosses.ts and use the PNG atlases through
+render/fallenArt.ts. Cinders is a future chapter, not implemented yet. See
+remnant/FALLEN_CHAPTERS.md for mechanics and verification. The Trial of the Remnant
 (`trial_arena`) is an endless Zombies-style rounds mode (`game/rounds.ts`) with
 a Game Over card and leaderboard (`game/board.ts`, `ui/leaderboard.ts`); it is
 also the endless way to level 100 and beyond.
