@@ -26,7 +26,7 @@ import { islandNotify } from '../ui/island';
 import { icon } from '../ui/icons';
 import { gameOver } from '../ui/leaderboard';
 import { rand, choose, overlaps } from '../core/math';
-import { gauntletBoss, gauntletImprint, originalForm, BOSS_COUNT } from './gauntlet';
+import { gauntletBoss, gauntletImprint, originalForm, gauntletCount } from './gauntlet';
 import { bossScale } from './difficulty';
 
 const BREAK = 7;
@@ -210,7 +210,7 @@ export class Rounds {
       p.revive();
       p.lastSafe = { x: p.x, y: p.y };
       this.boss = this.rematchSpecies ? originalForm(this.rematchSpecies, n, this.bossHp, this.bossDamage) : gauntletBoss(n, this.bossHp, this.bossDamage);
-      G.ui.banner(`BOSS ROUND ${n}`, `${this.boss.name} · cycle ${1 + Math.floor((n - 1) / BOSS_COUNT)}`, 'boss');
+      G.ui.banner(`BOSS ROUND ${n}`, `${this.boss.name} · cycle ${1 + Math.floor((n - 1) / gauntletCount())}`, 'boss');
       return;
     }
     this.pack = n % 5 === 0 && n % 10 !== 0;
@@ -315,7 +315,7 @@ export class Rounds {
     for (const e of W.ents) if (e.isFoe || e.team === 'enemy') e.remove = true;
     s.hp = Math.min(G.d.maxHp, s.hp + G.d.maxHp * 0.2);
     s.ce = G.d.maxCe;
-    if (this.round % BOSS_COUNT === 0) { s.balm = Math.min(s.balmMax, s.balm + 1); this.reward(this.round); }
+    if (this.round % gauntletCount() === 0) { s.balm = Math.min(s.balmMax, s.balm + 1); this.reward(this.round); }
     this.breakT = BREAK;
     this.changeT = 0;
     G.ui.toast(species ? 'Original-form imprint earned — absorb it in Echoes.' : `Boss ${this.round} defeated. Next: +22% health, +10% damage.`, 'good');

@@ -26,7 +26,7 @@ import { moveBody } from './physics';
 import { SENT_BASE, SENT_DIMS } from './enemies';
 import { marshalStyle } from './tanks';
 
-export type BossKey = 'gatekeeper' | 'marshal' | 'locust_king' | 'golden_image' | 'weigher' | 'storm_prince' | 'persia_prince';
+export type BossKey = 'gatekeeper' | 'marshal' | 'locust_king' | 'golden_image' | 'weigher' | 'storm_prince' | 'persia_prince' | 'beast_monarch' | 'plague_monarch';
 
 /** Shared lifecycle for the Chapter II bosses: intro, phases, kneel, defeat. */
 export abstract class BossBase extends Entity {

@@ -1,3 +1,4 @@
+import { loadFallenArt, fallenArtReady } from './render/fallenArt';
 // Boot: fonts, renderer, input, audio unlock, UI, then a fixed-step loop
 // (120 Hz logic so ProMotion displays get perfectly smooth motion).
 
@@ -36,7 +37,7 @@ const STEP = 1 / 120;
 async function boot() {
   const canvas = document.getElementById('game') as HTMLCanvasElement;
   applyTextSize();
-  await Promise.all([loadFonts(), loadCreatureSprites()]);
+  await Promise.all([loadFonts(), loadCreatureSprites(), loadFallenArt()]);
   const renderer = new Renderer(canvas);
   const camera = new Camera(renderer);
   G.renderer = renderer;
@@ -239,6 +240,7 @@ function setupDebug() {
   const api = {
     G,
     art: creatureArtStatus,
+    fallenArt: fallenArtReady,
     hero: () => ({ ready: heroSpriteReady(G.world.player.style, G.world.player.state, G.world.player.mantleT), skin: G.world.player.style.skin, hair: G.world.player.style.hair, beard: G.world.player.style.beard }),
     trial: (bossOnly = false, from = 1) => startTraining(from, bossOnly),
     spawn(kind: EnemyKind, x = G.world.player.x + 90, y = G.world.player.y) {

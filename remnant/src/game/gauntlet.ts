@@ -1,3 +1,4 @@
+import { BeastMonarch, PlagueMonarch } from './fallenBosses';
 // The real chapter bosses, isolated from campaign rewards and story callbacks.
 import { G } from './ctx';
 import { Idol } from './boss';
@@ -9,10 +10,11 @@ import { makeEnemy } from './foes';
 import { ECHO_SPECIES } from './data';
 import type { EnemyKind } from './tiles';
 
-const ROSTER = [Idol, Gatekeeper, Marshal, LocustKing, GoldenImage, Weigher];
-export const BOSS_COUNT = ROSTER.length;
-const IMPRINTS = [null, null, 'marshal', 'locust', null, null];
-export const gauntletImprint = (round: number) => IMPRINTS[(round - 1) % BOSS_COUNT];
+const ROSTER = [Idol, Gatekeeper, Marshal, LocustKing, GoldenImage, Weigher, BeastMonarch, PlagueMonarch];
+export const BOSS_COUNT = 6;
+export const gauntletCount = () => G.save?.flags.ch8_done ? 8 : G.save?.flags.ch7_done ? 7 : BOSS_COUNT;
+const IMPRINTS = [null, null, 'marshal', 'locust', null, null, null, null];
+export const gauntletImprint = (round: number) => IMPRINTS[(round - 1) % gauntletCount()];
 
 /** Echo rematches use the actual original enemy, including the two raised bosses. */
 export function originalForm(species: string, round: number, hp: number, damage: number) {
@@ -29,7 +31,7 @@ export function originalForm(species: string, round: number, hp: number, damage:
 }
 
 export function gauntletBoss(round: number, hp: number, damage: number, powerRound = round): Idol | BossBase {
-  const Kind = ROSTER[(round - 1) % ROSTER.length];
+  const Kind = ROSTER[(round - 1) % gauntletCount()];
   const b = new Kind(36 * 16, 18 * 16);
   b.maxHp = b.hp = Math.round(hp * Math.pow(1.22, Math.min(200, powerRound - 1)));
   const dmg = damage * Math.pow(1.1, Math.min(200, powerRound - 1));

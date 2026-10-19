@@ -80,6 +80,16 @@ export interface ItemBase {
 }
 
 export const ITEMS: Record<string, ItemBase> = {
+  fangbreak_greatsword: {id:'fangbreak_greatsword',name:'Fangbreak',slot:'weapon',family:'greatsword',rarity:5,icon:'greatsword',element:'blood',look:2,unique:true,value:3000,mods:{atk:360,poise:25,echoDmg:20},desc:'The broken antler crown forged into a greatsword. Trophy of Varkhos, Chapter VII.'},
+  oath_of_the_pack: {id:'oath_of_the_pack',name:'Oath of the Free Pack',slot:'relic',rarity:5,icon:'crown',unique:true,value:2400,mods:{echoDmg:30,echoHp:35,res:8},desc:'Strength shared freely, no longer commanded by a fallen king.'},
+  thorn_of_dawn: {id:'thorn_of_dawn',name:'Thorn of Dawn',slot:'weapon',family:'spear',rarity:5,icon:'spear',element:'holy',look:2,unique:true,value:3600,mods:{atk:420,abil:35,crit:10},desc:'A cleansed thorn from Morvane’s crown. Trophy of Chapter VIII.'},
+  covenant_of_breath: {id:'covenant_of_breath',name:'Covenant of Breath',slot:'relic',rarity:5,icon:'relic',unique:true,value:2800,mods:{hp:250,ce:80,ceRegen:40,echoHp:30},desc:'The first clean breath after the swarm. Restores strength to the living.'},
+  trailwarden_grips: {id:'trailwarden_grips',name:'Trailwarden Grips',slot:'gauntlets',rarity:4,icon:'gauntlet',look:2,unique:true,value:1500,mods:{atk:60,parry:12,poise:18},desc:'Hidden on the high Riftwood trail.'},
+  moonpath_boots: {id:'moonpath_boots',name:'Moonpath Treads',slot:'boots',rarity:4,icon:'boot',look:2,unique:true,value:1500,mods:{hp:120,speed:12,def:9},desc:'Recovered from the Unhunted Grove.'},
+  antidote_greaves: {id:'antidote_greaves',name:'Antidote Greaves',slot:'boots',rarity:4,icon:'boot',look:2,unique:true,value:1800,mods:{hp:160,def:12,speed:10},desc:'Hidden above the Greenfall marsh.'},
+  quarantine_mantle: {id:'quarantine_mantle',name:'Quarantine Mantle',slot:'armor',rarity:4,icon:'armor',look:2,unique:true,value:2000,mods:{hp:240,def:16,ceRegen:30},desc:'An infirmary keeper’s final gift to the watch.'},
+  grove_lantern: {id:'grove_lantern',name:'Grove Lantern',slot:'relic',rarity:5,icon:'relic',unique:true,value:1900,mods:{ce:60,echoHp:30,echoDmg:20},desc:'Mara’s reward for rescuing the grove and recovering its warning.'},
+  infirmary_lantern: {id:'infirmary_lantern',name:'Infirmary Lantern',slot:'relic',rarity:5,icon:'relic',unique:true,value:2200,mods:{hp:200,ceRegen:35,abil:25},desc:'Mara’s reward for the survivors and the record of Cinders.'},
   ascendant_blade: { id: 'ascendant_blade', name: 'Ascendant Veilblade', slot: 'weapon', rarity: 4, icon: 'sword', family: 'blade', element: 'shadow', look: 2, mods: { atk: 38, crit: 5, lifesteal: 2 }, value: 700, desc: 'A random wave-clear reward. Its Power increases its attack and bonuses.' },
   ascendant_spear: { id: 'ascendant_spear', name: 'Ascendant Stormlance', slot: 'weapon', rarity: 4, icon: 'spear', family: 'spear', element: 'storm', look: 2, mods: { atk: 38, abil: 15, ceRegen: 15 }, value: 700, desc: 'A random wave-clear reward. Power scales its storm-forged edge.' },
   ascendant_greatsword: { id: 'ascendant_greatsword', name: 'Ascendant Sunbreaker', slot: 'weapon', rarity: 4, icon: 'greatsword', family: 'greatsword', element: 'fire', look: 2, mods: { atk: 45, poise: 15, critDmg: 15 }, value: 800, desc: 'A random wave-clear reward. A crushing blade empowered by the waves conquered.' },
@@ -488,6 +498,8 @@ export interface LoreEntry {
   note: string;
 }
 export const LORE: Record<string, LoreEntry> = {
+  hunt_plague: {id:'hunt_plague',title:'The Green-Stained Record',ref:'Remnant chronicle · Original fiction',text:'Morvane’s wings carry a thousand smaller wings. The green dust is not pollen. It is a road for her army.',note:'Rescue Barak in the grove, then bring this record to Mara at Thawgate.'},
+  plague_cinders: {id:'plague_cinders',title:'Beyond the Last Clean Breath',ref:'Remnant chronicle · Original fiction',text:'Azkar’s shadow leaves ash where it falls. The Crown of Cinders has lit the furnaces beyond the marsh, but the swarm has not yet crossed his fire.',note:'Rescue Ezra in the infirmary and bring this warning to Mara. The Cinders campaign belongs to a future chapter.'},
   eze371: {
     id: 'eze371', title: 'The Valley Stone', ref: 'Ezekiel 37:1–2 (KJV)',
     text: 'The hand of the LORD was upon me, and carried me out in the spirit of the LORD, and set me down in the midst of the valley which was full of bones, And caused me to pass by them round about: and, behold, there were very many in the open valley; and, lo, they were very dry.',

@@ -346,17 +346,19 @@ export class Chapter6 {
     await G.ui.lore('dan1020');
     await st.say([
       { who: 'azriel', text: 'Another prince, another kingdom. Then we have another road ahead of us.' },
-      { who: 'mara', text: 'Grecia. The bronze kingdom from the dream of the Image. The belly and thighs of brass. It is all one story, Elior.' },
+      { who: 'mara', text: 'The road toward Grecia still lies ahead. First, the northern watch has sent word: a horned king named Varkhos is driving villages into his hunting grounds. We cannot leave them there.' },
       { who: 'dov', text: 'Then you will walk it in better iron than that. A breastplate, for standing in. That is what it is for.' },
     ]);
-    const plate = makeItem('watch_breastplate');
-    s.inventory.push(plate);
-    G.ui.itemGet(plate);
+    if (!flag('ch6_final_rewarded')) {
+      setFlag('ch6_final_rewarded');
+      const plate = makeItem('watch_breastplate');
+      s.inventory.push(plate); G.ui.itemGet(plate); G.world.autosave(true);
+    }
     await wait(1.2);
     setFlag('ch6_done');
     G.world.autosave(true);
     st.cine(false);
-    await G.ui.chapterEnd(6);
+    if ((await G.ui.chapterEnd(6)) === 'next') await this.st.fallen.begin(7);
   }
 
   // ---------------------------------------------------------------- talk

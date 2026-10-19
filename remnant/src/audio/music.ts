@@ -594,6 +594,10 @@ const TRIAL_CALL: Record<number, number>[] = [
 ];
 
 export const TRACKS: Record<string, TrackDef> = {
+  hunt: {bpm:78,ambience:'wind',gen(m,d,s,t){const b=bar(s),p=pos(s),root=[38,41,36,34][b%4];if(p===0){m.strings(d,root,t,3,.7,1000,.7);m.choir(d,root+19,t,3,.4,'oo');}if(p===0||p===10)m.harp(d,root+24,t,.6,2);if(p===8)m.taiko(d,t,.35,.7);}},
+  plague: {bpm:62,ambience:'drone',gen(m,d,s,t){const b=bar(s),p=pos(s),root=[36,37,32,35][b%4];if(p===0){m.strings(d,root,t,4,.55,700,1);m.choir(d,root+19,t,4,.4,'oo');}if(p===2||p===10)m.bell(d,root+31,t,.35,2.5);}},
+  beast_monarch: {bpm:112,ambience:'drone',gen(m,d,s,t,I){const root=[38,34,41,36][bar(s)%4],p=pos(s);if(p===0)m.strings(d,root,t,2.2,1.1,1300,.1);if(p%4===0){m.taiko(d,t,.9,.7);m.bass(d,root-12,t,.5,.7);}if(p%4===2)m.snare(d,t,.5);if(I>0&&p===0)m.choir(d,root+19,t,2.2,.7,'ah');}},
+  plague_monarch: {bpm:104,ambience:'drone',gen(m,d,s,t,I){const root=[36,37,32,35][bar(s)%4],p=pos(s);if(p===0){m.strings(d,root,t,2.4,1,950,.3);m.choir(d,root+19,t,2.4,.7,'ah');}if(p%4===0)m.taiko(d,t,.65,.85);if(p===2||p===10)m.bell(d,root+31,t,.65,1.5);if(I>0&&p%4===2)m.snare(d,t,.4);}},
   title: {
     bpm: 54,
     ambience: 'wind',

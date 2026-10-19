@@ -623,7 +623,7 @@ function mapTab() {
       h('span', null, h('i', { style: 'background:#6a5a8a' }), 'Explored'),
       h('span', null, h('i', { style: 'background:#ffcf6b;clip-path:polygon(50% 0,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%)' }), 'Objective'),
       h('span', null, `Altars kindled: ${lit.join(', ')}`),
-      h('span', { 'data-k': 'explored' }, `Explored: ${ex.ch}% of Chapter ${['', 'I', 'II', 'III', 'IV', 'V', 'VI'][ex.n]} · ${ex.all}% in all`),
+      h('span', { 'data-k': 'explored' }, `Explored: ${ex.ch}% of Chapter ${['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII'][ex.n]} · ${ex.all}% in all`),
     ),
   );
 }

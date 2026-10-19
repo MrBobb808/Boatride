@@ -1,3 +1,4 @@
+import { fallenObjective } from './fallenChapters';
 // Interactables: NPCs, chests, altars, inscription stones, relic shrines,
 // pickups and loot drops.
 
@@ -446,10 +447,10 @@ export class Shrine extends Entity implements Interactable {
     this.layer = 3;
   }
   get taken() {
-    return G.save.keyItems.includes(this.grants);
+    return fallenObjective(this.grants) ? !!G.save.flags[this.grants] : G.save.keyItems.includes(this.grants);
   }
   prompt() {
-    return this.taken ? '' : 'Take the relic';
+    return this.taken ? '' : fallenObjective(this.grants) ? 'Cleanse Spore Heart' : 'Take the relic';
   }
   interact() {
     if (!this.taken) G.world.story.shrine(this);
@@ -461,7 +462,9 @@ export class Shrine extends Entity implements Interactable {
     ctx.globalCompositeOperation = 'lighter';
     glow(ctx, x, y, 30, '#fff1c0', 0.6);
     ctx.globalCompositeOperation = 'source-over';
-    if (this.grants === 'eagle_wings') {
+    if (fallenObjective(this.grants)) {
+      ctx.fillStyle='#badc8b';ctx.strokeStyle='#edf5c1';ctx.lineWidth=1;ctx.beginPath();ctx.ellipse(x,y,10,16,0,0,Math.PI*2);ctx.fill();ctx.stroke();
+    } else if (this.grants === 'eagle_wings') {
       ctx.save();
       ctx.translate(x, y);
       ctx.rotate(0.5);

@@ -1,3 +1,4 @@
+import { chapterForRoom } from './fallenChapters';
 // The corrupted: Husks, Gloom Hounds, Hollow Archers, Fallen Sentinels and
 // Veil Wisps. Each has a readable telegraph, a stagger state that opens an
 // execution, and its own sound signature.
@@ -257,8 +258,8 @@ export abstract class Enemy extends Entity {
     const em = elite ? 2.0 : 1;
     // Chapter II foes are tougher, and worth more.
     const rid = G.world?.room?.id ?? '';
-    this.tier = CH6_ROOM_IDS.has(rid) ? 6 : CH5_ROOM_IDS.has(rid) ? 5 : CH4_ROOM_IDS.has(rid) ? 4 : CH3_ROOM_IDS.has(rid) ? 3 : CH2_ROOM_IDS.has(rid) ? 2 : 1;
-    const th = [1, 1, 1.8, 3.0, 4.4, 6.2, 8.4][this.tier], td = [1, 1, 1.4, 1.9, 2.4, 2.9, 3.4][this.tier];
+    this.tier = chapterForRoom(rid)?.n ?? (CH6_ROOM_IDS.has(rid) ? 6 : CH5_ROOM_IDS.has(rid) ? 5 : CH4_ROOM_IDS.has(rid) ? 4 : CH3_ROOM_IDS.has(rid) ? 3 : CH2_ROOM_IDS.has(rid) ? 2 : 1);
+    const th = [1, 1, 1.8, 3.0, 4.4, 6.2, 8.4, 10.5, 13][this.tier], td = [1, 1, 1.4, 1.9, 2.4, 2.9, 3.4, 3.9, 4.4][this.tier];
     this.maxHp = this.hp = Math.round(this.stats.hp * ng * em * th);
     this.dmg = this.stats.dmg * ng * (elite ? 1.15 : 1) * td;
     this.maxPoise = this.poise = this.stats.poise * (elite ? 1.6 : 1);

@@ -1,3 +1,4 @@
+import { fallenSky, fallenParallax, fallenProp, FALLEN_LIVE } from './fallenEnv';
 // Environment art: parallax backgrounds per biome, baked tile chunks with
 // stone/brick detail, static props, and the animated bits (water, veil pools,
 // banners, torches) drawn live each frame.
@@ -30,6 +31,8 @@ export interface BiomePal {
 }
 
 export const BIOMES: Record<Biome, BiomePal> = {
+  hunt: {sky:['#101323','#31353c','#8a6755'],far:'#35363e',mid:'#252832',near:'#171d27',fog:'#b78c6e',stone:'#514751',stoneDark:'#25232d',cap:'#9c8770',capTuft:'#b09269',back:'#211f29',backLine:'#3f3540',moon:'#f1cf9c',plat:'#9a7f64',ambient:'#1a1422'},
+  plague: {sky:['#101b22','#304e46','#7d9666'],far:'#374f46',mid:'#294637',near:'#192c29',fog:'#b6ce8d',stone:'#455947',stoneDark:'#202f2c',cap:'#9bb478',capTuft:'#bed28c',back:'#1b2e26',backLine:'#3c5941',moon:'#d4eda5',plat:'#a4b77b',ambient:'#12271f'},
   village: {
     sky: ['#0b0a16', '#2a1d3a', '#5a3550'], far: '#2a2338', mid: '#1c1727', near: '#120f19', fog: '#6b4a6a',
     stone: '#4a4250', stoneDark: '#26212c', cap: '#6d6070', capTuft: '#5a5560', back: '', backLine: '', moon: '#f1d9b0',
@@ -146,6 +149,7 @@ export interface Layer {
 
 export function buildParallax(biome: Biome, seed: number, interior: boolean, viewH: number, res: number): Layer[] {
   const pal = BIOMES[biome];
+  if (biome==='hunt'||biome==='plague') return fallenParallax(seed,viewH,res,biome==='plague');
   if (biome === 'plain' || biome === 'tower') return buildParallaxCh2(biome, pal, seed, viewH, res);
   if (isCh3(biome)) return buildParallaxCh3(biome, pal, seed, viewH, res);
   if (isCh4(biome)) return buildParallaxCh4(biome, pal, seed, viewH, res);
@@ -324,6 +328,7 @@ function tree(ctx: Ctx, x: number, base: number, h: number, col: string, rng: RN
 }
 
 export function drawSky(ctx: Ctx, pal: BiomePal, w: number, h: number, interior: boolean, t: number) {
+  if (pal===BIOMES.hunt||pal===BIOMES.plague) return fallenSky(ctx,w,h,pal===BIOMES.plague,t);
   if (pal === BIOMES.plain && !interior) {
     drawDuskSky(ctx, pal, w, h, t);
     return;
@@ -680,7 +685,7 @@ export function drawProp(ctx: Ctx, e: Extract<EntDef, { t: 'decor' }>, pal: Biom
   const rng = new RNG(seed + Math.floor(e.x * 31 + e.y * 7));
   const o = '#08060a';
   ctx.save();
-  if (drawPropCh2(ctx, e, pal, seed) || drawPropCh3(ctx, e, pal, seed) || drawPropCh4(ctx, e, pal, seed, isCh5(biome) || seed === FEAST_SEED) || drawPropCh5(ctx, e, pal, seed) || drawPropCh6(ctx, e, pal, seed)) {
+  if (fallenProp(ctx,e) || drawPropCh2(ctx, e, pal, seed) || drawPropCh3(ctx, e, pal, seed) || drawPropCh4(ctx, e, pal, seed, isCh5(biome) || seed === FEAST_SEED) || drawPropCh5(ctx, e, pal, seed) || drawPropCh6(ctx, e, pal, seed)) {
     ctx.restore();
     return;
   }
@@ -1280,7 +1285,7 @@ function drawHallBack(ctx: Ctx, e: Extract<EntDef, { t: 'decor' }>, pal: BiomePa
 }
 
 /** Decor kinds animated by drawLiveProps behind the actors (pass these in the background pass). */
-export const LIVE_DECOR: ReadonlySet<string> = new Set(['banner', ...LIVE_CH3, ...LIVE_CH4, ...LIVE_CH5, ...LIVE_CH6]);
+export const LIVE_DECOR: ReadonlySet<string> = new Set(['banner', ...LIVE_CH3, ...LIVE_CH4, ...LIVE_CH5, ...LIVE_CH6, ...FALLEN_LIVE]);
 let liveCh3Frame = -1;
 
 /** Animated props drawn every frame (banners, flames, water, veil pools, grass). */
@@ -1290,12 +1295,13 @@ export function drawLiveProps(ctx: Ctx, ents: EntDef[], t: number, view: { x: nu
     const x = e.x * TILE, y = e.y * TILE;
     if (x < view.x - 200 || x > view.x + view.w + 200 || y < view.y - 200 || y > view.y + view.h + 300) continue;
     if (e.t === 'decor') {
-      if (LIVE_CH3.has(e.k) || LIVE_CH4.has(e.k) || LIVE_CH5.has(e.k) || LIVE_CH6.has(e.k)) {
+      if (LIVE_CH3.has(e.k) || LIVE_CH4.has(e.k) || LIVE_CH5.has(e.k) || LIVE_CH6.has(e.k) || FALLEN_LIVE.has(e.k)) {
         // Chapter III and IV overlays belong to the background pass; if this frame's
         // background pass did not include them, the foreground pass draws them.
         if (!fg) liveCh3Frame = t;
         if (!e.fg && (!fg || liveCh3Frame !== t) && cond(e.cond, e.ncond)) {
-          if (LIVE_CH3.has(e.k)) drawLivePropCh3(ctx, e, t);
+          if (FALLEN_LIVE.has(e.k)) fallenProp(ctx,e);
+          else if (LIVE_CH3.has(e.k)) drawLivePropCh3(ctx, e, t);
           else if (LIVE_CH4.has(e.k)) drawLivePropCh4(ctx, e, t);
           else if (LIVE_CH5.has(e.k)) drawLivePropCh5(ctx, e, t);
           else drawLivePropCh6(ctx, e, t);

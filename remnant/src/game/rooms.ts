@@ -1,3 +1,4 @@
+import { FALLEN_ROOMS, chapterForRoom } from './fallenChapters';
 // Chapter I — The Ashen Village. Twelve connected rooms built from rectangles.
 // Coordinates are tiles; an entity's y is the row its feet stand on.
 
@@ -552,11 +553,11 @@ function sanctum() {
 export type RoomData = ReturnType<typeof sanctuary>;
 
 export const ROOMS: Record<string, RoomData> = Object.fromEntries(
-  [sanctuary(), ashenRoad(), villageSquare(), cistern(), templeSteps(), templeHall(), chamber(), crypt(), gallery(), vault(), antechamber(), sanctum(), ...ROOMS2, ...ROOMS3, ...ROOMS4, ...ROOMS5, ...ROOMS6]
+  [sanctuary(), ashenRoad(), villageSquare(), cistern(), templeSteps(), templeHall(), chamber(), crypt(), gallery(), vault(), antechamber(), sanctum(), ...ROOMS2, ...ROOMS3, ...ROOMS4, ...ROOMS5, ...ROOMS6, ...FALLEN_ROOMS]
     .map((r) => [r.id, r]),
 );
 
 /** Which chapter a room belongs to (maps show one chapter at a time). */
 export function chapterOf(id: string) {
-  return CH6_ROOM_IDS.has(id) ? 6 : CH5_ROOM_IDS.has(id) ? 5 : CH4_ROOM_IDS.has(id) ? 4 : CH3_ROOM_IDS.has(id) ? 3 : CH2_ROOM_IDS.has(id) ? 2 : 1;
+  return chapterForRoom(id)?.n ?? (CH6_ROOM_IDS.has(id) ? 6 : CH5_ROOM_IDS.has(id) ? 5 : CH4_ROOM_IDS.has(id) ? 4 : CH3_ROOM_IDS.has(id) ? 3 : CH2_ROOM_IDS.has(id) ? 2 : 1);
 }

@@ -1,3 +1,4 @@
+import { FallenStory, FALLEN_QUESTS } from './fallenStory';
 // Narrative: cutscenes, conversations, choices, quests, purification and the
 // chapter's ending. Scripture is quoted from the King James Version; the world
 // and its people are fictional.
@@ -55,6 +56,7 @@ export const QUESTS: QuestDef[] = [
   ...QUESTS4,
   ...QUESTS5,
   ...QUESTS6,
+  ...FALLEN_QUESTS,
 ];
 
 const TEMPLE_LORE = ['eph610', 'eph612', 'cor104', 'isa4031', 'josh620'];
@@ -68,6 +70,7 @@ export class Story {
   ch4 = new Chapter4(this);
   ch5 = new Chapter5(this);
   ch6 = new Chapter6(this);
+  fallen = new FallenStory(this);
   // ---------------------------------------------------------------- helpers
   fmt(text: string) {
     const L = (a: Parameters<typeof input.label>[0]) => {
@@ -130,6 +133,7 @@ export class Story {
   // ---------------------------------------------------------------- room entry
   onEnter(id: string, first: boolean) {
     const s = G.save;
+    if (this.fallen.onEnter(id, first)) return;
     if (this.ch3.onEnter(id, first)) return;
     if (this.ch4.onEnter(id, first)) return;
     if (this.ch5.onEnter(id, first)) return;
@@ -208,6 +212,7 @@ export class Story {
     if (this.ch3.onTrigger(id)) return;
     if (this.ch4.onTrigger(id)) return;
     if (this.ch5.onTrigger(id)) return;
+    if (this.fallen.onTrigger(id)) return;
     if (this.ch6.onTrigger(id)) return;
     if (this.ch2.onTrigger(id)) return;
     switch (id) {
@@ -444,6 +449,7 @@ export class Story {
     if (await this.ch3.talk(n)) return;
     if (await this.ch4.talk(n)) return;
     if (await this.ch5.talk(n)) return;
+    if (await this.fallen.talk(n)) return;
     if (await this.ch6.talk(n)) return;
     if (await this.ch2.talk(n)) return;
     switch (n.kind) {
@@ -582,6 +588,7 @@ export class Story {
   }
 
   async shrine(sh: Shrine) {
+    if (this.fallen.shrine(sh)) return;
     const s = G.save;
     const W = G.world;
     this.cine(true);
@@ -623,6 +630,7 @@ export class Story {
     if (this.ch3.secret(key)) return;
     if (this.ch4.secret(key)) return;
     if (this.ch5.secret(key)) return;
+    if (this.fallen.secret(key)) return;
     if (this.ch6.secret(key)) return;
     if (!SECRET_IDS.includes(key) || s.secrets.includes(key)) return;
     s.secrets.push(key);
@@ -654,7 +662,7 @@ export class Story {
     G.world.autosave(true);
   }
 
-  onKill(_e: Enemy) {}
+  onKill(e: Enemy) { this.fallen.onKill(e); }
 
   // ---------------------------------------------------------------- purification
   async purify(e: Enemy) {
