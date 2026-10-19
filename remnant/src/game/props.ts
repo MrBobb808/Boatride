@@ -450,7 +450,7 @@ export class Shrine extends Entity implements Interactable {
     return fallenObjective(this.grants) ? !!G.save.flags[this.grants] : G.save.keyItems.includes(this.grants);
   }
   prompt() {
-    return this.taken ? '' : fallenObjective(this.grants) ? 'Cleanse Spore Heart' : 'Take the relic';
+    return this.taken ? '' : fallenObjective(this.grants) ? this.grants.startsWith('cinder_')?'Release Pressure Wheel':'Cleanse Spore Heart' : 'Take the relic';
   }
   interact() {
     if (!this.taken) G.world.story.shrine(this);
@@ -462,7 +462,9 @@ export class Shrine extends Entity implements Interactable {
     ctx.globalCompositeOperation = 'lighter';
     glow(ctx, x, y, 30, '#fff1c0', 0.6);
     ctx.globalCompositeOperation = 'source-over';
-    if (fallenObjective(this.grants)) {
+    if (this.grants.startsWith('cinder_')) {
+      ctx.strokeStyle='#ffd090';ctx.lineWidth=3;ctx.beginPath();ctx.arc(x,y,13,0,Math.PI*2);ctx.moveTo(x-13,y);ctx.lineTo(x+13,y);ctx.moveTo(x,y-13);ctx.lineTo(x,y+13);ctx.stroke();ctx.fillStyle='#92583a';ctx.fillRect(x-3,y-3,6,6);
+    } else if (fallenObjective(this.grants)) {
       ctx.fillStyle='#badc8b';ctx.strokeStyle='#edf5c1';ctx.lineWidth=1;ctx.beginPath();ctx.ellipse(x,y,10,16,0,0,Math.PI*2);ctx.fill();ctx.stroke();
     } else if (this.grants === 'eagle_wings') {
       ctx.save();

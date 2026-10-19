@@ -54,7 +54,7 @@ export const CHAPTERS: ChapterDef[] = [
     blurb: 'By the great river an old man fasts for an answer that is held back. Above Shushan, fallen princes rule the air.',
     reached: () => flag('ch6_intro'), done: () => flag('ch6_done'),
   },
-  ...FALLEN_CHAPTERS.map(c => ({n:c.n,roman:c.roman,title:c.title,hub:c.hub,level:c.n===7?80:100,blurb:c.intro[1],reached:()=>flag(`ch${c.n}_intro`),done:()=>flag(`ch${c.n}_done`)})),
+  ...FALLEN_CHAPTERS.map(c => ({n:c.n,roman:c.roman,title:c.title,hub:c.hub,level:80+(c.n-7)*20,blurb:c.intro[1],reached:()=>flag(`ch${c.n}_intro`),done:()=>flag(`ch${c.n}_done`)})),
 ];
 
 /** A chapter can be played once you have reached it or finished the one before. */

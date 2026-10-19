@@ -1,7 +1,7 @@
 // Original fiction: each Fallen Crown commands a distinct domain.
 import { MapBuilder, type RoomDef, type EntDef, type EnemyKind, type NpcKind } from './tiles';
 export interface FallenChapter {
-  n: 7 | 8; roman: string; title: string; name: string; boss: 'beast_monarch' | 'plague_monarch'; biome: 'hunt' | 'plague';
+  n: 7 | 8 | 9; roman: string; title: string; name: string; boss: 'beast_monarch' | 'plague_monarch' | 'cinder_monarch'; biome: 'hunt' | 'plague' | 'cinders';
   hub: string; trail: string; depths: string; side: string; ridge: string; arena: string; rescue: NpcKind;
   objectives: {id: string; flag: string; room: string; name: string}[];
   rewards: string[]; optional: string; caches: string[]; record: string; intro: string[]; challenge: string[]; ending: string[]; tips: string;
@@ -20,8 +20,16 @@ export const FALLEN_CHAPTERS: FallenChapter[] = [
     rewards:['thorn_of_dawn','covenant_of_breath'], optional:'infirmary_lantern', caches:['plague_marsh_cache','plague_infirmary_cache','plague_causeway_cache'], record:'plague_cinders',
     intro:['Every leaf wears the same green dust. Lanterns burn beside sealed doors. From the north comes the sound of rain, though the sky is clear.', 'Morvane commands pestilence and the living swarm. Two Spore Hearts feed the veil over her throne. Clear their guards, then cleanse both hearts.', 'Ezra kept an infirmary above the sporeworks. Find its survivors. When the queen calls the Great Miasma, gold light marks clean air.'],
     challenge:['Winter kept them still. The hunt kept them running. I can make them one.', 'You have turned their breath against them.', 'No hunger. No loneliness. One will, carried on a million wings.', 'A thousand voices are still worth hearing separately.', 'Then let us see how long your last breath lasts.'],
-    ending:['The queen’s wings scatter into dust that no longer glows. Under the dead green crust, the first untouched leaf opens.', 'Unseal the doors. Let them breathe.', 'Ash lies beyond the marsh. Azkar, Crown of Cinders, has lit the furnaces. That road belongs to a future chapter.'],
+    ending:['The queen’s wings scatter into dust that no longer glows. Under the dead green crust, the first untouched leaf opens.', 'Unseal the doors. Let them breathe.', 'Ash lies beyond the marsh. Azkar, Crown of Cinders, has lit the furnaces. The freed causeway now leads to his foundries.'],
     tips:'Move out of green spore zones before they bloom. Destroy Brood Cocoons to stop Morvane healing. During the Great Miasma, stand inside the active gold beacon; strike when the veil breaks.',
+  },
+  { n:9, roman:'IX', title:'The Crown of Cinders', name:'Azkar', boss:'cinder_monarch', biome:'cinders', hub:'ashwatch_refuge', trail:'slag_procession', depths:'bellows_foundry', side:'last_smithy', ridge:'ember_aqueduct', arena:'cinder_throne', rescue:'talia',
+    objectives:[{id:'cinder_valve_a',flag:'cinder_valve_a',room:'slag_procession',name:'Slag Pressure Wheel'},{id:'cinder_valve_b',flag:'cinder_valve_b',room:'bellows_foundry',name:'Bellows Pressure Wheel'}],
+    rewards:['cinderbreak','oath_of_the_unburnt'], optional:'smiths_lantern', caches:['cinder_slag_cache','cinder_smithy_cache','cinder_aqueduct_cache'], record:'cinder_testament',
+    intro:['Beyond the cleared marsh, ash falls like snow. The foundries ring without pause. Every hammer stroke has the rhythm of a marching army.', 'Azkar forges obedience in the furnaces. Two pressure wheels feed the seal around his throne. Clear their guards and release both wheels to vent the heat.', 'Talia led the last smiths to a workshop above the bellows. Bring them home. Azkar’s hammer can be parried; the glowing cracks in the floor cannot.'],
+    challenge:['Everything breaks. I offer the mercy of choosing its next shape.', 'These people are not iron for your furnace.', 'Your echoes obey. Your blade obeys. Why should the living be different?', 'They choose to stand with me. Even a broken thing may choose what it becomes.', 'Then stand upon my anvil. Let us hear the strength of that choice.'],
+    ending:['Azkar’s hammer splits. Molten seams cool across the broken crown. For the first time in years, the foundry workers hear their own breathing between the strokes.', 'Open the sluices. Let these fires warm homes again.', 'The crowns of Hunt, Pestilence and Cinders lie broken. For now, the road is quiet. Return to the survivors, explore the foundries, or challenge Azkar again in the boss gauntlet.'],
+    tips:'Parry the hammer or dodge behind Azkar. Leave orange cracks before they erupt; jump over low fire waves. In phase II, parry to shatter his armor and expose him. During the Last Bellows, evade three marked eruptions, then punish his long recovery.',
   },
 ];
 export const chapterForRoom = (id: string) => FALLEN_CHAPTERS.find(c => [c.hub,c.trail,c.depths,c.side,c.ridge,c.arena].includes(id));
@@ -31,18 +39,18 @@ function makeRooms(c:FallenChapter):RoomDef[] {
   const theme=c.biome, floor=24, width=104;
   const room=(id:string,name:string,w=width,f=floor,interior=false):RoomDef=>{
     const b=new MapBuilder(w,f+4).rect(0,f,w,4);if(interior)b.rect(0,0,w,2);
-    return {id,name,region:c.title,biome:theme,music:theme,dark:interior?.36:.23,interior,weather:'motes',seed:c.n*100+id.length,map:{x:0,y:c.n*2},w,h:b.h,rows:b.rows(),spawns:{start:{x:6,y:f},left:{x:4,y:f},right:{x:w-4,y:f,face:-1}},exits:[],ents:[]};
+    return {id,name,region:c.title,biome:theme,music:theme,dark:interior?.36:.23,interior,weather:c.n===9?'embers':'motes',seed:c.n*100+id.length,map:{x:0,y:c.n*2},w,h:b.h,rows:b.rows(),spawns:{start:{x:6,y:f},left:{x:4,y:f},right:{x:w-4,y:f,face:-1}},exits:[],ents:[]};
   };
-  const hub=room(c.hub,c.n===7?'Thawgate Outpost':'Lantern Quarantine',76,20);
+  const hub=room(c.hub,c.n===9?'Ashwatch Refuge':c.n===7?'Thawgate Outpost':'Lantern Quarantine',76,20);
   hub.spawns.altar={x:9,y:20};hub.rows=hub.rows.map((r,y)=>y<20?'##'+r.slice(2):r);
   hub.ents=[{t:'altar',id:c.hub,x:9,y:20},{t:'light',k:'brazier',x:15,y:20},{t:'light',k:'brazier',x:43,y:20},{t:'decor',k:'tent',x:19,y:20},{t:'decor',k:'cart',x:60,y:20},{t:'decor',k:'anvil',x:66,y:20},
     ...(['azriel','mara','tobiah','ilan','dov'] as NpcKind[]).map((k,i):EntDef=>({t:'npc',k,x:[25,32,43,56,66][i],y:20})),{t:'npc',k:c.rescue,x:49,y:20,cond:`ch${c.n}_rescued`},
     {t:'hint',id:`ch${c.n}_help`,x:18,w:25,text:c.intro[1]}];
-  const trail=room(c.trail,c.n===7?'The Riftwood Trail':'Greenfall Marsh');
-  const depths=room(c.depths,c.n===7?'The Fang Pits':'The Sporeworks',112,27,true);
-  const side=room(c.side,c.n===7?'The Unhunted Grove':'The Silent Infirmary',68,24);
-  const ridge=room(c.ridge,c.n===7?'Clawscar Ridge':'The Pestilent Causeway',110,25);
-  const arena=room(c.arena,c.n===7?'The Throne of Fangs':'The Throne of the Swarm',80,23,true);
+  const trail=room(c.trail,c.n===9?'The Slag Procession':c.n===7?'The Riftwood Trail':'Greenfall Marsh');
+  const depths=room(c.depths,c.n===9?'The Bellows Foundry':c.n===7?'The Fang Pits':'The Sporeworks',112,27,true);
+  const side=room(c.side,c.n===9?'The Last Smithy':c.n===7?'The Unhunted Grove':'The Silent Infirmary',68,24);
+  const ridge=room(c.ridge,c.n===9?'The Ember Aqueduct':c.n===7?'Clawscar Ridge':'The Pestilent Causeway',110,25);
+  const arena=room(c.arena,c.n===9?'The Throne of Cinders':c.n===7?'The Throne of Fangs':'The Throne of the Swarm',80,23,true);
   const route=[hub,trail,depths,ridge,arena];
   let mapX=0;for(const r of route){r.map={x:mapX,y:c.n*2};mapX+=r.w/16+.3;}
   side.map={x:depths.map.x+2.5,y:c.n*2-2.2};
@@ -58,19 +66,20 @@ function makeRooms(c:FallenChapter):RoomDef[] {
   addPlatforms(trail,[[18,19,11],[33,13,10],[43,18,11],[66,17,10]]);
   addPlatforms(depths,[[20,22,12],[34,19,11],[47,16,11],[63,21,10],[83,18,10]]);
   addPlatforms(side,[[17,19,12],[31,17,11],[45,12,10]]);addPlatforms(ridge,[[23,20,11],[40,19,12],[59,16,10],[72,12,10],[86,18,9]]);
-  addPlatforms(arena,[[15,17,8],[54,17,8]]);
+  addPlatforms(arena,c.n===9?[[13,18,9],[57,18,9]]:[[15,17,8],[54,17,8]]);
+  if(c.n===9){addPlatforms(trail,[[7,21,7],[86,19,8]]);addPlatforms(ridge,[[12,22,6],[94,21,7]]);for(const r of [trail,depths,ridge])r.ents.push({t:'decor',k:'cinders_pipe',x:33,y:r.h-4},{t:'light',k:'forge',x:65,y:r.h-4});}
   for(const [i,r]of [trail,depths,ridge].entries()){
-    const f=r.h-4;r.ents.push(...[18,47,79].map((x,j):EntDef=>({t:'decor',k:theme+'_tree',x,y:f,v:j})),foe(c.n===7?'hound':'drone',24,f),foe(c.n===7?'knight':'soldier',55,f),foe(c.n===7?'archer':'priest',78,f));
-    if(i<2){const o=c.objectives[i];if(c.n===7)r.ents.push(foe(i?'lion':'knight',94,f,o.id,o.flag));else r.ents.push({t:'shrine',id:o.id,grants:o.id,x:97,y:f},foe('soldier',94,f));}
+    const f=r.h-4;r.ents.push(...[18,47,79].map((x,j):EntDef=>({t:'decor',k:theme+'_tree',x,y:f,v:j})),foe(c.n===9?'lion':c.n===7?'hound':'drone',24,f),foe(c.n===9?'undying':c.n===7?'knight':'soldier',55,f),foe(c.n===9?'priest':c.n===7?'archer':'priest',78,f));
+    if(i<2){const o=c.objectives[i];if(c.n===7)r.ents.push(foe(i?'lion':'knight',94,f,o.id,o.flag));else r.ents.push({t:'shrine',id:o.id,grants:o.id,x:97,y:f},foe(c.n===9?'bulwark':'soldier',94,f));}
   }
   depths.spawns.altar={x:10,y:27};depths.ents.push({t:'altar',id:depths.id,x:10,y:27},{t:'light',k:'brazier',x:10,y:27});
   ridge.spawns.altar={x:9,y:25};ridge.ents.push({t:'altar',id:ridge.id,x:9,y:25},{t:'light',k:'brazier',x:9,y:25},{t:'decor',k:theme+'_gate',x:108,y:25},{t:'trigger',id:`ch${c.n}_gate`,x:98,y:18,w:8,h:7});
-  side.ents.push(foe(c.n===7?'hound':'drone',24,24),foe(c.n===7?'lion':'soldier',49,24),{t:'npc',k:c.rescue,x:60,y:24,ncond:`ch${c.n}_rescued`},{t:'lore',id:c.record,x:48,y:12},{t:'decor',k:theme+'_tree',x:30,y:24});
-  trail.ents.push({t:'chest',id:c.caches[0],secret:true,x:38,y:13,loot:[{item:c.n===7?'trailwarden_grips':'antidote_greaves',rarity:4},{silver:900}]});
-  side.ents.push({t:'chest',id:c.caches[1],secret:true,x:51,y:12,loot:[{item:c.n===7?'moonpath_boots':'quarantine_mantle',rarity:4},{mat:'radiant_core',n:4}]});
+  side.ents.push(foe(c.n===9?'lion':c.n===7?'hound':'drone',24,24),foe(c.n===9?'knight':c.n===7?'lion':'soldier',49,24),{t:'npc',k:c.rescue,x:60,y:24,ncond:`ch${c.n}_rescued`},{t:'lore',id:c.record,x:48,y:12},{t:'decor',k:theme+'_tree',x:30,y:24});
+  trail.ents.push({t:'chest',id:c.caches[0],secret:true,x:38,y:13,loot:[{item:c.n===9?'quencher_grips':c.n===7?'trailwarden_grips':'antidote_greaves',rarity:4},{silver:900}]});
+  side.ents.push({t:'chest',id:c.caches[1],secret:true,x:51,y:12,loot:[{item:c.n===9?'ashwatch_plate':c.n===7?'moonpath_boots':'quarantine_mantle',rarity:4},{mat:'radiant_core',n:4}]});
   ridge.ents.push({t:'chest',id:c.caches[2],secret:true,x:76,y:12,loot:[{silver:1200},{mat:'covenant_fragment',n:6}]},{t:'hint',id:`ch${c.n}_boss_hint`,x:84,w:18,text:c.tips});
   arena.spawns.left=arena.spawns.altar={x:9,y:23};arena.rows=arena.rows.map((r,y)=>y>=3&&y<23?r.slice(0,3)+'G'+r.slice(4,78)+'##':r);
-  arena.ents.push({t:'decor',k:theme+'_throne',x:59,y:23},{t:'light',k:'glow',x:49,y:14,r:150,c:theme==='hunt'?'#ffbd79':'#baed8c'},{t:'boss',k:c.boss,x:50,y:23},{t:'trigger',id:c.boss+'_start',x:23,y:14,w:10,h:9});
+  arena.ents.push({t:'decor',k:theme+'_throne',x:59,y:23},{t:'light',k:'glow',x:49,y:14,r:150,c:theme==='cinders'?'#ffad62':theme==='hunt'?'#ffbd79':'#baed8c'},{t:'boss',k:c.boss,x:50,y:23},{t:'trigger',id:c.boss+'_start',x:23,y:14,w:10,h:9});
   return [hub,trail,depths,side,ridge,arena];
 }
 export const FALLEN_ROOMS=FALLEN_CHAPTERS.flatMap(makeRooms);

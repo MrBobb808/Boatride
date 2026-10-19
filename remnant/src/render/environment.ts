@@ -1,4 +1,4 @@
-import { fallenSky, fallenParallax, fallenProp, FALLEN_LIVE } from './fallenEnv';
+import { fallenSky, fallenParallax, fallenProp, FALLEN_LIVE, cinderSky, cinderParallax } from './fallenEnv';
 // Environment art: parallax backgrounds per biome, baked tile chunks with
 // stone/brick detail, static props, and the animated bits (water, veil pools,
 // banners, torches) drawn live each frame.
@@ -32,6 +32,7 @@ export interface BiomePal {
 
 export const BIOMES: Record<Biome, BiomePal> = {
   hunt: {sky:['#101323','#31353c','#8a6755'],far:'#35363e',mid:'#252832',near:'#171d27',fog:'#b78c6e',stone:'#514751',stoneDark:'#25232d',cap:'#9c8770',capTuft:'#b09269',back:'#211f29',backLine:'#3f3540',moon:'#f1cf9c',plat:'#9a7f64',ambient:'#1a1422'},
+  cinders: {sky:['#16131d','#593c3c','#bb754b'],far:'#64413b',mid:'#463139',near:'#251e25',fog:'#c28a65',stone:'#665049',stoneDark:'#33272b',cap:'#cb9665',capTuft:'#e4ad71',back:'#30242a',backLine:'#67483f',moon:'#db9b67',plat:'#d39d6d',ambient:'#2b1c21'},
   plague: {sky:['#101b22','#304e46','#7d9666'],far:'#374f46',mid:'#294637',near:'#192c29',fog:'#b6ce8d',stone:'#455947',stoneDark:'#202f2c',cap:'#9bb478',capTuft:'#bed28c',back:'#1b2e26',backLine:'#3c5941',moon:'#d4eda5',plat:'#a4b77b',ambient:'#12271f'},
   village: {
     sky: ['#0b0a16', '#2a1d3a', '#5a3550'], far: '#2a2338', mid: '#1c1727', near: '#120f19', fog: '#6b4a6a',
@@ -149,6 +150,7 @@ export interface Layer {
 
 export function buildParallax(biome: Biome, seed: number, interior: boolean, viewH: number, res: number): Layer[] {
   const pal = BIOMES[biome];
+  if (biome==='cinders') return cinderParallax(seed,viewH,res);
   if (biome==='hunt'||biome==='plague') return fallenParallax(seed,viewH,res,biome==='plague');
   if (biome === 'plain' || biome === 'tower') return buildParallaxCh2(biome, pal, seed, viewH, res);
   if (isCh3(biome)) return buildParallaxCh3(biome, pal, seed, viewH, res);
@@ -328,6 +330,7 @@ function tree(ctx: Ctx, x: number, base: number, h: number, col: string, rng: RN
 }
 
 export function drawSky(ctx: Ctx, pal: BiomePal, w: number, h: number, interior: boolean, t: number) {
+  if (pal===BIOMES.cinders) return cinderSky(ctx,w,h,t);
   if (pal===BIOMES.hunt||pal===BIOMES.plague) return fallenSky(ctx,w,h,pal===BIOMES.plague,t);
   if (pal === BIOMES.plain && !interior) {
     drawDuskSky(ctx, pal, w, h, t);

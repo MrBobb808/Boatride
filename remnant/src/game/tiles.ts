@@ -12,7 +12,7 @@ export const CHAR_TILE: Record<string, T> = {
   '~': T.Veil, 'w': T.Water, 'X': T.Collapse, 'S': T.Seal, 'G': T.Gate,
 };
 
-export type Biome = 'sanctuary' | 'village' | 'temple' | 'crypt' | 'sanctum' | 'plain' | 'tower' | 'valley' | 'hive' | 'trial' | 'dura' | 'babylon' | 'furnace' | 'riverbed' | 'gardens' | 'palace' | 'hiddekel' | 'shushan' | 'highplaces' | 'hunt' | 'plague';
+export type Biome = 'sanctuary' | 'village' | 'temple' | 'crypt' | 'sanctum' | 'plain' | 'tower' | 'valley' | 'hive' | 'trial' | 'dura' | 'babylon' | 'furnace' | 'riverbed' | 'gardens' | 'palace' | 'hiddekel' | 'shushan' | 'highplaces' | 'hunt' | 'plague' | 'cinders';
 
 export type EntDef =
   | { t: 'enemy'; k: EnemyKind; x: number; y: number; face?: number; elite?: string; cond?: string; ncond?: string }
@@ -26,7 +26,7 @@ export type EntDef =
   | { t: 'hint'; x: number; w: number; text: string; id: string; cond?: string }
   | { t: 'light'; x: number; y: number; k: 'torch' | 'brazier' | 'lantern' | 'candles' | 'forge' | 'window' | 'glow'; r?: number; c?: string; cond?: string }
   | { t: 'decor'; k: string; x: number; y: number; w?: number; h?: number; v?: number; flip?: boolean; fg?: boolean; cond?: string; ncond?: string }
-  | { t: 'boss'; k: 'idol' | 'gatekeeper' | 'marshal' | 'locust_king' | 'golden_image' | 'weigher' | 'storm_prince' | 'persia_prince' | 'beast_monarch' | 'plague_monarch'; x: number; y: number };
+  | { t: 'boss'; k: 'idol' | 'gatekeeper' | 'marshal' | 'locust_king' | 'golden_image' | 'weigher' | 'storm_prince' | 'persia_prince' | 'beast_monarch' | 'plague_monarch' | 'cinder_monarch'; x: number; y: number };
 
 export type EnemyKind = 'husk' | 'hound' | 'archer' | 'sentinel' | 'wisp' | 'brute' | 'bulwark' | 'knight' | 'drone' | 'soldier' | 'lion' | 'priest' | 'vessel' | 'scribe' | 'undying' | 'gale';
 export type NpcKind = 'azriel' | 'mara' | 'tobiah' | 'ilan' | 'dov' | 'regent' | 'marshal' | 'satrap' | 'ezra' | 'talia' | 'barak' | 'hanan' | 'feastlord' | 'arshan' | 'storm_prince' | 'persia_prince';
