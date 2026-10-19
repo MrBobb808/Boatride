@@ -127,6 +127,32 @@ export const NPC_DEFS: Record<NpcKind, { name: string; title: string; style: Hum
       eye: '#ffcf6b', eyeGlow: 0.4, outline: '#0a0406', weapon: 'none', offhand: 'none', bulk: 1.15,
     },
   },
+  arshan: {
+    name: 'Captain Arshan', title: 'Of the King\'s Guard at Shushan', base: SPEAR_REST, dims: { ...PDIMS, torso: 13.5, thigh: 8.8, shin: 8.8 }, scale: 1.06,
+    style: {
+      skin: '#b07a52', hair: '#120c0a', hairKind: 'braid', beard: '#120c0a', coat: '#2a4a8a', coatDark: '#16285a', skirt: 16, trim: '#e8c25a',
+      pants: '#5a2a3a', boots: '#2a1c12', glove: '#b07a52', belt: '#d8b04a', plate: { c: '#8a6a3a', dark: '#5a4426', hi: '#e8c88a', tier: 1 },
+      helm: 'cap', helmColor: '#e8dcc0', eye: '#fff', eyeGlow: 0, outline: '#0a070c', weapon: 'spear', weaponColor: '#c8b48a', offhand: 'none', bulk: 1.1,
+    },
+  },
+  // The fallen princes speak in the dialogue box; their portraits are drawn from these.
+  storm_prince: {
+    name: 'The Prince of the Storm', title: 'Prince of the Power of the Air', base: { ...NPC_BASE, fUA: 0.7, fFA: 0.9, bUA: -0.6, bFA: 0.4 }, dims: { ...PDIMS, torso: 14.5, thigh: 9.4, shin: 9.4 }, scale: 1.3,
+    style: {
+      skin: '#6a7a9a', hair: '#dce6ff', hairKind: 'long', coat: '#1e2a4a', coatDark: '#0e1428', skirt: 18, trim: '#bcd4ff',
+      pants: '#0e1428', boots: '#141a2a', glove: '#2a3450', belt: '#bcd4ff', plate: { c: '#3a4a6e', dark: '#1a2238', hi: '#dce8ff', tier: 2 },
+      helm: 'crown', helmColor: '#cfe0ff', eye: '#e6f2ff', eyeGlow: 1, iris: '#9ac8ff', outline: '#04060c', weapon: 'none', offhand: 'none', bulk: 1.2, crack: '#9ac8ff',
+    },
+  },
+  persia_prince: {
+    name: 'The Prince of Persia', title: 'Prince of the Kingdom of Persia', base: { ...NPC_BASE, fUA: 0.3, fFA: 0.4, wpn: 1.25 }, dims: { ...PDIMS, torso: 15, thigh: 9.8, shin: 9.8 }, scale: 1.38,
+    style: {
+      skin: '#8a6a4a', hair: '#0a0606', hairKind: 'braid', beard: '#0a0606', coat: '#3a1440', coatDark: '#1e0822', skirt: 20, trim: '#ffcf6b',
+      pants: '#1e0822', boots: '#1a1008', glove: '#2a1a10', belt: '#e8b84a', plate: { c: '#c89a3a', dark: '#7a5a1e', hi: '#ffe6a0', tier: 3 },
+      helm: 'crown', helmColor: '#ffcf6b', eye: '#ffe08a', eyeGlow: 1, iris: '#ff9a2a', outline: '#0a0406', weapon: 'spear', weaponColor: '#e8c25a', weaponGlow: '#ffb03a', weaponGlowAmt: 0.6,
+      offhand: 'none', bulk: 1.3, crest: '#ffcf6b', crack: '#ffb03a',
+    },
+  },
   marshal: {
     name: 'The Crimson Marshal', title: 'Commander of the Tower', base: { ...NPC_BASE, fUA: 0.65, fFA: 0.6, bUA: 0.7, bFA: 0.75, wpn: 1.35 }, dims: { ...PDIMS, torso: 14, thigh: 9.2, shin: 9.2 }, scale: 1.3,
     style: {

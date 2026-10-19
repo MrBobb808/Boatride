@@ -24,6 +24,8 @@ const NOTES: Record<EnemyKind, Entry> = {
   lion: { ch: 4, icon: 'lion', note: 'A bronze beast cast after the lions on the city gate. It crouches before it pounces, and its roar quickens every foe nearby.' },
   vessel: { ch: 5, icon: 'flask', note: 'A cup from the temple, stolen for the feast and filled with the Veil. It pours burning wine on whoever stands beneath it.' },
   scribe: { ch: 5, icon: 'book', note: 'A palace scribe who wrote what the Veil told him to. Its letters hang in the air and strike; break its tablet to stop the writing.' },
+  undying: { ch: 6, icon: 'helm', note: 'A soldier of the fallen host. Struck down, it kneels and rises again. Finish it while it kneels, or execute it, and it stays down.' },
+  gale: { ch: 6, icon: 'feather', note: 'A spark of the storm prince\'s wind with wings. A flash and a mark on the ground come before every bolt.' },
   priest: { ch: 4, icon: 'lamp', note: 'Keeper of the furnace. It lobs fire, calls flame under a ring on the ground, and vanishes when cornered.' },
 };
 
@@ -42,6 +44,9 @@ const GREAT: { id: string; name: string; ch: number; boss: boolean }[] = [
   { id: 'garden_keeper', name: 'Keeper of the Gardens', ch: 5, boss: false },
   { id: 'treasury_captain', name: 'Captain of the Treasury', ch: 5, boss: false },
   { id: 'weigher', name: 'The Weigher', ch: 5, boss: true },
+  { id: 'undying_captain', name: 'Captain of the Undying', ch: 6, boss: false },
+  { id: 'storm_prince', name: 'The Prince of the Power of the Air', ch: 6, boss: true },
+  { id: 'persia_prince', name: 'The Prince of the Kingdom of Persia', ch: 6, boss: true },
 ];
 
 const ROMAN = ['', 'I', 'II', 'III', 'IV', 'V', 'VI'];

@@ -48,6 +48,11 @@ export const CHAPTERS: ChapterDef[] = [
     blurb: 'The river is turned aside and Babylon feasts on holy vessels. A hand writes on the palace wall.',
     reached: () => flag('ch5_intro'), done: () => flag('ch5_done'),
   },
+  {
+    n: 6, roman: 'VI', title: 'The Prince of Persia', hub: 'hiddekel_camp', level: 52,
+    blurb: 'By the great river an old man fasts for an answer that is held back. Above Shushan, fallen princes rule the air.',
+    reached: () => flag('ch6_intro'), done: () => flag('ch6_done'),
+  },
 ];
 
 /** A chapter can be played once you have reached it or finished the one before. */

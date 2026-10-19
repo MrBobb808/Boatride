@@ -21,6 +21,7 @@ import { CH3_SECRETS } from '../game/story3';
 import { CH4_SECRETS } from '../game/story4';
 import { CH5_SECRETS } from '../game/story5';
 import { openVoiceOrders } from './voiceOrders';
+import { CH6_SECRETS } from '../game/story6';
 
 let uiRoot: HTMLElement;
 let toastBox: HTMLElement;
@@ -318,8 +319,9 @@ const hooks: UIHooks = {
         { n: 'Chapter II', title: 'THE TOWER OF SHINAR', secrets: CH2_SECRETS, sl: 'Hidden caches', theme: 'Pride builds towers to make a name. Faithfulness keeps an oath when no one is watching.', next: 'Two days east lies the Valley of Bones, where a swarm has eaten everything that grew.', go: 'Begin Chapter III', stay: 'Stay in Shinar', music: 'shinar' },
         { n: 'Chapter III', title: 'THE VALLEY OF BONES', secrets: CH3_SECRETS, sl: 'Hidden caches', theme: 'The locust takes; the covenant restores. An army raised by mercy follows further than one driven by fear.', next: 'South, by the rivers of Babylon, an image of gold has been raised on the plain of Dura, and three captives are bound for the furnace.', go: 'Begin Chapter IV', stay: 'Stay in the valley', music: 'valley' },
         { n: 'Chapter IV', title: 'THE PLAIN OF DURA', secrets: CH4_SECRETS, sl: 'Hidden caches', theme: 'The furnace could not burn those who would not bow. Every image of gold stands on feet of clay.', next: 'Across the river, Babylon holds a feast for a thousand lords, and they mean to drink from the vessels of the temple.', go: 'Begin Chapter V', stay: 'Stay by the river', music: 'dura' },
-        { n: 'Chapter V', title: 'THE WRITING ON THE WALL', secrets: CH5_SECRETS, sl: 'Treasures and vessels', theme: 'Pride drinks from holy things and calls itself a god. It is weighed in a single night, and found wanting.', next: 'Chapter VI is in development. Your journey continues: train in the Trial of the Remnant, grow your army toward level 100, or begin New Game+ at any altar.', go: '', stay: 'Continue exploring', music: 'riverbed' },
-      ][Math.min(4, Math.max(1, chapter) - 1)];
+        { n: 'Chapter V', title: 'THE WRITING ON THE WALL', secrets: CH5_SECRETS, sl: 'Treasures and vessels', theme: 'Pride drinks from holy things and calls itself a god. It is weighed in a single night, and found wanting.', next: 'Babylon has fallen and Persia rules. By the great river Hiddekel, old Hanan has fasted three weeks for an answer that does not come.', go: 'Begin Chapter VI', stay: 'Stay in Babylon', music: 'riverbed' },
+        { n: 'Chapter VI', title: 'THE PRINCE OF PERSIA', secrets: CH6_SECRETS, sl: 'Hidden caches', theme: 'The war behind every throne is not against flesh and blood. Stand, and keep standing, until help comes.', next: 'Chapter VII is in development: the prince of Grecia is coming. Until then, train in the Trial of the Remnant, grow your army toward level 100, or begin New Game+ at any altar.', go: '', stay: 'Continue exploring', music: 'hiddekel' },
+      ][Math.min(5, Math.max(1, chapter) - 1)];
       const card = h('div', { class: 'chapter panel scroll' },
         h('div', { class: 'eyebrow' }, C.n),
         h('h2', null, C.title),

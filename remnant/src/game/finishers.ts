@@ -451,7 +451,7 @@ export function killBlow(p: Player, e: Entity, arcA0: number, arcA1: number) {
   if (isSovereign() && !elite && Math.random() < 0.25) G.world.after(0.7, () => riseAsShadow(e));
 }
 
-const SHADOW_OF: Record<string, string> = { archer: 'archer', wisp: 'archer', brute: 'brute', bulwark: 'bulwark', knight: 'knight', soldier: 'locust', drone: 'locust', lion: 'lion', priest: 'archer', vessel: 'archer', scribe: 'archer' };
+const SHADOW_OF: Record<string, string> = { archer: 'archer', wisp: 'archer', brute: 'brute', bulwark: 'bulwark', knight: 'knight', soldier: 'locust', drone: 'locust', lion: 'lion', priest: 'archer', vessel: 'archer', scribe: 'archer', undying: 'undying', gale: 'archer' };
 
 /** The fallen rise as a shadow Echo for half a minute. */
 export function riseAsShadow(e: Entity) {

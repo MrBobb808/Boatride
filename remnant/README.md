@@ -56,6 +56,23 @@ This build contains five chapters:
     UPHARSIN.
   - **The Weigher:** the Lord of the Feast, given to the Veil, with great
     bronze scales. Three phases: Numbered, Weighed, Divided.
+- **Chapter VI — The Prince of Persia.** Daniel 10: Persia rules, and old
+  Hanan has fasted three weeks by the great river Hiddekel for an answer
+  that does not come.
+  - Cross the marshes of Ulai and the royal road to Shushan the palace.
+    The Undying Host rises again unless finished; Fallen Gales strike from
+    the storm.
+  - Purify the Captain of the Undying in the hall of a hundred columns.
+  - The fallen angels are princes over kingdoms and domains, the game's
+    monarchs, and the hardest fights yet:
+    - **The Prince of the Power of the Air** rules the storm over Shushan:
+      wind that shoves you, lightning rows, Gales at his call, spells out of
+      reach, and an Eye of the Storm finale.
+    - **The Prince of the Kingdom of Persia** waits above the world: a spear
+      duelist who counters careless blows, raises the Undying ("Arise"),
+      then makes you stand through the Twenty-First Day before the light
+      breaks him.
+  - Ends looking toward Chapter VII and "the prince of Grecia" (Daniel 10:20).
 - Each chapter has an ending, plus New Game+.
 
 Each chapter begins from the previous chapter's ending screen, from any
