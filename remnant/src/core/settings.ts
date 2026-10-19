@@ -4,6 +4,8 @@ export interface Settings {
   master: number;
   music: number;
   sfx: number;
+  /** Share audio with Spotify and other apps instead of requesting exclusive playback. */
+  mixAudio: boolean;
   respectSilent: boolean;
   quality: 'auto' | 'high' | 'medium' | 'low';
   fps: 'auto' | '60';
@@ -58,6 +60,7 @@ const DEFAULTS: Settings = {
   master: 0.85,
   music: 0.6,
   sfx: 0.85,
+  mixAudio: true,
   respectSilent: false,
   quality: 'auto',
   fps: isTouchDevice() ? '60' : 'auto',
@@ -76,7 +79,7 @@ const DEFAULTS: Settings = {
   islandSize: 'auto',
   islandLen: 96,
   showFps: false,
-  v: 3,
+  v: 4,
   keys: structuredClone(DEFAULT_KEYS),
   pad: {},
   rumble: true,
@@ -129,6 +132,13 @@ function load(): Settings {
       if ((parsed.v ?? 1) < 3) {
         if (isIOS()) s.fps = '60';
         s.v = 3;
+        store.set(KEY, JSON.stringify(s));
+      }
+      // Older saves requested exclusive playback by default. Opt them into mixing
+      // without changing their volume sliders, bindings, or silent-switch choice.
+      if (typeof parsed.mixAudio !== 'boolean') s.mixAudio = true;
+      if ((parsed.v ?? 1) < 4) {
+        s.v = 4;
         store.set(KEY, JSON.stringify(s));
       }
     } catch {

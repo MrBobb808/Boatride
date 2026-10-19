@@ -21,6 +21,7 @@ export class AudioEngine {
   noise!: AudioBuffer;
   private last = new Map<string, number>();
   ready = false;
+  private unlocked = false;
   /** Global low-pass used for "muffled" moments (pause menu, near-death). */
   duck!: BiquadFilterNode;
 
@@ -74,28 +75,34 @@ export class AudioEngine {
     document.addEventListener('visibilitychange', () => {
       if (!this.ctx) return;
       if (document.hidden) this.ctx.suspend().catch(() => {});
-      else this.ctx.resume().catch(() => {});
+      else {
+        this.applySession();
+        this.ctx.resume().catch(() => {});
+      }
     });
     this.ready = true;
   }
 
-  /** iOS: 'playback' plays even with the ring/silent switch on; 'ambient' respects it. */
+  /** Ambient mixes with Spotify and obeys Silent Mode; playback takes exclusive audio. */
   applySession() {
     const nav = navigator as unknown as { audioSession?: { type: string } };
-    if (nav.audioSession) {
-      try {
-        nav.audioSession.type = settings.respectSilent ? 'ambient' : 'playback';
-      } catch {
-        /* not supported */
-      }
+    try {
+      const session = nav.audioSession;
+      const type = settings.mixAudio || settings.respectSilent ? 'ambient' : 'playback';
+      if (session && session.type !== type) session.type = type;
+    } catch {
+      /* Older browsers use Web Audio's default session policy. */
     }
   }
 
   /** Must be called from a user gesture (touchend / click / keydown). */
   unlock() {
+    if (document.hidden) return;
     this.init();
     const ctx = this.ctx;
     if (!ctx) return;
+    this.applySession();
+    if (this.unlocked && ctx.state === 'running') return;
     if (ctx.state !== 'running') ctx.resume().catch(() => {});
     // A one-sample silent buffer kicks iOS into actually starting output.
     const b = ctx.createBuffer(1, 1, 22050);
@@ -103,6 +110,7 @@ export class AudioEngine {
     s.buffer = b;
     s.connect(ctx.destination);
     s.start(0);
+    this.unlocked = true;
   }
 
   applyVolumes() {
@@ -111,6 +119,9 @@ export class AudioEngine {
     this.master.gain.setTargetAtTime(settings.master, t, 0.05);
     this.musicBus.gain.setTargetAtTime(settings.music * 0.9, t, 0.05);
     this.sfxBus.gain.setTargetAtTime(settings.sfx, t, 0.05);
+    // The reverb sends bypass the dry buses, so they must follow the same sliders.
+    this.musicVerb.gain.setTargetAtTime(settings.music * 0.9 * 0.55, t, 0.05);
+    this.sfxVerb.gain.setTargetAtTime(settings.sfx * 0.28, t, 0.05);
   }
 
   setMuffled(on: boolean) {
