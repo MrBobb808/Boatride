@@ -16,16 +16,18 @@ function load(file) {
 }
 const root = fileURLToPath(new URL('../', import.meta.url));
 const S = load(resolve(root, 'src/game/state.ts')), B = load(resolve(root, 'src/game/balance.ts'));
+const D = load(resolve(root, 'src/game/data.ts'));
 const P = load(resolve(root, 'src/game/physics.ts')), { Grid, T } = load(resolve(root, 'src/game/tiles.ts'));
 test('level 150 grows stronger without increasing wave strength; invested stats have large effects', () => {
   const s = S.newGame(), base = S.derive(s);
   s.level = 150; const high = S.derive(s);
-  assert.ok(high.maxHp > base.maxHp * 10); assert.ok(high.atk > base.atk * 15);
-  assert.ok(high.abil > base.abil * 2.7);
+  assert.ok(high.maxHp > base.maxHp * 10);
+  assert.ok(high.atk > base.atk * 3 && high.atk < base.atk * 6);
+  assert.ok(high.abil > base.abil * 1.2 && high.abil < base.abil * 1.6);
   for (const key of ['vit', 'str', 'agi', 'end', 'res', 'wis']) {
     const before = S.derive(s); s.statPoints = 10; assert.equal(S.allocateStat(s, key, 25), 10);
     const after = S.derive(s); assert.equal(s.statPoints, 0);
-    assert.ok(key === 'vit' ? after.maxHp > before.maxHp * 1.1 : key === 'str' ? after.atk > before.atk * 1.4 : key === 'agi' ? after.crit > before.crit && after.aspd > before.aspd : key === 'end' ? after.dr > before.dr && after.maxHp > before.maxHp : key === 'res' ? after.echoDmg > before.echoDmg && after.rallyMult > before.rallyMult : after.abil > before.abil * 1.3 && after.skillRecharge > before.skillRecharge);
+    assert.ok(key === 'vit' ? after.maxHp > before.maxHp * 1.1 : key === 'str' ? after.atk > before.atk * 1.4 : key === 'agi' ? after.crit > before.crit && after.aspd > before.aspd : key === 'end' ? after.dr > before.dr && after.maxHp > before.maxHp : key === 'res' ? after.echoDmg > before.echoDmg && after.rallyMult > before.rallyMult : after.abil > before.abil * 1.2 && after.skillRecharge > before.skillRecharge);
   }
   assert.equal(S.allocateStat(s, 'str', -1), 0); assert.equal(S.allocateStat(s, 'str', NaN), 0);
   assert.ok(B.sovereignDamage(300) > B.sovereignDamage(250));
@@ -36,14 +38,56 @@ test('bulk passive learning respects prerequisites, budgets and rank limits', ()
   assert.equal(S.learnRanks(s, 'w_keen', 10), 0);
   const before = S.derive(s);
   assert.equal(S.learnRanks(s, 'w_edge', 50), 50);
-  assert.equal(S.derive(s).meleeMult, before.meleeMult * 11);
+  assert.equal(S.derive(s).meleeMult, before.meleeMult * 3.375);
   assert.equal(S.learnRanks(s, 'w_edge', 1), 0);
   assert.equal(S.learnRanks(s, 'c_kin', 25), 25);
-  assert.ok(S.derive(s).echoDmg >= before.echoDmg * 7);
+  assert.equal(S.derive(s).echoDmg - before.echoDmg, 1.75);
   assert.equal(S.learnRanks(s, 'l_lamp', 25), 25);
-  assert.ok(S.derive(s).abil >= before.abil * 7);
+  assert.ok(Math.abs(S.derive(s).abil - before.abil - 1.75) < 1e-9);
   s.skillPoints = 1; assert.equal(S.learnRanks(s, 'w_keen', 10), 1);
   assert.equal(s.skillPoints, 0); assert.equal(S.learnRanks(s, 'w_keen', 10), 0);
+});
+test('late ranks, attributes and levels have smaller positive gains; bonuses cannot multiply one another', () => {
+  for (let r = 1; r <= 50; r++) assert.ok(B.trainingBonus(r) > B.trainingBonus(r - 1));
+  assert.ok(B.trainingBonus(50) - B.trainingBonus(40) < B.trainingBonus(10));
+  assert.ok(B.softGrowth(70, 60, .35) - B.softGrowth(60, 60, .35) < B.softGrowth(60, 60, .35) - B.softGrowth(50, 60, .35));
+  const s = S.newGame(); s.level = 150; s.stats.wis = 97; s.stats.res = 60;
+  const base = S.derive(s); s.skills.l_lamp = s.skills.c_kin = 25;
+  const trained = S.derive(s);
+  assert.ok(trained.abil < base.abil * 2); assert.ok(trained.echoDmg < base.echoDmg * 2);
+  assert.ok(B.sovereignDamage(150) <= 1.5); assert.ok(B.sovereignDamage(300) < 1.7);
+  const old = JSON.stringify({ stats: s.stats, skills: s.skills, level: s.level, equipment: s.equipment, inventory: s.inventory });
+  S.migrateSave(s);
+  assert.equal(JSON.stringify({ stats: s.stats, skills: s.skills, level: s.level, equipment: s.equipment, inventory: s.inventory }), old);
+});
+test('deep waves grow in threat and award a bounded full-wave experience budget', () => {
+  assert.ok(Math.abs(B.trialStrength(30).damage - 3.03) < 1e-9);
+  assert.ok(B.trialStrength(100).damage > B.trialStrength(30).damage * 6);
+  for (const wave of [1, 10, 30, 60, 100, 200]) {
+    assert.ok(B.trialXpLevels(wave) >= .35 && B.trialXpLevels(wave) <= 1.35);
+  }
+});
+test('full wave-30 gear with late ranks stays powerful without deleting wave-100 foes', () => {
+  for (const plus of [0, 10]) {
+    const s = S.newGame(); s.level = 150;
+    s.stats = { vit: 75, str: 120, agi: 55, end: 70, res: 60, wis: 97 };
+    s.skills = { w_edge: 50, w_keen: 10, c_kin: 25, l_lamp: 25, g_skin: 20, g_regen: 10 };
+    assert.equal(Object.values(s.stats).reduce((a, n) => a + n - 5, 0), 447);
+    assert.ok(Object.values(s.skills).reduce((a, n) => a + n, 0) <= 149);
+    for (const id of [B.ASCENDANT_LOOT[0], ...B.ASCENDANT_LOOT.slice(3)]) {
+      const it = S.makeItem(id, 5, plus, false); it.lootPower = B.waveLootPower(150, 30); it.lootWave = 30;
+      it.affixes = D.AFFIX_POOL.filter(a => ['crit', 'abil', 'echoDmg'].includes(a.key)).map(a => ({ key: a.key, v: a.max }));
+      s.inventory.push(it); s.equipment[D.ITEMS[id].slot] = it.uid;
+    }
+    const d = S.derive(s), hit = d.atk * d.meleeMult * B.sovereignDamage(150);
+    // Production priest has 120 base HP, multiplied by Chapter III's tier in the arena.
+    const shallow = 360 * B.trialStrength(30).hp, deep = 360 * B.trialStrength(100).hp;
+    assert.ok(hit > shallow, 'earned strong gear should still dominate earlier waves');
+    assert.ok(hit * d.critDmg < deep * .5, 'even a critical cannot erase a deep-wave foe');
+    assert.ok(d.atk * d.abil * 3.2 < deep * .7, 'skill ranks and gear must not multiply into a one-cast wave clear');
+    const echo = S.makeEcho('sentinel'); echo.stage = 2; echo.level = 100;
+    assert.ok(S.echoAtk(s, echo, d) < deep * .06, 'one evolved Echo must not inherit the full nuclear stack');
+  }
 });
 test('equipment upgrades retain their damage advantage at high hero levels', () => {
   const s = S.newGame(), weapon = S.makeItem('trial_reaver', 3, 0, false);

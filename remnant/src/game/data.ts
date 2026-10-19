@@ -15,11 +15,11 @@ export type StatKey = 'vit' | 'str' | 'agi' | 'end' | 'res' | 'wis';
 export const STAT_KEYS: StatKey[] = ['vit', 'str', 'agi', 'end', 'res', 'wis'];
 export const STAT_INFO: Record<StatKey, { name: string; desc: string }> = {
   vit: { name: 'Vitality', desc: 'Each point above 5 adds 24 health and +0.75% total health. Also amplifies armor health.' },
-  str: { name: 'Strength', desc: '+10% Strength damage bonus per point, plus 2 base attack for every point above 5.' },
-  agi: { name: 'Agility', desc: '+1.5% attack speed, +0.8% critical chance and +1% critical damage per point. Speed caps at ×4; critical chance at 90%.' },
-  end: { name: 'Endurance', desc: 'More damage reduction and poise. Above 5: +8 health and +1% Echo health per point. Total damage reduction caps at 90%.' },
-  res: { name: 'Resolve', desc: '+6% super charge and +1% critical damage per point. Above 5: +2% Echo damage per point. Also widens parries.' },
-  wis: { name: 'Wisdom', desc: '+12 energy and +8% ability power per point. Above 5: +1.2% skill recharge per point.' },
+  str: { name: 'Strength', desc: '+5% Strength damage bonus per effective point, plus 1.5 base attack above 5. Strength bonus gains are 35% as large above 60.' },
+  agi: { name: 'Agility', desc: '+1.2% attack speed, +0.5% critical chance and +0.4% critical damage per effective point. Gains soften above 60. Speed caps at ×3; critical chance at 75%.' },
+  end: { name: 'Endurance', desc: 'More damage reduction and poise. Above 5: +8 health and +0.5% Echo health per point. Total damage reduction caps at 90%.' },
+  res: { name: 'Resolve', desc: '+6% super charge per point. Also improves parries and critical damage. Above 5: +0.8% Echo damage per effective point, with smaller gains above 60.' },
+  wis: { name: 'Wisdom', desc: '+12 energy, +3.5% ability power and +0.8% skill recharge per effective point. Damage and recharge gains soften above 60; ability bonuses add together.' },
 };
 
 /** Modifiers that items and skills can add. */
@@ -245,9 +245,9 @@ export const TREES: { id: TreeId; name: string; blurb: string; color: string }[]
   { id: 'lightbearer', name: 'Lightbearer', blurb: 'Covenant light shaped into power.', color: '#f4f0e0' },
 ];
 export const SKILLS: SkillNode[] = [
-  { id: 'w_edge', tree: 'warrior', name: 'Honed Edge', desc: '+20% melee damage per rank. Up to 50 ranks.', ranks: 50, cost: 1, req: [], row: 0, col: 1 },
+  { id: 'w_edge', tree: 'warrior', name: 'Honed Edge', desc: 'Melee damage: +10% per rank for ranks 1–10, +5% for 11–25, then +2.5% for 26–50. Every rank adds power.', ranks: 50, cost: 1, req: [], row: 0, col: 1 },
   { id: 'w_relentless', tree: 'warrior', name: 'Relentless', desc: 'Your ground combo gains a fourth strike, Rising Verdict, which launches foes.', ranks: 1, cost: 1, req: ['w_edge'], row: 1, col: 0 },
-  { id: 'w_keen', tree: 'warrior', name: 'Keen Eye', desc: '+8% critical chance and +25% critical damage per rank. Up to 10 ranks; damage keeps growing after chance caps.', ranks: 10, cost: 1, req: ['w_edge'], row: 1, col: 2 },
+  { id: 'w_keen', tree: 'warrior', name: 'Keen Eye', desc: '+3% critical chance and +10% critical damage per rank. Up to 10 ranks; critical chance caps at 75%.', ranks: 10, cost: 1, req: ['w_edge'], row: 1, col: 2 },
   { id: 'w_lion', tree: 'warrior', name: 'Lion\'s Courage', desc: 'Learn the Lion\'s Courage ability.', ranks: 1, cost: 2, req: ['w_relentless'], row: 2, col: 0, grants: 'lion' },
   { id: 'w_mastery', tree: 'warrior', name: 'Weapon Mastery', desc: 'Charged attacks charge 35% faster and gain a third, devastating level.', ranks: 1, cost: 2, req: ['w_keen'], row: 2, col: 2 },
   { id: 'w_exec', tree: 'warrior', name: 'Executioner', desc: 'Executions deal +60% damage and restore 25 Covenant Energy.', ranks: 1, cost: 2, req: ['w_lion', 'w_mastery'], row: 3, col: 1 },
@@ -260,14 +260,14 @@ export const SKILLS: SkillNode[] = [
   { id: 'g_counter', tree: 'guardian', name: 'Shield Counter', desc: 'Counters after a parry deal +70% damage and always stagger.', ranks: 1, cost: 2, req: ['g_timing', 'g_balm'], row: 2, col: 2 },
   { id: 'g_chains', tree: 'guardian', name: 'Chains Broken', desc: 'Learn the Chains Broken ability.', ranks: 1, cost: 2, req: ['g_shield'], row: 3, col: 1, grants: 'chains' },
 
-  { id: 'c_kin', tree: 'commander', name: 'Kinship', desc: 'Echoes gain +25% damage and health per rank, multiplying their equipment bonuses. Up to 50 ranks.', ranks: 50, cost: 1, req: [], row: 0, col: 1 },
+  { id: 'c_kin', tree: 'commander', name: 'Kinship', desc: 'Echo damage and health: +10% per rank for 1–10, +5% for 11–25, then +2.5% for 26–50. Adds to equipment and leadership bonuses.', ranks: 50, cost: 1, req: [], row: 0, col: 1 },
   { id: 'c_glory', tree: 'commander', name: 'Shared Glory', desc: 'Echoes gain 60% more experience.', ranks: 1, cost: 1, req: ['c_kin'], row: 1, col: 0 },
   { id: 'c_recall', tree: 'commander', name: 'Swift Recall', desc: 'Recalled Echoes are untouchable for 2s and recover 25% health.', ranks: 1, cost: 1, req: ['c_kin'], row: 1, col: 2 },
   { id: 'c_banner', tree: 'commander', name: 'Second Banner', desc: '+1 active Echo slot.', ranks: 1, cost: 2, req: ['c_glory'], row: 2, col: 0 },
   { id: 'c_sync', tree: 'commander', name: 'Coordinated Strike', desc: 'Sync Strike cooldown −40% and damage +50%.', ranks: 1, cost: 2, req: ['c_recall'], row: 2, col: 2 },
   { id: 'c_warden', tree: 'commander', name: 'Warden\'s Mantle', desc: 'You may promote one Echo to Commander: it inspires your army and you (+15% damage nearby).', ranks: 1, cost: 2, req: ['c_banner', 'c_sync'], row: 3, col: 1 },
 
-  { id: 'l_lamp', tree: 'lightbearer', name: 'Lamp of the Word', desc: '+25% ability power per rank, multiplying Wisdom and equipment bonuses; +15 energy per rank. Up to 50 ranks.', ranks: 50, cost: 1, req: [], row: 0, col: 1 },
+  { id: 'l_lamp', tree: 'lightbearer', name: 'Lamp of the Word', desc: 'Ability power: +10% per rank for 1–10, +5% for 11–25, then +2.5% for 26–50. Adds to Wisdom and gear; +15 energy per rank.', ranks: 50, cost: 1, req: [], row: 0, col: 1 },
   { id: 'l_waters', tree: 'lightbearer', name: 'Still Waters', desc: 'Learn the Still Waters ability.', ranks: 1, cost: 1, req: ['l_lamp'], row: 1, col: 0, grants: 'still_waters' },
   { id: 'l_radiance', tree: 'lightbearer', name: 'Radiance', desc: '+50% energy regeneration and +30% energy from hits per rank. Up to 10 ranks.', ranks: 10, cost: 1, req: ['l_lamp'], row: 1, col: 2 },
   { id: 'l_pillar', tree: 'lightbearer', name: 'Pillar of Fire', desc: 'Learn the Pillar of Fire ability.', ranks: 1, cost: 2, req: ['l_radiance'], row: 2, col: 2, grants: 'pillar_fire' },

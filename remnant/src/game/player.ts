@@ -146,6 +146,15 @@ export class Player extends Entity {
   /** Buffered Heavy press, so branch inputs made a beat early still count. */
   heavyQ = 0;
   ceRegenDelay = 0;
+  private leechAt = -1;
+  private leechUsed = 0;
+  /** Shared budget for gear and shadow healing, independent of target count. */
+  leechHeal(damage: number, rate: number) {
+    if (G.save.hp <= 0 || damage <= 0 || rate <= 0) return;
+    if (G.time < this.leechAt || G.time - this.leechAt >= 1) { this.leechAt = G.time; this.leechUsed = 0; }
+    const heal = Math.min(damage * rate, Math.max(0, G.d.maxHp * 0.04 - this.leechUsed), Math.max(0, G.d.maxHp - G.save.hp));
+    G.save.hp += heal; this.leechUsed += heal;
+  }
   aura = 0;
   stepCount = 0;
   /** Shadow Mantle: seconds left in the form, its full length, and the transformation sequence. */
@@ -1340,10 +1349,10 @@ export class Player extends Entity {
       G.world.addRally(1.4);
       if (a.hang && !this.body.onGround) this.body.vy = Math.min(this.body.vy, a.hang);
       if (a.finisher) G.world.echoAssist(e);
-      if (d.lifesteal > 0 && dealt > 0) G.save.hp = Math.min(d.maxHp, G.save.hp + dealt * d.lifesteal);
-      if (el) elementHit(e, el, dmg, this.face, !!a.finisher);
+      this.leechHeal(dealt, d.lifesteal);
+      if (el) elementHit(e, el, dmg, this.face, !!a.finisher, dealt);
       // The Mantle drinks from every cut and answers it with a shadow blade.
-      if (this.mantleT > 0 && el !== 'shadow') elementHit(e, 'shadow', dmg * 0.6, this.face, !!a.finisher);
+      if (this.mantleT > 0 && el !== 'shadow') elementHit(e, 'shadow', dmg * 0.6, this.face, !!a.finisher, dealt);
       if (tier >= 3 || this.mantleT > 0) fx.ring(e.cx, e.cy, 4, 18 + tier * 4, this.mantleT > 0 ? SHADE.edge : el ? ELEMENTS[el].c : '#ffe6a8', 0.18, 2);
       mantleGain(crit ? 1.7 : 1.1);
       if (e.dying) {

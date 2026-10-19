@@ -8,7 +8,7 @@ import {
 } from './data';
 import { uid, randInt, rand } from '../core/math';
 import { runBlessings } from './blessings';
-import { ASCENDANT_LOOT, lootScale, waveLootPower, sovereignDamage } from './balance';
+import { ASCENDANT_LOOT, lootScale, waveLootPower, sovereignDamage, softGrowth, trainingBonus } from './balance';
 import { masteryRank, migrateProgression, contractPrize, contractWins, type GearSetId, type ContractId, type ProgressionData } from './progression';
 
 export interface QuestState {
@@ -238,25 +238,27 @@ export function derive(s: SaveData): Derived {
   const family = wb.family ?? 'blade';
   const rank = masteryRank(s, family);
   const blade = family === 'blade' ? rank : 0, spear = family === 'spear' ? rank : 0, great = family === 'greatsword' ? rank : 0;
-  const recharge = (spear >= 10 ? 1.25 : 1) * (1 + Math.max(0, stats.wis - 5) * 0.012);
+  const recharge = (spear >= 10 ? 1.25 : 1) * (1 + softGrowth(stats.wis - 5, 55, 0.35) * 0.008);
   const defense = m('def');
   const vitality = Math.max(0, stats.vit - 5), endurance = Math.max(0, stats.end - 5);
   const resolve = Math.max(0, stats.res - 5), level = Math.max(0, s.level - 1);
+  const strength = softGrowth(stats.str, 60, 0.35), agility = softGrowth(stats.agi, 60, 0.35);
+  const wisdom = softGrowth(stats.wis, 60, 0.35), sovereign = sovereignDamage(s.level) - 1;
   const incoming = Math.pow(0.94, r('g_skin')) / (1 + stats.end * 0.025 + defense * 0.04);
   return {
     stats,
     maxHp: Math.round((80 + stats.vit * 12 + vitality * 12 + endurance * 8 + level * 10 + m('hp')) * (1 + vitality * 0.0075)),
     maxCe: Math.round(40 + stats.wis * 12 + m('ce') + r('l_lamp') * 15),
-    atk: (Math.max(1, m('atk')) * (1 + level * 0.15) + Math.max(0, stats.str - 5) * 2) * (1 + stats.str * 0.1),
+    atk: (Math.max(1, m('atk')) * (1 + softGrowth(level, 99, 0.35) * 0.03) + Math.max(0, stats.str - 5) * 1.5) * (1 + strength * 0.05),
     dr: Math.min(0.9, 1 - incoming),
-    crit: Math.min(0.9, 0.05 + stats.agi * 0.008 + m('crit') / 100 + r('w_keen') * 0.08 + (blade >= 3 ? 0.05 : 0)),
-    critDmg: 1.5 + m('critDmg') / 100 + r('w_keen') * 0.25 + (stats.agi + stats.res) * 0.01,
-    aspd: Math.min(4, 1 + stats.agi * 0.015 + m('aspd') / 100 + (blade >= 6 ? 0.08 : 0)),
+    crit: Math.min(0.75, 0.05 + agility * 0.005 + m('crit') / 100 + r('w_keen') * 0.03 + (blade >= 3 ? 0.05 : 0)),
+    critDmg: 1.5 + softGrowth(m('critDmg'), 100, 0.25) / 100 + r('w_keen') * 0.1 + (agility + softGrowth(stats.res, 60, 0.35)) * 0.004,
+    aspd: Math.min(3, 1 + agility * 0.012 + m('aspd') / 100 + (blade >= 6 ? 0.08 : 0)),
     speed: 1 + m('speed') / 100 + (sets.rift >= 2 ? 0.08 : 0),
-    abil: (1 + stats.wis * 0.08 + m('abil') / 100 + (spear >= 3 ? 0.15 : 0) + (sets.rift >= 2 ? 0.25 : 0)) * (1 + r('l_lamp') * 0.25) * sovereignDamage(s.level),
+    abil: 1 + wisdom * 0.035 + softGrowth(m('abil'), 100, 0.25) / 100 + trainingBonus(r('l_lamp')) + sovereign + (spear >= 3 ? 0.15 : 0) + (sets.rift >= 2 ? 0.25 : 0),
     ceRegen: (1 + m('ceRegen') / 100 + (spear >= 6 ? 0.3 : 0)) * (1 + r('l_radiance') * 0.5),
-    echoDmg: (1 + m('echoDmg') / 100 + (sets.legion >= 2 ? 0.3 : 0)) * (1 + r('c_kin') * 0.25) * (1 + resolve * 0.02) * sovereignDamage(s.level) * runBlessings.echoes,
-    echoHp: (1 + m('echoHp') / 100 + (sets.legion >= 2 ? 0.25 : 0)) * (1 + r('c_kin') * 0.25) * (1 + endurance * 0.01),
+    echoDmg: (1 + softGrowth(m('echoDmg'), 100, 0.25) / 100 + trainingBonus(r('c_kin')) + softGrowth(resolve, 55, 0.35) * 0.008 + sovereign + (sets.legion >= 2 ? 0.3 : 0)) * runBlessings.echoes,
+    echoHp: 1 + m('echoHp') / 100 + trainingBonus(r('c_kin')) + endurance * 0.005 + (sets.legion >= 2 ? 0.25 : 0),
     parryWin: Math.min(0.6, (0.15 + stats.res * 0.004) * (1 + m('parry') / 100) * (r('g_timing') ? 1.5 : 1) * (sets.vigil >= 2 ? 1.2 : 1)),
     poise: 20 + stats.end * 2 + m('poise'),
     xpMult: 1 + m('xp') / 100,
@@ -267,7 +269,7 @@ export function derive(s: SaveData): Derived {
     weaponRarity: weapon?.rarity ?? 0,
     echoSlots: echoSlotsFor(s.level, s.storySlots, r('c_banner') > 0),
     defense,
-    meleeMult: (1 + r('w_edge') * 0.2) * runBlessings.weapon * (1 + rank * 0.03),
+    meleeMult: (1 + trainingBonus(r('w_edge'))) * runBlessings.weapon * (1 + rank * 0.03),
     hpRegen: r('g_regen') * 0.0075 + runBlessings.regen + (sets.vigil >= 2 ? 0.005 : 0),
     masteryRank: rank, sets, skillRecharge: recharge,
     pursuitRecharge: recharge * (sets.rift >= 3 ? 1.75 : 1),
@@ -499,7 +501,7 @@ export function echoMaxHp(s: SaveData, e: EchoInst, d: Derived) {
 export function echoAtk(s: SaveData, e: EchoInst, d: Derived) {
   const sp = ECHO_SPECIES[e.species];
   const level = e.level + Math.max(0, Math.floor(s.level * 0.65) - 1);
-  return (sp.baseAtk * (1 + (level - 1) * 0.1) + d.atk * 0.28) * (1 + e.stage * 0.45) * d.echoDmg * 1.2;
+  return (sp.baseAtk * (1 + softGrowth(level - 1, 99, 0.35) * 0.1) + d.atk * 0.12) * (1 + e.stage * 0.45) * d.echoDmg * 1.2;
 }
 
 export function canLearn(s: SaveData, id: string) {

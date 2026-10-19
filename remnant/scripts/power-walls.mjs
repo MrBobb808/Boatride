@@ -65,8 +65,8 @@ try {
     s.flags.trial_mode = 'survival'; delete s.flags.trial_contract;
     W.load('trial_arena', 'start'); const R = W.story.ch3.rounds;
     const originalRandom = Math.random; Math.random = () => .4;
-    const sample = level => {
-      G.save.level = level; R.start(30); R.round = 30; R.total = 2; R.spawned = 0; R.spawnOne();
+    const sample = (level, wave = 30) => {
+      G.save.level = level; R.start(wave); R.round = wave; R.total = 2; R.spawned = 0; R.spawnOne();
       const e = R.foes[0]; return { kind: e.kind, hp: e.maxHp, damage: e.dmg };
     };
     const low = sample(30), high = sample(150);
@@ -80,13 +80,44 @@ try {
     p.atkHit.clear(); const championHealth = champion.hp; p.activeHits(p.moves.combo[0], 1);
     const championHits = Math.ceil(championHealth / Math.max(1, championHealth - champion.hp));
     const hp = G.d.maxHp, incoming = high.damage * (1 - G.d.dr);
+    a.give('ascendant_blade', 4);
+    const weapon = G.save.inventory.at(-1); weapon.lootPower = 550; weapon.lootWave = 30; weapon.affixes = [];
+    G.save.equipment.weapon = weapon.uid;
+    Object.assign(G.save.skills, { w_keen: 5, c_kin: 25, l_lamp: 25, g_skin: 10, g_regen: 5 }); G.save.skillPoints = 54;
+    const geared = [];
+    for (const wave of [30, 60, 100]) {
+      sample(150, wave); const enemy = R.foes[0]; W.ents = [enemy]; W.echoes = [];
+      p.x = 240; p.y = 288; p.face = 1; p.refreshLook(); p.mantleT = p.lion = p.swapStrikeT = 0;
+      enemy.x = 265; enemy.y = 288; enemy.face = 1; enemy.invuln = 0;
+      G.d.crit = 0; p.atkHit.clear(); const before = enemy.hp; p.activeHits(p.moves.combo[0], 1);
+      const dealt = before - enemy.hp;
+      geared.push({ wave, health: before, damage: dealt, hits: Math.ceil(before / Math.max(1, dealt)), spellFraction: G.d.atk * G.d.abil * 3.2 / before, danger: R.foes[0].dmg });
+    }
+    // A complete wave must not pay the old five-to-ten levels per round.
+    R.start(30); R.breakT = .001; R.update(1 / 120);
+    let xp = 0; for (let i = 0; i < R.total; i++) { R.spawnOne(); xp += R.foes.at(-1).xpOverride; }
+    const xpFraction = xp / R.waveXp;
+    // Shared life-steal budget must ignore overkill, blocked hits and target count.
+    const saveHp = G.save.hp; G.save.hp = G.d.maxHp * .5; p.leechAt = -1; G.time += 2;
+    const hp0 = G.save.hp;
+    for (let i = 0; i < 50; i++) p.leechHeal(1e9, .5);
+    const drained = (G.save.hp - hp0) / G.d.maxHp;
+    const afterLeech = G.save.hp; p.leechHeal(0, .5); const blockedHeal = G.save.hp === afterLeech;
+    G.time += 1.01; p.leechHeal(1e9, .5); const replenished = (G.save.hp - hp0) / G.d.maxHp;
+    G.save.hp = saveHp;
     Math.random = originalRandom; R.stop(false);
-    return { low, high, normalHits, championHits, hp, incoming, attack: G.d.atk, ability: G.d.abil };
+    return { low, high, normalHits, championHits, hp, incoming, geared, xpFraction, drained, blockedHeal, replenished };
   });
   assert.deepEqual(combat.low, combat.high, 'hero levels must not strengthen a fixed Survival wave');
-  assert.ok(combat.normalHits <= 2 && combat.championHits <= 3, JSON.stringify(combat));
+  assert.ok(combat.normalHits >= 2 && combat.normalHits <= 4 && combat.championHits >= 8 && combat.championHits <= 25, JSON.stringify(combat));
   assert.ok(combat.incoming < combat.hp * .01, JSON.stringify(combat));
-  console.log('Level 150, 447 allocated stat points, 25 melee ranks, starter gear, no crits/Mantle/Echoes:', combat);
+  assert.equal(combat.geared[0].hits, 1);
+  assert.ok(combat.geared[1].hits > combat.geared[0].hits && combat.geared[2].hits >= 20, JSON.stringify(combat.geared));
+  assert.ok(combat.geared[2].spellFraction < .2);
+  assert.ok(combat.geared[2].danger > combat.geared[0].danger * 6);
+  assert.ok(combat.xpFraction > .99 && combat.xpFraction < 1.01);
+  assert.ok(Math.abs(combat.drained - .04) < 1e-9 && Math.abs(combat.replenished - .08) < 1e-9 && combat.blockedHeal);
+  console.log('Controlled level-150 power, wave-30 comfort, deeper-wave resistance/threat, bounded XP and shared life-steal budget:', combat);
 
   const walls = await page.evaluate(() => {
     const a = window.__remnant, { G } = a, W = G.world, p = W.player;
