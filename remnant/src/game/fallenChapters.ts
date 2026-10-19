@@ -74,3 +74,8 @@ function makeRooms(c:FallenChapter):RoomDef[] {
   return [hub,trail,depths,side,ridge,arena];
 }
 export const FALLEN_ROOMS=FALLEN_CHAPTERS.flatMap(makeRooms);
+
+/** Shelter is reachable on foot, even at maximum gauntlet tempo, without a particular skill loadout. */
+export function cleansingBeacon(playerX:number,bossX:number,width:number){
+  const side=playerX<bossX?-1:1;return Math.max(160,Math.min(width-160,playerX+side*140));
+}
