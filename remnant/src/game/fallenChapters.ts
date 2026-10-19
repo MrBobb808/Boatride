@@ -44,6 +44,8 @@ function makeRooms(c:FallenChapter):RoomDef[] {
   const ridge=room(c.ridge,c.n===7?'Clawscar Ridge':'The Pestilent Causeway',110,25);
   const arena=room(c.arena,c.n===7?'The Throne of Fangs':'The Throne of the Swarm',80,23,true);
   const route=[hub,trail,depths,ridge,arena];
+  let mapX=0;for(const r of route){r.map={x:mapX,y:c.n*2};mapX+=r.w/16+.3;}
+  side.map={x:depths.map.x+2.5,y:c.n*2-2.2};
   for(let i=0;i<route.length-1;i++){
     const a=route[i],b=route[i+1],fa=a.h-4,fb=b.h-4;
     a.exits.push({x:a.w-1,y:fa-7,w:1,h:7,to:b.id,spawn:'left',cond:b===arena?`ch${c.n}_boundary_open`:undefined});
@@ -58,7 +60,7 @@ function makeRooms(c:FallenChapter):RoomDef[] {
   addPlatforms(side,[[17,19,12],[31,17,11],[45,12,10]]);addPlatforms(ridge,[[23,20,11],[40,19,12],[59,16,10],[72,12,10],[86,18,9]]);
   addPlatforms(arena,[[15,17,8],[54,17,8]]);
   for(const [i,r]of [trail,depths,ridge].entries()){
-    const f=r.h-4;r.map.x=6+i*6;r.ents.push(...[18,47,79].map((x,j):EntDef=>({t:'decor',k:theme+'_tree',x,y:f,v:j})),foe(c.n===7?'hound':'drone',24,f),foe(c.n===7?'knight':'soldier',55,f),foe(c.n===7?'archer':'priest',78,f));
+    const f=r.h-4;r.ents.push(...[18,47,79].map((x,j):EntDef=>({t:'decor',k:theme+'_tree',x,y:f,v:j})),foe(c.n===7?'hound':'drone',24,f),foe(c.n===7?'knight':'soldier',55,f),foe(c.n===7?'archer':'priest',78,f));
     if(i<2){const o=c.objectives[i];if(c.n===7)r.ents.push(foe(i?'lion':'knight',94,f,o.id,o.flag));else r.ents.push({t:'shrine',id:o.id,grants:o.id,x:97,y:f},foe('soldier',94,f));}
   }
   depths.spawns.altar={x:10,y:27};depths.ents.push({t:'altar',id:depths.id,x:10,y:27},{t:'light',k:'brazier',x:10,y:27});

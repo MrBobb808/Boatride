@@ -19,3 +19,7 @@ test('VI, VII and VIII have valid reciprocal routes, safe spawns and complete re
 test('upper side-room returns cannot immediately re-enter their door',()=>{
  for(const c of FALLEN_CHAPTERS){const r=FALLEN_ROOMS.find(r=>r.id===c.depths),p=r.spawns.side,e=r.exits.find(e=>e.to===c.side);assert.ok(p.x<e.x||p.x>e.x+e.w||p.y<e.y||p.y>e.y+e.h);}
 });
+
+test('chapter maps keep the hub, route, side room and arena from overlapping',()=>{
+ for(const c of FALLEN_CHAPTERS){const rooms=FALLEN_ROOMS.filter(r=>r.biome===c.biome);for(let i=0;i<rooms.length;i++)for(let j=i+1;j<rooms.length;j++){const a=rooms[i],b=rooms[j];assert.ok(a.map.x+a.w/16<=b.map.x||b.map.x+b.w/16<=a.map.x||a.map.y+a.h/16<=b.map.y||b.map.y+b.h/16<=a.map.y,a.id+' overlaps '+b.id);}}
+});
