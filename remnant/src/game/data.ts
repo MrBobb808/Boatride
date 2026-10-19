@@ -80,6 +80,11 @@ export interface ItemBase {
 }
 
 export const ITEMS: Record<string, ItemBase> = {
+  cinderbreak: {id:'cinderbreak',name:'Cinderbreak',slot:'weapon',family:'greatsword',rarity:5,icon:'greatsword',element:'fire',look:2,unique:true,value:4200,mods:{atk:470,poise:35,critDmg:25},desc:'Azkar’s broken hammer reforged into a blade by free hands. Trophy of Chapter IX.'},
+  oath_of_the_unburnt: {id:'oath_of_the_unburnt',name:'Oath of the Unburnt',slot:'relic',rarity:5,icon:'crown',unique:true,value:3200,mods:{hp:300,def:18,echoDmg:35,echoHp:35},desc:'The foundry’s freedom, carried into every battle.'},
+  quencher_grips: {id:'quencher_grips',name:'Quencher Grips',slot:'gauntlets',rarity:4,icon:'gauntlet',look:2,unique:true,value:2300,mods:{atk:75,parry:15,poise:20},desc:'Hidden above the Slag Procession. A smith’s steady hands can turn a hammer aside.'},
+  ashwatch_plate: {id:'ashwatch_plate',name:'Ashwatch Plate',slot:'armor',rarity:4,icon:'armor',look:2,unique:true,value:2500,mods:{hp:280,def:20,res:10},desc:'Forged to protect its wearer, never to bind them.'},
+  smiths_lantern: {id:'smiths_lantern',name:'Lantern of Free Hands',slot:'relic',rarity:5,icon:'lamp',unique:true,value:2700,mods:{ce:90,ceRegen:40,abil:30},desc:'Mara’s reward for rescuing the smiths and recovering their testament.'},
   fangbreak_greatsword: {id:'fangbreak_greatsword',name:'Fangbreak',slot:'weapon',family:'greatsword',rarity:5,icon:'greatsword',element:'blood',look:2,unique:true,value:3000,mods:{atk:360,poise:25,echoDmg:20},desc:'The broken antler crown forged into a greatsword. Trophy of Varkhos, Chapter VII.'},
   oath_of_the_pack: {id:'oath_of_the_pack',name:'Oath of the Free Pack',slot:'relic',rarity:5,icon:'crown',unique:true,value:2400,mods:{echoDmg:30,echoHp:35,res:8},desc:'Strength shared freely, no longer commanded by a fallen king.'},
   thorn_of_dawn: {id:'thorn_of_dawn',name:'Thorn of Dawn',slot:'weapon',family:'spear',rarity:5,icon:'spear',element:'holy',look:2,unique:true,value:3600,mods:{atk:420,abil:35,crit:10},desc:'A cleansed thorn from Morvane’s crown. Trophy of Chapter VIII.'},
@@ -498,8 +503,9 @@ export interface LoreEntry {
   note: string;
 }
 export const LORE: Record<string, LoreEntry> = {
+  cinder_testament: {id:'cinder_testament',title:'The Testament of Free Hands',ref:'Remnant chronicle · Original fiction',text:'We know the names of every chain we forged. We kept this last workshop for hinges, ploughs and cradles. If the furnaces are freed, let no crown decide what our hands are for again.',note:'Rescue Talia in the Last Smithy, then bring this testament to Mara at Ashwatch.'},
   hunt_plague: {id:'hunt_plague',title:'The Green-Stained Record',ref:'Remnant chronicle · Original fiction',text:'Morvane’s wings carry a thousand smaller wings. The green dust is not pollen. It is a road for her army.',note:'Rescue Barak in the grove, then bring this record to Mara at Thawgate.'},
-  plague_cinders: {id:'plague_cinders',title:'Beyond the Last Clean Breath',ref:'Remnant chronicle · Original fiction',text:'Azkar’s shadow leaves ash where it falls. The Crown of Cinders has lit the furnaces beyond the marsh, but the swarm has not yet crossed his fire.',note:'Rescue Ezra in the infirmary and bring this warning to Mara. The Cinders campaign belongs to a future chapter.'},
+  plague_cinders: {id:'plague_cinders',title:'Beyond the Last Clean Breath',ref:'Remnant chronicle · Original fiction',text:'Azkar’s shadow leaves ash where it falls. The Crown of Cinders has lit the furnaces beyond the marsh, but the swarm has not yet crossed his fire.',note:'Rescue Ezra in the infirmary and bring this warning to Mara. The freed causeway now leads to the Cinders campaign.'},
   eze371: {
     id: 'eze371', title: 'The Valley Stone', ref: 'Ezekiel 37:1–2 (KJV)',
     text: 'The hand of the LORD was upon me, and carried me out in the spirit of the LORD, and set me down in the midst of the valley which was full of bones, And caused me to pass by them round about: and, behold, there were very many in the open valley; and, lo, they were very dry.',

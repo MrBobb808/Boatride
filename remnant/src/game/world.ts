@@ -1,3 +1,4 @@
+import { CinderMonarch } from './cinderBoss';
 import { BeastMonarch, PlagueMonarch, FallenMonarch } from './fallenBosses';
 // The World: loads rooms, runs every entity, resolves combat, handles exits,
 // triggers, loot, altars, the Echo army, Rally the Remnant, and draws the
@@ -272,7 +273,7 @@ export class World {
       case 'boss':
         // The beaten Image stays on its dais until the stone falls (the story finishes it).
         if (s.defeated.includes(e.k) && !(e.k === 'golden_image' && !flag('ch4_image_done')) && !(e.k === 'weigher' && !flag('ch5_weigher_done')) && !(e.k === 'storm_prince' && !flag('ch6_storm_done')) && !(e.k === 'persia_prince' && !flag('ch6_prince_done')) && !(e.k === 'storm_prince' && !flag('ch6_storm_done')) && !(e.k === 'persia_prince' && !flag('ch6_prince_done'))) return;
-        this.boss = e.k === 'gatekeeper' ? new Gatekeeper(x, y) : e.k === 'marshal' ? new Marshal(x, y) : e.k === 'locust_king' ? new LocustKing(x, y) : e.k === 'golden_image' ? new GoldenImage(x, y) : e.k === 'weigher' ? new Weigher(x, y) : e.k === 'storm_prince' ? new StormPrince(x, y) : e.k === 'persia_prince' ? new PersiaPrince(x, y) : e.k === 'beast_monarch' ? new BeastMonarch(x,y) : e.k === 'plague_monarch' ? new PlagueMonarch(x,y) : new Idol(x, y);
+        this.boss = e.k === 'gatekeeper' ? new Gatekeeper(x, y) : e.k === 'marshal' ? new Marshal(x, y) : e.k === 'locust_king' ? new LocustKing(x, y) : e.k === 'golden_image' ? new GoldenImage(x, y) : e.k === 'weigher' ? new Weigher(x, y) : e.k === 'storm_prince' ? new StormPrince(x, y) : e.k === 'persia_prince' ? new PersiaPrince(x, y) : e.k === 'beast_monarch' ? new BeastMonarch(x,y) : e.k === 'plague_monarch' ? new PlagueMonarch(x,y) : e.k === 'cinder_monarch' ? new CinderMonarch(x,y) : new Idol(x, y);
         this.add(this.boss);
         return;
     }
@@ -777,7 +778,7 @@ export class World {
     const st = e.stats;
     s.kills++;
     (s.bestiary ??= {})[e.kind] = (s.bestiary[e.kind] ?? 0) + 1;
-    const tier = e.tier === 8 ? 9.0 : e.tier === 7 ? 7.4 : e.tier === 6 ? 6.0 : e.tier === 5 ? 4.8 : e.tier === 4 ? 3.6 : e.tier === 3 ? 2.6 : e.tier === 2 ? 1.7 : 1;
+    const tier = e.tier === 9 ? 10.8 : e.tier === 8 ? 9.0 : e.tier === 7 ? 7.4 : e.tier === 6 ? 6.0 : e.tier === 5 ? 4.8 : e.tier === 4 ? 3.6 : e.tier === 3 ? 2.6 : e.tier === 2 ? 1.7 : 1;
     const xp = e.xpOverride ?? Math.round(st.xp * (e.elite ? 4 : 1) * G.d.xpMult * (1 + s.ng * 0.5) * tier);
     this.giveXp(xp);
     const loot: Loot[] = [{ silver: Math.round(randInt(st.silver[0], st.silver[1]) * (e.elite ? 4 : 1) * tier) }];
@@ -1494,7 +1495,7 @@ export class World {
     else if (b instanceof Weigher) this.story.ch5.weigherDefeated(b);
     else if (b instanceof StormPrince) this.story.ch6.stormDefeated(b);
     else if (b instanceof PersiaPrince) this.story.ch6.princeDefeated(b);
-    else if (b instanceof FallenMonarch) this.story.fallen.bossDefeated(b);
+    else if (b instanceof FallenMonarch || b instanceof CinderMonarch) this.story.fallen.bossDefeated(b);
     else if (b instanceof Idol) {
       this.closeGate(false);
       this.story.bossDefeated(b);

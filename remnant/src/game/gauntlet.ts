@@ -1,3 +1,4 @@
+import { CinderMonarch } from './cinderBoss';
 import { BeastMonarch, PlagueMonarch } from './fallenBosses';
 // The real chapter bosses, isolated from campaign rewards and story callbacks.
 import { G } from './ctx';
@@ -10,10 +11,10 @@ import { makeEnemy } from './foes';
 import { ECHO_SPECIES } from './data';
 import type { EnemyKind } from './tiles';
 
-const ROSTER = [Idol, Gatekeeper, Marshal, LocustKing, GoldenImage, Weigher, BeastMonarch, PlagueMonarch];
+const ROSTER = [Idol, Gatekeeper, Marshal, LocustKing, GoldenImage, Weigher, BeastMonarch, PlagueMonarch, CinderMonarch];
 export const BOSS_COUNT = 6;
-export const gauntletCount = () => G.save?.flags.ch8_done ? 8 : G.save?.flags.ch7_done ? 7 : BOSS_COUNT;
-const IMPRINTS = [null, null, 'marshal', 'locust', null, null, null, null];
+export const gauntletCount = () => G.save?.flags.ch9_done ? 9 : G.save?.flags.ch8_done ? 8 : G.save?.flags.ch7_done ? 7 : BOSS_COUNT;
+const IMPRINTS = [null, null, 'marshal', 'locust', null, null, null, null, null];
 export const gauntletImprint = (round: number) => IMPRINTS[(round - 1) % gauntletCount()];
 
 /** Echo rematches use the actual original enemy, including the two raised bosses. */

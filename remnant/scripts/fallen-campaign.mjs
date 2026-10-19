@@ -117,21 +117,56 @@ try {
  await page.waitForFunction(()=>document.querySelector('.chapter h2')?.textContent==='THE CROWN OF PESTILENCE');
  assert.deepEqual(await page.evaluate(()=>['thorn_of_dawn','covenant_of_breath'].map(id=>window.__remnant.G.save.inventory.filter(i=>i.id===id).length)),[1,1]);
  await page.screenshot({path:'qa/ch8-ending-desktop.png'});
- await page.getByRole('button',{name:'Return to Quarantine',exact:true}).click();
- await page.waitForFunction(()=>window.__remnant.G.world.room.id==='lantern_quarantine'&&!window.__remnant.G.world.transitioning);
- const gauntlet=await page.evaluate(()=>{
-  const {G}=window.__remnant,W=G.world,s=G.save;W.load('trial_arena','start');const R=W.story.ch3.rounds;R.start(7,true);R.beginRound();const seven=R.boss.key;R.start(8,true);R.beginRound();const eight=R.boss.key;
-  const ids=['fangbreak_greatsword','oath_of_the_pack','thorn_of_dawn','covenant_of_breath'],before=ids.map(id=>s.inventory.filter(i=>i.id===id).length),b=R.boss;b.beginFight();b.phase=3;b.hp=1;b.takeHit({dmg:1e9,poise:0,kx:0,ky:0,dir:1,kind:'melee',src:W.player});b.update(1.9);const isolated=ids.every((id,i)=>s.inventory.filter(it=>it.id===id).length===before[i]);
-  R.stop(false);delete s.flags.ch7_done;delete s.flags.ch8_done;R.start(7,true);R.beginRound();const classic=R.boss.key??'idol';R.stop(false);return{seven,eight,classic,isolated};
+ await page.getByRole('button',{name:'Begin Chapter IX',exact:true}).click();
+ await page.waitForFunction(()=>window.__remnant.G.world.room.id==='ashwatch_refuge'&&window.__remnant.G.save.flags.ch9_intro&&!window.__remnant.G.inCutscene&&!window.__remnant.G.world.transitioning);
+ const cinderWorld=await page.evaluate(async()=>{
+  const {G}=window.__remnant,W=G.world,s=G.save;G.paused=true;const check=(x,m)=>{if(!x)throw Error(m);};
+  for(const [room,id]of [['slag_procession','cinder_valve_a'],['bellows_foundry','cinder_valve_b']]){
+   W.load(room,'left');const sh=W.ents.find(e=>e.grants===id);check(sh.prompt()==='Release Pressure Wheel','valve prompt');await W.story.shrine(sh);check(!s.flags[id],'guards block wheel');for(const e of W.ents)if(e.isFoe)e.remove=true;await W.story.shrine(sh);check(sh.taken,'pressure released');
+  }
+  check(s.flags.ch9_boundary_open&&s.quests.m_crown9.stage===2,'cinder throne unlocked');
+  W.load('last_smithy','left');const npc=W.ents.find(e=>e.kind==='talia');await W.story.talk(npc);check(!s.flags.ch9_rescued,'smithy guards block rescue');for(const e of W.ents)if(e.isFoe)e.remove=true;await W.story.talk(npc);await W.story.readLore('cinder_testament');W.ents.find(e=>e.idKey==='cinder_smithy_cache').interact();
+  W.load('ashwatch_refuge','altar');const mara=W.ents.find(e=>e.kind==='mara');await W.story.talk(mara);await W.story.talk(mara);check(s.quests.s_crown9.done&&s.inventory.filter(i=>i.id==='smiths_lantern').length===1,'smith reward once');
+  // Render every new room, including the ridge, and exercise real enemy constructors.
+  for(const room of ['ashwatch_refuge','slag_procession','bellows_foundry','last_smithy','ember_aqueduct','cinder_throne']){W.load(room,'left');for(const e of W.ents)e.update(1/120);W.draw(G.renderer.wctx);for(const e of W.ents)check(Number.isFinite(e.hp)&&Number.isFinite(e.x),'finite stats');}
+  W.load('cinder_throne','left');const hp=W.boss.maxHp;s.level=200;W.load('cinder_throne','left');check(W.boss.maxHp===hp,'Azkar fixed HP');W.story.onTrigger('cinder_monarch_start');return{wheels:2,rescue:!!s.flags.ch9_rescued,fixedHp:hp};
  });
- assert.deepEqual(gauntlet,{seven:'beast_monarch',eight:'plague_monarch',classic:'idol',isolated:true});
+ await page.waitForFunction(()=>window.__remnant.G.world.boss.state==='intro');
+ const cinder=await page.evaluate(()=>{
+  const {G}=window.__remnant,W=G.world,b=W.boss,p=W.player;const check=(x,m)=>{if(!x)throw Error(m);};b.update(1.8);G.save.hp=G.d.maxHp;p.y=b.floorY;p.state='free';p.invuln=0;p.parryT=0;
+  b.startAttack('fault');p.x=b.targetX;const hp=G.save.hp;b.think(.5);check(G.save.hp===hp,'fault tell safe');b.think(1.25);check(G.save.hp<hp,'fault eruption hurts');G.save.hp=G.d.maxHp;p.state='free';p.invuln=0;
+  const h={dmg:1e9,poise:0,kx:0,ky:0,dir:1,kind:'ability',src:p,dot:true};b.takeHit(h);check(b.state==='transition'&&!b.dying,'DOT phase gate');b.update(1.6);check(b.phase===2&&b.armor,'tempered armor');
+  const armored=b.hp;b.takeHit({...h,dmg:1000,dot:false});check(armored-b.hp===550,'armor reduces damage');
+  p.x=b.x-60;p.y=b.floorY;p.face=1;p.parryT=1;b.startAttack('hammer');b.st=1;b.think(0);check(b.state==='kneel'&&!b.armor,'parry shatters armor');p.parryT=0;
+  const exposed=b.hp;b.takeHit({...h,dmg:1000,dot:false});check(exposed-b.hp===1500,'exposed punish window');b.update(3.3);check(b.armor,'armor returns after recovery');
+  b.startAttack('sweep');b.st=1.3;b.think(0);check(b.waves.length===2,'two low fire waves');const wave=b.waves[0];p.state='free';p.invuln=0;p.x=wave.x;p.y=b.floorY-55;const airborne=G.save.hp;wave.update(0);check(G.save.hp===airborne,'jump clears fire wave');p.y=b.floorY;wave.update(0);check(G.save.hp<airborne,'grounded wave damage');
+  G.save.hp=G.d.maxHp;p.state='free';b.takeHit(h);b.update(1.6);check(b.phase===3&&b.ward&&b.attack==='bellows','last bellows phase');check(b.waves.length===0,'transition clears waves');const immune=b.hp;check(!b.takeHit(h)&&immune===b.hp,'bellows ward');
+  const steps=new Set();for(let i=0;i<950&&b.ward;i++){b.update(1/120);steps.add(b.bellowsStep);const f=b.faults.find(f=>f.t<1.7);if(f)p.x=f.x+88;G.save.hp=G.d.maxHp;p.state='free';}
+  check(!b.ward&&steps.has(0)&&steps.has(1)&&steps.has(2),'three eruptions then recovery');check(b.cd>3,'long punish opening');b.x=700;p.x=470;p.y=b.floorY;p.update(1/60);G.camera.snapTo(600,300);return{armor:true,parry:true,waves:true,eruptions:3,phases:3};
+ });
+ await page.screenshot({path:'qa/ch9-azkar-desktop.png'});
+ await page.evaluate(()=>{const {G}=window.__remnant,b=G.world.boss;b.takeHit({dmg:1e9,poise:0,kx:0,ky:0,dir:1,kind:'melee',src:G.world.player});b.update(1.9);});
+ await page.waitForFunction(()=>document.querySelector('.chapter h2')?.textContent==='THE CROWN OF CINDERS');
+ assert.deepEqual(await page.evaluate(()=>['cinderbreak','oath_of_the_unburnt'].map(id=>window.__remnant.G.save.inventory.filter(i=>i.id===id).length)),[1,1]);
+ await page.getByRole('button',{name:'Return to Ashwatch',exact:true}).click();
+ await page.waitForFunction(()=>window.__remnant.G.world.room.id==='ashwatch_refuge'&&!window.__remnant.G.world.transitioning);
+ const gauntlet=await page.evaluate(()=>{
+  const {G}=window.__remnant,W=G.world,s=G.save;W.load('trial_arena','start');const R=W.story.ch3.rounds;R.start(7,true);R.beginRound();const seven=R.boss.key;R.start(8,true);R.beginRound();const eight=R.boss.key;R.start(9,true);R.beginRound();const nine=R.boss.key;
+  const ids=['fangbreak_greatsword','oath_of_the_pack','thorn_of_dawn','covenant_of_breath','cinderbreak','oath_of_the_unburnt'],before=ids.map(id=>s.inventory.filter(i=>i.id===id).length),b=R.boss;b.beginFight();b.phase=3;b.hp=1;b.takeHit({dmg:1e9,poise:0,kx:0,ky:0,dir:1,kind:'melee',src:W.player});b.update(1.9);const isolated=ids.every((id,i)=>s.inventory.filter(it=>it.id===id).length===before[i]);
+  R.stop(false);delete s.flags.ch7_done;delete s.flags.ch8_done;delete s.flags.ch9_done;R.start(7,true);R.beginRound();const classic=R.boss.key??'idol';R.stop(false);return{seven,eight,nine,classic,isolated};
+ });
+ assert.deepEqual(gauntlet,{seven:'beast_monarch',eight:'plague_monarch',nine:'cinder_monarch',classic:'idol',isolated:true});
  const mobile=await browser.newContext({viewport:{width:932,height:430},isMobile:true,hasTouch:true,deviceScaleFactor:3}),phone=await boot(mobile);
  await phone.evaluate(()=>{const {G}=window.__remnant;G.save.flags.ch6_done=true;G.ui.dialogue=async()=>0;G.ui.openMenu('chapters');});
  await phone.locator('[data-k=ch_7]').tap();await phone.waitForFunction(()=>window.__remnant.G.save.flags.ch7_intro&&!window.__remnant.G.inCutscene&&!window.__remnant.G.world.transitioning);
  await phone.evaluate(()=>{const {G}=window.__remnant;G.save.flags.ch7_done=true;G.ui.openMenu('chapters');});await phone.locator('[data-k=ch_8]').tap();
  await phone.waitForFunction(()=>window.__remnant.G.save.flags.ch8_intro&&!window.__remnant.G.inCutscene&&!window.__remnant.G.world.transitioning);
  await phone.evaluate(()=>{const {G}=window.__remnant;G.paused=true;G.world.load('plague_throne','left');G.world.boss.beginFight();G.world.boss.phase=3;G.world.boss.x=520;G.world.boss.startAttack('purge');G.world.player.x=G.world.boss.beaconX;G.world.player.update(1/60);G.camera.snapTo(360,300);});
- await phone.screenshot({path:'qa/ch8-beacon-phone.png'});assert.deepEqual(errors,[]);
- console.log(JSON.stringify({pass:'VI→VII→VIII progression, commanders, seals, survivors, loot, bosses, beacons, gauntlet and touch entry',chapterSix,huntWorld,hunt,plagueWorld,plague,gauntlet}));
+ await phone.screenshot({path:'qa/ch8-beacon-phone.png'});
+ await phone.evaluate(()=>{const {G}=window.__remnant;G.save.flags.ch8_done=true;G.inCutscene=false;G.ui.openMenu('chapters');});await phone.locator('[data-k=ch_9]').tap();
+ await phone.waitForFunction(()=>window.__remnant.G.save.flags.ch9_intro&&!window.__remnant.G.inCutscene&&!window.__remnant.G.world.transitioning);
+ await phone.evaluate(()=>{const {G}=window.__remnant;G.paused=true;G.world.load('cinder_throne','left');G.world.boss.beginFight();G.world.boss.x=520;G.world.boss.startAttack('hammer');G.world.player.x=360;G.world.player.update(1/60);G.camera.snapTo(420,300);});
+ assert.equal(await phone.evaluate(()=>window.__remnant.fallenArt()),true);await phone.screenshot({path:'qa/ch9-azkar-phone.png'});assert.deepEqual(errors,[]);
+ console.log(JSON.stringify({pass:'VI→VII→VIII→IX progression, commanders, seals, survivors, loot, bosses, beacons, gauntlet and touch entry',chapterSix,huntWorld,hunt,plagueWorld,plague,cinderWorld,cinder,gauntlet}));
  await mobile.close();await context.close();
 }finally{await browser.close();server.close();}
