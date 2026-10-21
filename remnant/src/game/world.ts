@@ -328,7 +328,7 @@ export class World {
   update(dtRaw: number) {
     const s = G.save;
     if (this.transitioning) return;
-    G.camera.update(dtRaw, this.player.x, this.player.y, this.player.face, this.player.body.vx, shakeScale());
+    G.camera.update(dtRaw, this.player.x, this.player.y, this.player.face, this.player.body.vx, shakeScale(), this.player.body.vy, this.player.body.onGround);
     if (this.hitstopT > 0) {
       this.player.bufferCombatInput();
       this.hitstopT -= dtRaw;
