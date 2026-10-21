@@ -8,6 +8,7 @@ import { Drone, Soldier } from './locusts';
 import { Lion, Priest } from './babylon';
 import { Vessel, Scribe } from './feast';
 import { Undying, Gale } from './princes';
+import { Stalker, Carrier, Golem } from './fallenFoes';
 
 /** Named elites. Classes give a generic elite title; these placed foes have their own. */
 const ELITE_NAMES: Record<string, string> = {
@@ -38,6 +39,9 @@ function build(kind: EnemyKind, x: number, y: number, elite: string | null): Ene
     // Stand-ins until game/princes.ts lands.
     case 'undying': return new Undying(x, y, elite);
     case 'gale': return new Gale(x, y, elite);
+    case 'stalker': return new Stalker(x, y, elite);
+    case 'carrier': return new Carrier(x, y, elite);
+    case 'golem': return new Golem(x, y, elite);
   }
 }
 
