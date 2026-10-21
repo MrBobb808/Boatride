@@ -7,7 +7,9 @@ import { G, flag } from '../game/ctx';
 import { input } from '../core/input';
 import { settings } from '../core/settings';
 import { icon } from './icons';
-import { ABILITIES, ECHO_SPECIES, xpToNext } from '../game/data';
+import { ABILITIES, ECHO_SPECIES, SUPER_MOVES, xpToNext } from '../game/data';
+import { selectedSuper } from '../game/supers';
+import { CONTRACTS } from '../game/progression';
 import { QUESTS } from '../game/story';
 import { ROOMS, chapterOf } from '../game/rooms';
 import { CH2_ROOM_IDS } from '../game/rooms2';
@@ -61,6 +63,10 @@ export function objectiveText(): string {
     const st = s.quests[q.id];
     if (st && !st.done) return q.stages[Math.min(st.stage, q.stages.length - 1)];
   }
+  if (flag('ch6_done')) return 'Chapter VI complete. Chapter VII is coming. Brave the Trial of the Remnant, grow your army, or begin New Game+ at an altar.';
+  if (flag('ch5_done') && !flag('ch6_intro')) return 'Chapter V complete. Journey on to the great river Hiddekel from any altar.';
+  if (flag('ch4_done') && !flag('ch5_intro')) return 'Chapter IV complete. Journey on to Babylon from any altar.';
+  if (flag('ch3_done') && !flag('ch4_intro')) return 'Chapter III complete. Journey on to the plain of Dura from any altar.';
   if (flag('ch3_done')) return 'Chapter III complete. Brave the Trial of the Remnant, grow your army, or begin New Game+ at an altar.';
   if (flag('ch2_done')) return 'Chapter II complete. Journey on to the Valley of Bones from any altar.';
   if (flag('ending_done')) return 'Chapter I complete. Journey east to Shinar from any altar, or begin New Game+.';
@@ -338,7 +344,8 @@ export function drawHud(ctx: Ctx, dt: number) {
         glow(ctx, cx, cyy, rr * 1.8, '#ffd27a', 0.5 + Math.sin(G.time * 5) * 0.2);
         ctx.globalCompositeOperation = 'source-over';
       }
-      ctx.drawImage(icon('rally', f >= 1 ? '#fff3c4' : '#8a6e3a', 64), cx - rr * 0.55, cyy - rr * 0.55, rr * 1.1, rr * 1.1);
+      const superDef = SUPER_MOVES[selectedSuper()];
+      ctx.drawImage(icon(superDef.icon, f >= 1 ? superDef.color : '#8a6e3a', 64), cx - rr * 0.55, cyy - rr * 0.55, rr * 1.1, rr * 1.1);
       text(ctx, input.label('ultimate'), x + 4 * u, yb + 6 * u, `700 ${7 * u}px ${FONT_DISPLAY}`, '#ece4d4', 'left');
     }
   }
@@ -562,6 +569,14 @@ function drawRounds(ctx: CanvasRenderingContext2D, W: number, y0: number, u: num
   const R = G.world.story.ch3.rounds;
   if (!R.active || R.round <= 0) return;
   const n = R.round;
+  if (R.bossOnly) {
+    // Leave room for the phone's boss health bar above this compact round label.
+    const y = y0 + (input.lastDevice === 'touch' && G.world.bossActive ? 38 : 10) * u;
+    const best = Number(G.save.flags.boss_trial_best ?? 0);
+    text(ctx, R.breakT > 0 ? `BOSS ROUND ${n + 1} IN ${Math.ceil(R.breakT)}` : `BOSS ROUND ${n}`, W / 2, y, `700 ${10 * u}px ${FONT_DISPLAY}`, '#c8ccff', 'center');
+    text(ctx, `${R.kills} defeated · best ${best}`, W / 2, y + 13 * u, `600 ${8 * u}px ${FONT_DISPLAY}`, '#d8c8b0', 'center');
+    return;
+  }
   const flash = clamp(1 - R.changeT / 1.6, 0, 1);
   const pulse = R.breakT > 0 ? 0.55 + 0.45 * Math.abs(Math.sin(R.breakT * 3)) : 1;
   const col = flash > 0 ? mixHex('#b3121c', '#fff4e0', flash) : '#b3121c';
@@ -605,6 +620,7 @@ function drawRounds(ctx: CanvasRenderingContext2D, W: number, y0: number, u: num
   text(ctx, line, cx, top + 42 * u, `600 ${8 * u}px ${FONT_DISPLAY}`, '#d8c8b0', 'center');
   const boons = [R.wrathT > 0 ? `WRATH ${Math.ceil(R.wrathT)}` : '', R.doubleT > 0 ? `DOUBLE PORTION ${Math.ceil(R.doubleT)}` : ''].filter(Boolean).join('   ');
   if (boons) text(ctx, boons, cx, top + 53 * u, `700 ${8 * u}px ${FONT_DISPLAY}`, '#ffb35a', 'center');
+  if (R.contract) text(ctx, `${CONTRACTS[R.contract].name} · ${R.contractComplete ? 'COMPLETE' : `${R.contractCleared}/5`}`, cx, top + (boons ? 64 : 53) * u, `600 ${8 * u}px ${FONT_DISPLAY}`, '#b6d7d4', 'center');
 }
 
 /** Blend two #rrggbb colours. */

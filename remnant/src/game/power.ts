@@ -12,6 +12,7 @@ import { sfx } from '../audio/audio';
 import { rand, sign, choose } from '../core/math';
 import { lighting } from '../render/lighting';
 import { mantleMul } from './mantle';
+import { sovereignDamage } from './balance';
 
 export type Element = 'fire' | 'frost' | 'storm' | 'shadow' | 'holy' | 'blood';
 
@@ -47,8 +48,7 @@ export const isSovereign = () => (G.save?.level ?? 0) >= SOVEREIGN_LV;
 /** Outgoing damage multiplier from sheer power (on top of stats) and the Shadow Mantle. */
 export function powerDamage() {
   const lv = G.save?.level ?? 1;
-  const base = lv < SOVEREIGN_LV ? 1 : 1.5 + Math.min(1.5, (lv - SOVEREIGN_LV) * 0.01);
-  return base * mantleMul();
+  return sovereignDamage(lv) * mantleMul();
 }
 
 /** Slash colours for the current weapon and power. */
@@ -62,7 +62,7 @@ export function slashColors(base: string): [string, string] {
 // ---------------------------------------------------------------- elemental hits
 
 let sfxGap = 0;
-export function elementHit(e: Entity, el: Element, dmg: number, dir: number, finisher: boolean) {
+export function elementHit(e: Entity, el: Element, dmg: number, dir: number, finisher: boolean, dealt = 0) {
   const E = ELEMENTS[el];
   const x = e.cx, y = e.cy;
   if (G.time > sfxGap) {
@@ -105,7 +105,7 @@ export function elementHit(e: Entity, el: Element, dmg: number, dir: number, fin
     }
     case 'shadow': {
       const p = G.world.player;
-      G.save.hp = Math.min(G.d.maxHp, G.save.hp + dmg * 0.03);
+      p.leechHeal(dealt, 0.03);
       fx.veilBurst(x, y, 4, 0.6);
       if (finisher || Math.random() < 0.18) {
         // A shadow blade answers the strike a moment later.

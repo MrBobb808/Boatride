@@ -170,7 +170,8 @@ export function updateFinisher(p: Player, f: FinState, dt: number): boolean {
     case 'severance': {
       if (t < 0.16) {
         const u = t / 0.16;
-        p.x = f.sx + (f.ex - f.sx) * u;
+        const nx = f.sx + (f.ex - f.sx) * u;
+        if (p.canPlace(nx, p.y)) p.x = nx;
         b.vx = 0;
         b.vy = 0;
         if (f.ghostT <= 0) {
@@ -205,7 +206,7 @@ export function updateFinisher(p: Player, f: FinState, dt: number): boolean {
         fx.streak(p.x, e.cy + Math.sin(a) * 20, nx, e.cy - Math.sin(a) * 20, '#ffffff', 0.25, 3);
         fx.streak(p.x, e.cy + Math.sin(a) * 20, nx, e.cy - Math.sin(a) * 20, color(), 0.3, 5);
         fx.hitSparks(e.cx, e.cy + rand(-10, 10), side, color(), 5, 0.8);
-        p.x = nx;
+        if (p.canPlace(nx, p.y)) p.x = nx;
         p.face = -side;
         p.anim.play(k % 2 ? 'b1' : 'b2', 0.02, true, 1 / 0.12);
         sfx('swing', { pitch: 1.2 + k * 0.08, vol: 0.6 });
@@ -326,8 +327,7 @@ function vanish(p: Player, f: FinState) {
 
 function appear(p: Player, f: FinState, x: number, y: number, face: number) {
   f.hidden = false;
-  p.x = x;
-  p.y = y;
+  if (p.canPlace(x, y)) { p.x = x; p.y = y; }
   p.face = face;
   p.body.vx = p.body.vy = 0;
   fx.veilBurst(x, y - 20, 12, 1);
@@ -451,7 +451,7 @@ export function killBlow(p: Player, e: Entity, arcA0: number, arcA1: number) {
   if (isSovereign() && !elite && Math.random() < 0.25) G.world.after(0.7, () => riseAsShadow(e));
 }
 
-const SHADOW_OF: Record<string, string> = { archer: 'archer', wisp: 'archer', brute: 'brute', bulwark: 'bulwark', knight: 'knight', soldier: 'locust', drone: 'locust', lion: 'lion', priest: 'archer', vessel: 'archer', scribe: 'archer' };
+const SHADOW_OF: Record<string, string> = { archer: 'archer', wisp: 'archer', brute: 'brute', bulwark: 'bulwark', knight: 'knight', soldier: 'locust', drone: 'locust', lion: 'lion', priest: 'archer', vessel: 'archer', scribe: 'archer', undying: 'undying', gale: 'archer' };
 
 /** The fallen rise as a shadow Echo for half a minute. */
 export function riseAsShadow(e: Entity) {

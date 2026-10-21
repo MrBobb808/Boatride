@@ -14,12 +14,12 @@ export const SLOT_NAMES: Record<Slot, string> = {
 export type StatKey = 'vit' | 'str' | 'agi' | 'end' | 'res' | 'wis';
 export const STAT_KEYS: StatKey[] = ['vit', 'str', 'agi', 'end', 'res', 'wis'];
 export const STAT_INFO: Record<StatKey, { name: string; desc: string }> = {
-  vit: { name: 'Vitality', desc: '+12 maximum health per point.' },
-  str: { name: 'Strength', desc: '+6% weapon damage per point.' },
-  agi: { name: 'Agility', desc: '+1.2% attack speed and +0.8% critical chance per point.' },
-  end: { name: 'Endurance', desc: '+1.6% damage reduction and more poise per point.' },
-  res: { name: 'Resolve', desc: 'Wider parry window, +4% Rally charge rate per point.' },
-  wis: { name: 'Wisdom', desc: '+8 Covenant Energy, +5% ability power per point.' },
+  vit: { name: 'Vitality', desc: 'Each point above 5 adds 24 health and +0.75% total health. Also amplifies armor health.' },
+  str: { name: 'Strength', desc: '+5% Strength damage bonus per effective point, plus 1.5 base attack above 5. Strength bonus gains are 35% as large above 60.' },
+  agi: { name: 'Agility', desc: '+1.2% attack speed, +0.5% critical chance and +0.4% critical damage per effective point. Gains soften above 60. Speed caps at ×3; critical chance at 75%.' },
+  end: { name: 'Endurance', desc: 'More damage reduction and poise. Above 5: +8 health and +0.5% Echo health per point. Total damage reduction caps at 90%.' },
+  res: { name: 'Resolve', desc: '+6% super charge per point. Also improves parries and critical damage. Above 5: +0.8% Echo damage per effective point, with smaller gains above 60.' },
+  wis: { name: 'Wisdom', desc: '+12 energy, +3.5% ability power and +0.8% skill recharge per effective point. Damage and recharge gains soften above 60; ability bonuses add together.' },
 };
 
 /** Modifiers that items and skills can add. */
@@ -75,10 +75,54 @@ export interface ItemBase {
   look?: number;
   value: number;
   unique?: boolean;
+  set?: 'vigil' | 'rift' | 'legion';
   lore?: string;
 }
 
 export const ITEMS: Record<string, ItemBase> = {
+  cinderbreak: {id:'cinderbreak',name:'Cinderbreak',slot:'weapon',family:'greatsword',rarity:5,icon:'greatsword',element:'fire',look:2,unique:true,value:4200,mods:{atk:470,poise:35,critDmg:25},desc:'Azkar’s broken hammer reforged into a blade by free hands. Trophy of Chapter IX.'},
+  oath_of_the_unburnt: {id:'oath_of_the_unburnt',name:'Oath of the Unburnt',slot:'relic',rarity:5,icon:'crown',unique:true,value:3200,mods:{hp:300,def:18,echoDmg:35,echoHp:35},desc:'The foundry’s freedom, carried into every battle.'},
+  quencher_grips: {id:'quencher_grips',name:'Quencher Grips',slot:'gauntlets',rarity:4,icon:'gauntlet',look:2,unique:true,value:2300,mods:{atk:75,parry:15,poise:20},desc:'Hidden above the Slag Procession. A smith’s steady hands can turn a hammer aside.'},
+  ashwatch_plate: {id:'ashwatch_plate',name:'Ashwatch Plate',slot:'armor',rarity:4,icon:'armor',look:2,unique:true,value:2500,mods:{hp:280,def:20,res:10},desc:'Forged to protect its wearer, never to bind them.'},
+  smiths_lantern: {id:'smiths_lantern',name:'Lantern of Free Hands',slot:'relic',rarity:5,icon:'lamp',unique:true,value:2700,mods:{ce:90,ceRegen:40,abil:30},desc:'Mara’s reward for rescuing the smiths and recovering their testament.'},
+  fangbreak_greatsword: {id:'fangbreak_greatsword',name:'Fangbreak',slot:'weapon',family:'greatsword',rarity:5,icon:'greatsword',element:'blood',look:2,unique:true,value:3000,mods:{atk:360,poise:25,echoDmg:20},desc:'The broken antler crown forged into a greatsword. Trophy of Varkhos, Chapter VII.'},
+  oath_of_the_pack: {id:'oath_of_the_pack',name:'Oath of the Free Pack',slot:'relic',rarity:5,icon:'crown',unique:true,value:2400,mods:{echoDmg:30,echoHp:35,res:8},desc:'Strength shared freely, no longer commanded by a fallen king.'},
+  thorn_of_dawn: {id:'thorn_of_dawn',name:'Thorn of Dawn',slot:'weapon',family:'spear',rarity:5,icon:'spear',element:'holy',look:2,unique:true,value:3600,mods:{atk:420,abil:35,crit:10},desc:'A cleansed thorn from Morvane’s crown. Trophy of Chapter VIII.'},
+  covenant_of_breath: {id:'covenant_of_breath',name:'Covenant of Breath',slot:'relic',rarity:5,icon:'lamp',unique:true,value:2800,mods:{hp:250,ce:80,ceRegen:40,echoHp:30},desc:'The first clean breath after the swarm. Restores strength to the living.'},
+  trailwarden_grips: {id:'trailwarden_grips',name:'Trailwarden Grips',slot:'gauntlets',rarity:4,icon:'gauntlet',look:2,unique:true,value:1500,mods:{atk:60,parry:12,poise:18},desc:'Hidden on the high Riftwood trail.'},
+  moonpath_boots: {id:'moonpath_boots',name:'Moonpath Treads',slot:'boots',rarity:4,icon:'boot',look:2,unique:true,value:1500,mods:{hp:120,speed:12,def:9},desc:'Recovered from the Unhunted Grove.'},
+  antidote_greaves: {id:'antidote_greaves',name:'Antidote Greaves',slot:'boots',rarity:4,icon:'boot',look:2,unique:true,value:1800,mods:{hp:160,def:12,speed:10},desc:'Hidden above the Greenfall marsh.'},
+  quarantine_mantle: {id:'quarantine_mantle',name:'Quarantine Mantle',slot:'armor',rarity:4,icon:'armor',look:2,unique:true,value:2000,mods:{hp:240,def:16,ceRegen:30},desc:'An infirmary keeper’s final gift to the watch.'},
+  grove_lantern: {id:'grove_lantern',name:'Grove Lantern',slot:'relic',rarity:5,icon:'lamp',unique:true,value:1900,mods:{ce:60,echoHp:30,echoDmg:20},desc:'Mara’s reward for rescuing the grove and recovering its warning.'},
+  infirmary_lantern: {id:'infirmary_lantern',name:'Infirmary Lantern',slot:'relic',rarity:5,icon:'lamp',unique:true,value:2200,mods:{hp:200,ceRegen:35,abil:25},desc:'Mara’s reward for the survivors and the record of Cinders.'},
+  ascendant_blade: { id: 'ascendant_blade', name: 'Ascendant Veilblade', slot: 'weapon', rarity: 4, icon: 'sword', family: 'blade', element: 'shadow', look: 2, mods: { atk: 38, crit: 5, lifesteal: 2 }, value: 700, desc: 'A random wave-clear reward. Its Power increases its attack and bonuses.' },
+  ascendant_spear: { id: 'ascendant_spear', name: 'Ascendant Stormlance', slot: 'weapon', rarity: 4, icon: 'spear', family: 'spear', element: 'storm', look: 2, mods: { atk: 38, abil: 15, ceRegen: 15 }, value: 700, desc: 'A random wave-clear reward. Power scales its storm-forged edge.' },
+  ascendant_greatsword: { id: 'ascendant_greatsword', name: 'Ascendant Sunbreaker', slot: 'weapon', rarity: 4, icon: 'greatsword', family: 'greatsword', element: 'fire', look: 2, mods: { atk: 45, poise: 15, critDmg: 15 }, value: 800, desc: 'A random wave-clear reward. A crushing blade empowered by the waves conquered.' },
+  ascendant_helm: { id: 'ascendant_helm', name: 'Ascendant Warcrown', slot: 'helm', rarity: 4, icon: 'crown', look: 2, mods: { hp: 60, def: 6, echoDmg: 12 }, value: 600, desc: 'A random wave-clear reward. Power strengthens its health and army bonuses.' },
+  ascendant_armor: { id: 'ascendant_armor', name: 'Ascendant Warplate', slot: 'armor', rarity: 4, icon: 'armor', look: 2, mods: { hp: 100, def: 10, poise: 15, echoHp: 15 }, value: 750, desc: 'A random wave-clear reward. Enormous health potential grows with Power.' },
+  ascendant_gauntlets: { id: 'ascendant_gauntlets', name: 'Ascendant Titanfists', slot: 'gauntlets', rarity: 4, icon: 'gauntlet', look: 2, mods: { atk: 12, crit: 6, aspd: 6 }, value: 600, desc: 'A random wave-clear reward. Power turns each blow into a siege.' },
+  ascendant_boots: { id: 'ascendant_boots', name: 'Ascendant Riftmarch', slot: 'boots', rarity: 4, icon: 'boot', look: 2, mods: { hp: 35, def: 5, speed: 8 }, value: 600, desc: 'A random wave-clear reward. Health and mobility improve with Power.' },
+  ascendant_relic: { id: 'ascendant_relic', name: 'Ascendant Beacon', slot: 'relic', rarity: 4, icon: 'lamp', look: 2, mods: { ce: 40, abil: 18, ceRegen: 20, echoDmg: 15 }, value: 750, desc: 'A random wave-clear reward. Powers both your spells and the Remnant.' },
+  ascendant_ring: { id: 'ascendant_ring', name: 'Ascendant Dominion', slot: 'ring', rarity: 4, icon: 'ring', look: 2, mods: { atk: 12, hp: 40, critDmg: 15, lifesteal: 1 }, value: 750, desc: 'A random wave-clear reward. Its Power strengthens attack, health and critical blows.' },
+  vigil_helm: { id: 'vigil_helm', name: 'Vigil Crown', slot: 'helm', rarity: 4, icon: 'helm', value: 1200, unique: true, set: 'vigil', look: 2, mods: { hp: 90, def: 8, parry: 10 }, desc: 'Iron Oath contract reward. Part of Unbroken Vigil.' },
+  vigil_plate: { id: 'vigil_plate', name: 'Vigil Plate', slot: 'armor', rarity: 4, icon: 'armor', value: 1200, unique: true, set: 'vigil', look: 2, mods: { hp: 160, def: 14, poise: 15 }, desc: 'Iron Oath contract reward. Part of Unbroken Vigil.' },
+  vigil_boots: { id: 'vigil_boots', name: 'Vigil Treads', slot: 'boots', rarity: 4, icon: 'boot', value: 1200, unique: true, set: 'vigil', look: 2, mods: { hp: 70, def: 8, speed: 8 }, desc: 'Iron Oath contract reward. Part of Unbroken Vigil.' },
+  rift_helm: { id: 'rift_helm', name: 'Riftstalker Hood', slot: 'helm', rarity: 4, icon: 'helm', value: 1200, unique: true, set: 'rift', look: 2, mods: { hp: 60, ce: 35, abil: 15 }, desc: 'Rift Hunt contract reward. Part of Riftstalker.' },
+  rift_mail: { id: 'rift_mail', name: 'Riftstalker Mail', slot: 'armor', rarity: 4, icon: 'armor', value: 1200, unique: true, set: 'rift', look: 2, mods: { hp: 110, def: 10, abil: 20 }, desc: 'Rift Hunt contract reward. Part of Riftstalker.' },
+  rift_boots: { id: 'rift_boots', name: 'Riftstalker Steps', slot: 'boots', rarity: 4, icon: 'boot', value: 1200, unique: true, set: 'rift', look: 2, mods: { def: 6, speed: 12, ceRegen: 30 }, desc: 'Rift Hunt contract reward. Part of Riftstalker.' },
+  legion_helm: { id: 'legion_helm', name: 'Legion Diadem', slot: 'helm', rarity: 4, icon: 'crown', value: 1200, unique: true, set: 'legion', look: 2, mods: { hp: 60, echoDmg: 20, echoHp: 15 }, desc: 'War of the Remnant contract reward. Part of Remnant Legion.' },
+  legion_mail: { id: 'legion_mail', name: 'Legion Raiment', slot: 'armor', rarity: 4, icon: 'armor', value: 1200, unique: true, set: 'legion', look: 2, mods: { hp: 130, def: 10, echoHp: 25 }, desc: 'War of the Remnant contract reward. Part of Remnant Legion.' },
+  legion_boots: { id: 'legion_boots', name: 'Legion March', slot: 'boots', rarity: 4, icon: 'boot', value: 1200, unique: true, set: 'legion', look: 2, mods: { def: 7, speed: 8, echoDmg: 15 }, desc: 'War of the Remnant contract reward. Part of Remnant Legion.' },
+  trial_reaver: {"id": "trial_reaver", "name": "Veilreaver", "slot": "weapon", "rarity": 3, "icon": "sword", "mods": {"atk": 70, "crit": 8, "lifesteal": 3}, "value": 800, "unique": true, "look": 2, "desc": "Wave 10 trophy. A chained edge that drinks the last light of the Veil.", "family": "blade", "element": "shadow"},
+  trial_tempest: {"id": "trial_tempest", "name": "Tempest Reign", "slot": "weapon", "rarity": 4, "icon": "spear", "mods": {"atk": 140, "abil": 30, "aspd": 12, "crit": 10}, "value": 1150, "unique": true, "look": 2, "desc": "Wave 20 trophy. Lightning turns each thrust into a storm.", "family": "spear", "element": "storm"},
+  trial_plate: {"id": "trial_plate", "name": "Ascendant Plate", "slot": "armor", "rarity": 4, "icon": "armor", "mods": {"def": 22, "hp": 260, "ce": 50, "echoHp": 40}, "value": 1500, "unique": true, "look": 2, "desc": "Wave 30 trophy. Black-gold armor built to withstand an army."},
+  trial_grasp: {"id": "trial_grasp", "name": "Titan Grasp", "slot": "gauntlets", "rarity": 4, "icon": "gauntlet", "mods": {"atk": 35, "aspd": 20, "crit": 10, "abil": 25}, "value": 1850, "unique": true, "look": 2, "desc": "Wave 40 trophy. Every blow carries the weight of a siege."},
+  trial_sovereign: {"id": "trial_sovereign", "name": "Sovereign Edge", "slot": "weapon", "rarity": 5, "icon": "sword", "mods": {"atk": 250, "abil": 55, "lifesteal": 6, "crit": 15}, "value": 2200, "unique": true, "look": 2, "desc": "Wave 50 trophy. A relentless shadow blade that restores its wielder with each strike.", "family": "blade", "element": "shadow"},
+  trial_crown: {"id": "trial_crown", "name": "Crown of the Unbroken", "slot": "helm", "rarity": 5, "icon": "crown", "mods": {"hp": 260, "def": 16, "atk": 35, "echoDmg": 65, "echoHp": 50}, "value": 2550, "unique": true, "look": 2, "desc": "Wave 60 trophy. Your Remnant fights with the strength of an army."},
+  trial_stride: {"id": "trial_stride", "name": "Riftstrider Greaves", "slot": "boots", "rarity": 5, "icon": "boot", "mods": {"speed": 18, "def": 16, "ceRegen": 70, "poise": 25, "hp": 150}, "value": 2900, "unique": true, "look": 2, "desc": "Wave 70 trophy. Impossible speed and a font of Covenant Energy."},
+  trial_worldbreaker: {"id": "trial_worldbreaker", "name": "Worldbreaker", "slot": "weapon", "rarity": 5, "icon": "greatsword", "mods": {"atk": 380, "abil": 85, "poise": 55, "critDmg": 55}, "value": 3250, "unique": true, "look": 2, "desc": "Wave 80 trophy. A storm-forged blade beyond the strength of any campaign weapon.", "family": "greatsword", "element": "storm"},
+  trial_bastion: {"id": "trial_bastion", "name": "Eternal Bastion", "slot": "armor", "rarity": 5, "icon": "armor", "mods": {"hp": 650, "def": 32, "poise": 60, "echoHp": 100, "ce": 90}, "value": 3600, "unique": true, "look": 2, "desc": "Wave 90 trophy. Stand against the endless dark with an unbroken army."},
+  trial_ascendancy: {"id": "trial_ascendancy", "name": "Heart of Ascendancy", "slot": "relic", "rarity": 5, "icon": "core", "mods": {"echoDmg": 130, "echoHp": 100, "rally": 85, "ce": 120, "abil": 65}, "value": 3950, "unique": true, "look": 2, "desc": "Wave 100 trophy. Supers charge faster, abilities surge, and every Echo grows mightier."},
   // Weapons
   militia_sword: { id: 'militia_sword', name: 'Militia Sword', slot: 'weapon', rarity: 0, icon: 'sword', family: 'blade', mods: { atk: 10 }, value: 10, desc: 'Notched steel issued to the Hearthward watch. Light and quick.', look: 0 },
   covenant_blade: { id: 'covenant_blade', name: 'Covenant Blade', slot: 'weapon', rarity: 3, icon: 'sword', family: 'blade', mods: { atk: 22, crit: 5, abil: 10 }, value: 220, desc: 'Reforged around a shard of the covenant relic. Its edge hums near the Veil.', look: 2, unique: true, element: 'holy' },
@@ -130,6 +174,10 @@ export const ITEMS: Record<string, ItemBase> = {
   overseer_sigil: { id: 'overseer_sigil', name: 'Overseer\'s Brand', slot: 'relic', rarity: 3, icon: 'sigil', mods: { poise: 15, str: 2, echoDmg: 8 }, value: 220, desc: 'The iron that marked every brick. Cold now, and lighter than it looks.' },
   oathblade: { id: 'oathblade', name: 'The Oathblade', slot: 'weapon', rarity: 5, icon: 'greatsword', family: 'greatsword', mods: { atk: 46, crit: 6, poise: 18, critDmg: 20 }, value: 999, desc: 'The Marshal\'s sword, given freely. It is heavy only for those who would misuse it.', look: 2, unique: true, element: 'blood', lore: '"I have fought a good fight, I have finished my course, I have kept the faith:" — 2 Timothy 4:7 (KJV)' },
   hound_fang: { id: 'hound_fang', name: 'Gatekeeper\'s Fang', slot: 'relic', rarity: 4, icon: 'shard', mods: { atk: 10, lifesteal: 3, crit: 4 }, value: 320, desc: 'A fang the length of a forearm, still warm at the root.', unique: true },
+  // Chapter VI
+  stormglass: { id: 'stormglass', name: 'Stormglass', slot: 'relic', rarity: 4, icon: 'shard', mods: { atk: 14, crit: 6, aspd: 8, ceRegen: 12 }, value: 560, desc: 'A shard of the Prince of the Storm\'s crown, clear as water. Lightning still turns inside it, and does not get out.', unique: true },
+  twentyfirst_day: { id: 'twentyfirst_day', name: 'The Twenty-First Day', slot: 'weapon', rarity: 5, icon: 'sword', family: 'blade', element: 'holy', mods: { atk: 118, crit: 12, abil: 28, poise: 22, def: 6 }, value: 999, desc: 'Light element. Left lying on the clouds where the prince\'s throne stood, as if someone set it down for you. It is heaviest in the hand that keeps standing.', look: 2, unique: true, lore: '"...from the first day that thou didst set thine heart to understand... thy words were heard, and I am come for thy words." — Daniel 10:12 (KJV)' },
+  watch_breastplate: { id: 'watch_breastplate', name: 'Breastplate of the Watch', slot: 'armor', rarity: 5, icon: 'armor', mods: { def: 20, hp: 120, poise: 24, res: 3 }, value: 999, desc: 'Dov forged it by the great river from Persian bronze and Judean iron. A breastplate for standing in.', look: 2, unique: true, lore: '"Stand therefore, having your loins girt about with truth, and having on the breastplate of righteousness;" — Ephesians 6:14 (KJV)' },
   // Materials
   iron_scrap: { id: 'iron_scrap', name: 'Iron Scrap', slot: 'material', rarity: 0, icon: 'scrap', value: 3, desc: 'Salvaged metal. The smith can use it.' },
   veil_shard: { id: 'veil_shard', name: 'Veil Shard', slot: 'material', rarity: 1, icon: 'veil', value: 6, desc: 'Crystallized corruption. Five can be purified into a Covenant Fragment.' },
@@ -161,11 +209,15 @@ export interface ItemInst {
   affixes: { key: ModKey; v: number }[];
   qty?: number;
   isNew?: boolean;
+  trialWave?: number;
+  trialTier?: number;
+  lootPower?: number;
+  lootWave?: number;
 }
 
 // ---------- Abilities ----------
 
-export type AbilityId = 'sword_word' | 'trumpet' | 'shield_faith' | 'lion' | 'still_waters' | 'pillar_fire' | 'chains' | 'armor_light';
+export type AbilityId = 'sword_word' | 'trumpet' | 'shield_faith' | 'lion' | 'still_waters' | 'pillar_fire' | 'chains' | 'armor_light' | 'chain_snare' | 'blink_strike' | 'mending_light' | 'frost_ring';
 export interface AbilityDef {
   id: AbilityId;
   name: string;
@@ -176,6 +228,10 @@ export interface AbilityDef {
   verse: string;
 }
 export const ABILITIES: Record<AbilityId, AbilityDef> = {
+  chain_snare: { id: 'chain_snare', name: 'Chain Snare', cost: 24, cd: 6, icon: 'chains', desc: 'Bind the nearest visible foe ahead, pull ordinary enemies close, and interrupt their attack. Bosses resist the pull.', verse: '' },
+  blink_strike: { id: 'blink_strike', name: 'Rift Assault', cost: 32, cd: 7, icon: 'dagger', desc: 'Blink beside a visible enemy and deliver a powerful guard-breaking cut. Requires a clear path.', verse: '' },
+  mending_light: { id: 'mending_light', name: 'Mending Light', cost: 34, cd: 16, icon: 'water', desc: 'Regenerate 18% of your maximum health over 6 seconds while you move and fight.', verse: '' },
+  frost_ring: { id: 'frost_ring', name: 'Winter Halo', cost: 38, cd: 10, icon: 'arc', desc: 'A ring of cold light damages nearby enemies and slows their movement and attacks for 4 seconds.', verse: '' },
   sword_word: { id: 'sword_word', name: 'Sword of the Word', cost: 22, cd: 1.2, icon: 'arc', desc: 'Loose a brilliant golden arc that pierces every foe in its path.', verse: '"For the word of God is quick, and powerful, and sharper than any twoedged sword..." — Hebrews 4:12 (KJV)' },
   trumpet: { id: 'trumpet', name: 'Trumpet of Victory', cost: 30, cd: 4, icon: 'horn', desc: 'A shockwave that damages and staggers nearby foes, breaks guards, and shatters cracked walls.', verse: '"So the people shouted when the priests blew with the trumpets..." — Joshua 6:20 (KJV)' },
   shield_faith: { id: 'shield_faith', name: 'Shield of Faith', cost: 25, cd: 6, icon: 'shield', desc: 'Raise a barrier for 1.4s. Blocks all harm, reflects projectiles, and counters melee attackers.', verse: '"Above all, taking the shield of faith, wherewith ye shall be able to quench all the fiery darts of the wicked." — Ephesians 6:16 (KJV)' },
@@ -208,30 +264,31 @@ export const TREES: { id: TreeId; name: string; blurb: string; color: string }[]
   { id: 'lightbearer', name: 'Lightbearer', blurb: 'Covenant light shaped into power.', color: '#f4f0e0' },
 ];
 export const SKILLS: SkillNode[] = [
-  { id: 'w_edge', tree: 'warrior', name: 'Honed Edge', desc: '+8% melee damage per rank.', ranks: 3, cost: 1, req: [], row: 0, col: 1 },
+  { id: 'w_edge', tree: 'warrior', name: 'Honed Edge', desc: 'Melee damage: +10% per rank for ranks 1–10, +5% for 11–25, then +2.5% for 26–50. Every rank adds power.', ranks: 50, cost: 1, req: [], row: 0, col: 1 },
   { id: 'w_relentless', tree: 'warrior', name: 'Relentless', desc: 'Your ground combo gains a fourth strike, Rising Verdict, which launches foes.', ranks: 1, cost: 1, req: ['w_edge'], row: 1, col: 0 },
-  { id: 'w_keen', tree: 'warrior', name: 'Keen Eye', desc: '+8% critical chance and +25% critical damage.', ranks: 1, cost: 1, req: ['w_edge'], row: 1, col: 2 },
+  { id: 'w_keen', tree: 'warrior', name: 'Keen Eye', desc: '+3% critical chance and +10% critical damage per rank. Up to 10 ranks; critical chance caps at 75%.', ranks: 10, cost: 1, req: ['w_edge'], row: 1, col: 2 },
   { id: 'w_lion', tree: 'warrior', name: 'Lion\'s Courage', desc: 'Learn the Lion\'s Courage ability.', ranks: 1, cost: 2, req: ['w_relentless'], row: 2, col: 0, grants: 'lion' },
   { id: 'w_mastery', tree: 'warrior', name: 'Weapon Mastery', desc: 'Charged attacks charge 35% faster and gain a third, devastating level.', ranks: 1, cost: 2, req: ['w_keen'], row: 2, col: 2 },
   { id: 'w_exec', tree: 'warrior', name: 'Executioner', desc: 'Executions deal +60% damage and restore 25 Covenant Energy.', ranks: 1, cost: 2, req: ['w_lion', 'w_mastery'], row: 3, col: 1 },
 
-  { id: 'g_skin', tree: 'guardian', name: 'Iron Skin', desc: '+5% damage reduction per rank.', ranks: 3, cost: 1, req: [], row: 0, col: 1 },
+  { id: 'g_skin', tree: 'guardian', name: 'Iron Skin', desc: 'Each rank reduces remaining incoming damage by 6%. Up to 20 ranks; total damage reduction caps at 90%.', ranks: 20, cost: 1, req: [], row: 0, col: 1 },
+  { id: 'g_regen', tree: 'guardian', name: 'Regeneration', desc: 'After 4 seconds unharmed, regenerate 0.75% of maximum health per second per rank. Up to 10 ranks.', ranks: 10, cost: 1, req: [], row: 0, col: 0 },
   { id: 'g_timing', tree: 'guardian', name: 'Perfect Timing', desc: 'Parry window +50%. Perfect parries restore 12 Covenant Energy.', ranks: 1, cost: 1, req: ['g_skin'], row: 1, col: 0 },
   { id: 'g_balm', tree: 'guardian', name: 'Steadfast', desc: '+1 Balm charge, and Balm heals 15% more.', ranks: 1, cost: 1, req: ['g_skin'], row: 1, col: 2 },
   { id: 'g_shield', tree: 'guardian', name: 'Shield of Faith', desc: 'Learn the Shield of Faith ability.', ranks: 1, cost: 2, req: ['g_timing'], row: 2, col: 0, grants: 'shield_faith' },
   { id: 'g_counter', tree: 'guardian', name: 'Shield Counter', desc: 'Counters after a parry deal +70% damage and always stagger.', ranks: 1, cost: 2, req: ['g_timing', 'g_balm'], row: 2, col: 2 },
   { id: 'g_chains', tree: 'guardian', name: 'Chains Broken', desc: 'Learn the Chains Broken ability.', ranks: 1, cost: 2, req: ['g_shield'], row: 3, col: 1, grants: 'chains' },
 
-  { id: 'c_kin', tree: 'commander', name: 'Kinship', desc: 'Echoes gain +10% damage and health per rank.', ranks: 3, cost: 1, req: [], row: 0, col: 1 },
+  { id: 'c_kin', tree: 'commander', name: 'Kinship', desc: 'Echo damage and health: +10% per rank for 1–10, +5% for 11–25, then +2.5% for 26–50. Adds to equipment and leadership bonuses.', ranks: 50, cost: 1, req: [], row: 0, col: 1 },
   { id: 'c_glory', tree: 'commander', name: 'Shared Glory', desc: 'Echoes gain 60% more experience.', ranks: 1, cost: 1, req: ['c_kin'], row: 1, col: 0 },
   { id: 'c_recall', tree: 'commander', name: 'Swift Recall', desc: 'Recalled Echoes are untouchable for 2s and recover 25% health.', ranks: 1, cost: 1, req: ['c_kin'], row: 1, col: 2 },
   { id: 'c_banner', tree: 'commander', name: 'Second Banner', desc: '+1 active Echo slot.', ranks: 1, cost: 2, req: ['c_glory'], row: 2, col: 0 },
   { id: 'c_sync', tree: 'commander', name: 'Coordinated Strike', desc: 'Sync Strike cooldown −40% and damage +50%.', ranks: 1, cost: 2, req: ['c_recall'], row: 2, col: 2 },
   { id: 'c_warden', tree: 'commander', name: 'Warden\'s Mantle', desc: 'You may promote one Echo to Commander: it inspires your army and you (+15% damage nearby).', ranks: 1, cost: 2, req: ['c_banner', 'c_sync'], row: 3, col: 1 },
 
-  { id: 'l_lamp', tree: 'lightbearer', name: 'Lamp of the Word', desc: '+10% ability power and +8 Covenant Energy per rank.', ranks: 3, cost: 1, req: [], row: 0, col: 1 },
+  { id: 'l_lamp', tree: 'lightbearer', name: 'Lamp of the Word', desc: 'Ability power: +10% per rank for 1–10, +5% for 11–25, then +2.5% for 26–50. Adds to Wisdom and gear; +15 energy per rank.', ranks: 50, cost: 1, req: [], row: 0, col: 1 },
   { id: 'l_waters', tree: 'lightbearer', name: 'Still Waters', desc: 'Learn the Still Waters ability.', ranks: 1, cost: 1, req: ['l_lamp'], row: 1, col: 0, grants: 'still_waters' },
-  { id: 'l_radiance', tree: 'lightbearer', name: 'Radiance', desc: 'Covenant Energy regenerates 50% faster, and hits generate 30% more.', ranks: 1, cost: 1, req: ['l_lamp'], row: 1, col: 2 },
+  { id: 'l_radiance', tree: 'lightbearer', name: 'Radiance', desc: '+50% energy regeneration and +30% energy from hits per rank. Up to 10 ranks.', ranks: 10, cost: 1, req: ['l_lamp'], row: 1, col: 2 },
   { id: 'l_pillar', tree: 'lightbearer', name: 'Pillar of Fire', desc: 'Learn the Pillar of Fire ability.', ranks: 1, cost: 2, req: ['l_radiance'], row: 2, col: 2, grants: 'pillar_fire' },
   { id: 'l_well', tree: 'lightbearer', name: 'Wellspring', desc: 'Still Waters lasts 50% longer and also restores Covenant Energy.', ranks: 1, cost: 1, req: ['l_waters'], row: 2, col: 0 },
   { id: 'l_armor', tree: 'lightbearer', name: 'Armor of Light', desc: 'Learn the Armor of Light transformation.', ranks: 1, cost: 3, req: ['l_pillar', 'l_well'], row: 3, col: 1, grants: 'armor_light' },
@@ -286,6 +343,19 @@ export const ECHO_SPECIES: Record<string, EchoSpecies> = {
       { name: 'Lion of the Den', title: 'Stage I', desc: 'A bronze lion of Babylon\'s gate, the Veil burned out of it. Black bronze now, and a golden mane.', ability: 'Pounce: springs on foes from a distance and rakes them with its claws.' },
       { name: 'Lion of the Gate', title: 'Stage II', desc: 'Gold seams glow along its flanks where the Veil was burned away.', ability: 'Rending Claws: its claws rake twice before it draws back.' },
       { name: 'Dawnmane', title: 'Stage III', desc: 'A mane of white-gold fire.', ability: 'Dawnmane: its pounce lands with a wave of light both ways.' },
+    ],
+  },
+  undying: {
+    id: 'undying',
+    cls: 'Vanguard',
+    baseHp: 280,
+    baseAtk: 32,
+    evolveLv: [6, 10],
+    evolveCost: [{ covenant_fragment: 3, radiant_core: 1 }, { covenant_fragment: 5, radiant_core: 2 }],
+    stages: [
+      { name: 'Captain of the Undying', title: 'Stage I', desc: 'The shape of how a captain of the fallen host fought, cleansed: black plate, a long spear, the stubs of wings.', ability: 'Spear Line: spear strings and a driving lunge.' },
+      { name: 'Captain of the Remnant', title: 'Stage II', desc: 'Gold runs along its plate where the pale host-light used to burn.', ability: 'Long Reach: its lunge carries farther and strikes harder.' },
+      { name: 'Unbowed', title: 'Stage III', desc: 'Its spear burns with white fire, and it does not kneel.', ability: 'Unbowed: its spear string ends in a wave of light.' },
     ],
   },
   sentinel: {
@@ -381,7 +451,33 @@ export interface EchoInst {
   nickname?: string;
   /** Its standing order in battle; none follows the army's mode. */
   order?: EchoOrder;
+  /** Specialization is independent of the original creature's appearance. */
+  role?: EchoRole;
+  /** Preferred enemy group, assigned through squad orders. */
+  targetPriority?: 'ranged' | 'boss' | 'crowd';
+  /** Original-form imprints absorbed, including the first. */
+  absorptions?: number;
 }
+
+export type SuperId = 'rally' | 'tempest' | 'dawnfall' | 'renewal';
+export const SUPER_MOVES: Record<SuperId, { name: string; icon: string; color: string; desc: string }> = {
+  rally: { name: 'Rally the Remnant', icon: 'rally', color: '#ffe6a8', desc: 'An army of light strikes every visible foe twice. Balanced crowd damage.' },
+  tempest: { name: 'Umbral Tempest', icon: 'sword', color: '#b7a1ff', desc: 'Five teleporting cuts focus one visible opponent, ending with a devastating guard break. Needs a reachable target.' },
+  dawnfall: { name: 'Dawnfall', icon: 'pillar', color: '#ffbb74', desc: 'Three waves of falling light strike every visible foe. Wide-area damage and stagger.' },
+  renewal: { name: 'Covenant Renewal', icon: 'water', color: '#a0efc4', desc: 'Restore 45% health and full Energy, revive your active Echoes, and release a defensive burst.' },
+};
+
+export type EchoRole = 'guardian' | 'ranger' | 'mage' | 'ninja' | 'fighter' | 'herald';
+export const ECHO_ROLES: Record<EchoRole, { name: string; color: string; icon: string; desc: string; signature: string[] }> = {
+  guardian: { name: 'Guardian', color: '#8ecbff', icon: 'shield', desc: 'A durable defender that intercepts shots, draws attacks, and grants brief barriers.', signature: ['Aegis: protects nearby allies.', 'Aegis lasts longer; stronger guard.', 'Bastion: the longest barrier and strongest guard.'] },
+  ranger: { name: 'Ranger', color: '#f4d388', icon: 'archer_echo', desc: 'A marksman that keeps range, pierces lines, and rains arrows.', signature: ['Rapid light arrows.', 'Every third shot pierces.', 'Rain of Dawn adds six falling arrows.'] },
+  mage: { name: 'Mage', color: '#a9a3ff', icon: 'pillar', desc: 'Ranged spellcaster with chilling arcane volleys, fire pillars, and chain lightning. Chilled targets open Frostbreak with a fighter.', signature: ['Arcane Volley: chills the target and fires three homing bolts.', 'Starfire: a targeted pillar joins each volley.', 'Chain Lightning: arcs through three nearby foes.'] },
+  ninja: { name: 'Ninja', color: '#c4a0ff', icon: 'dagger', desc: 'Fast flanker with throwing stars, blink combos, and attacking shadow doubles.', signature: ['Mirage Rush: a blink strike and throwing star.', 'Twin Mirage: two shadow doubles strike.', 'Spiral Burst: a third double and a heavy energy hit.'] },
+  fighter: { name: 'Fighter', color: '#ffad7d', icon: 'fist', desc: 'A close-range brawler with rapid strings, launching uppercuts, and seismic finishers.', signature: ['Breaker Rush: a powerful launching strike.', 'Seismic finishers send a shockwave.', 'Iron Resolve: each landed blow restores its health.'] },
+  herald: { name: 'Healer', color: '#9de6bb', icon: 'water', desc: 'Keeps you and nearby Echoes alive, restores Energy, and fires supporting light bolts.', signature: ['Mending pulse: restores 10% ally health.', 'Restores 14% health and 12 Energy.', 'Restores 18% health and 16 Energy.'] },
+};
+export const defaultEchoRole = (species: string): EchoRole => species === 'archer' ? 'mage' : species === 'bulwark' ? 'herald' : species === 'marshal' || species === 'locust' || species === 'knight' ? 'ninja' : species === 'brute' || species === 'lion' ? 'fighter' : 'guardian';
+export const echoRole = (e: EchoInst): EchoRole => e.role && ECHO_ROLES[e.role] ? e.role : defaultEchoRole(e.species);
 
 /**
  * Individual orders. guard: shield Elior and cut off foes that close on him.
@@ -391,7 +487,9 @@ export interface EchoInst {
  */
 export type EchoOrder = 'guard' | 'hunt' | 'flank' | 'hold' | 'focus';
 
-export const echoXpToNext = (lv: number) => Math.round(30 + lv * lv * 14);
+export const ECHO_LEVEL_CAP = 100;
+export const echoXpToNext = (lv: number) => Math.round(lv <= 30 ? 30 + lv * lv * 14 : 12630 + (lv - 30) * 220);
+export const TRIAL_REWARDS = ["trial_reaver", "trial_tempest", "trial_plate", "trial_grasp", "trial_sovereign", "trial_crown", "trial_stride", "trial_worldbreaker", "trial_bastion", "trial_ascendancy"];
 /** XP for the next level. Past level 30 the climb is linear, so level 100 and beyond is within reach. */
 export const xpToNext = (lv: number) => (lv <= 30 ? Math.round(30 * Math.pow(lv, 1.55) + 6) : Math.round(30 * Math.pow(30, 1.55) + 6) + (lv - 30) * 60);
 
@@ -405,6 +503,9 @@ export interface LoreEntry {
   note: string;
 }
 export const LORE: Record<string, LoreEntry> = {
+  cinder_testament: {id:'cinder_testament',title:'The Testament of Free Hands',ref:'Remnant chronicle · Original fiction',text:'We know the names of every chain we forged. We kept this last workshop for hinges, ploughs and cradles. If the furnaces are freed, let no crown decide what our hands are for again.',note:'Rescue Talia in the Last Smithy, then bring this testament to Mara at Ashwatch.'},
+  hunt_plague: {id:'hunt_plague',title:'The Green-Stained Record',ref:'Remnant chronicle · Original fiction',text:'Morvane’s wings carry a thousand smaller wings. The green dust is not pollen. It is a road for her army.',note:'Rescue Barak in the grove, then bring this record to Mara at Thawgate.'},
+  plague_cinders: {id:'plague_cinders',title:'Beyond the Last Clean Breath',ref:'Remnant chronicle · Original fiction',text:'Azkar’s shadow leaves ash where it falls. The Crown of Cinders has lit the furnaces beyond the marsh, but the swarm has not yet crossed his fire.',note:'Rescue Ezra in the infirmary and bring this warning to Mara. The freed causeway now leads to the Cinders campaign.'},
   eze371: {
     id: 'eze371', title: 'The Valley Stone', ref: 'Ezekiel 37:1–2 (KJV)',
     text: 'The hand of the LORD was upon me, and carried me out in the spirit of the LORD, and set me down in the midst of the valley which was full of bones, And caused me to pass by them round about: and, behold, there were very many in the open valley; and, lo, they were very dry.',
@@ -555,6 +656,86 @@ export const LORE: Record<string, LoreEntry> = {
     id: 'dan221', title: 'He Removeth Kings', ref: 'Daniel 2:21 (KJV)',
     text: 'And he changeth the times and the seasons: he removeth kings, and setteth up kings: he giveth wisdom unto the wise, and knowledge to them that know understanding:',
     note: 'Hanan\'s blessing over the camp in the reeds, the morning after.',
+  },
+  dan104: {
+    id: 'dan104', title: 'By the Great River', ref: 'Daniel 10:4 (KJV)',
+    text: 'And in the four and twentieth day of the first month, as I was by the side of the great river, which is Hiddekel;',
+    note: 'Cut into a flat stone by the water, where Hanan kneels to pray.',
+  },
+  dan82: {
+    id: 'dan82', title: 'At Shushan in the Palace', ref: 'Daniel 8:2 (KJV)',
+    text: 'And I saw in a vision; and it came to pass, when I saw, that I was at Shushan in the palace, which is in the province of Elam; and I saw in a vision, and I was by the river of Ulai.',
+    note: 'Scratched on a reed-cutter\'s post in the marshes of Ulai. Someone stood here and saw further than the palace.',
+  },
+  deu3217: {
+    id: 'deu3217', title: 'Gods Whom They Knew Not', ref: 'Deuteronomy 32:17 (KJV)',
+    text: 'They sacrificed unto devils, not to God; to gods whom they knew not, to new gods that came newly up, whom your fathers feared not.',
+    note: 'Written in a Judean hand across the base of a roadside shrine. The offerings on it were still warm.',
+  },
+  ps827: {
+    id: 'ps827', title: 'Like One of the Princes', ref: 'Psalm 82:6–7 (KJV)',
+    text: 'I have said, Ye are gods; and all of you are children of the most High. But ye shall die like men, and fall like one of the princes.',
+    note: 'Painted small, low on the gate of Shushan, under the winged bulls. Whoever wrote it did not want the guards to see.',
+  },
+  isa1412: {
+    id: 'isa1412', title: 'Son of the Morning', ref: 'Isaiah 14:12 (KJV)',
+    text: 'How art thou fallen from heaven, O Lucifer, son of the morning! how art thou cut down to the ground, which didst weaken the nations!',
+    note: 'On a column in the hall of a hundred columns, where every other carving praises a king.',
+  },
+  eph22: {
+    id: 'eph22', title: 'The Prince of the Power of the Air', ref: 'Ephesians 2:2 (KJV)',
+    text: 'Wherein in time past ye walked according to the course of this world, according to the prince of the power of the air, the spirit that now worketh in the children of disobedience:',
+    note: 'Burned into the first step of the ziggurat, as if by lightning.',
+  },
+  jude16: {
+    id: 'jude16', title: 'Their First Estate', ref: 'Jude 1:6 (KJV)',
+    text: 'And the angels which kept not their first estate, but left their own habitation, he hath reserved in everlasting chains under darkness unto the judgment of the great day.',
+    note: 'Written on a broken link of chain as long as a man, hanging over nothing in the high places.',
+  },
+  ezek2817: {
+    id: 'ezek2817', title: 'Lifted Up Because of Thy Beauty', ref: 'Ezekiel 28:17 (KJV)',
+    text: 'Thine heart was lifted up because of thy beauty, thou hast corrupted thy wisdom by reason of thy brightness: I will cast thee to the ground, I will lay thee before kings, that they may behold thee.',
+    note: 'At the foot of the prince\'s throne, where a petitioner would kneel.',
+  },
+  pet24: {
+    id: 'pet24', title: 'The Angels That Sinned', ref: '2 Peter 2:4 (KJV)',
+    text: 'For if God spared not the angels that sinned, but cast them down to hell, and delivered them into chains of darkness, to be reserved unto judgment;',
+    note: 'What came to mind as the Prince of the Storm was thrown down.',
+  },
+  eph613: {
+    id: 'eph613', title: 'Having Done All, to Stand', ref: 'Ephesians 6:12–13 (KJV)',
+    text: 'For we wrestle not against flesh and blood, but against principalities, against powers, against the rulers of the darkness of this world, against spiritual wickedness in high places. Wherefore take unto you the whole armour of God, that ye may be able to withstand in the evil day, and having done all, to stand.',
+    note: 'Before the throne of the prince of Persia. You do not have to win. You have to stand.',
+  },
+  dan1013: {
+    id: 'dan1013', title: 'One and Twenty Days', ref: 'Daniel 10:13 (KJV)',
+    text: 'But the prince of the kingdom of Persia withstood me one and twenty days: but, lo, Michael, one of the chief princes, came to help me; and I remained there with the kings of Persia.',
+    note: 'The twenty-first day. The light above the throne, and the one who came down in it.',
+  },
+  col215: {
+    id: 'col215', title: 'Triumphing over Them', ref: 'Colossians 2:15 (KJV)',
+    text: 'And having spoiled principalities and powers, he made a shew of them openly, triumphing over them in it.',
+    note: 'Where the prince\'s throne stood, there is only light.',
+  },
+  dan1056: {
+    id: 'dan1056', title: 'A Certain Man Clothed in Linen', ref: 'Daniel 10:5–6 (KJV)',
+    text: 'Then I lifted up mine eyes, and looked, and behold a certain man clothed in linen, whose loins were girded with fine gold of Uphaz: His body also was like the beryl, and his face as the appearance of lightning, and his eyes as lamps of fire, and his arms and his feet like in colour to polished brass, and the voice of his words like the voice of a multitude.',
+    note: 'What Hanan saw by the river. The rest of the camp saw nothing, and were afraid anyway.',
+  },
+  dan1012: {
+    id: 'dan1012', title: 'Thy Words Were Heard', ref: 'Daniel 10:12 (KJV)',
+    text: 'Then said he unto me, Fear not, Daniel: for from the first day that thou didst set thine heart to understand, and to chasten thyself before thy God, thy words were heard, and I am come for thy words.',
+    note: 'As Hanan repeated it to the camp, weeping.',
+  },
+  dan1019: {
+    id: 'dan1019', title: 'Be Strong, Yea, Be Strong', ref: 'Daniel 10:19 (KJV)',
+    text: 'And said, O man greatly beloved, fear not: peace be unto thee, be strong, yea, be strong. And when he had spoken unto me, I was strengthened, and said, Let my lord speak; for thou hast strengthened me.',
+    note: 'Hanan stood up from the ground for the first time in three weeks.',
+  },
+  dan1020: {
+    id: 'dan1020', title: 'The Prince of Grecia Shall Come', ref: 'Daniel 10:20 (KJV)',
+    text: 'Then said he, Knowest thou wherefore I come unto thee? and now will I return to fight with the prince of Persia: and when I am gone forth, lo, the prince of Grecia shall come.',
+    note: 'The last thing Hanan heard by the river. The war is not over.',
   },
   isa432: {
     id: 'isa432', title: 'Through the Fire', ref: 'Isaiah 43:2 (KJV)',

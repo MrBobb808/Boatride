@@ -157,7 +157,7 @@ function armyCamp(ctx: Ctx, x0: number, x1: number, base: number, col: string, r
 }
 
 /** A cypress: a tall dark flame of foliage. */
-function cypressSil(ctx: Ctx, x: number, base: number, h: number, col: string, rim: string | null) {
+export function cypressSil(ctx: Ctx, x: number, base: number, h: number, col: string, rim: string | null) {
   const w = h * 0.11;
   ctx.fillStyle = col;
   ctx.beginPath();

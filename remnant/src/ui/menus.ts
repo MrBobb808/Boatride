@@ -1,4 +1,5 @@
 import { islandCalibrate, ISLAND_LEN } from './island';
+import eliorBoard from '../assets/elior-board.webp';
 // The pause menu (character, equipment, skills, Echoes, map, journal,
 // crafting, settings, system), plus the merchant, the forge and altar menus.
 
@@ -11,24 +12,27 @@ import { sfx, audio } from '../audio/audio';
 import { music } from '../audio/music';
 import {
   ITEMS, SLOTS, SLOT_NAMES, STAT_KEYS, STAT_INFO, MOD_LABEL, RARITY_COLORS, RARITY_NAMES, TREES, SKILLS, ABILITIES,
-  ECHO_SPECIES, ECHO_CLASS_INFO, LORE, FAMILY_NAMES, echoXpToNext, xpToNext,
+  ECHO_SPECIES, ECHO_CLASS_INFO, ECHO_ROLES, SUPER_MOVES, ECHO_LEVEL_CAP, echoRole, LORE, FAMILY_NAMES, echoXpToNext, xpToNext,
   type ItemInst, type Slot, type ModKey, type AbilityId, type EchoInst, type StatKey,
 } from '../game/data';
 import {
   derive, getItem, itemMods, upgradeCost, MAX_PLUS, hasMaterials, payMaterials, makeItem, canLearn, learn, skillRank,
-  echoMaxHp, echoAtk, addMaterial,
+  echoMaxHp, echoAtk, addMaterial, equipAbility, unlockCombatSkills, COMBAT_UNLOCKS, allocateStat, learnRanks,
 } from '../game/state';
 import { QUESTS } from '../game/story';
 import { ROOMS, chapterOf } from '../game/rooms';
 import { CH2_ROOM_IDS } from '../game/rooms2';
 import { guidePoint } from '../game/guide';
 import { FINISHERS } from '../game/finishers';
+import { ECHO_COMBOS } from '../game/echoCombos';
 import { MANTLE_LV, mantlePerks } from '../game/mantle';
 import { nextChapter, travelToChapter, trainingOpen, startTraining } from '../game/chapters';
-import { chaptersTab } from './chapters';
+import { chaptersTab, gameModes } from './chapters';
+import { progressionTab } from './progression';
+import { GEAR_SETS } from '../game/progression';
 import { bestiaryPanes, bestiaryCount } from './bestiary';
 import { controllerBox, cancelPadCapture } from './controller';
-import { saveSlot, listSlots, deleteSlot, loadSlot, exportCode, importCode, SLOT_COUNT } from '../game/save';
+import { saveSlot, listSlots, lastSlot, deleteSlot, loadSlot, exportCode, importCode, SLOT_COUNT } from '../game/save';
 import { formatTime, clamp } from '../core/math';
 import { solve, newJoints } from '../render/skeleton';
 import { drawHumanoid } from '../render/actors';
@@ -41,12 +45,20 @@ let menuEl: HTMLElement | null = null;
 let tab = 'character';
 let bodyEl: HTMLElement;
 let tabsEl: HTMLElement;
+let skillsPage: 'abilities' | 'supers' | 'training' = 'abilities';
+let pointBatch = 1;
+function pointBatchPicker() {
+  return h('div', { class: 'modes', style: 'flex-wrap:wrap;margin:8px 0' },
+    h('span', { class: 'muted', style: 'align-self:center' }, 'Spend at once:'),
+    [1, 5, 10, 25, 50].map((n) => btn(String(n), () => { pointBatch = n; render(); }, 'btn small' + (pointBatch === n ? ' primary' : ''), { 'data-k': 'points_' + n, 'aria-pressed': String(pointBatch === n) })));
+}
 
 export const isMenuOpen = () => !!menuEl || !!shopEl;
 
 const TABS: { id: string; label: string; icon: string }[] = [
   { id: 'character', label: 'Character', icon: 'stats' },
   { id: 'equipment', label: 'Equipment', icon: 'armor' },
+  { id: 'progression', label: 'Progression', icon: 'sword' },
   { id: 'skills', label: 'Skills', icon: 'skills' },
   { id: 'echoes', label: 'Echoes', icon: 'echo' },
   { id: 'map', label: 'Map', icon: 'map' },
@@ -147,6 +159,7 @@ function render() {
   switch (tab) {
     case 'character': bodyEl.appendChild(characterTab()); break;
     case 'equipment': bodyEl.appendChild(equipmentTab()); break;
+    case 'progression': bodyEl.appendChild(progressionTab()); break;
     case 'skills': bodyEl.appendChild(skillsTab()); break;
     case 'echoes': bodyEl.appendChild(echoesTab()); break;
     case 'map': bodyEl.appendChild(mapTab()); break;
@@ -166,16 +179,28 @@ function render() {
 function characterTab() {
   const s = G.save;
   const d = G.d;
+  const amount = Math.min(pointBatch, s.statPoints);
+  const preview = (k: StatKey) => {
+    if (!amount) return '';
+    const next = derive({ ...s, stats: { ...s.stats, [k]: s.stats[k] + amount } });
+    const pair = (label: string, a: number, b: number, unit = '') => `${label} ${a.toFixed(1)}${unit} → ${b.toFixed(1)}${unit}`;
+    return k === 'vit' ? pair('HP', d.maxHp, next.maxHp) : k === 'str' ? pair('Attack', d.atk, next.atk) :
+      k === 'agi' ? pair('Attack speed', d.aspd, next.aspd, '×') + ' · ' + pair('Crit', d.crit * 100, next.crit * 100, '%') :
+      k === 'end' ? pair('HP', d.maxHp, next.maxHp) + ' · ' + pair('Reduction', d.dr * 100, next.dr * 100, '%') :
+      k === 'res' ? pair('Echo damage', d.echoDmg, next.echoDmg, '×') + ' · ' + pair('Super charge', d.rallyMult, next.rallyMult, '×') :
+      pair('Ability power', d.abil, next.abil, '×') + ' · ' + pair('Energy', d.maxCe, next.maxCe);
+  };
   const rows = STAT_KEYS.map((k) => h('div', { class: 'stat-row' },
-    h('div', null, h('div', { class: 'nm' }, STAT_INFO[k].name), h('div', { class: 'ds' }, STAT_INFO[k].desc)),
+    h('div', null, h('div', { class: 'nm' }, STAT_INFO[k].name), h('div', { class: 'ds' }, STAT_INFO[k].desc), amount ? h('div', { class: 'ds up', 'data-k': 'preview_' + k }, preview(k)) : null),
     h('div', { class: 'val' }, String(d.stats[k]), d.stats[k] !== s.stats[k] ? h('span', { class: 'up', style: 'font-size:0.7em;margin-left:4px' }, `(${s.stats[k]}+${d.stats[k] - s.stats[k]})`) : null),
-    btn('+', () => { spendStat(k); }, 'btn plus', { disabled: s.statPoints <= 0, 'data-k': 'st_' + k, 'aria-label': 'Raise ' + STAT_INFO[k].name }),
+    btn('+' + (amount || 1), () => { spendStat(k); }, 'btn plus', { disabled: s.statPoints <= 0, 'data-k': 'st_' + k, 'aria-label': 'Raise ' + STAT_INFO[k].name + ' by ' + amount }),
   ));
   rows.push(h('div', { class: 'stat-row' }, h('div', null, h('div', { class: 'nm' }, 'Covenant Energy'), h('div', { class: 'ds' }, flag('relic_taken') ? 'Fuels abilities. Grows with Wisdom.' : 'Dormant. Something in the temple may wake it.')), h('div', { class: 'val' }, flag('relic_taken') ? String(d.maxCe) : '—'), h('span')));
   rows.push(h('div', { class: 'stat-row' }, h('div', null, h('div', { class: 'nm' }, 'Summon Capacity'), h('div', { class: 'ds' }, 'Echoes that can fight beside you at once. Grows with the story and the Commander tree.')), h('div', { class: 'val' }, String(d.echoSlots)), h('span')));
   const pct = (v: number) => (v * 100).toFixed(1) + '%';
   const derived = h('div', { class: 'kv' },
     'Health', `${Math.ceil(s.hp)} / ${d.maxHp}`,
+    'Health regeneration', `${(d.hpRegen * 100).toFixed(1)}% / sec · after 4s unharmed`,
     'Attack power', d.atk.toFixed(1),
     'Damage reduction', pct(d.dr),
     'Critical chance', pct(d.crit),
@@ -183,8 +208,10 @@ function characterTab() {
     'Attack speed', '×' + d.aspd.toFixed(2),
     'Move speed', '×' + d.speed.toFixed(2),
     'Ability power', '×' + d.abil.toFixed(2),
+    'Skill recharge', '×' + d.skillRecharge.toFixed(2),
+    'Melee skill bonus', '×' + d.meleeMult.toFixed(2),
     'Parry window', (d.parryWin * 1000).toFixed(0) + ' ms',
-    'Rally charge rate', '×' + d.rallyMult.toFixed(2),
+    'Super charge rate', '×' + d.rallyMult.toFixed(2),
     'Echo damage', '×' + d.echoDmg.toFixed(2),
     'Echo health', '×' + d.echoHp.toFixed(2),
     'Weapon', FAMILY_NAMES[d.family],
@@ -198,9 +225,11 @@ function characterTab() {
     h('div', { style: 'display:flex;gap:12px;flex-wrap:wrap' },
       h('div', { class: 'box', style: 'flex:1.3;min-width:280px' },
         h('h3', null, `Elior — Level ${s.level}`),
+        btn('Character board', () => openCharacterBoard(), 'btn small', { 'data-k': 'elior_board' }),
         h('div', { class: 'muted', style: 'font-size:0.9em;margin-bottom:6px' }, `Experience ${Math.floor(s.xp)} / ${xpToNext(s.level)} · Points to spend: `, h('b', { style: 'color:var(--gold-hi)' }, String(s.statPoints))),
         h('div', { class: 'bar', style: 'margin-bottom:8px' }, h('i', { style: `width:${(s.xp / xpToNext(s.level)) * 100}%` })),
-        rows,
+        h('p', { class: 'muted', style: 'font-size:0.85em' }, 'Controlled power growth: levels add health and equipment attack, with smaller attack gains after level 100. Offensive attributes soften above 60; every point still helps. Ability and Echo bonuses add together. Life steal restores at most 4% maximum health per second.'),
+        pointBatchPicker(), rows,
       ),
       h('div', { class: 'col', style: 'flex:1;min-width:220px' },
         h('div', { class: 'box' }, h('h3', null, 'Derived'), derived),
@@ -217,14 +246,27 @@ function characterTab() {
   );
 }
 
+function openCharacterBoard() {
+  const card = h('div', { class: 'panel scroll', style: 'width:min(1100px,96vw);max-height:92dvh;padding:12px' },
+    h('div', { class: 'row', style: 'justify-content:space-between;align-items:center;margin-bottom:10px' },
+      h('h3', null, 'Elior · Character board'),
+      btn('Close', () => popLayer(layer), 'btn small', { 'data-autofocus': '', 'data-k': 'board_close' }),
+    ),
+    h('img', { src: eliorBoard, alt: 'Elior, a Black swordsman with white hair and beard, navy and gold armor, chain attacks, and his Shadow Mantle transformation.', style: 'display:block;width:100%;height:auto;border-radius:4px' }),
+  );
+  const layer = h('div', { class: 'layer dim' }, card);
+  document.getElementById('ui')!.appendChild(layer);
+  pushLayer({ el: layer, onBack: () => popLayer(layer) });
+}
+
 function spendStat(k: StatKey) {
   const s = G.save;
-  if (s.statPoints <= 0) return;
-  s.statPoints--;
-  s.stats[k]++;
   const before = G.d.maxHp;
+  if (!allocateStat(s, k, pointBatch)) return;
   G.d = derive(s);
-  if (k === 'vit') s.hp += G.d.maxHp - before;
+  s.hp = Math.min(G.d.maxHp, s.hp + Math.max(0, G.d.maxHp - before));
+  for (const echo of G.world.echoes) echo.refreshStats();
+  G.world.autosave(true);
   sfx('uiConfirm');
   render();
 }
@@ -239,7 +281,7 @@ function rarityStyle(r: number) {
 }
 
 function itemName(it: ItemInst) {
-  return ITEMS[it.id].name + (it.plus ? ` +${it.plus}` : '');
+  return ITEMS[it.id].name + (it.lootPower ? ` · Power ${it.lootPower}` : '') + (it.trialTier ? ` · Ascension ${it.trialTier}` : '') + (it.plus ? ` +${it.plus}` : '');
 }
 
 function modLines(m: Partial<Record<ModKey, number>>, cmp?: Partial<Record<ModKey, number>>) {
@@ -287,6 +329,13 @@ function equipmentTab() {
       h('hr', { class: 'rule' }),
       h('div', null, modLines(mods, !isEq && eq ? itemMods(eq) : undefined)),
       h('p', { class: 'muted', style: 'margin:8px 0 0' }, base.desc),
+      base.set ? h('div', { class: 'set-detail' },
+        h('b', { style: `color:${GEAR_SETS[base.set].color}` }, `${GEAR_SETS[base.set].name} · ${G.d.sets[base.set]}/3 equipped`),
+        h('p', { class: G.d.sets[base.set] >= 2 ? 'up' : 'muted' }, `2 pieces: ${GEAR_SETS[base.set].two}`),
+        h('p', { class: G.d.sets[base.set] >= 3 ? 'up' : 'muted' }, `3 pieces: ${GEAR_SETS[base.set].three}`),
+      ) : null,
+      sel.trialWave ? h('p', { class: 'muted' }, `Earned at Trial wave ${sel.trialWave}${sel.trialTier ? ` · +${Math.min(100, sel.trialTier) * 15}% base gear power` : ''}.`) : null,
+      sel.lootWave ? h('p', { class: 'up' }, `Wave ${sel.lootWave} reward · Power ${sel.lootPower}. Greater Power increases this item's stats. Equip it to gain the bonus.`) : null,
       base.lore ? h('p', { style: 'font-style:italic;margin:6px 0 0;font-size:0.92em' }, base.lore) : null,
       !isEq && eq ? h('div', { class: 'muted', style: 'font-size:0.82em;margin-top:6px' }, `Compared with ${itemName(eq)} (equipped).`) : null,
       h('div', { style: 'display:flex;gap:8px;margin-top:10px;flex-wrap:wrap' },
@@ -299,7 +348,7 @@ function equipmentTab() {
   const mats = Object.entries(s.materials).filter(([, n]) => n > 0);
   return h('div', { style: 'display:flex;gap:12px;flex:1;min-height:0;width:100%' },
     h('div', { class: 'col', style: 'flex:1.1;min-height:0' }, slotChips, h('div', { class: 'scroll', style: 'flex:1' }, list)),
-    h('div', { class: 'col scroll', style: 'flex:1;min-height:0' }, detail,
+    h('div', { class: 'col scroll', style: 'flex:1;min-height:0' }, btn('Weapon mastery & armor sets', () => setTab('progression'), 'btn small', { 'data-k': 'view_progression' }), detail,
       h('div', { class: 'box' }, h('h3', null, 'Materials & relics'),
         h('div', { class: 'mats' }, mats.length ? mats.map(([k, n]) => h('span', null, h('b', null, `${n}× `), ITEMS[k].name)) : h('span', null, 'None yet.')),
         s.keyItems.length ? h('div', { class: 'mats', style: 'margin-top:6px' }, s.keyItems.map((k) => h('span', { style: 'color:var(--gold-hi)' }, ITEMS[k]?.name ?? k))) : null,
@@ -324,6 +373,7 @@ let loadoutSlot = 0;
 
 function skillsTab() {
   const s = G.save;
+  unlockCombatSkills(s);
   const node = SKILLS.find((n) => n.id === skSel)!;
   const trees = h('div', { class: 'trees' }, TREES.map((t) => {
     const grid = h('div', { class: 'tree-grid' });
@@ -339,46 +389,62 @@ function skillsTab() {
     return h('div', { class: 'tree' }, h('h3', { style: `color:${t.color}` }, t.name), h('p', null, t.blurb), grid);
   }));
   const rk = skillRank(s, node.id);
+  const ranksToLearn = Math.max(0, Math.min(pointBatch, node.ranks - rk, Math.floor(s.skillPoints / node.cost)));
   const reqText = node.req.length ? 'Requires ' + node.req.map((r) => SKILLS.find((x) => x.id === r)!.name).join(node.row === 3 ? ' and ' : ' or ') : 'No prerequisite';
   const detail = h('div', { class: 'box' },
     h('div', { class: 'title-text' }, node.name), h('div', { class: 'eyebrow' }, `${TREES.find((t) => t.id === node.tree)!.name} · Rank ${rk}/${node.ranks} · Cost ${node.cost}`),
     h('p', { style: 'margin:6px 0' }, node.desc),
     node.grants ? h('p', { style: 'font-style:italic;font-size:0.9em;margin:4px 0' }, ABILITIES[node.grants].verse) : null,
     h('div', { class: 'muted', style: 'font-size:0.85em' }, reqText),
-    h('div', { style: 'margin-top:8px' }, btn(rk >= node.ranks ? 'Mastered' : 'Learn', () => {
-      if (learn(s, node.id)) {
+    pointBatchPicker(),
+    h('div', { style: 'margin-top:8px' }, btn(rk >= node.ranks ? 'Mastered' : ranksToLearn > 1 ? `Learn ${ranksToLearn} ranks · ${ranksToLearn * node.cost} points` : 'Learn', () => {
+      if (learnRanks(s, node.id, pointBatch)) {
         sfx('levelup', { vol: 0.5 });
         G.d = derive(s);
         G.world.player.styleKey = '';
+        for (const echo of G.world.echoes) echo.refreshStats();
+        G.world.autosave(true);
         render();
       }
     }, 'btn primary', { disabled: !canLearn(s, node.id), 'data-k': 'learn' })),
   );
-  // ability loadout
-  const loadout = h('div', { class: 'slots' }, [0, 1, 2].map((i) => {
+  const nav = h('div', { class: 'modes', style: 'flex-wrap:wrap' },
+    (['abilities', 'supers', 'training'] as const).map((v) => btn(v === 'abilities' ? 'Equip abilities' : v === 'supers' ? 'Super moves' : 'Passive skills', () => { skillsPage = v; render(); }, 'btn small' + (skillsPage === v ? ' primary' : ''), { 'data-k': 'skills_' + v, 'aria-pressed': String(skillsPage === v) })));
+  const loadout = h('div', { class: 'slots ability-slots' }, [0, 1, 2].map((i) => {
     const id = s.equippedSkills[i];
-    return h('button', { class: 'slot' + (i === loadoutSlot ? ' sel' : ''), 'data-nav': '', 'data-k': 'ls_' + i, onclick: () => { loadoutSlot = i; render(); } },
-      id ? img(ABILITIES[id].icon, '#f6dea0') : img('shard', '#3a3448'), `Slot ${i + 1} · ${input.lastDevice === 'touch' ? '' : input.label((['skill1', 'skill2', 'skill3'] as const)[i])}`);
+    return btn([id ? img(ABILITIES[id].icon, '#f6dea0') : img('shard', '#6e6385'), h('span', null, `Slot ${i + 1}`, h('small', null, id ? ABILITIES[id].name : 'Empty'))], () => { loadoutSlot = i; render(); }, 'slot' + (i === loadoutSlot ? ' sel' : ''), { 'data-k': 'ls_' + i, 'aria-label': `Select ability slot ${i + 1}`, 'aria-pressed': String(i === loadoutSlot) });
   }));
-  const owned = h('div', { class: 'list' }, s.abilities.length ? s.abilities.map((a: AbilityId) => {
-    const def = ABILITIES[a];
-    const where = s.equippedSkills.indexOf(a);
-    return h('button', { class: 'row-item', 'data-nav': '', 'data-k': 'ab_' + a, onclick: () => {
-      const prev = s.equippedSkills[loadoutSlot];
-      if (where >= 0) s.equippedSkills[where] = prev ?? null;
-      s.equippedSkills[loadoutSlot] = a;
-      sfx('uiConfirm');
-      render();
-    } }, img(def.icon, '#f6dea0'), h('div', null, h('div', { class: 'nm' }, def.name), h('div', { class: 'sub' }, `${def.cost} energy · ${def.cd}s · ${def.desc}`)), where >= 0 ? h('span', { class: 'tag' }, 'SLOT ' + (where + 1)) : h('span'));
-  }) : h('div', { class: 'muted', style: 'padding:6px' }, 'No abilities yet. The temple holds something that may change that.'));
-  return h('div', { class: 'col scroll', style: 'flex:1' },
-    h('div', { style: 'display:flex;gap:12px;flex-wrap:wrap;align-items:flex-start' },
-      h('div', { class: 'box', style: 'flex:1;min-width:260px' }, h('h3', null, `Ability loadout · ${s.skillPoints} skill point${s.skillPoints === 1 ? '' : 's'}`), h('p', { class: 'muted', style: 'margin:0 0 6px;font-size:0.85em' }, 'Pick a slot, then an ability.'), loadout, h('div', { style: 'margin-top:8px' }, owned)),
-      h('div', { style: 'flex:1;min-width:260px' }, detail),
-    ),
-    techniques(),
-    trees,
-  );
+  const catalog = h('div', { class: 'ability-catalog' }, Object.values(ABILITIES).map((def) => {
+    const owned = s.abilities.includes(def.id), where = s.equippedSkills.indexOf(def.id);
+    const node = SKILLS.find((n) => n.grants === def.id), level = COMBAT_UNLOCKS[def.id];
+    const lock = level ? `Relic required · Level ${level}` : node ? `Learn ${node.name} in Passive skills` : 'Unlocked during the temple story';
+    return h('div', { class: 'ability-card' + (where >= 0 ? ' equipped' : '') },
+      h('div', { class: 'row', style: 'align-items:center;gap:10px' }, img(def.icon, owned ? '#f6dea0' : '#746684'), h('div', null, h('h3', null, def.name), h('div', { class: 'eyebrow' }, `${def.cost} Energy · ${def.cd}s cooldown`))),
+      h('p', null, def.desc),
+      !owned ? h('div', { class: 'muted', style: 'font-size:0.85em;margin-bottom:8px' }, lock) : null,
+      btn(!owned ? 'Locked' : where === loadoutSlot ? `Equipped · Slot ${where + 1}` : `Equip in Slot ${loadoutSlot + 1}`, () => {
+        if (equipAbility(s, def.id, loadoutSlot)) { sfx('uiConfirm'); G.world.autosave(true); render(); }
+      }, 'btn small' + (where === loadoutSlot ? ' primary' : ''), { disabled: !owned, 'data-k': 'ab_' + def.id }),
+      where >= 0 && where !== loadoutSlot ? h('span', { class: 'tag', style: 'margin-left:8px' }, `SLOT ${where + 1}`) : null);
+  }));
+  const regenRank = skillRank(s, 'g_regen');
+  const regeneration = h('div', { class: 'box' }, h('h3', null, `Health regeneration · ${regenRank}/10`),
+    h('p', { class: 'muted' }, 'Recover 0.75% maximum health per second per rank after 4 seconds without taking damage. Mending Light and Covenant Renewal add healing during combat.'),
+    btn(regenRank === 10 ? 'Regeneration mastered' : 'Train Regeneration · 1 point', () => {
+      if (learn(s, 'g_regen')) { G.d = derive(s); G.world.autosave(true); sfx('levelup', { vol: 0.5 }); render(); }
+    }, 'btn small', { disabled: !canLearn(s, 'g_regen'), 'data-k': 'learn_regen' }));
+  const supers = h('div', { class: 'ability-catalog' }, Object.entries(SUPER_MOVES).map(([id, def]) => h('div', { class: 'ability-card' + ((s.equippedSuper ?? 'rally') === id ? ' equipped' : '') },
+    h('div', { class: 'row', style: 'align-items:center;gap:10px' }, img(def.icon, def.color), h('h3', null, def.name)),
+    h('p', null, def.desc),
+    btn((s.equippedSuper ?? 'rally') === id ? 'Equipped super' : 'Equip super', () => {
+      s.equippedSuper = id as keyof typeof SUPER_MOVES; G.world.autosave(true); sfx('uiConfirm'); render();
+    }, 'btn small', { disabled: !s.flags.relic_taken, 'data-k': 'super_' + id, 'aria-pressed': String((s.equippedSuper ?? 'rally') === id) }))));
+  return h('div', { class: 'col scroll', style: 'flex:1' }, nav,
+    skillsPage === 'abilities' ? h('div', { class: 'col' },
+      h('div', { class: 'box' }, h('h3', null, 'Ability loadout'), h('p', { class: 'muted' }, 'Select a slot, then equip a skill from the catalog. Each ability can occupy one slot.'), loadout,
+        btn('Clear selected slot', () => { equipAbility(s, null, loadoutSlot); G.world.autosave(true); render(); }, 'btn small', { 'data-k': 'ability_clear', style: 'margin-top:8px' })), catalog, regeneration) :
+    skillsPage === 'supers' ? h('div', { class: 'col' }, h('div', { class: 'box' }, h('h3', null, 'Choose your super move'), h('p', { class: 'muted' }, 'All four options use the same full Super gauge, charged through battle. The Shadow Mantle remains your separate transformation.'), !s.flags.relic_taken ? h('p', { class: 'muted' }, 'Recover the relic in the temple to unlock supers.') : null), supers) :
+    h('div', { class: 'col' }, h('div', { class: 'eyebrow' }, `${s.skillPoints} skill points available`), regeneration, detail, trees, techniques()));
 }
 
 /** Move list: every combo route, with inputs shown for the device in use. */
@@ -403,6 +469,9 @@ function techniques() {
     ['Parry & Counter', `${K('parry')} as a blow lands, then ${K('attack')}`, 'Turn their strength against them.', true],
     ['Execution', `${K('attack')} a staggered foe`, 'Plays a finisher, picked at random from those you have learned.', true],
     ['Sub-weapon', touch ? 'the Sub button' : `${K('sub')}, or ${K('up')} + ${K('heavy')}`, 'Throw the sub-weapon you carry. Costs hearts; lamps drop more.', !!s.sub],
+    ['Chain Reach', 'heavy strikes and combo finishers', 'A linked chain extends selected attacks by 30 units. The blade retracts after the strike.', true],
+    ['Mantle Pursuit', 'Attack while transformed', 'Blink into melee range of a visible foe ahead. Dodge can blink before your first hit, with no energy cost.', s.level >= MANTLE_LV],
+    ['Throw + Blink', touch ? 'the Throw button while transformed' : `${K('sub')} while transformed`, 'Throw your weapon; a confirmed hit teleports you to the foe and starts the next combo strike. No hearts. 2.4 second cooldown. A miss returns the weapon.', s.level >= MANTLE_LV],
     ['Shadow Mantle', `${touch ? 'the Mantle button' : K('transform')} with a full gauge${s.level >= MANTLE_LV ? '' : ` · level ${MANTLE_LV}`}`,
       `Transform: a black cloak edged in blue-violet light and trailing shadow. ${mantlePerks(Math.max(MANTLE_LV, s.level))}. Fill the gauge by fighting.`, s.level >= MANTLE_LV],
     ...FINISHERS.map((f): [string, string, string, boolean] => [
@@ -424,7 +493,7 @@ let ecSel: string | null = null;
 function echoPortrait(e: EchoInst) {
   const c = h('canvas', { width: '140', height: '168' });
   const ctx = c.getContext('2d')!;
-  const kit = kitFor(e.species);
+  const kit = kitFor(e.species, echoRole(e));
   const j = solve(kit.base, kit.dims, true, newJoints());
   ctx.translate(70, 160);
   const sc = 2.6 * Math.min(1, 42 / kit.h);
@@ -436,9 +505,10 @@ function echoPortrait(e: EchoInst) {
 function echoesTab() {
   const s = G.save;
   const d = G.d;
+  const imprints = echoImprintPanel();
   if (!s.echoes.length) {
     return h('div', { class: 'col', style: 'flex:1;align-items:center;justify-content:center;text-align:center' },
-      h('div', { class: 'title-text', style: 'font-size:1.2em' }, 'No Echoes yet'),
+      h('div', { class: 'title-text', style: 'font-size:1.2em' }, 'Your Remnant'), imprints,
       h('p', { class: 'muted', style: 'max-width:30em' }, 'When an elite foe falls, the shape of how it fought lingers. With the covenant\'s light you may purify that imprint into an Echo — a construct of black-gold and white fire that fights beside you. It is not a soul, and it is no one\'s prisoner.'));
   }
   if (!ecSel || !s.echoes.some((e) => e.uid === ecSel)) ecSel = s.echoes[0].uid;
@@ -449,38 +519,48 @@ function echoesTab() {
     const active = s.active.includes(e.uid);
     return h('button', { class: 'row-item' + (e.uid === ecSel ? ' sel' : ''), 'data-nav': '', 'data-k': 'ec_' + e.uid, onclick: () => { ecSel = e.uid; render(); } },
       img(e.species === 'archer' ? 'archer_echo' : 'sentinel_echo', '#fff3c4'),
-      h('div', null, h('div', { class: 'nm' }, esp.stages[e.stage].name + (e.commander ? ' ★' : '')), h('div', { class: 'sub' }, `${esp.cls} · Level ${e.level} · ${esp.stages[e.stage].title}`)),
+      h('div', null, h('div', { class: 'nm' }, esp.stages[e.stage].name + (e.commander ? ' ★' : '')), h('div', { class: 'sub' }, `${ECHO_ROLES[echoRole(e)].name} · Level ${e.level} · ${esp.stages[e.stage].title}`)),
       h('span', { class: 'tag' }, active ? 'ACTIVE' : 'RESERVE'));
   }));
   const active = s.active.includes(sel.uid);
   const canActivate = active || s.active.length < d.echoSlots;
   const maxHp = echoMaxHp(s, sel, d);
-  const next = sel.stage < 2 ? { lv: sp.evolveLv[sel.stage], cost: sp.evolveCost[sel.stage] } : null;
-  const canEvolve = !!next && sel.level >= next.lv && hasMaterials(s, next.cost);
-  const costText = next ? Object.entries(next.cost).map(([k, v]) => `${v}× ${ITEMS[k].name} (have ${s.materials[k] ?? 0})`).join(', ') : '';
   const detail = h('div', { class: 'box' },
     h('div', { class: 'echo-card' }, echoPortrait(sel),
       h('div', null,
         h('div', { class: 'title-text', style: 'font-size:1.05em' }, sp.stages[sel.stage].name + (sel.commander ? ' — Commander' : '')),
-        h('div', { class: 'eyebrow' }, `${sp.cls} · ${sp.stages[sel.stage].title}`),
-        h('div', { class: 'muted', style: 'font-size:0.85em;margin:4px 0' }, ECHO_CLASS_INFO[sp.cls]),
+        h('div', { class: 'eyebrow' }, `${ECHO_ROLES[echoRole(sel)].name} · ${sp.stages[sel.stage].title}`),
+        h('div', { class: 'muted', style: 'font-size:0.85em;margin:4px 0' }, `Original form: ${sp.stages[0].name}`),
         h('div', { class: 'kv', style: 'margin-top:4px' },
-          h('span', null, 'Level'), h('span', null, String(sel.level)),
+          h('span', null, 'Level'), h('span', null, `${sel.level} / ${ECHO_LEVEL_CAP}`),
           h('span', null, 'Health'), h('span', null, `${Math.ceil(sel.hp > 0 ? Math.min(sel.hp, maxHp) : 0)} / ${maxHp}`),
           h('span', null, 'Attack'), h('span', null, echoAtk(s, sel, d).toFixed(1)),
         ),
-        h('div', { class: 'bar', style: 'margin-top:6px' }, h('i', { style: `width:${(sel.xp / echoXpToNext(sel.level)) * 100}%` })),
+        h('div', { class: 'bar', style: 'margin-top:6px' }, h('i', { style: `width:${sel.level >= ECHO_LEVEL_CAP ? 100 : (sel.xp / echoXpToNext(sel.level)) * 100}%` })),
       )),
     h('p', { style: 'margin:8px 0 4px' }, sp.stages[sel.stage].desc),
-    h('p', { style: 'margin:0 0 6px;color:var(--gold-hi)' }, sp.stages[sel.stage].ability),
-    next ? h('div', { class: 'muted', style: 'font-size:0.85em' }, `Evolves into ${sp.stages[sel.stage + 1].name} at level ${next.lv} with ${costText}.`) : h('div', { class: 'muted', style: 'font-size:0.85em' }, 'Final form reached.'),
+    h('p', { style: 'margin:0 0 6px;color:var(--gold-hi)' }, ECHO_ROLES[echoRole(sel)].signature[sel.stage]),
+    h('p', { class: 'muted' }, sel.stage < 2 ? `Defeat its original form and absorb another imprint to evolve into ${sp.stages[sel.stage + 1].name}. No level or material cost. Start its rematch below.` : `Final form reached. Further absorptions restore health and raise its level, up to ${ECHO_LEVEL_CAP}.`),
+    h('p', { class: 'muted' }, 'One Echo per original form. Duplicate imprints evolve and reinforce it. Fighting, defeating foes and protecting Elior earn experience; each level increases health and attack.'),
+    h('h3', null, 'Combat role'),
+    h('div', { class: 'echo-roles' }, Object.entries(ECHO_ROLES).map(([id, role]) => btn([img(role.icon, role.color), h('span', null, role.name)], () => {
+      sel.role = id as keyof typeof ECHO_ROLES;
+      G.world.echoes.find((e) => e.inst.uid === sel.uid && !e.remove)?.setRole(sel.role);
+      G.world.autosave(true); sfx('uiConfirm'); render();
+    }, 'btn small' + (echoRole(sel) === id ? ' primary' : ''), { 'data-k': 'role_' + id, 'aria-pressed': String(echoRole(sel) === id) }))),
+    h('p', { class: 'muted', style: 'font-size:0.85em' }, ECHO_ROLES[echoRole(sel)].desc),
+    h('details', { class: 'combo-guide', 'data-k': 'echo_combinations' },
+      h('summary', null, 'Squad combination attacks'),
+      h('p', { class: 'muted' }, 'Summon the two roles together. Their special moves open a short window for an automatic link. Each pair rests for 7 seconds after a link.'),
+      ECHO_COMBOS.map(c => h('p', null, h('strong', { style: `color:${c.color}` }, c.name + ' · '), c.desc))),
+    btn('Voice squad orders', () => { closeMenu(); G.ui.voiceOrders(); }, 'btn', { 'data-k': 'echo_voice' }),
     h('div', { style: 'display:flex;gap:6px;flex-wrap:wrap;margin-top:8px' },
+      btn('Rematch original form', () => { closeMenu(); startTraining(1, true, sel.species); }, 'btn primary', { disabled: G.world.bossActive || G.inCutscene || G.world.story.ch3.rounds.active, 'data-k': 'echo_rematch' }),
       btn(active ? 'Move to reserve' : 'Make active', () => {
         if (active) s.active = s.active.filter((u) => u !== sel.uid);
         else if (s.active.length < d.echoSlots) s.active.push(sel.uid);
         syncArmy();
       }, 'btn', { disabled: !canActivate, 'data-k': 'ec_act' }),
-      btn('Evolve', () => evolve(sel), 'btn primary', { disabled: !canEvolve, 'data-k': 'ec_evo' }),
       skillRank(s, 'c_warden') ? btn(sel.commander ? 'Relieve command' : 'Promote to Commander', () => {
         const was = sel.commander;
         for (const e of s.echoes) e.commander = false;
@@ -503,7 +583,7 @@ function echoesTab() {
     }));
   return h('div', { style: 'display:flex;gap:12px;flex:1;min-height:0;width:100%' },
     h('div', { class: 'col scroll', style: 'flex:0.9;min-height:0' },
-      h('div', { class: 'box' }, h('h3', null, `Your Remnant · ${s.active.length}/${d.echoSlots} active`), roster),
+      imprints, h('div', { class: 'box' }, h('h3', null, `Your Remnant · ${s.active.length}/${d.echoSlots} active`), roster),
       h('div', { class: 'box' }, h('h3', null, 'Stance'), modes, h('p', { class: 'muted', style: 'font-size:0.82em;margin:6px 0 0' }, 'Aggressive: hunt the nearest foe. Defensive: hold a line before you and shield you from arrows. Follow: stay close and strike what comes near.')),
     ),
     h('div', { class: 'col scroll', style: 'flex:1.1;min-height:0' }, detail, h('div', { class: 'box' }, h('h3', null, 'Formations'), forms)),
@@ -518,22 +598,11 @@ function syncArmy() {
   render();
 }
 
-function evolve(e: EchoInst) {
-  const s = G.save;
-  const sp = ECHO_SPECIES[e.species];
-  if (e.stage >= 2) return;
-  const req = sp.evolveCost[e.stage];
-  if (e.level < sp.evolveLv[e.stage] || !payMaterials(s, req)) return;
-  e.stage++;
-  e.hp = echoMaxHp(s, e, G.d);
-  sfx('purify');
-  const unit = G.world.echoes.find((u) => u.inst.uid === e.uid);
-  if (unit) {
-    unit.refreshStats();
-    unit.name = sp.stages[e.stage].name;
-  }
-  G.ui.banner('ECHO EVOLVED', `${sp.stages[e.stage].name} · ${sp.stages[e.stage].title}`, 'echo');
-  render();
+function echoImprintPanel() {
+  const pending = Object.entries(G.save.echoImprints ?? {}).filter(([id, n]) => n > 0 && ECHO_SPECIES[id]);
+  return h('div', { class: 'box' }, h('h3', null, 'Original-form imprints'),
+    h('p', { class: 'muted', style: 'font-size:0.85em' }, 'Rematch an Echo’s original form to earn its imprint. The Marshal and Locust King also leave imprints in the Boss Gauntlet. Absorb here to evolve, up to Stage III.'),
+    pending.length ? pending.map(([id, n]) => btn(`Absorb ${ECHO_SPECIES[id].stages[0].name} · ${n} available`, () => { G.world.absorb(id, true); render(); }, 'btn small', { 'data-k': 'absorb_' + id, style: 'margin:4px 4px 0 0' })) : h('p', { class: 'muted', style: 'font-size:0.85em' }, 'No unabsorbed imprints.'));
 }
 
 // ---------------------------------------------------------------- map
@@ -554,7 +623,7 @@ function mapTab() {
       h('span', null, h('i', { style: 'background:#6a5a8a' }), 'Explored'),
       h('span', null, h('i', { style: 'background:#ffcf6b;clip-path:polygon(50% 0,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%)' }), 'Objective'),
       h('span', null, `Altars kindled: ${lit.join(', ')}`),
-      h('span', { 'data-k': 'explored' }, `Explored: ${ex.ch}% of Chapter ${['', 'I', 'II', 'III', 'IV', 'V'][ex.n]} · ${ex.all}% in all`),
+      h('span', { 'data-k': 'explored' }, `Explored: ${ex.ch}% of Chapter ${['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX'][ex.n]} · ${ex.all}% in all`),
     ),
   );
 }
@@ -574,6 +643,7 @@ const ALTAR_NAMES: Record<string, string> = {
   valley_camp: 'Camp at the Valley\'s Edge', hive_mouth: 'Mouth of the Hive',
   river_camp: 'Camp by the Rivers', dura_plain: 'The Plain of Dura',
   reed_camp: 'Camp in the Reeds', hanging_gardens: 'The Hanging Gardens', palace_stair: 'The Palace Stair',
+  hiddekel_camp: 'Camp by the Great River', high_places: 'The High Places',
 };
 const ALTAR_ROOMS: Record<string, string> = {
   sanctuary: 'sanctuary', temple_hall: 'temple_hall', chamber: 'covenant_chamber', antechamber: 'idol_antechamber',
@@ -581,6 +651,7 @@ const ALTAR_ROOMS: Record<string, string> = {
   valley_camp: 'valley_camp', hive_mouth: 'hive_mouth',
   river_camp: 'river_camp', dura_plain: 'dura_plain',
   reed_camp: 'reed_camp', hanging_gardens: 'hanging_gardens', palace_stair: 'palace_stair',
+  hiddekel_camp: 'hiddekel_camp', high_places: 'high_places',
 };
 
 function drawMap(c: HTMLCanvasElement) {
@@ -809,16 +880,24 @@ function settingsTab() {
     }, listening === a ? 'Press a key…' : st.keys[a].map((c) => input.keyName(c)).join(' / ')))));
   const codeArea = h('textarea', { class: 'code', 'data-nav': '', placeholder: 'Paste a save code here to import it into the current slot.' }) as HTMLTextAreaElement;
   return h('div', { class: 'col scroll', style: 'flex:1' },
+    only ? h('div', { class: 'box game-modes' }, h('h3', null, 'Game modes'),
+      h('p', { class: 'muted' }, 'Continue your journey to choose endless monster waves, unlocked round checkpoints, or the Boss Gauntlet.'),
+      lastSlot() !== null ? btn('Continue to game modes', () => {
+        const slot = lastSlot(); closeMenu();
+        if (slot !== null && loadGameSlot(slot)) openMenu('settings');
+      }, 'btn primary', { 'data-k': 'load_game_modes' }) : h('small', { class: 'muted' }, 'Start a journey first.'),
+    ) : gameModes(closeMenu),
     h('div', { class: 'box' }, h('h3', null, 'Audio'),
+      row('Keep other music playing', 'On: mixes game sounds with Spotify and other audio apps. On iPhone, Silent Mode also mutes game sounds.', toggle(st.mixAudio, (v) => (st.mixAudio = v), 'mix_audio')),
       row('Master volume', '', slider(st.master, 0, 1, 0.05, (v) => (st.master = v), 'vm')),
-      row('Music', '', slider(st.music, 0, 1, 0.05, (v) => (st.music = v), 'vmu')),
+      row('Music', 'Set to zero to hear your own soundtrack with the game sound effects.', slider(st.music, 0, 1, 0.05, (v) => (st.music = v), 'vmu')),
       row('Sound effects', '', slider(st.sfx, 0, 1, 0.05, (v) => (st.sfx = v), 'vs')),
-      row('Respect the silent switch', 'On: iPhone\'s ring/silent switch mutes the game and lets your own music keep playing.', toggle(st.respectSilent, (v) => (st.respectSilent = v), 'rs')),
+      !st.mixAudio ? row('Respect the silent switch', 'On: iPhone Silent Mode mutes the game and allows other music to keep playing.', toggle(st.respectSilent, (v) => (st.respectSilent = v), 'rs')) : null,
     ),
     h('div', { class: 'box' }, h('h3', null, 'Display'),
       row('Art style', 'Pixel draws the world as crisp pixel art.', seg(st.artStyle ?? 'pixel', [['pixel', 'Pixel'], ['smooth', 'Smooth']], (v) => { st.artStyle = v; setTimeout(() => G.renderer.resize(), 0); }, 'art')),
       row('Graphics quality', 'Auto lowers resolution if frames drop.', seg(st.quality, [['auto', 'Auto'], ['high', 'High'], ['medium', 'Medium'], ['low', 'Low']], (v) => { st.quality = v; G.renderer.autoPenalty = 0; setTimeout(() => G.renderer.resize(), 0); }, 'q')),
-      row('Frame rate', 'Auto runs at your display\'s rate (120 Hz ProMotion). 60 saves battery.', seg(st.fps, [['auto', 'Auto'], ['60', '60 FPS']], (v) => (st.fps = v), 'fps')),
+      row('Frame rate', '60 FPS targets steady frame pacing. Auto follows your display’s refresh rate.', seg(st.fps, [['auto', 'Auto'], ['60', '60 FPS']], (v) => (st.fps = v), 'fps')),
       row('Camera distance', '', seg(st.zoom, [['close', 'Close'], ['normal', 'Normal'], ['wide', 'Wide']], (v) => { st.zoom = v; setTimeout(() => G.renderer.resize(), 0); }, 'z')),
       row('Show frame rate', '', toggle(st.showFps, (v) => (st.showFps = v), 'sf')),
     ),
@@ -1059,6 +1138,10 @@ export function openAltar(id: string) {
       trainingOpen() ? btn([h('b', null, 'Enter the Trial of the Remnant'), h('span', null, `Endless rounds that grow with you${s.flags.trial_best ? ` · best: round ${s.flags.trial_best}` : ''}`)], () => {
         done();
         startTraining(1);
+      }, 'btn opt') : null,
+      trainingOpen() ? btn([h('b', null, 'Enter the Boss Gauntlet'), h('span', null, `Bosses only · stronger every round · best: ${s.flags.boss_trial_best ?? 0}`)], () => {
+        done();
+        startTraining(1, true);
       }, 'btn opt') : null,
       flag('ch1_done') ? btn([h('b', null, 'Begin New Game+'), h('span', null, 'Start Chapter I again with everything you have earned. Foes grow stronger.')], () => { done(); startNewGamePlus(); }, 'btn opt') : null,
     ),

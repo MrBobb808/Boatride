@@ -22,8 +22,12 @@ styles draw from the same code; there are no image files.
 
 ## The characters
 
-`render/pixelHero.ts` paints every humanoid as pixel art: Elior, the NPCs,
-the corrupted, the Echoes and the human-sized bosses.
+Elior, and the foes and Echoes that have sprite sheets, are drawn from PNG
+atlases (`render/heroSprites.ts`, `render/creatureSprites.ts`; see
+`SPRITE_ART.md`). Every other humanoid that reaches `drawHumanoid` (the NPCs,
+foes and Echoes without a sheet, human-sized bosses, and Elior when his atlas
+cannot show his gear) is painted as pixel art by `render/pixelHero.ts`, so the
+whole cast shares one pixel grid.
 
 - **Same animation as before.** It reads the same skeleton (`Joints`) and
   style (`HumanStyle`) as the classic painter, `drawHumanoid` in
@@ -48,12 +52,13 @@ the corrupted, the Echoes and the human-sized bosses.
 - **Placing it.** The finished rectangle is uploaded once and placed on whole
   screen pixels. Soft light goes on top: blessed blades, burning eyes, runes,
   lanterns.
-- **Elior's cape and scarf.** These are painted in the same pass
-  (`setPixelExtras`) and keep their cloth physics.
 - **Cost.** One body costs about 0.3 ms in headless Chromium, less than the
   vector painter (about 0.5 ms).
+- **Quality.** On the Low tier the painter skips contours where parts cross,
+  strands, glints and seams; eyes, outlines and shading stay.
 - **Fallbacks.** The classic painter is still used for:
   - see-through styles (afterimages);
+  - flat silhouettes (title figures, the one-frame white hit flash);
   - rotated or skewed frames;
   - bodies too large for the buffer (the giant bosses);
   - Smooth mode.

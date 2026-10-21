@@ -5,7 +5,8 @@
 import { input, type Action } from '../core/input';
 import { settings, onSettingsChange, isIOS } from '../core/settings';
 import { G, flag } from '../game/ctx';
-import { ABILITIES } from '../game/data';
+import { ABILITIES, SUPER_MOVES } from '../game/data';
+import { selectedSuper } from '../game/supers';
 import { iconUrl } from './icons';
 import { safe } from './safe';
 import { mantleUnlocked } from '../game/mantle';
@@ -46,6 +47,7 @@ const BTNS: TBtn[] = [
   { id: 'sub', act: 'sub', icon: 'dagger', size: 40, dx: 212, dy: 170, label: 'Sub' },
   { id: 'menu', icon: 'menu', size: 40, dx: 0, dy: 0, label: '', corner: 'tr', ui: () => G.ui.openMenu() },
   { id: 'map', icon: 'map', size: 40, dx: 0, dy: 48, label: '', corner: 'tr', ui: () => G.ui.openMenu('map') },
+  { id: 'voice', icon: 'voice', size: 40, dx: 0, dy: 96, label: '', corner: 'tr', ui: () => G.ui.voiceOrders() },
 ];
 
 let root: HTMLElement;
@@ -77,6 +79,7 @@ export function initTouch(el: HTMLElement) {
   for (const b of BTNS) {
     const d = document.createElement('div');
     d.className = 'tc' + (b.id === 'attack' ? ' big' : '') + (b.corner ? ' sq' : '');
+    d.setAttribute('aria-label', b.id === 'voice' ? 'Voice squad orders' : b.label || b.id);
     const im = document.createElement('img');
     im.src = iconUrl(b.icon, b.id === 'mantle' ? '#d4d0ff' : '#f6dea0');
     im.alt = '';
@@ -231,6 +234,7 @@ export function updateTouch() {
       show = !!id;
       if (id) {
         const def = ABILITIES[id];
+        el.setAttribute('aria-label', def.name);
         const img = el.firstChild as HTMLImageElement;
         const want = iconUrl(def.icon, '#f6dea0');
         if (img.src !== want) img.src = want;
@@ -238,23 +242,37 @@ export function updateTouch() {
         b.cd!.style.background = cd > 0 ? `conic-gradient(rgba(0,0,0,0.65) ${cd * 360}deg, transparent 0)` : 'none';
         el.style.filter = s.ce < def.cost ? 'grayscale(0.8) brightness(0.6)' : '';
       }
+    } else if (b.id === 'voice') {
+      show = !G.inCutscene && p.state !== 'dead';
     } else if (b.id === 'heal') {
       b.cnt!.textContent = String(s.balm);
       el.style.filter = s.balm > 0 ? '' : 'grayscale(1) brightness(0.5)';
     } else if (b.id === 'rally') {
       show = flag('relic_taken');
+      const def = SUPER_MOVES[selectedSuper()];
+      el.setAttribute('aria-label', def.name);
+      if (b.lbl) b.lbl.textContent = 'Super';
+      const im = el.firstChild as HTMLImageElement, want = iconUrl(def.icon, def.color);
+      if (im.src !== want) im.src = want;
       const ready = s.rally >= 100;
       el.classList.toggle('glow', ready);
       b.cd!.style.background = ready ? 'none' : `conic-gradient(transparent ${(s.rally / 100) * 360}deg, rgba(0,0,0,0.6) 0)`;
     } else if (b.id === 'sub') {
-      // The carried sub-weapon, with the hearts left to throw it.
-      show = !!s.sub;
-      if (s.sub) {
+      show = p.mantleT > 0 || !!s.sub;
+      if (b.lbl) b.lbl.textContent = p.mantleT > 0 ? 'Throw' : 'Sub';
+      if (p.mantleT > 0) {
+        const img = el.firstChild as HTMLImageElement;
+        const want = iconUrl('sword', '#b8bdff');
+        if (img.src !== want) img.src = want;
+        b.cnt!.textContent = p.weaponCd > 0 ? p.weaponCd.toFixed(1) : 'BLINK';
+        el.setAttribute('aria-label', 'Throw weapon and blink');
+      } else if (s.sub) {
         const def = SUBS[s.sub as SubId];
         const img = el.firstChild as HTMLImageElement;
         const want = iconUrl(def.icon, '#f6dea0');
         if (img.src !== want) img.src = want;
         b.cnt!.textContent = String(s.hearts ?? 0);
+        el.setAttribute('aria-label', 'Sub-weapon');
       }
     } else if (b.id === 'mantle') {
       // Fills like a clock face; while transformed it shows the time left.
@@ -305,7 +323,7 @@ function dimFor(b: TBtn): number {
     case 'mantle': return p.mantleT > 0 || (s.mantle ?? 0) >= 100 ? 1 : 0.5;
     case 'switch': return G.world.switchCd > 0 ? 0.45 : 0.6;
     case 'echo': return 0.6;
-    case 'sub': return s.sub && (s.hearts ?? 0) >= SUBS[s.sub as SubId].cost ? 0.85 : 0.45;
+    case 'sub': return p.mantleT > 0 ? p.weaponCd > 0 ? 0.45 : 0.95 : s.sub && (s.hearts ?? 0) >= SUBS[s.sub as SubId].cost ? 0.85 : 0.45;
     default: return 0.75;
   }
 }

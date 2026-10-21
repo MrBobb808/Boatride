@@ -21,6 +21,7 @@ export class AudioEngine {
   noise!: AudioBuffer;
   private last = new Map<string, number>();
   ready = false;
+  private unlocked = false;
   /** Global low-pass used for "muffled" moments (pause menu, near-death). */
   duck!: BiquadFilterNode;
 
@@ -74,28 +75,34 @@ export class AudioEngine {
     document.addEventListener('visibilitychange', () => {
       if (!this.ctx) return;
       if (document.hidden) this.ctx.suspend().catch(() => {});
-      else this.ctx.resume().catch(() => {});
+      else {
+        this.applySession();
+        this.ctx.resume().catch(() => {});
+      }
     });
     this.ready = true;
   }
 
-  /** iOS: 'playback' plays even with the ring/silent switch on; 'ambient' respects it. */
+  /** Ambient mixes with Spotify and obeys Silent Mode; playback takes exclusive audio. */
   applySession() {
     const nav = navigator as unknown as { audioSession?: { type: string } };
-    if (nav.audioSession) {
-      try {
-        nav.audioSession.type = settings.respectSilent ? 'ambient' : 'playback';
-      } catch {
-        /* not supported */
-      }
+    try {
+      const session = nav.audioSession;
+      const type = settings.mixAudio || settings.respectSilent ? 'ambient' : 'playback';
+      if (session && session.type !== type) session.type = type;
+    } catch {
+      /* Older browsers use Web Audio's default session policy. */
     }
   }
 
   /** Must be called from a user gesture (touchend / click / keydown). */
   unlock() {
+    if (document.hidden) return;
     this.init();
     const ctx = this.ctx;
     if (!ctx) return;
+    this.applySession();
+    if (this.unlocked && ctx.state === 'running') return;
     if (ctx.state !== 'running') ctx.resume().catch(() => {});
     // A one-sample silent buffer kicks iOS into actually starting output.
     const b = ctx.createBuffer(1, 1, 22050);
@@ -103,6 +110,7 @@ export class AudioEngine {
     s.buffer = b;
     s.connect(ctx.destination);
     s.start(0);
+    this.unlocked = true;
   }
 
   applyVolumes() {
@@ -111,6 +119,9 @@ export class AudioEngine {
     this.master.gain.setTargetAtTime(settings.master, t, 0.05);
     this.musicBus.gain.setTargetAtTime(settings.music * 0.9, t, 0.05);
     this.sfxBus.gain.setTargetAtTime(settings.sfx, t, 0.05);
+    // The reverb sends bypass the dry buses, so they must follow the same sliders.
+    this.musicVerb.gain.setTargetAtTime(settings.music * 0.9 * 0.55, t, 0.05);
+    this.sfxVerb.gain.setTargetAtTime(settings.sfx * 0.28, t, 0.05);
   }
 
   setMuffled(on: boolean) {
@@ -1317,6 +1328,151 @@ export const SFX: Record<string, SfxFn> = {
     a.noiseHit(t, 1.9, d, 'lowpass', 300, 0.8, 0.35 * v, 120, 0.3);
     a.osc('sine', 50, t + 1.95, 0.9, d, 0.7 * v, 0.003, 26);
     metal(a, t + 1.95, 110, 0.6 * v, d, 1.4);
+  },
+  // Chapter VI: the storm, and the princes of the air.
+  thunder(a, t, v, p, pan) {
+    // A crack overhead that tears the air, then the roll going away under the clouds.
+    const d = a.out(pan, 1.6);
+    a.noiseHit(t, 0.09, d, 'highpass', 1800 * p, 0.7, 0.7 * v, undefined, 0.001);
+    a.noiseHit(t + 0.01, 0.3, d, 'bandpass', 900 * p, 0.6, 0.6 * v, 300, 0.002);
+    a.osc('sine', 70 * p, t, 0.6, d, 0.6 * v, 0.004, 32);
+    const ctx = a.ctx!;
+    const s = ctx.createBufferSource();
+    s.buffer = a.noise;
+    const f = ctx.createBiquadFilter();
+    f.type = 'lowpass';
+    f.Q.value = 0.8;
+    f.frequency.setValueAtTime(520 * p, t + 0.08);
+    f.frequency.exponentialRampToValueAtTime(110 * p, t + 3.2);
+    // the roll: the rumble swelling and falling back a few times as it goes
+    const am = chopped(a, t + 0.1, 3.2, 2.6, 0.55);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(0.75 * v, t + 0.18);
+    g.gain.setValueAtTime(0.6 * v, t + 0.9);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 3.4);
+    s.connect(f);
+    f.connect(am);
+    am.connect(g);
+    g.connect(d);
+    s.start(t + 0.05, rand(0, 1));
+    s.stop(t + 3.5);
+    a.osc('sine', 42 * p, t + 0.15, 2.4, d, 0.35 * v, 0.2, 30);
+  },
+  princeHorn(a, t, v, p, pan) {
+    // A deep war horn from somewhere above: a low blare that swells, bends up and holds.
+    const d = a.out(pan, 1.8);
+    const ctx = a.ctx!;
+    const f = ctx.createBiquadFilter();
+    f.type = 'lowpass';
+    f.Q.value = 2;
+    f.frequency.setValueAtTime(220, t);
+    f.frequency.linearRampToValueAtTime(900, t + 0.6);
+    f.frequency.setValueAtTime(900, t + 1.8);
+    f.frequency.exponentialRampToValueAtTime(240, t + 2.8);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(0.16 * v, t + 0.4);
+    g.gain.setValueAtTime(0.15 * v, t + 2);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 3);
+    f.connect(g);
+    g.connect(d);
+    for (const det of [-14, -4, 6, 15]) {
+      const o = ctx.createOscillator();
+      o.type = 'sawtooth';
+      o.frequency.setValueAtTime(mtof(37) * p, t);
+      o.frequency.exponentialRampToValueAtTime(mtof(38) * p, t + 0.35);
+      o.frequency.setValueAtTime(mtof(38) * p, t + 1.9);
+      o.frequency.exponentialRampToValueAtTime(mtof(36.6) * p, t + 2.9);
+      o.detune.value = det;
+      o.connect(f);
+      o.start(t);
+      o.stop(t + 3.05);
+    }
+    a.osc('sine', mtof(26) * p, t + 0.1, 2.7, d, 0.3 * v, 0.3);
+    a.noiseHit(t, 0.5, d, 'bandpass', 420, 1.5, 0.08 * v, 700, 0.15);
+  },
+  galeCrackle(a, t, v, p, pan) {
+    // Static gathering in feathers: a dry spit of sparks.
+    const d = a.out(pan, 0.3);
+    for (let i = 0; i < 9; i++) a.noiseHit(t + rand(0, 0.25), 0.012, d, 'highpass', rand(3000, 7000) * p, 1, 0.14 * v, undefined, 0.001);
+    a.osc('square', rand(1800, 2400) * p, t, 0.06, d, 0.03 * v, 0.001, 900 * p);
+  },
+  galeCharge(a, t, v, p, pan) {
+    // A bolt being drawn down: a hum climbing under a thickening crackle.
+    const d = a.out(pan, 0.6);
+    a.osc('sawtooth', 90 * p, t, 0.8, d, 0.07 * v, 0.6, 520 * p);
+    a.osc('sine', 180 * p, t, 0.8, d, 0.1 * v, 0.5, 1040 * p);
+    for (let i = 0; i < 14; i++) {
+      const tt = t + Math.sqrt(i / 14) * 0.75;
+      a.noiseHit(tt, 0.01, d, 'highpass', rand(3500, 8000) * p, 1, (0.05 + i * 0.012) * v, undefined, 0.001);
+    }
+  },
+  galeBolt(a, t, v, p, pan) {
+    // Lightning striking the mark: a white snap, a sizzle and the ground jolting.
+    const d = a.out(pan, 1);
+    a.noiseHit(t, 0.05, d, 'highpass', 2500 * p, 0.7, 0.8 * v, undefined, 0.0005);
+    a.osc('square', 1600 * p, t, 0.08, d, 0.08 * v, 0.0005, 120 * p);
+    a.noiseHit(t + 0.02, 0.4, d, 'bandpass', 4200 * p, 2, 0.2 * v, 1800, 0.002);
+    a.osc('sine', 90 * p, t, 0.35, d, 0.5 * v, 0.002, 36);
+  },
+  undyingRise(a, t, v, p, pan) {
+    // A fallen soldier getting up again: armour grinding, and a pale chord swelling cold.
+    const d = a.out(pan, 1.2);
+    a.noiseHit(t, 0.5, d, 'bandpass', 600 * p, 3, 0.18 * v, 1400 * p, 0.2);
+    for (const m of [57, 60, 64, 69]) {
+      a.osc('triangle', mtof(m) * p, t + 0.1, 0.9, d, 0.035 * v, 0.45, undefined, rand(-8, 8));
+      a.osc('sine', mtof(m - 12) * p, t + 0.1, 0.9, d, 0.03 * v, 0.5);
+    }
+    metal(a, t + 0.55, 300 * p, 0.6 * v, d, 0.4);
+  },
+  monarchRoar(a, t, v, p, pan) {
+    // The prince of the kingdom roaring: a vast, rasping throat with a crowd of voices in it.
+    const d = a.out(pan, 1.6);
+    const ctx = a.ctx!;
+    const sh = ctx.createWaveShaper();
+    sh.curve = rasp();
+    const f = ctx.createBiquadFilter();
+    f.type = 'lowpass';
+    f.Q.value = 3;
+    f.frequency.setValueAtTime(300, t);
+    f.frequency.linearRampToValueAtTime(1300, t + 0.3);
+    f.frequency.exponentialRampToValueAtTime(260, t + 1.6);
+    const am = chopped(a, t, 1.7, 22, 0.35);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(0.32 * v, t + 0.12);
+    g.gain.setValueAtTime(0.28 * v, t + 0.9);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 1.7);
+    sh.connect(f);
+    f.connect(am);
+    am.connect(g);
+    g.connect(d);
+    for (const [m, det] of [[33, 0], [40, 12], [45, -9]] as const) {
+      const o = ctx.createOscillator();
+      o.type = 'sawtooth';
+      o.frequency.setValueAtTime(mtof(m) * p * 0.8, t);
+      o.frequency.linearRampToValueAtTime(mtof(m) * p, t + 0.25);
+      o.frequency.exponentialRampToValueAtTime(mtof(m - 3) * p, t + 1.6);
+      o.detune.value = det;
+      o.connect(sh);
+      o.start(t);
+      o.stop(t + 1.75);
+    }
+    a.noiseHit(t, 1.4, d, 'bandpass', 700, 1, 0.22 * v, 300, 0.08);
+  },
+  stormGust(a, t, v, p, pan) {
+    // A gust of the storm wind shoving past.
+    const d = a.out(pan, 0.8);
+    a.noiseHit(t, 0.9, d, 'bandpass', 400 * p, 1.4, 0.32 * v, 1600 * p, 0.25);
+    a.noiseHit(t + 0.1, 0.8, d, 'lowpass', 300 * p, 0.8, 0.22 * v, 120, 0.3);
+  },
+  spearThrust(a, t, v, p, pan) {
+    // A long spear driven straight in: a tight hiss, then the head biting.
+    const d = a.out(pan, 0.4);
+    a.noiseHit(t, 0.14, d, 'bandpass', 1800 * p, 2.5, 0.3 * v, 3800 * p, 0.03);
+    a.noiseHit(t + 0.12, 0.05, d, 'lowpass', 1400 * p, 1, 0.4 * v, undefined, 0.001);
+    metal(a, t + 0.12, 620 * p, 0.5 * v, d, 0.2);
   },
   // Elemental accents, layered on an ordinary hit.
   elemFire(a, t, v, p, pan) {

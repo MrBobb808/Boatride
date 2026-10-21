@@ -1,3 +1,5 @@
+import { CinderMonarch } from './cinderBoss';
+import { BeastMonarch, PlagueMonarch, FallenMonarch } from './fallenBosses';
 // The World: loads rooms, runs every entity, resolves combat, handles exits,
 // triggers, loot, altars, the Echo army, Rally the Remnant, and draws the
 // whole layered scene.
@@ -6,18 +8,24 @@ import { ROOMS, type RoomData } from './rooms';
 import { Grid, T, TILE, isSolid, type EntDef, type Loot } from './tiles';
 import { Player } from './player';
 import { Entity, type HitInfo } from './entity';
+import { EchoCombinations } from './echoCombos';
+import { runBlessings } from './blessings';
 import { Enemy } from './enemies';
+import { drawFoeSprite } from '../render/creatureSprites';
 import { makeEnemy } from './foes';
 import { EchoUnit } from './echoes';
+import { trialArena, trialSector } from './trialArena';
 import { Idol } from './boss';
 import { BossBase, Gatekeeper, Marshal } from './bosses2';
 import { LocustKing } from './bosses3';
 import { GoldenImage } from './bosses4';
 import { Weigher } from './bosses5';
+import { StormPrince, PersiaPrince } from './bosses6';
 import { Npc, Chest, Altar, LoreStone, Shrine, Pickup, Drop, RelicVisual, type Interactable } from './props';
 import { Proj } from './projectiles';
 import { Story } from './story';
 import { G, flag, setFlag } from './ctx';
+import { los } from './physics';
 import { TileCache, buildParallax, drawSky, drawLiveProps, drawLiquids, drawGate, BIOMES, LIVE_DECOR, type Layer } from '../render/environment';
 import { lighting } from '../render/lighting';
 import { fx, PK } from '../render/fx';
@@ -34,8 +42,9 @@ import { islandNotify, islandRipple } from '../ui/island';
 import { placeLamps } from './lamps';
 import { updatePending, applyUpdate } from '../core/update';
 import { FINISHERS } from './finishers';
-import { ITEMS, ECHO_SPECIES, type Rarity, type EchoOrder } from './data';
-import { gainXp, makeItem, addMaterial, derive, makeEcho, echoMaxHp, skillRank, type SaveData } from './state';
+import { ITEMS, ECHO_SPECIES, SUPER_MOVES, type SuperId, type Rarity, type EchoOrder } from './data';
+import { selectedSuper, superTarget, alternateSuper, drawAlternateSuper } from './supers';
+import { gainXp, makeItem, addMaterial, derive, makeEcho, absorbEcho, echoMaxHp, skillRank, type SaveData } from './state';
 import { saveSlot } from './save';
 import { noteSaved } from '../ui/hud';
 import { solve, newJoints, BASE_POSE } from '../render/skeleton';
@@ -75,6 +84,8 @@ export class World {
   weather: Weather[] = [];
   timers: Timer[] = [];
   rallyT = -1;
+  superMove: SuperId = 'rally';
+  superFoe: Entity | null = null;
   rallyX = 0;
   rallyY = 0;
   rallyWarriors: { x: number; y: number; kind: 'sentinel' | 'archer'; face: number }[] = [];
@@ -85,6 +96,10 @@ export class World {
   lostT = 0;
   firedTriggers = new Set<string>();
   echoSummonT = 0;
+  arenaSector = -1;
+  private drawList: Entity[] = [];
+  private liveDecor: EntDef[] = [];
+  echoCombinations = new EchoCombinations();
 
   constructor() {
     this.player = new Player(0, 0);
@@ -99,12 +114,19 @@ export class World {
 
   // ---------------------------------------------------------------- loading
   load(id: string, spawnName: string) {
+    this.story.ch3.rounds.cancelBlessing();
+    this.echoCombinations.reset();
+    // A fresh load is a new run, including switching save slots.
+    runBlessings.reset();
+    G.d = derive(G.save);
     const r = ROOMS[id] ?? ROOMS.sanctuary;
     this.cache?.dispose();
     for (const l of this.layers) releaseCanvas(l.c);
     this.layers = [];
     this.layerGen = -1;
     this.room = r;
+    this.arenaSector = -1;
+    this.liveDecor = r.ents.filter((e) => e.t === 'decor' && LIVE_DECOR.has(e.k));
     this.grid = new Grid(r.rows);
     this.applyRoomMods();
     this.ents = [];
@@ -118,10 +140,13 @@ export class World {
     this.gateAmt = 0;
     this.priorityTarget = null;
     this.player.lastFoe = null;
+    this.player.weaponFlight = null;
+    this.player.weaponCd = 0;
     this.purifyTarget = null;
     this.timers = [];
     this.weather = [];
     this.rallyT = -1;
+    this.superFoe = null;
     this.lostT = 0;
     this.firedTriggers.clear();
     fx.clear();
@@ -171,6 +196,35 @@ export class World {
     }
   }
 
+  configureTrial(wave: number) {
+    if (this.room.id !== 'trial_arena' || this.arenaSector === trialSector(wave)) return false;
+    this.arenaSector = trialSector(wave);
+    this.room = trialArena(ROOMS.trial_arena, wave);
+    this.grid = new Grid(this.room.rows);
+    this.cache?.dispose();
+    for (const l of this.layers) releaseCanvas(l.c);
+    this.layers = []; this.layerGen = -1;
+    this.cache = new TileCache(this.grid, this.room.biome, this.room.interior, this.room.seed, this.room.ents, this.solid, this.cond);
+    this.lights = this.room.ents.filter((e): e is Extract<EntDef, { t: 'light' }> => e.t === 'light');
+    this.liveDecor = this.room.ents.filter((e) => e.t === 'decor' && LIVE_DECOR.has(e.k));
+    this.weather.length = 0;
+    const p = this.player;
+    p.x = clamp(p.x, 5 * TILE, 51 * TILE); p.y = 18 * TILE;
+    p.body.vx = p.body.vy = 0; p.lastSafe = { x: p.x, y: p.y };
+    p.weaponFlight = null;
+    for (const e of this.ents) {
+      if (e.isFoe || e.team === 'enemy' || e.team === 'player') e.remove = true;
+      else { e.x = clamp(e.x, 4 * TILE, 52 * TILE); if (e.y > 18 * TILE) e.y = 17 * TILE; }
+    }
+    for (const e of this.echoes) {
+      e.x = clamp(p.x - p.face * (20 + e.slot * 18), 4 * TILE, 52 * TILE); e.y = p.y;
+      e.body.vx = e.body.vy = 0;
+    }
+    this.ensureCaches();
+    if (wave > 1) G.ui.banner('THE ARENA SHIFTS', `${this.room.name} · waves ${this.arenaSector * 10 + 1}–${this.arenaSector * 10 + 10}`, 'chapter');
+    return true;
+  }
+
   private spawnDef(e: EntDef) {
     const s = G.save;
     const x = e.x * TILE, y = 'y' in e ? e.y * TILE : 0;
@@ -218,8 +272,8 @@ export class World {
         return;
       case 'boss':
         // The beaten Image stays on its dais until the stone falls (the story finishes it).
-        if (s.defeated.includes(e.k) && !(e.k === 'golden_image' && !flag('ch4_image_done')) && !(e.k === 'weigher' && !flag('ch5_weigher_done'))) return;
-        this.boss = e.k === 'gatekeeper' ? new Gatekeeper(x, y) : e.k === 'marshal' ? new Marshal(x, y) : e.k === 'locust_king' ? new LocustKing(x, y) : e.k === 'golden_image' ? new GoldenImage(x, y) : e.k === 'weigher' ? new Weigher(x, y) : new Idol(x, y);
+        if (s.defeated.includes(e.k) && !(e.k === 'golden_image' && !flag('ch4_image_done')) && !(e.k === 'weigher' && !flag('ch5_weigher_done')) && !(e.k === 'storm_prince' && !flag('ch6_storm_done')) && !(e.k === 'persia_prince' && !flag('ch6_prince_done')) && !(e.k === 'storm_prince' && !flag('ch6_storm_done')) && !(e.k === 'persia_prince' && !flag('ch6_prince_done'))) return;
+        this.boss = e.k === 'gatekeeper' ? new Gatekeeper(x, y) : e.k === 'marshal' ? new Marshal(x, y) : e.k === 'locust_king' ? new LocustKing(x, y) : e.k === 'golden_image' ? new GoldenImage(x, y) : e.k === 'weigher' ? new Weigher(x, y) : e.k === 'storm_prince' ? new StormPrince(x, y) : e.k === 'persia_prince' ? new PersiaPrince(x, y) : e.k === 'beast_monarch' ? new BeastMonarch(x,y) : e.k === 'plague_monarch' ? new PlagueMonarch(x,y) : e.k === 'cinder_monarch' ? new CinderMonarch(x,y) : new Idol(x, y);
         this.add(this.boss);
         return;
     }
@@ -246,6 +300,11 @@ export class World {
 
   spawnEnemy(kind: Parameters<typeof makeEnemy>[0], x: number, y: number, elite: string | null = null) {
     const e = makeEnemy(kind, x, y, elite);
+    // This variant is bosses only, including when their normal kits call minions.
+    if (this.room.id === 'trial_arena' && this.story.ch3.rounds.bossOnly && this.story.ch3.rounds.active) {
+      e.remove = true;
+      return e;
+    }
     e.aggro = true;
     this.add(e);
     return e;
@@ -270,6 +329,7 @@ export class World {
     if (this.transitioning) return;
     G.camera.update(dtRaw, this.player.x, this.player.y, this.player.face, this.player.body.vx, shakeScale());
     if (this.hitstopT > 0) {
+      this.player.bufferCombatInput();
       this.hitstopT -= dtRaw;
       fx.update(dtRaw * 0.15);
       return;
@@ -308,6 +368,7 @@ export class World {
       }
     }
     if (this.room.id === 'trial_arena') this.story.ch3.rounds.update(dt);
+    if (this.story.ch3.rounds.awaitingBlessing) return;
     this.syncCd = Math.max(0, this.syncCd - dt);
     this.switchCd = Math.max(0, this.switchCd - dt);
     this.player.swapStrikeT = Math.max(0, this.player.swapStrikeT - dt);
@@ -315,6 +376,7 @@ export class World {
     const rallying = this.rallyT >= 0;
     this.player.update(dt);
     for (const e of this.echoes) if (!rallying) e.update(dt);
+    if (!rallying) this.echoCombinations.update(dt);
     for (const e of this.ents) {
       if (rallying && e.isFoe) continue;
       e.update(dt);
@@ -478,7 +540,7 @@ export class World {
     return this.ents.filter((e) => e.isFoe && !e.dying && !e.remove);
   }
 
-  hitEnemies(box: Rect, h: HitInfo, set: Set<number>, onHit?: (e: Entity) => void): number {
+  hitEnemies(box: Rect, h: HitInfo, set: Set<number>, onHit?: (e: Entity, damage: number) => void): number {
     let n = 0;
     for (const e of this.ents) {
       if (!e.isFoe || e.dying || e.remove || set.has(e.id)) continue;
@@ -487,9 +549,10 @@ export class World {
       set.add(e.id);
       const ix = (Math.max(box.x, hb.x) + Math.min(box.x + box.w, hb.x + hb.w)) / 2;
       const iy = (Math.max(box.y, hb.y) + Math.min(box.y + box.h, hb.y + hb.h)) / 2;
+      const before = e.hp;
       if (e.takeHit({ ...h, px: ix, py: iy })) {
         n++;
-        onHit?.(e);
+        onHit?.(e, Math.max(0, before - e.hp));
       }
     }
     return n;
@@ -555,6 +618,7 @@ export class World {
   executionTarget(p: Player): Entity | null {
     for (const e of this.ents) {
       if (!e.executable()) continue;
+      if (!los(this.grid, this.solid, p.cx, p.cy, e.cx, e.cy)) continue;
       if (e.isBoss) {
         if (Math.abs(e.x - p.x) < (e instanceof Gatekeeper ? 120 : e instanceof GoldenImage || e instanceof Weigher ? 96 : e instanceof Marshal || e instanceof LocustKing ? 56 : 80) && Math.abs(e.y - p.y) < 60) return e;
       } else if (Math.abs(e.x - p.x) < 36 && Math.abs(e.y - p.y) < 30) return e;
@@ -614,7 +678,7 @@ export class World {
       G.ui.refreshHud();
     }
     for (const e of this.echoes) {
-      if (e.x >= x0 && e.x <= x1 && Math.abs(e.y - y) < 40) {
+      if (!e.remove && e.despawn <= 0 && e.x >= x0 && e.x <= x1 && Math.abs(e.y - y) < 40) {
         e.hp = Math.min(e.maxHp, e.hp + e.maxHp * frac);
         e.inst.hp = e.hp;
       }
@@ -704,7 +768,7 @@ export class World {
     const before = s.rally;
     s.rally = Math.min(100, s.rally + n * G.d.rallyMult);
     if (before < 100 && s.rally >= 100) {
-      G.ui.toast(`RALLY THE REMNANT is ready — ${this.keyLabel('ultimate')}`, 'good');
+      G.ui.toast(`${SUPER_MOVES[selectedSuper()].name.toUpperCase()} is ready — ${this.keyLabel('ultimate')}`, 'good');
       sfx('chargeFull', { pitch: 0.8 });
     }
   }
@@ -714,7 +778,7 @@ export class World {
     const st = e.stats;
     s.kills++;
     (s.bestiary ??= {})[e.kind] = (s.bestiary[e.kind] ?? 0) + 1;
-    const tier = e.tier === 5 ? 4.8 : e.tier === 4 ? 3.6 : e.tier === 3 ? 2.6 : e.tier === 2 ? 1.7 : 1;
+    const tier = e.tier === 9 ? 10.8 : e.tier === 8 ? 9.0 : e.tier === 7 ? 7.4 : e.tier === 6 ? 6.0 : e.tier === 5 ? 4.8 : e.tier === 4 ? 3.6 : e.tier === 3 ? 2.6 : e.tier === 2 ? 1.7 : 1;
     const xp = e.xpOverride ?? Math.round(st.xp * (e.elite ? 4 : 1) * G.d.xpMult * (1 + s.ng * 0.5) * tier);
     this.giveXp(xp);
     const loot: Loot[] = [{ silver: Math.round(randInt(st.silver[0], st.silver[1]) * (e.elite ? 4 : 1) * tier) }];
@@ -726,7 +790,11 @@ export class World {
     this.spawnLoot(e.cx, e.cy, loot, true);
     G.save.ce = Math.min(G.d.maxCe, G.save.ce + (flag('relic_taken') ? 5 : 0));
     this.addRally(6);
-    for (const ec of this.echoes) ec.gainXp(3);
+    const echoXp = Math.min(160, Math.max(4, Math.round(Math.sqrt(Math.max(1, xp)) * 1.5)));
+    for (const ec of this.echoes) if (!ec.remove && ec.hp > 0 && ec.despawn <= 0 && ec.tempT <= 0) {
+      ec.gainXp(echoXp);
+      if (G.d.sets.legion >= 3) ec.inst.hp = ec.hp = Math.min(ec.maxHp, ec.hp + ec.maxHp * 0.03);
+    }
     G.ui.refreshHud();
     if (this.priorityTarget === e) this.priorityTarget = null;
     this.story.onKill(e);
@@ -1100,6 +1168,10 @@ export class World {
       // The fight transfers: the Echo takes over Elior's foe where he stood.
       const foe = p.lastFoe && !p.lastFoe.dying && !p.lastFoe.remove && Math.abs(p.lastFoe.x - p.x) < 220 ? p.lastFoe : this.nearestEnemy(p.x, p.y - 20, 200, 0);
       const px = p.x, py = p.y;
+      if (!p.canPlace(far.x, far.y)) {
+        G.ui.toast('No safe opening for an Echo exchange here.', 'info');
+        return;
+      }
       fx.streak(px, py - 20, far.x, far.y - 20, '#ffe6a8', 0.25, 3);
       fx.streak(far.x, far.y - 20, px, py - 20, '#fff3c4', 0.25, 2);
       p.x = far.x;
@@ -1183,16 +1255,42 @@ export class World {
   }
 
   // ---------------------------------------------------------------- Rally the Remnant
+  absorb(species: string, fromImprint = false) {
+    if (fromImprint && (G.save.echoImprints?.[species] ?? 0) < 1) return null;
+    const result = absorbEcho(G.save, species, G.d);
+    if (!result) return null;
+    if (fromImprint) G.save.echoImprints![species]--;
+    const e = result.echo;
+    const unit = this.echoes.find((u) => u.inst.uid === e.uid && !u.remove);
+    if (unit) {
+      unit.refreshStats();
+      unit.hp = e.hp;
+      unit.name = ECHO_SPECIES[species].stages[e.stage].name;
+    }
+    this.summonEchoes(true);
+    sfx('purify');
+    G.ui.banner(result.evolved ? 'ECHO EVOLVED' : result.created ? 'ECHO ABSORBED' : 'ECHO REINFORCED', `${ECHO_SPECIES[species].stages[e.stage].name} · ${ECHO_SPECIES[species].stages[e.stage].title}`, 'echo');
+    this.autosave(true);
+    return result;
+  }
+
   tryRally() {
     const s = G.save;
     if (!flag('relic_taken')) return;
     if (this.duel) return this.duelRefuse();
     if (s.rally < 100) {
-      G.ui.toast(`Rally the Remnant charges as you fight (${Math.floor(s.rally)}%)`, 'warn');
+      G.ui.toast(`${SUPER_MOVES[selectedSuper()].name} charges as you fight (${Math.floor(s.rally)}%)`, 'warn');
       sfx('denied');
       return;
     }
     if (this.rallyT >= 0) return;
+    this.superMove = selectedSuper();
+    this.superFoe = this.superMove === 'tempest' ? superTarget() : null;
+    if (this.superMove === 'tempest' && !this.superFoe) {
+      G.ui.toast('Umbral Tempest needs a reachable enemy.', 'warn');
+      sfx('denied');
+      return;
+    }
     s.rally = 0;
     this.rallyT = 0;
     this.rallyX = this.player.x;
@@ -1200,7 +1298,7 @@ export class World {
     this.rallyWarriors = [];
     const v = G.camera.view();
     const kinds: ('sentinel' | 'archer')[] = ['sentinel', 'archer'];
-    const n = 8;
+    const n = this.superMove === 'rally' ? 8 : 0;
     for (let i = 0; i < n; i++) {
       const x = v.x + v.w * (0.08 + (i / (n - 1)) * 0.84);
       const gy = this.groundY(x, this.player.y);
@@ -1212,6 +1310,7 @@ export class World {
     G.ui.cinematicBars(true);
     sfx('rally');
     G.camera.zoomTarget = 0.92;
+    fx.number(this.player.x, this.player.y - 60, SUPER_MOVES[this.superMove].name.toUpperCase(), true, SUPER_MOVES[this.superMove].color);
   }
 
   groundY(x: number, fromY: number) {
@@ -1227,6 +1326,11 @@ export class World {
     const t0 = this.rallyT;
     this.rallyT += dt;
     const t = this.rallyT;
+    if (this.superMove !== 'rally') {
+      alternateSuper(this.superMove, t0, t, this.superFoe);
+      if (t >= 2.7) this.finishRally();
+      return;
+    }
     const crossed = (x: number) => t0 < x && t >= x;
     if (crossed(0.5)) for (const w of this.rallyWarriors) fx.column(w.x, w.y, 30, 260, '#fff3c4', 1.6);
     if (crossed(1.3) || crossed(2.1)) {
@@ -1246,18 +1350,22 @@ export class World {
       fx.flash(final ? '#ffffff' : '#fff1c4', final ? 0.6 : 0.3);
       if (final) fx.ring(this.rallyX, this.rallyY - 20, 20, 400, '#ffe6a8', 0.8, 6);
     }
-    if (t >= 2.7) {
-      this.rallyT = -1;
-      G.inCutscene = false;
-      G.ui.cinematicBars(false);
-      G.camera.zoomTarget = 1;
-      for (const ec of this.echoes) ec.gainXp(6);
-    }
+    if (t >= 2.7) this.finishRally();
+  }
+
+  private finishRally() {
+    this.rallyT = -1;
+    this.superFoe = null;
+    G.inCutscene = false;
+    G.ui.cinematicBars(false);
+    G.camera.zoomTarget = 1;
+    for (const ec of this.echoes) ec.gainXp(6);
   }
 
   private drawRally(ctx: Ctx) {
     const t = this.rallyT;
     if (t < 0) return;
+    if (this.superMove !== 'rally') { drawAlternateSuper(ctx, this.superMove, t, this.rallyX, this.rallyY); return; }
     const x = this.rallyX, y = this.rallyY;
     // darken the world
     const dark = Math.min(0.55, t * 2) * (t > 2.4 ? Math.max(0, (2.7 - t) / 0.3) : 1);
@@ -1343,6 +1451,7 @@ export class World {
   }
 
   tobiahAssist(idol: Idol) {
+    if (this.room.id === 'trial_arena' && this.story.ch3.rounds.bossOnly) return;
     const p = this.player;
     const side = p.x < idol.x ? -1 : 1;
     const startX = clamp(idol.x + side * 240, 30, this.grid.w * TILE - 60);
@@ -1368,6 +1477,10 @@ export class World {
   }
 
   onBossDefeated(b: Idol | BossBase) {
+    if (this.room.id === 'trial_arena' && this.story.ch3.rounds.bossOnly) {
+      this.story.ch3.rounds.bossDefeated(b);
+      return;
+    }
     this.bossActive = false;
     input.rumble(1, 1, 800);
     islandRipple('#ffe6a8', true);
@@ -1380,6 +1493,9 @@ export class World {
     else if (b instanceof LocustKing) this.story.kingDefeated(b);
     else if (b instanceof GoldenImage) this.story.ch4.imageDefeated(b);
     else if (b instanceof Weigher) this.story.ch5.weigherDefeated(b);
+    else if (b instanceof StormPrince) this.story.ch6.stormDefeated(b);
+    else if (b instanceof PersiaPrince) this.story.ch6.princeDefeated(b);
+    else if (b instanceof FallenMonarch || b instanceof CinderMonarch) this.story.fallen.bossDefeated(b);
     else if (b instanceof Idol) {
       this.closeGate(false);
       this.story.bossDefeated(b);
@@ -1415,7 +1531,7 @@ export class World {
       ctx.closePath();
       ctx.clip();
       ctx.translate(nx * side * sep + (side > 0 ? 0 : 0), ny * side * sep + (side < 0 ? t * t * 30 : 0));
-      e.draw(ctx);
+      this.drawActor(ctx, e);
       ctx.restore();
     }
     if (t < 0.35) {
@@ -1539,6 +1655,11 @@ export class World {
   }
 
   // ---------------------------------------------------------------- rendering
+  private drawActor(ctx: Ctx, e: Entity) {
+    if (e instanceof Enemy && drawFoeSprite(ctx, e)) return;
+    e.draw(ctx);
+  }
+
   draw(ctx: Ctx) {
     const r = G.renderer;
     const cam = G.camera;
@@ -1571,15 +1692,19 @@ export class World {
     this.cache?.draw(ctx, v);
     drawLiquids(ctx, this.grid, G.time, v, this.room.biome);
     drawLiveProps(ctx, this.lights, G.time, v, this.cond, false);
-    drawLiveProps(ctx, this.room.ents.filter((e) => e.t === 'decor' && LIVE_DECOR.has(e.k)), G.time, v, this.cond, false);
+    drawLiveProps(ctx, this.liveDecor, G.time, v, this.cond, false);
     drawGate(ctx, this.grid, this.gateAmt);
     // entities by layer
-    const list: Entity[] = [...this.ents, ...this.echoes, this.player];
+    const list = this.drawList;
+    list.length = 0;
+    for (const e of this.ents) if (!e.remove) list.push(e);
+    for (const e of this.echoes) if (!e.remove) list.push(e);
+    list.push(this.player);
     list.sort((a, b) => a.layer - b.layer);
     for (const e of list) {
       if (e.x < v.x - 260 || e.x > v.x + v.w + 260) continue;
       if (e.slice) this.drawSliced(ctx, e);
-      else e.draw(ctx);
+      else this.drawActor(ctx, e);
     }
     fx.drawBack(ctx);
     drawLiveProps(ctx, this.room.ents, G.time, v, this.cond, true);
@@ -1653,11 +1778,13 @@ export class World {
     this.drawRally(ctx);
     this.drawWeather(ctx);
     fx.drawNumbers(ctx);
+    this.drawCombatFocus(ctx);
     // screen-space finishing
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     this.drawVignette(ctx);
     if (fx.flashA > 0.01) {
-      ctx.globalAlpha = fx.flashA;
+      // Repeated impacts must leave the next enemy tell visible.
+      ctx.globalAlpha = !G.inCutscene && this.player.comboT > 0 ? Math.min(0.18, fx.flashA) : fx.flashA;
       ctx.fillStyle = fx.flashC;
       ctx.fillRect(0, 0, r.bw, r.bh);
       ctx.globalAlpha = 1;
@@ -1671,6 +1798,29 @@ export class World {
       ctx.fillStyle = g;
       ctx.fillRect(0, 0, r.bw, r.bh);
     }
+  }
+
+  private drawCombatFocus(ctx: Ctx) {
+    const p = this.player;
+    if (G.inCutscene || p.state === 'dead' || p.comboT <= 0) return;
+    // Small anchors stay readable through allied spell effects.
+    ctx.save();
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.globalAlpha = 0.85;
+    ctx.beginPath();
+    ctx.moveTo(p.x - 10, p.y - 3); ctx.lineTo(p.x - 7, p.y + 1); ctx.lineTo(p.x - 3, p.y + 1);
+    ctx.moveTo(p.x + 10, p.y - 3); ctx.lineTo(p.x + 7, p.y + 1); ctx.lineTo(p.x + 3, p.y + 1);
+    ctx.strokeStyle = '#17121d'; ctx.lineWidth = 3; ctx.stroke();
+    ctx.strokeStyle = '#ffe6a8'; ctx.lineWidth = 1; ctx.stroke();
+    const t = p.lastFoe;
+    if (t && !t.remove && t.canBeTargeted()) {
+      const y = t.y - t.body.h - 7;
+      ctx.beginPath();
+      ctx.moveTo(t.x - 4, y - 3); ctx.lineTo(t.x, y); ctx.lineTo(t.x + 4, y - 3);
+      ctx.strokeStyle = '#17121d'; ctx.lineWidth = 3; ctx.stroke();
+      ctx.strokeStyle = '#ffe6a8'; ctx.lineWidth = 1; ctx.stroke();
+    }
+    ctx.restore();
   }
 
   private drawVignette(ctx: Ctx) {

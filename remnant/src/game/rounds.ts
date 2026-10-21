@@ -9,7 +9,11 @@ import { G } from './ctx';
 import { Entity } from './entity';
 import { Enemy } from './enemies';
 import { TILE, type EnemyKind } from './tiles';
-import { xpToNext } from './data';
+import { xpToNext, ECHO_SPECIES, ITEMS, RARITY_NAMES, type ItemInst } from './data';
+import { claimTrialMilestone, claimContractReward, derive, grantWaveLoot } from './state';
+import { trialStrength, trialXpLevels } from './balance';
+import { CONTRACTS, contractTier, isContract, type ContractId } from './progression';
+import { BLESSINGS, runBlessings, type BlessingId } from './blessings';
 import { rollGear } from './world';
 import { moveBody } from './physics';
 import { recordRun, bestRounds, type RunEntry } from './board';
@@ -22,6 +26,8 @@ import { islandNotify } from '../ui/island';
 import { icon } from '../ui/icons';
 import { gameOver } from '../ui/leaderboard';
 import { rand, choose, overlaps } from '../core/math';
+import { gauntletBoss, gauntletImprint, originalForm, gauntletCount } from './gauntlet';
+import { bossScale } from './difficulty';
 
 const BREAK = 7;
 const FLOOR_Y = 18 * TILE;
@@ -38,6 +44,12 @@ const BOONS: Record<Boon, { name: string; sub: string; icon: string; color: stri
 
 export class Rounds {
   active = false;
+  bossOnly = false;
+  completed = 0;
+  rematchSpecies: string | null = null;
+  private boss: Entity | null = null;
+  private bossHp = 1800;
+  private bossDamage = 12;
   /** The round in play (0 before the first). */
   round = 0;
   /** The round the run began at; only runs from round 1 are ranked. */
@@ -60,17 +72,50 @@ export class Rounds {
   /** Foes standing, as of the last update (the HUD reads it every frame). */
   private alive = 0;
   private ending = false;
+  pendingBlessings: BlessingId[] = [];
+  lastWaveLoot: ItemInst | null = null;
+  private waveXp = 0;
+  contract: ContractId | null = null;
+  contractComplete = false;
+  contractReward: string | null = null;
+  contractTier = 0;
+  get contractCleared() { return Math.max(0, Math.min(5, this.completed - this.from + 1)); }
+  get balmSealed() { return this.active && this.contract === 'vigil' && !this.contractComplete; }
+  private blessingEpoch = 0;
+  private blessingAbort: AbortController | null = null;
+  get awaitingBlessing() { return this.pendingBlessings.length > 0; }
+  cancelBlessing() {
+    this.blessingEpoch++;
+    this.pendingBlessings = [];
+    this.blessingAbort?.abort(); this.blessingAbort = null;
+  }
 
   /** Foes still to beat this round (spawned or not). */
   get left() {
     return this.total - this.spawned + this.alive;
   }
 
-  start(from = 1) {
+  start(from = 1, bossOnly = false) {
     this.stop(false);
     this.active = true;
+    this.bossOnly = bossOnly;
+    this.lastWaveLoot = null;
+    const chosen = G.save.flags.trial_contract;
+    this.contract = !bossOnly && isContract(chosen) ? chosen : null;
+    this.contractComplete = false;
+    this.contractReward = null;
+    this.contractTier = this.contract ? contractTier(G.save, this.contract) : 0;
+    runBlessings.reset(!bossOnly);
+    G.d = derive(G.save);
+    const original = String(G.save.flags.echo_trial_species ?? '');
+    this.rematchSpecies = bossOnly && ECHO_SPECIES[original] && G.save.echoes.some((e) => e.species === original) ? original : null;
+    this.boss = null;
+    // Snapshot entry strength so leveling during a run never changes its rules.
+    this.bossHp = Math.max(1800, G.d.atk * G.d.meleeMult * 65) * bossScale().hp;
+    this.bossDamage = Math.max(10, G.d.maxHp * 0.1) * bossScale().dmg;
     this.ending = false;
-    this.from = Math.max(1, from);
+    this.from = Math.max(1, Math.floor(Number(from) || 1));
+    this.completed = this.from - 1;
     this.round = this.from - 1;
     this.kills = 0;
     this.time = 0;
@@ -80,23 +125,41 @@ export class Rounds {
     this.pack = false;
     this.foes = [];
     this.breakT = 3.2;
-    G.ui.banner('THE TRIAL OF THE REMNANT', `Endless rounds${this.from > 1 ? ` from round ${this.from} (unranked)` : ''} · survive as long as you can`, 'boss');
+    if (!bossOnly) G.world.configureTrial(this.from);
+    G.ui.banner(this.rematchSpecies ? 'ORIGINAL-FORM REMATCH' : bossOnly ? 'THE BOSS GAUNTLET' : 'THE TRIAL OF THE REMNANT', this.rematchSpecies ? `${ECHO_SPECIES[this.rematchSpecies].stages[0].name} · earn its imprint each victory · unranked` : `${bossOnly ? 'Bosses only · escalating power' : 'Endless rounds'}${this.from > 1 ? ` from round ${this.from} (unranked)` : ''} · survive as long as you can`, 'boss');
+    if (this.contract) G.ui.toast(`${CONTRACTS[this.contract].name} · clear waves ${this.from}–${this.from + 4} · unranked`, 'good');
   }
 
   /** End the run. Leaving mid-run still records how far it got. */
   stop(record = true) {
     if (this.active && record && this.round > 0) this.record();
     this.active = false;
+    this.lastWaveLoot = null;
+    this.contract = null;
+    this.contractComplete = false;
+    this.contractReward = null;
+    this.cancelBlessing();
+    runBlessings.reset();
+    if (G.save) G.d = derive(G.save);
+    this.boss = null;
     this.foes = [];
     this.round = 0;
   }
 
   update(dt: number) {
-    if (!this.active || this.ending) return;
+    if (!this.active || this.ending || this.awaitingBlessing) return;
     const W = G.world;
     if (W.player.state === 'dead') return;
     this.time += dt;
     this.changeT += dt;
+    if (this.bossOnly) {
+      if (this.rematchSpecies && this.boss instanceof Enemy && this.boss.remove) this.bossDefeated(this.boss);
+      if (this.breakT > 0) {
+        this.breakT = Math.max(0, this.breakT - dt);
+        if (this.breakT === 0) this.beginRound();
+      }
+      return;
+    }
     this.wrathT = Math.max(0, this.wrathT - dt);
     this.doubleT = Math.max(0, this.doubleT - dt);
     // Count the fallen, drop the removed and count the living in one pass,
@@ -136,6 +199,20 @@ export class Rounds {
 
   private beginRound() {
     const n = ++this.round;
+    if (!this.bossOnly) G.world.configureTrial(n);
+    if (this.bossOnly) {
+      this.changeT = 0;
+      this.total = this.spawned = this.alive = 1;
+      const p = G.world.player;
+      p.x = 14 * TILE; p.y = FLOOR_Y;
+      p.body.vx = p.body.vy = 0;
+      p.face = 1;
+      p.revive();
+      p.lastSafe = { x: p.x, y: p.y };
+      this.boss = this.rematchSpecies ? originalForm(this.rematchSpecies, n, this.bossHp, this.bossDamage) : gauntletBoss(n, this.bossHp, this.bossDamage);
+      G.ui.banner(`BOSS ROUND ${n}`, `${this.boss.name} · cycle ${1 + Math.floor((n - 1) / gauntletCount())}`, 'boss');
+      return;
+    }
     this.pack = n % 5 === 0 && n % 10 !== 0;
     this.total = this.pack ? 6 + n : Math.min(70, 4 + n * 2 + (n > 10 ? n - 10 : 0));
     this.spawned = 0;
@@ -143,6 +220,7 @@ export class Rounds {
     this.boonsThisRound = 0;
     this.changeT = 0;
     if (n % 10 === 0) this.total += 1; // the Champion
+    this.waveXp = xpToNext(G.save.level) * trialXpLevels(n);
     sfx(this.pack ? 'horn' : 'bell', { pitch: this.pack ? 0.8 : 0.55 + Math.min(0.5, n * 0.015) });
     input.rumble(0.5, 0.5, 280);
     islandNotify(`ROUND ${n}`, this.pack ? '#ff6a5a' : '#ffe6a8', 'rally', 2);
@@ -152,13 +230,97 @@ export class Rounds {
 
   private endRound() {
     const n = this.round;
+    if (n <= this.completed) return;
     const s = G.save;
+    this.completed = n;
+    this.lastWaveLoot = grantWaveLoot(s, n);
+    sfx('lootRare', { vol: 0.55 });
+    G.ui.toast(`${RARITY_NAMES[this.lastWaveLoot.rarity]} · ${ITEMS[this.lastWaveLoot.id].name} · Power ${this.lastWaveLoot.lootPower} → Equipment`, 'good');
+    if (this.contract && !this.contractComplete && this.contractCleared >= 5) {
+      this.contractComplete = true; // Claim once, before autosave or the next UI callback.
+      const prize = claimContractReward(s, this.contract);
+      this.contractReward = `${ITEMS[prize.id].name}${prize.plus ? ` +${prize.plus}` : ''}`;
+      G.d = derive(s);
+      for (const e of G.world.echoes) e.refreshStats();
+      sfx('lootRare');
+      G.ui.toast(`CONTRACT COMPLETE · ${this.contractReward} · Equipment. Contract restrictions lifted; keep fighting or leave.`, 'good');
+    }
     if (n > Number(s.flags.trial_best ?? 0)) s.flags.trial_best = n;
     if (n >= 10 && s.quests.s_trial && !s.quests.s_trial.done) G.world.story.quest('s_trial', 0, true);
     if (n % 5 === 0) this.reward(n);
+    if (n % 10 === 0) G.world.configureTrial(n + 1);
     this.breakT = BREAK;
     this.changeT = 0;
     sfx('rally', { vol: 0.5 });
+    G.world.autosave(true);
+    this.offerBlessing();
+  }
+
+  private offerBlessing() {
+    this.pendingBlessings = runBlessings.offer();
+    const epoch = ++this.blessingEpoch;
+    this.blessingAbort = new AbortController();
+    const carried = runBlessings.summary();
+    const award = this.contractReward && this.completed === this.from + 4 ? `Contract complete! ${this.contractReward} is saved in Equipment. Restrictions are lifted; you can continue the waves or leave through Chapters. ` : '';
+    const loot = this.lastWaveLoot;
+    const drop = loot ? `${RARITY_NAMES[loot.rarity]} reward: ${ITEMS[loot.id].name} · Power ${loot.lootPower}. Saved in Equipment; equip it from the pause menu after choosing a blessing. ` : '';
+    void G.ui.choice(`Wave ${this.completed} cleared`,
+      `${award}${drop}Choose one blessing for this run. Bonuses stack up to rank 5 and reset when you leave or fall.${carried ? ` Carrying: ${carried}.` : ''}`,
+      this.pendingBlessings.map(id => ({ label: BLESSINGS[id].name + (BLESSINGS[id].cap ? ` · Rank ${runBlessings.rank(id) + 1}` : ''), sub: BLESSINGS[id].desc, icon: BLESSINGS[id].icon, risk: id === 'bloodprice' })),
+      'blessing', this.blessingAbort.signal).then(index => {
+        if (epoch !== this.blessingEpoch || !this.active) return;
+        if (index < 0) { this.pendingBlessings = []; this.blessingEpoch++; this.blessingAbort = null; return; }
+        this.chooseBlessing(this.pendingBlessings[index]);
+      });
+  }
+
+  chooseBlessing(id: BlessingId): boolean {
+    if (!this.active || this.bossOnly || !this.pendingBlessings.includes(id) || !runBlessings.take(id)) return false;
+    this.pendingBlessings = [];
+    this.blessingEpoch++;
+    this.blessingAbort?.abort(); this.blessingAbort = null;
+    G.d = derive(G.save);
+    if (id === 'health') G.save.hp = Math.min(G.d.maxHp, G.save.hp + G.d.maxHp * 0.3);
+    if (id === 'energy') G.save.ce = G.d.maxCe;
+    if (id === 'balm') G.save.balm = Math.min(G.save.balmMax, G.save.balm + 1);
+    sfx('lootRare', { vol: 0.55 });
+    G.ui.toast(`${BLESSINGS[id].name}${BLESSINGS[id].cap ? ` ${runBlessings.rank(id)}` : ''} · this run`, 'good');
+    G.ui.refreshHud();
+    return true;
+  }
+
+  /** Called after the boss's real defeat animation, before any chapter logic. */
+  bossDefeated(b: Entity): boolean {
+    if (!this.active || !this.bossOnly || this.boss !== b) return false;
+    const W = G.world, s = G.save;
+    this.kills++;
+    this.completed = this.round;
+    const species = this.rematchSpecies ?? gauntletImprint(this.round);
+    if (species) {
+      s.echoImprints ??= {};
+      s.echoImprints[species] = (s.echoImprints[species] ?? 0) + 1;
+    }
+    if (!this.rematchSpecies) s.flags.boss_trial_best = Math.max(Number(s.flags.boss_trial_best ?? 0), this.completed);
+    b.remove = true;
+    this.boss = null;
+    this.alive = 0;
+    W.boss = null;
+    W.bossActive = false;
+    G.inCutscene = false;
+    G.camera.focus = null;
+    G.ui.cinematicBars(false);
+    G.ui.bossBar(null);
+    W.giveXp(Math.round(xpToNext(s.level) * (0.18 + Math.min(0.4, this.round * 0.02))));
+    // Clear hostile hazards and multipart hitboxes before the recovery break.
+    for (const e of W.ents) if (e.isFoe || e.team === 'enemy') e.remove = true;
+    s.hp = Math.min(G.d.maxHp, s.hp + G.d.maxHp * 0.2);
+    s.ce = G.d.maxCe;
+    if (this.round % gauntletCount() === 0) { s.balm = Math.min(s.balmMax, s.balm + 1); this.reward(this.round); }
+    this.breakT = BREAK;
+    this.changeT = 0;
+    G.ui.toast(species ? 'Original-form imprint earned — absorb it in Echoes.' : `Boss ${this.round} defeated. Next: +22% health, +10% damage.`, 'good');
+    W.autosave(true);
+    return true;
   }
 
   private spawnOne() {
@@ -176,14 +338,20 @@ export class Rounds {
     const px = W.player.x / TILE;
     const lanes = LANES.filter((l) => Math.abs(l - px) > 7);
     const x = choose(lanes.length ? lanes : LANES) * TILE + rand(-12, 12);
-    const flier = k === 'drone' || k === 'wisp' || k === 'vessel';
+    const flier = k === 'drone' || k === 'wisp' || k === 'vessel' || k === 'gale';
     const e = W.spawnEnemy(k, x, flier ? SKY_Y : FLOOR_Y, champion ? 'trial_champion' : null);
-    const lvScale = 1 + Math.max(0, s.level - 12) * 0.05;
-    const hpMul = (n < 10 ? 1 + 0.18 * (n - 1) : 2.62 * Math.pow(1.09, n - 10)) * lvScale * (champion ? 3 : 1);
+    const scale = trialStrength(n);
+    const hpMul = scale.hp * (champion ? 3 : 1);
     e.maxHp = e.hp = Math.round(e.maxHp * hpMul);
-    e.dmg *= Math.min(5, 1 + (n - 1) * 0.07) * Math.pow(lvScale, 0.8);
-    e.tempo = Math.min(1.4, 1 + (n - 1) * 0.012) * (this.pack ? 1.1 : 1);
-    e.xpOverride = Math.max(10, Math.round((xpToNext(s.level) / 26) * (1 + n * 0.03) * (champion ? 8 : 1) * (this.doubleT > 0 ? 2 : 1)));
+    e.dmg *= scale.damage;
+    e.tempo = scale.tempo * (this.pack ? 1.1 : 1);
+    if (this.contract && !this.contractComplete) {
+      const c = CONTRACTS[this.contract], tier = this.contractTier;
+      e.maxHp = e.hp = Math.round(e.maxHp * c.hp * (1 + tier * 0.1));
+      e.dmg *= c.damage * (1 + tier * 0.05);
+      e.tempo *= c.tempo;
+    }
+    e.xpOverride = Math.max(1, Math.round(this.waveXp / (this.total + (n % 10 === 0 ? 3 : 0)) * (champion ? 4 : 1) * (this.doubleT > 0 ? 2 : 1)));
     if (champion) {
       e.purifiable = false;
       e.name = 'Champion of the Trial';
@@ -198,13 +366,20 @@ export class Rounds {
     if (n <= 9) return ['husk', 'archer', 'drone', 'soldier', 'knight', 'priest'];
     if (n <= 15) return ['archer', 'drone', 'soldier', 'knight', 'bulwark', 'priest', 'lion', 'sentinel'];
     if (n <= 22) return ['drone', 'soldier', 'knight', 'bulwark', 'brute', 'priest', 'lion', 'sentinel'];
-    return ['soldier', 'knight', 'bulwark', 'brute', 'priest', 'lion', 'vessel', 'scribe', 'vessel', 'scribe'];
+    if (n <= 30) return ['soldier', 'knight', 'bulwark', 'brute', 'priest', 'lion', 'vessel', 'scribe', 'vessel', 'scribe'];
+    // The fallen host joins from round 31: the Undying rise again unless finished.
+    return ['knight', 'bulwark', 'brute', 'priest', 'lion', 'vessel', 'scribe', 'undying', 'undying', 'gale', 'gale'];
   }
 
   private reward(n: number) {
     const W = G.world;
+    const trophy = !this.bossOnly ? claimTrialMilestone(G.save, n) : null;
+    if (trophy) {
+      sfx('lootRare');
+      G.ui.toast(`WAVE ${n}: ${ITEMS[trophy.id].name}${trophy.trialTier ? ` · Ascension ${trophy.trialTier}` : ''} added to Equipment`, 'good');
+    }
     W.spawnLoot(28 * TILE, 16 * TILE, [{ silver: 60 * n }, { mat: 'covenant_fragment', n: 1 + Math.floor(n / 10) }, { mat: n >= 15 ? 'radiant_core' : 'sentinel_steel', n: 1 }, rollGear(Math.min(3, 1 + Math.floor(n / 10)))], true);
-    G.ui.toast(`Round ${n} held: the Trial rewards you.`, 'good');
+    if (!trophy) G.ui.toast(`Round ${n} held: the Trial rewards you.`, 'good');
     fx.column(28 * TILE, 18 * TILE, 40, 240, '#ffe6a8', 1.2);
   }
 
@@ -245,21 +420,31 @@ export class Rounds {
 
   // ---------------------------------------------------------------- the end of a run
   private record(): { entry: RunEntry | null; place: number; best: boolean } {
+    if (this.rematchSpecies) return { entry: null, place: 0, best: false };
     const s = G.save;
-    const prevBest = bestRounds();
-    if (this.round > Number(s.flags.trial_best ?? 0)) s.flags.trial_best = this.round;
-    if (this.from > 1) return { entry: null, place: 0, best: false };
-    const { entry, place } = recordRun({ rounds: this.round, kills: this.kills, time: this.time, level: s.level });
-    return { entry, place, best: this.round > prevBest };
+    const prevBest = bestRounds(this.bossOnly);
+    const rounds = this.bossOnly ? this.completed : this.round;
+    const key = this.bossOnly ? 'boss_trial_best' : 'trial_best';
+    if (rounds > Number(s.flags[key] ?? 0)) s.flags[key] = rounds;
+    if (this.from > 1 || this.contract) return { entry: null, place: 0, best: false };
+    const { entry, place } = recordRun({ rounds, kills: this.kills, time: this.time, level: s.level }, this.bossOnly);
+    return { entry, place, best: rounds > prevBest };
   }
 
   /** Elior fell in the arena: show the Game Over card. Resolves when the player has chosen. */
   async onDeath(): Promise<'again' | 'leave'> {
+    this.cancelBlessing();
     this.ending = true;
+    G.inCutscene = false;
+    G.camera.focus = null;
+    G.world.bossActive = false;
+    G.ui.cinematicBars(false);
     for (const f of this.foes) f.aggro = false;
     const res = this.record();
-    const stats = { rounds: this.round, kills: this.kills, time: this.time, level: G.save.level, levels: G.save.level - this.level0, from: this.from };
+    const stats = { rounds: this.bossOnly ? this.completed : this.round, kills: this.kills, time: this.time, level: G.save.level, levels: G.save.level - this.level0, from: this.from, bossOnly: this.bossOnly, rematch: !!this.rematchSpecies, contract: this.contract ? `${CONTRACTS[this.contract].name} · ${this.contractCleared}/5 waves${this.contractComplete ? ' · reward saved' : ' · incomplete'}` : undefined };
     this.active = false;
+    runBlessings.reset();
+    G.d = derive(G.save);
     const choice = await gameOver(stats, res.entry, res.place, res.best);
     return choice;
   }

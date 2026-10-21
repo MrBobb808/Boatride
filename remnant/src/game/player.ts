@@ -2,26 +2,29 @@
 // executions, healing, ability casting, and his evolving appearance.
 
 import { Entity, type HitInfo } from './entity';
-import { moveBody, touchesTile } from './physics';
+import { moveBody, touchesTile, los, bodyFits } from './physics';
 import { T } from './tiles';
 import { Animator, solve, Chain, drawRibbon, newJoints, type Joints, type Pose, BASE_POSE } from '../render/skeleton';
 import { drawHumanoid, drawTrail, type HumanStyle } from '../render/actors';
-import { setPixelExtras, type PixelExtras } from '../render/pixelHero';
+import { drawHeroSprite, heroSpriteReady, type HeroSpriteAction } from '../render/heroSprites';
 import { glow, rgba, circle, type Ctx } from '../render/draw';
 import { fx, PK } from '../render/fx';
 import { input } from '../core/input';
 import { clamp, approach, rand, sign, type Rect } from '../core/math';
 import { G, flag } from './ctx';
+import { runBlessings } from './blessings';
 import { sfx } from '../audio/audio';
 import { MOVESETS, clipsFor, extraFor, type AttackDef, type Moveset } from './weapons';
 import { ITEMS, RARITY_COLORS, ABILITIES, type AbilityId, type WeaponFamily } from './data';
-import { getItem, skillRank } from './state';
+import { derive, getItem, skillRank } from './state';
+import { WeaponPractice } from './progression';
 import { castAbility } from './abilities';
 import { lighting } from '../render/lighting';
 import { shakeScale } from '../core/settings';
 import { Proj } from './projectiles';
 import { beginFinisher, updateFinisher, killBlow, riseAsShadow, type FinState } from './finishers';
 import { throwSub } from './subweapons';
+import { ChainBlade, drawChain, chainReach } from './chain';
 import { strikeLamps } from './lamps';
 import { weaponElement, elementHit, powerTier, powerDamage, isSovereign, slashColors, drawAura, auraLight, ELEMENTS } from './power';
 import {
@@ -34,9 +37,6 @@ const MAX_FALL = 560;
 const RUN = 142;
 const JUMP_V = 430;
 const DJUMP_V = 400;
-
-/** Reused every frame for the pixel painter's cape and scarf. */
-const PX: PixelExtras = { x: 0, y: 0, cape: null, capeColor: '#3a1418', capeTrim: null, scarf: null };
 
 export const DIMS = { torso: 12.5, head: 4.6, neck: 1.5, upperArm: 7, foreArm: 6.6, thigh: 8.2, shin: 8.2, shoulderSpread: 1.4, hipSpread: 1.5 };
 
@@ -53,6 +53,8 @@ const COMBO_RANKS: [number, string][] = [[50, 'REMNANT'], [35, 'UNBROKEN'], [20,
 interface Ghost { x: number; y: number; face: number; pose: Pose; a: number; rot: number; shade?: boolean }
 
 export class Player extends Entity {
+  private practice = new WeaponPractice();
+  private vigilParryCd = 0;
   anim: Animator;
   family: WeaponFamily = 'blade';
   moves: Moveset = MOVESETS.blade;
@@ -60,6 +62,7 @@ export class Player extends Entity {
   pose: Pose = { ...BASE_POSE };
   state: PState = 'free';
   st = 0;
+  private spriteStride = 0;
   coyote = 0;
   jumpBuf = 0;
   airJumps = 0;
@@ -71,6 +74,8 @@ export class Player extends Entity {
   combo = 0;
   queued: 'attack' | null = null;
   queuedT = 0;
+  dodgeBuf = 0;
+  parryBuf = 0;
   chargeT = 0;
   chargeLvl = 0;
   chargeFromTap = false;
@@ -88,6 +93,8 @@ export class Player extends Entity {
   veiled = 0;
   untouchable = 0;
   cds: Partial<Record<AbilityId, number>> = {};
+  sinceHurt = 0;
+  mendT = 0;
   trail: number[] = [];
   trailFade = 0;
   scarf: Chain;
@@ -139,6 +146,15 @@ export class Player extends Entity {
   /** Buffered Heavy press, so branch inputs made a beat early still count. */
   heavyQ = 0;
   ceRegenDelay = 0;
+  private leechAt = -1;
+  private leechUsed = 0;
+  /** Shared budget for gear and shadow healing, independent of target count. */
+  leechHeal(damage: number, rate: number) {
+    if (G.save.hp <= 0 || damage <= 0 || rate <= 0) return;
+    if (G.time < this.leechAt || G.time - this.leechAt >= 1) { this.leechAt = G.time; this.leechUsed = 0; }
+    const heal = Math.min(damage * rate, Math.max(0, G.d.maxHp * 0.04 - this.leechUsed), Math.max(0, G.d.maxHp - G.save.hp));
+    G.save.hp += heal; this.leechUsed += heal;
+  }
   aura = 0;
   stepCount = 0;
   /** Shadow Mantle: seconds left in the form, its full length, and the transformation sequence. */
@@ -153,6 +169,9 @@ export class Player extends Entity {
   eyeN = 0;
   /** Seconds before another sub-weapon can be thrown. */
   subCd = 0;
+  weaponCd = 0;
+  weaponFlight: ChainBlade | null = null;
+  mantleBlinkCd = 0;
 
   constructor(x: number, y: number) {
     super(x, y, 12, 34);
@@ -211,8 +230,9 @@ export class Player extends Entity {
     // The Sovereign: black and gold, eyes burning violet.
     const sov = lv >= 100;
     this.style = {
-      skin: '#e0b28c',
-      hair: '#1a1316',
+      skin: '#70452f',
+      hair: '#f1f3ed',
+      beard: '#e9ede7',
       hairKind: 'spiky',
       coat: sov ? '#16131e' : lv >= 7 ? '#1f2a48' : '#26304e',
       coatDark: sov ? '#0c0a12' : '#19203a',
@@ -287,6 +307,9 @@ export class Player extends Entity {
     this.parryT = Math.max(0, this.parryT - dt);
     this.parryCd = Math.max(0, this.parryCd - dt);
     this.counterT = Math.max(0, this.counterT - dt);
+    this.dodgeBuf = Math.max(0, this.dodgeBuf - dt);
+    this.parryBuf = Math.max(0, this.parryBuf - dt);
+    this.heavyQ = Math.max(0, this.heavyQ - dt);
     this.queuedT = Math.max(0, this.queuedT - dt);
     if (this.queuedT <= 0) this.queued = null;
     this.sinceDodge += dt;
@@ -298,6 +321,9 @@ export class Player extends Entity {
     this.shieldT = Math.max(0, this.shieldT - dt);
     this.veiled = Math.max(0, this.veiled - dt);
     this.subCd = Math.max(0, this.subCd - dt);
+    this.vigilParryCd = Math.max(0, this.vigilParryCd - dt);
+    this.weaponCd = Math.max(0, this.weaponCd - dt * runBlessings.recharge * d.pursuitRecharge);
+    this.mantleBlinkCd = Math.max(0, this.mantleBlinkCd - dt * runBlessings.recharge * d.pursuitRecharge);
     this.landT = Math.max(0, this.landT - dt);
     this.lingerT = Math.max(0, this.lingerT - dt);
     if (this.lingerT <= 0) this.linger = null;
@@ -310,13 +336,20 @@ export class Player extends Entity {
       this.comboT -= dt;
       if (this.comboT <= 0) this.endCombo();
     }
-    for (const k of Object.keys(this.cds) as AbilityId[]) this.cds[k] = Math.max(0, (this.cds[k] ?? 0) - dt);
+    for (const k of Object.keys(this.cds) as AbilityId[]) this.cds[k] = Math.max(0, (this.cds[k] ?? 0) - dt * runBlessings.recharge * d.skillRecharge);
     // Covenant Energy regeneration
     if (flag('relic_taken')) {
       this.ceRegenDelay = Math.max(0, this.ceRegenDelay - dt);
       if (this.ceRegenDelay <= 0 && this.veiled <= 0) G.save.ce = Math.min(d.maxCe, G.save.ce + 2.6 * d.ceRegen * dt);
     }
     G.save.hp = Math.min(G.save.hp, d.maxHp);
+    if (this.state !== 'dead' && !G.inCutscene) {
+      this.sinceHurt += dt;
+      const mending = this.mendT > 0 ? Math.min(dt, this.mendT) * 0.03 : 0;
+      this.mendT = Math.max(0, this.mendT - dt);
+      const healing = (this.sinceHurt >= 4 ? d.hpRegen * dt : 0) + mending;
+      if (healing > 0 && G.save.hp > 0) G.save.hp = Math.min(d.maxHp, G.save.hp + d.maxHp * healing);
+    }
 
     if (this.state === 'dead') {
       this.deadT += dt;
@@ -340,7 +373,15 @@ export class Player extends Entity {
     if (b.vy < 0 && !input.down('jump') && this.state === 'free' && !this.launchCarry) b.vy += GRAV * 0.9 * dt;
     b.vy = Math.min(this.state === 'plunge' ? 620 : MAX_FALL, b.vy + g * dt);
     const preVy = b.vy;
+    const beforeX = b.x;
     moveBody(b, dt, G.world.grid, G.world.solid);
+    // Recover old embedded positions without recording them as safe footing.
+    if (!bodyFits(b, G.world.grid, G.world.solid, b.x, b.y) && bodyFits(b, G.world.grid, G.world.solid, this.lastSafe.x, this.lastSafe.y)) {
+      b.x = this.lastSafe.x; b.y = this.lastSafe.y;
+      b.vx = b.vy = 0;
+      b.onGround = false;
+    }
+    if (b.onGround && (this.state === 'free' || this.state === 'scripted')) this.spriteStride += Math.min(12, Math.abs(b.x - beforeX)) * 0.08;
     if (b.onGround) {
       if (!this.wasGround) this.onLand(preVy);
       this.coyote = 0.1;
@@ -348,7 +389,7 @@ export class Player extends Entity {
       this.airDash = 1;
       this.airAttacks = 0;
       this.launchCarry = false;
-      if (!touchesTile(b, G.world.grid, (t) => t === T.Spikes || t === T.Veil, 0) && b.groundTile !== T.Collapse) {
+      if (bodyFits(b, G.world.grid, G.world.solid, b.x, b.y) && !touchesTile(b, G.world.grid, (t) => t === T.Spikes || t === T.Veil, 0) && b.groundTile !== T.Collapse) {
         this.lastSafe.x = b.x;
         this.lastSafe.y = b.y;
       }
@@ -419,6 +460,30 @@ export class Player extends Entity {
   }
 
   // ---------------------------------------------------------------- input-driven states
+  /** Impact freeze consumes input edges too; retain one intent until a legal window. */
+  bufferCombatInput() {
+    if (G.inCutscene || this.state === 'dead' || this.state === 'scripted') return;
+    if (input.pressed('jump')) this.jumpBuf = 0.16;
+    if (input.pressed('attack')) {
+      this.queued = 'attack';
+      this.queuedT = 0.32;
+      this.attackHeldFrom = G.time;
+    }
+    if (input.pressed('heavy')) this.heavyQ = 0.26;
+    if (input.pressed('dodge')) { this.dodgeBuf = 0.18; this.parryBuf = 0; }
+    if (input.pressed('parry')) { this.parryBuf = 0.18; this.dodgeBuf = 0; }
+  }
+
+  /** Defending wins over a buffered follow-up, without bypassing recovery or dash limits. */
+  private tryDefense(): boolean {
+    if (this.dodgeBuf > 0) {
+      if (this.body.onGround) { this.startDodge(); return true; }
+      if (this.airDash > 0) { this.startAirDash(); return true; }
+    }
+    if (this.parryBuf > 0 && this.parryCd <= 0) { this.startParry(); return true; }
+    return false;
+  }
+
   private handleInput(dt: number) {
     const b = this.body;
     const d = G.d;
@@ -428,13 +493,7 @@ export class Player extends Entity {
     if (input.pressed('transform') && this.state !== 'transform' && this.state !== 'execute' && this.state !== 'phantom' && this.state !== 'heal' && this.state !== 'plunge') {
       if (this.tryTransform()) return;
     }
-    if (input.pressed('jump')) this.jumpBuf = 0.13;
-    if (input.pressed('attack')) {
-      this.queued = 'attack';
-      this.queuedT = 0.28;
-      this.attackHeldFrom = G.time;
-    }
-    this.heavyQ = input.pressed('heavy') ? 0.26 : Math.max(0, this.heavyQ - dt);
+    this.bufferCombatInput();
 
     switch (this.state) {
       case 'free': {
@@ -478,7 +537,8 @@ export class Player extends Entity {
       case 'dodge': {
         const t = this.st / 0.34;
         b.vx = this.face * 300 * (1 - t * 0.55) * speedMul;
-        if (this.st > 0.16 && input.pressed('attack')) {
+        if (this.st > 0.16 && this.queued === 'attack') {
+          this.queued = null;
           this.startAttack(this.moves.dash);
           break;
         }
@@ -504,7 +564,7 @@ export class Player extends Entity {
       }
       case 'parry': {
         b.vx = approach(b.vx, 0, 1400 * dt);
-        if (this.st > 0.12 && this.counterT > 0 && input.pressed('attack')) {
+        if (this.st > 0.12 && this.counterT > 0 && this.queued === 'attack') {
           this.startCounter();
           break;
         }
@@ -516,13 +576,13 @@ export class Player extends Entity {
       }
       case 'block': {
         b.vx = approach(b.vx, ax * 40, 900 * dt);
-        if (this.counterT > 0 && input.pressed('attack')) {
+        if (this.counterT > 0 && this.queued === 'attack') {
           this.startCounter();
           break;
         }
         if (!input.down('parry')) this.setState('free');
-        if (input.pressed('dodge')) this.startDodge();
-        if (input.pressed('jump') && b.onGround) {
+        if (this.dodgeBuf > 0 && this.tryDefense()) break;
+        if (this.jumpBuf > 0 && b.onGround) {
           this.setState('free');
           this.jumpBuf = 0.13;
         }
@@ -545,7 +605,7 @@ export class Player extends Entity {
           G.ui.refreshHud();
         }
         if (this.st >= 0.9) this.setState('free');
-        if (this.healDone && input.pressed('dodge')) this.startDodge();
+        if (this.healDone && this.dodgeBuf > 0) this.tryDefense();
         break;
       }
       case 'cast': {
@@ -556,7 +616,7 @@ export class Player extends Entity {
         }
         // No castId: a sub-weapon throw, which only borrows the pose.
         if (this.st >= (this.castId === 'armor_light' || this.castId === 'lion' ? 0.6 : this.castId ? 0.36 : 0.2)) this.setState('free');
-        if (this.castFired && this.st > 0.2 && input.pressed('dodge')) this.startDodge();
+        if (this.castFired && this.st > 0.2 && this.dodgeBuf > 0) this.tryDefense();
         break;
       }
       case 'execute':
@@ -586,6 +646,12 @@ export class Player extends Entity {
   private tryActions(dt: number) {
     const b = this.body;
     const s = G.save;
+    // Phantom Step: Dodge right after landing a hit blinks behind the foe.
+    if (this.dodgeBuf > 0 && this.canPhantom()) {
+      this.startPhantom();
+      return;
+    }
+    if (this.tryDefense()) return;
     if (this.queued === 'attack' && this.phantomN >= 3 && G.time < this.phantomUntil && G.save.ce >= CROSS_COST) {
       this.queued = null;
       this.startCross();
@@ -602,11 +668,6 @@ export class Player extends Entity {
     }
     if (this.counterT > 0 && this.queued === 'attack') {
       this.startCounter();
-      return;
-    }
-    // Phantom Step: Dodge right after landing a hit blinks behind the foe.
-    if (input.pressed('dodge') && this.canPhantom()) {
-      this.startPhantom();
       return;
     }
     // Branches that open for a moment after an attack ends.
@@ -646,15 +707,11 @@ export class Player extends Entity {
         return;
       }
     }
-    if (input.pressed('dodge')) {
-      if (b.onGround) this.startDodge();
-      else if (this.airDash > 0) this.startAirDash();
-      return;
-    }
     // Sub-weapon: its own button, or the old way, up + Heavy.
     if (input.pressed('sub') || ((input.pressed('heavy') || this.heavyQ > 0) && input.aimUp)) {
       this.heavyQ = 0;
-      throwSub(this);
+      if (this.mantleT > 0) this.throwWeapon();
+      else throwSub(this);
       return;
     }
     if (input.pressed('heavy') || this.heavyQ > 0) {
@@ -681,11 +738,11 @@ export class Player extends Entity {
       }
       return;
     }
-    if (input.pressed('parry') && this.parryCd <= 0) {
-      this.startParry();
-      return;
-    }
     if (input.pressed('heal')) {
+      if (G.world.story.ch3.rounds.balmSealed) {
+        G.ui.toast('Iron Oath: Balm is sealed until five waves are cleared.', 'warn');
+        sfx('denied'); return;
+      }
       if (s.balm > 0 && b.onGround && s.hp < G.d.maxHp) {
         s.balm--;
         this.healDone = false;
@@ -743,6 +800,15 @@ export class Player extends Entity {
       sfx('denied');
       return false;
     }
+    if (!G.save.abilities.includes(id)) return false;
+    if (id === 'blink_strike' || id === 'chain_snare') {
+      const target = G.world.nearestEnemy(this.x, this.cy, 260, this.face);
+      if (!target || !this.blinkSpot(target)) {
+        G.ui.toast('No reachable enemy ahead.', 'warn');
+        sfx('denied');
+        return false;
+      }
+    }
     const def = ABILITIES[id].cost;
     if ((this.cds[id] ?? 0) > 0) {
       sfx('denied');
@@ -772,6 +838,9 @@ export class Player extends Entity {
   }
 
   startDodge() {
+    this.dodgeBuf = this.parryBuf = 0;
+    this.queued = null;
+    this.heavyQ = 0;
     this.setState('dodge');
     this.atk = null;
     if (Math.abs(input.axisX) > 0.2) this.face = sign(input.axisX);
@@ -780,6 +849,9 @@ export class Player extends Entity {
     fx.dust(this.x, this.y, 4, 0.8);
   }
   startAirDash() {
+    this.dodgeBuf = this.parryBuf = 0;
+    this.queued = null;
+    this.heavyQ = 0;
     this.airDash--;
     this.setState('airdash');
     this.atk = null;
@@ -789,6 +861,10 @@ export class Player extends Entity {
     fx.ring(this.x - this.face * 6, this.y - 18, 4, 18, '#ffe6a8', 0.25, 2, 0.6);
   }
   startParry() {
+    this.atk = null;
+    this.dodgeBuf = this.parryBuf = 0;
+    this.queued = null;
+    this.heavyQ = 0;
     this.setState('parry');
     this.parryT = G.d.parryWin;
     this.parryCd = 0.32;
@@ -812,6 +888,7 @@ export class Player extends Entity {
     sfx('swingHeavy', { pitch: 0.8 });
   }
   startCounter() {
+    this.queued = null;
     const c = { ...this.moves.counter };
     c.dmg *= skillRank(G.save, 'g_counter') ? 1.7 : 1;
     this.counterT = 0;
@@ -820,7 +897,14 @@ export class Player extends Entity {
   }
 
   startAttack(a: AttackDef) {
+    if (this.weaponFlight) return;
+    // Close the distance before a Mantle swing instead of firing a wave.
+    if (this.mantleT > 0 && this.mantleBlinkCd <= 0 && a.id !== 'pstrike' && a.id !== 'cross') {
+      const target = this.findMantleTarget(245);
+      if (target && (Math.abs(target.x - this.x) > target.body.w / 2 + 28 || a.finisher) && this.blinkToFoe(target)) this.mantleBlinkCd = 0.55;
+    }
     this.atk = a;
+    this.trail.length = 0; this.trailFade = 0;
     this.atkT = 0;
     this.atkSeg = -1;
     this.atkStartAt = G.time;
@@ -877,21 +961,28 @@ export class Player extends Entity {
       this.activeHits(a, 1);
     }
     // Phantom Step out of any swing that has connected.
-    if (u >= a.hit[0] && input.pressed('dodge') && this.canPhantom()) {
+    if (u >= a.hit[0] && this.dodgeBuf > 0 && this.canPhantom()) {
       this.startPhantom();
       return;
     }
+    if (u >= a.cancel && this.tryDefense()) return;
     // Holding attack through the third strike whirls into Storm of Edges (touch-friendly).
-    if (b.onGround && a.id === this.moves.combo[2].id && input.down('attack') && G.time - this.attackHeldFrom > 0.24 && u > 0.5) {
+    if (this.dodgeBuf <= 0 && this.parryBuf <= 0 && b.onGround && a.id === this.moves.combo[2].id && input.down('attack') && G.time - this.attackHeldFrom > 0.24 && u > 0.5) {
       return this.startAttack(this.moves.storm);
     }
     // charge on hold (touch-friendly): still holding attack after the first swing
-    if (!a.air && input.down('attack') && G.time - this.attackHeldFrom > 0.26 && u > 0.45 && this.combo === 0 && a.id === this.moves.combo[0].id) {
+    if (this.dodgeBuf <= 0 && this.parryBuf <= 0 && !a.air && input.down('attack') && G.time - this.attackHeldFrom > 0.26 && u > 0.45 && this.combo === 0 && a.id === this.moves.combo[0].id) {
       this.startCharge(true);
       return;
     }
     // cancels
     if (u >= a.cancel) {
+      if (this.mantleT > 0 && input.pressed('sub') && this.throwWeapon()) return;
+      if (this.jumpBuf > 0 && b.onGround) {
+        this.setState('free');
+        this.jumpBuf = 0.13;
+        return;
+      }
       const m = this.moves;
       // Branch combos.
       if (this.heavyQ > 0 && b.onGround && (a.id === m.combo[2].id || a.id === m.extra.id)) {
@@ -919,11 +1010,6 @@ export class Player extends Entity {
         }
         this.combo = 1;
         return this.startAttack(m.combo[1]);
-      }
-      if (input.pressed('dodge')) {
-        if (b.onGround) this.startDodge();
-        else if (this.airDash > 0) this.startAirDash();
-        return;
       }
       if (this.queued === 'attack') {
         const ex = G.world.executionTarget(this);
@@ -957,12 +1043,6 @@ export class Player extends Entity {
         this.combo = 0;
         return this.startAttack(this.moves.combo[0]);
       }
-      if (input.pressed('jump') && b.onGround) {
-        this.setState('free');
-        this.jumpBuf = 0.13;
-        return;
-      }
-      if (input.pressed('parry')) return this.startParry();
       if (Math.abs(input.axisX) > 0.5 && u > a.cancel + 0.1 && b.onGround) {
         this.setState('free');
         return;
@@ -1030,10 +1110,86 @@ export class Player extends Entity {
     }
   }
 
+  // ---------------------------------------------------------------- chain weapon & Mantle pursuit
+  private findMantleTarget(range: number): Entity | null {
+    let best: Entity | null = null, dist = Infinity;
+    for (const e of G.world.foes()) {
+      if (!e.canBeTargeted() || Math.abs(e.y - this.y) > 100) continue;
+      const dx = e.x - this.x;
+      if (dx * this.face < -20 || Math.abs(dx) > range) continue;
+      const d = Math.hypot(dx, e.cy - this.cy);
+      if (d < dist && los(G.world.grid, G.world.solid, this.cx, this.cy, e.cx, e.cy)) { best = e; dist = d; }
+    }
+    return best;
+  }
+
+  /** Check the whole body at both sides, including hazards and room boundaries. */
+  canPlace(x: number, y: number): boolean {
+    const W = G.world;
+    if (x < this.body.w / 2 || x > W.grid.w * 16 - this.body.w / 2 || y < this.body.h || y > W.grid.h * 16) return false;
+    if (!bodyFits(this.body, W.grid, W.solid, x, y)) return false;
+    if (!bodyFits(this.body, W.grid, (t) => t === T.Spikes || t === T.Veil, x, y)) return false;
+    const floor = W.grid.get(Math.floor(x / 16), Math.floor(y / 16));
+    return floor !== T.Spikes && floor !== T.Veil && los(W.grid, W.solid, this.x, this.cy, x, y - this.body.h / 2);
+  }
+
+  blinkSpot(target: Entity, side = sign(target.x - this.x) || this.face): { x: number; y: number } | null {
+    const off = target.body.w / 2 + this.body.w / 2 + 5;
+    const ty = target.y;
+    for (const dir of [side, -side]) {
+      const tx = target.x + dir * off;
+      if (!this.canPlace(tx, ty)) continue;
+      return { x: tx, y: ty };
+    }
+    return null;
+  }
+
+  blinkToFoe(target: Entity): boolean {
+    const spot = this.blinkSpot(target);
+    if (!spot) return false;
+    this.ghosts.push({ x: this.x, y: this.y, face: this.face, pose: { ...this.pose }, a: 0.85, rot: this.pose.rot, shade: true });
+    fx.streak(this.x, this.cy, spot.x, spot.y - 20, SHADE.hi, 0.2, 3);
+    fx.ring(this.x, this.cy, 4, 23, SHADE.violet, 0.18, 2);
+    this.x = spot.x; this.y = spot.y;
+    this.body.vx = this.body.vy = 0;
+    this.body.onGround = false;
+    this.face = sign(target.x - spot.x) || this.face;
+    this.invuln = Math.max(this.invuln, 0.13);
+    fx.ring(spot.x, spot.y - 20, 4, 28, SHADE.hi, 0.22, 2);
+    sfx('dash', { pitch: 1.6, vol: 0.6 });
+    return true;
+  }
+
+  throwWeapon(): boolean {
+    if (this.mantleT <= 0 || this.weaponCd > 0 || this.weaponFlight || (this.state !== 'free' && this.state !== 'attack')) return false;
+    this.weaponCd = 2.4;
+    this.weaponFlight = new ChainBlade(this, this.findMantleTarget(330));
+    G.world.add(this.weaponFlight);
+    this.atk = null;
+    this.queued = null;
+    this.castId = null;
+    this.setState('cast');
+    this.anim.play('cast', 0.025, true, 1.6);
+    sfx('swingHeavy', { pitch: 1.4 });
+    return true;
+  }
+
+  weaponImpact(target: Entity) {
+    this.registerHit();
+    this.lastFoe = target;
+    if (this.mantleT <= 0 || G.inCutscene || !['free', 'attack', 'cast', 'dodge', 'airdash', 'block', 'parry'].includes(this.state) || target.dying) return;
+    if (!this.blinkToFoe(target)) return;
+    this.mantleBlinkCd = 0.5;
+    this.combo = 1;
+    this.startAttack(this.moves.combo[1]);
+    this.comboT = 2.1;
+    input.rumble(0.35, 0.65, 100);
+  }
+
   // ---------------------------------------------------------------- Phantom Step
   /** A foe worth blinking to, or null. Prefers ones this chain has not struck yet. */
   private findPhantomTarget(): Entity | null {
-    const foes = G.world.foes().filter((e) => e.canBeTargeted() && Math.abs(e.x - this.x) < 150 && Math.abs(e.y - this.y) < 100);
+    const foes = G.world.foes().filter((e) => e.canBeTargeted() && Math.abs(e.x - this.x) < (this.mantleT > 0 ? 245 : 150) && Math.abs(e.y - this.y) < 100 && los(G.world.grid, G.world.solid, this.cx, this.cy, e.cx, e.cy));
     if (!foes.length) return null;
     const dist = (e: Entity) => Math.hypot(e.x - this.x, (e.y - this.y) * 0.7);
     foes.sort((a, b) => dist(a) - dist(b));
@@ -1047,28 +1203,27 @@ export class Player extends Entity {
   }
 
   canPhantom(): boolean {
-    if (!flag('phantom')) return false;
+    if (!flag('phantom') && this.mantleT <= 0) return false;
     if (this.state === 'phantom') return false;
-    const recent = G.time - this.lastHitAt < 0.65 || (this.phantomN > 0 && G.time < this.phantomUntil);
+    const recent = this.mantleT > 0 || G.time - this.lastHitAt < 0.65 || (this.phantomN > 0 && G.time < this.phantomUntil);
     if (!recent || (G.save.ce < PHANTOM_COST && !isSovereign() && this.mantleT <= 0)) return false;
-    return !!this.findPhantomTarget();
+    const target = this.findPhantomTarget();
+    return !!target && !!this.blinkSpot(target);
   }
 
   startPhantom() {
     const t = this.findPhantomTarget();
     if (!t) return;
-    if (!isSovereign() && this.mantleT <= 0) G.save.ce -= PHANTOM_COST;
-    this.ceRegenDelay = 0.6;
     // Arrive on the far side of the foe; if a wall is there, take the near side.
     const side = this.phantomN > 0 && t === this.phantomLast ? -sign(this.x - t.x) || this.face : sign(t.x - this.x) || this.face;
-    const off = t.body.w / 2 + 11;
-    let tx = t.x + side * off;
-    const ty = t.y;
-    const blocked = (x: number) => G.world.solidAt(x, ty - 6) || G.world.solidAt(x, ty - 26) || x < 8 || x > G.world.grid.w * 16 - 8;
-    if (blocked(tx)) tx = t.x - side * off;
-    if (blocked(tx)) tx = this.x;
+    const spot = this.blinkSpot(t, side);
+    if (!spot) return;
+    if (!isSovereign() && this.mantleT <= 0) G.save.ce -= PHANTOM_COST;
+    this.dodgeBuf = this.parryBuf = 0;
+    this.heavyQ = 0;
+    this.ceRegenDelay = 0.6;
     this.phantomFrom = { x: this.x, y: this.y };
-    this.phantomTo = { x: tx, y: ty };
+    this.phantomTo = spot;
     this.phantomTarget = t;
     this.phantomLast = t;
     this.phantomStruck.add(t.id);
@@ -1088,6 +1243,11 @@ export class Player extends Entity {
   private updatePhantom() {
     if (this.st < 0.075) return;
     const t = this.phantomTarget;
+    if (!this.canPlace(this.phantomTo.x, this.phantomTo.y)) {
+      const safe = t && !t.remove && !t.dying ? this.blinkSpot(t) : null;
+      if (!safe) { this.setState('free'); return; }
+      this.phantomTo = safe;
+    }
     this.x = this.phantomTo.x;
     this.y = this.phantomTo.y;
     this.body.vx = this.body.vy = 0;
@@ -1110,11 +1270,11 @@ export class Player extends Entity {
     this.phantomStruck.clear();
     if (t) {
       const side = sign(this.x - t.x) || -this.face;
-      const tx = t.x + side * (t.body.w / 2 + 14);
-      if (!G.world.solidAt(tx, t.y - 10) && !G.world.solidAt(tx, t.y - 30)) {
-        fx.streak(this.x, this.y - 20, tx, t.y - 24, '#fff6dc', 0.25, 4);
-        this.x = tx;
-        this.y = t.y;
+      const spot = this.blinkSpot(t, side);
+      if (spot) {
+        fx.streak(this.x, this.y - 20, spot.x, spot.y - 24, '#fff6dc', 0.25, 4);
+        this.x = spot.x;
+        this.y = spot.y;
       }
       this.face = sign(t.x - this.x) || this.face;
     }
@@ -1143,8 +1303,7 @@ export class Player extends Entity {
     }
     // Sword waves: finishers from level 35, every third swing from 75, every swing as a Sovereign.
     this.waveN++;
-    // In the Shadow Mantle, every grounded swing looses one.
-    const wave = (tier >= 3 && a.finisher) || (tier >= 5 && this.waveN % 3 === 0) || tier >= 6 || shade;
+    const wave = !shade && ((tier >= 3 && a.finisher) || (tier >= 5 && this.waveN % 3 === 0) || tier >= 6);
     if (wave && !a.air) {
       const big = tier >= 6 || shade;
       const c = shade ? SHADE.edge : el ? ELEMENTS[el].c : isSovereign() ? '#ffb347' : '#ffd27a';
@@ -1163,20 +1322,22 @@ export class Player extends Entity {
     strikeLamps(box);
     const d = G.d;
     const crit = Math.random() < d.crit;
-    let dmg = d.atk * a.dmg * d.meleeMult * mult * (this.lion > 0 ? 1.35 : 1) * G.world.commanderAura(this.x, this.y) * powerDamage();
+    const heavy = !!a.finisher || a.id === 'heavy';
+    let dmg = d.atk * a.dmg * d.meleeMult * mult * (heavy ? d.heavyMult : 1) * (this.lion > 0 ? 1.35 : 1) * G.world.commanderAura(this.x, this.y) * powerDamage();
     const el = weaponElement();
     const tier = powerTier();
     if (crit) dmg *= d.critDmg;
     const hit: HitInfo = {
-      dmg, poise: a.poise * (this.family === 'greatsword' ? 1.3 : 1) * (crit ? 1.3 : 1), kx: a.kx * this.face, ky: a.ky, dir: this.face, kind: 'melee', crit,
-      src: this, launch: a.launch, heavy: (a.finisher ?? false) || a.id === 'heavy', guardBreak: a.guardBreak, stop: a.stop,
+      dmg, poise: a.poise * (this.family === 'greatsword' ? 1.3 : 1) * (heavy ? d.heavyPoiseMult : 1) * (crit ? 1.3 : 1), kx: a.kx * this.face, ky: a.ky, dir: this.face, kind: 'melee', crit,
+      src: this, launch: a.launch, heavy, guardBreak: a.guardBreak || (heavy && this.family === 'greatsword' && d.masteryRank >= 10), stop: a.stop,
     };
     if (this.swapStrikeT > 0) {
       // Arriving from a swap: the first blow carries the momentum.
       hit.dmg *= 1.5;
       hit.poise *= 1.5;
     }
-    const n = G.world.hitEnemies(box, hit, this.atkHit, (e) => {
+    const n = G.world.hitEnemies(box, hit, this.atkHit, (e, dealt) => {
+      this.practiceHit(e, dealt, !!a.finisher);
       this.registerHit();
       this.lastFoe = e;
       if (this.swapStrikeT > 0) {
@@ -1184,14 +1345,14 @@ export class Player extends Entity {
         fx.ring(e.x, e.cy, 4, 34, '#ffe6a8', 0.3, 3);
       }
       // per-hit feedback
-      G.save.ce = Math.min(d.maxCe, G.save.ce + (flag('relic_taken') ? 2.4 * (skillRank(G.save, 'l_radiance') ? 1.3 : 1) : 0));
+      G.save.ce = Math.min(d.maxCe, G.save.ce + (flag('relic_taken') ? 2.4 * (1 + skillRank(G.save, 'l_radiance') * 0.3) : 0));
       G.world.addRally(1.4);
       if (a.hang && !this.body.onGround) this.body.vy = Math.min(this.body.vy, a.hang);
       if (a.finisher) G.world.echoAssist(e);
-      if (d.lifesteal > 0) G.save.hp = Math.min(d.maxHp, G.save.hp + dmg * d.lifesteal);
-      if (el) elementHit(e, el, dmg, this.face, !!a.finisher);
+      this.leechHeal(dealt, d.lifesteal);
+      if (el) elementHit(e, el, dmg, this.face, !!a.finisher, dealt);
       // The Mantle drinks from every cut and answers it with a shadow blade.
-      if (this.mantleT > 0 && el !== 'shadow') elementHit(e, 'shadow', dmg * 0.6, this.face, !!a.finisher);
+      if (this.mantleT > 0 && el !== 'shadow') elementHit(e, 'shadow', dmg * 0.6, this.face, !!a.finisher, dealt);
       if (tier >= 3 || this.mantleT > 0) fx.ring(e.cx, e.cy, 4, 18 + tier * 4, this.mantleT > 0 ? SHADE.edge : el ? ELEMENTS[el].c : '#ffe6a8', 0.18, 2);
       mantleGain(crit ? 1.7 : 1.1);
       if (e.dying) {
@@ -1210,9 +1371,17 @@ export class Player extends Entity {
     }
   }
 
+  /** Called only after real damage, including the Mantle's thrown weapon. */
+  practiceHit(foe: Entity, damage: number, finisher = false) {
+    if (!this.practice.hit(G.save, this.family, foe, damage, finisher)) return;
+    G.d = derive(G.save);
+    G.ui.toast(`${this.family === 'greatsword' ? 'Greatsword' : this.family === 'spear' ? 'Spear' : 'Blade'} mastery ${G.d.masteryRank} · +${G.d.masteryRank * 3}% weapon damage · see Progression`, 'good');
+    sfx('chargeFull', { vol: 0.45 });
+  }
+
   attackBox(a: AttackDef): Rect {
     const reach = this.moves.reach;
-    const w = a.box.w * (this.family === 'spear' ? 1 : reach);
+    const w = a.box.w * (this.family === 'spear' ? 1 : reach) + chainReach(a);
     const x = this.face > 0 ? this.x + a.box.x : this.x - a.box.x - w;
     return { x, y: this.y + a.box.y, w, h: a.box.h };
   }
@@ -1231,7 +1400,7 @@ export class Player extends Entity {
       fx.holyBurst(this.x + this.face * 4, this.y - 34, 4 + lvl * 3, 0.4);
     }
     if (Math.random() < dt * 30) fx.spawn(PK.Ember, this.x + rand(-10, 10), this.y - rand(0, 30), 0, -40, 0.5, 1.2, 0.2, '#ffd27a');
-    if (input.pressed('dodge')) return this.startDodge();
+    if (this.tryDefense()) return;
     const held = input.down('attack') || input.down('heavy');
     if (!held) {
       const mults = [1, 1.35, 1.8, 2.5];
@@ -1310,6 +1479,13 @@ export class Player extends Entity {
       G.world.hitstop(0.06);
       G.camera.addTrauma(0.2 * shakeScale());
       G.save.ce = Math.min(d.maxCe, G.save.ce + (skillRank(s, 'g_timing') ? 12 : 5));
+      if (d.sets.vigil >= 3 && this.vigilParryCd <= 0) {
+        this.vigilParryCd = 3;
+        s.hp = Math.min(d.maxHp, s.hp + d.maxHp * 0.05);
+        s.ce = Math.min(d.maxCe, s.ce + 8);
+        fx.ring(this.x, this.cy, 6, 30, '#f4d295', 0.3, 2);
+        G.ui.refreshHud();
+      }
       G.world.addRally(10);
       mantleGain(8);
       input.rumble(0.25, 0.8, 110);
@@ -1319,8 +1495,9 @@ export class Player extends Entity {
     }
     // Block.
     if ((this.state === 'block' || this.state === 'parry') && facingAttack && !h.unblockable && h.kind !== 'hazard') {
-      const dmg = Math.max(1, h.dmg * 0.25 * (1 - d.dr));
+      const dmg = Math.max(1, h.dmg * runBlessings.incoming * 0.25 * (1 - d.dr));
       s.hp -= dmg;
+      this.sinceHurt = 0;
       sfx('block');
       fx.hitSparks(this.x + this.face * 8, this.y - 22, this.face, '#ffe6a8', 8);
       this.body.vx = -this.face * 140;
@@ -1332,10 +1509,11 @@ export class Player extends Entity {
       G.ui.refreshHud();
       return true;
     }
-    let dmg = h.dmg * (1 - d.dr) * (this.armorLight > 0 ? 0.6 : 1) * (this.mantleT > 0 ? 0.5 : 1) * G.world.guardianAura(this.x, this.y);
-    if (h.kind === 'hazard') dmg = h.dmg * (1 - d.dr * 0.5);
+    let dmg = h.dmg * runBlessings.incoming * (1 - d.dr) * (this.armorLight > 0 ? 0.6 : 1) * (this.mantleT > 0 ? 0.5 : 1) * G.world.guardianAura(this.x, this.y);
+    if (h.kind === 'hazard') dmg = h.dmg * runBlessings.incoming * (1 - d.dr * 0.5);
     dmg = Math.max(1, Math.round(dmg));
     s.hp -= dmg;
+    this.sinceHurt = 0;
     this.flash = 0.15;
     this.invuln = h.kind === 'hazard' ? 0.5 : 0.8;
     this.ceRegenDelay = 1;
@@ -1394,6 +1572,8 @@ export class Player extends Entity {
 
   revive() {
     this.setState('free');
+    this.sinceHurt = 0;
+    this.mendT = 0;
     this.anim.play('idle', 0, true);
     this.invuln = 1.2;
     this.ghosts.length = 0;
@@ -1460,7 +1640,9 @@ export class Player extends Entity {
   private updateTrail(dt: number) {
     const w = this.lastWpn;
     const f = this.face;
-    const active = this.state === 'attack' || this.state === 'execute' || this.state === 'plunge' || (this.state === 'charge' && this.chargeLvl >= 2);
+    const progress = this.atk ? this.atkT / (this.atk.dur / this.aspd()) : 0;
+    const striking = this.state === 'attack' && this.atk && progress >= this.atk.hit[0] - 0.035 && progress <= this.atk.hit[1] + 0.07;
+    const active = striking || this.state === 'execute' || this.state === 'plunge' || (this.state === 'charge' && this.chargeLvl >= 2);
     if (active) {
       this.trail.unshift(this.x + f * w.bx, this.y + w.by, this.x + f * w.tx, this.y + w.ty);
       if (this.trail.length > 4 * 7) this.trail.length = 4 * 7;
@@ -1502,18 +1684,17 @@ export class Player extends Entity {
       ctx.globalCompositeOperation = 'source-over';
       return;
     }
-    // In pixel art the cape and scarf are painted with the body, in one pass.
-    const pixelArt = G.renderer.pixel && this.mantleT <= 0;
+    // The illustrated atlas handles Elior's scarf; classic poses retain the old ribbon.
+    const illustrated = heroSpriteReady(s, this.state, this.mantleT);
     // cape & scarf (world space, behind body)
     const lv = G.save.level;
-    const caped = lv >= 7 || !!(s.plate && s.plate.tier >= 2);
     if (this.mantleT > 0) {
       drawMantleBack(ctx, this);
-    } else if (caped && !pixelArt) {
+    } else if (lv >= 7 || (s.plate && s.plate.tier >= 2)) {
       drawRibbon(ctx, this.cape, 9, 13, '#3a1418', '#0a070c');
       if (lv >= 7) drawRibbon(ctx, this.cape, 1.5, 2, '#e2b85a');
     }
-    if (!pixelArt) drawRibbon(ctx, this.scarf, 3.4, 1.4, s.scarf ?? '#8f2a2a', '#0a070c');
+    if (!illustrated) drawRibbon(ctx, this.scarf, 3.4, 1.4, s.scarf ?? '#8f2a2a', '#0a070c');
     // aura
     if (this.aura > 0.01) {
       ctx.globalCompositeOperation = 'lighter';
@@ -1540,14 +1721,15 @@ export class Player extends Entity {
     if (blink) ctx.globalAlpha = 0.55;
     const eye = this.mantleT > 0 || this.state === 'transform' ? 1 : this.state === 'cast' || this.lion > 0 || this.armorLight > 0 || this.state === 'execute' ? 0.9 : 0;
     s.eyeGlow = eye;
-    if (pixelArt) {
-      PX.x = this.x; PX.y = this.y;
-      PX.cape = caped ? this.cape : null;
-      PX.capeTrim = lv >= 7 ? '#e2b85a' : null;
-      PX.scarf = this.scarf;
-      setPixelExtras(PX);
-    }
-    const w = drawHumanoid(ctx, this.j, s, t, this.pose.rot, this.body.vx * this.face, this.body.onGround ? 0 : this.body.vy);
+    const attackProgress = this.atk ? clamp(this.atkT / Math.max(0.01, this.atk.dur / this.aspd()), 0, 1) : this.anim.u;
+    const extension = this.atk && this.state === 'attack'
+      ? chainReach(this.atk) * clamp(Math.min(attackProgress / this.atk.hit[0], (1 - attackProgress) / Math.max(0.01, 1 - this.atk.hit[1])), 0, 1) : 0;
+    if (!illustrated && extension > 1 && !this.weaponFlight) drawChain(ctx, this.j.haFX, this.j.haFY, this.j.haFX + extension, this.j.haFY, this.mantleT > 0, 2);
+    const w = illustrated
+      ? drawHeroSprite(ctx, this.j, s, t, this.state as HeroSpriteAction, this.body.vx * this.face,
+          this.body.onGround, this.body.vy, attackProgress, this.pose.rot, this.mantleT, extension, !!this.weaponFlight, this.st, this.spriteStride,
+          this.atk?.hit[0], this.atk?.hit[1], !!this.atk?.finisher || this.atk?.id === 'heavy')
+      : drawHumanoid(ctx, this.j, s, t, this.pose.rot, this.body.vx * this.face, this.body.onGround ? 0 : this.body.vy);
     this.lastWpn.bx = w.bx; this.lastWpn.by = w.by; this.lastWpn.tx = w.tx; this.lastWpn.ty = w.ty;
     if (this.flash > 0) {
       ctx.globalCompositeOperation = 'lighter';

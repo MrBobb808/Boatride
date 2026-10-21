@@ -20,13 +20,14 @@ export interface UIHooks {
   openShop(kind: 'merchant' | 'smith'): void;
   openAltar(id: string): void;
   echoWheel(open: boolean): void;
+  voiceOrders(): void;
   showCredits(after?: () => void): void;
   chapterEnd(chapter?: number): Promise<'next' | 'stay'>;
   bossBar(name: string | null, sub?: string): void;
   caption(text: string | null, ref?: string): void;
   refreshHud(): void;
   isBlocking(): boolean;
-  choice(title: string, body: string, options: { label: string; sub?: string }[]): Promise<number>;
+  choice(title: string, body: string, options: { label: string; sub?: string; icon?: string; risk?: boolean }[], kind?: 'blessing', signal?: AbortSignal): Promise<number>;
   death(): Promise<void>;
 }
 

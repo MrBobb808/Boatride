@@ -5,12 +5,14 @@ import { readFileSync, writeFileSync, mkdirSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 const dist = resolve('dist');
-const build = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 12);
+const html = readFileSync(resolve(dist, 'index.html'), 'utf8');
+const build = html.match(/<meta name="remnant-build" content="([^"]+)"/)?.[1];
+if (!build) throw new Error('Missing production build stamp');
 
 const swPath = resolve(dist, 'sw.js');
 writeFileSync(swPath, readFileSync(swPath, 'utf8').replace('__BUILD__', build));
 
-const html = readFileSync(resolve(dist, 'index.html'), 'utf8');
+writeFileSync(resolve(dist, 'version.json'), JSON.stringify({ build, art: 'pixel-2', commit: process.env.GITHUB_SHA ?? null }) + '\n');
 const pick = (re) => (html.match(re) ?? [])[0] ?? '';
 const styles = html.match(/<style[\s\S]*?<\/style>/g) ?? [];
 const scripts = html.match(/<script[\s\S]*?<\/script>/g) ?? [];

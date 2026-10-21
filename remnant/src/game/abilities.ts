@@ -17,6 +17,38 @@ export function castAbility(p: Player, id: AbilityId) {
   const pow = d.atk * d.abil;
   p.cds[id] = ABILITIES[id].cd;
   switch (id) {
+    case 'chain_snare': {
+      const t = W.nearestEnemy(p.x, p.cy, 260, p.face);
+      if (t && p.blinkSpot(t)) {
+        fx.streak(p.x, p.cy, t.x, t.cy, '#ddcfb0', 0.45, 3);
+        t.takeHit({ dmg: pow * 1.6, poise: 65, kx: 0, ky: -80, dir: p.face, kind: 'ability', src: p, stun: 1.1, guardBreak: true });
+        if (!t.isBoss) t.body.vx = -Math.sign(t.x - p.x) * 300;
+        fx.ring(t.x, t.cy, 18, 12, '#ddcfb0', 1.1, 3);
+      }
+      sfx('chains');
+      break;
+    }
+    case 'blink_strike': {
+      const t = W.nearestEnemy(p.x, p.cy, 260, p.face);
+      if (t && p.blinkToFoe(t)) {
+        t.takeHit({ dmg: pow * 3.2, poise: 80, kx: p.face * 180, ky: -180, dir: p.face, kind: 'ability', src: p, guardBreak: true, stop: 0.06 });
+        fx.slash(t.x, t.cy, 38, -2.3, 0.7, 9, p.face, '#ffffff', '#ad9aff', 0.3);
+      }
+      sfx('dash');
+      break;
+    }
+    case 'mending_light': {
+      p.mendT = 6;
+      fx.ring(p.x, p.cy, 8, 38, '#9de6bb', 0.6, 3);
+      sfx('stillWaters');
+      break;
+    }
+    case 'frost_ring': {
+      W.hitEnemies({ x: p.x - 120, y: p.y - 100, w: 240, h: 120 }, { dmg: pow * 1.7, poise: 35, kx: 0, ky: -80, dir: p.face, kind: 'ability', src: p }, new Set(), (e) => { e.chill = Math.max(e.chill, 4); });
+      fx.ring(p.x, p.cy, 10, 120, '#a0deff', 0.65, 5);
+      sfx('shieldFaith');
+      break;
+    }
     case 'sword_word': {
       W.add(new Proj('word', p.x + p.face * 14, p.y - 22, 'player', pow * 1.9, { vx: p.face * 430, life: 0.75, w: 26, h: 46, poise: 30 }));
       sfx('swordWord');

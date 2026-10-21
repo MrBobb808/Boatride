@@ -147,7 +147,8 @@ function put(i: number, c: number, deepC: number) {
 }
 
 /** One pixel of detail on top of what is there (eyes, buckles, glints). */
-function dot(x: number, y: number, c: number) {
+function dot(x: number, y: number, c: number, detail = true) {
+  if (detail && !fine) return;
   const cx = colOf(x), cy = rowOf(y);
   if (cx < 1 || cy < 1 || cx > W - 2 || cy > H - 2) return;
   const i = cy * W + cx;
@@ -160,9 +161,9 @@ function dot(x: number, y: number, c: number) {
 }
 
 /** A 1-pixel line of detail. */
-function line(x0: number, y0: number, x1: number, y1: number, c: number) {
+function line(x0: number, y0: number, x1: number, y1: number, c: number, detail = true) {
   const n = Math.max(1, Math.ceil(Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0))));
-  for (let k = 0; k <= n; k++) dot(x0 + (x1 - x0) * (k / n), y0 + (y1 - y0) * (k / n), c);
+  for (let k = 0; k <= n; k++) dot(x0 + (x1 - x0) * (k / n), y0 + (y1 - y0) * (k / n), c, detail);
 }
 
 // ---------------------------------------------------------------- shapes
@@ -189,7 +190,7 @@ function capsule(ax: number, ay: number, bx: number, by: number, ra: number, rb:
       if (d2 > rr * rr) continue;
       const i = row * W + col;
       const o = own[i];
-      if (o && o !== part && !(opts & SAME) && d2 > (rr - 0.9) * (rr - 0.9)) { put(i, r[DEEP], r[DEEP]); continue; }
+      if (fine && o && o !== part && !(opts & SAME) && d2 > (rr - 0.9) * (rr - 0.9)) { put(i, r[DEEP], r[DEEP]); continue; }
       const n = (ox * LX + oy * LY) / (rr || 1);
       put(i, r[metal && n > 0.72 ? HI : level(n)], r[DEEP]);
     }
@@ -208,6 +209,7 @@ const P = (x: number, y: number) => { PTS[np++] = x; PTS[np++] = y; };
  */
 function poly(r: Ramp, cx: number, cy: number, ax: number, ay: number, hw: number, flat = BASE, contour = true) {
   part++;
+  contour = contour && fine;
   const n = np >> 1;
   let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
   for (let k = 0; k < n; k++) {
@@ -437,7 +439,7 @@ let hc = 1, hs = 0, hX = 0, hY = 0;
 const HP = (u: number, v: number) => P(hX + u * hc - v * hs, hY + u * hs + v * hc);
 const hx_ = (u: number, v: number) => hX + u * hc - v * hs;
 const hy_ = (u: number, v: number) => hY + u * hs + v * hc;
-const hdot = (u: number, v: number, c: number) => dot(hx_(u, v), hy_(u, v), c);
+const hdot = (u: number, v: number, c: number, detail = true) => dot(hx_(u, v), hy_(u, v), c, detail);
 
 function head(j: Joints, S: HumanStyle, time: number, flowX: number, liftY: number) {
   const a = j.headA, R = 4.5;
@@ -482,14 +484,14 @@ function head(j: Joints, S: HumanStyle, time: number, flowX: number, liftY: numb
   if (S.helm !== 'visor' && S.helm !== 'sentinel' && S.helm !== 'mask') {
     if (S.eyeGlow > 0) {
       const e = ramp(S.eye);
-      hdot(ex, ey, e[HI]);
-      hdot(ex + 1, ey, e[LIGHT]);
+      hdot(ex, ey, e[HI], false);
+      hdot(ex + 1, ey, e[LIGHT], false);
     } else if ((time % 4.3) < 0.11) {
-      hdot(ex, ey, skin[DEEP]);
-      hdot(ex + 1, ey, skin[DEEP]);
+      hdot(ex, ey, skin[DEEP], false);
+      hdot(ex + 1, ey, skin[DEEP], false);
     } else if (!S.flat) {
-      hdot(ex - 0.2, ey, pack(236, 228, 214));
-      hdot(ex + 0.9, ey, pack(28, 18, 14));
+      hdot(ex - 0.2, ey, pack(236, 228, 214), false);
+      hdot(ex + 0.9, ey, pack(28, 18, 14), false);
     }
     if (hair && !S.flat) {
       hdot(ex - 0.6, ey - 1.4, hair[DEEP]);
@@ -543,14 +545,22 @@ function head(j: Joints, S: HumanStyle, time: number, flowX: number, liftY: numb
       HP(R * 1.25, R * 0.95); HP(R * 0.4, R * 1.2); HP(-R * 0.6, R * 1.1);
       poly(c, hx_(R * 0.35, -R * 0.6), hy_(R * 0.35, -R * 0.6), 0, 0, -R * 1.5);
       const slit = S.eyeGlow > 0 ? ramp(S.eye)[HI] : pack(11, 10, 13);
-      for (let u = R * 0.15; u <= R * 1.2; u += 1) hdot(u, -R * 0.15, slit);
-      hdot(R * 0.75, R * 0.3, slit);
-      hdot(R * 0.75, R * 0.55, slit);
+      for (let u = R * 0.15; u <= R * 1.2; u += 1) hdot(u, -R * 0.15, slit, false);
+      hdot(R * 0.75, R * 0.3, slit, false);
+      hdot(R * 0.75, R * 0.55, slit, false);
       if (S.helmTrim) {
         const t = ramp(S.helmTrim)[BASE];
         for (let u = -R * 0.4; u <= R * 0.7; u += 1) hdot(u, -R * 1.25, t);
       }
       hdot(R * 0.5, -R * 1.0, c[HI]);
+      if (S.crest) {
+        // A plume of flame streaming back from the crown of the helm.
+        const fl = Math.sin(time * 9) * 0.6 + sway * 0.6;
+        HP(-R * 0.4, -R * 1.3); HP(-R * 1.6 + fl * 0.5, -R * 2.2 + fl); HP(-R * 2.6 + fl, -R * 1.2 + fl); HP(-R * 0.9, -R * 0.9);
+        const cr = ramp(S.crest);
+        poly(cr, hx_(-R * 1.2, -R * 1.5), hy_(-R * 1.2, -R * 1.5), 0, 0, -R * 1.4, BASE, false);
+        hdot(-R * 1.3, -R * 1.7 + fl * 0.5, cr[HI]);
+      }
       break;
     }
     case 'crown': {
@@ -578,7 +588,7 @@ function head(j: Joints, S: HumanStyle, time: number, flowX: number, liftY: numb
         HP(R * 0.25 + Math.cos(t) * R * 0.95, -R * 0.1 + Math.sin(t) * R * 1.15);
       }
       poly(m, hx_(R * 0.5, -R * 0.5), hy_(R * 0.5, -R * 0.5), 0, 0, -R * 1.4);
-      hdot(R * 0.65, -R * 0.3, pack(18, 12, 20));
+      hdot(R * 0.65, -R * 0.3, pack(18, 12, 20), false);
       hdot(R * 0.85, R * 0.2, ramp('#d6a640')[BASE]);
       break;
     }
@@ -722,8 +732,8 @@ function offhand(j: Joints, S: HumanStyle, time: number) {
         }
       }
       const sx = hx - dx * pull, sy = hy - dy * pull, str = trim[LIGHT];
-      line(hx + px * L + dx * 3, hy + py * L + dy * 3, sx, sy, str);
-      line(sx, sy, hx - px * L + dx * 3, hy - py * L + dy * 3, str);
+      line(hx + px * L + dx * 3, hy + py * L + dy * 3, sx, sy, str, false);
+      line(sx, sy, hx - px * L + dx * 3, hy - py * L + dy * 3, str, false);
       if ((S.bowDraw ?? 0) > 0.05) line(sx, sy, hx + dx * 6, hy + dy * 6, S.weaponGlow ? ramp(S.weaponGlow)[HI] : pack(216, 203, 176));
       break;
     }
@@ -732,7 +742,7 @@ function offhand(j: Joints, S: HumanStyle, time: number) {
       P(hx - 2, hy + 2.5); P(hx + 2, hy + 2.5); P(hx + 2.4, hy + 7); P(hx - 2.4, hy + 7);
       poly(ramp('#c58d3a'), hx, hy + 5, 1, 0, 2.4);
       const f = (time * 12) % 2 < 1 ? pack(255, 236, 180) : pack(255, 214, 140);
-      dot(hx - 0.5, hy + 4.5, f); dot(hx + 0.5, hy + 4.5, f); dot(hx - 0.5, hy + 5.5, f); dot(hx + 0.5, hy + 5.5, f);
+      dot(hx - 0.5, hy + 4.5, f, false); dot(hx + 0.5, hy + 4.5, f, false); dot(hx - 0.5, hy + 5.5, f, false); dot(hx + 0.5, hy + 5.5, f, false);
       break;
     }
   }
@@ -753,6 +763,11 @@ function ribbon(ch: Chain, w0: number, w1: number, c: string, ox: number, oy: nu
 // ---------------------------------------------------------------- entry point
 
 let enabled = false;
+/** Fine detail (contours where parts cross, strands, glints, seams) on medium and high quality only. */
+let fine = true;
+export function setPixelDetail(tier: number) {
+  fine = tier >= 1;
+}
 /** The renderer turns pixel characters on with the pixel-art style. */
 export function setPixelArt(on: boolean) {
   enabled = on;
@@ -788,7 +803,8 @@ const opaque = (c: string) => c[0] === '#' || c.startsWith('rgb(') || c.endsWith
 export function paintPixelHumanoid(ctx: Ctx, j0: Joints, S: HumanStyle, time: number, rot: number, vx: number, vy: number): WeaponPts | null {
   const ex = extras;
   extras = null;
-  if (!enabled || !opaque(S.skin) || !opaque(S.coat)) return null;
+  // Flat silhouettes (title figures, the one-frame white hit flash) keep the classic painter.
+  if (!enabled || S.flat || !opaque(S.skin) || !opaque(S.coat)) return null;
   if (Math.abs(j0.headY) > 70 || Math.abs(j0.headX) > 40 || j0.hipY < -40) return null;
   const m = ctx.getTransform();
   if (Math.abs(m.b) > 1e-3 || Math.abs(m.c) > 1e-3 || m.d <= 0) return null;
@@ -852,6 +868,7 @@ export function paintPixelHumanoid(ctx: Ctx, j0: Joints, S: HumanStyle, time: nu
   }
   if (S.eyeGlow > 0 && S.helm !== 'mask') glow(ctx, hx_(4.5 * 0.6, -0.55), hy_(4.5 * 0.6, -0.55), 4.5, S.eye, S.eyeGlow);
   if (S.runes) glow(ctx, (j.elFX + j.haFX) / 2, (j.elFY + j.haFY) / 2, 3.5, S.runes, 0.3);
+  if (S.crest && (S.helm === 'visor' || S.helm === 'sentinel')) glow(ctx, hx_(-4.5 * 1.4, -4.5 * 1.6), hy_(-4.5 * 1.4, -4.5 * 1.6), 6, S.crest, 0.6);
   if (S.crack) glow(ctx, j.hipX + (j.neckX - j.hipX) * 0.6, j.hipY + (j.neckY - j.hipY) * 0.6, 6, S.crack, 0.45);
   if (S.offhand === 'lantern') glow(ctx, j.haBX, j.haBY + 5, 14, '#ffb35c', 0.8 + Math.sin(time * 12) * 0.1);
   if (S.offhand === 'blazing') glow(ctx, j.haBX + 2.5, j.haBY, 16, '#fff2c4', 0.55 + Math.sin(time * 6) * 0.1);

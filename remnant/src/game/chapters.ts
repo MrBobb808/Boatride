@@ -1,3 +1,4 @@
+import { FALLEN_CHAPTERS } from './fallenChapters';
 // The chapters, for chapter select, and the training grounds (the Trial of
 // the Remnant entered from the menu). Travelling to a chapter you have
 // reached puts you at its hub altar; a chapter you have unlocked but not yet
@@ -5,6 +6,9 @@
 
 import { G, flag } from './ctx';
 import { ROOMS } from './rooms';
+import { bestRounds } from './board';
+import { ECHO_SPECIES } from './data';
+import { isContract, type ContractId } from './progression';
 
 export interface ChapterDef {
   n: number;
@@ -45,6 +49,12 @@ export const CHAPTERS: ChapterDef[] = [
     blurb: 'The river is turned aside and Babylon feasts on holy vessels. A hand writes on the palace wall.',
     reached: () => flag('ch5_intro'), done: () => flag('ch5_done'),
   },
+  {
+    n: 6, roman: 'VI', title: 'The Prince of Persia', hub: 'hiddekel_camp', level: 52,
+    blurb: 'By the great river an old man fasts for an answer that is held back. Above Shushan, fallen princes rule the air.',
+    reached: () => flag('ch6_intro'), done: () => flag('ch6_done'),
+  },
+  ...FALLEN_CHAPTERS.map(c => ({n:c.n,roman:c.roman,title:c.title,hub:c.hub,level:80+(c.n-7)*20,blurb:c.intro[1],reached:()=>flag(`ch${c.n}_intro`),done:()=>flag(`ch${c.n}_done`)})),
 ];
 
 /** A chapter can be played once you have reached it or finished the one before. */
@@ -75,20 +85,27 @@ export function nextChapter(): ChapterDef | null {
 
 // ---------------------------------------------------------------- training
 
-export const trainingOpen = () => flag('relic_taken');
+/** Practice can be recovered from a journey's trophies or this device's ranked runs. */
+export function trainingBest(bossOnly = false) {
+  const values = [Number(G.save.flags[bossOnly ? 'boss_trial_best' : 'trial_best'] ?? 0), bestRounds(bossOnly)];
+  if (!bossOnly) values.push(...(G.save.trialMilestones ?? []));
+  return Math.floor(Math.max(0, ...values.filter((n) => Number.isFinite(n) && n >= 0)));
+}
+export const trainingOpen = () => flag('relic_taken') || trainingBest() > 0 || trainingBest(true) > 0;
 
-/** Wave choices: from the start, or skip ahead to within reach of your best. */
-export function trainingStarts(): number[] {
-  const best = Number(G.save.flags.trial_best ?? 0);
-  const out = [1];
-  for (const w of [10, 20, 30, 40, 50, 75, 100]) if (best >= w) out.push(w);
-  return out;
+/** Earlier milestones plus the exact highest available round; all skips are unranked. */
+export function trainingStarts(bossOnly = false): number[] {
+  const best = trainingBest(bossOnly);
+  return [...new Set([1, ...[10, 20, 30, 40, 50, 75, 100].filter((w) => best >= w), ...(best > 1 ? [best] : [])])].sort((a, b) => a - b);
 }
 
 /** Enter the Trial from anywhere; leaving it returns you to this spot. */
-export function startTraining(fromWave = 1) {
+export function startTraining(fromWave = 1, bossOnly = false, original?: string, contract?: ContractId) {
   const W = G.world;
   const s = G.save;
+  s.flags.echo_trial_species = original && ECHO_SPECIES[original] && s.echoes.some((e) => e.species === original) ? original : '';
+  s.flags.trial_contract = !bossOnly && isContract(contract) ? contract : '';
+  if (W.room.id === 'trial_arena' && W.story.ch3.rounds.active) W.story.ch3.rounds.stop();
   if (W.room.id !== 'trial_arena') {
     // Come back through the nearest named spawn of the room you left.
     const p = W.player;
@@ -100,5 +117,6 @@ export function startTraining(fromWave = 1) {
     s.flags.trial_return = `${W.room.id}|${best}`;
   }
   s.flags.trial_from = fromWave;
+  s.flags.trial_mode = bossOnly ? 'boss' : 'survival';
   W.transition('trial_arena', 'start');
 }

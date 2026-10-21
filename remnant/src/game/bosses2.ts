@@ -26,7 +26,7 @@ import { moveBody } from './physics';
 import { SENT_BASE, SENT_DIMS } from './enemies';
 import { marshalStyle } from './tanks';
 
-export type BossKey = 'gatekeeper' | 'marshal' | 'locust_king' | 'golden_image' | 'weigher';
+export type BossKey = 'gatekeeper' | 'marshal' | 'locust_king' | 'golden_image' | 'weigher' | 'storm_prince' | 'persia_prince' | 'beast_monarch' | 'plague_monarch' | 'cinder_monarch';
 
 /** Shared lifecycle for the Chapter II bosses: intro, phases, kneel, defeat. */
 export abstract class BossBase extends Entity {
@@ -102,7 +102,7 @@ export abstract class BossBase extends Entity {
   update(dt: number) {
     if (this.chill > 0 && this.fighting) dt *= 0.75;
     // Harder settings make the fight itself quicker, never the cutscenes.
-    if (this.fighting && this.state !== 'kneel') dt *= bossScale().tempo;
+    if (this.fighting && this.state !== 'kneel') dt *= bossScale().tempo * this.encounterTempo;
     this.st += dt;
     this.flash = Math.max(0, this.flash - dt);
     this.staggerFlash = Math.max(0, this.staggerFlash - dt);

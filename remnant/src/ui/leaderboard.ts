@@ -11,7 +11,7 @@ import { formatTime } from '../core/math';
 import { loadBoard, renameRun, type RunEntry } from '../game/board';
 import { pullBoard, cloudActive } from '../game/cloud';
 
-export interface RunStats { rounds: number; kills: number; time: number; level: number; levels: number; from: number }
+export interface RunStats { rounds: number; kills: number; time: number; level: number; levels: number; from: number; bossOnly?: boolean; rematch?: boolean; contract?: string }
 
 const root = () => document.getElementById('ui')!;
 
@@ -25,18 +25,18 @@ function rows(list: { name: string; rounds: number; kills: number; time: number;
 }
 
 /** The board tabs: this device, and everyone (only where a shared board exists). */
-function boardBox(highlight: number | null, top = 10) {
+function boardBox(highlight: number | null, top = 10, bossOnly = false) {
   const box = h('div', { class: 'col' });
   let view: 'device' | 'all' = 'device';
   const render = () => {
     box.replaceChildren();
     const tabs = h('div', { class: 'modes' },
       btn('This device', () => { view = 'device'; render(); }, 'btn small' + (view === 'device' ? ' primary' : ''), { 'data-k': 'lb_dev' }),
-      cloudActive() ? btn('Everyone', () => { view = 'all'; render(); }, 'btn small' + (view === 'all' ? ' primary' : ''), { 'data-k': 'lb_all' }) : null,
+      cloudActive() && !bossOnly ? btn('Everyone', () => { view = 'all'; render(); }, 'btn small' + (view === 'all' ? ' primary' : ''), { 'data-k': 'lb_all' }) : null,
     );
     box.appendChild(tabs);
     if (view === 'device') {
-      box.appendChild(rows(loadBoard().slice(0, top).map((e) => ({ ...e, mine: e.id === highlight })), 'No ranked runs yet. Start the Trial from round 1 to get on the board.'));
+      box.appendChild(rows(loadBoard(bossOnly).slice(0, top).map((e) => ({ ...e, mine: e.id === highlight })), 'No ranked runs yet. Start from round 1 to get on this board.'));
     } else {
       const wait = h('div', { class: 'muted', style: 'padding:8px 0' }, 'Loading…');
       box.appendChild(wait);
@@ -53,12 +53,12 @@ function boardBox(highlight: number | null, top = 10) {
 }
 
 /** Open the leaderboard on its own (from the Chapters tab). */
-export function openLeaderboard() {
+export function openLeaderboard(bossOnly = false) {
   const card = h('div', { class: 'chapter panel scroll' },
-    h('div', { class: 'eyebrow' }, 'The Trial of the Remnant'),
+    h('div', { class: 'eyebrow' }, bossOnly ? 'The Boss Gauntlet' : 'The Trial of the Remnant'),
     h('h2', null, 'LEADERBOARD'),
-    h('p', { class: 'muted' }, 'Ranked by the round each run reached. Only runs that start at round 1 are ranked.'),
-    boardBox(null),
+    h('p', { class: 'muted' }, bossOnly ? 'Ranked by bosses defeated. Only runs starting at round 1 are ranked. This board is separate from survival.' : 'Ranked by the round each run reached. Only runs that start at round 1 are ranked.'),
+    boardBox(null, 10, bossOnly),
     h('div', { class: 'row', style: 'justify-content:center;margin-top:10px' }, btn('Close', () => close(), 'btn primary', { 'data-autofocus': '', 'data-k': 'lb_close' })),
   );
   const layer = h('div', { class: 'layer dim' }, card);
@@ -83,24 +83,24 @@ export function gameOver(st: RunStats, entry: RunEntry | null, place: number, be
     const card = h('div', { class: 'chapter panel scroll gameover' },
       h('div', { class: 'go-cols' },
         h('div', { class: 'go-left' },
-          h('div', { class: 'eyebrow' }, 'The Trial of the Remnant'),
-          h('h2', null, 'YOU SURVIVED'),
+          h('div', { class: 'eyebrow' }, st.rematch ? 'Original-form rematch' : st.bossOnly ? 'The Boss Gauntlet' : 'The Trial of the Remnant'),
+          h('h2', null, st.rematch ? 'FORMS DEFEATED' : st.bossOnly ? 'BOSSES DEFEATED' : 'YOU SURVIVED'),
           h('div', { class: 'go-round' }, `${st.rounds}`),
-          h('div', { class: 'go-sub' }, st.rounds === 1 ? 'ROUND' : 'ROUNDS'),
+          h('div', { class: 'go-sub' }, st.bossOnly ? `REACHED ROUND ${st.rounds + 1}` : st.rounds === 1 ? 'ROUND' : 'ROUNDS'),
           best ? h('div', { class: 'go-best' }, 'NEW BEST') : null,
           h('div', { class: 'go-stats' }, stat('Kills', `${st.kills}`), stat('Time', formatTime(st.time)), stat('Level', `${st.level}${st.levels > 0 ? ` (+${st.levels})` : ''}`)),
         ),
         h('div', { class: 'go-right' },
           entry
             ? h('div', { class: 'go-name' }, h('span', null, place > 0 ? `Place ${place} on this device as` : 'Ranked as'), nameBox)
-            : h('p', { class: 'muted' }, `This run began at round ${st.from}, so it is not ranked. Start from round 1 to get on the board.`),
-          boardBox(entry?.id ?? null, 5),
+            : h('p', { class: 'muted' }, st.contract ? `${st.contract}. Contracts are unranked. Mastery and earned gear stay with you.` : st.rematch ? 'Original-form rematches are unranked. Your earned imprints are saved; absorb them in Echoes.' : `This run began at round ${st.from}, so it is not ranked. Start from round 1 to get on the board.`),
+          st.rematch ? null : boardBox(entry?.id ?? null, 5, st.bossOnly),
         ),
       ),
       h('p', { class: 'muted go-verse' }, '“Be thou faithful unto death, and I will give thee a crown of life.” Revelation 2:10 (KJV)'),
       h('div', { class: 'row', style: 'justify-content:center;gap:10px;margin-top:8px' },
         btn('Again from round 1', () => done('again'), 'btn primary', { 'data-autofocus': '', 'data-k': 'go_again' }),
-        btn('Leave the Trial', () => done('leave'), 'btn', { 'data-k': 'go_leave' })),
+        btn(st.rematch ? 'Leave rematch' : st.bossOnly ? 'Leave the Gauntlet' : 'Leave the Trial', () => done('leave'), 'btn', { 'data-k': 'go_leave' })),
     );
     const layer = h('div', { class: 'layer death' }, card);
     root().appendChild(layer);
@@ -109,7 +109,7 @@ export function gameOver(st: RunStats, entry: RunEntry | null, place: number, be
     const done = (c: 'again' | 'leave') => {
       if (entry && nameBox) {
         const name = nameBox.value.trim().slice(0, 16) || 'Elior';
-        if (name !== entry.name) renameRun(entry.id, name);
+        if (name !== entry.name) renameRun(entry.id, name, st.bossOnly);
         if (name !== settings.name) {
           settings.name = name;
           saveSettings();

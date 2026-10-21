@@ -10,6 +10,7 @@ import { Entity, type HitInfo } from './entity';
 import { moveBody, groundAhead, wallAhead } from './physics';
 import { Animator, solve, newJoints, Chain, drawRibbon, type Joints, type Pose, type Clip, type RigDims, BASE_POSE } from '../render/skeleton';
 import { drawHumanoid, type HumanStyle } from '../render/actors';
+import { drawEchoSprite } from '../render/creatureSprites';
 import { glow, rgba, type Ctx } from '../render/draw';
 import { fx, PK } from '../render/fx';
 import { sfx } from '../audio/audio';
@@ -19,8 +20,12 @@ import { SENT_CLIPS, SENT_BASE, SENT_DIMS, ARCH_CLIPS, ARCH_BASE, ARCH_DIMS, sen
 import { BRUTE_CLIPS, BRUTE_BASE, BRUTE_DIMS, BULW_CLIPS, BULW_BASE, BULW_DIMS, bruteStyle, bulwarkStyle, knightEchoStyle, marshalStyle } from './tanks';
 import { LOCUST_DIMS, locustStyle, drawLocustWings, drawLocustHead, drawLocustScythes } from './locusts';
 import { drawLion, newLionPose } from './babylon';
-import { ECHO_SPECIES, echoXpToNext, type EchoInst, type EchoOrder } from './data';
-import { echoAtk, echoMaxHp, skillRank } from './state';
+import { ECHO_SPECIES, defaultEchoRole, echoRole, type EchoInst, type EchoOrder, type EchoRole } from './data';
+import { tickEchoRole, drawEchoRole, echoSpot } from './echoRoles';
+import { echoAtk, echoMaxHp, gainEchoXp, skillRank } from './state';
+import { preferredSquadTarget } from './squadOrders';
+import { undyingEchoStyle, drawHostWings } from './princes';
+
 import { Proj } from './projectiles';
 import { lighting } from '../render/lighting';
 
@@ -158,6 +163,18 @@ KITS.locust = {
   },
 };
 
+// The Captain of the Undying: a spear duelist, black and gold, with the stubs of wings.
+KITS.undying = {
+  clips: SENT_CLIPS, base: SENT_BASE, dims: SENT_DIMS, w: 18, h: 42, style: (st) => undyingEchoStyle(st),
+  guard: 0.3, armor: 0.8, speed: 135, reach: 50, guardian: false, idle: 'guard',
+  cape: [10, 13], capeColor: (st) => (st >= 1 ? '#e8dcc0' : '#2a2420'),
+  moves: [
+    { state: 'slash', clip: 'slash', T: 0.5, hitU: 0.56, box: { x: -4, y: -46, w: 56, h: 48 }, mult: 1.15, poise: 28, kx: 150, ky: -120, weight: 1, chain: 1, waveStage: 2, sound: 'swingSpear' },
+    { state: 'lunge', clip: 'bash', T: 0.62, hitU: 0.48, box: { x: 0, y: -38, w: 52, h: 24 }, mult: 1.7, poise: 45, kx: 280, ky: -90, dash: 360, weight: 0.6, sound: 'swingSpear' },
+  ],
+  under: (ctx, u) => drawHostWings(ctx, u.j.shBX - 1, u.j.shBY + 1, u.move ? 0.8 : 0.2, '#1c1a1f', '#0a0806'),
+};
+
 // The lion keeps a humanoid rig only for the shared brain; it is drawn as a beast.
 const LP = newLionPose();
 KITS.lion = {
@@ -191,7 +208,27 @@ KITS.lion = {
   },
 };
 
-export const kitFor = (species: string) => KITS[species] ?? KITS.sentinel;
+const roleKits: Record<string, EchoKit> = {};
+export function kitFor(species: string, role: EchoRole = defaultEchoRole(species)): EchoKit {
+  const key = species + ':' + role;
+  if (roleKits[key]) return roleKits[key];
+  const base = KITS[species] ?? KITS.sentinel;
+  const ranged = role === 'mage' || role === 'ranger' || role === 'herald';
+  const moves = role === 'ninja' ? [
+    { ...KITS.knight.moves[0], T: 0.38, mult: 1.2, chain: 2, blink: true },
+    { ...KITS.marshal.moves[1], T: 0.45, minStage: 1, mult: 1.8 },
+  ] : role === 'fighter' ? [
+    { ...KITS.knight.moves[0], T: 0.42, chain: 2, mult: 1.15 },
+    { ...KITS.brute.moves[0], T: 0.72, mult: 2.4, minStage: 1, waveStage: 1 },
+  ] : base.moves.length ? base.moves : KITS.sentinel.moves;
+  return roleKits[key] = { ...base, ranged, guardian: role === 'guardian',
+    guard: role === 'guardian' ? Math.max(0.6, base.guard) : role === 'ninja' ? 0.12 : 0.15,
+    armor: role === 'guardian' ? 0.6 : role === 'fighter' ? 0.72 : 0.85,
+    speed: role === 'ninja' ? 210 : Math.max(105, base.speed),
+    reach: ranged ? 310 : role === 'ninja' ? 48 : Math.max(48, base.reach),
+    clips: ranged ? ARCH_CLIPS : { ...SENT_CLIPS, ...base.clips, ...(role === 'fighter' ? BRUTE_CLIPS : {}) }, moves: ranged ? [] : moves,
+  };
+}
 
 /** Colours of the order marks over the Echoes' heads. */
 export const ORDER_MARK: Record<EchoOrder, string> = { guard: '#9fe39a', hunt: '#ff8a6a', flank: '#ffd27a', hold: '#9fd7ff', focus: '#ff5a7a' };
@@ -213,6 +250,7 @@ export class EchoUnit extends Entity {
   slot: number;
   shots = 0;
   assistCd = 0;
+  specialCd = 0;
   bowDraw = 0;
   despawn = 0;
   /** Seconds left for a temporary Echo raised by a Sovereign's finisher. */
@@ -234,6 +272,7 @@ export class EchoUnit extends Entity {
   private guardXpCd = 0;
   /** Seconds spent circling for a foe's back without getting there. */
   private flankT = 0;
+  private priorityPoll = 0;
 
   get order(): EchoOrder | undefined {
     return this.inst.order;
@@ -242,6 +281,8 @@ export class EchoUnit extends Entity {
   /** Give this Echo an order. Hold marks Elior's spot; focus takes his current foe. */
   setOrder(o: EchoOrder | undefined, foe: Entity | null = null) {
     this.inst.order = o;
+    this.inst.targetPriority = undefined;
+    this.priorityPoll = 0;
     this.focus = o === 'focus' ? foe : null;
     if (o === 'hold') {
       const p = G.world.player;
@@ -271,12 +312,13 @@ export class EchoUnit extends Entity {
   }
 
   constructor(inst: EchoInst, x: number, y: number, slot: number) {
-    const kit = kitFor(inst.species);
+    const kit = kitFor(inst.species, echoRole(inst));
     super(x, y, kit.w, kit.h);
     this.kit = kit;
     this.inst = inst;
     this.team = 'player';
     this.slot = slot;
+    this.specialCd = 0.8 + slot * 0.15;
     this.anim = new Animator(kit.clips, kit.base);
     this.anim.play('idle', 0);
     this.cape = new Chain(7, 4, x, y - 34);
@@ -297,6 +339,15 @@ export class EchoUnit extends Entity {
   refreshStats() {
     this.maxHp = echoMaxHp(G.save, this.inst, G.d);
     this.hp = Math.min(this.hp, this.maxHp);
+  }
+
+  setRole(role: EchoRole) {
+    this.inst.role = role;
+    this.kit = kitFor(this.inst.species, role);
+    this.anim = new Animator(this.kit.clips, this.kit.base);
+    this.move = null; this.state = 'follow'; this.st = 0; this.attackCd = 0.3;
+    this.specialCd = Math.max(this.specialCd, 3);
+    this.refreshStats();
   }
 
   update(dt: number) {
@@ -345,6 +396,7 @@ export class EchoUnit extends Entity {
       return;
     }
     this.handoffT = Math.max(0, this.handoffT - dt);
+    this.priorityPoll = Math.max(0, this.priorityPoll - dt);
     this.guardXpCd = Math.max(0, this.guardXpCd - dt);
     if (this.ignoreT > 0 && (this.ignoreT -= dt) <= 0) this.ignore = null;
     const order = this.order;
@@ -358,6 +410,7 @@ export class EchoUnit extends Entity {
       fx.holyBurst(this.x, this.y - 20, 10, 0.6);
     }
     this.chooseTarget(mode);
+    tickEchoRole(this, dt);
     // Orders map onto the army's movement styles; hold has its own.
     const how = order === 'guard' ? 'defensive' : order === 'hold' ? 'hold' : order ? 'aggressive' : mode;
     if (this.kit.ranged) this.thinkArcher(dt, how);
@@ -390,6 +443,12 @@ export class EchoUnit extends Entity {
         this.focus = null;
         this.inst.order = 'hunt';
       }
+    }
+    if (this.inst.targetPriority && order === 'hunt') {
+      if (this.priorityPoll > 0 && this.usable(this.target)) return;
+      this.priorityPoll = 0.25;
+      const preferred = preferredSquadTarget(this, this.inst.targetPriority);
+      if (preferred) { this.target = preferred; return; }
     }
     const prio = W.priorityTarget;
     if (order !== 'hold' && this.usable(prio)) { this.target = prio; return; }
@@ -496,7 +555,7 @@ export class EchoUnit extends Entity {
           return;
         }
         this.move = null;
-        this.attackCd = m.slam ? 1.6 : rand(0.5, 0.9) * (this.kit.warden ? 0.7 : 1);
+        this.attackCd = m.slam ? 1.1 : rand(0.35, 0.65) * (this.kit.warden ? 0.7 : 1);
         this.state = 'follow';
       }
       return;
@@ -539,8 +598,9 @@ export class EchoUnit extends Entity {
     if (m.blink && this.target) {
       const t = this.target;
       const side = sign(t.x - this.x) || this.face;
-      const tx = t.x + side * (t.body.w / 2 + 14);
-      if (!G.world.solidAt(tx, t.y - 8) && !G.world.solidAt(tx, t.y - 30)) {
+      const spot = echoSpot(this, t, side);
+      const tx = spot?.x ?? this.x;
+      if (spot) {
         fx.streak(this.x, this.y - 22, tx, t.y - 22, '#ffd0c0', 0.22, 3);
         fx.spawn(PK.Smoke, this.x, this.y - 18, 0, -20, 0.4, 5, 12, '#1a1012', -20, 2);
         this.x = tx;
@@ -568,7 +628,10 @@ export class EchoUnit extends Entity {
     const x = this.face > 0 ? this.x + box.x : this.x - box.x - box.w;
     G.world.hitEnemies({ x, y: this.y + box.y, w: box.w, h: box.h }, {
       dmg: atk * m.mult, poise: m.poise * poiseMul, kx: this.face * m.kx, ky: m.ky, dir: this.face, kind: 'echo', src: this, stop: 0.02, stun: m.stun ?? 0,
-    }, this.hitSet, () => this.gainXp(1));
+    }, this.hitSet, () => {
+      this.gainXp(1);
+      if (echoRole(this.inst) === 'fighter' && stage >= 2) this.inst.hp = this.hp = Math.min(this.maxHp, this.hp + this.maxHp * 0.03);
+    });
     if (!m.slam) {
       const big = this.kit === KITS.marshal || this.kit === KITS.brute;
       fx.slash(this.x + this.face * 4, this.y - this.kit.h * 0.62, big ? 30 : 24, -2.0, 0.6, big ? 9 : 7, this.face, '#fffaf0', this.kit === KITS.marshal ? '#ff8a6a' : '#ffe6a8', 0.15);
@@ -596,7 +659,7 @@ export class EchoUnit extends Entity {
       if (this.st >= 0.5) {
         this.bowDraw = 0;
         this.state = 'follow';
-        this.attackCd = rand(0.9, 1.3);
+        this.attackCd = rand(0.65, 0.95);
         if (t && !t.dying) {
           this.shots++;
           const sx = this.x + this.face * 10, sy = this.y - 22;
@@ -604,10 +667,13 @@ export class EchoUnit extends Entity {
           const d = Math.hypot(tx - sx, ty - sy) || 1;
           const sp = 380;
           const pierce = stage >= 1 && this.shots % 3 === 0;
-          G.world.add(new Proj(pierce ? 'word' : 'arrow', sx, sy, 'player', atk * (pierce ? 1.6 : 1), {
+          const magic = echoRole(this.inst) === 'mage' || echoRole(this.inst) === 'herald';
+          const shot = new Proj(magic ? 'arcbolt' : pierce ? 'word' : 'arrow', sx, sy, 'player', atk * (pierce ? 1.6 : 1), {
             vx: ((tx - sx) / d) * sp, vy: ((ty - sy) / d) * sp - 20, life: pierce ? 0.8 : 2, w: pierce ? 16 : 8, h: pierce ? 24 : 4, color: '#ffe6a8', echo: true,
-          }));
-          if (stage >= 2 && this.shots % 5 === 0) this.rain(t, atk);
+          });
+          shot.target = t;
+          G.world.add(shot);
+          if (!magic && stage >= 2 && this.shots % 5 === 0) this.rain(t, atk);
           sfx('bowRelease', { pan: G.world.pan(this.x), pitch: 1.2 });
           this.anim.play('release', 0.03, true);
           this.gainXp(1);
@@ -618,7 +684,7 @@ export class EchoUnit extends Entity {
     if (t) {
       const dx = t.x - this.x, dist = Math.abs(dx);
       this.face = sign(dx) || this.face;
-      if (this.attackCd <= 0 && dist < 260) {
+      if (this.attackCd <= 0 && dist < this.kit.reach) {
         this.state = 'draw';
         this.st = 0;
         this.anim.play('draw', 0.06, true, 2);
@@ -700,12 +766,9 @@ export class EchoUnit extends Entity {
 
   gainXp(n: number) {
     const mult = skillRank(G.save, 'c_glory') ? 1.6 : 1;
-    this.inst.xp += n * mult;
-    while (this.inst.xp >= echoXpToNext(this.inst.level) && this.inst.level < 30) {
-      this.inst.xp -= echoXpToNext(this.inst.level);
-      this.inst.level++;
+    if (gainEchoXp(this.inst, n * mult) > 0) {
       this.refreshStats();
-      this.hp = this.maxHp;
+      this.hp = this.inst.hp = this.maxHp;
       G.ui.toast(`${this.name} reached level ${this.inst.level}`, 'good');
       fx.holyBurst(this.x, this.y - 30, 12, 0.7);
       sfx('pickup', { pitch: 1.3 });
@@ -726,7 +789,7 @@ export class EchoUnit extends Entity {
       fx.hitSparks(this.x + this.face * 10, this.y - 24, -this.face, '#fff1c4', 6);
       this.hp -= h.dmg * 0.2;
     } else {
-      const unmoved = this.kit === KITS.brute && this.inst.stage >= 2 ? 0.5 : 1;
+      const unmoved = this.inst.species === 'brute' && this.inst.stage >= 2 ? 0.5 : 1;
       this.hp -= h.dmg * this.kit.armor * unmoved;
       this.flash = 0.12;
       if (this.kit !== KITS.brute) this.body.vx = h.kx * 0.4;
@@ -796,15 +859,23 @@ export class EchoUnit extends Entity {
       ctx.clip();
     }
     ctx.globalAlpha = (this.recallT > 0 ? 0.5 : 0.95) * fade;
-    if (this.kit.cape) drawRibbon(ctx, this.cape, this.kit.cape[0], this.kit.cape[1], this.kit.capeColor(this.inst.stage), '#0a0806');
     ctx.translate(this.x, this.y);
     ctx.scale(this.face, 1);
-    this.kit.under?.(ctx, this);
-    if (this.kit.body) this.kit.body(ctx, this);
-    else drawHumanoid(ctx, this.j, style, G.time + this.id, this.pose.rot, this.body.vx * this.face, this.body.vy);
-    this.kit.over?.(ctx, this);
+    if (!drawEchoSprite(ctx, this)) {
+      // World-space cloth belongs only to the procedural fallback.
+      if (this.kit.cape) {
+        ctx.save(); ctx.scale(this.face, 1); ctx.translate(-this.x, -this.y);
+        drawRibbon(ctx, this.cape, this.kit.cape[0], this.kit.cape[1], this.kit.capeColor(this.inst.stage), '#0a0806');
+        ctx.restore();
+      }
+      this.kit.under?.(ctx, this);
+      if (this.kit.body) this.kit.body(ctx, this);
+      else drawHumanoid(ctx, this.j, style, G.time + this.id, this.pose.rot, this.body.vx * this.face, this.body.vy);
+      this.kit.over?.(ctx, this);
+    }
     ctx.restore();
     ctx.globalAlpha = 1;
+    ctx.save(); ctx.translate(this.x, this.y); drawEchoRole(ctx, this); ctx.restore();
     if (this.flash > 0) {
       ctx.globalCompositeOperation = 'lighter';
       glow(ctx, this.cx, this.cy, 26, '#ffffff', this.flash * 4);

@@ -443,7 +443,7 @@ export class Chapter5 {
     setFlag('ch5_done');
     G.world.autosave(true);
     st.cine(false);
-    await G.ui.chapterEnd(5);
+    if ((await G.ui.chapterEnd(5)) === 'next') await this.st.ch6.beginFromChapterFive();
   }
 
   // ---------------------------------------------------------------- talk

@@ -1,3 +1,4 @@
+import { FALLEN_CHAPTERS } from '../game/fallenChapters';
 // DOM overlay layer implementing the game's UI hooks: toasts, banners,
 // dialogue with portraits, captions, scripture cards, choices, the Echo
 // command wheel, death and chapter-complete screens.
@@ -20,6 +21,8 @@ import { CH2_SECRETS } from '../game/story2';
 import { CH3_SECRETS } from '../game/story3';
 import { CH4_SECRETS } from '../game/story4';
 import { CH5_SECRETS } from '../game/story5';
+import { openVoiceOrders } from './voiceOrders';
+import { CH6_SECRETS } from '../game/story6';
 
 let uiRoot: HTMLElement;
 let toastBox: HTMLElement;
@@ -69,6 +72,7 @@ function waitAdvance(el: HTMLElement, onAdvance: () => void): { off: () => void;
 }
 
 const hooks: UIHooks = {
+  voiceOrders: openVoiceOrders,
   toast(text, kind = 'info', color) {
     const t = h('div', { class: 'toast ' + kind }, text);
     if (color) t.style.borderColor = color;
@@ -316,8 +320,10 @@ const hooks: UIHooks = {
         { n: 'Chapter II', title: 'THE TOWER OF SHINAR', secrets: CH2_SECRETS, sl: 'Hidden caches', theme: 'Pride builds towers to make a name. Faithfulness keeps an oath when no one is watching.', next: 'Two days east lies the Valley of Bones, where a swarm has eaten everything that grew.', go: 'Begin Chapter III', stay: 'Stay in Shinar', music: 'shinar' },
         { n: 'Chapter III', title: 'THE VALLEY OF BONES', secrets: CH3_SECRETS, sl: 'Hidden caches', theme: 'The locust takes; the covenant restores. An army raised by mercy follows further than one driven by fear.', next: 'South, by the rivers of Babylon, an image of gold has been raised on the plain of Dura, and three captives are bound for the furnace.', go: 'Begin Chapter IV', stay: 'Stay in the valley', music: 'valley' },
         { n: 'Chapter IV', title: 'THE PLAIN OF DURA', secrets: CH4_SECRETS, sl: 'Hidden caches', theme: 'The furnace could not burn those who would not bow. Every image of gold stands on feet of clay.', next: 'Across the river, Babylon holds a feast for a thousand lords, and they mean to drink from the vessels of the temple.', go: 'Begin Chapter V', stay: 'Stay by the river', music: 'dura' },
-        { n: 'Chapter V', title: 'THE WRITING ON THE WALL', secrets: CH5_SECRETS, sl: 'Treasures and vessels', theme: 'Pride drinks from holy things and calls itself a god. It is weighed in a single night, and found wanting.', next: 'Chapter VI is in development. Your journey continues: train in the Trial of the Remnant, grow your army toward level 100, or begin New Game+ at any altar.', go: '', stay: 'Continue exploring', music: 'riverbed' },
-      ][Math.min(4, Math.max(1, chapter) - 1)];
+        { n: 'Chapter V', title: 'THE WRITING ON THE WALL', secrets: CH5_SECRETS, sl: 'Treasures and vessels', theme: 'Pride drinks from holy things and calls itself a god. It is weighed in a single night, and found wanting.', next: 'Babylon has fallen and Persia rules. By the great river Hiddekel, old Hanan has fasted three weeks for an answer that does not come.', go: 'Begin Chapter VI', stay: 'Stay in Babylon', music: 'riverbed' },
+        { n: 'Chapter VI', title: 'THE PRINCE OF PERSIA', secrets: CH6_SECRETS, sl: 'Hidden caches', theme: 'The war behind every throne is not against flesh and blood. Stand, and keep standing, until help comes.', next: 'Beyond the fallen princes, a horned king drives the northern villages into his hunting grounds. Varkhos, Crown of the Hunt, is waiting.', go: 'Begin Chapter VII', stay: 'Continue exploring', music: 'hiddekel' },
+        ...FALLEN_CHAPTERS.map(c=>({n:'Chapter '+c.roman,title:c.title.toUpperCase(),secrets:c.caches,sl:'Hidden caches',theme:c.n===9?'Hands made for building need not remain bound to destruction.':c.n===7?'Strength makes the road home your responsibility.':'A thousand voices are worth hearing separately.',next:c.ending[2],go:FALLEN_CHAPTERS.find(n=>n.n===c.n+1)?'Begin Chapter '+FALLEN_CHAPTERS.find(n=>n.n===c.n+1)!.roman:'',stay:c.n===9?'Return to Ashwatch':c.n===7?'Return to Thawgate':'Return to Quarantine',music:c.biome})),
+      ][Math.min(5+FALLEN_CHAPTERS.length, Math.max(1, chapter) - 1)];
       const card = h('div', { class: 'chapter panel scroll' },
         h('div', { class: 'eyebrow' }, C.n),
         h('h2', null, C.title),
@@ -366,25 +372,33 @@ const hooks: UIHooks = {
     return blockingUI();
   },
 
-  choice(title, body, options) {
+  choice(title, body, options, kind, signal) {
     return new Promise<number>((resolve) => {
+      if (signal?.aborted) { resolve(-1); return; }
       blocking++;
-      const card = h('div', { class: 'choice-card panel scroll' },
-        h('div', { class: 'eyebrow' }, 'A choice'),
+      let closed = false;
+      const card = h('div', { class: 'choice-card panel scroll' + (kind === 'blessing' ? ' blessing-choice' : ''), role: 'dialog', 'aria-modal': 'true', 'aria-label': title },
+        h('div', { class: 'eyebrow' }, kind === 'blessing' ? 'Trial blessings · choose your path' : 'A choice'),
         h('h2', { class: 'title-text' }, title),
         h('p', null, body),
-        h('div', { class: 'opts' }, options.map((o, i) => btn([h('b', null, o.label), o.sub ? h('span', null, o.sub) : null], () => done(i), 'btn opt', i === 0 ? { 'data-autofocus': '' } : {}))),
+        h('div', { class: 'opts' }, options.map((o, i) => btn([o.icon ? img(o.icon, o.risk ? '#ffb18e' : '#f6dea0') : null, h('b', null, o.label), o.sub ? h('span', null, o.sub) : null], () => done(i), 'btn opt' + (o.risk ? ' risk' : ''), { 'data-k': 'choice_' + i, ...(i === 0 ? { 'data-autofocus': '' } : {}) }))),
+        kind === 'blessing' ? btn('Continue without a blessing', () => done(-1), 'btn small', { 'data-k': 'blessing_skip' }) : null,
       );
-      const layer = h('div', { class: 'layer dim' }, card);
+      const layer = h('div', { class: 'layer dim' + (kind === 'blessing' ? ' feature-dialog' : '') }, card);
       uiRoot.appendChild(layer);
       const done = (i: number) => {
+        if (closed) return;
+        closed = true;
+        signal?.removeEventListener('abort', abort);
         popLayer(layer);
         blocking--;
         sfx('uiConfirm');
         input.flush();
         resolve(i);
       };
-      pushLayer({ el: layer });
+      const abort = () => done(-1);
+      signal?.addEventListener('abort', abort, { once: true });
+      pushLayer({ el: layer, onBack: kind === 'blessing' ? () => done(-1) : undefined });
     });
   },
 
@@ -504,6 +518,7 @@ function openWheel(page: 'main' | 'squad' | 'orders') {
   });
   ring.appendChild(h('div', { class: 'wheel-center' }, title, h('div', { class: 'muted', style: 'font-family:var(--font-body);letter-spacing:0;font-size:1.2em;margin-top:4px;text-transform:none' }, sub)));
   const layer = h('div', { class: 'wheel' }, ring);
+  if (page === 'main') layer.appendChild(btn([img('voice', '#f6dea0'), 'Voice orders'], () => { closeWheel(); hooks.voiceOrders(); }, 'btn wheel-voice', { 'data-k': 'wheel_voice' }));
   layer.addEventListener('pointerup', (e) => {
     if (e.target === layer) closeWheel();
   });

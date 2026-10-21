@@ -56,6 +56,23 @@ This build contains five chapters:
     UPHARSIN.
   - **The Weigher:** the Lord of the Feast, given to the Veil, with great
     bronze scales. Three phases: Numbered, Weighed, Divided.
+- **Chapter VI — The Prince of Persia.** Daniel 10: Persia rules, and old
+  Hanan has fasted three weeks by the great river Hiddekel for an answer
+  that does not come.
+  - Cross the marshes of Ulai and the royal road to Shushan the palace.
+    The Undying Host rises again unless finished; Fallen Gales strike from
+    the storm.
+  - Purify the Captain of the Undying in the hall of a hundred columns.
+  - The fallen angels are princes over kingdoms and domains, the game's
+    monarchs, and the hardest fights yet:
+    - **The Prince of the Power of the Air** rules the storm over Shushan:
+      wind that shoves you, lightning rows, Gales at his call, spells out of
+      reach, and an Eye of the Storm finale.
+    - **The Prince of the Kingdom of Persia** waits above the world: a spear
+      duelist who counters careless blows, raises the Undying ("Arise"),
+      then makes you stand through the Twenty-First Day before the light
+      breaks him.
+  - Ends looking toward Chapter VII and "the prince of Grecia" (Daniel 10:20).
 - Each chapter has an ending, plus New Game+.
 
 Each chapter begins from the previous chapter's ending screen, from any
@@ -77,6 +94,26 @@ altar once the one before is done (**Journey on**), or from the
   - Every fifth round **the Pack runs** (Gloom Hounds, later Brazen Lions).
     Every tenth a **Champion of the Trial** comes. Every fifth round held
     pays out silver, materials and gear.
+  - Every ten **cleared** waves guarantees a trophy directly in Equipment:
+    Veilreaver (10), Legendary Tempest Reign (20), Ascendant Plate (30),
+    Titan Grasp (40), Covenant Sovereign Edge (50), Crown of the Unbroken
+    (60), Riftstrider Greaves (70), Worldbreaker (80), Eternal Bastion (90),
+    and Heart of Ascendancy (100). After 100, the last three trophies repeat
+    with increasing Ascension ranks (+15% base modifiers per rank, capped at
+    +1500%). Each milestone pays once per save; prior best waves credit
+    milestones 10–100 when loading. Claimed gear and milestones carry to NG+.
+  - At waves 11, 21, 31 and 41, the arena changes to a valley, furnace,
+    midnight garden and palace, with different platform routes. The five
+    environments cycle with new scenery seeds. Changes happen between
+    rounds with safe player/Echo positions, keeping pickups and run records.
+    The left wall is sealed; use Chapters to leave.
+  - Duplicate Echoes merge into one stronger entry per species on load.
+    Absorptions evolve that entry; fighting, guard work and team kills earn
+    combat experience up to level 100. Every level improves health and attack.
+  - iOS defaults to 60 FPS with 120 Hz game logic, adaptive rendering density,
+    cached render lists and 30 Hz touch-label updates. Auto display rate is
+    still available in Settings. Browser stress checks do not substitute for
+    a physical iPhone frame-time measurement.
   - Fallen foes sometimes drop a **blessing**:
 
     | Blessing | Effect |
@@ -254,7 +291,7 @@ deploys it to GitHub Pages on every push to the default branch that touches
 | **Balm** | Heal |
 | **Echoes** | Echo command wheel: summon or dismiss, Aggressive / Defensive / Follow stance, mark target, recall, sync strike, switch |
 | **Switch** | Switch support: the next Echo tags in, or you trade places with one. It appears while Echoes are out. |
-| **Rally** | *Rally the Remnant* (once the gauge is full) |
+| **Super** | Your equipped super move (once the gauge is full) |
 | **Mantle** | Transform into the *Shadow Mantle* (from level 25, once its gauge is full) |
 | **Sub** | Throw your sub-weapon. The badge shows your hearts. |
 | Context button | Talk, open, rest, purify. It appears only when something is in reach. |
@@ -278,7 +315,7 @@ left-handed layout, and turns haptics on or off.
 | H | Balm (heal) |
 | C | Echo command wheel |
 | X | Switch support Echo |
-| T | Rally the Remnant |
+| T | Equipped super move |
 | G | Shadow Mantle (transform) |
 | U (or W + K) | Throw sub-weapon |
 | F | Interact / purify |
@@ -316,7 +353,7 @@ Touch and keyboard controls remain available if that access is blocked.
 | L1 | LB | Parry / block |
 | R1 / L2 / R2 | RB / LT / RT | Abilities |
 | L3 (left stick click) | L3 | Echo command wheel (point the stick at a command, ✕ to pick) |
-| R3 (right stick click) | R3 | Rally the Remnant |
+| R3 (right stick click) | R3 | Equipped super move |
 | L3 + R3 together | L3 + R3 | Shadow Mantle (transform) |
 | D-pad ↑ | D-pad ↑ | Interact |
 | D-pad ↓ | D-pad ↓ | Balm |
@@ -409,3 +446,5 @@ Debug helpers are available when you add `?debug` to the URL.
 | `src/audio` | Sound effects and the music sequencer |
 | `src/game` | World, player, weapons, enemies and tanks, Echoes, bosses, rooms, story (one file per chapter), data, saves |
 | `src/ui` | HUD, touch controls, menus, screens, dialogue |
+
+See [SKILLS_ECHOES.md](SKILLS_ECHOES.md) for the twelve-skill loadout catalog, four supers, health regeneration, Echo specializations, and original-form evolution rematches.

@@ -16,7 +16,7 @@ import { LocustKing } from './bosses3';
 import { Rounds } from './rounds';
 import { ECHO_SPECIES, xpToNext } from './data';
 import { rollGear } from './world';
-import { makeEcho, derive, makeItem, addMaterial } from './state';
+import { derive, makeItem, addMaterial } from './state';
 import { CH3_ROOM_IDS } from './rooms3';
 import { registerGuide } from './guide';
 import { islandNotify } from '../ui/island';
@@ -71,6 +71,7 @@ export class Chapter3 {
 
   /** Walking out of the arena mid-run still records how far the run got. */
   private leftTrial() {
+    G.save.flags.trial_contract = '';
     if (!this.rounds.active) return;
     const n = this.rounds.round;
     this.rounds.stop();
@@ -116,8 +117,8 @@ export class Chapter3 {
       // Training from the menu may skip ahead to a wave near your best.
       const from = Math.max(1, Number(s.flags.trial_from ?? 1));
       delete s.flags.trial_from;
-      this.rounds.start(from);
-      if (!s.quests.s_trial) this.st.quest('s_trial', 0);
+      this.rounds.start(from, s.flags.trial_mode === 'boss');
+      if (!this.rounds.bossOnly && !s.quests.s_trial) this.st.quest('s_trial', 0);
     }
     return true;
   }
@@ -299,8 +300,8 @@ export class Chapter3 {
     fx.ring(k.x, k.y - 2, 8, 200, '#ffe6a8', 1, 6, 0.3);
     G.camera.addTrauma(0.7 * shakeScale());
     k.remove = true;
-    const inst = makeEcho('locust');
-    s.echoes.push(inst);
+    const absorbed = W.absorb('locust')!;
+    const inst = absorbed.echo;
     G.d = derive(s);
     s.active = [inst.uid, ...s.active.filter((u) => u !== inst.uid)].slice(0, G.d.echoSlots);
     s.flags.army_out = true;
@@ -315,7 +316,7 @@ export class Chapter3 {
     sfx('summon');
     G.ui.caption(null);
     const sp = ECHO_SPECIES.locust;
-    G.ui.banner('ECHO RAISED', `${sp.stages[0].name} · ${sp.cls}`, 'echo');
+    G.ui.banner(absorbed.evolved ? 'ECHO EVOLVED' : 'ECHO RAISED', `${sp.stages[inst.stage].name} · ${sp.cls}`, 'echo');
     await wait(2.8);
     await st.say([
       { who: 'narrator', text: 'He rises. The red is gone from his eyes. They are white now, and they are watching you.' },

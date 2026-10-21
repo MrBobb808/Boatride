@@ -26,7 +26,7 @@ interface Arc {
   life: number; max: number; c: string; c2: string; face: number; tilt: number;
 }
 interface Ring { x: number; y: number; r0: number; r1: number; life: number; max: number; c: string; w: number; flat: number }
-interface Num { x: number; y: number; vy: number; text: string; life: number; max: number; c: string; size: number }
+interface Num { x: number; y: number; vy: number; text: string; life: number; max: number; c: string; size: number; priority: boolean }
 interface Column { x: number; y: number; w: number; h: number; life: number; max: number; c: string }
 interface Streak { x0: number; y0: number; x1: number; y1: number; life: number; max: number; c: string; w: number }
 
@@ -42,10 +42,16 @@ export class FX {
   tint = 0;
   tintC = '#000000';
   cap = 900;
+  numberCap = 32;
   private free: Particle[] = [];
 
   setTier(t: number) {
     this.cap = t === 2 ? 900 : t === 1 ? 520 : 260;
+    this.numberCap = t === 2 ? 32 : t === 1 ? 24 : 16;
+    while (this.nums.length > this.numberCap) {
+      const drop = this.nums.findIndex(n => !n.priority);
+      this.nums.splice(drop < 0 ? 0 : drop, 1);
+    }
   }
 
   clear() {
@@ -143,9 +149,16 @@ export class FX {
   number(x: number, y: number, value: number | string, crit = false, color?: string) {
     if (!settings.dmgNumbers && typeof value === 'number') return;
     const text = typeof value === 'number' ? String(Math.round(value)) : value;
+    const priority = typeof value === 'string' || color === '#ff8a8a';
+    // Preserve incoming damage and status notices when the squad fills the screen.
+    if (this.nums.length >= this.numberCap) {
+      const drop = this.nums.findIndex(n => !n.priority);
+      if (drop < 0 && !priority) return;
+      this.nums.splice(drop < 0 ? 0 : drop, 1);
+    }
     this.nums.push({
       x: x + rand(-5, 5), y, vy: -70, text, life: crit ? 0.95 : 0.75, max: crit ? 0.95 : 0.75,
-      c: color ?? (crit ? '#ffd76a' : '#f4ecdf'), size: crit ? 13 : 9.5,
+      c: color ?? (crit ? '#ffd76a' : '#f4ecdf'), size: crit ? 13 : 9.5, priority,
     });
   }
 

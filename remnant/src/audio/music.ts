@@ -556,6 +556,34 @@ const GARDEN_PROG = [[41, [65, 69, 72]], [43, [67, 71, 74]], [41, [65, 69, 72]],
 const GARDEN_MEL: Record<number, number> = { 0: 81, 4: 79, 6: 77, 8: 76, 12: 72 };
 const PALACE_PROG = [[38, [62, 65, 69]], [39, [63, 67, 70]], [36, [60, 63, 67]], [37, [61, 65, 68]]] as const;
 const WEIGH_PROG = [[38, [62, 65, 69]], [34, [62, 65, 70]], [36, [60, 63, 67]], [37, [61, 64, 69]]] as const;
+// Chapter VI: Hiddekel (a fasting prayer at dawn), Shushan (Persian, modal, imperial),
+// the high places (vast and eerie), the storm and the Prince of Persia.
+const HIDDEKEL_PROG = [[38, [62, 65, 69]], [36, [60, 63, 67]], [34, [62, 65, 70]], [36, [60, 64, 67]]] as const;
+/** The prayer: a lament in D with a lowered second, one phrase per bar, -1 rests. */
+const HIDDEKEL_MEL = [
+  [74, -1, -1, 75, 74, -1, 72, -1, 70, -1, -1, -1, 69, -1, -1, -1],
+  [70, -1, 72, -1, 74, -1, -1, 72, 70, -1, 69, -1, 67, -1, -1, -1],
+  [69, -1, 70, 72, 74, -1, 77, -1, 75, -1, 74, -1, 72, -1, 70, -1],
+  [69, -1, -1, -1, 70, 69, 67, -1, 66, -1, -1, -1, 62, -1, -1, -1],
+] as const;
+/** Shushan's mode (D Shur-like): D Eb F G A Bb C. */
+const SHUSHAN_SCALE = [50, 51, 53, 55, 57, 58, 60, 62, 63, 65, 67, 69, 70, 72];
+const SHUSHAN_OUD = [
+  [7, null, 8, 7, 9, null, 8, 7, 6, null, 5, null, 7, null, null, null],
+  [9, null, 10, 9, 11, 10, 9, null, 8, 7, 8, null, 7, null, null, null],
+  [11, null, 10, 9, 10, null, 9, 8, 9, null, 8, 7, 8, null, 6, null],
+  [5, 6, 7, null, 8, null, 7, 6, 5, null, 4, null, 7, null, null, null],
+] as const;
+const SHUSHAN_DUM = [0, 6, 10];
+const SHUSHAN_TEK = [3, 4, 8, 12, 14];
+const SHUSHAN_PROG = [[38, [62, 65, 69]], [39, [63, 67, 70]], [38, [62, 65, 69]], [36, [60, 63, 67]]] as const;
+const HIGH_PROG = [[38, [62, 69, 76]], [34, [62, 70, 77]], [43, [62, 67, 74]], [37, [61, 68, 76]]] as const;
+const STORM_PROG = [[38, [62, 65, 69]], [38, [63, 67, 70]], [36, [60, 63, 67]], [37, [61, 65, 68]]] as const;
+const STORM_OST = [0, 12, 0, 13, 0, 12, 0, 10, 0, 12, 0, 13, 15, 13, 12, 10];
+const STORM_KICK = [0, 3, 6, 8, 11, 14];
+const PERSIA_PROG = [[33, [57, 60, 64]], [34, [58, 62, 65]], [31, [55, 58, 62]], [32, [56, 60, 63]]] as const;
+/** The monarch's motif: a falling fourth, a lowered second, and the climb back (relative to the bar's root). */
+const PERSIA_MOTIF: Record<number, number> = { 0: 12, 3: 7, 4: 8, 6: 7, 8: 5, 10: 7, 12: 12 };
 const TRIAL_PROG = [[38, [62, 65, 69]], [34, [62, 65, 70]], [41, [60, 65, 69]], [36, [60, 64, 67]]] as const;
 const TRIAL_OST = [0, 0, 7, 0, 12, 0, 7, 0, 0, 0, 7, 0, 12, 7, 5, 7];
 const TRIAL_CALL: Record<number, number>[] = [
@@ -566,6 +594,12 @@ const TRIAL_CALL: Record<number, number>[] = [
 ];
 
 export const TRACKS: Record<string, TrackDef> = {
+  hunt: {bpm:78,ambience:'wind',gen(m,d,s,t){const b=bar(s),p=pos(s),root=[38,41,36,34][b%4];if(p===0){m.strings(d,root,t,3,.7,1000,.7);m.choir(d,root+19,t,3,.4,'oo');}if(p===0||p===10)m.harp(d,root+24,t,.6,2);if(p===8)m.taiko(d,t,.35,.7);}},
+  cinders: {bpm:68,ambience:'fire',gen(m,d,s,t){const root=[36,32,39,34][bar(s)%4],p=pos(s);if(p===0){m.strings(d,root,t,3.6,.65,800,.7);m.choir(d,root+19,t,3.6,.4,'oo');}if(p===0||p===8)m.taiko(d,t,.35,.55);if(p===4||p===12)m.bell(d,root+24,t,.4,2.1);}},
+  cinder_monarch: {bpm:108,ambience:'fire',gen(m,d,s,t,I){const root=[36,32,39,34][bar(s)%4],p=pos(s);if(p===0){m.brass(d,root+12,t,1.7,.7);m.strings(d,root,t,2.1,.9,1100,.15);}if(p%4===0){m.taiko(d,t,.9,.55);m.bass(d,root-12,t,.6,.7);}if(p===6||p===14)m.snare(d,t,.5);if(I>0&&p===0)m.choir(d,root+19,t,2.1,.65,'ah');}},
+  plague: {bpm:62,ambience:'drone',gen(m,d,s,t){const b=bar(s),p=pos(s),root=[36,37,32,35][b%4];if(p===0){m.strings(d,root,t,4,.55,700,1);m.choir(d,root+19,t,4,.4,'oo');}if(p===2||p===10)m.bell(d,root+31,t,.35,2.5);}},
+  beast_monarch: {bpm:112,ambience:'drone',gen(m,d,s,t,I){const root=[38,34,41,36][bar(s)%4],p=pos(s);if(p===0)m.strings(d,root,t,2.2,1.1,1300,.1);if(p%4===0){m.taiko(d,t,.9,.7);m.bass(d,root-12,t,.5,.7);}if(p%4===2)m.snare(d,t,.5);if(I>0&&p===0)m.choir(d,root+19,t,2.2,.7,'ah');}},
+  plague_monarch: {bpm:104,ambience:'drone',gen(m,d,s,t,I){const root=[36,37,32,35][bar(s)%4],p=pos(s);if(p===0){m.strings(d,root,t,2.4,1,950,.3);m.choir(d,root+19,t,2.4,.7,'ah');}if(p%4===0)m.taiko(d,t,.65,.85);if(p===2||p===10)m.bell(d,root+31,t,.65,1.5);if(I>0&&p%4===2)m.snare(d,t,.4);}},
   title: {
     bpm: 54,
     ambience: 'wind',
@@ -1268,6 +1302,179 @@ export const TRACKS: Record<string, TrackDef> = {
       }
       if (p === 8 && b % 2 === 1) m.bell(d, 50, t, 0.45, 6);
       if (p === 4) m.breath(d, t, beat * 2, 0.5, b % 2 === 1);
+    },
+  },
+  // Chapter VI: by the great river at dawn. Hanan has fasted three weeks; a low drone,
+  // a reed lament, water on the harp, and the prayer rising when he is heard.
+  hiddekel: {
+    bpm: 56,
+    ambience: 'wind',
+    gen(m, d, s, t, I) {
+      const b = bar(s), p = pos(s);
+      const beat = 60 / 56;
+      const [r, ch] = HIDDEKEL_PROG[b % 4];
+      if (p === 0) {
+        m.strings(d, 26, t, beat * 4, 0.7, 300, 1.8);
+        m.strings(d, r, t, beat * 4, 0.3, 500, 1.8);
+        if (b % 2 === 1) for (const n of ch) m.strings(d, n, t, beat * 4, 0.12, 900, 2);
+      }
+      // the prayer, on the reed, in alternate pairs of bars; the other pairs only the river
+      const say = Math.floor(b / 2) % 2 === 0;
+      const n = HIDDEKEL_MEL[b % 4][p];
+      if (say && n > 0) m.flute(d, n - 12, t, beat * (HIDDEKEL_MEL[b % 4][(p + 1) % 16] < 0 ? 1.8 : 0.9), 0.5);
+      if (!say && p % 4 === 2 && Math.random() < 0.5) m.harp(d, ch[(p >> 2) % 3] + 12, t, 0.22, 2.4);
+      if (!say && p === 8 && b % 4 === 3) m.choir(d, 62, t, beat * 6, 0.18, 'oo');
+      if (p === 0 && b % 8 === 7) m.bell(d, 50, t, 0.3, 5);
+      if (p === 0 && b % 2 === 0) m.frame(d, t, 0.2);
+      if (I > 0.12) {
+        const v = Math.min(1, I * 1.3);
+        if (p === 0 || p === 10) m.taiko(d, t, 0.45 * v, 0.8);
+        if (p % 2 === 1) m.strings(d, r + 12 + [0, 1, 0, 3][(p >> 1) % 4], t, 0.15, 0.45 * v, 1800, 0.005);
+      }
+    },
+  },
+  // Chapter VI: Shushan the palace. Persian court music: oud and reed in a modal line,
+  // a frame drum's dum and tek, imperial brass and a drone of strings.
+  shushan: {
+    bpm: 92,
+    ambience: 'wind',
+    gen(m, d, s, t, I) {
+      const b = bar(s), p = pos(s);
+      const beat = 60 / 92;
+      const [r, ch] = SHUSHAN_PROG[b % 4];
+      if (p === 0) {
+        m.strings(d, 38, t, beat * 4, 0.8, 520, 1.1);
+        m.strings(d, 45, t, beat * 4, 0.35, 520, 1.1);
+        if (b % 4 === 0) m.choir(d, 62, t, beat * 8, 0.2, 'ah');
+        if (b % 4 === 2) for (const n of ch) m.brass(d, n - 12, t, beat * 3.6, 0.3, 0.7);
+      }
+      if (SHUSHAN_DUM.includes(p)) m.frame(d, t, 0.55 + I * 0.25);
+      if (SHUSHAN_TEK.includes(p)) m.frame(d, t, p === 3 || p === 14 ? 0.3 : 0.5, true);
+      const n = SHUSHAN_OUD[b % 4][p];
+      if (n !== null && n !== undefined) {
+        const note = SHUSHAN_SCALE[n] + (Math.floor(b / 4) % 2 ? 12 : 0);
+        m.oud(d, note, t, 0.85, p % 4 === 0 ? 1.1 : 0.7, Math.random() < 0.18 ? 1 : 0);
+        if (Math.random() < 0.1) m.oud(d, note + 1, t + 0.05, 0.45, 0.25);
+      }
+      if (Math.floor(b / 2) % 2 === 1 && p % 4 === 2 && Math.random() < 0.55) m.flute(d, SHUSHAN_SCALE[7 + ((p >> 2) % 4)] + 12, t, beat * 0.9, 0.45);
+      // the king's herald, once a phrase
+      if (b % 4 === 3 && p === 8) {
+        m.brass(d, 62, t, beat * 1.4, 0.5);
+        m.brass(d, 69, t + beat * 1.5, beat * 2.2, 0.45);
+      }
+      if (I > 0.12) {
+        const v = Math.min(1, I * 1.3);
+        if (p === 0 || p === 8) m.taiko(d, t, 0.55 * v, 0.85);
+        if (p === 12) m.snare(d, t, 0.25 * v);
+        if (p % 2 === 1) m.strings(d, 50 + [0, 1, 3, 1][(p >> 1) % 4], t, 0.12, 0.5 * v, 2400, 0.004);
+      }
+    },
+  },
+  // Chapter VI: the high places. Wide, slow and wrong: open fifths, a choir without
+  // a home key, a bell far below, breath in the gaps.
+  highplaces: {
+    bpm: 48,
+    ambience: 'drone',
+    gen(m, d, s, t, I) {
+      const b = bar(s), p = pos(s);
+      const beat = 60 / 48;
+      const [r, ch] = HIGH_PROG[b % 4];
+      if (p === 0) {
+        m.strings(d, r - 12, t, beat * 4, 0.6, 260, 2);
+        m.strings(d, r - 5, t, beat * 4, 0.25, 400, 2);
+        for (const n of ch) m.choir(d, n - 12, t, beat * 4.2, 0.2, b % 2 ? 'oo' : 'ah');
+        m.strings(d, ch[2] + 12, t, beat * 4, 0.1, 4200, 2.4);
+      }
+      if (p === 8 && b % 2 === 1) m.choir(d, ch[1] + (b % 4 === 3 ? 1 : 0), t, beat * 3, 0.2, 'oo');
+      if (p === 4 && b % 4 === 0) m.bell(d, 38, t, 0.35, 6);
+      if (p === 12 && b % 4 === 2) m.bell(d, ch[2] + 12, t, 0.2, 4);
+      if (p === 10 && b % 2 === 0) m.breath(d, t, beat * 2, 0.4, b % 4 === 0);
+      if (p % 4 === 2 && Math.random() < 0.18) m.harp(d, ch[Math.floor(rand(0, 3))] + 24, t, 0.18, 3);
+      if (I > 0.12) {
+        const v = Math.min(1, I * 1.3);
+        if (p === 0 || p === 6 || p === 10) m.taiko(d, t, 0.5 * v, 0.65);
+        if (p % 2 === 0) m.strings(d, r + 12 + [0, 7, 1, 7][(p >> 1) % 4], t, 0.2, 0.4 * v, 1600, 0.006);
+      }
+    },
+  },
+  // The Prince of the Storm: driving low strings, thunder in the drums.
+  // Phase 1 adds the brass and the howling choir; phase 2 the rolls and the high ostinato.
+  storm: {
+    bpm: 138,
+    ambience: 'none',
+    gen(m, d, s, t) {
+      const b = bar(s), p = pos(s);
+      const ph = m.phase;
+      const beat = 60 / 138;
+      const [r, ch] = STORM_PROG[b % 4];
+      m.strings(d, r + 12 + STORM_OST[p], t, 0.1, 0.7 + ph * 0.1, 2400, 0.003);
+      if (p % 4 === 0) m.bass(d, r, t, beat * 0.9, 0.9);
+      if (STORM_KICK.includes(p)) m.taiko(d, t, p === 0 ? 0.95 : 0.6, p === 0 ? 0.6 : 0.8);
+      if (p === 4 || p === 12) m.snare(d, t, 0.4);
+      // thunder: a low gong and drum together at the top of every other bar
+      if (p === 0 && b % 2 === 0) {
+        m.gong(d, r, t, 0.55, 3);
+        m.taiko(d, t + 0.03, 0.8, 0.45);
+      }
+      if (p === 0) for (const n of ch) m.choir(d, n, t, beat * 4, 0.3 + ph * 0.12, 'ah');
+      if (ph >= 1) {
+        if (p === 0) {
+          m.brass(d, r + 12, t, beat * 1.6, 0.8);
+          m.brass(d, r + 19, t, beat * 1.6, 0.55);
+        }
+        if (p === 8) m.brass(d, r + 13, t, beat * 1.2, 0.6);
+        if (p % 2 === 1) m.tick2(d, t, 0.5);
+        if (p === 10 && b % 2 === 1) m.swell(d, t, beat * 1.5, 0.6);
+      }
+      if (ph >= 2) {
+        if (p % 2 === 0) m.taiko(d, t, 0.4, 1.3);
+        m.strings(d, r + 36 + [0, 7, 1, 7][p % 4], t, 0.07, 0.35, 3400, 0.003);
+        if (b % 2 === 1 && p >= 12) m.snare(d, t, 0.25 + (p - 12) * 0.08);
+        if (p === 0 && b % 4 === 3) m.gong(d, r + 12, t, 0.6, 4);
+      }
+    },
+  },
+  // The Prince of the Kingdom of Persia: a monarch's fight. A heavy brass motif over a
+  // slow, crushing march; each phase thickens it, the last doubles the time.
+  persia: {
+    bpm: 112,
+    ambience: 'none',
+    gen(m, d, s, t) {
+      const b = bar(s), p = pos(s);
+      const ph = m.phase;
+      const beat = 60 / 112;
+      const [r, ch] = PERSIA_PROG[b % 4];
+      if (p % 4 === 0) m.bass(d, r, t, beat * 1.8, 1);
+      if (p === 0) {
+        m.strings(d, r, t, beat * 4, 0.7, 500, 0.2);
+        for (const n of ch) m.choir(d, n, t, beat * 4, 0.35 + ph * 0.12, 'ah');
+        if (b % 2 === 0) m.gong(d, r + 12, t, 0.55, 4.5);
+      }
+      // the march: kettle-weight on one and three, the frame drum between
+      if (p === 0 || p === 8) m.taiko(d, t, 1, 0.55);
+      if (p === 6 || p === 14) m.taiko(d, t, 0.6, 0.75);
+      if (p === 4 || p === 12) m.snare(d, t, 0.38);
+      if (p % 4 === 2) m.frame(d, t, 0.4, true);
+      // the motif, in low brass, every bar; doubled at the octave from phase 1
+      const mo = PERSIA_MOTIF[p];
+      if (mo !== undefined) {
+        const len = p === 0 || p === 12 ? 2.6 : p === 8 ? 1.8 : 0.9;
+        m.brass(d, r + mo, t, beat * len, 0.9, 0.04);
+        m.brass(d, r + mo - 12, t, beat * len, 0.6, 0.05);
+        if (ph >= 1) m.brass(d, r + mo + 12, t, beat * len, 0.45, 0.04);
+      }
+      m.strings(d, r + 24 + [0, 0, 7, 0, 8, 0, 7, 3][p % 8], t, 0.11, 0.45 + ph * 0.15, 2400, 0.003);
+      if (ph >= 1) {
+        if (p % 2 === 1) m.tick2(d, t, 0.5);
+        if (p === 10 && b % 2 === 1) m.taiko(d, t, 0.7, 1.1);
+        if (p === 0 && b % 4 === 0) m.bell(d, ch[2] + 12, t, 0.45, 3);
+      }
+      if (ph >= 2) {
+        if (p % 2 === 0) m.taiko(d, t, 0.45, 1.25);
+        m.strings(d, r + 36 + [0, 7, 3, 7][p % 4], t, 0.07, 0.35, 3600, 0.003);
+        if (b % 4 === 3 && p >= 8) m.snare(d, t, 0.2 + (p - 8) * 0.05);
+        if (p === 8 && b % 2 === 0) m.swell(d, t, beat * 2, 1);
+      }
     },
   },
   victory: {

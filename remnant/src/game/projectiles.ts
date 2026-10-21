@@ -10,7 +10,7 @@ import { sfx } from '../audio/audio';
 import { rand, sign, clamp } from '../core/math';
 import { lighting } from '../render/lighting';
 
-export type ProjKind = 'arrow' | 'orb' | 'word' | 'wave' | 'lightwave' | 'drop' | 'debris' | 'pillar' | 'waters' | 'puddle' | 'trumpet' | 'rain' | 'flame';
+export type ProjKind = 'arrow' | 'orb' | 'word' | 'wave' | 'lightwave' | 'drop' | 'debris' | 'pillar' | 'waters' | 'puddle' | 'trumpet' | 'rain' | 'flame' | 'arcbolt' | 'star';
 
 export class Proj extends Entity {
   kind: ProjKind;
@@ -29,6 +29,7 @@ export class Proj extends Entity {
   poise = 10;
   echo = false;
   big = false;
+  target: Entity | null = null;
 
   constructor(kind: ProjKind, x: number, y: number, team: Team, dmg: number, o: Partial<{ vx: number; vy: number; life: number; w: number; h: number; color: string; poise: number; echo: boolean; big: boolean }> = {}) {
     super(x, y, o.w ?? 6, o.h ?? 6);
@@ -88,6 +89,22 @@ export class Proj extends Entity {
     }
     const W = G.world;
     switch (this.kind) {
+      case 'arcbolt': case 'star': {
+        if (this.kind === 'arcbolt' && this.target?.canBeTargeted()) {
+          const dx = this.target.x - this.x, dy = this.target.cy - this.y;
+          const n = Math.hypot(dx, dy) || 1;
+          const f = Math.min(1, dt * 7);
+          this.vx += (dx / n * 270 - this.vx) * f;
+          this.vy += (dy / n * 270 - this.vy) * f;
+        }
+        const steps = Math.max(1, Math.ceil(Math.hypot(this.vx, this.vy) * dt / 5));
+        for (let i = 0; i < steps && !this.remove; i++) {
+          this.x += this.vx * dt / steps; this.y += this.vy * dt / steps;
+          if (W.solidAt(this.x, this.y)) this.remove = true;
+          else if (this.strike({ poise: this.poise }) > 0) { this.remove = true; fx.hitSparks(this.x, this.y, sign(this.vx), this.color, 5); }
+        }
+        break;
+      }
       case 'arrow': case 'rain': {
         if (this.stuck) return;
         this.vy += (this.kind === 'rain' ? 300 : 60) * dt;
@@ -263,6 +280,7 @@ export class Proj extends Entity {
 
   lights() {
     switch (this.kind) {
+      case 'arcbolt': case 'star': lighting.add(this.x, this.y, 32, this.color, 0.65, 0.6); break;
       case 'arrow': case 'rain': if (this.team === 'player' || this.reflected) lighting.add(this.x, this.y, 30, this.color, 0.6, 0.6); break;
       case 'orb': lighting.add(this.x, this.y, 40, '#b04cff', 0.7, 0.8); break;
       case 'word': case 'lightwave': lighting.add(this.x, this.y, 80, this.team === 'enemy' ? '#ff3a4a' : '#ffe6a8', 0.9, 0.8); break;
@@ -277,6 +295,22 @@ export class Proj extends Entity {
   draw(ctx: Ctx) {
     const a = clamp(this.life / Math.min(0.3, this.maxLife), 0, 1);
     switch (this.kind) {
+      case 'arcbolt': case 'star': {
+        ctx.save(); ctx.translate(this.x, this.y);
+        ctx.globalAlpha = a;
+        ctx.rotate(this.kind === 'star' ? G.time * 18 : Math.atan2(this.vy, this.vx));
+        if (this.kind === 'star') {
+          ctx.fillStyle = this.color; ctx.beginPath();
+          for (let i = 0; i < 8; i++) { const r = i % 2 ? 2 : 7, ang = i * Math.PI / 4; if (i === 0) ctx.moveTo(Math.cos(ang) * r, Math.sin(ang) * r); else ctx.lineTo(Math.cos(ang) * r, Math.sin(ang) * r); }
+          ctx.closePath(); ctx.fill();
+        } else {
+          glow(ctx, 0, 0, 13, this.color, 0.7);
+          circle(ctx, 0, 0, 4, this.color); circle(ctx, 1, 0, 2, '#ffffff');
+          ctx.strokeStyle = this.color; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(-5, 0); ctx.lineTo(-15, 0); ctx.stroke();
+        }
+        ctx.restore();
+        break;
+      }
       case 'arrow': case 'rain': {
         const ang = Math.atan2(this.vy, this.vx);
         ctx.save();

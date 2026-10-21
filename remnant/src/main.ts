@@ -1,3 +1,4 @@
+import { loadFallenArt, fallenArtReady } from './render/fallenArt';
 // Boot: fonts, renderer, input, audio unlock, UI, then a fixed-step loop
 // (120 Hz logic so ProMotion displays get perfectly smooth motion).
 
@@ -5,12 +6,16 @@ import './ui/styles.css';
 import { loadFonts } from './fonts';
 import { Renderer, Camera } from './render/renderer';
 import { input } from './core/input';
+import { FrameBudget } from './core/frameBudget';
 import { settings, isTouchDevice, isIOS, onSettingsChange } from './core/settings';
 import { audio } from './audio/audio';
 import { music } from './audio/music';
 import { G } from './game/ctx';
 import { World } from './game/world';
+import { makeEnemy } from './game/foes';
+import type { EnemyKind } from './game/tiles';
 import { setDetail } from './render/actors';
+import { loadCreatureSprites, creatureArtStatus } from './render/creatureSprites';
 import { fx } from './render/fx';
 import { initUI, blockingUI } from './ui/ui';
 import { installNav, layerCount } from './ui/dom';
@@ -22,6 +27,8 @@ import { showTitle, hideTitle, drawTitleScene, startIntro, drawIntro, updateIntr
 import { openMenu, applyTextSize, isMenuOpen } from './ui/menus';
 import { derive, makeItem, makeEcho } from './game/state';
 import { ITEMS } from './game/data';
+import { startTraining } from './game/chapters';
+import { heroSpriteReady } from './render/heroSprites';
 import { flush as flushCloud, initCloud } from './game/cloud';
 import { checkForUpdate, applyUpdate, takeResumeSlot } from './core/update';
 
@@ -30,7 +37,7 @@ const STEP = 1 / 120;
 async function boot() {
   const canvas = document.getElementById('game') as HTMLCanvasElement;
   applyTextSize();
-  await loadFonts();
+  await Promise.all([loadFonts(), loadCreatureSprites(), loadFallenArt()]);
   const renderer = new Renderer(canvas);
   const camera = new Camera(renderer);
   G.renderer = renderer;
@@ -83,6 +90,7 @@ async function boot() {
     if (app.mode !== 'game' || layerCount() > 0 || G.inCutscene) return;
     if (a === 'menu') openMenu();
     else if (a === 'map') openMenu('map');
+    else if (a === 'voice') G.ui.voiceOrders();
   });
 
   // Leaving the app (home button, app switcher, closing the tab) saves first.
@@ -135,8 +143,8 @@ const perf = { update: 0, draw: 0, hud: 0, frames: 0 };
 let last = 0;
 let acc = 0;
 let renderAcc = 0;
-let slowFrames = 0;
-let fastFrames = 0;
+const frameBudget = new FrameBudget();
+let touchAcc = 0;
 
 function loop(now: number) {
   requestAnimationFrame(loop);
@@ -151,6 +159,7 @@ function loop(now: number) {
     dt = renderAcc;
     renderAcc = 0;
   }
+  const frameStart = performance.now();
   tickFps(dt);
   input.poll();
   const ctx = r.ctx;
@@ -182,7 +191,11 @@ function loop(now: number) {
     }
     const showTouch = input.lastDevice === 'touch' && layerCount() === 0;
     setTouchVisible(showTouch);
-    updateTouch();
+    touchAcc += dt;
+    if (showTouch && touchAcc >= 1 / 30) {
+      updateTouch();
+      touchAcc = 0;
+    }
   } else {
     setTouchVisible(false);
     input.beginStep();
@@ -192,26 +205,18 @@ function loop(now: number) {
       drawIntro(ctx, r.cw, r.ch, dt);
     } else drawTitleScene(ctx, r.cw, r.ch, dt);
   }
-  adaptQuality(dt);
+  adaptQuality(dt, performance.now() - frameStart);
 }
 
 /** Auto quality: drop resolution if frames are consistently slow, recover if fast. */
-function adaptQuality(dt: number) {
-  if (settings.quality !== 'auto' || app.mode !== 'game') return;
-  const r = G.renderer;
-  if (dt > 1 / 42) slowFrames++;
-  else slowFrames = Math.max(0, slowFrames - 0.25);
-  if (dt < 1 / 100) fastFrames++;
-  else fastFrames = 0;
-  if (slowFrames > 90 && r.autoPenalty < 2) {
-    r.autoPenalty++;
-    slowFrames = 0;
-    r.resize();
-  } else if (fastFrames > 600 && r.autoPenalty > 0) {
-    r.autoPenalty--;
-    fastFrames = 0;
-    r.resize();
+function adaptQuality(dt: number, workMs: number) {
+  if (settings.quality !== 'auto' || app.mode !== 'game' || G.paused || G.inCutscene || document.hidden) {
+    frameBudget.reset();
+    return;
   }
+  const r = G.renderer;
+  const next = frameBudget.sample(dt, workMs, r.autoPenalty);
+  if (next !== r.autoPenalty) { r.autoPenalty = next; r.resize(); }
 }
 
 function registerSW() {
@@ -219,7 +224,9 @@ function registerSW() {
   if (location.protocol !== 'https:' && location.hostname !== 'localhost') return;
   if (import.meta.env.DEV) return;
   if (window.top !== window) return; // embedded (e.g. Artifact viewer): no workers there
-  const reg = () => navigator.serviceWorker.register('sw.js').catch(() => {
+  const reg = () => navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then((r) => {
+    void r.update().catch(() => {});
+  }).catch(() => {
     /* sandboxed frames (e.g. embedded previews) cannot register workers */
   });
   if (document.readyState === 'complete') reg();
@@ -232,6 +239,13 @@ function setupDebug() {
   G.debug = true;
   const api = {
     G,
+    art: creatureArtStatus,
+    fallenArt: fallenArtReady,
+    hero: () => ({ ready: heroSpriteReady(G.world.player.style, G.world.player.state, G.world.player.mantleT), skin: G.world.player.style.skin, hair: G.world.player.style.hair, beard: G.world.player.style.beard }),
+    trial: (bossOnly = false, from = 1) => startTraining(from, bossOnly),
+    spawn(kind: EnemyKind, x = G.world.player.x + 90, y = G.world.player.y) {
+      return G.world.add(makeEnemy(kind, x, y, null));
+    },
     warp(room: string, spawn = 'altar') {
       G.world.transition(room, spawn);
     },
