@@ -79,6 +79,10 @@ up next starts from the latest version.
   - `game/feast.ts`: Vessel Wraith and Scribe of the Veil.
   - `game/princes.ts`: Undying Host (rises again unless finished) and Fallen
     Gale (a lightning flier).
+  - `game/fallenFoes.ts`: the VII–IX signature foes: Antlered Stalker
+    (marked pounce, parryable two-hit rake), Swarm Carrier (drifting swarm
+    clouds, spore burst on death) and Slag Golem (armoured front, slam with a
+    jumpable fire wave, exposed core). Verified by `scripts/fallen-foes.mjs`.
 - **Echoes** (purified allies): `game/echoes.ts` holds the kits, `game/data.ts`
   the species.
   - **Squad control:** the command wheel (`ui/ui.ts`, `openWheel`) has a

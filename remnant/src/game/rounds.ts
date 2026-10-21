@@ -334,7 +334,7 @@ export class Rounds {
     else if (this.pack) k = n >= 15 && Math.random() < 0.35 ? 'lion' : 'hound';
     else k = choose(this.pool(n));
     // Heavies are a seasoning, never the meal.
-    if (!champion && (k === 'brute' || k === 'bulwark') && this.foes.filter((f) => !f.dying && (f.kind === 'brute' || f.kind === 'bulwark')).length >= 2) k = 'soldier';
+    if (!champion && (k === 'brute' || k === 'bulwark' || k === 'golem') && this.foes.filter((f) => !f.dying && (f.kind === 'brute' || f.kind === 'bulwark' || f.kind === 'golem')).length >= 2) k = 'soldier';
     const px = W.player.x / TILE;
     const lanes = LANES.filter((l) => Math.abs(l - px) > 7);
     const x = choose(lanes.length ? lanes : LANES) * TILE + rand(-12, 12);
@@ -368,7 +368,9 @@ export class Rounds {
     if (n <= 22) return ['drone', 'soldier', 'knight', 'bulwark', 'brute', 'priest', 'lion', 'sentinel'];
     if (n <= 30) return ['soldier', 'knight', 'bulwark', 'brute', 'priest', 'lion', 'vessel', 'scribe', 'vessel', 'scribe'];
     // The fallen host joins from round 31: the Undying rise again unless finished.
-    return ['knight', 'bulwark', 'brute', 'priest', 'lion', 'vessel', 'scribe', 'undying', 'undying', 'gale', 'gale'];
+    if (n <= 40) return ['knight', 'bulwark', 'brute', 'priest', 'lion', 'vessel', 'scribe', 'undying', 'undying', 'gale', 'gale'];
+    // The Fallen Crowns' own hunters, hosts and constructs from round 41.
+    return ['knight', 'bulwark', 'priest', 'lion', 'vessel', 'scribe', 'undying', 'gale', 'stalker', 'stalker', 'carrier', 'golem'];
   }
 
   private reward(n: number) {
