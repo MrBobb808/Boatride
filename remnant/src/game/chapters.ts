@@ -9,6 +9,7 @@ import { ROOMS } from './rooms';
 import { bestRounds } from './board';
 import { ECHO_SPECIES } from './data';
 import { isContract, type ContractId } from './progression';
+import { rushRoster } from './gauntlet';
 
 export interface ChapterDef {
   n: number;
@@ -105,18 +106,39 @@ export function startTraining(fromWave = 1, bossOnly = false, original?: string,
   const s = G.save;
   s.flags.echo_trial_species = original && ECHO_SPECIES[original] && s.echoes.some((e) => e.species === original) ? original : '';
   s.flags.trial_contract = !bossOnly && isContract(contract) ? contract : '';
-  if (W.room.id === 'trial_arena' && W.story.ch3.rounds.active) W.story.ch3.rounds.stop();
-  if (W.room.id !== 'trial_arena') {
-    // Come back through the nearest named spawn of the room you left.
-    const p = W.player;
-    let best = 'start', bd = Infinity;
-    for (const [name, sp] of Object.entries(W.room.spawns)) {
-      const d = Math.abs(sp.x * 16 - p.x) + Math.abs(sp.y * 16 - p.y);
-      if (d < bd) { bd = d; best = name; }
-    }
-    s.flags.trial_return = `${W.room.id}|${best}`;
-  }
+  markReturn();
   s.flags.trial_from = fromWave;
   s.flags.trial_mode = bossOnly ? 'boss' : 'survival';
   W.transition('trial_arena', 'start');
+}
+
+/** Leave a run in progress, and remember where to come back to from the arena. */
+function markReturn() {
+  const W = G.world;
+  if (W.room.id === 'trial_arena' && W.story.ch3.rounds.active) W.story.ch3.rounds.stop();
+  if (W.room.id === 'trial_arena') return;
+  // Come back through the nearest named spawn of the room you left.
+  const p = W.player;
+  let best = 'start', bd = Infinity;
+  for (const [name, sp] of Object.entries(W.room.spawns)) {
+    const d = Math.abs(sp.x * 16 - p.x) + Math.abs(sp.y * 16 - p.y);
+    if (d < bd) { bd = d; best = name; }
+  }
+  G.save.flags.trial_return = `${W.room.id}|${best}`;
+}
+
+// ---------------------------------------------------------------- the Boss Rush
+
+/** Bosses needed before the rush opens: one boss is just a rematch. */
+export const RUSH_MIN = 2;
+export const rushCount = () => rushRoster(G.save.defeated).length;
+export const rushOpen = () => rushCount() >= RUSH_MIN;
+
+/** Every beaten boss back to back in the arena; leaving returns you to this spot. */
+export function startBossRush() {
+  if (!rushOpen()) return;
+  markReturn();
+  G.save.flags.trial_from = 1;
+  G.save.flags.trial_mode = 'rush';
+  G.world.transition('trial_arena', 'start');
 }
