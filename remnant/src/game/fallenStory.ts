@@ -83,6 +83,8 @@ export class FallenStory {
       this.st.quest(`s_crown${c.n}`,0,true);if(!s.inventory.some(i=>i.id===c.optional)){const it=makeItem(c.optional);s.inventory.push(it);G.ui.itemGet(it);}G.world.giveXp(2500);G.world.autosave(true);
       await this.st.say([{who:'mara',text:c.n===9?'The smiths chose to build again. Keep their lantern; what survives the fire can still give light.':c.n===7?'Morvane. That green dust is a road for her swarm. Keep this grove lantern close.':'Azkar. His furnaces lie beyond the marsh. For now, you have given the living clean air and time.'}]);return true;
     }
+    const done=flag(`ch${c.n}_done`)?1:0;
+    if(n.kind==='tobiah'||n.kind===c.rescue){await this.st.say([{who:n.kind,text:(n.kind==='tobiah'?c.voices.tobiah:c.voices.rescued)[done]}]);return true;}
     await this.st.say([{who:n.kind,text:n.kind==='azriel'?c.tips:n.kind==='mara'?`Bring me the record from the ${c.n===9?'smithy':c.n===7?'grove':'infirmary'}, and make sure its survivors reach the outpost.`:flag(`ch${c.n}_done`)?'The road is ours again. Rest before the next journey.':'I will keep the watchfire burning until you return.'}]);return true;
   }
   secret(id:string){const c=FALLEN_CHAPTERS.find(c=>c.caches.includes(id));if(!c)return false;if(!G.save.secrets.includes(id)){G.save.secrets.push(id);G.ui.toast(`Cache found (${c.caches.filter(k=>G.save.secrets.includes(k)).length}/3)`,'good');}return true;}
