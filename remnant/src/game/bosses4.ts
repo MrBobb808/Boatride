@@ -165,6 +165,7 @@ interface Chunk {
 }
 
 export class GoldenImage extends BossBase {
+  pixelBox = [-215, -185, 215, 10] as const;
   j: Joints = newJoints();
   pose: Pose = { ...SP.dormant };
   /** Scratch pose: the target plus breathing, solved each frame. */
@@ -1297,6 +1298,23 @@ export class GoldenImage extends BossBase {
     const shaded = shadeable(MET.gold.c);
     const fine = G.renderer.tier >= 2;
     const glowC = this.dying ? '#fff3d0' : this.phase >= 3 ? '#ffb060' : '#e8c8ff';
+    // A king's cloak of Tyrian purple hangs from the shoulders behind the Image, bordered in gold.
+    {
+      const sw = Math.sin(G.time * 1.3) * 3;
+      const top = Math.min(j.shBY, j.shFY) + 2, hem = Math.max(j.knFY, j.knBY) + 6;
+      const cl = [j.shBX - 6, top, j.shFX - 2, top + 3, j.hipX - 4, j.hipY + 6, j.hipX - 10 + sw * 0.5, hem, j.hipX - 30 + sw, hem + 3, j.hipX - 42 + sw * 1.2, hem - 6, j.shBX - 22 + sw * 0.5, j.hipY - 4];
+      poly(ctx, cl, '#3a1240', OUT, 1.2);
+      ctx.strokeStyle = '#220a26';
+      ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      for (const k of [0.3, 0.6]) { ctx.moveTo(j.shBX - 8 - k * 8, top + 8); ctx.lineTo(j.hipX - 14 - k * 24 + sw * k, hem); }
+      ctx.stroke();
+      ctx.strokeStyle = MET.gold.c;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(j.hipX - 10 + sw * 0.5, hem); ctx.lineTo(j.hipX - 30 + sw, hem + 3); ctx.lineTo(j.hipX - 42 + sw * 1.2, hem - 6);
+      ctx.stroke();
+    }
     // Back arm and back leg sit in shadow.
     this.drawArm(ctx, j.shBX, j.shBY, j.elBX, j.elBY, j.haBX, j.haBY, true, shaded, fine, glowC);
     this.drawLeg(ctx, j.hpBX, j.hpBY, j.knBX, j.knBY, j.ftBX, j.ftBY, true, shaded, fine, glowC);
@@ -1619,6 +1637,18 @@ export class GoldenImage extends BossBase {
     if (fine) for (let i = -3; i <= 3; i++) ellipse(ctx, i * 5, -21.8, 0.9, 0.9, 0, MET.brass.hi);
     // Breast of silver: a broad V of plate with pectorals and a collar.
     poly(ctx, [-17.5, -23, 17.5, -23, 22, -33, 26.5, -43, 20, -48, 9, -51.5, -9, -51.5, -20, -48, -26.5, -43, -22, -33], shaded ? metalPlate(ctx, 'silver', 'chest', 6, -53, -2, -21) : MET.silver.c, OUT, 1.4);
+    // Scale mail of silver below the pectorals: rows of small arcs.
+    ctx.strokeStyle = MET.silver.line;
+    ctx.lineWidth = 0.7;
+    ctx.beginPath();
+    for (let row = 0; row < 2; row++) {
+      for (let x = -15 + (row & 1) * 2.5; x <= 15; x += 5) {
+        const y = -27 - row * 3.2;
+        ctx.moveTo(x - 2.5, y);
+        ctx.quadraticCurveTo(x, y + 2.6, x + 2.5, y);
+      }
+    }
+    ctx.stroke();
     // Pectoral plates: a shadow under each, a bright rim over each.
     ctx.strokeStyle = MET.silver.line;
     ctx.lineWidth = 1.1;

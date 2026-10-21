@@ -26,6 +26,8 @@ export class CinderWave extends Entity {
   draw(ctx:Ctx){poly(ctx,[this.x-18,this.y,this.x-11,this.y-12,this.x-3,this.y-28,this.x+3,this.y-12,this.x+15,this.y-20,this.x+18,this.y],'#ec793e','#ffdc9e',1);}
 }
 export class CinderMonarch extends BossBase {
+  // Already drawn from painted sprite atlases.
+  pixelShade = false;
   attack:Attack='hammer';attackCount=0;released=false;floorY:number;targetX=0;
   faults:Fault[]=[];waves:CinderWave[]=[];ward=false;bellowsStep=-1;armor=false;
   readonly color='#ffb16b';

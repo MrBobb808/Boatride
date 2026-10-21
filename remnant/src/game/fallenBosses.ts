@@ -42,6 +42,8 @@ export class CrownAdd extends Entity {
 
 /** Original Fallen Crowns: fixed campaign HP, readable tells, and phase gates for very strong builds. */
 export class FallenMonarch extends BossBase {
+  // Already drawn from painted sprite atlases.
+  pixelShade = false;
   attack:Attack='claws';attackCount=0;released=false;second=false;floorY:number;targetX=0;launchX=0;huntStep=-1;ward=false;
   adds:CrownAdd[]=[];spores:Spore[]=[];beaconX=0;purgePulse=-1;purgeHits=new Set<number>();
   color:string;

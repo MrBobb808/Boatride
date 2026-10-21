@@ -7,7 +7,7 @@
 import { type HitInfo } from './entity';
 import { BossBase } from './bosses2';
 import { solve, newJoints, type Joints, type Pose } from '../render/skeleton';
-import { glow, rgba, type Ctx } from '../render/draw';
+import { glow, rgba, ellipse, poly, circle, type Ctx } from '../render/draw';
 import { drawHumanoid, flashStyle, type HumanStyle } from '../render/actors';
 import { fx, PK } from '../render/fx';
 import { sfx } from '../audio/audio';
@@ -39,7 +39,11 @@ const KP = {
   curl: { ...KB, lean: 1.1, head: 0.8, fUA: 0.6, fFA: 2.2, bUA: 0.6, bFA: 2.2, fTh: 1.6, fSh: -2.6, bTh: 1.2, bSh: -2.4, sq: 0.9 },
 };
 
+/** The king of the swarm stands a head taller than its soldiers. */
+const KING_SCALE = 1.65;
+
 export class LocustKing extends BossBase {
+  pixelBox = [-130, -230, 130, 12] as const;
   j: Joints = newJoints();
   pose: Pose = { ...KP.curl };
   target: Pose = { ...KP.curl };
@@ -96,7 +100,7 @@ export class LocustKing extends BossBase {
     return this.y - 32;
   }
   hand() {
-    const S = 1.45;
+    const S = KING_SCALE;
     return { x: this.x + this.face * this.j.haFX * S, y: this.y + this.j.haFY * S };
   }
 
@@ -607,7 +611,7 @@ export class LocustKing extends BossBase {
     // Unseen inside the cocoon until it splits.
     if (this.state === 'dormant') return;
     const f = this.face;
-    const S = 1.45;
+    const S = KING_SCALE;
     const style = this.phase >= 3 ? this.rageStyle : this.style;
     // Dive target.
     if (this.atk === 'dive' && this.step === 1) this.floorMark(ctx, this.diveTo.x, this.diveTo.y, 54, this.st / 0.38, '#c9a8ff');
@@ -632,9 +636,56 @@ export class LocustKing extends BossBase {
     ctx.translate(this.x, this.y);
     ctx.scale(f * S, S);
     drawLocustWings(ctx, this.j, 'king', this.wingSpread, this.beat);
+    const j = this.j, tm = G.time, rage = this.phase >= 3;
+    // The swollen abdomen of a hive-king, trailing behind in banded segments.
+    {
+      const ax = j.hipX - 3, ay = j.hipY + 1;
+      const sw = Math.sin(tm * 2.4) * 1.5;
+      for (let k = 4; k >= 0; k--) {
+        const cx = ax - 4 - k * 4.2, cy = ay + 2 + k * 2.4 + sw * k * 0.3, rr = 5.6 - k * 0.6;
+        ellipse(ctx, cx, cy, rr + 0.8, rr * 0.8 + 0.8, -0.5, '#0a0610');
+        ellipse(ctx, cx, cy, rr, rr * 0.8, -0.5, k & 1 ? '#3a2850' : '#4e3668');
+        ellipse(ctx, cx + 1, cy - 1.6, rr * 0.5, rr * 0.25, -0.5, '#7a5aa0');
+      }
+      // A stinger, and the Veil glowing inside the gut.
+      poly(ctx, [ax - 24, ay + 12 + sw, ax - 30, ay + 17 + sw, ax - 23, ay + 15 + sw], '#d8c8e8', '#0a0610', 0.5);
+      ctx.globalCompositeOperation = 'lighter';
+      glow(ctx, ax - 10, ay + 6, 9, rage ? '#ff3a4a' : '#b04cff', 0.45 + Math.sin(tm * 4) * 0.15);
+      ctx.globalCompositeOperation = 'source-over';
+    }
     drawHumanoid(ctx, this.j, style, G.time, this.pose.rot, (this.body.vx * f) / S, this.body.vy / S);
+    // Overlapping chitin plates over the chest, each with a sheen, and a pair of glowing sacs.
+    {
+      const a = j.torsoA, ux = Math.sin(a), uy = -Math.cos(a), rx = Math.cos(a), ry = Math.sin(a);
+      const len = Math.hypot(j.neckX - j.hipX, j.neckY - j.hipY);
+      const Q = (u: number, r: number) => [j.hipX + ux * u + rx * r, j.hipY + uy * u + ry * r];
+      for (let k = 0; k < 4; k++) {
+        const u = len * (0.82 - k * 0.17);
+        poly(ctx, [...Q(u, -3.8), ...Q(u, 4.4), ...Q(u - len * 0.15, 4.0), ...Q(u - len * 0.15, -3.4)], k & 1 ? '#2a1e3a' : '#3a2a52', '#0a0610', 0.5);
+        const [hx0, hy0] = Q(u - 0.7, -3.2), [hx1, hy1] = Q(u - 0.7, 3.8);
+        ctx.strokeStyle = '#8a6ab0';
+        ctx.lineWidth = 0.6;
+        ctx.beginPath(); ctx.moveTo(hx0, hy0); ctx.lineTo(hx1, hy1); ctx.stroke();
+      }
+      for (const r of [-1.8, 2.4]) {
+        const [sx, sy] = Q(len * 0.55, r);
+        circle(ctx, sx, sy, 1.1, rage ? '#ff6a5a' : '#d68cff');
+      }
+    }
     drawLocustScythes(ctx, this.j, 'king', 15);
     drawLocustHead(ctx, this.j, 'king', G.time, this.bite);
+    // A crown of chitin thorns, swept back, tipped with Veil-light.
+    {
+      ctx.save();
+      ctx.translate(j.headX, j.headY);
+      ctx.rotate(j.headA);
+      const spikes = [[-4, -4, -7, -12], [-1.5, -5, -2.5, -14], [1.2, -5, 1.5, -13], [3.5, -4.2, 5, -10]];
+      for (const [x0, y0, x1, y1] of spikes) {
+        poly(ctx, [x0 - 1.2, y0, x1, y1, x0 + 1.2, y0], '#2a1e3a', '#0a0610', 0.5);
+        circle(ctx, x1, y1, 0.7, rage ? '#ff6a5a' : '#e0b0ff');
+      }
+      ctx.restore();
+    }
     if (this.flash > 0) {
       ctx.globalAlpha = Math.min(0.9, this.flash * 9);
       drawHumanoid(ctx, this.j, flashStyle(style), G.time, this.pose.rot);

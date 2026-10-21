@@ -12,6 +12,7 @@ import { EchoCombinations } from './echoCombos';
 import { runBlessings } from './blessings';
 import { Enemy } from './enemies';
 import { drawFoeSprite } from '../render/creatureSprites';
+import { drawPixelBody, bossPixelFrame } from '../render/bossPixel';
 import { makeEnemy } from './foes';
 import { EchoUnit } from './echoes';
 import { trialArena, trialSector } from './trialArena';
@@ -1657,6 +1658,8 @@ export class World {
   // ---------------------------------------------------------------- rendering
   private drawActor(ctx: Ctx, e: Entity) {
     if (e instanceof Enemy && drawFoeSprite(ctx, e)) return;
+    // Vector-rigged bosses are shaded into pixel art in the pixel style.
+    if ((e as { pixelShade?: boolean }).pixelShade && drawPixelBody(ctx, e)) return;
     e.draw(ctx);
   }
 
@@ -1664,6 +1667,7 @@ export class World {
     const r = G.renderer;
     const cam = G.camera;
     this.ensureCaches();
+    bossPixelFrame();
     const pal = BIOMES[this.room.biome];
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.globalAlpha = 1;

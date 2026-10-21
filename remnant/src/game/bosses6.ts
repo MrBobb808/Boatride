@@ -23,7 +23,7 @@ import { type HitInfo } from './entity';
 import { BossBase } from './bosses2';
 import { solve, newJoints, Chain, drawRibbon, POSE_KEYS, type Joints, type Pose, type RigDims } from '../render/skeleton';
 import { drawHumanoid, flashStyle, type HumanStyle } from '../render/actors';
-import { glow, ellipse, type Ctx } from '../render/draw';
+import { glow, ellipse, shade, poly, type Ctx } from '../render/draw';
 import { fx, PK } from '../render/fx';
 import { sfx } from '../audio/audio';
 import { music } from '../audio/music';
@@ -60,62 +60,79 @@ function drawWing(ctx: Ctx, x: number, y: number, f: number, spread: number, fla
   const wx = x + bx * L * 0.78, wy = y + by * L * 0.78;
   const tx = x + bx * L, ty = y + by * L;
   const fan = lerp(0.3, 1.25, spread);
-  const N = 6;
-  ctx.fillStyle = far ? P.dark : P.dark;
-  ctx.strokeStyle = P.edge;
-  ctx.lineWidth = 1;
+  const dark = far ? shade(P.dark, -0.25) : P.dark, mid = far ? shade(P.mid, -0.3) : P.mid;
   ctx.lineJoin = 'miter';
-  ctx.beginPath();
-  ctx.moveTo(x, y);
-  ctx.lineTo(ex, ey);
-  ctx.lineTo(wx, wy);
-  ctx.lineTo(tx, ty);
-  // Trailing edge: feather tips from the outermost in, notched between.
+  // Flight feathers, outermost first so the inner ones lie over them. Each is a long
+  // blade from the arm with a lit leading edge and a pale tip.
+  const N = detail ? 9 : 6;
   for (let i = N - 1; i >= 0; i--) {
     const u = (i + 1) / N;
-    const px = lerp(x, wx, u), py = lerp(y, wy, u);
+    const px = u < 0.5 ? lerp(x, ex, u * 2) : lerp(ex, wx, (u - 0.5) * 2), py = u < 0.5 ? lerp(y, ey, u * 2) : lerp(ey, wy, (u - 0.5) * 2);
     const fp = phi - fan * (1 - u * 0.75);
-    const fl = L * (0.42 + 0.3 * u);
-    const fx2 = px - Math.cos(fp) * f * fl, fy2 = py - Math.sin(fp) * fl;
-    ctx.lineTo(fx2, fy2);
-    const nu = i / N;
-    const qx = lerp(x, wx, nu), qy = lerp(y, wy, nu);
-    const qp = phi - fan * (1 - nu * 0.75);
-    const ql = L * (0.3 + 0.24 * nu);
-    ctx.lineTo(qx - Math.cos(qp) * f * ql, qy - Math.sin(qp) * ql);
-  }
-  ctx.closePath();
-  ctx.fill();
-  ctx.stroke();
-  // Coverts: a lighter band along the leading edge.
-  ctx.fillStyle = P.mid;
-  ctx.beginPath();
-  ctx.moveTo(x, y);
-  ctx.lineTo(ex, ey);
-  ctx.lineTo(wx, wy);
-  const cp = phi - fan * 0.5;
-  ctx.lineTo(wx - Math.cos(cp) * f * L * 0.2, wy - Math.sin(cp) * L * 0.2);
-  ctx.lineTo(ex - Math.cos(cp) * f * L * 0.22, ey - Math.sin(cp) * L * 0.22);
-  ctx.closePath();
-  ctx.fill();
-  if (detail) {
-    // Quill lines.
-    ctx.strokeStyle = P.mid;
+    const fl = L * (0.4 + 0.34 * u);
+    const dx = -Math.cos(fp) * f, dy = -Math.sin(fp);
+    const nx = -dy, ny = dx, w = 2.4 + u * 1.8;
+    const fx2 = px + dx * fl, fy2 = py + dy * fl;
     ctx.beginPath();
-    for (let i = 1; i < N; i++) {
-      const u = i / N;
-      const px = lerp(x, wx, u), py = lerp(y, wy, u);
-      const fp = phi - fan * (1 - u * 0.75);
-      const fl = L * (0.3 + 0.3 * u);
-      ctx.moveTo(px, py);
-      ctx.lineTo(px - Math.cos(fp) * f * fl, py - Math.sin(fp) * fl);
-    }
+    ctx.moveTo(px - nx * w, py - ny * w);
+    ctx.lineTo(px + dx * fl * 0.82 - nx * w * 0.8, py + dy * fl * 0.82 - ny * w * 0.8);
+    ctx.lineTo(fx2, fy2);
+    ctx.lineTo(px + dx * fl * 0.82 + nx * w * 0.9, py + dy * fl * 0.82 + ny * w * 0.9);
+    ctx.lineTo(px + nx * w, py + ny * w);
+    ctx.closePath();
+    ctx.fillStyle = i & 1 ? dark : shade(dark, 0.08);
+    ctx.fill();
+    ctx.strokeStyle = OUTL;
+    ctx.lineWidth = 0.8;
     ctx.stroke();
+    if (detail) {
+      // The shaft, and the lit vane.
+      ctx.strokeStyle = mid;
+      ctx.lineWidth = 0.7;
+      ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(px + dx * fl * 0.9, py + dy * fl * 0.9); ctx.stroke();
+      ctx.strokeStyle = P.edge;
+      ctx.beginPath(); ctx.moveTo(px + dx * fl * 0.3 - nx * w * 0.9, py + dy * fl * 0.3 - ny * w * 0.9); ctx.lineTo(px + dx * fl * 0.8 - nx * w * 0.75, py + dy * fl * 0.8 - ny * w * 0.75); ctx.stroke();
+    }
+    ctx.fillStyle = P.tip;
+    ctx.fillRect(Math.round(fx2 - dx * 2) - 1, Math.round(fy2 - dy * 2) - 1, 2, 2);
   }
-  // A bright tip, so the span reads at a glance.
+  // The arm of the wing, lit along its leading edge.
+  ctx.lineCap = 'round';
+  ctx.strokeStyle = OUTL;
+  ctx.lineWidth = 5;
+  ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(ex, ey); ctx.lineTo(wx, wy); ctx.lineTo(tx, ty); ctx.stroke();
+  ctx.strokeStyle = mid;
+  ctx.lineWidth = 3.2;
+  ctx.stroke();
+  ctx.strokeStyle = P.edge;
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(x, y - 1); ctx.lineTo(ex, ey - 1.2); ctx.lineTo(wx, wy - 1); ctx.stroke();
+  ctx.lineCap = 'butt';
+  // Two rows of covert feathers: scallops along the arm.
+  if (detail) {
+    const cp = phi - fan * 0.55;
+    const cdx = -Math.cos(cp) * f, cdy = -Math.sin(cp);
+    for (let row = 0; row < 2; row++) {
+      const n = 7 - row * 2, len = 6 + row * 4;
+      for (let k = 0; k < n; k++) {
+        const u = (k + 0.5) / n;
+        const px = u < 0.5 ? lerp(x, ex, u * 2) : lerp(ex, wx, (u - 0.5) * 2), py = u < 0.5 ? lerp(y, ey, u * 2) : lerp(ey, wy, (u - 0.5) * 2);
+        const ox = px + cdx * (row * 6 + 2), oy = py + cdy * (row * 6 + 2);
+        ctx.beginPath();
+        ctx.ellipse(ox + cdx * len * 0.5, oy + cdy * len * 0.5, len * 0.6, 2.6, Math.atan2(cdy, cdx), 0, Math.PI * 2);
+        ctx.fillStyle = row ? mid : shade(mid, 0.12);
+        ctx.fill();
+        ctx.strokeStyle = OUTL;
+        ctx.lineWidth = 0.6;
+        ctx.stroke();
+      }
+    }
+  }
   ctx.fillStyle = P.tip;
   ctx.fillRect(Math.round(tx) - 1, Math.round(ty) - 1, 2, 2);
 }
+
+const OUTL = '#06040a';
 
 /** Where a wing's tip is (for telegraph glints). */
 function wingTip(x: number, y: number, f: number, spread: number, flap: number, L: number) {
@@ -258,12 +275,66 @@ abstract class Prince extends BossBase {
     ctx.translate(this.x, this.y);
     ctx.scale(this.face * S, S);
     drawHumanoid(ctx, this.j, this.style, G.time, this.pose.rot);
+    if (!this.pose.rot) this.drawRegalia(ctx);
     if (this.flash > 0) {
       ctx.globalAlpha = Math.min(0.9, this.flash * 9);
       drawHumanoid(ctx, this.j, flashStyle(this.style), G.time, this.pose.rot);
       ctx.globalAlpha = 1;
     }
     ctx.restore();
+  }
+
+  /** A prince's regalia over the rig: breastplate and emblem, layered pauldron, belt and tassets. */
+  drawRegalia(ctx: Ctx) {
+    const j = this.j, P = this.pal, storm = this.pal === STORM_WING;
+    const a = j.torsoA, ux = Math.sin(a), uy = -Math.cos(a), rx = Math.cos(a), ry = Math.sin(a);
+    const len = Math.hypot(j.neckX - j.hipX, j.neckY - j.hipY);
+    const Q = (u: number, r: number): [number, number] => [j.hipX + ux * u + rx * r, j.hipY + uy * u + ry * r];
+    const pts = (...p: [number, number][]) => p.flat();
+    const metal = storm ? '#3a4a6e' : '#c89a3a', metalHi = storm ? '#bcd4ff' : '#ffe6a0', metalDk = storm ? '#1a2238' : '#7a5a1e';
+    // Breastplate.
+    poly(ctx, pts(Q(len * 0.95, -4.2), Q(len * 0.95, 4.8), Q(len * 0.5, 5.2), Q(len * 0.36, 0.5), Q(len * 0.5, -4.4)), metal, OUTL, 0.6);
+    const [c0x, c0y] = Q(len * 0.92, 4.2), [c1x, c1y] = Q(len * 0.55, 4.6);
+    ctx.strokeStyle = metalHi; ctx.lineWidth = 0.7;
+    ctx.beginPath(); ctx.moveTo(c0x, c0y); ctx.lineTo(c1x, c1y); ctx.stroke();
+    const [ex2, ey2] = Q(len * 0.7, 0.8);
+    if (storm) {
+      // A bolt of silver set into the plate.
+      ctx.strokeStyle = metalHi; ctx.lineWidth = 0.9;
+      ctx.beginPath();
+      ctx.moveTo(ex2 - 1, ey2 - 3.5); ctx.lineTo(ex2 + 1, ey2 - 0.5); ctx.lineTo(ex2 - 1, ey2 + 0.5); ctx.lineTo(ex2 + 1, ey2 + 3.5);
+      ctx.stroke();
+    } else {
+      // A winged sun in gold relief.
+      ellipse(ctx, ex2, ey2, 1.6, 1.6, 0, '#ffe6a0');
+      ctx.strokeStyle = '#7a1a3a'; ctx.lineWidth = 0.7;
+      ctx.beginPath(); ctx.moveTo(ex2 - 4, ey2 - 0.5); ctx.lineTo(ex2 - 1.8, ey2); ctx.moveTo(ex2 + 1.8, ey2); ctx.lineTo(ex2 + 4, ey2 - 0.5); ctx.stroke();
+    }
+    // Belt with a jewel, and three tassets hanging over the hips.
+    poly(ctx, pts(Q(1.2, -4.6), Q(1.2, 5), Q(-0.6, 5), Q(-0.6, -4.6)), metalDk, OUTL, 0.5);
+    const [bx2, by2] = Q(0.3, 1.5);
+    ellipse(ctx, bx2, by2, 1, 1, 0, storm ? '#9ac8ff' : '#b0203a');
+    for (let k = -1; k <= 1; k++) {
+      const r0 = k * 3.4 - 1.2, r1 = r0 + 3;
+      poly(ctx, pts(Q(-0.6, r0), Q(-0.6, r1), Q(-5.5 + Math.abs(k), r1 - 0.3), Q(-6 + Math.abs(k), r0 + 0.3)), k ? metal : shade(metal, 0.12), OUTL, 0.5);
+    }
+    // A layered pauldron of three overlapping plates on the near shoulder.
+    const pa = Math.atan2(j.elFY - j.shFY, j.elFX - j.shFX) - Math.PI / 2;
+    ctx.save();
+    ctx.translate(j.shFX, j.shFY);
+    ctx.rotate(pa);
+    for (let k = 2; k >= 0; k--) {
+      ctx.beginPath();
+      ctx.ellipse(0, 0.8 + k * 1.6, 4.6 - k * 0.4, 3 - k * 0.3, 0, Math.PI, 0);
+      ctx.closePath();
+      ctx.fillStyle = k ? shade(metal, -0.15 * k) : metal;
+      ctx.fill();
+      ctx.strokeStyle = OUTL; ctx.lineWidth = 0.5; ctx.stroke();
+    }
+    ctx.strokeStyle = metalHi; ctx.lineWidth = 0.6;
+    ctx.beginPath(); ctx.ellipse(0, 0.8, 4.2, 2.6, 0, Math.PI * 1.15, Math.PI * 1.85); ctx.stroke();
+    ctx.restore();
+    void P;
   }
 
   /** Kneeling marker over a broken prince: execute now. */
@@ -359,6 +430,7 @@ interface Streak { x: number; y: number; len: number; life: number }
 const SKY = 330;
 
 export class StormPrince extends Prince {
+  pixelBox = [-315, -205, 315, 158] as const;
   atk: SAtk | null = null;
   last: SAtk | null = null;
   strikes: Strike[] = [];
@@ -1388,6 +1460,7 @@ const SPEARS = 16;
 const DAYS = 21;
 
 export class PersiaPrince extends Prince {
+  pixelBox = [-135, -115, 135, 26] as const;
   atk: PAtk | null = null;
   last: PAtk | null = null;
   n = 0;
