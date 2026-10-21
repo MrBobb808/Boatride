@@ -6,7 +6,8 @@ import { h, btn } from './dom';
 import { ITEMS, TRIAL_REWARDS, RARITY_NAMES, RARITY_COLORS, SLOT_NAMES } from '../game/data';
 import { chapterOf } from '../game/rooms';
 import { openLeaderboard } from './leaderboard';
-import { CHAPTERS, chapterOpen, travelToChapter, trainingOpen, trainingBest, trainingStarts, startTraining } from '../game/chapters';
+import { CHAPTERS, chapterOpen, travelToChapter, trainingOpen, trainingBest, trainingStarts, startTraining, rushOpen, rushCount, startBossRush, RUSH_MIN } from '../game/chapters';
+import { loadBoard, rushClock } from '../game/board';
 import { contractBoard } from './progression';
 
 /** Kept at the top of Settings so wave entry never disappears below the trophy catalog. */
@@ -73,6 +74,7 @@ export function chaptersTab(close: () => void): HTMLElement {
   return h('div', { class: 'col scroll', style: 'flex:1' },
     h('div', { class: 'box' }, h('h3', null, 'Chapters'), h('div', { class: 'list' }, rows)),
     training,
+    bossRush(close, busy),
     trainingOpen() ? h('div', { class: 'box' }, contractBoard(close)) : null,
     trainingOpen() ? h('div', { class: 'box boss-trial' },
       h('div', { class: 'eyebrow' }, 'Endless challenge'),
@@ -84,5 +86,24 @@ export function chaptersTab(close: () => void): HTMLElement {
       ),
       h('small', { class: 'muted' }, `Best: ${trainingBest(true)} bosses defeated. Records are separate from survival.`),
     ) : null,
+  );
+}
+
+/** The Boss Rush: every boss beaten so far, back to back, against the clock. */
+function bossRush(close: () => void, busy: boolean): HTMLElement {
+  const n = rushCount(), open = rushOpen();
+  const top = loadBoard('rush')[0];
+  const best = top ? (top.done ? `Best: ${top.rounds}/${top.total ?? top.rounds} in ${rushClock(top.time)}.` : `Best: ${top.rounds}/${top.total ?? top.rounds} bosses.`) : 'No runs yet.';
+  return h('div', { class: 'box boss-rush', style: open ? '' : 'opacity:0.6' },
+    h('div', { class: 'eyebrow' }, 'Against the clock'),
+    h('h3', null, 'Boss Rush'),
+    h('p', { class: 'muted' }, `Every boss you have beaten, in story order, one after another. A short breather between fights restores some health and your Balm. Boss difficulty applies. Nothing is earned or lost: campaign progress, gear and experience stay as they are.`),
+    h('div', { class: 'ch-waves' },
+      open
+        ? btn(`Start Boss Rush · ${n} bosses`, () => { close(); startBossRush(); }, 'btn small primary', { disabled: busy, 'data-k': 'rush_start' })
+        : h('span', { class: 'muted', 'data-k': 'rush_locked' }, `Locked: defeat ${RUSH_MIN} bosses in the story (${n}/${RUSH_MIN}).`),
+      btn('Rush leaderboard', () => openLeaderboard('rush'), 'btn small', { 'data-k': 'rush_board' }),
+    ),
+    open ? h('small', { class: 'muted' }, busy ? 'Available after the current boss fight or room transition.' : best) : null,
   );
 }
