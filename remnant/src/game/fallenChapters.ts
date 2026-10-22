@@ -136,7 +136,7 @@ function makeRooms(c:FallenChapter):RoomDef[] {
   const theme=c.biome, floor=24, width=104;
   const room=(id:string,name:string,w=width,f=floor,interior=false):RoomDef=>{
     const b=new MapBuilder(w,f+4).rect(0,f,w,4);if(interior)b.rect(0,0,w,2);
-    return {id,name,region:c.title,biome:theme,music:theme,dark:interior?.36:.23,interior,weather:c.n===9?'embers':c.n===7&&!interior?'ash':'motes',seed:c.n*100+id.length,map:{x:0,y:c.n*2},w,h:b.h,rows:b.rows(),spawns:{start:{x:6,y:f},left:{x:4,y:f},right:{x:w-4,y:f,face:-1}},exits:[],ents:[]};
+    return {id,name,region:c.title,biome:theme,music:theme,dark:interior?.36:.23,interior,weather:c.n===9?'embers':c.n===7&&!interior?'ash':'motes',seed:c.n*100+[c.hub,c.trail,c.depths,c.side,c.ridge,c.arena].indexOf(id),map:{x:0,y:c.n*2},w,h:b.h,rows:b.rows(),spawns:{start:{x:6,y:f},left:{x:4,y:f},right:{x:w-4,y:f,face:-1}},exits:[],ents:[]};
   };
   const hub=room(c.hub,c.n===9?'Ashwatch Refuge':c.n===7?'Thawgate Outpost':'Lantern Quarantine',76,20);
   hub.spawns.altar={x:9,y:20};hub.rows=hub.rows.map((r,y)=>y<20?'##'+r.slice(2):r);
@@ -166,12 +166,13 @@ function makeRooms(c:FallenChapter):RoomDef[] {
   addPlatforms(arena,c.n===9?[[13,18,9],[57,18,9]]:[[15,17,8],[54,17,8]]);
   if(c.n===9){addPlatforms(trail,[[7,21,7],[86,19,8]]);addPlatforms(ridge,[[12,22,6],[94,21,7]]);}
   for(const [i,r]of [trail,depths,ridge].entries()){
-    const f=r.h-4;r.ents.push(foe(c.n===9?'lion':c.n===7?'hound':'drone',24,f),foe(c.n===9?'undying':c.n===7?'knight':'soldier',55,f),foe(c.n===9?'priest':c.n===7?'archer':'priest',78,f));
+    // The middle foe of every route room is the chapter's own: stalker, carrier or golem.
+    const f=r.h-4;r.ents.push(foe(c.n===9?'lion':c.n===7?'hound':'drone',24,f),foe(c.n===9?'golem':c.n===7?'stalker':'carrier',55,f),foe(c.n===9?'priest':c.n===7?'archer':'priest',78,f));
     if(i<2){const o=c.objectives[i];if(c.n===7)r.ents.push(foe(i?'lion':'knight',94,f,o.id,o.flag));else r.ents.push({t:'shrine',id:o.id,grants:o.id,x:97,y:f},foe(c.n===9?'bulwark':'soldier',94,f));}
   }
   depths.spawns.altar={x:10,y:27};depths.ents.push({t:'altar',id:depths.id,x:10,y:27},{t:'light',k:'brazier',x:10,y:27});
   ridge.spawns.altar={x:9,y:25};ridge.ents.push({t:'altar',id:ridge.id,x:9,y:25},{t:'light',k:'brazier',x:9,y:25},{t:'trigger',id:`ch${c.n}_gate`,x:98,y:18,w:8,h:7});
-  side.ents.push(foe(c.n===9?'lion':c.n===7?'hound':'drone',24,24),foe(c.n===9?'knight':c.n===7?'lion':'soldier',49,24),{t:'npc',k:c.rescue,x:60,y:24,ncond:`ch${c.n}_rescued`},{t:'lore',id:c.record,x:48,y:12});
+  side.ents.push(foe(c.n===9?'golem':c.n===7?'stalker':'carrier',24,24),foe(c.n===9?'knight':c.n===7?'lion':'soldier',49,24),{t:'npc',k:c.rescue,x:60,y:24,ncond:`ch${c.n}_rescued`},{t:'lore',id:c.record,x:48,y:12});
   trail.ents.push({t:'chest',id:c.caches[0],secret:true,x:38,y:13,loot:[{item:c.n===9?'quencher_grips':c.n===7?'trailwarden_grips':'antidote_greaves',rarity:4},{silver:900}]});
   side.ents.push({t:'chest',id:c.caches[1],secret:true,x:51,y:12,loot:[{item:c.n===9?'ashwatch_plate':c.n===7?'moonpath_boots':'quarantine_mantle',rarity:4},{mat:'radiant_core',n:4}]});
   ridge.ents.push({t:'chest',id:c.caches[2],secret:true,x:76,y:12,loot:[{silver:1200},{mat:'covenant_fragment',n:6}]},{t:'hint',id:`ch${c.n}_boss_hint`,x:84,w:18,text:c.tips});

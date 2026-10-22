@@ -17,6 +17,7 @@ import { guidePoint } from '../game/guide';
 import { mantleUnlocked } from '../game/mantle';
 import { drawIsland } from './island';
 import { SUBS, type SubId } from '../game/subweapons';
+import { rushClock } from '../game/board';
 import { FONT_DISPLAY, FONT_BODY, roundRect, glow, type Ctx } from '../render/draw';
 import { clamp, lerp } from '../core/math';
 import { safe } from './safe';
@@ -580,8 +581,29 @@ function minimap(ctx: Ctx, x: number, y: number, w: number, h: number) {
  * Rounds 1 to 5 are chalked as tally marks, later rounds as a numeral. A new
  * round flashes white and settles to red; between rounds the counter pulses.
  */
+// The rush clock's text, rebuilt only when what it shows changes (this draws every frame).
+let rushTenths = -1, rushTime = '', rushLabelKey = -1, rushLabel = '', rushU = 0, rushFontBig = '', rushFontSmall = '';
+
+function drawRush(ctx: CanvasRenderingContext2D, W: number, y0: number, u: number) {
+  const R = G.world.story.ch3.rounds;
+  const tenths = Math.floor(R.time * 10);
+  if (tenths !== rushTenths) { rushTenths = tenths; rushTime = rushClock(R.time); }
+  const total = R.rushKeys.length, wait = R.breakT > 0 ? Math.ceil(R.breakT) : 0;
+  const key = R.round * 64 + wait;
+  if (key !== rushLabelKey) {
+    rushLabelKey = key;
+    rushLabel = wait ? `BOSS ${R.round + 1}/${total} IN ${wait}` : `BOSS RUSH · ${R.round}/${total}`;
+  }
+  if (u !== rushU) { rushU = u; rushFontBig = `700 ${13 * u}px ${FONT_DISPLAY}`; rushFontSmall = `700 ${9 * u}px ${FONT_DISPLAY}`; }
+  // Below the phone's boss bar while a fight is on, as the gauntlet's label is.
+  const y = y0 + (input.lastDevice === 'touch' && G.world.bossActive ? 38 : 10) * u;
+  text(ctx, rushTime, W / 2, y, rushFontBig, '#ffe6a8', 'center');
+  text(ctx, rushLabel, W / 2, y + 14 * u, rushFontSmall, '#c8ccff', 'center');
+}
+
 function drawRounds(ctx: CanvasRenderingContext2D, W: number, y0: number, u: number) {
   const R = G.world.story.ch3.rounds;
+  if (R.active && R.rush) { drawRush(ctx, W, y0, u); return; }
   if (!R.active || R.round <= 0) return;
   const n = R.round;
   if (R.bossOnly) {

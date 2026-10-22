@@ -765,6 +765,7 @@ export class EchoUnit extends Entity {
   }
 
   gainXp(n: number) {
+    if (G.world.rushing) return;
     const mult = skillRank(G.save, 'c_glory') ? 1.6 : 1;
     if (gainEchoXp(this.inst, n * mult) > 0) {
       this.refreshStats();

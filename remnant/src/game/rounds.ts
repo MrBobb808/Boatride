@@ -4,6 +4,8 @@
 // the Pack runs (hounds, later lions); every tenth a Champion comes with them.
 // Now and then a foe drops a blessing. Falling ends the run: the Game Over card
 // shows how many rounds you survived, and runs from round 1 go on the board.
+// The Boss Rush runs here too: every boss this save has beaten, in story
+// order, against the clock, with nothing earned and nothing lost.
 
 import { G } from './ctx';
 import { Entity } from './entity';
@@ -16,7 +18,7 @@ import { CONTRACTS, contractTier, isContract, type ContractId } from './progress
 import { BLESSINGS, runBlessings, type BlessingId } from './blessings';
 import { rollGear } from './world';
 import { moveBody } from './physics';
-import { recordRun, bestRounds, type RunEntry } from './board';
+import { recordRun, bestRounds, loadBoard, rushClock, type RunEntry } from './board';
 import { fx } from '../render/fx';
 import { glow, type Ctx } from '../render/draw';
 import { lighting } from '../render/lighting';
@@ -26,10 +28,12 @@ import { islandNotify } from '../ui/island';
 import { icon } from '../ui/icons';
 import { gameOver } from '../ui/leaderboard';
 import { rand, choose, overlaps } from '../core/math';
-import { gauntletBoss, gauntletImprint, originalForm, gauntletCount } from './gauntlet';
+import { gauntletBoss, gauntletImprint, originalForm, gauntletCount, rushBoss, rushName, rushRoster } from './gauntlet';
 import { bossScale } from './difficulty';
 
 const BREAK = 7;
+/** The Boss Rush's breather between bosses (the clock keeps running). */
+const RUSH_BREAK = 3;
 const FLOOR_Y = 18 * TILE;
 const SKY_Y = 10 * TILE;
 const LANES = [8, 14, 22, 34, 42, 48];
@@ -47,6 +51,11 @@ export class Rounds {
   bossOnly = false;
   completed = 0;
   rematchSpecies: string | null = null;
+  /** The Boss Rush: the beaten bosses' keys in story order, fought once each. */
+  rush = false;
+  rushKeys: string[] = [];
+  /** Health, energy and Balm on entering the rush, given back on leaving so a run costs nothing. */
+  private rushKeep: { hp: number; ce: number; balm: number } | null = null;
   private boss: Entity | null = null;
   private bossHp = 1800;
   private bossDamage = 12;
@@ -95,8 +104,25 @@ export class Rounds {
     return this.total - this.spawned + this.alive;
   }
 
-  start(from = 1, bossOnly = false) {
+  start(from = 1, bossOnly = false, rush = false) {
     this.stop(false);
+    // Switching from a rush to another run in the arena ends the rush's loan.
+    if (!rush) this.restoreRush();
+    this.rush = rush;
+    this.rushKeys = rush ? rushRoster(G.save.defeated) : [];
+    if (rush && !this.rushKeys.length) {
+      this.rush = false;
+      this.bossOnly = true;
+      G.ui.toast('Defeat bosses in the story to fill the Boss Rush.', 'warn');
+      return;
+    }
+    if (rush) {
+      bossOnly = true;
+      from = 1;
+      this.rushKeep ??= { hp: G.save.hp, ce: G.save.ce, balm: G.save.balm };
+      // Every run starts whole, so times compare fairly.
+      G.world.rest();
+    }
     this.active = true;
     this.bossOnly = bossOnly;
     this.lastWaveLoot = null;
@@ -126,6 +152,11 @@ export class Rounds {
     this.foes = [];
     this.breakT = 3.2;
     if (!bossOnly) G.world.configureTrial(this.from);
+    if (rush) {
+      this.rematchSpecies = null;
+      G.ui.banner('THE BOSS RUSH', `${this.rushKeys.length} bosses · against the clock · Boss 1/${this.rushKeys.length} · ${rushName(this.rushKeys[0])}`, 'boss');
+      return;
+    }
     G.ui.banner(this.rematchSpecies ? 'ORIGINAL-FORM REMATCH' : bossOnly ? 'THE BOSS GAUNTLET' : 'THE TRIAL OF THE REMNANT', this.rematchSpecies ? `${ECHO_SPECIES[this.rematchSpecies].stages[0].name} · earn its imprint each victory · unranked` : `${bossOnly ? 'Bosses only · escalating power' : 'Endless rounds'}${this.from > 1 ? ` from round ${this.from} (unranked)` : ''} · survive as long as you can`, 'boss');
     if (this.contract) G.ui.toast(`${CONTRACTS[this.contract].name} · clear waves ${this.from}–${this.from + 4} · unranked`, 'good');
   }
@@ -134,6 +165,8 @@ export class Rounds {
   stop(record = true) {
     if (this.active && record && this.round > 0) this.record();
     this.active = false;
+    this.rush = false;
+    this.rushKeys = [];
     this.lastWaveLoot = null;
     this.contract = null;
     this.contractComplete = false;
@@ -209,6 +242,11 @@ export class Rounds {
       p.face = 1;
       p.revive();
       p.lastSafe = { x: p.x, y: p.y };
+      if (this.rush) {
+        // The breather banner already named this boss.
+        this.boss = rushBoss(this.rushKeys[n - 1], this.bossHp, this.bossDamage);
+        return;
+      }
       this.boss = this.rematchSpecies ? originalForm(this.rematchSpecies, n, this.bossHp, this.bossDamage) : gauntletBoss(n, this.bossHp, this.bossDamage);
       G.ui.banner(`BOSS ROUND ${n}`, `${this.boss.name} · cycle ${1 + Math.floor((n - 1) / gauntletCount())}`, 'boss');
       return;
@@ -295,12 +333,28 @@ export class Rounds {
     const W = G.world, s = G.save;
     this.kills++;
     this.completed = this.round;
+    if (this.rush) return this.rushBossDown(b);
     const species = this.rematchSpecies ?? gauntletImprint(this.round);
     if (species) {
       s.echoImprints ??= {};
       s.echoImprints[species] = (s.echoImprints[species] ?? 0) + 1;
     }
     if (!this.rematchSpecies) s.flags.boss_trial_best = Math.max(Number(s.flags.boss_trial_best ?? 0), this.completed);
+    this.releaseBoss(b);
+    W.giveXp(Math.round(xpToNext(s.level) * (0.18 + Math.min(0.4, this.round * 0.02))));
+    s.hp = Math.min(G.d.maxHp, s.hp + G.d.maxHp * 0.2);
+    s.ce = G.d.maxCe;
+    if (this.round % gauntletCount() === 0) { s.balm = Math.min(s.balmMax, s.balm + 1); this.reward(this.round); }
+    this.breakT = BREAK;
+    this.changeT = 0;
+    G.ui.toast(species ? 'Original-form imprint earned — absorb it in Echoes.' : `Boss ${this.round} defeated. Next: +22% health, +10% damage.`, 'good');
+    W.autosave(true);
+    return true;
+  }
+
+  /** The boss is gone: free the camera and HUD, and clear its hazards and multipart hitboxes. */
+  private releaseBoss(b: Entity) {
+    const W = G.world;
     b.remove = true;
     this.boss = null;
     this.alive = 0;
@@ -310,17 +364,59 @@ export class Rounds {
     G.camera.focus = null;
     G.ui.cinematicBars(false);
     G.ui.bossBar(null);
-    W.giveXp(Math.round(xpToNext(s.level) * (0.18 + Math.min(0.4, this.round * 0.02))));
-    // Clear hostile hazards and multipart hitboxes before the recovery break.
     for (const e of W.ents) if (e.isFoe || e.team === 'enemy') e.remove = true;
-    s.hp = Math.min(G.d.maxHp, s.hp + G.d.maxHp * 0.2);
+  }
+
+  /** A rush boss fell: no rewards, just a breather and the next name, or the finish. */
+  private rushBossDown(b: Entity): boolean {
+    const s = G.save, n = this.completed, total = this.rushKeys.length;
+    this.releaseBoss(b);
+    if (n >= total) {
+      this.ending = true;
+      sfx('rally', { vol: 0.7 });
+      G.ui.banner('THE RUSH IS RUN', `${total}/${total} bosses · ${rushClock(this.time)}`, 'boss');
+      G.world.after(1.6, async () => {
+        // Walked out in the meantime: leaving already recorded the run.
+        if (!this.rush || !this.active || G.world.room.id !== 'trial_arena') return;
+        await G.world.afterRun(await this.rushCard(true));
+      });
+      return true;
+    }
+    s.hp = Math.min(G.d.maxHp, s.hp + G.d.maxHp * 0.35);
     s.ce = G.d.maxCe;
-    if (this.round % gauntletCount() === 0) { s.balm = Math.min(s.balmMax, s.balm + 1); this.reward(this.round); }
-    this.breakT = BREAK;
+    s.balm = s.balmMax;
+    G.ui.refreshHud();
+    this.breakT = RUSH_BREAK;
     this.changeT = 0;
-    G.ui.toast(species ? 'Original-form imprint earned — absorb it in Echoes.' : `Boss ${this.round} defeated. Next: +22% health, +10% damage.`, 'good');
-    W.autosave(true);
+    sfx('rally', { vol: 0.5 });
+    G.ui.banner(`BOSS ${n + 1}/${total}`, rushName(this.rushKeys[n]), 'boss');
     return true;
+  }
+
+  /** Leaving the arena: hand back what Elior had on entering the rush. */
+  restoreRush() {
+    const k = this.rushKeep;
+    if (!k) return;
+    this.rushKeep = null;
+    const s = G.save;
+    G.d = derive(s);
+    s.hp = Math.min(G.d.maxHp, Math.max(1, k.hp));
+    s.ce = Math.min(G.d.maxCe, k.ce);
+    s.balm = Math.min(s.balmMax, k.balm);
+  }
+
+  /** The rush's result card: time, bosses beaten and the best before it. */
+  private async rushCard(done: boolean): Promise<'again' | 'leave'> {
+    this.ending = true;
+    G.inCutscene = false;
+    G.camera.focus = null;
+    G.world.bossActive = false;
+    G.ui.cinematicBars(false);
+    const prev = loadBoard('rush')[0] ?? null;
+    const res = this.record();
+    const stats = { rounds: this.completed, kills: this.kills, time: this.time, level: G.save.level, levels: 0, from: 1, bossOnly: true, rush: { total: this.rushKeys.length, done, best: prev } };
+    this.active = false;
+    return gameOver(stats, res.entry, res.place, res.best);
   }
 
   private spawnOne() {
@@ -334,7 +430,7 @@ export class Rounds {
     else if (this.pack) k = n >= 15 && Math.random() < 0.35 ? 'lion' : 'hound';
     else k = choose(this.pool(n));
     // Heavies are a seasoning, never the meal.
-    if (!champion && (k === 'brute' || k === 'bulwark') && this.foes.filter((f) => !f.dying && (f.kind === 'brute' || f.kind === 'bulwark')).length >= 2) k = 'soldier';
+    if (!champion && (k === 'brute' || k === 'bulwark' || k === 'golem') && this.foes.filter((f) => !f.dying && (f.kind === 'brute' || f.kind === 'bulwark' || f.kind === 'golem')).length >= 2) k = 'soldier';
     const px = W.player.x / TILE;
     const lanes = LANES.filter((l) => Math.abs(l - px) > 7);
     const x = choose(lanes.length ? lanes : LANES) * TILE + rand(-12, 12);
@@ -368,7 +464,9 @@ export class Rounds {
     if (n <= 22) return ['drone', 'soldier', 'knight', 'bulwark', 'brute', 'priest', 'lion', 'sentinel'];
     if (n <= 30) return ['soldier', 'knight', 'bulwark', 'brute', 'priest', 'lion', 'vessel', 'scribe', 'vessel', 'scribe'];
     // The fallen host joins from round 31: the Undying rise again unless finished.
-    return ['knight', 'bulwark', 'brute', 'priest', 'lion', 'vessel', 'scribe', 'undying', 'undying', 'gale', 'gale'];
+    if (n <= 40) return ['knight', 'bulwark', 'brute', 'priest', 'lion', 'vessel', 'scribe', 'undying', 'undying', 'gale', 'gale'];
+    // The Fallen Crowns' own hunters, hosts and constructs from round 41.
+    return ['knight', 'bulwark', 'priest', 'lion', 'vessel', 'scribe', 'undying', 'gale', 'stalker', 'stalker', 'carrier', 'golem'];
   }
 
   private reward(n: number) {
@@ -421,6 +519,13 @@ export class Rounds {
   // ---------------------------------------------------------------- the end of a run
   private record(): { entry: RunEntry | null; place: number; best: boolean } {
     if (this.rematchSpecies) return { entry: null, place: 0, best: false };
+    if (this.rush) {
+      // A separate board, and no save flags: the rush leaves the campaign untouched.
+      if (this.completed <= 0) return { entry: null, place: 0, best: false };
+      const total = this.rushKeys.length;
+      const { entry, place } = recordRun({ rounds: this.completed, kills: this.completed, time: this.time, level: G.save.level, total, done: this.completed >= total }, 'rush');
+      return { entry, place, best: place === 1 };
+    }
     const s = G.save;
     const prevBest = bestRounds(this.bossOnly);
     const rounds = this.bossOnly ? this.completed : this.round;
@@ -434,6 +539,7 @@ export class Rounds {
   /** Elior fell in the arena: show the Game Over card. Resolves when the player has chosen. */
   async onDeath(): Promise<'again' | 'leave'> {
     this.cancelBlessing();
+    if (this.rush) return this.rushCard(false);
     this.ending = true;
     G.inCutscene = false;
     G.camera.focus = null;

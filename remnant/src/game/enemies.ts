@@ -48,6 +48,9 @@ export const ENEMY_STATS: Record<EnemyKind, EnemyStats> = {
   priest: { hp: 120, dmg: 18, poise: 26, xp: 60, silver: [10, 16], name: 'Chaldean Fire-Priest' },
   undying: { hp: 150, dmg: 21, poise: 40, xp: 70, silver: [12, 20], name: 'Undying Host' },
   gale: { hp: 70, dmg: 20, poise: 10, xp: 64, silver: [10, 16], name: 'Fallen Gale' },
+  stalker: { hp: 150, dmg: 19, poise: 34, xp: 66, silver: [10, 18], name: 'Antlered Stalker' },
+  carrier: { hp: 165, dmg: 17, poise: 48, xp: 68, silver: [10, 18], name: 'Swarm Carrier' },
+  golem: { hp: 300, dmg: 24, poise: 120, xp: 86, silver: [12, 22], name: 'Slag Golem' },
 };
 
 export const CORRUPT = { glow: '#b04cff', eye: '#ff3355', outline: '#07050a' };

@@ -28,7 +28,7 @@ export type EntDef =
   | { t: 'decor'; k: string; x: number; y: number; w?: number; h?: number; v?: number; flip?: boolean; fg?: boolean; cond?: string; ncond?: string }
   | { t: 'boss'; k: 'idol' | 'gatekeeper' | 'marshal' | 'locust_king' | 'golden_image' | 'weigher' | 'storm_prince' | 'persia_prince' | 'beast_monarch' | 'plague_monarch' | 'cinder_monarch'; x: number; y: number };
 
-export type EnemyKind = 'husk' | 'hound' | 'archer' | 'sentinel' | 'wisp' | 'brute' | 'bulwark' | 'knight' | 'drone' | 'soldier' | 'lion' | 'priest' | 'vessel' | 'scribe' | 'undying' | 'gale';
+export type EnemyKind = 'husk' | 'hound' | 'archer' | 'sentinel' | 'wisp' | 'brute' | 'bulwark' | 'knight' | 'drone' | 'soldier' | 'lion' | 'priest' | 'vessel' | 'scribe' | 'undying' | 'gale' | 'stalker' | 'carrier' | 'golem';
 export type NpcKind = 'azriel' | 'mara' | 'tobiah' | 'ilan' | 'dov' | 'regent' | 'marshal' | 'satrap' | 'ezra' | 'talia' | 'barak' | 'hanan' | 'feastlord' | 'arshan' | 'storm_prince' | 'persia_prince';
 
 export interface Loot {

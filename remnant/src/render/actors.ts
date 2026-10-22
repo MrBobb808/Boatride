@@ -8,6 +8,7 @@ import {
   limbShaded, limbStroke, poly, circle, ellipse, glow, shade, rgba, shadeable,
   cylGrad, vGrad, rGrad, lineGrad, setShading, type Ctx,
 } from './draw';
+import { paintPixelHumanoid, setPixelDetail } from './pixelHero';
 
 export interface HumanStyle {
   skin: string;
@@ -84,6 +85,7 @@ export function setDetail(tier: number) {
   fine = tier >= 2;
   tierShading = tier >= 1;
   setShading(tierShading);
+  setPixelDetail(tier);
 }
 
 /** How far cloth and hair trail this frame (set per draw from the body's local velocity). */
@@ -95,6 +97,9 @@ let flowX = 0, liftY = 0;
  * trail against it.
  */
 export function drawHumanoid(ctx: Ctx, j: Joints, S: HumanStyle, time: number, rot = 0, vx = 0, vy = 0): WeaponPts {
+  // In the pixel-art style every body that fits is painted pixel by pixel.
+  const px = paintPixelHumanoid(ctx, j, S, time, rot, vx, vy);
+  if (px) return px;
   const B = S.bulk;
   const fine0 = fine;
   if (S.flat) {
