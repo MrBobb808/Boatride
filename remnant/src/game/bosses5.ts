@@ -18,7 +18,7 @@
 
 import { Entity, type HitInfo } from './entity';
 import { BossBase } from './bosses2';
-import { glow, rgba, poly, ellipse, vGrad, shade, shadeable, type Ctx } from '../render/draw';
+import { glow, rgba, poly, ellipse, circle, vGrad, shade, shadeable, type Ctx } from '../render/draw';
 import { fx, PK } from '../render/fx';
 import { sfx } from '../audio/audio';
 import { music } from '../audio/music';
@@ -37,6 +37,8 @@ const CHAIN = 46;
 /** Blows on a resting pan needed (in poise) to tip the beam. */
 const TIP_MAX = 150;
 
+/** The robe's outline, built once. */
+const ROBE_PTS: number[] = [];
 const ROBE = '#4a1a5c', ROBE_DK = '#2a0c36', GOLD = '#d8a840', GOLD_HI = '#fff0b8', BRONZE = '#b07a34', OUT = '#0c0610';
 
 type WAtk = 'count' | 'letters' | 'swing' | 'hammer' | 'both';
@@ -121,6 +123,7 @@ export class WeigherPart extends Entity {
 }
 
 export class Weigher extends BossBase {
+  pixelBox = [-95, -165, 95, 14] as const;
   acts: Actor[];
   pans: Pan[];
   parts: WeigherPart[] = [];
@@ -987,9 +990,30 @@ export class Weigher extends BossBase {
       ctx.quadraticCurveTo(ox + Math.sin(t * 2.6 + i) * 6, -8, ox + Math.sin(t * 1.9 + i * 1.7) * 9, 4 + (i % 2) * 3);
     }
     ctx.stroke();
-    // Robe: a bell of purple banded in gold.
-    poly(ctx, [-31, -22, 31, -22, 26, -40, 16, -62, -16, -62, -26, -40], shaded ? grad(ctx, 'robe', (c) => { const g = c.createLinearGradient(-30, 0, 30, 0); g.addColorStop(0, ROBE_DK); g.addColorStop(0.35, ROBE); g.addColorStop(0.62, shade(ROBE, 0.18)); g.addColorStop(1, ROBE_DK); return g; }) : ROBE, OUT, 1.3);
+    // Robe: a flared bell of purple, hem scalloped where it drapes, banded in gold.
+    if (!ROBE_PTS.length) {
+      for (let k = 0; k <= 12; k++) ROBE_PTS.push(-34 + k * (68 / 12), -22 + (k & 1 ? 2.5 : 0));
+      ROBE_PTS.push(27, -40, 16, -62, -16, -62, -27, -40);
+    }
+    poly(ctx, ROBE_PTS, shaded ? grad(ctx, 'robe', (c) => { const g = c.createLinearGradient(-30, 0, 30, 0); g.addColorStop(0, ROBE_DK); g.addColorStop(0.35, ROBE); g.addColorStop(0.62, shade(ROBE, 0.18)); g.addColorStop(1, ROBE_DK); return g; }) : ROBE, OUT, 1.3);
     poly(ctx, [-7, -62, 7, -62, 9, -22, -9, -22], shaded ? grad(ctx, 'panel', (c) => { const g = c.createLinearGradient(-9, 0, 9, 0); g.addColorStop(0, '#8a6420'); g.addColorStop(0.4, GOLD_HI); g.addColorStop(0.6, GOLD); g.addColorStop(1, '#7a5418'); return g; }) : GOLD, OUT, 0.9);
+    // Deep folds in the cloth either side of the panel, lit on one edge.
+    ctx.lineWidth = 1.6;
+    for (const fx2 of [-24, -17, 15, 22]) {
+      ctx.strokeStyle = ROBE_DK;
+      ctx.beginPath(); ctx.moveTo(fx2 * 0.55, -58); ctx.quadraticCurveTo(fx2 * 0.8, -40, fx2 + Math.sin(t * 1.4 + fx2) * 1.2, -23); ctx.stroke();
+      ctx.strokeStyle = '#8a4aa8';
+      ctx.lineWidth = 0.8;
+      ctx.beginPath(); ctx.moveTo(fx2 * 0.55 + 1.6, -57); ctx.quadraticCurveTo(fx2 * 0.8 + 1.6, -40, fx2 + 1.6, -24); ctx.stroke();
+      ctx.lineWidth = 1.6;
+    }
+    // Two embroidered gold bands with a running pattern.
+    for (const [by2, w2] of [[-30, 29], [-44, 23]]) {
+      ctx.fillStyle = GOLD;
+      ctx.fillRect(-w2, by2, w2 * 2, 3);
+      ctx.fillStyle = '#6a3a10';
+      for (let x = -w2 + 2; x < w2 - 2; x += 4) ctx.fillRect(x, by2 + 1, 2, 1);
+    }
     if (fine) {
       ctx.strokeStyle = ROBE_DK;
       ctx.lineWidth = 0.8;
@@ -1016,6 +1040,13 @@ export class Weigher extends BossBase {
       }
       ctx.stroke();
     }
+    // A short mantle of night-black over the shoulders, fringed in gold.
+    poly(ctx, [-28, -64, -30, -74, -20, -88, 20, -88, 30, -74, 28, -64, 18, -68, 8, -63, -8, -63, -18, -68], '#1e0e26', OUT, 1.1);
+    ctx.strokeStyle = GOLD;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let x = -27; x <= 27; x += 3) { ctx.moveTo(x, -66 + Math.abs(x) * 0.05); ctx.lineTo(x + Math.sin(t * 2 + x) * 0.5, -61 + Math.abs(x) * 0.05); }
+    ctx.stroke();
     // Torso and the broad gold collar.
     poly(ctx, [-16, -62, 16, -62, 24, -84, 14, -90, -14, -90, -24, -84], shaded ? grad(ctx, 'torso', (c) => vGrad(c, ROBE, -90, -62, 0.2, -0.3)) : ROBE, OUT, 1.2);
     ctx.beginPath();
@@ -1065,7 +1096,15 @@ export class Weigher extends BossBase {
       ctx.moveTo(lerp(ex, hx, 0.7), lerp(ey, hy, 0.7) - 0.5);
       ctx.lineTo(lerp(ex, hx, 0.82), lerp(ey, hy, 0.82) - 0.5);
       ctx.stroke();
+      // A wide sleeve falls open at the wrist, lined in gold.
+      {
+        const cx3 = lerp(ex, hx, 0.62), cy3 = lerp(ey, hy, 0.62);
+        poly(ctx, [cx3 - 6, cy3 - 2, cx3 + 6, cy3 - 2, cx3 + 8, cy3 + 9, cx3 - 8, cy3 + 9], ROBE, OUT, 1);
+        ctx.fillStyle = GOLD;
+        ctx.fillRect(cx3 - 8, cy3 + 7, 16, 2);
+      }
       ellipse(ctx, hx, hy, 4.4, 4.4, 0, '#6a4a5a');
+      circle(ctx, hx + 1.5, hy + 1, 1.1, GOLD_HI);
       if (writing) {
         ctx.globalCompositeOperation = 'lighter';
         glow(ctx, hx, hy, 9, INK.c, a.write);

@@ -79,6 +79,10 @@ up next starts from the latest version.
   - `game/feast.ts`: Vessel Wraith and Scribe of the Veil.
   - `game/princes.ts`: Undying Host (rises again unless finished) and Fallen
     Gale (a lightning flier).
+  - `game/fallenFoes.ts`: the VII–IX signature foes: Antlered Stalker
+    (marked pounce, parryable two-hit rake), Swarm Carrier (drifting swarm
+    clouds, spore burst on death) and Slag Golem (armoured front, slam with a
+    jumpable fire wave, exposed core). Verified by `scripts/fallen-foes.mjs`.
 - **Echoes** (purified allies): `game/echoes.ts` holds the kits, `game/data.ts`
   the species.
   - **Squad control:** the command wheel (`ui/ui.ts`, `openWheel`) has a
@@ -143,7 +147,14 @@ continues into the original Fallen Crown campaigns: VII, The Crown of the Hunt
 (Varkhos), and VIII, The Crown of Pestilence (Morvane). Their room definitions,
 quests and story wiring are in game/fallenChapters.ts and game/fallenStory.ts;
 the bosses are in game/fallenBosses.ts and use the PNG atlases through
-render/fallenArt.ts. IX, The Crown of Cinders (Azkar), continues from VIII into six foundry rooms. Its boss is in game/cinderBoss.ts, with armor-breaking parries, low fire waves and three marked eruptions. See
+render/fallenArt.ts. IX, The Crown of Cinders (Azkar), continues from VIII into six foundry rooms. Its boss is in game/cinderBoss.ts, with armor-breaking parries, low fire waves and three marked eruptions.
+Each VII–IX room's terrain (mounds, pits of stakes, bog, bile or slag, cave
+ceilings) and set dressing is hand-authored in the `DRESS` table in
+game/fallenChapters.ts; `dress()` keeps grounded things standing on the shaped
+floor. Their skies, parallax, tiles and liquids are in render/fallenEnv.ts and
+their props in render/fallenProps.ts. The older vector bosses (Idol through
+the Ch VI princes) are shaded into pixel art at runtime by
+render/bossPixel.ts (`pixelShade`, `pixelBox` on each boss). See
 remnant/FALLEN_CHAPTERS.md for mechanics and verification. The Trial of the Remnant
 (`trial_arena`) is an endless Zombies-style rounds mode (`game/rounds.ts`) with
 a Game Over card and leaderboard (`game/board.ts`, `ui/leaderboard.ts`); it is

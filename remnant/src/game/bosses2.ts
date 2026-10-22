@@ -29,7 +29,13 @@ import { marshalStyle } from './tanks';
 export type BossKey = 'gatekeeper' | 'marshal' | 'locust_king' | 'golden_image' | 'weigher' | 'storm_prince' | 'persia_prince' | 'beast_monarch' | 'plague_monarch' | 'cinder_monarch';
 
 /** Shared lifecycle for the Chapter II bosses: intro, phases, kneel, defeat. */
+/** The Marshal is drawn larger than a man: a commander, not a soldier. */
+const MARSHAL_SCALE = 1.5;
+
 export abstract class BossBase extends Entity {
+  /** Shaded into pixel art by render/bossPixel.ts in the pixel style. */
+  pixelShade = true;
+  pixelBox?: readonly [number, number, number, number];
   key: BossKey;
   phase = 0;
   state = 'dormant';
@@ -283,6 +289,7 @@ function ik(ax: number, ay: number, bx: number, by: number, l1: number, l2: numb
 }
 
 export class Gatekeeper extends BossBase {
+  pixelBox = [-370, -160, 370, 66] as const;
   floorY: number;
   lift = 0;
   crouch = 0;
@@ -898,7 +905,7 @@ export class Gatekeeper extends BossBase {
     if (fade > 0) ctx.globalAlpha = 1 - fade;
     const bodyDY = -this.lift + this.crouch * 14;
     const o = '#0a0608';
-    const hide = '#1e1519', hideHi = '#3c2c30', hideDk = '#0e0a0c';
+    const hide = '#2a1e22', hideHi = '#5a4246', hideDk = '#120c0e';
     const run = Math.abs(this.vx) > 15 && this.lift === 0;
     const g = this.gait;
     // Shoulder and hip anchors in local space.
@@ -977,6 +984,35 @@ export class Gatekeeper extends BossBase {
       ctx.lineWidth = 1.8;
       ctx.strokeStyle = o;
       ctx.stroke();
+      // Ash-grey underbelly, lit muscle over the shoulder and haunch.
+      ctx.fillStyle = '#3a2e30';
+      ctx.beginPath();
+      ctx.moveTo(-50, -42 + y0);
+      ctx.bezierCurveTo(-28, -36 + y0, 0, -40 + y0, 18, -40 + y0);
+      ctx.bezierCurveTo(30, -38 + y0, 44, -42 + y0, 52, -50 + y0 - tiltY * 0.5);
+      ctx.bezierCurveTo(30, -48 + y0, 0, -48 + y0, -50, -46 + y0);
+      ctx.closePath();
+      ctx.fill();
+      ellipse(ctx, 34, -80 + y0 - tiltY * 0.8, 20, 13, -0.4, '#46343a');
+      ellipse(ctx, 30, -84 + y0 - tiltY * 0.8, 12, 6, -0.4, '#6e5458');
+      ellipse(ctx, -54, -62 + y0, 17, 12, 0.3, '#44343a');
+      ellipse(ctx, -56, -66 + y0, 10, 5, 0.3, '#685056');
+      // Fur: short strokes laid back along the body, lighter on top.
+      ctx.lineWidth = 1.2;
+      for (let i = 0; i < 26; i++) {
+        const fx0 = -66 + (i * 37) % 124, fy0 = -80 + y0 + ((i * 53) % 30) - (fx0 > 0 ? fx0 * 0.2 : 0) - (fx0 / 124 + 0.5) * tiltY * 0.6;
+        ctx.strokeStyle = (i & 1) === 0 ? '#76585c' : '#140e10';
+        ctx.beginPath();
+        ctx.moveTo(fx0, fy0);
+        ctx.lineTo(fx0 - 8, fy0 + 4);
+        ctx.stroke();
+      }
+      // An old scar across the ribs.
+      ctx.strokeStyle = '#7a5a56';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(-26, -70 + y0); ctx.lineTo(-12, -58 + y0); ctx.lineTo(-6, -50 + y0);
+      ctx.stroke();
       // Rib shadows and a ridge of spines.
       ctx.strokeStyle = rgba(hideDk, 0.9);
       ctx.lineWidth = 2.2;
@@ -1014,6 +1050,16 @@ export class Gatekeeper extends BossBase {
     // Near legs.
     leg(hpX, hpY, Math.PI * 0.5, false, false);
     leg(shX, shY, Math.PI * 1.5, true, false);
+    // A shaggy ruff of fur over the shoulders, where the three necks meet.
+    {
+      const y0 = bodyDY - tiltY;
+      for (let k = 0; k < 11; k++) {
+        const a = -2.6 + k * 0.32, rr = 28 + (k % 3) * 5;
+        const cx = 34 + Math.cos(a) * 18, cy = -84 + y0 + Math.sin(a) * 18;
+        const tx2 = 34 + Math.cos(a) * rr + Math.sin(t * 4 + k) * 1.5, ty2 = -84 + y0 + Math.sin(a) * rr;
+        poly(ctx, [cx - Math.sin(a) * 6, cy + Math.cos(a) * 6, tx2, ty2, cx + Math.sin(a) * 6, cy - Math.cos(a) * 6], k & 1 ? '#2a1e22' : '#3e2e32', o, 1);
+      }
+    }
     // Necks and heads, back to front.
     for (let i = 0; i < 3; i++) this.drawHead(ctx, i, bodyDY);
     // Collar.
@@ -1069,7 +1115,7 @@ export class Gatekeeper extends BossBase {
     const h = this.heads[i];
     const o = '#0a0608';
     const far = i === 0;
-    const hide = far ? '#171013' : '#211719';
+    const hide = far ? '#1c1418' : '#2c2024';
     const y0 = bodyDY - this.rearUp * 18;
     const bx = h.bx, by = h.by + y0;
     const hx = h.x, hy = h.y + bodyDY;
@@ -1099,14 +1145,35 @@ export class Gatekeeper extends BossBase {
       glow(ctx, 8, 4, 16, '#ff7a2a', open * 1.4);
       ctx.globalCompositeOperation = 'source-over';
     }
+    // Ruff of fur behind the skull.
+    poly(ctx, [-6, -12, -20, -16, -14, -8, -24, -6, -14, -2, -22, 4, -10, 4], far ? '#140e10' : '#2a1e22', o, 1);
+    // Tongue lolling in the open jaw.
+    if (open > 0.1) poly(ctx, [4, 3, 20, 4 + open * 8, 24, 7 + open * 10, 18, 9 + open * 8, 6, 6], '#8a2a30', o, 0.8);
     // Skull and muzzle.
     poly(ctx, [-12, -6, -2, -13, 12, -11, 28, -5, 30, 0, 26, 3, 6, 4, -8, 5], lineGrad(ctx, 0, -13, 0, 5, hide, 0.24, -0.35), o, 1.3);
+    // Lit bridge of the muzzle and a wrinkled snarl.
+    ctx.strokeStyle = far ? '#2a1e22' : '#5a4448';
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.moveTo(-2, -12); ctx.lineTo(14, -10.5); ctx.lineTo(27, -5);
+    ctx.moveTo(16, -6); ctx.lineTo(19, -3);
+    ctx.moveTo(20, -6.5); ctx.lineTo(23, -3.5);
+    ctx.stroke();
     // Brow ridge and nose.
     poly(ctx, [-2, -11, 10, -12, 14, -9, 2, -8], '#2c2024');
     ellipse(ctx, 29, -2.5, 2.6, 2, 0, '#0a0608');
-    // Upper fangs.
+    // Upper fangs: two great canines and smaller teeth between.
     for (let k = 0; k < 3; k++) poly(ctx, [12 + k * 5, 2.5, 14 + k * 5, 7.5 + open * 3, 16 + k * 5, 2.5], '#f0e6d8');
-    // Ears / horns.
+    for (let k = 0; k < 2; k++) poly(ctx, [15 + k * 5, 2.5, 16 + k * 5, 5 + open * 2, 17 + k * 5, 2.5], '#d8ccbc');
+    // Ears / horns: a curved horn of old bone, then the ears.
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = o;
+    ctx.lineWidth = 5;
+    ctx.beginPath(); ctx.moveTo(0, -11); ctx.quadraticCurveTo(-8, -26, -20, -24); ctx.stroke();
+    ctx.strokeStyle = far ? '#5a4c40' : '#9a8a72';
+    ctx.lineWidth = 3;
+    ctx.stroke();
+    ctx.lineCap = 'butt';
     poly(ctx, [-6, -10, -18, -26, -14, -22, -1, -12], '#140e10', o, 1);
     poly(ctx, [-10, -8, -24, -18, -20, -16, -4, -7], '#0e0a0c', o, 1);
     // Eye.
@@ -1238,6 +1305,7 @@ function ghostStyle(S: HumanStyle): HumanStyle {
 interface Ghost { x: number; y: number; face: number; j: Joints; life: number }
 
 export class Marshal extends BossBase {
+  pixelBox = [-115, -125, 115, 12] as const;
   j: Joints = newJoints();
   pose: Pose = { ...MP.planted };
   target: Pose = { ...MP.planted };
@@ -1296,13 +1364,13 @@ export class Marshal extends BossBase {
 
   /** Weapon tip in world space (for effects). */
   tip() {
-    const S = 1.3;
+    const S = MARSHAL_SCALE;
     const a = this.j.wpnA;
     const L = 30;
     return { x: this.x + this.face * (this.j.haFX + Math.sin(a) * L) * S, y: this.y + (this.j.haFY + Math.cos(a) * L) * S };
   }
   hand() {
-    const S = 1.3;
+    const S = MARSHAL_SCALE;
     return { x: this.x + this.face * this.j.haFX * S, y: this.y + this.j.haFY * S };
   }
 
@@ -1780,7 +1848,7 @@ export class Marshal extends BossBase {
     for (const key of Object.keys(this.target) as (keyof Pose)[]) this.pose[key] = lerp(this.pose[key], this.target[key], k);
     solve(this.pose, SENT_DIMS, true, this.j);
     const f = this.face;
-    const S = 1.3;
+    const S = MARSHAL_SCALE;
     this.cape.update(this.x + f * (this.j.shBX - 2) * S, this.y + this.j.shBY * S, dt, -this.body.vx * 2 - f * 60, 420, 0.88);
     for (const g of this.ghosts) g.life -= dt;
     this.ghosts = this.ghosts.filter((g) => g.life > 0);
@@ -1800,7 +1868,7 @@ export class Marshal extends BossBase {
   // ------------------------------------------------------------ rendering
   draw(ctx: Ctx) {
     const f = this.face;
-    const S = 1.3;
+    const S = MARSHAL_SCALE;
     const style = this.phase >= 2 ? this.styleCracked : this.styleBoss;
     // Leap target.
     if (this.atk === 'leap' && this.step === 1) this.floorMark(ctx, this.landX, this.landY, 50, this.st / 0.9, '#ff3a4a');
@@ -1827,7 +1895,50 @@ export class Marshal extends BossBase {
     ctx.save();
     ctx.translate(this.x, this.y);
     ctx.scale(f * S, S);
+    const j = this.j, tm = G.time;
+    // A war banner on a staff across his back: the Tower's crimson, gold-edged, torn at the fly.
+    {
+      const bx = j.shBX - 3, by = j.shBY + 6, tx = bx - 6, ty = by - 46;
+      ctx.lineCap = 'round';
+      ctx.strokeStyle = '#0a0406'; ctx.lineWidth = 3.2;
+      ctx.beginPath(); ctx.moveTo(bx, by); ctx.lineTo(tx, ty); ctx.stroke();
+      ctx.strokeStyle = '#4a3020'; ctx.lineWidth = 1.6; ctx.stroke();
+      ctx.lineCap = 'butt';
+      const w = Math.sin(tm * 4) * 2;
+      poly(ctx, [tx + 0.5, ty + 2, tx - 18 + w, ty + 4, tx - 15 + w, ty + 10, tx - 20 + w * 1.4, ty + 16, tx - 1, ty + 18], '#8a1420', '#0a0406', 0.9);
+      ctx.strokeStyle = '#c9a04a'; ctx.lineWidth = 0.9;
+      ctx.beginPath(); ctx.moveTo(tx, ty + 3); ctx.lineTo(tx - 17 + w, ty + 5); ctx.stroke();
+      circle(ctx, tx - 8 + w * 0.5, ty + 10, 2.2, '#c9a04a');
+      circle(ctx, tx - 8 + w * 0.5, ty + 10, 1, '#5a0c12');
+      poly(ctx, [tx - 1.5, ty + 1, tx, ty - 4, tx + 1.5, ty + 1], '#c9a04a');
+    }
     drawHumanoid(ctx, this.j, style, G.time, this.pose.rot, this.body.vx * f / S, this.body.vy / S);
+    // A mantle of black fur over the shoulders, and horns on the great helm.
+    {
+      const nx = j.neckX, ny = j.neckY;
+      const fur: number[] = [];
+      for (let k = 0; k <= 8; k++) {
+        const a = Math.PI * (0.95 + k * 0.14);
+        const rr = k & 1 ? 9.5 : 7;
+        fur.push(nx + Math.cos(a) * rr, ny + 3 + Math.sin(a) * rr * 0.55);
+      }
+      fur.push(nx + 8, ny + 6, nx - 8, ny + 7);
+      poly(ctx, fur, '#1e1418', '#0a0406', 0.8);
+      ctx.save();
+      ctx.translate(j.headX, j.headY);
+      ctx.rotate(j.headA);
+      for (const sd of [-1, 1]) {
+        ctx.beginPath();
+        ctx.moveTo(sd * 2.5 - 1, -4);
+        ctx.quadraticCurveTo(sd * 9 - 2, -7, sd * 7 - 5, -13);
+        ctx.lineTo(sd * 5 - 3, -8);
+        ctx.closePath();
+        ctx.fillStyle = sd > 0 ? '#d8ccb8' : '#8a7e70';
+        ctx.fill();
+        ctx.strokeStyle = '#0a0406'; ctx.lineWidth = 0.6; ctx.stroke();
+      }
+      ctx.restore();
+    }
     if (this.flash > 0) {
       ctx.globalAlpha = Math.min(0.9, this.flash * 9);
       drawHumanoid(ctx, this.j, flashStyle(style), G.time, this.pose.rot);

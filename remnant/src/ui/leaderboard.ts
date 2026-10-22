@@ -8,24 +8,29 @@ import { sfx } from '../audio/audio';
 import { music } from '../audio/music';
 import { settings, saveSettings } from '../core/settings';
 import { formatTime } from '../core/math';
-import { loadBoard, renameRun, type RunEntry } from '../game/board';
+import { loadBoard, renameRun, rushClock, type RunEntry, type BoardId } from '../game/board';
 import { pullBoard, cloudActive } from '../game/cloud';
 
-export interface RunStats { rounds: number; kills: number; time: number; level: number; levels: number; from: number; bossOnly?: boolean; rematch?: boolean; contract?: string }
+export interface RunStats { rounds: number; kills: number; time: number; level: number; levels: number; from: number; bossOnly?: boolean; rematch?: boolean; contract?: string;
+  /** Boss Rush: bosses in the run, whether all fell, and the best run before this one. */
+  rush?: { total: number; done: boolean; best: RunEntry | null } }
 
 const root = () => document.getElementById('ui')!;
 
-function rows(list: { name: string; rounds: number; kills: number; time: number; level: number; mine?: boolean }[], empty: string) {
+function rows(list: { name: string; rounds: number; kills: number; time: number; level: number; total?: number; done?: boolean; mine?: boolean }[], empty: string, rush = false) {
   if (!list.length) return h('div', { class: 'muted', style: 'padding:8px 0' }, empty);
+  // The rush ranks by time, so its rows show bosses beaten of the run and the level it was run at.
   return h('div', { class: 'board' },
-    h('div', { class: 'b-row b-head' }, h('span', null, '#'), h('span', null, 'Name'), h('span', null, 'Round'), h('span', null, 'Kills'), h('span', null, 'Time')),
+    h('div', { class: 'b-row b-head' }, h('span', null, '#'), h('span', null, 'Name'), h('span', null, rush ? 'Bosses' : 'Round'), h('span', null, rush ? 'Level' : 'Kills'), h('span', null, 'Time')),
     list.map((e, i) => h('div', { class: 'b-row' + (e.mine ? ' mine' : '') },
-      h('span', null, `${i + 1}`), h('span', { class: 'b-name' }, e.name || 'Elior'), h('b', null, `${e.rounds}`), h('span', null, `${e.kills}`), h('span', null, formatTime(e.time)))),
+      h('span', null, `${i + 1}`), h('span', { class: 'b-name' }, e.name || 'Elior'),
+      h('b', null, rush ? `${e.rounds}/${e.total ?? e.rounds}` : `${e.rounds}`), h('span', null, `${rush ? e.level : e.kills}`),
+      h('span', null, rush ? (e.done ? rushClock(e.time) : '—') : formatTime(e.time)))),
   );
 }
 
 /** The board tabs: this device, and everyone (only where a shared board exists). */
-function boardBox(highlight: number | null, top = 10, bossOnly = false) {
+function boardBox(highlight: number | null, top = 10, bossOnly: BoardId = false) {
   const box = h('div', { class: 'col' });
   let view: 'device' | 'all' = 'device';
   const render = () => {
@@ -36,7 +41,7 @@ function boardBox(highlight: number | null, top = 10, bossOnly = false) {
     );
     box.appendChild(tabs);
     if (view === 'device') {
-      box.appendChild(rows(loadBoard(bossOnly).slice(0, top).map((e) => ({ ...e, mine: e.id === highlight })), 'No ranked runs yet. Start from round 1 to get on this board.'));
+      box.appendChild(rows(loadBoard(bossOnly).slice(0, top).map((e) => ({ ...e, mine: e.id === highlight })), bossOnly === 'rush' ? 'No Boss Rush runs yet.' : 'No ranked runs yet. Start from round 1 to get on this board.', bossOnly === 'rush'));
     } else {
       const wait = h('div', { class: 'muted', style: 'padding:8px 0' }, 'Loading…');
       box.appendChild(wait);
@@ -53,11 +58,11 @@ function boardBox(highlight: number | null, top = 10, bossOnly = false) {
 }
 
 /** Open the leaderboard on its own (from the Chapters tab). */
-export function openLeaderboard(bossOnly = false) {
+export function openLeaderboard(bossOnly: BoardId = false) {
   const card = h('div', { class: 'chapter panel scroll' },
-    h('div', { class: 'eyebrow' }, bossOnly ? 'The Boss Gauntlet' : 'The Trial of the Remnant'),
+    h('div', { class: 'eyebrow' }, bossOnly === 'rush' ? 'The Boss Rush' : bossOnly ? 'The Boss Gauntlet' : 'The Trial of the Remnant'),
     h('h2', null, 'LEADERBOARD'),
-    h('p', { class: 'muted' }, bossOnly ? 'Ranked by bosses defeated. Only runs starting at round 1 are ranked. This board is separate from survival.' : 'Ranked by the round each run reached. Only runs that start at round 1 are ranked.'),
+    h('p', { class: 'muted' }, bossOnly === 'rush' ? 'Finished runs rank first, fastest first. Unfinished runs rank by bosses beaten.' : bossOnly ? 'Ranked by bosses defeated. Only runs starting at round 1 are ranked. This board is separate from survival.' : 'Ranked by the round each run reached. Only runs that start at round 1 are ranked.'),
     boardBox(null, 10, bossOnly),
     h('div', { class: 'row', style: 'justify-content:center;margin-top:10px' }, btn('Close', () => close(), 'btn primary', { 'data-autofocus': '', 'data-k': 'lb_close' })),
   );
@@ -73,14 +78,39 @@ export function gameOver(st: RunStats, entry: RunEntry | null, place: number, be
     holdUI(1);
     music.stop(1.2);
     root().querySelectorAll('.banner').forEach((b) => b.remove());
-    sfx('death', { vol: 0.5, pitch: 0.7 });
+    if (st.rush?.done) sfx('lootRare', { vol: 0.6 });
+    else sfx('death', { vol: 0.5, pitch: 0.7 });
     const stat = (label: string, v: string) => h('div', { class: 'go-stat' }, h('b', null, v), h('span', null, label));
     let nameBox: HTMLInputElement | null = null;
     if (entry) {
       nameBox = h('input', { type: 'text', maxlength: '16', value: entry.name, 'data-nav': '', 'data-k': 'go_name', 'aria-label': 'Name on the board' }) as HTMLInputElement;
     }
+    const rush = st.rush;
+    const board: BoardId = rush ? 'rush' : !!st.bossOnly;
+    const pb = rush?.best ? (rush.best.done ? rushClock(rush.best.time) : `${rush.best.rounds}/${rush.best.total ?? rush.best.rounds}`) : '—';
     // Landscape phones get two columns: the result on the left, the board on the right.
-    const card = h('div', { class: 'chapter panel scroll gameover' },
+    const card = rush ? h('div', { class: 'chapter panel scroll gameover' },
+      h('div', { class: 'go-cols' },
+        h('div', { class: 'go-left' },
+          h('div', { class: 'eyebrow' }, 'The Boss Rush'),
+          h('h2', null, rush.done ? 'RUSH COMPLETE' : 'THE RUSH ENDS'),
+          h('div', { class: 'go-round' }, `${st.rounds}/${rush.total}`),
+          h('div', { class: 'go-sub' }, 'BOSSES BEATEN'),
+          best ? h('div', { class: 'go-best' }, 'NEW BEST') : null,
+          h('div', { class: 'go-stats' }, stat('Time', rushClock(st.time)), stat('Personal best', pb), stat('Level', `${st.level}`)),
+        ),
+        h('div', { class: 'go-right' },
+          entry
+            ? h('div', { class: 'go-name' }, h('span', null, place > 0 ? `Place ${place} on this device as` : 'Ranked as'), nameBox)
+            : h('p', { class: 'muted' }, 'Beat at least one boss to get on the Boss Rush board.'),
+          boardBox(entry?.id ?? null, 5, 'rush'),
+        ),
+      ),
+      h('p', { class: 'muted go-verse' }, '“I have fought a good fight, I have finished my course, I have kept the faith.” 2 Timothy 4:7 (KJV)'),
+      h('div', { class: 'row', style: 'justify-content:center;gap:10px;margin-top:8px' },
+        btn('Run it again', () => done('again'), 'btn primary', { 'data-autofocus': '', 'data-k': 'go_again' }),
+        btn('Leave the Rush', () => done('leave'), 'btn', { 'data-k': 'go_leave' })),
+    ) : h('div', { class: 'chapter panel scroll gameover' },
       h('div', { class: 'go-cols' },
         h('div', { class: 'go-left' },
           h('div', { class: 'eyebrow' }, st.rematch ? 'Original-form rematch' : st.bossOnly ? 'The Boss Gauntlet' : 'The Trial of the Remnant'),
@@ -109,7 +139,7 @@ export function gameOver(st: RunStats, entry: RunEntry | null, place: number, be
     const done = (c: 'again' | 'leave') => {
       if (entry && nameBox) {
         const name = nameBox.value.trim().slice(0, 16) || 'Elior';
-        if (name !== entry.name) renameRun(entry.id, name, st.bossOnly);
+        if (name !== entry.name) renameRun(entry.id, name, board);
         if (name !== settings.name) {
           settings.name = name;
           saveSettings();

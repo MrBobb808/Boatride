@@ -12,6 +12,7 @@ import { EchoCombinations } from './echoCombos';
 import { runBlessings } from './blessings';
 import { Enemy } from './enemies';
 import { drawFoeSprite } from '../render/creatureSprites';
+import { drawPixelBody, bossPixelFrame } from '../render/bossPixel';
 import { makeEnemy } from './foes';
 import { EchoUnit } from './echoes';
 import { trialArena, trialSector } from './trialArena';
@@ -327,7 +328,7 @@ export class World {
   update(dtRaw: number) {
     const s = G.save;
     if (this.transitioning) return;
-    G.camera.update(dtRaw, this.player.x, this.player.y, this.player.face, this.player.body.vx, shakeScale());
+    G.camera.update(dtRaw, this.player.x, this.player.y, this.player.face, this.player.body.vx, shakeScale(), this.player.body.vy, this.player.body.onGround);
     if (this.hitstopT > 0) {
       this.player.bufferCombatInput();
       this.hitstopT -= dtRaw;
@@ -773,7 +774,13 @@ export class World {
     }
   }
 
+  /** In the Boss Rush nothing is earned: no experience, loot, kill counts or quest progress. */
+  get rushing() {
+    return this.room.id === 'trial_arena' && this.story.ch3.rounds.rush;
+  }
+
   onEnemyKilled(e: Enemy) {
+    if (this.rushing) return;
     const s = G.save;
     const st = e.stats;
     s.kills++;
@@ -928,23 +935,7 @@ export class World {
     const R = this.story.ch3.rounds;
     if (this.room.id === 'trial_arena' && R.active) {
       // The Trial: falling ends the run. Show what it came to, then go again or leave.
-      this.after(1.8, async () => {
-        const choice = await R.onDeath();
-        await G.ui.fade(1, 0.3);
-        R.clearArena();
-        this.rest();
-        this.player.revive();
-        // Entering the arena starts a fresh run from round 1.
-        if (choice === 'again') this.load('trial_arena', 'start');
-        else {
-          const back = s.flags.trial_return;
-          delete s.flags.trial_return;
-          const [room, spawn] = typeof back === 'string' ? back.split('|') : [s.altar.room, s.altar.spawn];
-          this.load(ROOMS[room] ? room : s.altar.room, ROOMS[room]?.spawns[spawn] ? spawn : s.altar.spawn);
-        }
-        this.autosave(true);
-        await G.ui.fade(0, 0.5);
-      });
+      this.after(1.8, async () => this.afterRun(await R.onDeath()));
       return;
     }
     this.after(1.6, async () => {
@@ -963,6 +954,25 @@ export class World {
       }
       await G.ui.fade(0, 0.5);
     });
+  }
+
+  /** After a Trial run's card: go again from the start, or back to where training began. */
+  async afterRun(choice: 'again' | 'leave') {
+    const s = G.save;
+    await G.ui.fade(1, 0.3);
+    this.story.ch3.rounds.clearArena();
+    this.rest();
+    this.player.revive();
+    // Entering the arena starts a fresh run from round 1.
+    if (choice === 'again') this.load('trial_arena', 'start');
+    else {
+      const back = s.flags.trial_return;
+      delete s.flags.trial_return;
+      const [room, spawn] = typeof back === 'string' ? back.split('|') : [s.altar.room, s.altar.spawn];
+      this.load(ROOMS[room] ? room : s.altar.room, ROOMS[room]?.spawns[spawn] ? spawn : s.altar.spawn);
+    }
+    this.autosave(true);
+    await G.ui.fade(0, 0.5);
   }
 
   // ---------------------------------------------------------------- Echo army
@@ -1657,6 +1667,8 @@ export class World {
   // ---------------------------------------------------------------- rendering
   private drawActor(ctx: Ctx, e: Entity) {
     if (e instanceof Enemy && drawFoeSprite(ctx, e)) return;
+    // Vector-rigged bosses are shaded into pixel art in the pixel style.
+    if ((e as { pixelShade?: boolean }).pixelShade && drawPixelBody(ctx, e)) return;
     e.draw(ctx);
   }
 
@@ -1664,6 +1676,7 @@ export class World {
     const r = G.renderer;
     const cam = G.camera;
     this.ensureCaches();
+    bossPixelFrame();
     const pal = BIOMES[this.room.biome];
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.globalAlpha = 1;

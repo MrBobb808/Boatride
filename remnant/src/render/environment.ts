@@ -1,4 +1,3 @@
-import { fallenSky, fallenParallax, fallenProp, FALLEN_LIVE, cinderSky, cinderParallax } from './fallenEnv';
 // Environment art: parallax backgrounds per biome, baked tile chunks with
 // stone/brick detail, static props, and the animated bits (water, veil pools,
 // banners, torches) drawn live each frame.
@@ -11,6 +10,7 @@ import { buildParallaxCh3, drawValleySky, drawCaveSky, drawVoidSky, drawHiveWall
 import { DEN_SEED, FEAST_SEED, drawDenWall, drawDenTile } from './env4';
 import { buildParallaxCh4, drawSkyCh4, drawSolidCh4, drawOneWayCh4, drawSpikesCh4, drawLiquidCh4, drawPropCh4, drawLivePropCh4, isCh4, LIVE_CH4, BACKDROP_CH4 } from './env4';
 import { buildParallaxCh6, drawSkyCh6, drawSolidCh6, drawOneWayCh6, drawSpikesCh6, drawLiquidCh6, drawPropCh6, drawLivePropCh6, isCh6, LIVE_CH6, BACKDROP_CH6 } from './env6';
+import { fallenSky, fallenParallax, fallenProp, drawFallenLive, FALLEN_LIVE, isFallen, drawSolidFallen, drawOneWayFallen, drawSpikesFallen, drawLiquidFallen } from './fallenEnv';
 import { buildParallaxCh5, drawSkyCh5, drawSolidCh5, drawOneWayCh5, drawSpikesCh5, drawLiquidCh5, drawPropCh5, drawLivePropCh5, isCh5, LIVE_CH5, BACKDROP_CH5 } from './env5';
 
 export interface BiomePal {
@@ -150,8 +150,7 @@ export interface Layer {
 
 export function buildParallax(biome: Biome, seed: number, interior: boolean, viewH: number, res: number): Layer[] {
   const pal = BIOMES[biome];
-  if (biome==='cinders') return cinderParallax(seed,viewH,res);
-  if (biome==='hunt'||biome==='plague') return fallenParallax(seed,viewH,res,biome==='plague');
+  if (isFallen(biome)) return fallenParallax(biome, pal, seed, interior, viewH, res);
   if (biome === 'plain' || biome === 'tower') return buildParallaxCh2(biome, pal, seed, viewH, res);
   if (isCh3(biome)) return buildParallaxCh3(biome, pal, seed, viewH, res);
   if (isCh4(biome)) return buildParallaxCh4(biome, pal, seed, viewH, res);
@@ -330,8 +329,7 @@ function tree(ctx: Ctx, x: number, base: number, h: number, col: string, rng: RN
 }
 
 export function drawSky(ctx: Ctx, pal: BiomePal, w: number, h: number, interior: boolean, t: number) {
-  if (pal===BIOMES.cinders) return cinderSky(ctx,w,h,t);
-  if (pal===BIOMES.hunt||pal===BIOMES.plague) return fallenSky(ctx,w,h,pal===BIOMES.plague,t);
+  if (pal === BIOMES.hunt || pal === BIOMES.plague || pal === BIOMES.cinders) return fallenSky(ctx, pal === BIOMES.hunt ? 'hunt' : pal === BIOMES.plague ? 'plague' : 'cinders', w, h, interior, t);
   if (pal === BIOMES.plain && !interior) {
     drawDuskSky(ctx, pal, w, h, t);
     return;
@@ -519,6 +517,10 @@ export class TileCache {
         drawOneWayCh6(ctx, this.biome, pal, tx, ty, g.get(tx - 1, ty) !== T.OneWay, g.get(tx + 1, ty) !== T.OneWay);
         return;
       }
+      if (isFallen(this.biome)) {
+        drawOneWayFallen(ctx, this.biome, tx, ty, g.get(tx - 1, ty) !== T.OneWay, g.get(tx + 1, ty) !== T.OneWay);
+        return;
+      }
       // Plank or stone ledge with supports.
       const wood = this.biome === 'village' || this.biome === 'sanctuary' || this.biome === 'plain' || this.biome === 'tower';
       const c = wood ? pal.plat : pal.cap;
@@ -545,6 +547,7 @@ export class TileCache {
       if (isCh4(this.biome) && drawSpikesCh4(ctx, this.biome, tx, ty)) return;
       if (isCh5(this.biome) && drawSpikesCh5(ctx, this.biome, tx, ty)) return;
       if (isCh6(this.biome) && drawSpikesCh6(ctx, this.biome, tx, ty, g.get(tx, ty - 1) !== T.Spikes)) return;
+      if (isFallen(this.biome) && drawSpikesFallen(ctx, this.biome, tx, ty)) return;
       const metal = this.biome === 'crypt' || this.biome === 'valley' ? '#c9c1b0' : this.biome === 'hive' ? '#4a2c14' : '#5a5560';
       for (let i = 0; i < 4; i++) {
         const sx = x + i * 4 + 2;
@@ -580,6 +583,11 @@ export class TileCache {
     }
     if (isCh6(this.biome)) {
       drawSolidCh6(ctx, this.biome, pal, tx, ty, t, depth, v, solid);
+      this.drawMarks(ctx, x, y, t);
+      return;
+    }
+    if (isFallen(this.biome)) {
+      drawSolidFallen(ctx, this.biome, pal, tx, ty, t, depth, v, solid, this.interior);
       this.drawMarks(ctx, x, y, t);
       return;
     }
@@ -1303,7 +1311,7 @@ export function drawLiveProps(ctx: Ctx, ents: EntDef[], t: number, view: { x: nu
         // background pass did not include them, the foreground pass draws them.
         if (!fg) liveCh3Frame = t;
         if (!e.fg && (!fg || liveCh3Frame !== t) && cond(e.cond, e.ncond)) {
-          if (FALLEN_LIVE.has(e.k)) fallenProp(ctx,e);
+          if (FALLEN_LIVE.has(e.k)) drawFallenLive(ctx, e, t);
           else if (LIVE_CH3.has(e.k)) drawLivePropCh3(ctx, e, t);
           else if (LIVE_CH4.has(e.k)) drawLivePropCh4(ctx, e, t);
           else if (LIVE_CH5.has(e.k)) drawLivePropCh5(ctx, e, t);
@@ -1392,7 +1400,7 @@ export function flame(ctx: Ctx, x: number, y: number, s: number, t: number) {
 /** Water and veil pools, animated. */
 export function drawLiquids(ctx: Ctx, g: Grid, t: number, view: { x: number; y: number; w: number; h: number }, biome: Biome = 'village') {
   const pitch = biome === 'plain' || biome === 'tower';
-  const ch3 = isCh3(biome), ch4 = isCh4(biome), ch5 = isCh5(biome), ch6 = isCh6(biome);
+  const ch3 = isCh3(biome), ch4 = isCh4(biome), ch5 = isCh5(biome), ch6 = isCh6(biome), fallen = isFallen(biome);
   const tx0 = Math.max(0, Math.floor(view.x / TILE)), tx1 = Math.min(g.w - 1, Math.floor((view.x + view.w) / TILE));
   const ty0 = Math.max(0, Math.floor(view.y / TILE)), ty1 = Math.min(g.h - 1, Math.floor((view.y + view.h) / TILE));
   for (let ty = ty0; ty <= ty1; ty++)
@@ -1404,6 +1412,7 @@ export function drawLiquids(ctx: Ctx, g: Grid, t: number, view: { x: number; y: 
       if (ch4 && drawLiquidCh4(ctx, biome, tt, x, y, top, tx, t)) continue;
       if (ch5 && drawLiquidCh5(ctx, biome, tt, x, y, top, tx, t)) continue;
       if (ch6 && drawLiquidCh6(ctx, biome, tt, x, y, top, tx, t)) continue;
+      if (fallen && drawLiquidFallen(ctx, biome, tt, x, y, top, tx, t)) continue;
       if (tt === T.Water) {
         if (ch3 && drawLiquidCh3(ctx, biome, x, y, top, tx, t)) continue;
         ctx.fillStyle = 'rgba(40,70,110,0.45)';

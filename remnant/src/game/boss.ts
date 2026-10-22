@@ -22,6 +22,9 @@ const KNEEL: Pose = { ...REST, lean: 0.5, head: 0.45, fTh: 1.35, fSh: -2.3, bTh:
 type Atk = 'sweep' | 'sweepHigh' | 'slam' | 'pillars' | 'step' | 'rain' | 'gaze' | 'double';
 
 export class Idol extends Entity {
+  /** Shaded into pixel art by render/bossPixel.ts in the pixel style. */
+  pixelShade = true;
+  pixelBox: readonly [number, number, number, number] = [-250, -215, 250, 18];
   j: Joints = newJoints();
   pose: Pose = { ...KNEEL };
   target: Pose = { ...KNEEL };
@@ -648,7 +651,44 @@ export class Idol extends Entity {
       ctx.beginPath();
       ctx.arc(0, 0, R, 0, Math.PI * (broken ? 1.6 : 2));
       ctx.stroke();
+      // An inner ring of short rays and a band of beads round the disc.
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = goldDk;
+      ctx.beginPath();
+      for (let i = 0; i < 24; i++) {
+        const a = (i / 24) * Math.PI * 2;
+        ctx.moveTo(Math.cos(a) * (R - 3), Math.sin(a) * (R - 3));
+        ctx.lineTo(Math.cos(a) * (R - 9), Math.sin(a) * (R - 9));
+      }
+      ctx.stroke();
+      for (let i = 0; i < 12; i++) {
+        const a = (i / 12) * Math.PI * 2 + 0.13;
+        circle(ctx, Math.cos(a) * R, Math.sin(a) * R, 1.6, goldHi);
+      }
       ctx.restore();
+    }
+    // A royal cape hangs from the shoulders behind the body, swaying.
+    {
+      const sw = Math.sin(t * 1.6) * 4 + (this.state === 'attack' ? -6 : 0);
+      const top = Math.min(j.shBY, j.shFY) + 4, hem = j.hipY + 64;
+      const cape = [j.shBX - 14, top, j.shFX + 6, top + 2, j.hipX + 10, j.hipY + 20, j.hipX + 4 + sw * 0.6, hem, j.hipX - 22 + sw, hem + 6, j.hipX - 44 + sw * 1.3, hem - 4, j.shBX - 30 + sw * 0.5, j.hipY];
+      poly(ctx, cape, '#4a1020', o, 1.6);
+      ctx.strokeStyle = '#2a0812';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      for (const k of [0.25, 0.5, 0.75]) {
+        ctx.moveTo(j.shBX - 10 + k * 12, top + 10);
+        ctx.lineTo(j.hipX - 40 * k + sw * k, hem - 2);
+      }
+      ctx.stroke();
+      // gold hem with a running key pattern
+      ctx.strokeStyle = gold;
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.moveTo(j.hipX + 4 + sw * 0.6, hem);
+      ctx.lineTo(j.hipX - 22 + sw, hem + 6);
+      ctx.lineTo(j.hipX - 44 + sw * 1.3, hem - 4);
+      ctx.stroke();
     }
     // back arm
     this.drawArm(ctx, j.shBX, j.shBY, j.elBX, j.elBY, j.haBX, j.haBY, true, goldGrad, o);
@@ -691,6 +731,48 @@ export class Idol extends Entity {
         circle(ctx, rx0, ry0, 1.7, goldHi);
         circle(ctx, rx0 - 0.5, ry0 - 0.5, 0.7, '#fff6dc');
       }
+    }
+    // Sculpted plates: two pectoral plates and three belly lames, each with its own light and shadow.
+    {
+      const plate = (pts: number[][], fill: string) => poly(ctx, pts.flat(), fill, o, 1.1);
+      plate([P(L * 0.92, -30), P(L * 0.92, -2), P(L * 0.66, -2), P(L * 0.6, -22)], '#d9b35a');
+      plate([P(L * 0.92, 6), P(L * 0.92, 34), P(L * 0.62, 28), P(L * 0.66, 6)], '#e8c672');
+      for (let k = 0; k < 3; k++) {
+        const u0 = L * (0.5 - k * 0.15), u1 = u0 - L * 0.12;
+        plate([P(u0, -26 + k * 2), P(u0, 29 - k * 2), P(u1, 27 - k * 2), P(u1, -24 + k * 2)], k % 2 ? '#a8822e' : '#c09440');
+        const [hx0, hy0] = P(u0 - 1.5, -24 + k * 2), [hx1, hy1] = P(u0 - 1.5, 27 - k * 2);
+        ctx.strokeStyle = '#f6dc98';
+        ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(hx0, hy0); ctx.lineTo(hx1, hy1); ctx.stroke();
+      }
+    }
+    // A jewelled collar of gold beads over the gorget line.
+    for (let k = -3; k <= 3; k++) {
+      const [bx, by] = P(L * 0.97 - Math.abs(k) * 1.5, k * 4.4);
+      circle(ctx, bx, by, 2.4, k % 2 ? goldDk : goldHi);
+      if (k === 0 || Math.abs(k) === 2) circle(ctx, bx, by, 1.4, k ? '#2a5aa8' : '#a0203a');
+    }
+    // Crimson tabard hanging between the tassets, a sun embroidered on it.
+    {
+      const [w0x, w0y] = P(-2, -10), [w1x, w1y] = P(-2, 12);
+      const sway = Math.sin(t * 2.1) * 2;
+      poly(ctx, [w0x, w0y, w1x, w1y, w1x + 2 + sway, w1y + 34, (w0x + w1x) / 2 + sway, w1y + 42, w0x - 2 + sway, w0y + 34], '#6a1426', o, 1.3);
+      const cx2 = (w0x + w1x) / 2 + sway * 0.6, cy2 = (w0y + w1y) / 2 + 20;
+      ctx.strokeStyle = gold;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(cx2, cy2, 5, 0, Math.PI * 2);
+      for (let i = 0; i < 6; i++) {
+        const an = (i / 6) * Math.PI * 2;
+        ctx.moveTo(cx2 + Math.cos(an) * 7, cy2 + Math.sin(an) * 7);
+        ctx.lineTo(cx2 + Math.cos(an) * 10, cy2 + Math.sin(an) * 10);
+      }
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(w0x - 2 + sway, w0y + 34);
+      ctx.lineTo((w0x + w1x) / 2 + sway, w1y + 42);
+      ctx.lineTo(w1x + 2 + sway, w1y + 34);
+      ctx.stroke();
     }
     // sun-disc emblem / molten core
     const [ex, ey] = P(L * 0.62, 4);
@@ -805,6 +887,10 @@ export class Idol extends Entity {
     limbShaded(ctx, hx, hy, kx, ky, 12, 10, back ? '#5a3e14' : '#8a6a2a', null, 1, true);
     // greave plate & knee cop
     limbShaded(ctx, kx + (fx2 - kx) * 0.15, ky + (fy2 - ky) * 0.15, kx + (fx2 - kx) * 0.85, ky + (fy2 - ky) * 0.85, 9, 7.5, back ? dk : '#c9a04a', o, 1.2, true);
+    // Thigh plate in two lames, and a spike on the knee.
+    limbShaded(ctx, hx + (kx - hx) * 0.1, hy + (ky - hy) * 0.1, hx + (kx - hx) * 0.5, hy + (ky - hy) * 0.5, 12.5, 11.5, back ? dk : '#d6b060', o, 1.1, true);
+    limbShaded(ctx, hx + (kx - hx) * 0.52, hy + (ky - hy) * 0.52, hx + (kx - hx) * 0.85, hy + (ky - hy) * 0.85, 11.5, 10.5, back ? dk : '#b8923e', o, 1.1, true);
+    poly(ctx, [kx + 4, ky - 6, kx + 16, ky - 2, kx + 5, ky + 4], back ? dk : '#f2d48a', o, 1);
     ctx.beginPath();
     ctx.arc(kx, ky, 9, 0, Math.PI * 2);
     ctx.fillStyle = back ? '#5a3e14' : rGrad(ctx, '#e2c070', -3, -3, 11, 0.4, -0.35);
@@ -830,6 +916,33 @@ export class Idol extends Entity {
     ctx.translate(ex, ey);
     circle(ctx, 0, 0, 8, back ? '#4a3210' : rGrad(ctx, '#c9a04a', -2.5, -2.5, 9, 0.4, -0.3));
     ctx.restore();
+    // Upper-arm plate in two lames.
+    limbShaded(ctx, sx + (ex - sx) * 0.15, sy + (ey - sy) * 0.15, sx + (ex - sx) * 0.55, sy + (ey - sy) * 0.55, 11.5, 10.5, back ? '#4a3210' : '#d6b060', o, 1.1, true);
+    limbShaded(ctx, sx + (ex - sx) * 0.57, sy + (ey - sy) * 0.57, sx + (ex - sx) * 0.9, sy + (ey - sy) * 0.9, 10.5, 9.5, back ? '#4a3210' : '#b8923e', o, 1.1, true);
+    // Carved bracer rings on the forearm.
+    {
+      const dx = hx - ex, dy = hy - ey, l = Math.hypot(dx, dy) || 1, nx = -dy / l, ny = dx / l;
+      ctx.lineWidth = 2.2;
+      ctx.strokeStyle = back ? '#3a2408' : '#f2d48a';
+      ctx.beginPath();
+      for (const k of [0.3, 0.62]) {
+        const cx = ex + dx * k, cy = ey + dy * k, w = 10.5 + k;
+        ctx.moveTo(cx - nx * w, cy - ny * w);
+        ctx.lineTo(cx + nx * w, cy + ny * w);
+      }
+      ctx.stroke();
+      if (!back) {
+        // The Veil shows through the joint: a violet crack at the elbow.
+        ctx.globalCompositeOperation = 'lighter';
+        glow(ctx, ex, ey, 7, '#b04cff', 0.35 + Math.sin(G.time * 3 + ex) * 0.12);
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.strokeStyle = '#d68cff';
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.moveTo(ex - 5, ey - 3); ctx.lineTo(ex - 1, ey); ctx.lineTo(ex + 3, ey - 2); ctx.lineTo(ex + 6, ey + 2);
+        ctx.stroke();
+      }
+    }
     // fist
     ctx.save();
     ctx.translate(hx, hy);
@@ -921,9 +1034,32 @@ export class Idol extends Entity {
       glow(ctx, R * 0.6, -R * 0.2, 14, '#ff7a1a', 0.8);
       ctx.globalCompositeOperation = 'source-over';
     }
-    // crown
+    // Carved brow ridge and cheekbone, so the mask reads as a sculpted face.
+    ctx.strokeStyle = '#7a5418';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(-R * 0.15, -R * 0.38); ctx.quadraticCurveTo(R * 0.4, -R * 0.55, R * 0.95, -R * 0.35);
+    ctx.moveTo(R * 0.1, R * 0.28); ctx.quadraticCurveTo(R * 0.45, R * 0.4, R * 0.7, R * 0.25);
+    ctx.stroke();
+    // A braided beard of gold, banded, as on the old kings' statues.
+    poly(ctx, [R * 0.05, R * 1.0, R * 0.75, R * 0.9, R * 0.62, R * 2.1, R * 0.38, R * 2.35, R * 0.14, R * 2.1], gg(0, R, R, R * 2.4), o, 1.2);
+    ctx.strokeStyle = '#6a4a1a';
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    for (let i = 0; i < 4; i++) {
+      const y = R * (1.2 + i * 0.27);
+      ctx.moveTo(R * 0.12 + i * 0.6, y); ctx.lineTo(R * 0.68 - i * 0.6, y + R * 0.06);
+    }
+    ctx.stroke();
+    // crown, with a beaded band and three set stones
     poly(ctx, [-R * 0.95, -R * 0.55, -R * 1.1, -R * 1.6, -R * 0.55, -R * 1.05, -R * 0.1, -R * 2.0, R * 0.35, -R * 1.05, R * 0.85, -R * 1.7, R * 0.95, -R * 0.55], gg(-R, -R * 2, R, -R * 0.5), o, 1.3);
+    ctx.fillStyle = '#6a4a1a';
+    ctx.fillRect(-R * 0.95, -R * 0.78, R * 1.9, 3);
+    for (let i = 0; i < 6; i++) circle(ctx, -R * 0.8 + i * R * 0.32, -R * 0.66, 1.1, '#f2d48a');
     circle(ctx, -R * 0.1, -R * 1.0, 2.6, '#a0203a');
+    circle(ctx, -R * 0.62, -R * 1.02, 1.8, '#2a5aa8');
+    circle(ctx, R * 0.42, -R * 1.02, 1.8, '#2a8a4a');
+    circle(ctx, -R * 0.2, -R * 1.1, 0.9, '#ffd6e0');
     ctx.restore();
   }
 

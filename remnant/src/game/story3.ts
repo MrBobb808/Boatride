@@ -70,17 +70,19 @@ export class Chapter3 {
   rounds = new Rounds();
 
   /** Walking out of the arena mid-run still records how far the run got. */
-  private leftTrial() {
+  leftTrial() {
     G.save.flags.trial_contract = '';
-    if (!this.rounds.active) return;
-    const n = this.rounds.round;
+    this.rounds.restoreRush();
+    // A finished or fallen rush is already recorded; only its mode is left to clear.
+    if (!this.rounds.active) { this.rounds.rush = false; return; }
+    const n = this.rounds.round, rush = this.rounds.rush, beaten = this.rounds.completed;
     this.rounds.stop();
-    if (n > 0) G.ui.toast(`Trial run recorded: round ${n}.`, 'info');
+    if (rush) { if (beaten > 0) G.ui.toast(`Boss Rush recorded: ${beaten} boss${beaten > 1 ? 'es' : ''} beaten.`, 'info'); }
+    else if (n > 0) G.ui.toast(`Trial run recorded: round ${n}.`, 'info');
   }
 
   // ---------------------------------------------------------------- rooms
   onEnter(id: string, first: boolean): boolean {
-    if (id !== 'trial_arena') this.leftTrial();
     if (!CH3_ROOM_IDS.has(id)) return false;
     const s = G.save;
     if (id === 'valley_camp' && !flag('ch3_intro')) {
@@ -117,7 +119,7 @@ export class Chapter3 {
       // Training from the menu may skip ahead to a wave near your best.
       const from = Math.max(1, Number(s.flags.trial_from ?? 1));
       delete s.flags.trial_from;
-      this.rounds.start(from, s.flags.trial_mode === 'boss');
+      this.rounds.start(from, s.flags.trial_mode === 'boss', s.flags.trial_mode === 'rush');
       if (!this.rounds.bossOnly && !s.quests.s_trial) this.st.quest('s_trial', 0);
     }
     return true;
