@@ -14,7 +14,7 @@ import {
   blob, solidify, tier, wrapNoise, fillRidge, strokeRidge, localView, brickField, merlons, metalGrad, taper,
   palmSil, reedSil, zigguratSil, wallSil, housesSil, lionRelief, dragonRelief, rosetteBand, jar, palmTree, rosette,
 } from './env4';
-import type { BiomePal, Layer } from './environment';
+import type { BiomePal, Layer, ParallaxSteps } from './environment';
 
 type Decor = Extract<EntDef, { t: 'decor' }>;
 export type Ch5Biome = 'riverbed' | 'gardens' | 'palace';
@@ -210,7 +210,7 @@ function lanternString(ctx: Ctx, x0: number, x1: number, y: number, sag: number,
 
 // ---------------------------------------------------------------- parallax
 
-export function buildParallaxCh5(biome: Ch5Biome, pal: BiomePal, seed: number, interior: boolean, viewH: number, res: number): Layer[] {
+export function* buildParallaxCh5(biome: Ch5Biome, pal: BiomePal, seed: number, interior: boolean, viewH: number, res: number): ParallaxSteps {
   const layers: Layer[] = [];
   const W = 1024;
   const H = Math.round(viewH * 1.6);
@@ -218,7 +218,9 @@ export function buildParallaxCh5(biome: Ch5Biome, pal: BiomePal, seed: number, i
     const m = makeCanvas(W * r, H * r);
     m.ctx.scale(r, r);
     draw(m.ctx, W, H);
-    layers.push({ c: m.c, w: W, h: H, fx, fy, oy: 0, res: r });
+    const l: Layer = { c: m.c, w: W, h: H, fx, fy, oy: 0, res: r };
+    layers.push(l);
+    return l;
   };
   /** Draw something near a strip edge twice so the wrap is seamless. */
   const wrap = (x: number, reach: number, w: number, f: (x: number) => void) => {
@@ -230,7 +232,7 @@ export function buildParallaxCh5(biome: Ch5Biome, pal: BiomePal, seed: number, i
 
   if (biome === 'palace' && interior) {
     // The far wall of the hall: glazed brick in shadow, lamplit niches, a gold frieze.
-    mk(0.08, 0.05, (ctx, w, h) => {
+    yield mk(0.08, 0.05, (ctx, w, h) => {
       const col = pal.far;
       ctx.fillStyle = col;
       ctx.fillRect(0, 0, w, h);
@@ -285,7 +287,7 @@ export function buildParallaxCh5(biome: Ch5Biome, pal: BiomePal, seed: number, i
       ctx.fillRect(0, h * 0.86, w, h * 0.14);
     }, res * 0.7);
     // Colonnade: massive columns with gold capitals, lamps on chains, purple swags.
-    mk(0.26, 0.12, (ctx, w, h) => {
+    yield mk(0.26, 0.12, (ctx, w, h) => {
       const col = pal.mid;
       for (let x = 40; x < w; x += 170) {
         ctx.fillStyle = col;
@@ -333,7 +335,7 @@ export function buildParallaxCh5(biome: Ch5Biome, pal: BiomePal, seed: number, i
   const rng = new RNG(seed);
   if (biome === 'riverbed') {
     // Far: Babylon feasting behind its walls, the eastern army's fires along the horizon.
-    mk(0.04, 0.03, (ctx, w, h) => {
+    yield mk(0.04, 0.03, (ctx, w, h) => {
       const hz = h * 0.8;
       const n0 = wrapNoise(w, 260, seed, 3);
       fillRidge(ctx, w, h, (x) => hz - 2 - n0(x) * 10, mix(pal.far, '#2a3460', 0.35));
@@ -354,7 +356,7 @@ export function buildParallaxCh5(biome: Ch5Biome, pal: BiomePal, seed: number, i
       strokeRidge(ctx, w, r1, rgba('#b8c4ff', 0.18), 0.8);
     }, res * 0.75);
     // Mid: the high banks of the emptied river, dead palms and stranded hulls.
-    mk(0.17, 0.07, (ctx, w, h) => {
+    yield mk(0.17, 0.07, (ctx, w, h) => {
       const n = wrapNoise(w, 220, seed + 11, 4);
       const hy = (x: number) => h * 0.84 - n(x) * h * 0.05;
       const col = pal.mid, fr = new RNG(seed + 12);
@@ -395,7 +397,7 @@ export function buildParallaxCh5(biome: Ch5Biome, pal: BiomePal, seed: number, i
       strokeRidge(ctx, w, hy, rgba('#b8c4ff', 0.16), 1);
     });
     // Near: dead reeds and the ribs of broken boats, dark against the night.
-    mk(0.42, 0.16, (ctx, w, h) => {
+    yield mk(0.42, 0.16, (ctx, w, h) => {
       const n = wrapNoise(w, 120, seed + 21, 3);
       const hy = (x: number) => h * 0.9 - n(x) * h * 0.03;
       const fr = new RNG(seed + 22), col = pal.near;
@@ -423,7 +425,7 @@ export function buildParallaxCh5(biome: Ch5Biome, pal: BiomePal, seed: number, i
     });
   } else if (biome === 'gardens') {
     // Far: the city far below, alight for the feast; the ziggurat burning.
-    mk(0.04, 0.03, (ctx, w, h) => {
+    yield mk(0.04, 0.03, (ctx, w, h) => {
       const hz = h * 0.82;
       const col = mix(pal.far, '#1a2a48', 0.4), cr = new RNG(seed + 4);
       housesSil(ctx, 0, w, hz - 6, 1.1, col, moonRim, cr, 0.6);
@@ -437,7 +439,7 @@ export function buildParallaxCh5(biome: Ch5Biome, pal: BiomePal, seed: number, i
       ctx.fillRect(0, hz + 2, w, h - hz);
     }, res * 0.75);
     // Mid: terraces of the gardens stepping up, cypress spires and round crowns.
-    mk(0.16, 0.08, (ctx, w, h) => {
+    yield mk(0.16, 0.08, (ctx, w, h) => {
       const col = pal.mid, fr = new RNG(seed + 14);
       const base = h * 0.88;
       ctx.fillStyle = col;
@@ -479,7 +481,7 @@ export function buildParallaxCh5(biome: Ch5Biome, pal: BiomePal, seed: number, i
       }
     });
     // Near: tall cypress and a curtain of vines, nearly black.
-    mk(0.4, 0.16, (ctx, w, h) => {
+    yield mk(0.4, 0.16, (ctx, w, h) => {
       const col = pal.near, fr = new RNG(seed + 24);
       const base = h * 0.93;
       ctx.fillStyle = col;
@@ -494,7 +496,7 @@ export function buildParallaxCh5(biome: Ch5Biome, pal: BiomePal, seed: number, i
     });
   } else {
     // The palace roofs. Far: the city alight, the walls, the army's fires beyond.
-    mk(0.04, 0.03, (ctx, w, h) => {
+    yield mk(0.04, 0.03, (ctx, w, h) => {
       const hz = h * 0.8;
       const col = mix(pal.far, '#20183a', 0.3), cr = new RNG(seed + 4);
       armyCamp(ctx, 560, 900, hz - 18, mix(pal.far, '#000000', 0.3), cr);
@@ -507,7 +509,7 @@ export function buildParallaxCh5(biome: Ch5Biome, pal: BiomePal, seed: number, i
       ctx.globalCompositeOperation = 'source-over';
     }, res * 0.75);
     // Mid: palace towers and roofs strung with lanterns.
-    mk(0.16, 0.08, (ctx, w, h) => {
+    yield mk(0.16, 0.08, (ctx, w, h) => {
       const base = h * 0.86, col = pal.mid, fr = new RNG(seed + 14);
       ctx.fillStyle = col;
       ctx.fillRect(0, base, w, h - base);
@@ -538,7 +540,7 @@ export function buildParallaxCh5(biome: Ch5Biome, pal: BiomePal, seed: number, i
       }
     });
     // Near: a parapet's merlons and palms in planters.
-    mk(0.38, 0.15, (ctx, w, h) => {
+    yield mk(0.38, 0.15, (ctx, w, h) => {
       const top = h * 0.84, col = pal.near, fr = new RNG(seed + 24);
       ctx.fillStyle = col;
       ctx.fillRect(0, top, w, h - top);

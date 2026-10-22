@@ -106,14 +106,14 @@ export function drawHud(ctx: Ctx, dt: number) {
   const hx = x0 + 34 * u, hy = y0 + 6 * u, hw = 196 * u, hh = 10 * u;
   const frac = clamp(s.hp / d.maxHp, 0, 1);
   hpGhost = frac > hpGhost ? frac : lerp(hpGhost, frac, Math.min(1, dt * 2.5));
-  bar(ctx, hx, hy, hw, hh, frac, hpGhost, ['#5a1218', '#b0303a', '#e0606a']);
+  bar(ctx, hx, hy, hw, hh, frac, hpGhost, HP_COLS);
   text(ctx, `${Math.ceil(s.hp)} / ${d.maxHp}`, hx + hw - 4, hy + hh / 2 + 0.5, `600 ${8.5 * u}px ${FONT_DISPLAY}`, '#f4e8e0', 'right');
   // ----- covenant energy
   let cy = hy + hh + 4 * u;
   if (flag('relic_taken')) {
     const cf = clamp(s.ce / d.maxCe, 0, 1);
     ceShown = lerp(ceShown, cf, Math.min(1, dt * 8));
-    bar(ctx, hx, cy, hw * 0.82, 6 * u, ceShown, ceShown, ['#3a2a10', '#c9a04a', '#fff3c4']);
+    bar(ctx, hx, cy, hw * 0.82, 6 * u, ceShown, ceShown, CE_COLS);
     cy += 6 * u + 3 * u;
   }
   // ----- shadow mantle gauge (from level 25); while transformed, the time left
@@ -123,7 +123,7 @@ export function drawHud(ctx: Ctx, dt: number) {
     const f = on ? clamp(pl.mantleT / pl.mantleMax, 0, 1) : clamp((s.mantle ?? 0) / 100, 0, 1);
     const full = on || f >= 1;
     const mw = hw * 0.82;
-    bar(ctx, hx, cy, mw, 4 * u, f, f, full ? ['#14102e', '#6f7bff', '#e4e6ff'] : ['#120e24', '#4a4aa8', '#a9b4ff']);
+    bar(ctx, hx, cy, mw, 4 * u, f, f, full ? MANTLE_FULL : MANTLE_COLS);
     if (full) {
       ctx.globalCompositeOperation = 'lighter';
       glow(ctx, hx + mw * f, cy + 2 * u, 10 * u, '#6f7bff', 0.45 + Math.sin(G.time * 6) * 0.2);
@@ -263,7 +263,7 @@ export function drawHud(ctx: Ctx, dt: number) {
     const f = clamp(b.hp / b.maxHp, 0, 1);
     bossGhost = lerp(bossGhost, f, Math.min(1, dt * 2));
     text(ctx, bossName.toUpperCase(), W / 2, byy - 8 * u, `700 ${11 * u}px ${FONT_DISPLAY}`, '#f6dea0', 'center');
-    bar(ctx, bxx, byy, bw, 8 * u, f, bossGhost, ['#4a1a06', '#c97a2a', '#ffd27a']);
+    bar(ctx, bxx, byy, bw, 8 * u, f, bossGhost, BOSS_COLS);
     // phase marks
     for (const m of b.phaseMarks) {
       ctx.fillStyle = 'rgba(0,0,0,0.7)';
@@ -285,7 +285,7 @@ export function drawHud(ctx: Ctx, dt: number) {
       const bxx = (W - bw) / 2, byy = touch ? y0 + 8 * u : H - sab - 66 * u;
       text(ctx, el.name.toUpperCase(), W / 2, byy - 8 * u, `700 ${10 * u}px ${FONT_DISPLAY}`, '#f0c0d0', 'center');
       const f = clamp(el.hp / el.maxHp, 0, 1);
-      bar(ctx, bxx, byy, bw, 6 * u, f, f, ['#3a0a14', '#a02a3a', '#e0606a']);
+      bar(ctx, bxx, byy, bw, 6 * u, f, f, ELITE_COLS);
     }
   }
 
@@ -452,11 +452,7 @@ function drawCombo(ctx: Ctx, W: number, H: number, u: number, touch: boolean, sa
   ctx.lineJoin = 'round';
   ctx.strokeStyle = 'rgba(6,4,10,0.9)';
   ctx.strokeText(String(shown), 0, 0);
-  const g = ctx.createLinearGradient(0, -24 * u, 0, 0);
-  g.addColorStop(0, '#fff6dc');
-  g.addColorStop(0.55, hot ? '#ffcf6b' : '#f2d48a');
-  g.addColorStop(1, hot ? '#e2733a' : '#b8914a');
-  ctx.fillStyle = g;
+  ctx.fillStyle = comboGrad(ctx, u, hot);
   ctx.fillText(String(shown), 0, 0);
   ctx.restore();
   ctx.save();
@@ -484,7 +480,35 @@ function text(ctx: Ctx, t: string, x: number, y: number, font: string, color: st
   ctx.fillText(t, x, y);
 }
 
-function bar(ctx: Ctx, x: number, y: number, w: number, h: number, f: number, ghost: number, cols: [string, string, string]) {
+const comboGrads: (CanvasGradient | null)[] = [null, null];
+let comboU = 0;
+/** The combo count's two fills, remade only when the HUD scale changes. */
+function comboGrad(ctx: Ctx, u: number, hot: boolean) {
+  if (u !== comboU) comboGrads[0] = comboGrads[1] = null;
+  comboU = u;
+  const i = hot ? 1 : 0;
+  let g = comboGrads[i];
+  if (!g) {
+    g = ctx.createLinearGradient(0, -24 * u, 0, 0);
+    g.addColorStop(0, '#fff6dc');
+    g.addColorStop(0.55, hot ? '#ffcf6b' : '#f2d48a');
+    g.addColorStop(1, hot ? '#e2733a' : '#b8914a');
+    comboGrads[i] = g;
+  }
+  return g;
+}
+
+type BarCols = readonly [string, string, string];
+const HP_COLS: BarCols = ['#5a1218', '#b0303a', '#e0606a'];
+const CE_COLS: BarCols = ['#3a2a10', '#c9a04a', '#fff3c4'];
+const MANTLE_FULL: BarCols = ['#14102e', '#6f7bff', '#e4e6ff'];
+const MANTLE_COLS: BarCols = ['#120e24', '#4a4aa8', '#a9b4ff'];
+const BOSS_COLS: BarCols = ['#4a1a06', '#c97a2a', '#ffd27a'];
+const ELITE_COLS: BarCols = ['#3a0a14', '#a02a3a', '#e0606a'];
+/** Each bar's fill gradient, remade only when the bar moves (layout or safe-area change). */
+const barGrads = new WeakMap<BarCols, { y: number; h: number; g: CanvasGradient }>();
+
+function bar(ctx: Ctx, x: number, y: number, w: number, h: number, f: number, ghost: number, cols: BarCols) {
   ctx.fillStyle = 'rgba(8,6,12,0.85)';
   ctx.fillRect(x - 1.5, y - 1.5, w + 3, h + 3);
   ctx.fillStyle = 'rgba(255,255,255,0.05)';
@@ -493,11 +517,16 @@ function bar(ctx: Ctx, x: number, y: number, w: number, h: number, f: number, gh
     ctx.fillStyle = 'rgba(255,240,220,0.55)';
     ctx.fillRect(x, y, w * ghost, h);
   }
-  const g = ctx.createLinearGradient(x, y, x, y + h);
-  g.addColorStop(0, cols[2]);
-  g.addColorStop(0.45, cols[1]);
-  g.addColorStop(1, cols[0]);
-  ctx.fillStyle = g;
+  let e = barGrads.get(cols);
+  if (!e || e.y !== y || e.h !== h) {
+    const g = ctx.createLinearGradient(0, y, 0, y + h);
+    g.addColorStop(0, cols[2]);
+    g.addColorStop(0.45, cols[1]);
+    g.addColorStop(1, cols[0]);
+    e = { y, h, g };
+    barGrads.set(cols, e);
+  }
+  ctx.fillStyle = e.g;
   ctx.fillRect(x, y, w * f, h);
   ctx.strokeStyle = 'rgba(226,184,90,0.55)';
   ctx.lineWidth = 1;

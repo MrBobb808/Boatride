@@ -17,6 +17,7 @@ import type { EnemyKind } from './game/tiles';
 import { setDetail } from './render/actors';
 import { loadCreatureSprites, creatureArtStatus } from './render/creatureSprites';
 import { fx } from './render/fx';
+import { bakeStats } from './render/environment';
 import { initUI, blockingUI } from './ui/ui';
 import { installNav, layerCount } from './ui/dom';
 import { initTouch, setTouchVisible, updateTouch, layout as layoutTouch } from './ui/touch';
@@ -46,7 +47,7 @@ async function boot() {
   setDetail(renderer.tier);
   renderer.onResize(() => {
     fx.setTier(renderer.tier);
-    setDetail(renderer.tier);
+    applyEffects();
     measureSafe();
     layoutTouch();
   });
@@ -185,6 +186,8 @@ function loop(now: number) {
     r.present();
     const t1 = performance.now();
     drawHud(ctx, dt);
+    // Bake the rooms behind the doors in idle time, never during a busy fight.
+    G.world.prep.pump(G.world.combatHeavy(), dt * 1000 - (performance.now() - frameStart));
     if (G.debug) {
       perf.draw += t1 - t0;
       perf.hud += performance.now() - t1;
@@ -209,15 +212,41 @@ function loop(now: number) {
   adaptQuality(dt, performance.now() - frameStart);
 }
 
-/** Auto quality: drop resolution if frames are consistently slow, recover if fast. */
+/**
+ * Auto quality: under sustained load shed particles, then lighting resolution and fine
+ * detail, and only then resolution; recover one rung at a time when the load passes.
+ */
 function adaptQuality(dt: number, workMs: number) {
-  if (settings.quality !== 'auto' || app.mode !== 'game' || G.paused || G.inCutscene || document.hidden) {
+  const r = G.renderer;
+  if (settings.quality !== 'auto') {
+    frameBudget.reset();
+    frameBudget.level = 0;
+    setEffects(0);
+    return;
+  }
+  // The tier was reset elsewhere (the quality setting): continue the ladder from there.
+  if (FrameBudget.penalty(frameBudget.level) !== r.autoPenalty) frameBudget.level = r.autoPenalty > 0 ? r.autoPenalty + 2 : Math.min(frameBudget.level, 2);
+  if (app.mode !== 'game' || G.paused || G.inCutscene || document.hidden) {
     frameBudget.reset();
     return;
   }
+  const level = frameBudget.sample(dt, workMs, settings.fps === '60');
+  setEffects(FrameBudget.effects(level));
+  const pen = FrameBudget.penalty(level);
+  if (pen !== r.autoPenalty) { r.autoPenalty = pen; r.resize(); }
+}
+
+function setEffects(e: number) {
+  if (G.renderer.effects === e) return;
+  G.renderer.effects = e;
+  applyEffects();
+}
+
+/** Particle density and actor detail for the tier and auto quality's effects rung. */
+function applyEffects() {
   const r = G.renderer;
-  const next = frameBudget.sample(dt, workMs, r.autoPenalty);
-  if (next !== r.autoPenalty) { r.autoPenalty = next; r.resize(); }
+  fx.setDensity(r.effects >= 1 ? 0.6 : 1);
+  setDetail(r.effects >= 2 ? Math.min(r.tier, 1) : r.tier);
 }
 
 function registerSW() {
@@ -240,6 +269,7 @@ function setupDebug() {
   G.debug = true;
   const api = {
     G,
+    settings,
     art: creatureArtStatus,
     fallenArt: fallenArtReady,
     hero: () => ({ ready: heroSpriteReady(G.world.player.style, G.world.player.state, G.world.player.mantleT), skin: G.world.player.style.skin, hair: G.world.player.style.hair, beard: G.world.player.style.beard }),
@@ -282,6 +312,12 @@ function setupDebug() {
       return out;
     },
     load: (slot: number) => loadGameSlot(slot),
+    prep: () => ({ rooms: G.world.prep.status(), stats: { ...G.world.prep.stats }, bakes: { ...bakeStats }, key: G.renderer.bakeKey, layerKey: G.world.layerKey }),
+    particles: (reset = false) => {
+      const out = { live: fx.ps.length, cap: fx.cap, frameCap: fx.frameCap, peak: fx.peakSpawned, effects: G.renderer.effects };
+      if (reset) fx.peakSpawned = 0;
+      return out;
+    },
     ios: isIOS(),
   };
   (window as unknown as { __remnant: typeof api }).__remnant = api;

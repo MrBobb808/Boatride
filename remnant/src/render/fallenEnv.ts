@@ -10,7 +10,7 @@ import { makeCanvas, rgba, mix, shade, circle, poly, type Ctx } from './draw';
 import { RNG, hash2 } from '../core/math';
 import { TILE, T, type Biome } from '../game/tiles';
 import { blob, tier, wrapNoise, fillRidge, reedSil } from './env4';
-import type { BiomePal, Layer } from './environment';
+import type { BiomePal, Layer, ParallaxSteps } from './environment';
 
 export { fallenProp, drawFallenLive, FALLEN_LIVE } from './fallenProps';
 export { fallenParallax } from './fallenScenery';

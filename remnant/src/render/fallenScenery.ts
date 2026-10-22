@@ -13,7 +13,7 @@
 import { makeCanvas, rgba, mix, circle, poly, type Ctx } from './draw';
 import { RNG } from '../core/math';
 import { blob, wrapNoise, fillRidge, strokeRidge, reedSil } from './env4';
-import type { BiomePal, Layer } from './environment';
+import type { BiomePal, Layer, ParallaxSteps } from './environment';
 import type { FallenBiome } from './fallenEnv';
 import { greciaParallax } from './envGrecia';
 
@@ -977,14 +977,13 @@ interface Builder {
   res: number;
 }
 
-export function fallenParallax(biome: FallenBiome, pal: BiomePal, seed: number, interior: boolean, viewH: number, res: number): Layer[] {
+/** Bakes one strip per step: the builders only queue their strips, so idle time can spread the bake over several slices. */
+export function* fallenParallax(biome: FallenBiome, pal: BiomePal, seed: number, interior: boolean, viewH: number, res: number): ParallaxSteps {
   const layers: Layer[] = [];
   const W = 1024, H = Math.round(viewH * 1.6);
+  const queued: { fx: number; fy: number; draw: (ctx: Ctx, w: number, h: number) => void; r: number }[] = [];
   const mk = (fx: number, fy: number, draw: (ctx: Ctx, w: number, h: number) => void, r = res) => {
-    const m = makeCanvas(W * r, H * r);
-    m.ctx.scale(r, r);
-    draw(m.ctx, W, H);
-    layers.push({ c: m.c, w: W, h: H, fx, fy, oy: 0, res: r });
+    queued.push({ fx, fy, draw, r });
   };
   /** Draw something near a strip edge twice so the wrap is seamless. */
   const wrap = (x: number, reach: number, w: number, f: (x: number) => void) => {
@@ -1003,5 +1002,14 @@ export function fallenParallax(biome: FallenBiome, pal: BiomePal, seed: number, 
   else if (biome === 'hunt') (interior ? huntIn : huntOut)(b);
   else if (biome === 'plague') (interior ? plagueIn : plagueOut)(b);
   else (interior ? cinderIn : cinderOut)(b);
+  // Each strip draws from its own seeded RNGs, so baking them later and one at a time gives the same pixels.
+  for (const q of queued) {
+    const m = makeCanvas(W * q.r, H * q.r);
+    m.ctx.scale(q.r, q.r);
+    q.draw(m.ctx, W, H);
+    const l: Layer = { c: m.c, w: W, h: H, fx: q.fx, fy: q.fy, oy: 0, res: q.r };
+    layers.push(l);
+    yield l;
+  }
   return layers;
 }

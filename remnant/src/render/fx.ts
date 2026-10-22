@@ -21,6 +21,14 @@ interface Particle {
   a: number;
 }
 
+/**
+ * How much each kind reads on screen: impact stars and flames carry the hit, a wisp of
+ * dust barely shows. Bursts and a full pool give way to the faintest first.
+ */
+const WEIGHT = [1, 1.2, 1, 0.6, 2, 1, 2, 1, 2, 0.6, 3];
+/** Accents at or above this weight still spawn once a frame's burst budget is spent. */
+const BOLD = 2;
+
 interface Arc {
   x: number; y: number; r: number; a0: number; a1: number; w: number;
   life: number; max: number; c: string; c2: string; face: number; tilt: number;
@@ -43,15 +51,50 @@ export class FX {
   tintC = '#000000';
   cap = 900;
   numberCap = 32;
+  /** New particles allowed per drawn frame before only bold accents get through (mass deaths, big finishers). */
+  frameCap = 240;
+  /** Particles spawned since the last drawn frame, and the most in any one frame (debug API). */
+  spawned = 0;
+  peakSpawned = 0;
   private free: Particle[] = [];
+  private tierCap = 900;
+  private density = 1;
+  private scan = 0;
+  private numFont = new Map<number, string>();
 
   setTier(t: number) {
-    this.cap = t === 2 ? 900 : t === 1 ? 520 : 260;
+    this.tierCap = t === 2 ? 900 : t === 1 ? 520 : 260;
+    this.applyCaps();
     this.numberCap = t === 2 ? 32 : t === 1 ? 24 : 16;
     while (this.nums.length > this.numberCap) {
       const drop = this.nums.findIndex(n => !n.priority);
       this.nums.splice(drop < 0 ? 0 : drop, 1);
     }
+  }
+
+  /** Auto quality's first rung under sustained load: fewer particles, same effects. */
+  setDensity(d: number) {
+    this.density = d;
+    this.applyCaps();
+  }
+
+  private applyCaps() {
+    this.cap = Math.round(this.tierCap * this.density);
+    this.frameCap = Math.round(this.tierCap * 0.27 * this.density);
+  }
+
+  /** The live particle a newcomer may replace: the faintest of a few, checked round-robin (no full scan). */
+  private faintest(): number {
+    const ps = this.ps, n = ps.length;
+    let best = -1, bestV = Infinity;
+    for (let j = 0; j < 8; j++) {
+      const i = (this.scan + j) % n;
+      const p = ps[i];
+      const v = WEIGHT[p.k] * (p.life / p.max);
+      if (v < bestV) { bestV = v; best = i; }
+    }
+    this.scan = (this.scan + 8) % n;
+    return best;
   }
 
   clear() {
@@ -66,12 +109,24 @@ export class FX {
   }
 
   spawn(k: PK, x: number, y: number, vx: number, vy: number, life: number, s0: number, s1: number, c: string, g = 0, drag = 0): Particle | null {
-    if (this.ps.length >= this.cap) return null;
-    const p = this.free.pop() ?? ({} as Particle);
+    const w = WEIGHT[k];
+    // A burst past this frame's budget keeps only its bold accents, and those within reason.
+    if (this.spawned >= this.frameCap && (w < BOLD || this.spawned >= this.frameCap * 1.5)) return null;
+    let p: Particle;
+    if (this.ps.length >= this.cap) {
+      // Full pool: reuse the faintest live particle in place, if the newcomer outshines it.
+      const i = this.faintest();
+      const old = this.ps[i];
+      if (WEIGHT[old.k] * (old.life / old.max) >= w) return null;
+      p = old;
+    } else {
+      p = this.free.pop() ?? ({} as Particle);
+      this.ps.push(p);
+    }
+    this.spawned++;
     p.on = true; p.k = k; p.x = x; p.y = y; p.vx = vx; p.vy = vy;
     p.life = life; p.max = life; p.s0 = s0; p.s1 = s1; p.c = c; p.g = g; p.drag = drag;
     p.rot = rand(0, TAU); p.vr = rand(-8, 8); p.a = 1;
-    this.ps.push(p);
     return p;
   }
 
@@ -203,8 +258,10 @@ export class FX {
     this.flashA = Math.max(0, this.flashA - dt * 3.2);
   }
 
-  /** Normal-blend particles (smoke, dust, shards). */
+  /** Normal-blend particles (smoke, dust, shards). Drawn once per frame, so it also opens the next frame's burst budget. */
   drawBack(ctx: Ctx) {
+    if (this.spawned > this.peakSpawned) this.peakSpawned = this.spawned;
+    this.spawned = 0;
     for (const p of this.ps) {
       const t = 1 - p.life / p.max;
       const s = p.s0 + (p.s1 - p.s0) * t;
@@ -384,6 +441,17 @@ export class FX {
     ctx.globalAlpha = 1;
   }
 
+  /** Font strings per tenth of a pixel, built once instead of every number every frame. */
+  private font(size: number) {
+    const k = Math.round(size * 10);
+    let f = this.numFont.get(k);
+    if (!f) {
+      f = `700 ${(k / 10).toFixed(1)}px ${FONT_DISPLAY}`;
+      this.numFont.set(k, f);
+    }
+    return f;
+  }
+
   drawNumbers(ctx: Ctx) {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
@@ -391,7 +459,7 @@ export class FX {
       const t = 1 - n.life / n.max;
       const pop = t < 0.15 ? 1 + (0.15 - t) * 4 : 1;
       ctx.globalAlpha = t > 0.7 ? (1 - t) / 0.3 : 1;
-      ctx.font = `700 ${(n.size * pop).toFixed(1)}px ${FONT_DISPLAY}`;
+      ctx.font = this.font(n.size * pop);
       ctx.lineWidth = 2.6;
       ctx.lineJoin = 'round';
       ctx.strokeStyle = 'rgba(10,6,14,0.9)';
