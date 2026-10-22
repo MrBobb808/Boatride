@@ -27,10 +27,12 @@ import { showTitle, hideTitle, drawTitleScene, startIntro, drawIntro, updateIntr
 import { openMenu, applyTextSize, isMenuOpen } from './ui/menus';
 import { derive, makeItem, makeEcho } from './game/state';
 import { ITEMS } from './game/data';
-import { startTraining } from './game/chapters';
+import { startTraining, startDaily } from './game/chapters';
 import { heroSpriteReady } from './render/heroSprites';
 import { flush as flushCloud, initCloud } from './game/cloud';
 import { checkForUpdate, applyUpdate, takeResumeSlot, updatePending } from './core/update';
+import { valorTrack, unlock, TROPHIES } from './game/valor';
+import { dailyFor, dayKey } from './game/daily';
 
 const STEP = 1 / 120;
 
@@ -282,6 +284,8 @@ function setupDebug() {
       return out;
     },
     load: (slot: number) => loadGameSlot(slot),
+    valor: { track: valorTrack, unlock, trophies: TROPHIES },
+    daily: { dailyFor, dayKey, start: startDaily },
     ios: isIOS(),
   };
   (window as unknown as { __remnant: typeof api }).__remnant = api;

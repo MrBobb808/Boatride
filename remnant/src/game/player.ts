@@ -18,6 +18,7 @@ import { MOVESETS, clipsFor, extraFor, type AttackDef, type Moveset } from './we
 import { ITEMS, RARITY_COLORS, ABILITIES, type AbilityId, type WeaponFamily } from './data';
 import { derive, getItem, skillRank } from './state';
 import { WeaponPractice } from './progression';
+import { valorTrack, capeOf } from './valor';
 import { castAbility } from './abilities';
 import { lighting } from '../render/lighting';
 import { shakeScale } from '../core/settings';
@@ -740,7 +741,7 @@ export class Player extends Entity {
     }
     if (input.pressed('heal')) {
       if (G.world.story.ch3.rounds.balmSealed) {
-        G.ui.toast('Iron Oath: Balm is sealed until five waves are cleared.', 'warn');
+        G.ui.toast(G.world.story.ch3.rounds.daily ? 'Fasting: no healing in today\'s challenge.' : 'Iron Oath: Balm is sealed until five waves are cleared.', 'warn');
         sfx('denied'); return;
       }
       if (s.balm > 0 && b.onGround && s.hp < G.d.maxHp) {
@@ -1423,6 +1424,7 @@ export class Player extends Entity {
     this.setState('execute');
     this.execPhase = 0;
     this.fin = beginFinisher(this, e);
+    valorTrack.finisher();
   }
   private updateExecute(dt: number) {
     const f = this.fin;
@@ -1489,6 +1491,7 @@ export class Player extends Entity {
       G.world.addRally(10);
       mantleGain(8);
       input.rumble(0.25, 0.8, 110);
+      valorTrack.parry();
       if (h.src) h.src.parried(this);
       if (G.ui) G.ui.hint(null);
       return false;
@@ -1513,6 +1516,7 @@ export class Player extends Entity {
     if (h.kind === 'hazard') dmg = h.dmg * runBlessings.incoming * (1 - d.dr * 0.5);
     dmg = Math.max(1, Math.round(dmg));
     s.hp -= dmg;
+    valorTrack.hurt();
     this.sinceHurt = 0;
     this.flash = 0.15;
     this.invuln = h.kind === 'hazard' ? 0.5 : 0.8;
@@ -1688,11 +1692,13 @@ export class Player extends Entity {
     const illustrated = heroSpriteReady(s, this.state, this.mantleT);
     // cape & scarf (world space, behind body)
     const lv = G.save.level;
+    // A cape won in the Trials of Valor is worn at any level, in either art style.
+    const worn = capeOf(G.save);
     if (this.mantleT > 0) {
       drawMantleBack(ctx, this);
-    } else if (lv >= 7 || (s.plate && s.plate.tier >= 2)) {
-      drawRibbon(ctx, this.cape, 9, 13, '#3a1418', '#0a070c');
-      if (lv >= 7) drawRibbon(ctx, this.cape, 1.5, 2, '#e2b85a');
+    } else if (worn || lv >= 7 || (s.plate && s.plate.tier >= 2)) {
+      drawRibbon(ctx, this.cape, 9, 13, worn?.c ?? '#3a1418', '#0a070c');
+      if (worn || lv >= 7) drawRibbon(ctx, this.cape, 1.5, 2, worn?.trim ?? '#e2b85a');
     }
     if (!illustrated) drawRibbon(ctx, this.scarf, 3.4, 1.4, s.scarf ?? '#8f2a2a', '#0a070c');
     // aura

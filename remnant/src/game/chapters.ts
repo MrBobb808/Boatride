@@ -142,3 +142,15 @@ export function startBossRush() {
   G.save.flags.trial_mode = 'rush';
   G.world.transition('trial_arena', 'start');
 }
+
+// ---------------------------------------------------------------- the daily challenge
+
+/** Today's seeded ten waves; a ranked run if today's attempt is unspent, else practice. */
+export function startDaily(ranked: boolean) {
+  if (!trainingOpen()) return;
+  markReturn();
+  G.save.flags.trial_from = 1;
+  G.save.flags.trial_mode = 'daily';
+  G.save.flags.trial_daily = ranked ? 'ranked' : 'practice';
+  G.world.transition('trial_arena', 'start');
+}

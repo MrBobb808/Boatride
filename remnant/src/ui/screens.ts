@@ -8,6 +8,7 @@ import { isIOS, isStandalone, settings } from '../core/settings';
 import { music } from '../audio/music';
 import { sfx } from '../audio/audio';
 import { ROOMS } from '../game/rooms';
+import { titleOf } from '../game/valor';
 import { formatTime, rand, RNG } from '../core/math';
 import { glow, rgba, poly, circle, type Ctx } from '../render/draw';
 import { solve, newJoints, BASE_POSE } from '../render/skeleton';
@@ -142,7 +143,8 @@ export function showTitle() {
     if (last !== null && d) {
       const where = ROOMS[d.room]?.name ?? '';
       const slot = last;
-      menu.appendChild(btn([h('b', null, 'Continue'), h('span', { class: 'cont-meta' }, `Level ${d.level} · ${where} · ${formatTime(d.playtime)}`)],
+      const title = titleOf(d);
+      menu.appendChild(btn([h('b', null, 'Continue'), h('span', { class: 'cont-meta' }, `Level ${d.level}${title ? ` · ${title}` : ''} · ${where} · ${formatTime(d.playtime)}`)],
         () => { if (loadGameSlot(slot)) sfx('uiConfirm'); }, 'btn primary cont', { 'data-autofocus': '' }));
     }
     menu.appendChild(btn('New game', () => pickSlot('new'), last === null ? 'btn primary' : 'btn', last === null ? { 'data-autofocus': '' } : {}));
@@ -177,7 +179,7 @@ function pickSlot(mode: 'new' | 'load') {
     h('h2', { class: 'title-text' }, mode === 'new' ? 'Choose a save slot' : 'Choose a journey'),
     h('div', { class: 'saves', style: 'margin-top:10px' }, slots.map((sl) => {
       const d = sl.data;
-      const meta = d ? `Level ${d.level} · ${ROOMS[d.room]?.name ?? ''} · ${formatTime(d.playtime)}${d.ng ? ' · NG+' + (d.ng > 1 ? d.ng : '') : ''}` : 'Empty';
+      const meta = d ? `Level ${d.level}${titleOf(d) ? ` · ${titleOf(d)}` : ''} · ${ROOMS[d.room]?.name ?? ''} · ${formatTime(d.playtime)}${d.ng ? ' · NG+' + (d.ng > 1 ? d.ng : '') : ''}` : 'Empty';
       return h('div', { class: 'save-slot' },
         h('div', null, h('b', null, `Slot ${sl.slot + 1}`), h('div', { class: 'meta' }, meta)),
         h('div', { class: 'acts' },

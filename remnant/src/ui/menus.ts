@@ -31,6 +31,8 @@ import { nextChapter, travelToChapter, trainingOpen, startTraining } from '../ga
 import { altarName, travelGroups, travelBlocked, travelTo } from '../game/travel';
 import { chaptersTab, gameModes } from './chapters';
 import { progressionTab } from './progression';
+import { valorTab } from './valor';
+import { titleOf } from '../game/valor';
 import { GEAR_SETS } from '../game/progression';
 import { bestiaryPanes, bestiaryCount } from './bestiary';
 import { controllerBox, cancelPadCapture } from './controller';
@@ -65,6 +67,7 @@ const TABS: { id: string; label: string; icon: string }[] = [
   { id: 'echoes', label: 'Echoes', icon: 'echo' },
   { id: 'map', label: 'Map', icon: 'map' },
   { id: 'chapters', label: 'Chapters', icon: 'chapters' },
+  { id: 'valor', label: 'Valor', icon: 'crown' },
   { id: 'journal', label: 'Journal', icon: 'journal' },
   { id: 'crafting', label: 'Crafting', icon: 'craft' },
   { id: 'settings', label: 'Settings', icon: 'gear' },
@@ -166,6 +169,7 @@ function render() {
     case 'echoes': bodyEl.appendChild(echoesTab()); break;
     case 'map': bodyEl.appendChild(mapTab()); break;
     case 'chapters': bodyEl.appendChild(chaptersTab(closeMenu)); break;
+    case 'valor': bodyEl.appendChild(valorTab(render)); break;
     case 'journal': bodyEl.appendChild(journalTab()); break;
     case 'crafting': bodyEl.appendChild(craftingTab()); break;
     case 'settings': bodyEl.appendChild(settingsTab()); break;
@@ -226,7 +230,7 @@ function characterTab() {
   return h('div', { class: 'col scroll', style: 'flex:1' },
     h('div', { style: 'display:flex;gap:12px;flex-wrap:wrap' },
       h('div', { class: 'box', style: 'flex:1.3;min-width:280px' },
-        h('h3', null, `Elior — Level ${s.level}`),
+        h('h3', null, `Elior — Level ${s.level}`, titleOf(s) ? h('span', { class: 'worn-title', 'data-k': 'worn_title' }, titleOf(s)) : null),
         btn('Character board', () => openCharacterBoard(), 'btn small', { 'data-k': 'elior_board' }),
         h('div', { class: 'muted', style: 'font-size:0.9em;margin-bottom:6px' }, `Experience ${Math.floor(s.xp)} / ${xpToNext(s.level)} · Points to spend: `, h('b', { style: 'color:var(--gold-hi)' }, String(s.statPoints))),
         h('div', { class: 'bar', style: 'margin-bottom:8px' }, h('i', { style: `width:${(s.xp / xpToNext(s.level)) * 100}%` })),
