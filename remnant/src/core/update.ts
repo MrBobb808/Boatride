@@ -13,6 +13,7 @@ export const currentBuild = () => document.querySelector('meta[name="remnant-bui
 
 let pending = false;
 let checking = false;
+let applying = false;
 let lastCheck = 0;
 let nextBuild = '';
 
@@ -49,6 +50,8 @@ export async function checkForUpdate(force = false): Promise<boolean> {
 
 /** Reload into the new build; `slot` resumes that save right after. */
 export function applyUpdate(slot: number | null) {
+  if (applying) return;
+  applying = true;
   try {
     if (nextBuild) { sessionStorage.setItem(TRIED, nextBuild); sessionStorage.setItem(TRIED_AT, String(Date.now())); }
     if (slot !== null) sessionStorage.setItem(RESUME, String(slot));
