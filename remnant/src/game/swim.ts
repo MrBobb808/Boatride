@@ -129,7 +129,8 @@ export function senseWater(p: Player, dt: number) {
   // Falling in, the feet must sink a little before he swims; a breach is let go.
   w.swimming = deep && (was || b.y - P.surface > 10) && !(w.breachT > 0 && b.vy < 0);
   w.wading = feet && !w.swimming;
-  const headY = b.y - b.h + 7;
+  // The mouth: the drawn figure stands a little taller than its body box.
+  const headY = b.y - 30;
   w.submerged = probeWater(g, b.x, headY, H);
   w.pocket = w.submerged && inAirPocket(b.x, headY);
   if (w.swimming) flowAt(b.x, b.y - b.h / 2, FLOW);
@@ -200,7 +201,7 @@ function drown(p: Player) {
   fx.number(p.x, p.y - 40, dmg, false, '#8fd0ff');
   sfx('choke', { vol: 0.8 });
   input.rumble(0.4, 0.3, 120);
-  for (let i = 0; i < 5; i++) emitBubble(p.x + p.face * 3, p.y - p.body.h + 7, (Math.random() - 0.5) * 20, -40 - Math.random() * 30, 1.4);
+  for (let i = 0; i < 5; i++) emitBubble(p.x + p.face * 3, p.y - 30, (Math.random() - 0.5) * 20, -40 - Math.random() * 30, 1.4);
   if (s.hp <= 0) {
     s.hp = 0;
     p.die();

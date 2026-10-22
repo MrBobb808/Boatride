@@ -1614,7 +1614,7 @@ export class Player extends Entity {
       b.vx = approach(b.vx, 0, 800 * dt);
     }
     if (this.state === 'transform') skipTransform(this);
-    if (this.state !== 'free' && this.state !== 'scripted' && this.state !== 'hurt') this.setState('free');
+    if (this.state !== 'free' && this.state !== 'scripted' && this.state !== 'hurt' && this.state !== 'swim') this.setState('free');
   }
 
   // ---------------------------------------------------------------- animation & cloth
@@ -1651,13 +1651,18 @@ export class Player extends Entity {
   private updateCloth(dt: number) {
     const f = this.face;
     const j = this.j;
-    const ax = this.x + f * (j.neckX - 1.6), ay = this.y + j.neckY + 1;
+    // A swimming body is turned about the hip: the cloth hangs from the turned shoulders.
+    const rot = this.state === 'swim' ? this.water.angle : 0;
+    const c = Math.cos(rot), sn = Math.sin(rot), px = j.hipX, py = j.hipY - 4;
+    let lx = j.neckX - 1.6 - px, ly = j.neckY + 1 - py;
+    const ax = this.x + f * (px + lx * c - ly * sn), ay = this.y + py + lx * sn + ly * c;
     const wind = Math.sin(G.time * 1.7) * 30 - 20 * f;
     // Under water, cloth floats and trails instead of hanging.
-    const sink = this.water.swimming ? -30 : 1;
-    this.scarf.update(ax, ay, dt, -this.body.vx * 3.2 + wind - f * 120, sink < 0 ? sink : 260, 0.9);
-    const cx = this.x + f * (j.shBX - 1), cy = this.y + j.shBY;
-    this.cape.update(cx, cy, dt, -this.body.vx * 2.6 + wind - f * 60, sink < 0 ? sink : 420, 0.88);
+    const wet = this.water.swimming;
+    this.scarf.update(ax, ay, dt, -this.body.vx * 3.2 + wind - f * (wet ? 160 : 120), wet ? 30 : 260, 0.9);
+    lx = j.shBX - 1 - px; ly = j.shBY - py;
+    const cx = this.x + f * (px + lx * c - ly * sn), cy = this.y + py + lx * sn + ly * c;
+    this.cape.update(cx, cy, dt, -this.body.vx * 2.6 + wind - f * (wet ? 150 : 60), wet ? 40 : 420, 0.88);
     // The Mantle's cloak: longer, and blown back harder.
     if (this.mantleT > 0) this.cloak.update(cx, cy + 1, dt, -this.body.vx * 3.2 + wind * 1.3 - f * 70, 380, 0.9);
   }

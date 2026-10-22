@@ -129,7 +129,7 @@ export function drawWaterFront(ctx: Ctx, view: { x: number; y: number; w: number
   const [tint] = tintOf(G.world.room.biome);
   const tx0 = Math.max(0, Math.floor(view.x / TILE)), tx1 = Math.min(g.w - 1, Math.floor((view.x + view.w) / TILE));
   const ty0 = Math.max(0, Math.floor(view.y / TILE)), ty1 = Math.min(g.h - 1, Math.floor((view.y + view.h) / TILE));
-  ctx.fillStyle = rgba(tint, 0.2);
+  ctx.fillStyle = rgba(tint, 0.26);
   for (let ty = ty0; ty <= ty1; ty++) {
     let run = -1;
     for (let tx = tx0; tx <= tx1 + 1; tx++) {
@@ -144,7 +144,7 @@ export function drawWaterFront(ctx: Ctx, view: { x: number; y: number; w: number
       if (g.get(tx, ty) !== T.Water || g.get(tx, ty - 1) === T.Water) continue;
       const open = g.get(tx, ty - 1) === T.Empty;
       const y = ty * TILE + (open ? WATER_LIP : 0);
-      ctx.fillStyle = rgba(tint, 0.2);
+      ctx.fillStyle = rgba(tint, 0.26);
       ctx.fillRect(tx * TILE, y, TILE, ty * TILE + TILE - y);
       if (!open) continue;
       const wv = Math.sin(t * 2.2 + tx * 0.9) > 0.55 ? 1 : 0;
@@ -278,7 +278,7 @@ export function drawUnderwater(ctx: Ctx, t: number) {
     if (caustic) {
       ctx.save();
       ctx.translate(Math.sin(t * 0.5) * 8 + t * 4, Math.cos(t * 0.4) * 6);
-      ctx.globalAlpha = 0.07 * (1 - depth * 0.6);
+      ctx.globalAlpha = 0.045 * (1 - depth * 0.6);
       ctx.fillStyle = caustic;
       ctx.fillRect(v.x - 60, top - 20, v.w + 120, h + 40);
       ctx.restore();

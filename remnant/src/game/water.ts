@@ -47,7 +47,7 @@ export const SWIM_ACCEL = 560;
 /** Wading speed multiplier. */
 export const WADE_SLOW = 0.72;
 /** How far below the surface Elior's feet rest while treading water (head and shoulders out). */
-export const FLOAT_DEPTH = 24;
+export const FLOAT_DEPTH = 28;
 
 export interface WaterProbe {
   /** Surface y (or the flooded ceiling's underside). */
