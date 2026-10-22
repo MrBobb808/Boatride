@@ -12,6 +12,7 @@ import { sfx } from '../audio/audio';
 import { MANTLE_LV } from '../game/mantle';
 import { SUBS, type SubId } from '../game/subweapons';
 import { h, btn, layerCount } from './dom';
+import { iconUrl } from './icons';
 import { isMenuOpen } from './menus';
 
 interface Lesson {
@@ -19,8 +20,9 @@ interface Lesson {
   title: string;
   text: string;
   act: Action;
-  /** The touch button's label (its aria-label), to light it up. */
+  /** The touch button's label (its aria-label), to light it up, and its icon. */
   touch: string;
+  icon: string;
   steps: string[];
   /** Whether the lesson's moment has come (checked a few times a second). */
   ready: () => boolean;
@@ -48,18 +50,18 @@ function squadOut() {
 const done = (id: string) => !!s().coached?.[id];
 
 export const LESSONS: Lesson[] = [
-  { id: 'combo', title: 'Combos', text: 'Press Attack again as each strike lands: three in a row make a full combo.', act: 'attack', touch: 'Attack',
+  { id: 'combo', title: 'Combos', text: 'Press Attack again as each strike lands: three in a row make a full combo.', act: 'attack', touch: 'Attack', icon: 'attack',
     steps: ['Land a 3-hit combo'], ready: foeNear, progress: () => (p().comboHits >= 3 ? 1 : 0) },
-  { id: 'dodge', title: 'Dodge', text: 'Dodge to slip through a blow. You cannot be hurt mid-dodge.', act: 'dodge', touch: 'Dodge',
+  { id: 'dodge', title: 'Dodge', text: 'Dodge to slip through a blow. You cannot be hurt mid-dodge.', act: 'dodge', touch: 'Dodge', icon: 'dodge',
     steps: ['Dodge once'], ready: () => done('combo') && foeNear(), progress: () => (p().state === 'dodge' || p().state === 'airdash' ? 1 : 0) },
-  { id: 'parry', title: 'Parry', text: 'Press Parry the instant a blow lands to turn it aside, then strike back while they reel.', act: 'parry', touch: 'Parry',
+  { id: 'parry', title: 'Parry', text: 'Press Parry the instant a blow lands to turn it aside, then strike back while they reel.', act: 'parry', touch: 'Parry', icon: 'parry',
     steps: ['Parry a blow'], ready: () => done('dodge') && foeNear(), progress: () => (p().counterT > 0 ? 1 : 0) },
-  { id: 'echo', title: 'Echoes', text: 'Open the command wheel with Echoes. Summon your squad, then choose Orders… and give one.', act: 'echo', touch: 'Echoes',
+  { id: 'echo', title: 'Echoes', text: 'Open the command wheel with Echoes. Summon your squad, then choose Orders… and give one.', act: 'echo', touch: 'Echoes', icon: 'echo',
     steps: ['Summon an Echo', 'Give an order'], ready: () => s().echoes.length > 0,
     progress: () => (squadOut() ? (ordersChanged() ? 2 : 1) : 0) },
-  { id: 'mantle', title: 'Shadow Mantle', text: 'Your Mantle gauge is full. Transform: you strike harder, take less harm and blink to your foes.', act: 'transform', touch: 'Mantle',
+  { id: 'mantle', title: 'Shadow Mantle', text: 'Your Mantle gauge is full. Transform: you strike harder, take less harm and blink to your foes.', act: 'transform', touch: 'Mantle', icon: 'mantle',
     steps: ['Put on the Mantle'], ready: () => s().level >= MANTLE_LV && (s().mantle ?? 0) >= 100, progress: () => (p().mantleT > 0 ? 1 : 0) },
-  { id: 'sub', title: 'Sub-weapon', text: 'Throw your sub-weapon. Each throw costs hearts; break lamps along the walls for more.', act: 'sub', touch: 'Sub',
+  { id: 'sub', title: 'Sub-weapon', text: 'Throw your sub-weapon. Each throw costs hearts; break lamps along the walls for more.', act: 'sub', touch: 'Sub', icon: 'dagger',
     steps: ['Throw it once'], ready: () => !!s().sub && (s().hearts ?? 0) >= (SUBS[s().sub as SubId]?.cost ?? 1), progress: () => ((s().hearts ?? 0) < heartsAt ? 1 : 0) },
 ];
 
@@ -74,8 +76,10 @@ let lit: Element | null = null;
 
 const quiet = () => G.inCutscene || G.paused || isMenuOpen() || layerCount() > 0 || G.world.transitioning || G.world.bossActive;
 
-function keyLabel(l: Lesson) {
-  return input.lastDevice === 'touch' ? l.touch : input.label(l.act) || l.touch;
+/** On touch, the button's own icon; with keys or a pad, the binding's name. */
+function keyFace(l: Lesson) {
+  const key = input.lastDevice === 'touch' ? '' : input.label(l.act);
+  return key ? h('span', null, key) : h('img', { src: iconUrl(l.icon, '#f6dea0'), alt: l.touch });
 }
 
 function light(on: boolean) {
@@ -94,7 +98,7 @@ function open(l: Lesson) {
   (s().coached ??= {})[l.id] = 1;
   heartsAt = s().hearts ?? 0;
   orders = s().echoes.map((e) => e.order);
-  keyEl = h('div', { class: 'coach-key', 'aria-hidden': 'true' }, h('span', null, keyLabel(l)));
+  keyEl = h('div', { class: 'coach-key', 'aria-hidden': 'true' }, keyFace(l));
   stepsEl = h('ul', { class: 'coach-steps' });
   card = h('div', { class: 'coach', role: 'status', 'data-k': 'coach_' + l.id },
     keyEl,
