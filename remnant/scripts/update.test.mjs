@@ -73,7 +73,7 @@ function updater({here='old',latest='new',storage=new Map(),now=1700000000000,bl
 test('a stale document can retry a failed update after a cooldown and resume the same save',async()=>{
  const storage=new Map(),first=updater({storage});assert.equal(await first.api.checkForUpdate(),true);
  assert.equal(storage.has('remnant-update-tried'),false,'a probe is not a completed attempt');
- first.api.applyUpdate(2);assert.equal(new URL(first.replacements[0]).searchParams.get('v'),'new');
+ first.api.applyUpdate(2);first.api.applyUpdate(2);assert.equal(first.replacements.length,1,'overlapping checks cannot restart an in-flight navigation');assert.equal(new URL(first.replacements[0]).searchParams.get('v'),'new');
  const stale=updater({storage,now:1700000004000});assert.equal(await stale.api.checkForUpdate(),false,'no reload loop immediately after stale response');
  assert.equal(stale.api.takeResumeSlot(),2);assert.equal(stale.api.takeResumeSlot(),null);
  const retry=updater({storage,now:1700000061000});assert.equal(await retry.api.checkForUpdate(),true,'old cached build does not suppress the release for the session');
