@@ -166,7 +166,7 @@ input, textarea { -webkit-user-select: text; user-select: text; }
   display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 14px; padding: 12px 16px; cursor: pointer; }
 /* Long lines with many choices scroll inside the box instead of leaving the screen. */
 .dialogue .dl-body { min-height: 0; overflow-y: auto; }
-.dialogue canvas { width: 76px; height: 76px; background: radial-gradient(circle at 50% 40%, rgba(80,60,40,0.5), rgba(10,8,14,0.9)); border: 1px solid var(--line); }
+.dialogue canvas { width: 84px; height: 84px; background: #0a080e; border: 1px solid var(--line); box-shadow: inset 0 0 0 1px rgba(0,0,0,0.6); image-rendering: auto; }
 .dialogue .who { font-family: var(--font-display); font-size: 0.8em; letter-spacing: 0.14em; color: var(--gold); text-transform: uppercase; }
 .dialogue .who small { color: var(--muted); letter-spacing: 0.08em; text-transform: none; font-family: var(--font-body); font-style: italic; font-size: 1em; margin-left: 8px; }
 .dialogue .text { margin-top: 4px; font-size: 1.12em; line-height: 1.38; color: var(--bone); min-height: 2.8em; }
@@ -376,7 +376,7 @@ textarea.code { width: 100%; height: 70px; background: rgba(10,8,14,0.9); color:
   .slot img { width: 24px; height: 24px; }
   .menu-body { padding-top: 8px; gap: 10px; }
   .box { padding: 8px 10px; }
-  .dialogue canvas { width: 60px; height: 60px; }
+  .dialogue canvas { width: 66px; height: 66px; }
   .dialogue { padding: 8px 12px; gap: 10px; }
   .dialogue .text { font-size: 1.06em; line-height: 1.32; min-height: 2.6em; }
   .choices { gap: 4px; margin-top: 6px; }
