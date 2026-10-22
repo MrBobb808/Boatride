@@ -54,6 +54,11 @@ up next starts from the latest version.
     Prince of the Storm and the prince of the kingdom of Persia. Elior
     withstands them; he does not cast the great prince down (Michael's
     light does, Daniel 10:13).
+  - VII–IX, the Fallen Crowns, and X, *The Prince of Grecia* (Daniel 8 and
+    10:20): `game/fallenChapters.ts` (`FALLEN_CHAPTERS`, room builder and the
+    `DRESS` table) and `game/fallenStory.ts`. Chapter X's coast, Sunken Temple
+    and Drowned Library are drawn by `render/envGrecia.ts`; its rescued
+    survivor is Hanan from Chapter VI.
   - `game/chapters.ts` lists the chapters for chapter select (`ui/chapters.ts`)
     and starts training (the Trial of the Remnant from the menu).
 - **Bosses:**
@@ -151,7 +156,8 @@ up next starts from the latest version.
 
 ## Where the story stands
 
-Chapters I–IX are implemented, each with a chapter-end screen. Chapter VI
+Chapters I–X are implemented, each with a chapter-end screen. Chapter X, The
+Prince of Grecia, pays off Daniel 10:20 on the storm coast of Chittim. Chapter VI
 continues into the original Fallen Crown campaigns: VII, The Crown of the Hunt
 (Varkhos), and VIII, The Crown of Pestilence (Morvane). Their room definitions,
 quests and story wiring are in game/fallenChapters.ts and game/fallenStory.ts;
