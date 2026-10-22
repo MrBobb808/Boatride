@@ -43,6 +43,7 @@ import { TILE } from '../game/tiles';
 import { FONT_DISPLAY } from '../render/draw';
 import { returnToTitle, startNewGamePlus, loadGameSlot } from '../app';
 import { replayCoach } from './coach';
+import { installTips, hideTip, MOD_TIPS, DERIVED_TIPS, derivedRows } from './statTips';
 
 let menuEl: HTMLElement | null = null;
 let tab = 'character';
@@ -121,6 +122,7 @@ export function openMenu(t?: string, settingsOnly = false) {
   const close = btn(only ? 'Done' : 'Resume', () => closeMenu(), 'btn small menu-close');
   menuEl = h('div', { class: 'menu sectioned' + (only ? ' only' : '') }, railEl, h('div', { class: 'menu-main' }, h('div', { class: 'menu-top' }, tabsEl, close), bodyEl));
   document.getElementById('ui')!.appendChild(menuEl);
+  installTips(menuEl);
   renderTabs();
   render();
   pushLayer({
@@ -145,6 +147,7 @@ export function closeMenu() {
   if (!menuEl) return;
   cancelPadCapture();
   popLayer(menuEl);
+  hideTip();
   menuEl = null;
   pause(false);
   if (G.save) G.world.player.styleKey = '';
@@ -191,6 +194,7 @@ function render() {
   const keepScroll = (bodyEl.querySelector('.scroll') as HTMLElement | null)?.scrollTop ?? 0;
   const focusId = (document.activeElement as HTMLElement | null)?.dataset?.k;
   clear(bodyEl);
+  hideTip();
   if (G.save) G.d = derive(G.save);
   switch (tab) {
     case 'character': bodyEl.appendChild(characterTab()); break;
@@ -220,9 +224,9 @@ function characterTab() {
   const s = G.save;
   const d = G.d;
   const amount = Math.min(pointBatch, s.statPoints);
-  const preview = (k: StatKey) => {
-    if (!amount) return '';
-    const next = derive({ ...s, stats: { ...s.stats, [k]: s.stats[k] + amount } });
+  const preview = (k: StatKey, by = amount) => {
+    if (!by) return '';
+    const next = derive({ ...s, stats: { ...s.stats, [k]: s.stats[k] + by } });
     const pair = (label: string, a: number, b: number, unit = '') => `${label} ${a.toFixed(1)}${unit} → ${b.toFixed(1)}${unit}`;
     return k === 'vit' ? pair('HP', d.maxHp, next.maxHp) : k === 'str' ? pair('Attack', d.atk, next.atk) :
       k === 'agi' ? pair('Attack speed', d.aspd, next.aspd, '×') + ' · ' + pair('Crit', d.crit * 100, next.crit * 100, '%') :
@@ -231,7 +235,7 @@ function characterTab() {
       pair('Ability power', d.abil, next.abil, '×') + ' · ' + pair('Energy', d.maxCe, next.maxCe);
   };
   const rows = STAT_KEYS.map((k) => h('div', { class: 'stat-row' },
-    h('div', null, h('div', { class: 'nm' }, STAT_INFO[k].name), h('div', { class: 'ds' }, STAT_INFO[k].desc), amount ? h('div', { class: 'ds up', 'data-k': 'preview_' + k }, preview(k)) : null),
+    h('div', { 'data-tip': `${STAT_INFO[k].desc} Next ${amount || 1} point${(amount || 1) > 1 ? 's' : ''}: ${preview(k, amount || 1)}.`, 'data-k': 'tip_' + k }, h('div', { class: 'nm' }, STAT_INFO[k].name), h('div', { class: 'ds' }, STAT_INFO[k].desc), amount ? h('div', { class: 'ds up', 'data-k': 'preview_' + k }, preview(k)) : null),
     h('div', { class: 'val' }, String(d.stats[k]), d.stats[k] !== s.stats[k] ? h('span', { class: 'up', style: 'font-size:0.7em;margin-left:4px' }, `(${s.stats[k]}+${d.stats[k] - s.stats[k]})`) : null),
     btn('+' + (amount || 1), () => { spendStat(k); }, 'btn plus', { disabled: s.statPoints <= 0, 'data-k': 'st_' + k, 'aria-label': 'Raise ' + STAT_INFO[k].name + ' by ' + amount }),
   ));
@@ -257,7 +261,8 @@ function characterTab() {
     'Weapon', FAMILY_NAMES[d.family],
   );
   for (const [i, el] of Array.from(derived.childNodes).entries()) {
-    const sp = h('span', null, (el as Text).textContent ?? '');
+    const label = (el as Text).textContent ?? '';
+    const sp = h('span', i % 2 === 0 && DERIVED_TIPS[label] ? { 'data-tip': DERIVED_TIPS[label], 'data-k': 'dtip_' + i, class: 'tipped' } : null, label);
     derived.replaceChild(sp, el);
     void i;
   }
@@ -332,7 +337,7 @@ function modLines(m: Partial<Record<ModKey, number>>, cmp?: Partial<Record<ModKe
     if (!v && !cmp) continue;
     const c = cmp ? (cmp[k] ?? 0) : null;
     const diff = c !== null ? v - c : 0;
-    out.push(h('div', null, v ? MOD_LABEL[k](Math.round(v * 10) / 10) : h('span', { class: 'muted' }, MOD_LABEL[k](0).replace('+0', '—')),
+    out.push(h('div', { 'data-tip': MOD_TIPS[k], 'data-k': 'mtip_' + k, class: 'tipped' }, v ? MOD_LABEL[k](Math.round(v * 10) / 10) : h('span', { class: 'muted' }, MOD_LABEL[k](0).replace('+0', '—')),
       cmp && Math.abs(diff) > 0.05 ? h('span', { class: diff > 0 ? 'up' : 'down', style: 'margin-left:8px;font-size:0.85em' }, (diff > 0 ? '▲ ' : '▼ ') + Math.abs(Math.round(diff * 10) / 10)) : null));
   }
   return out;
@@ -368,6 +373,7 @@ function equipmentTab() {
       h('div', { style: 'display:flex;gap:10px;align-items:center' }, itemIcon(sel), h('div', null, h('div', { class: 'title-text', style: rarityStyle(sel.rarity) + ';font-size:1.05em' }, itemName(sel)), h('div', { class: 'eyebrow' }, `${RARITY_NAMES[sel.rarity]} · ${SLOT_NAMES[eqSlot]}${base.family ? ' · ' + FAMILY_NAMES[base.family] : ''}`))),
       h('hr', { class: 'rule' }),
       h('div', null, modLines(mods, !isEq && eq ? itemMods(eq) : undefined)),
+      isEq ? null : ifEquipped(sel.uid),
       h('p', { class: 'muted', style: 'margin:8px 0 0' }, base.desc),
       base.set ? h('div', { class: 'set-detail' },
         h('b', { style: `color:${GEAR_SETS[base.set].color}` }, `${GEAR_SETS[base.set].name} · ${G.d.sets[base.set]}/3 equipped`),
@@ -395,6 +401,19 @@ function equipmentTab() {
       ),
     ),
   );
+}
+
+/** Current vs new: what equipping this item changes on the character sheet. */
+function ifEquipped(uid: string) {
+  const s = G.save, now = derivedRows(G.d), next = derivedRows(derive({ ...s, equipment: { ...s.equipment, [eqSlot]: uid } }));
+  const rows = now.flatMap(([label, a, f], i) => {
+    const b = next[i][1];
+    if (Math.abs(b - a) < Math.max(1e-6, Math.abs(a) * 0.0005)) return [];
+    return [h('span', { 'data-tip': DERIVED_TIPS[label] ?? '', class: 'tipped' }, label), h('span', { class: b > a ? 'up' : 'down' }, `${f(a)} → ${f(b)}`)];
+  });
+  return h('div', { class: 'if-equipped', 'data-k': 'if_equipped' }, h('div', { class: 'eyebrow' }, 'If equipped'),
+    rows.length ? h('div', { class: 'kv' }, rows) : h('div', { class: 'muted' }, 'No change to your numbers.'),
+    h('small', { class: 'muted' }, 'Hold or hover any line for what it does.'));
 }
 
 function refreshEquip() {
