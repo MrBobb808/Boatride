@@ -50,9 +50,10 @@ const GREAT: { id: string; name: string; ch: number; boss: boolean }[] = [
   { id: 'undying_captain', name: 'Captain of the Undying', ch: 6, boss: false },
   { id: 'storm_prince', name: 'The Prince of the Power of the Air', ch: 6, boss: true },
   { id: 'persia_prince', name: 'The Prince of the Kingdom of Persia', ch: 6, boss: true },
+  { id: 'grecia_prince', name: 'The Prince of Grecia', ch: 10, boss: true },
 ];
 
-const ROMAN = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX'];
+const ROMAN = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'];
 const KINDS = Object.keys(NOTES) as EnemyKind[];
 
 export function bestiaryCount() {
