@@ -1757,7 +1757,9 @@ export class Player extends Entity {
     if (!illustrated && extension > 1 && !this.weaponFlight) drawChain(ctx, this.j.haFX, this.j.haFY, this.j.haFX + extension, this.j.haFY, this.mantleT > 0, 2);
     const w = illustrated
       ? drawHeroSprite(ctx, this.j, s, t, this.state as HeroSpriteAction, this.body.vx * this.face,
-          this.body.onGround, this.body.vy, attackProgress, this.pose.rot, this.mantleT, extension, !!this.weaponFlight, this.st, this.spriteStride,
+          this.body.onGround, this.body.vy, attackProgress,
+          // The painted strides already lean forward: turn them a little less to lie level.
+          this.state === 'swim' ? this.pose.rot * 0.8 : this.pose.rot, this.mantleT, extension, !!this.weaponFlight, this.st, this.spriteStride,
           this.atk?.hit[0], this.atk?.hit[1], !!this.atk?.finisher || this.atk?.id === 'heavy')
       : drawHumanoid(ctx, this.j, s, t, this.pose.rot, this.body.vx * this.face, this.body.onGround ? 0 : this.body.vy);
     this.lastWpn.bx = w.bx; this.lastWpn.by = w.by; this.lastWpn.tx = w.tx; this.lastWpn.ty = w.ty;

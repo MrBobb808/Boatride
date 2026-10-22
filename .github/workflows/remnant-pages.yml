@@ -49,6 +49,7 @@ jobs:
       - run: node scripts/boss-rush.mjs
       - run: node scripts/travel-camera.mjs
       - run: node scripts/fallen-foes.mjs
+      - run: node scripts/swim.mjs
       - run: node scripts/update-delivery.mjs
       - uses: actions/upload-artifact@v4
         if: always()
