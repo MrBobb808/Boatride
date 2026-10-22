@@ -3,6 +3,7 @@ import eliorBoard from '../assets/elior-board.webp';
 // The pause menu (character, equipment, skills, Echoes, map, journal,
 // crafting, settings, system), plus the merchant, the forge and altar menus.
 
+import { checkForUpdate, applyUpdate, currentBuild } from '../core/update';
 import { G, flag } from '../game/ctx';
 import { h, btn, pushLayer, popLayer, clear, focusFirst } from './dom';
 import { img, iconUrl } from './icons';
@@ -864,6 +865,17 @@ function settingsTab() {
     }, listening === a ? 'Press a key…' : st.keys[a].map((c) => input.keyName(c)).join(' / ')))));
   const codeArea = h('textarea', { class: 'code', 'data-nav': '', placeholder: 'Paste a save code here to import it into the current slot.' }) as HTMLTextAreaElement;
   return h('div', { class: 'col scroll', style: 'flex:1' },
+    h('div', { class: 'box' }, h('h3', null, 'Game updates'),
+      h('p', { class: 'muted', 'data-k': 'current_build' }, 'Installed build: ' + (currentBuild() || 'development')),
+      btn('Check for updates', async () => {
+        if (G.inCutscene || G.world?.bossActive || G.world?.transitioning || G.world?.story.ch3.rounds.active) { G.ui.toast('Finish the encounter before installing an update.', 'info'); return; }
+        const ready = await checkForUpdate(true);
+        if (!ready) { G.ui.toast('No newer build found. Connect to the internet to check.', 'info'); return; }
+        // Recheck after the request: the player may have left Settings while it was in flight.
+        if (G.inCutscene || G.world?.bossActive || G.world?.transitioning || G.world?.story.ch3.rounds.active) { G.ui.toast('Update ready. It will install at the next doorway.', 'info'); return; }
+        if (G.save) G.world.autosave(true);
+        applyUpdate(G.save ? G.slot : null);
+      }, 'btn small', { 'data-k': 'check_updates' })),
     only ? h('div', { class: 'box game-modes' }, h('h3', null, 'Game modes'),
       h('p', { class: 'muted' }, 'Continue your journey to choose endless monster waves, unlocked round checkpoints, or the Boss Gauntlet.'),
       lastSlot() !== null ? btn('Continue to game modes', () => {

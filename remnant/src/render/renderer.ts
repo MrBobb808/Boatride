@@ -1,5 +1,6 @@
 import { settings, isTouchDevice } from '../core/settings';
 import { clamp, damp, lerp } from '../core/math';
+import { setPixelArt } from './pixelHero';
 
 /**
  * Owns the canvas and the mapping from world units to backing pixels.
@@ -80,11 +81,15 @@ export class Renderer {
     }
     this.canvas.style.width = w + 'px';
     this.canvas.style.height = h + 'px';
+    // If the canvas ends up smaller than the screen (very dense or very tall displays),
+    // let the browser enlarge it hard-edged in pixel art rather than blur it.
+    this.canvas.style.imageRendering = settings.artStyle !== 'smooth' ? 'pixelated' : 'auto';
     const phone = isTouchDevice() && Math.min(w, h) < 600;
     let vh = phone ? 268 : 300;
     if (settings.zoom === 'close') vh *= 0.88;
     if (settings.zoom === 'wide') vh *= 1.14;
     this.pixel = settings.artStyle !== 'smooth';
+    setPixelArt(this.pixel);
     if (this.pixel) {
       // One world unit is one art pixel. A whole number of screen pixels per art pixel
       // keeps them all the same size; take it when it moves the view by little.
