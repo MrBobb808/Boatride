@@ -10,6 +10,7 @@ import { drawHeroSprite, heroSpriteReady, type HeroSpriteAction } from '../rende
 import { glow, rgba, circle, type Ctx } from '../render/draw';
 import { fx, PK } from '../render/fx';
 import { input } from '../core/input';
+import { haptic } from '../core/haptics';
 import { clamp, approach, rand, sign, type Rect } from '../core/math';
 import { G, flag } from './ctx';
 import { runBlessings } from './blessings';
@@ -1337,6 +1338,7 @@ export class Player extends Entity {
       hit.dmg *= 1.5;
       hit.poise *= 1.5;
     }
+    let killed = false;
     const n = G.world.hitEnemies(box, hit, this.atkHit, (e, dealt) => {
       this.practiceHit(e, dealt, !!a.finisher);
       this.registerHit();
@@ -1357,6 +1359,7 @@ export class Player extends Entity {
       if (tier >= 3 || this.mantleT > 0) fx.ring(e.cx, e.cy, 4, 18 + tier * 4, this.mantleT > 0 ? SHADE.edge : el ? ELEMENTS[el].c : '#ffe6a8', 0.18, 2);
       mantleGain(crit ? 1.7 : 1.1);
       if (e.dying) {
+        killed = true;
         killBlow(this, e, a.arc?.a0 ?? -1.2, a.arc?.a1 ?? 0.8);
         mantleGain(5);
         if (this.mantleT > 0 && !isSovereign() && Math.random() < 0.4) G.world.after(0.6, () => riseAsShadow(e));
@@ -1369,6 +1372,7 @@ export class Player extends Entity {
       // Every landed cut is felt in the hands; finishers and crits hit harder.
       if (a.finisher || crit) input.rumble(0.45, 0.7, 120);
       else input.rumble(0.08, 0.32, 50);
+      haptic(killed ? 'kill' : 'hit');
     }
   }
 
@@ -1491,6 +1495,7 @@ export class Player extends Entity {
       G.world.addRally(10);
       mantleGain(8);
       input.rumble(0.25, 0.8, 110);
+      haptic('parry');
       valorTrack.parry();
       if (h.src) h.src.parried(this);
       if (G.ui) G.ui.hint(null);
@@ -1525,6 +1530,7 @@ export class Player extends Entity {
     fx.hitSparks(this.x, this.y - 20, -this.face, '#ff9a9a', 8, 0.8);
     sfx('hurt');
     input.rumble(0.7, 0.4, 180);
+    haptic('hurt');
     G.camera.addTrauma(0.3 * shakeScale());
     fx.flash('#8a1020', 0.12);
     if (s.hp <= 0) {
