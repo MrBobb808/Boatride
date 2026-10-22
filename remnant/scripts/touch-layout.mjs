@@ -140,8 +140,11 @@ try {
     assert.ok(x1 > x0 + 20, `${tag}: stick held through attack and jump moves the player (${x0} → ${x1})`);
     await touch('touchEnd', []);
     assert.ok(!(await isDown(page, 'jump')) && !(await isDown(page, 'attack')), 'Lifted fingers release their buttons');
-    await page.waitForTimeout(80);
-    assert.equal(await page.evaluate(() => window.__remnant.G.world.player.body.vx === 0 || Math.abs(window.__remnant.G.world.player.body.vx) < 1), true, 'No drift after release');
+    // No drift: once the jump and swing have played out, Elior stands still.
+    await page.waitForFunction(() => { const p = window.__remnant.G.world.player; return p.body.onGround && p.state === 'free' && Math.abs(p.body.vx) < 1; }, null, { timeout: 4000 });
+    const rest = await page.evaluate(() => window.__remnant.G.world.player.x);
+    await page.waitForTimeout(300);
+    assert.ok(Math.abs(await page.evaluate(() => window.__remnant.G.world.player.x) - rest) < 1, `${tag}: no drift after release`);
     await page.screenshot({ path: `qa/touch-controls-${tag}.png` });
 
     // 3. The editor: from the pause menu's Settings.
