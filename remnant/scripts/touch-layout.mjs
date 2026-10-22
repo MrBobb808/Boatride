@@ -224,7 +224,18 @@ try {
     const reset = await rects(page);
     for (const id of Object.keys(def)) assert.ok(Math.abs(reset[id].cx - def[id].cx) < 1 && Math.abs(reset[id].cy - def[id].cy) < 1 && Math.abs(reset[id].r - def[id].r) < 1, `${tag}: ${id} back to default`);
     assert.deepEqual(await page.evaluate(() => JSON.parse(localStorage.getItem('remnant-settings-v1')).touchLayout), {});
-    console.log(`${tag}: off-centre taps, dead zone, move+attack+jump multi-touch, editor drag/slider/pinch, clamping off-screen and off the island, persistence and reset passed`);
+    // Left-handed mirrors the default layout and stays just as forgiving.
+    await page.evaluate(() => { const st = JSON.parse(localStorage.getItem('remnant-settings-v1')); st.leftHanded = true; localStorage.setItem('remnant-settings-v1', JSON.stringify(st)); });
+    await reload(page, '&island=right');
+    const lhR = await rects(page);
+    const lhStick = await page.evaluate(() => { const r = document.querySelector('#touch .stick-base').getBoundingClientRect(); return r.left + r.width / 2; });
+    assert.ok(lhR.attack.cx < vp.width / 2 && lhR.jump.cx < vp.width / 2 && lhStick > vp.width / 2, `${tag}: left-handed layout mirrored`);
+    const la = offCentre(lhR, 'attack');
+    await touch('touchStart', [[la.x, la.y]]);
+    assert.ok(await isDown(page, 'attack'), `${tag}: left-handed off-centre attack`);
+    await touch('touchEnd', []);
+    await page.evaluate(() => { const st = JSON.parse(localStorage.getItem('remnant-settings-v1')); st.leftHanded = false; localStorage.setItem('remnant-settings-v1', JSON.stringify(st)); });
+    console.log(`${tag}: off-centre taps, dead zone, move+attack+jump multi-touch, editor drag/slider/pinch, clamping off-screen and off the island, persistence, reset and left-handed passed`);
     await context.close();
   }
 
