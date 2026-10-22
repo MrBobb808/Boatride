@@ -10,7 +10,7 @@ import { music } from '../audio/music';
 import { fx } from '../render/fx';
 export const FALLEN_QUESTS:QuestDef[]=FALLEN_CHAPTERS.flatMap(c=>[
   {id:`m_crown${c.n}`,title:c.title,kind:'main' as const,stages:[c.intro[1],`One objective remains. ${c.intro[1]}`,`The boundary is open. Rest at the ridge altar, then confront ${c.name}.`],done:`${c.name} has fallen. The road belongs to the living again.`},
-  {id:`s_crown${c.n}`,title:c.n===9?'Hands That Build':c.n===7?'Those Who Would Not Run':'The Last Clean Breath',kind:'side' as const,stages:[`Find the survivors in ${c.n===9?'the Last Smithy above the Bellows Foundry':c.n===7?'the Unhunted Grove above the Fang Pits':'the Silent Infirmary above the Sporeworks'}. Clear their guards, speak to ${c.n===9?'Talia':c.n===7?'Barak':'Ezra'}, and bring the record there to Mara.`],done:'The survivors are safe and Mara has the warning of the next Fallen Crown.'},
+  {id:`s_crown${c.n}`,title:c.words?c.words.sideQuest:c.n===9?'Hands That Build':c.n===7?'Those Who Would Not Run':'The Last Clean Breath',kind:'side' as const,stages:[`Find the survivors in ${c.words?c.words.sidePlace:c.n===9?'the Last Smithy above the Bellows Foundry':c.n===7?'the Unhunted Grove above the Fang Pits':'the Silent Infirmary above the Sporeworks'}. Clear their guards, speak to ${c.n===10?'Hanan':c.n===9?'Talia':c.n===7?'Barak':'Ezra'}, and bring the record there to Mara.`],done:'The survivors are safe and Mara has the warning of the next Fallen Crown.'},
 ]);
 registerGuide(()=>{
   if(!G.save)return null;
@@ -48,7 +48,7 @@ export class FallenStory {
   }
   shrine(sh:Shrine){
     const c=chapterForRoom(G.world.room.id),o=fallenObjective(sh.grants);if(!c||!o)return false;
-    if(G.world.foes().some(e=>!e.remove&&!e.dying&&Math.hypot(e.x-sh.x,e.y-sh.y)<190)){G.ui.toast(c.n===9?'Clear the nearby guards before releasing the pressure wheel.':'Clear the nearby guards before cleansing the Spore Heart.','warn');return true;}
+    if(G.world.foes().some(e=>!e.remove&&!e.dying&&Math.hypot(e.x-sh.x,e.y-sh.y)<190)){G.ui.toast(c.words?c.words.guardWarn:c.n===9?'Clear the nearby guards before releasing the pressure wheel.':'Clear the nearby guards before cleansing the Spore Heart.','warn');return true;}
     this.objective(c,o.id);fx.holyBurst(sh.x,sh.y-20,16,1);return true;
   }
   onTrigger(id:string){
@@ -75,17 +75,17 @@ export class FallenStory {
   async talk(n:Npc){
     const c=chapterForRoom(G.world.room.id);if(!c||n.kind==='dov'||n.kind==='ilan')return false;const s=G.save;
     if(n.kind===c.rescue&&G.world.room.id===c.side){
-      if(G.world.foes().some(e=>!e.remove&&!e.dying&&Math.abs(e.x-n.x)<210)){await this.st.say([{who:n.kind,text:c.n===9?'Clear the forge guards. Some of us cannot run on burned feet.':'Clear the beasts from the path before we move the children.'}]);return true;}
+      if(G.world.foes().some(e=>!e.remove&&!e.dying&&Math.abs(e.x-n.x)<210)){await this.st.say([{who:n.kind,text:c.words?c.words.rescueBlock:c.n===9?'Clear the forge guards. Some of us cannot run on burned feet.':'Clear the beasts from the path before we move the children.'}]);return true;}
       setFlag(`ch${c.n}_rescued`);s.balm=s.balmMax;G.world.autosave(true);const token=this.epoch;
-      await this.st.say([{who:n.kind,text:c.n===9?'We made hinges, ploughs, cradles. He made us forge chains. We kept one workshop free. Take our testament to Mara; we will build for the living again.':'We stopped running when the smallest child could not keep up. We were not leaving her. Now we can all walk back together.'}]);if(token===this.epoch)n.remove=true;return true;
+      await this.st.say([{who:n.kind,text:c.words?c.words.rescueThanks:c.n===9?'We made hinges, ploughs, cradles. He made us forge chains. We kept one workshop free. Take our testament to Mara; we will build for the living again.':'We stopped running when the smallest child could not keep up. We were not leaving her. Now we can all walk back together.'}]);if(token===this.epoch)n.remove=true;return true;
     }
     if(n.kind==='mara'&&s.lore.includes(c.record)&&flag(`ch${c.n}_rescued`)&&!s.quests[`s_crown${c.n}`]?.done){
       this.st.quest(`s_crown${c.n}`,0,true);if(!s.inventory.some(i=>i.id===c.optional)){const it=makeItem(c.optional);s.inventory.push(it);G.ui.itemGet(it);}G.world.giveXp(2500);G.world.autosave(true);
-      await this.st.say([{who:'mara',text:c.n===9?'The smiths chose to build again. Keep their lantern; what survives the fire can still give light.':c.n===7?'Morvane. That green dust is a road for her swarm. Keep this grove lantern close.':'Azkar. His furnaces lie beyond the marsh. For now, you have given the living clean air and time.'}]);return true;
+      await this.st.say([{who:'mara',text:c.words?c.words.maraReward:c.n===9?'The smiths chose to build again. Keep their lantern; what survives the fire can still give light.':c.n===7?'Morvane. That green dust is a road for her swarm. Keep this grove lantern close.':'Azkar. His furnaces lie beyond the marsh. For now, you have given the living clean air and time.'}]);return true;
     }
     const done=flag(`ch${c.n}_done`)?1:0;
     if(n.kind==='tobiah'||n.kind===c.rescue){await this.st.say([{who:n.kind,text:(n.kind==='tobiah'?c.voices.tobiah:c.voices.rescued)[done]}]);return true;}
-    await this.st.say([{who:n.kind,text:n.kind==='azriel'?c.tips:n.kind==='mara'?`Bring me the record from the ${c.n===9?'smithy':c.n===7?'grove':'infirmary'}, and make sure its survivors reach the outpost.`:flag(`ch${c.n}_done`)?'The road is ours again. Rest before the next journey.':'I will keep the watchfire burning until you return.'}]);return true;
+    await this.st.say([{who:n.kind,text:n.kind==='azriel'?c.tips:n.kind==='mara'?`Bring me the record from the ${c.words?c.words.recordPlace:c.n===9?'smithy':c.n===7?'grove':'infirmary'}, and make sure its survivors reach the outpost.`:flag(`ch${c.n}_done`)?'The road is ours again. Rest before the next journey.':'I will keep the watchfire burning until you return.'}]);return true;
   }
   secret(id:string){const c=FALLEN_CHAPTERS.find(c=>c.caches.includes(id));if(!c)return false;if(!G.save.secrets.includes(id)){G.save.secrets.push(id);G.ui.toast(`Cache found (${c.caches.filter(k=>G.save.secrets.includes(k)).length}/3)`,'good');}return true;}
 }

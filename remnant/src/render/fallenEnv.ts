@@ -14,9 +14,10 @@ import type { BiomePal, Layer } from './environment';
 
 export { fallenProp, drawFallenLive, FALLEN_LIVE } from './fallenProps';
 export { fallenParallax } from './fallenScenery';
+import { greciaSky, drawSolidGrecia, drawOneWayGrecia, drawSpikesGrecia, drawLiquidGrecia } from './envGrecia';
 
-export type FallenBiome = 'hunt' | 'plague' | 'cinders';
-export const isFallen = (b: Biome): b is FallenBiome => b === 'hunt' || b === 'plague' || b === 'cinders';
+export type FallenBiome = 'hunt' | 'plague' | 'cinders' | 'grecia';
+export const isFallen = (b: Biome): b is FallenBiome => b === 'hunt' || b === 'plague' || b === 'cinders' || b === 'grecia';
 
 const TAU = Math.PI * 2;
 
@@ -58,6 +59,7 @@ function skyFill(ctx: Ctx, kind: SkyKind, w: number, h: number) {
 }
 
 export function fallenSky(ctx: Ctx, biome: FallenBiome, w: number, h: number, interior: boolean, t: number) {
+  if (biome === 'grecia') return greciaSky(ctx, w, h, interior, t);
   const k = h / 720;
   if (interior) {
     skyFill(ctx, biome === 'hunt' ? 'den' : biome === 'plague' ? 'hive' : 'forge', w, h);
@@ -177,6 +179,7 @@ const IRON = '#4a3e3c', IRON_LIT = '#8a7464', IRON_DK = '#221a1a', HOT = '#ff8a3
 
 /** Solid ground: thawing loam under grey snow, peat under moss, soot-black brick under iron. */
 export function drawSolidFallen(ctx: Ctx, biome: FallenBiome, pal: BiomePal, tx: number, ty: number, t: T, depth: number, v: number, solid: (a: number, b: number) => boolean, interior: boolean) {
+  if (biome === 'grecia') return drawSolidGrecia(ctx, pal, tx, ty, t, depth, v, solid, interior);
   const x = tx * TILE, y = ty * TILE;
   const up = solid(tx, ty - 1), dn = solid(tx, ty + 1), lf = solid(tx - 1, ty), rt = solid(tx + 1, ty);
   let base = t === T.Brick ? shade(pal.stone, -0.08) : pal.stone;
@@ -377,6 +380,7 @@ function cinderTile(ctx: Ctx, x: number, y: number, tx: number, ty: number, dept
 
 /** One-way platforms: lashed logs, a rotten boardwalk on stilts, an iron grating on a truss. */
 export function drawOneWayFallen(ctx: Ctx, biome: FallenBiome, tx: number, ty: number, l: boolean, r: boolean) {
+  if (biome === 'grecia') return drawOneWayGrecia(ctx, tx, ty, l, r);
   const x = tx * TILE, y = ty * TILE;
   if (biome === 'hunt') {
     box(ctx, '#1c1214', x, y, TILE, 7);
@@ -440,6 +444,7 @@ export function drawOneWayFallen(ctx: Ctx, biome: FallenBiome, tx: number, ty: n
 
 /** Hunters' stakes, a bramble of thorns, hot iron teeth. */
 export function drawSpikesFallen(ctx: Ctx, biome: FallenBiome, tx: number, ty: number): boolean {
+  if (biome === 'grecia') return drawSpikesGrecia(ctx, tx, ty);
   const x = tx * TILE, y = ty * TILE;
   if (biome === 'hunt') {
     for (let i = 0; i < 3; i++) {
@@ -478,6 +483,7 @@ export function drawSpikesFallen(ctx: Ctx, biome: FallenBiome, tx: number, ty: n
 
 /** Meltwater, bog and quench water; bile and molten slag where the veil would be. */
 export function drawLiquidFallen(ctx: Ctx, biome: FallenBiome, tt: T, x: number, y: number, top: boolean, tx: number, t: number): boolean {
+  if (biome === 'grecia') return drawLiquidGrecia(ctx, tt, x, y, top, tx, t);
   if (tt === T.Water) {
     const wy = top ? 5 : 0;
     ctx.fillStyle = biome === 'hunt' ? 'rgba(40,56,84,0.88)' : biome === 'plague' ? 'rgba(34,46,26,0.92)' : 'rgba(30,24,28,0.9)';
