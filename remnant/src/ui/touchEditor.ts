@@ -112,6 +112,20 @@ export function openTouchEditor(onClose?: () => void) {
   all.addEventListener('input', () => { scale = parseFloat(all.value); place(); });
   fade.addEventListener('input', () => { opacity = parseFloat(fade.value); place(); });
 
+  /** A near miss picks up the closest control, as it would press it in play. */
+  const nearest = (x: number, y: number) => {
+    let best: string | null = null, bd = 24;
+    for (const id of ids) {
+      const p = controlSpot(id, W(), H(), scale, work, lh);
+      const d = Math.hypot(x - p.cx, y - p.cy) - p.r;
+      if (d < bd) {
+        bd = d;
+        best = id;
+      }
+    }
+    return best;
+  };
+
   // Fingers on the stage: one drags the control it landed on, a second pinches it.
   const pts = new Map<number, { x: number; y: number }>();
   let dragId: number | null = null, offX = 0, offY = 0, pinch0 = 0, pinchS = 1;
@@ -127,9 +141,9 @@ export function openTouchEditor(onClose?: () => void) {
     e.preventDefault();
     pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
     stage.setPointerCapture(e.pointerId);
-    const hit = (e.target as HTMLElement).closest('[data-ctl]') as HTMLElement | null;
+    const hit = ((e.target as HTMLElement).closest('[data-ctl]') as HTMLElement | null)?.dataset.ctl ?? nearest(e.clientX, e.clientY);
     if (pts.size === 1 && hit) {
-      sel = hit.dataset.ctl!;
+      sel = hit;
       const c = centreOf(sel);
       dragId = e.pointerId;
       offX = e.clientX - c.x;
