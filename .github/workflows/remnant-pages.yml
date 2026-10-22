@@ -50,6 +50,7 @@ jobs:
       - run: node scripts/travel-camera.mjs
       - run: node scripts/fallen-foes.mjs
       - run: node scripts/update-delivery.mjs
+      - run: node scripts/touch-layout.mjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:
