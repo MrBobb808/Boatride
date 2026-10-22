@@ -34,6 +34,7 @@ import { progressionTab } from './progression';
 import { GEAR_SETS } from '../game/progression';
 import { bestiaryPanes, bestiaryCount } from './bestiary';
 import { controllerBox, cancelPadCapture } from './controller';
+import { openTouchEditor } from './touchEditor';
 import { saveSlot, listSlots, lastSlot, deleteSlot, loadSlot, exportCode, importCode, SLOT_COUNT } from '../game/save';
 import { formatTime, clamp } from '../core/math';
 import { solve, newJoints } from '../render/skeleton';
@@ -968,12 +969,13 @@ function settingsTab() {
       row('Screen shake', '', seg(st.shake, [['full', 'Full'], ['reduced', 'Reduced'], ['off', 'Off']], (v) => (st.shake = v), 'sh')),
       row('Reduce flashes', 'Softens bright full-screen flashes.', toggle(st.reduceFlashes, (v) => (st.reduceFlashes = v), 'rf')),
       row('Damage numbers', '', toggle(st.dmgNumbers, (v) => (st.dmgNumbers = v), 'dn')),
-      row('Haptics', 'Light taps on button presses and big moments (iPhone, iOS 18+).', toggle(st.haptics, (v) => (st.haptics = v), 'hp')),
+      row('Haptics', 'Taps on button presses, and a different pattern for a hit, a parry, a wound, a kill and a boss\'s new phase (iPhone with iOS 18 or later, and Android).', toggle(st.haptics, (v) => (st.haptics = v), 'hp')),
       row('Objective marker', 'A golden marker and screen-edge arrow that point toward your next objective.', toggle(st.guide, (v) => (st.guide = v), 'gd')),
     ),
     isTouchDevice() ? h('div', { class: 'box' }, h('h3', null, 'Touch controls'),
       row('Button size', '', slider(st.touchScale, 0.8, 1.3, 0.05, (v) => (st.touchScale = v), 'tsz')),
       row('Button opacity', '', slider(st.touchOpacity, 0.3, 1, 0.05, (v) => (st.touchOpacity = v), 'top')),
+      row('Customize controls', 'Drag the stick and buttons where your thumbs want them, resize them one by one and set how see-through they are.', btn('Customize', () => editControls(), 'btn small', { 'data-k': 'tc_edit' })),
       row('Left-handed layout', 'Moves the buttons to the left and the stick to the right.', toggle(st.leftHanded, (v) => (st.leftHanded = v), 'lh')),
       row('Button labels', 'Show the name under each touch button.', toggle(st.buttonLabels, (v) => (st.buttonLabels = v), 'bl')),
       row('Dynamic Island indicator', 'On iPhones with a Dynamic Island, a living status ring around it: low health, boss life, Rally and news. On the iPhone 18 Pro\'s smaller island, your Echoes and the Shadow Mantle bud off it too.', toggle(st.island, (v) => (st.island = v), 'di')),
@@ -1002,6 +1004,16 @@ function settingsTab() {
       ),
       codeArea),
   );
+}
+
+/** The layout editor covers the menu until Done, then the menu shows the new values. */
+function editControls() {
+  const m = menuEl;
+  if (m) m.style.visibility = 'hidden';
+  openTouchEditor(() => {
+    if (m) m.style.visibility = '';
+    renderAny();
+  });
 }
 
 export function applyTextSize() {
