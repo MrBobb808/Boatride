@@ -42,6 +42,7 @@ import { kitFor } from '../game/echoes';
 import { TILE } from '../game/tiles';
 import { FONT_DISPLAY } from '../render/draw';
 import { returnToTitle, startNewGamePlus, loadGameSlot } from '../app';
+import { replayCoach } from './coach';
 
 let menuEl: HTMLElement | null = null;
 let tab = 'character';
@@ -57,19 +58,42 @@ function pointBatchPicker() {
 
 export const isMenuOpen = () => !!menuEl || !!shopEl;
 
-const TABS: { id: string; label: string; icon: string }[] = [
-  { id: 'character', label: 'Character', icon: 'stats' },
-  { id: 'equipment', label: 'Equipment', icon: 'armor' },
-  { id: 'progression', label: 'Progression', icon: 'sword' },
-  { id: 'skills', label: 'Skills', icon: 'skills' },
-  { id: 'echoes', label: 'Echoes', icon: 'echo' },
-  { id: 'map', label: 'Map', icon: 'map' },
-  { id: 'chapters', label: 'Chapters', icon: 'chapters' },
-  { id: 'journal', label: 'Journal', icon: 'journal' },
-  { id: 'crafting', label: 'Crafting', icon: 'craft' },
-  { id: 'settings', label: 'Settings', icon: 'gear' },
-  { id: 'system', label: 'System', icon: 'save' },
+// Five sections on a rail, each with its own sub-tabs. Sub-tab ids are what
+// openMenu() takes, so callers and tests keep naming a page directly.
+const SECTIONS: { id: string; label: string; icon: string; tabs: { id: string; label: string; icon: string }[] }[] = [
+  { id: 'journey', label: 'Journey', icon: 'map', tabs: [
+    { id: 'quests', label: 'Quests', icon: 'journal' },
+    { id: 'map', label: 'Map', icon: 'map' },
+    { id: 'chapters', label: 'Chapters', icon: 'chapters' },
+  ] },
+  { id: 'elior', label: 'Elior', icon: 'stats', tabs: [
+    { id: 'character', label: 'Character', icon: 'stats' },
+    { id: 'equipment', label: 'Equipment', icon: 'armor' },
+    { id: 'skills', label: 'Skills', icon: 'skills' },
+    { id: 'progression', label: 'Mastery', icon: 'sword' },
+    { id: 'moves', label: 'Move list', icon: 'sword' },
+    { id: 'crafting', label: 'Crafting', icon: 'craft' },
+  ] },
+  { id: 'echoes', label: 'Echoes', icon: 'echo', tabs: [
+    { id: 'echoes', label: 'Squad', icon: 'echo' },
+    { id: 'imprints', label: 'Imprints', icon: 'shard' },
+  ] },
+  { id: 'collection', label: 'Collection', icon: 'book', tabs: [
+    { id: 'lore', label: 'Inscriptions', icon: 'book' },
+    { id: 'bestiary', label: 'Bestiary', icon: 'journal' },
+  ] },
+  { id: 'settings', label: 'Settings', icon: 'gear', tabs: [
+    { id: 'settings', label: 'Options', icon: 'gear' },
+    { id: 'system', label: 'Save & system', icon: 'save' },
+  ] },
 ];
+const TABS = SECTIONS.flatMap((sec) => sec.tabs);
+/** Old page names still open the right sub-tab. */
+const ALIASES: Record<string, string> = { journal: 'quests' };
+const sectionOf = (t: string) => SECTIONS.find((sec) => sec.tabs.some((x) => x.id === t)) ?? SECTIONS[0];
+let railEl: HTMLElement;
+/** The sub-tab last open in each section, so a section reopens where you left it. */
+const lastIn: Record<string, string> = {};
 
 function pause(on: boolean) {
   G.paused = on;
@@ -89,12 +113,13 @@ export function openMenu(t?: string, settingsOnly = false) {
   if (!only && (!G.save || G.inCutscene)) return;
   sfx('uiOpen');
   pause(true);
-  if (t) tab = t;
+  if (t) tab = ALIASES[t] ?? t;
   if (only) tab = only;
   tabsEl = h('div', { class: 'tabs', role: 'tablist' });
+  railEl = h('div', { class: 'menu-rail', role: 'tablist', 'aria-label': 'Menu sections' });
   bodyEl = h('div', { class: 'menu-body' });
   const close = btn(only ? 'Done' : 'Resume', () => closeMenu(), 'btn small menu-close');
-  menuEl = h('div', { class: 'menu' }, h('div', { class: 'menu-top' }, tabsEl, close), bodyEl);
+  menuEl = h('div', { class: 'menu sectioned' + (only ? ' only' : '') }, railEl, h('div', { class: 'menu-main' }, h('div', { class: 'menu-top' }, tabsEl, close), bodyEl));
   document.getElementById('ui')!.appendChild(menuEl);
   renderTabs();
   render();
@@ -129,7 +154,7 @@ export function closeMenu() {
 
 function setTab(t: string) {
   cancelPadCapture();
-  tab = t;
+  tab = ALIASES[t] ?? t;
   sfx('ui');
   renderTabs();
   render();
@@ -137,9 +162,18 @@ function setTab(t: string) {
 
 function renderTabs() {
   clear(tabsEl);
-  for (const t of TABS) {
+  clear(railEl);
+  const cur = sectionOf(tab);
+  if (!only) for (const sec of SECTIONS) {
+    const on = sec === cur;
+    railEl.appendChild(h('button', { class: 'sec' + (on ? ' on' : ''), 'data-nav': '', role: 'tab', 'aria-selected': String(on), 'data-k': 'sec_' + sec.id,
+      onclick: () => { if (!on) setTab(sec.tabs.some((x) => x.id === lastIn[sec.id]) ? lastIn[sec.id] : sec.tabs[0].id); } },
+      h('img', { src: iconUrl(sec.icon, on ? '#f6dea0' : '#9b92a6'), alt: '' }), h('span', null, sec.label)));
+  }
+  lastIn[cur.id] = tab;
+  for (const t of cur.tabs) {
     if (only && t.id !== only) continue;
-    const b = h('button', { class: 'tab' + (t.id === tab ? ' on' : ''), 'data-nav': '', role: 'tab', onclick: () => setTab(t.id) }, h('img', { src: iconUrl(t.icon, t.id === tab ? '#f6dea0' : '#9b92a6'), alt: '' }), t.label);
+    const b = h('button', { class: 'tab' + (t.id === tab ? ' on' : ''), 'data-nav': '', role: 'tab', 'aria-selected': String(t.id === tab), 'data-k': 'tab_' + t.id, onclick: () => setTab(t.id) }, h('img', { src: iconUrl(t.icon, t.id === tab ? '#f6dea0' : '#9b92a6'), alt: '' }), t.label);
     tabsEl.appendChild(b);
   }
   // Too many tabs for the width: inactive ones shrink to icons; keep the open one in view.
@@ -166,7 +200,11 @@ function render() {
     case 'echoes': bodyEl.appendChild(echoesTab()); break;
     case 'map': bodyEl.appendChild(mapTab()); break;
     case 'chapters': bodyEl.appendChild(chaptersTab(closeMenu)); break;
-    case 'journal': bodyEl.appendChild(journalTab()); break;
+    case 'quests': bodyEl.appendChild(journalTab('quests')); break;
+    case 'lore': bodyEl.appendChild(journalTab('lore')); break;
+    case 'bestiary': bodyEl.appendChild(journalTab('beasts')); break;
+    case 'moves': bodyEl.appendChild(h('div', { class: 'col scroll', style: 'flex:1' }, techniques())); break;
+    case 'imprints': bodyEl.appendChild(h('div', { class: 'col scroll', style: 'flex:1' }, echoImprintPanel())); break;
     case 'crafting': bodyEl.appendChild(craftingTab()); break;
     case 'settings': bodyEl.appendChild(settingsTab()); break;
     case 'system': bodyEl.appendChild(systemTab()); break;
@@ -446,7 +484,7 @@ function skillsTab() {
       h('div', { class: 'box' }, h('h3', null, 'Ability loadout'), h('p', { class: 'muted' }, 'Select a slot, then equip a skill from the catalog. Each ability can occupy one slot.'), loadout,
         btn('Clear selected slot', () => { equipAbility(s, null, loadoutSlot); G.world.autosave(true); render(); }, 'btn small', { 'data-k': 'ability_clear', style: 'margin-top:8px' })), catalog, regeneration) :
     skillsPage === 'supers' ? h('div', { class: 'col' }, h('div', { class: 'box' }, h('h3', null, 'Choose your super move'), h('p', { class: 'muted' }, 'All four options use the same full Super gauge, charged through battle. The Shadow Mantle remains your separate transformation.'), !s.flags.relic_taken ? h('p', { class: 'muted' }, 'Recover the relic in the temple to unlock supers.') : null), supers) :
-    h('div', { class: 'col' }, h('div', { class: 'eyebrow' }, `${s.skillPoints} skill points available`), regeneration, detail, trees, techniques()));
+    h('div', { class: 'col' }, h('div', { class: 'eyebrow' }, `${s.skillPoints} skill points available`), regeneration, detail, trees));
 }
 
 /** Move list: every combo route, with inputs shown for the device in use. */
@@ -585,7 +623,8 @@ function echoesTab() {
     }));
   return h('div', { style: 'display:flex;gap:12px;flex:1;min-height:0;width:100%' },
     h('div', { class: 'col scroll', style: 'flex:0.9;min-height:0' },
-      imprints, h('div', { class: 'box' }, h('h3', null, `Your Remnant · ${s.active.length}/${d.echoSlots} active`), roster),
+      pendingImprints() ? btn(`Imprints ready to absorb · ${pendingImprints()}`, () => setTab('imprints'), 'btn small primary', { 'data-k': 'view_imprints' }) : null,
+      h('div', { class: 'box' }, h('h3', null, `Your Remnant · ${s.active.length}/${d.echoSlots} active`), roster),
       h('div', { class: 'box' }, h('h3', null, 'Stance'), modes, h('p', { class: 'muted', style: 'font-size:0.82em;margin:6px 0 0' }, 'Aggressive: hunt the nearest foe. Defensive: hold a line before you and shield you from arrows. Follow: stay close and strike what comes near.')),
     ),
     h('div', { class: 'col scroll', style: 'flex:1.1;min-height:0' }, detail, h('div', { class: 'box' }, h('h3', null, 'Formations'), forms)),
@@ -599,6 +638,8 @@ function syncArmy() {
   sfx('uiConfirm');
   render();
 }
+
+const pendingImprints = () => Object.entries(G.save.echoImprints ?? {}).reduce((a, [id, n]) => a + (n > 0 && ECHO_SPECIES[id] ? n : 0), 0);
 
 function echoImprintPanel() {
   const pending = Object.entries(G.save.echoImprints ?? {}).filter(([id, n]) => n > 0 && ECHO_SPECIES[id]);
@@ -735,13 +776,11 @@ function drawMap(c: HTMLCanvasElement) {
 let jView: 'quests' | 'lore' | 'beasts' = 'quests';
 let jSel: string | null = null;
 
-function journalTab() {
+/** Quests, Inscriptions and the Bestiary share one two-pane layout; the sub-tabs pick the page. */
+function journalTab(view: typeof jView) {
   const s = G.save;
-  const sub = h('div', { class: 'modes' },
-    btn('Quests', () => { jView = 'quests'; jSel = null; render(); }, 'btn small' + (jView === 'quests' ? ' primary' : ''), { 'data-k': 'jq' }),
-    btn(`Inscriptions (${s.lore.length})`, () => { jView = 'lore'; jSel = null; render(); }, 'btn small' + (jView === 'lore' ? ' primary' : ''), { 'data-k': 'jl' }),
-    btn(`Bestiary (${bestiaryCount()})`, () => { jView = 'beasts'; jSel = null; render(); }, 'btn small' + (jView === 'beasts' ? ' primary' : ''), { 'data-k': 'jb' }),
-  );
+  if (view !== jView) { jView = view; jSel = null; }
+  const sub = h('div', { class: 'eyebrow' }, view === 'quests' ? `${QUESTS.filter((q) => s.quests[q.id] && !s.quests[q.id].done).length} open` : view === 'lore' ? `${s.lore.length} inscriptions found` : `${bestiaryCount()} kinds of foe recorded`);
   let left: HTMLElement, right: HTMLElement;
   if (jView === 'quests') {
     const qs = QUESTS.filter((q) => s.quests[q.id]);
@@ -900,6 +939,10 @@ function settingsTab() {
     h('div', { class: 'box' }, h('h3', null, 'Challenge'),
       row('Boss difficulty', 'Hard (default) is tuned to be won at the level you reach by playing straight through. Normal is gentler. Merciless gives bosses far more health, harder blows and a faster tempo: the harder path. Applies from the next boss room.',
         seg(st.bossDifficulty, [['normal', 'Normal'], ['hard', 'Hard'], ['merciless', 'Merciless']], (v) => (st.bossDifficulty = v), 'bd')),
+    ),
+    h('div', { class: 'box' }, h('h3', null, 'Tutorials'),
+      row('Coaching tips', 'The first time combos, dodging, parrying, Echoes, the Mantle and sub-weapons matter, a small card shows the button and waits for you to try it.', toggle(st.coach !== false, (v) => (st.coach = v), 'coach')),
+      G.save ? row('Replay tutorials', 'Show every tip again on this journey.', btn('Replay', () => { replayCoach(); st.coach = true; saveSettings(); G.ui.toast('Tutorial tips will play again as you go.', 'good'); renderAny(); }, 'btn small', { 'data-k': 'coach_replay' })) : null,
     ),
     h('div', { class: 'box' }, h('h3', null, 'Accessibility'),
       row('Text size', '', seg(st.textSize, [['normal', 'Normal'], ['large', 'Large'], ['xl', 'Extra large']], (v) => { st.textSize = v; applyTextSize(); }, 'ts')),

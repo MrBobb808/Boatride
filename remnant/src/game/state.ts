@@ -54,6 +54,8 @@ export interface SaveData extends ProgressionData {
   choices: Record<string, string>;
   affinity: { mara: number; azriel: number; tobiah: number };
   rally: number;
+  /** Coaching cards seen on this journey: 1 shown or skipped, 2 tried (ui/coach.ts). */
+  coached?: Record<string, number>;
   /** Shadow Mantle gauge, 0–100 (from level 25). */
   mantle?: number;
   /** Hearts (sub-weapon ammunition) and the sub-weapon carried. */
@@ -288,6 +290,7 @@ export function migrateSave(s: SaveData) {
   if (s.bestCombo === undefined) s.bestCombo = 0;
   if (!s.equippedSuper || !SUPER_MOVES[s.equippedSuper]) s.equippedSuper = 'rally';
   s.echoImprints ??= {};
+  s.coached ??= {};
   for (const e of s.echoes) {
     e.absorptions ??= e.stage + 1;
     if (e.role && !ECHO_ROLES[e.role]) e.role = undefined;

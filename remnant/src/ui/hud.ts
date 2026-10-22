@@ -3,6 +3,7 @@
 // Top-right: location, objective, silver, minimap. Bottom-centre: skills,
 // Echo stance and the Rally gauge (hidden on touch, where buttons show it).
 
+import { tickCoach } from './coach';
 import { G, flag } from '../game/ctx';
 import { input } from '../core/input';
 import { settings } from '../core/settings';
@@ -80,6 +81,7 @@ export function drawHud(ctx: Ctx, dt: number) {
   const s = G.save;
   const d = G.d;
   if (!s || !d) return;
+  tickCoach(dt);
   const W = r.cssW, H = r.cssH;
   const u = clamp(Math.min(H / 430, W / 900), 0.85, 1.6);
   ctx.save();

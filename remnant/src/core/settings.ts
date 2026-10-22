@@ -40,6 +40,8 @@ export interface Settings {
   name: string;
   /** How hard the bosses fight (game/difficulty.ts). */
   bossDifficulty: 'normal' | 'hard' | 'merciless';
+  /** First-time coaching cards (ui/coach.ts); absent means on. */
+  coach?: boolean;
   /** Pixel: the world is drawn at one pixel per world unit and scaled up crisply. */
   artStyle: 'pixel' | 'smooth';
 }
