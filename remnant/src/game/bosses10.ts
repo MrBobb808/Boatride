@@ -286,8 +286,9 @@ export class GreciaPrince extends BossBase {
     let l = c0, r = c0;
     while (l > 0 && !W.solid(W.grid.get(l - 1, row))) l--;
     while (r < W.grid.w - 1 && !W.solid(W.grid.get(r + 1, row))) r++;
-    this.wallL = l * TILE;
-    this.wallR = (r + 1) * TILE;
+    // An open doorway at the room's edge (the throne's gate) is not a wall to hit: stop inside it.
+    this.wallL = l === 0 ? 4 * TILE : l * TILE;
+    this.wallR = r === W.grid.w - 1 ? (W.grid.w - 2) * TILE : (r + 1) * TILE;
   }
 
   hurtbox() {

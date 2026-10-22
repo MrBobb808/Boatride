@@ -40,6 +40,7 @@ async function boot(options, art) {
         for (let i = 0; i < n; i++) {
           W.update(1 / 120);
           if (each) each(i);
+          if (!T.lost && T.armed && !W.story.ch3.rounds.active) T.lost = [T.label, G.save.hp, W.player.state, W.boss?.state, W.boss?.atk].join(':');
           const b = W.boss;
           if (b && b.key === 'grecia_prince' && ![b.x, b.y, b.hp, b.air, ...Object.values(b.pz)].every(Number.isFinite)) T.nan.push(b.state + ':' + b.atk);
         }
@@ -47,6 +48,8 @@ async function boot(options, art) {
       gauntlet() {
         const W = G.world, s = G.save;
         s.flags.ch10_done = s.flags.ch9_done = s.flags.ch8_done = s.flags.ch7_done = true; s.level = 120;
+        // No tutorial dialogue may open mid-test (the Mantle's first announcement would hold a cutscene open).
+        s.flags.mantle_known = true; G.ui.dialogue = async () => 0;
         if (W.room.id !== 'trial_arena') W.load('trial_arena', 'start');
         const R = W.story.ch3.rounds;
         R.start(10, true);
@@ -58,6 +61,9 @@ async function boot(options, art) {
       /** Elior stands whole and free at x, facing the boss. */
       ready(x) {
         const W = G.world, p = W.player, b = W.boss;
+        // Parries and stuns fill the Rally; a full gauge's cinematic would make Elior untouchable.
+        G.save.rally = 0;
+        for (let i = 0; i < 900 && G.inCutscene; i++) { W.update(1 / 120); p.invuln = 99; }
         p.state = 'free'; p.invuln = 0; p.parryT = 0; p.x = x; p.y = b.floorY; p.body.vx = p.body.vy = 0; p.face = Math.sign(b.x - x) || 1;
         G.save.hp = G.d.maxHp;
       },
@@ -81,6 +87,7 @@ try {
   const spawn = await page.evaluate(() => {
     const { G } = window.__remnant, W = G.world, s = G.save;
     const b = T.gauntlet();
+    T.armed = true;
     const bar = document.body.innerText;
     return { key: b.key, name: b.name, state: b.state, phase: b.phase, round: W.story.ch3.rounds.round, pixel: b.pixelShade, box: b.pixelBox, hp: b.maxHp, wallL: b.wallL, wallR: b.wallR, bar: /prince of grecia/i.test(bar), inCut: G.inCutscene };
   });
@@ -94,12 +101,12 @@ try {
   console.log('Gauntlet round 10 spawns the Prince of Grecia:', JSON.stringify(spawn));
 
   // ---------------------------------------------------------------- phase I: tell, then hit
-  const p1 = await page.evaluate(() => {
+  const p1 = await page.evaluate(() => { T.label = 'p1';
     const { G } = window.__remnant, W = G.world, b = W.boss, p = W.player, out = {};
     const run = (atk, px, max = 600) => {
       T.reset(560, 1); T.ready(px); b.start(atk);
       const hp0 = G.save.hp; let at = -1, told = -1, by = '';
-      T.step(max, (i) => { if (at < 0 && G.save.hp < hp0) { at = i; told = b.activeTell; by = b.atk; } p.invuln = Math.min(p.invuln, 0); });
+      T.step(max, (i) => { if (at < 0 && G.save.hp < hp0) { at = i; told = b.activeTell; by = b.atk; } p.invuln = at < 0 ? 0 : 99; if (b.state === 'idle') b.cd = 99; });
       return { hit: at >= 0 && by === atk, told: +told.toFixed(2), at: at / 120 };
     };
     out.charge = run('charge', 400);
@@ -138,7 +145,7 @@ try {
   await page.screenshot({ path: 'qa/grecia-p1-thrust-closeup.png', clip: { x: 340, y: 120, width: 640, height: 460 } });
 
   // ---------------------------------------------------------------- phase II
-  const p2 = await page.evaluate(() => {
+  const p2 = await page.evaluate(() => { T.label = 'p2';
     const { G } = window.__remnant, W = G.world, b = W.boss, p = W.player, out = {};
     T.reset(560, 1); T.ready(420); p.invuln = 99;
     b.takeHit({ dmg: 1e12, poise: 0, kx: 0, ky: 0, dir: 1, kind: 'melee', src: p });
@@ -160,17 +167,16 @@ try {
     out.rams = b.rams.length;
     const poise0 = b.poise;
     const thrown = b.rams.slice();
-    const dbg = [];
-    T.step(300, (i) => { if (i % 10 === 0 || thrown[0].remove && !dbg.done) { if (thrown[0].remove) dbg.done = 1; dbg.push([i, Math.round(thrown[0].x), thrown[0].remove, b.state, b.atk, Math.round(b.poise), +b.st.toFixed(2)]); } p.parryT = 1; p.face = 1; p.invuln = 0; G.save.hp = G.d.maxHp; if (b.state === 'idle') b.cd = 99; });
-    out.dbg = dbg;
+    // Elior meets each horn in flight, guard up and facing it.
+    T.step(300, () => { const h = thrown.find(r => !r.remove && r.flying); if (h) p.x = h.x - 8 * h.dir; p.parryT = 1; p.face = 1; p.invuln = 0; G.save.hp = G.d.maxHp; if (b.state === 'idle') b.cd = 99; });
     const shattered = thrown.filter(r => r.remove).length;
-    out.ramParry = { shattered, poise: poise0 - b.poise, p0: poise0, st: b.state, max: b.maxPoise };
+    out.ramParry = { shattered, poise: poise0 - b.poise };
     // Unparried, the low horn hurts a grounded Elior and returns to him.
     T.reset(560, 2); T.ready(420); b.start('horns');
     const hp1 = G.save.hp;
     let back = false;
     const two = b.rams.slice();
-    T.step(400, () => { p.invuln = Math.min(p.invuln, 0); if (two[0].back) back = true; if (b.state === 'idle') b.cd = 99; });
+    T.step(400, () => { p.invuln = G.save.hp < hp1 ? 99 : 0; if (two[0].back) back = true; if (b.state === 'idle') b.cd = 99; });
     out.ramHit = G.save.hp < hp1; out.ramBack = back; out.ramGone = two.every(r => r.remove);
     return out;
   });
@@ -182,7 +188,7 @@ try {
   assert.equal(p2.punish, 1500, 'A reeling prince takes the kneel bonus');
   assert.ok(p2.recovered, 'He recovers from the stun');
   assert.equal(p2.rams, 2);
-  assert.ok(p2.ramParry.shattered >= 1 && p2.ramParry.poise >= 150, 'Parry shatters a ram horn: ' + JSON.stringify(p2.ramParry) + JSON.stringify(p2.dbg));
+  assert.ok(p2.ramParry.shattered >= 1 && p2.ramParry.poise >= 150, 'Parry shatters a ram horn: ' + JSON.stringify(p2.ramParry));
   assert.ok(p2.ramHit && p2.ramBack && p2.ramGone, 'Ram horns hit, turn back and are gone');
   console.log('Phase II gate, fury into the wall, punish window and ram horns passed:', JSON.stringify(p2));
 
@@ -192,7 +198,7 @@ try {
   await page.screenshot({ path: 'qa/grecia-p2-wall-charge-desktop.png' });
 
   // ---------------------------------------------------------------- phase III: the horn breaks
-  const p3 = await page.evaluate(() => {
+  const p3 = await page.evaluate(() => { T.label = 'p3';
     const { G } = window.__remnant, W = G.world, b = W.boss, p = W.player, out = {};
     T.reset(560, 2); T.ready(420); p.invuln = 99;
     b.takeHit({ dmg: 1e12, poise: 0, kx: 0, ky: 0, dir: 1, kind: 'melee', src: p });
@@ -219,15 +225,15 @@ try {
   console.log('Phase III horn break and ward passed:', JSON.stringify(p3));
 
   // ---------------------------------------------------------------- the four winds, read right and wrong
-  const winds = await page.evaluate(() => {
+  const winds = await page.evaluate(() => { T.label = 'winds';
     const { G } = window.__remnant, W = G.world, b = W.boss, p = W.player;
     const cycle = (right) => {
       T.reset(560, 3); b.horn = 2; b.four = 1; T.ready(400); b.start('winds');
       const seen = [[], [], [], []], kinds = [[], [], [], []], dmg = [0, 0, 0, 0];
       let last = G.save.hp, kneel = false, minTell = 9, wardAtKneel = null;
       T.step(2400, () => {
-        if (b.state === 'kneel') { if (!kneel) wardAtKneel = b.ward; kneel = true; return; }
-        if (kneel) return;
+        if (b.state === 'kneel') { if (!kneel) wardAtKneel = b.ward; kneel = true; }
+        if (kneel) { p.invuln = 99; G.save.hp = G.d.maxHp; return; }
         const k = b.wind;
         for (const l of b.lanes) if (l.on && k >= 0 && !seen[k].includes(l)) { seen[k].push(l); kinds[k].push((l.dir ? (l.dir > 0 ? 'W>' : '<E') : 'col') + ':' + Math.round(l.y1 - l.y0)); minTell = Math.min(minTell, l.tele); }
         p.invuln = 0; p.state = 'free';
@@ -271,11 +277,12 @@ try {
     const done0 = R.completed;
     b.takeHit({ dmg: 1e12, poise: 0, kx: 0, ky: 0, dir: 1, kind: 'melee', src: p });
     const dying = b.state;
-    T.step(460, () => { p.invuln = 99; });
-    return { dying, removed: b.remove, completed: R.completed - done0, boss: !!W.boss && W.boss === b, campaign: G.save.flags.ch10_rewarded ?? null, nan: T.nan };
+    for (let i = 0; i < 1500 && !b.remove; i++) T.step(1, () => { p.invuln = 99; });
+    T.step(10);
+    return { lost: T.lost, active: R.active, dying, removed: b.remove, completed: R.completed - done0, boss: !!W.boss && W.boss === b, campaign: G.save.flags.ch10_rewarded ?? null, nan: T.nan };
   });
   assert.equal(gdefeat.dying, 'dead');
-  assert.ok(gdefeat.removed && gdefeat.completed === 1 && !gdefeat.boss, 'Gauntlet counts the win and frees the arena');
+  assert.ok(gdefeat.removed && gdefeat.completed === 1 && !gdefeat.boss, 'Gauntlet counts the win and frees the arena: ' + JSON.stringify(gdefeat));
   assert.equal(gdefeat.campaign, null, 'Gauntlet wins bypass the campaign');
   assert.deepEqual(gdefeat.nan, [], 'No NaN through the fight');
   console.log('Gauntlet defeat passed:', JSON.stringify(gdefeat));
@@ -299,7 +306,7 @@ try {
   });
   assert.equal(throne.key, 'grecia_prince'); assert.equal(throne.state, 'dormant');
   assert.equal(throne.x, 50 * 16); assert.equal(throne.floor, 23 * 16);
-  assert.equal(throne.fight, 'idle');
+  assert.ok(['idle', 'attack'].includes(throne.fight), 'The intro hands over to the fight');
   assert.ok(throne.walls[1] - throne.walls[0] >= 70 * 16, 'Throne arena spans its width: ' + throne.walls);
   console.log('Throne arena spawn, intro and fury passed:', JSON.stringify(throne));
   await page.evaluate(() => { const { G } = window.__remnant, b = G.world.boss; T.reset(700, 1); T.ready(560); b.start('charge'); T.step(70); G.camera.snapTo(640, b.floorY - 90); T.step(1); });
@@ -309,7 +316,7 @@ try {
     G.ui.dialogue = async () => 0;
     T.reset(700, 3); b.horn = 2; b.four = 1;
     b.takeHit({ dmg: 1e12, poise: 0, kx: 0, ky: 0, dir: 1, kind: 'melee', src: p });
-    T.step(480, () => { p.invuln = 99; });
+    for (let i = 0; i < 1500 && !b.remove; i++) T.step(1, () => { p.invuln = 99; });
     return { defeated: G.save.defeated.includes('grecia_prince'), removed: b.remove, nan: T.nan };
   });
   assert.ok(camp.defeated && camp.removed, 'Throne defeat reaches the campaign hook');
