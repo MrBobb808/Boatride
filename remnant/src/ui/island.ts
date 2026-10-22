@@ -63,6 +63,23 @@ export function islandSide(): 'left' | 'right' | null {
   return angle === 90 ? 'left' : angle === -90 || angle === 270 ? 'right' : null;
 }
 
+const keep = { x0: 0, y0: 0, x1: 0, y1: 0 };
+/**
+ * The screen area the island and its ring and pods use (CSS px), which touch
+ * controls must stay out of; null when there is no island on screen.
+ */
+export function islandKeepOut(W: number, H: number) {
+  const side = islandSide();
+  if (!side) return null;
+  const reach = INSET + THICK + 24;
+  const half = islandLength() / 2 + 52;
+  keep.x0 = side === 'left' ? 0 : W - reach;
+  keep.x1 = side === 'left' ? reach : W;
+  keep.y0 = H / 2 - half;
+  keep.y1 = H / 2 + half;
+  return keep;
+}
+
 /** Queue a short message that slides out of the island. */
 export function islandNotify(text: string, color = '#f6dea0', ic = 'shard', dur = 2.4) {
   if (!islandSide()) return;
