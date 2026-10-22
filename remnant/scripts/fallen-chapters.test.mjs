@@ -7,8 +7,8 @@ const cache=new Map();
 function load(name){if(cache.has(name))return cache.get(name);const exports={};cache.set(name,exports);vm.runInNewContext(ts.transpileModule(readFileSync(new URL('../src/game/'+name+'.ts',import.meta.url),'utf8'),{compilerOptions:{target:ts.ScriptTarget.ES2020,module:ts.ModuleKind.CommonJS}}).outputText,{exports,require:p=>load(p.replace('./',''))});return exports;}
 const {ROOMS6}=load('rooms6');
 const {FALLEN_CHAPTERS,FALLEN_ROOMS,cleansingBeacon}=load('fallenChapters'),{Grid,isSolid}=load('tiles'),{bodyFits,makeBody}=load('physics'),{ITEMS,LORE}=load('data');
-test('VI–IX have valid reciprocal routes, safe spawns and complete reward references',()=>{
- const rooms=new Map([...ROOMS6,...FALLEN_ROOMS].map(r=>[r.id,r]));assert.equal(rooms.size,26);
+test('VI–X have valid reciprocal routes, safe spawns and complete reward references',()=>{
+ const rooms=new Map([...ROOMS6,...FALLEN_ROOMS].map(r=>[r.id,r]));assert.equal(rooms.size,8+6*FALLEN_CHAPTERS.length);
  for(const r of rooms.values()){
   const g=new Grid(r.rows);for(const [name,p]of Object.entries(r.spawns))assert.ok(bodyFits(makeBody(0,0,12,34),g,isSolid,p.x*16,p.y*16),r.id+'.'+name);
   for(const e of r.exits){const to=rooms.get(e.to);assert.ok(to?.spawns[e.spawn],r.id+' → '+e.to);assert.ok(to.exits.some(back=>back.to===r.id),'return route');}
