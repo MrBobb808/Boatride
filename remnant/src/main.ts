@@ -126,7 +126,7 @@ async function boot() {
   requestAnimationFrame(loop);
   // Check during long sessions too; install only at the title or a saved doorway.
   const lookForUpdate = () => {
-    if (import.meta.env.DEV || document.hidden || updatePending()) return;
+    if (import.meta.env.DEV || document.hidden || (updatePending() && app.mode !== 'title')) return;
     void checkForUpdate().then((ready) => {
       if (!ready) return;
       if (app.mode === 'title') applyUpdate(null);
