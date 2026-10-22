@@ -32,6 +32,7 @@ import { gauntletBoss, gauntletImprint, originalForm, gauntletCount, rushBoss, r
 import { bossScale } from './difficulty';
 import { beginDaily, rankedUsed, useRanked, recordDaily, dailyScore, claimDailyReward, loadDaily, DAILY_WAVES, DAILY_MODS, type DailyRun, type DailyEntry } from './daily';
 import { valorTrack } from './valor';
+import { settings } from '../core/settings';
 import { dailyOver } from '../ui/daily';
 
 const BREAK = 7;
@@ -416,7 +417,7 @@ export class Rounds {
     this.releaseBoss(b);
     if (n >= total) {
       this.ending = true;
-      valorTrack.rushDone();
+      valorTrack.rushDone(settings.bossDifficulty === 'merciless');
       sfx('rally', { vol: 0.7 });
       G.ui.banner('THE RUSH IS RUN', `${total}/${total} bosses · ${rushClock(this.time)}`, 'boss');
       G.world.after(1.6, async () => {

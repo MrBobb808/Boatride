@@ -11,7 +11,6 @@ import type { SaveData } from './state';
 import { masteryRank, WEAPON_FAMILIES, CONTRACT_IDS, contractWins } from './progression';
 import { ROOMS } from './rooms';
 import { FALLEN_CHAPTERS } from './fallenChapters';
-import { settings } from '../core/settings';
 
 export type Tally = 'parry' | 'finisher' | 'lamp' | 'daily';
 
@@ -119,7 +118,7 @@ export const TROPHIES: Trophy[] = [
   })),
   ...BOSSES.map((b): Trophy => ({
     id: 'flawless_' + b.key, name: `Unscathed: ${cap(b.name.split(',')[0])}`, cat: 'Flawless', icon: 'shield',
-    desc: `Defeat ${b.name} without taking a blow. Parries and blocks are allowed; the story, Boss Gauntlet and Boss Rush all count.`,
+    desc: `Defeat ${b.name} without taking a blow.`,
     ...FLAWLESS_REWARD[b.key],
   })),
   { id: 'parry_25', name: 'Turned Aside', desc: 'Land 25 perfect parries.', cat: 'Combat', icon: 'parry', tally: 'parry', prog: (s) => count(s, 'parry', 25) },
@@ -277,9 +276,9 @@ export const valorTrack = {
     if (b === bossRef && zeroParry) unlock('riposte');
     checkT = 0;
   },
-  rushDone() {
+  rushDone(merciless: boolean) {
     unlock('rush_done');
-    if (settings.bossDifficulty === 'merciless') unlock('rush_merciless');
+    if (merciless) unlock('rush_merciless');
   },
   /** For tests and the debug API. */
   get state() { return { clean, bossRef, zeroParry, lastParry }; },

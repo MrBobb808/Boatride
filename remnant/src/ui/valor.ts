@@ -64,7 +64,7 @@ export function valorTab(rerender: () => void): HTMLElement {
       h('div', { class: 'trophy-text' },
         h('b', null, secret ? '???' : t.name),
         h('span', { class: 'muted' }, secret ? 'A hidden trial. Its name is revealed when it is won.' : t.desc),
-        !got && p && !secret ? h('div', { class: 'trophy-bar' }, h('i', { style: `width:${Math.round(Math.min(1, p[0] / p[1]) * 100)}%` }), h('small', null, `${Math.floor(p[0])}/${p[1]}`)) : null,
+        !got && p && p[1] > 1 && !secret ? h('div', { class: 'trophy-bar' }, h('i', { style: `width:${Math.round(Math.min(1, p[0] / p[1]) * 100)}%` }), h('small', null, `${Math.floor(p[0])}/${p[1]}`)) : null,
         !secret && reward(t) ? h('small', { class: 'trophy-prize' }, reward(t)) : null,
         got ? h('small', { class: 'up' }, at ? `Won ${new Date(at).toLocaleDateString()}` : 'Recognised from your journey') : null,
       ));
@@ -96,6 +96,8 @@ export function valorTab(rerender: () => void): HTMLElement {
       const of = c === 'All' ? all : TROPHIES.filter((t) => t.cat === c).length;
       return btn(`${c} ${n}/${of}`, () => { filter = c; rerender(); }, 'btn small' + (filter === c ? ' primary' : ''), { 'data-k': 'vf_' + c });
     })),
-    cats.map((c) => h('div', { class: 'box' }, h('h3', null, c), h('div', { class: 'trophy-grid' }, TROPHIES.filter((t) => t.cat === c).map(card)))),
+    cats.map((c) => h('div', { class: 'box' }, h('h3', null, c),
+      c === 'Flawless' ? h('p', { class: 'muted valor-note' }, 'Parries and blocks are allowed. Story fights, the Boss Gauntlet and the Boss Rush all count.') : null,
+      h('div', { class: 'trophy-grid' }, TROPHIES.filter((t) => t.cat === c).map(card)))),
   );
 }
