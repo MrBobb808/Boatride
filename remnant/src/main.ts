@@ -30,6 +30,9 @@ import { ITEMS } from './game/data';
 import { startTraining } from './game/chapters';
 import { heroSpriteReady } from './render/heroSprites';
 import { flush as flushCloud, initCloud } from './game/cloud';
+import { maybeRecap, recapText } from './game/recap';
+import { cinema } from './game/cinema';
+import { TRACKS } from './audio/music';
 import { checkForUpdate, applyUpdate, takeResumeSlot, updatePending } from './core/update';
 
 const STEP = 1 / 120;
@@ -98,8 +101,14 @@ async function boot() {
     if (app.mode === 'game' && G.save) G.world.autosave(true);
     flushCloud();
   };
+  let hiddenAt = 0;
   document.addEventListener('visibilitychange', () => {
-    if (!document.hidden) return;
+    if (!document.hidden) {
+      // Back after a long time away: the same recap a resumed save gets.
+      if (hiddenAt && app.mode === 'game') maybeRecap(Date.now() - hiddenAt);
+      return;
+    }
+    hiddenAt = Date.now();
     saveNow();
     if (app.mode === 'game' && !isMenuOpen() && !G.inCutscene && layerCount() === 0) openMenu();
   });
@@ -282,6 +291,11 @@ function setupDebug() {
       return out;
     },
     load: (slot: number) => loadGameSlot(slot),
+    music,
+    tracks: () => Object.keys(TRACKS),
+    audio,
+    cinema,
+    recap: recapText,
     ios: isIOS(),
   };
   (window as unknown as { __remnant: typeof api }).__remnant = api;

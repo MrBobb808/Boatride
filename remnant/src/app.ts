@@ -5,6 +5,7 @@ import { newGame, derive, migrateSave, type SaveData } from './game/state';
 import { saveSlot, loadSlot, requestPersistence } from './game/save';
 import { music } from './audio/music';
 import { input } from './core/input';
+import { maybeRecap } from './game/recap';
 
 export type Mode = 'boot' | 'title' | 'intro' | 'game';
 
@@ -59,8 +60,11 @@ export function startNewGame(slot: number, skipIntro = false) {
 export function loadGameSlot(slot: number) {
   const s = loadSlot(slot);
   if (!s) return false;
+  // Measured before entering, which saves (and so stamps the slot as fresh).
+  const away = Date.now() - (s.updated ?? NaN);
   // Resume where the player last stood; fall back to the last altar.
   enterGame(s, slot, s.room || s.altar.room, s.spawn || s.altar.spawn);
+  maybeRecap(away);
   return true;
 }
 
