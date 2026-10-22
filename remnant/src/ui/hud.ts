@@ -452,11 +452,7 @@ function drawCombo(ctx: Ctx, W: number, H: number, u: number, touch: boolean, sa
   ctx.lineJoin = 'round';
   ctx.strokeStyle = 'rgba(6,4,10,0.9)';
   ctx.strokeText(String(shown), 0, 0);
-  const g = ctx.createLinearGradient(0, -24 * u, 0, 0);
-  g.addColorStop(0, '#fff6dc');
-  g.addColorStop(0.55, hot ? '#ffcf6b' : '#f2d48a');
-  g.addColorStop(1, hot ? '#e2733a' : '#b8914a');
-  ctx.fillStyle = g;
+  ctx.fillStyle = comboGrad(ctx, u, hot);
   ctx.fillText(String(shown), 0, 0);
   ctx.restore();
   ctx.save();
@@ -482,6 +478,24 @@ function text(ctx: Ctx, t: string, x: number, y: number, font: string, color: st
   ctx.strokeText(t, x, y);
   ctx.fillStyle = color;
   ctx.fillText(t, x, y);
+}
+
+const comboGrads: (CanvasGradient | null)[] = [null, null];
+let comboU = 0;
+/** The combo count's two fills, remade only when the HUD scale changes. */
+function comboGrad(ctx: Ctx, u: number, hot: boolean) {
+  if (u !== comboU) comboGrads[0] = comboGrads[1] = null;
+  comboU = u;
+  const i = hot ? 1 : 0;
+  let g = comboGrads[i];
+  if (!g) {
+    g = ctx.createLinearGradient(0, -24 * u, 0, 0);
+    g.addColorStop(0, '#fff6dc');
+    g.addColorStop(0.55, hot ? '#ffcf6b' : '#f2d48a');
+    g.addColorStop(1, hot ? '#e2733a' : '#b8914a');
+    comboGrads[i] = g;
+  }
+  return g;
 }
 
 type BarCols = readonly [string, string, string];

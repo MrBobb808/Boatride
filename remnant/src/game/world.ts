@@ -104,6 +104,7 @@ export class World {
   private lowHp: CanvasGradient | null = null;
   private lowHpGen = -1;
   private rayGrad = new WeakMap<object, CanvasGradient>();
+  private beamGrad: CanvasGradient | null = null;
   deathHandled = false;
   saveT = 0;
   lostT = 0;
@@ -1596,11 +1597,18 @@ export class World {
     const my = y - 38 + Math.sin(t * 3) * 3;
     ctx.globalCompositeOperation = 'lighter';
     glow(ctx, x, my, 24, '#ffcf6b', 0.5 + Math.sin(t * 4) * 0.12);
-    const gr = ctx.createLinearGradient(0, my, 0, y);
-    gr.addColorStop(0, rgba('#ffe6a8', 0.35));
-    gr.addColorStop(1, rgba('#ffe6a8', 0));
-    ctx.fillStyle = gr;
-    ctx.fillRect(x - 1.2, my, 2.4, y - my);
+    // The beam's gradient runs 0..1 and is stretched to fit, so it is made once, not every frame.
+    if (!this.beamGrad) {
+      this.beamGrad = ctx.createLinearGradient(0, 0, 0, 1);
+      this.beamGrad.addColorStop(0, rgba('#ffe6a8', 0.35));
+      this.beamGrad.addColorStop(1, rgba('#ffe6a8', 0));
+    }
+    ctx.save();
+    ctx.translate(x, my);
+    ctx.scale(1, y - my);
+    ctx.fillStyle = this.beamGrad;
+    ctx.fillRect(-1.2, 0, 2.4, 1);
+    ctx.restore();
     glow(ctx, x, y - 2, 18, '#ffcf6b', 0.3);
     ctx.globalCompositeOperation = 'source-over';
     ctx.beginPath();

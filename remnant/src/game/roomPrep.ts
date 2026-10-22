@@ -209,7 +209,8 @@ export class RoomPrep {
   private slice = (d?: IdleDeadline) => {
     if (d) this.idle = 0;
     else this.scheduled = false;
-    if (G.world.transitioning || G.renderer.bakeKey !== this.key) return;
+    // A fight may have started between the frame that asked and this slice.
+    if (G.world.transitioning || G.renderer.bakeKey !== this.key || G.world.combatHeavy()) return;
     const t0 = performance.now();
     const gap = d ? (d.didTimeout ? 0 : Math.min(STEP_MAX_MS, d.timeRemaining())) : this.gapMs;
     // Starved for a second: allow one step even if it overruns the gap.
