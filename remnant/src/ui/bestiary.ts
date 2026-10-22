@@ -27,6 +27,9 @@ const NOTES: Record<EnemyKind, Entry> = {
   undying: { ch: 6, icon: 'helm', note: 'A soldier of the fallen host. Struck down, it kneels and rises again. Finish it while it kneels, or execute it, and it stays down.' },
   gale: { ch: 6, icon: 'feather', note: 'A spark of the storm prince\'s wind with wings. A flash and a mark on the ground come before every bolt.' },
   priest: { ch: 4, icon: 'lamp', note: 'Keeper of the furnace. It lobs fire, calls flame under a ring on the ground, and vanishes when cornered.' },
+  stalker: { ch: 7, icon: 'horn', note: 'A hunter of the antler crown. It circles out of reach, then crouches while an amber mark burns where it means to land. Leave the mark, then parry the two-handed rake and it is yours.' },
+  carrier: { ch: 8, icon: 'vial', note: 'A host swollen with the swarm. When its sac swells, a cloud drifts after you: walk out of it or cut it apart. It bursts when it dies; step out of the green ring before the spores bloom.' },
+  golem: { ch: 9, icon: 'gauntlet', note: 'Basalt and slag round a molten core. Blows to its plated front are blunted. Jump the fire it sends along the floor, then strike the bare core while its chest stands open.' },
 };
 
 const GREAT: { id: string; name: string; ch: number; boss: boolean }[] = [
@@ -49,7 +52,7 @@ const GREAT: { id: string; name: string; ch: number; boss: boolean }[] = [
   { id: 'persia_prince', name: 'The Prince of the Kingdom of Persia', ch: 6, boss: true },
 ];
 
-const ROMAN = ['', 'I', 'II', 'III', 'IV', 'V', 'VI'];
+const ROMAN = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX'];
 const KINDS = Object.keys(NOTES) as EnemyKind[];
 
 export function bestiaryCount() {

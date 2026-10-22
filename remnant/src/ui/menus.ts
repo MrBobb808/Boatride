@@ -3,8 +3,9 @@ import eliorBoard from '../assets/elior-board.webp';
 // The pause menu (character, equipment, skills, Echoes, map, journal,
 // crafting, settings, system), plus the merchant, the forge and altar menus.
 
+import { checkForUpdate, applyUpdate, currentBuild } from '../core/update';
 import { G, flag } from '../game/ctx';
-import { h, btn, pushLayer, popLayer, clear } from './dom';
+import { h, btn, pushLayer, popLayer, clear, focusFirst } from './dom';
 import { img, iconUrl } from './icons';
 import { input, ACTION_LABELS, DEFAULT_KEYS, type Action } from '../core/input';
 import { settings, saveSettings, resetSettings, isTouchDevice } from '../core/settings';
@@ -27,6 +28,7 @@ import { FINISHERS } from '../game/finishers';
 import { ECHO_COMBOS } from '../game/echoCombos';
 import { MANTLE_LV, mantlePerks } from '../game/mantle';
 import { nextChapter, travelToChapter, trainingOpen, startTraining } from '../game/chapters';
+import { altarName, travelGroups, travelBlocked, travelTo } from '../game/travel';
 import { chaptersTab, gameModes } from './chapters';
 import { progressionTab } from './progression';
 import { GEAR_SETS } from '../game/progression';
@@ -614,7 +616,7 @@ function mapTab() {
   const c = h('canvas');
   wrap.appendChild(c);
   requestAnimationFrame(() => drawMap(c));
-  const lit = s.altarsLit.map((a) => ALTAR_NAMES[a] ?? a);
+  const lit = s.altarsLit.map(altarName);
   const ex = explored();
   return h('div', { class: 'col', style: 'flex:1;min-height:0' },
     wrap,
@@ -637,23 +639,6 @@ function explored() {
   const pct = (list: string[]) => list.length ? Math.floor((100 * list.filter((id) => seen.has(id)).length) / list.length) : 0;
   return { n, ch: pct(ids.filter((id) => chapterOf(id) === n)), all: pct(ids) };
 }
-
-const ALTAR_NAMES: Record<string, string> = {
-  sanctuary: 'Hearthward', temple_hall: 'Nave of the First Lamp', chamber: 'Covenant Chamber', antechamber: 'Hall of Offerings',
-  shinar_camp: 'Camp at the Pass', tower_lower: 'The First Course', tower_upper: 'The Crimson Guard',
-  valley_camp: 'Camp at the Valley\'s Edge', hive_mouth: 'Mouth of the Hive',
-  river_camp: 'Camp by the Rivers', dura_plain: 'The Plain of Dura',
-  reed_camp: 'Camp in the Reeds', hanging_gardens: 'The Hanging Gardens', palace_stair: 'The Palace Stair',
-  hiddekel_camp: 'Camp by the Great River', high_places: 'The High Places',
-};
-const ALTAR_ROOMS: Record<string, string> = {
-  sanctuary: 'sanctuary', temple_hall: 'temple_hall', chamber: 'covenant_chamber', antechamber: 'idol_antechamber',
-  shinar_camp: 'shinar_camp', tower_lower: 'tower_lower', tower_upper: 'tower_upper',
-  valley_camp: 'valley_camp', hive_mouth: 'hive_mouth',
-  river_camp: 'river_camp', dura_plain: 'dura_plain',
-  reed_camp: 'reed_camp', hanging_gardens: 'hanging_gardens', palace_stair: 'palace_stair',
-  hiddekel_camp: 'hiddekel_camp', high_places: 'high_places',
-};
 
 function drawMap(c: HTMLCanvasElement) {
   const r = c.getBoundingClientRect();
@@ -881,6 +866,17 @@ function settingsTab() {
     }, listening === a ? 'Press a key…' : st.keys[a].map((c) => input.keyName(c)).join(' / ')))));
   const codeArea = h('textarea', { class: 'code', 'data-nav': '', placeholder: 'Paste a save code here to import it into the current slot.' }) as HTMLTextAreaElement;
   return h('div', { class: 'col scroll', style: 'flex:1' },
+    h('div', { class: 'box' }, h('h3', null, 'Game updates'),
+      h('p', { class: 'muted', 'data-k': 'current_build' }, 'Installed build: ' + (currentBuild() || 'development')),
+      btn('Check for updates', async () => {
+        if (G.inCutscene || G.world?.bossActive || G.world?.transitioning || G.world?.story.ch3.rounds.active) { G.ui.toast('Finish the encounter before installing an update.', 'info'); return; }
+        const ready = await checkForUpdate(true);
+        if (!ready) { G.ui.toast('No newer build found. Connect to the internet to check.', 'info'); return; }
+        // Recheck after the request: the player may have left Settings while it was in flight.
+        if (G.inCutscene || G.world?.bossActive || G.world?.transitioning || G.world?.story.ch3.rounds.active) { G.ui.toast('Update ready. It will install at the next doorway.', 'info'); return; }
+        if (G.save) G.world.autosave(true);
+        applyUpdate(G.save ? G.slot : null);
+      }, 'btn small', { 'data-k': 'check_updates' })),
     only ? h('div', { class: 'box game-modes' }, h('h3', null, 'Game modes'),
       h('p', { class: 'muted' }, 'Continue your journey to choose endless monster waves, unlocked round checkpoints, or the Boss Gauntlet.'),
       lastSlot() !== null ? btn('Continue to game modes', () => {
@@ -1128,43 +1124,71 @@ function renderShop() {
 export function openAltar(id: string) {
   const s = G.save;
   pause(true);
-  const lit = s.altarsLit.filter((a) => a !== id && ALTAR_ROOMS[a]);
-  const card = h('div', { class: 'choice-card panel scroll altar' },
-    h('div', { class: 'eyebrow' }, 'Altar'),
-    h('h2', { class: 'title-text' }, ALTAR_NAMES[id] ?? 'Altar'),
-    h('p', { class: 'muted' }, 'Health, Balm and Covenant Energy restored. Your Echoes are made whole. Foes of the Veil stir again. Progress saved.'),
-    h('div', { class: 'opts' },
-      btn([h('b', null, 'Continue')], () => done(), 'btn opt', { 'data-autofocus': '' }),
-      s.statPoints || s.skillPoints ? btn([h('b', null, 'Spend points'), h('span', null, `${s.statPoints} stat · ${s.skillPoints} skill`)], () => { done(); openMenu(s.statPoints ? 'character' : 'skills'); }, 'btn opt') : null,
-      lit.length ? h('div', { class: 'eyebrow', style: 'margin-top:6px' }, 'Travel to another altar') : null,
-      lit.map((a) => btn([h('b', null, ALTAR_NAMES[a])], () => {
-        done();
-        G.world.transition(ALTAR_ROOMS[a], 'altar');
-        s.altar = { room: ALTAR_ROOMS[a], spawn: 'altar' };
-      }, 'btn opt')),
-      ...(() => {
-        // The next chapter, once the one before it is finished.
-        const nx = nextChapter();
-        return nx ? [btn([h('b', null, 'Journey on'), h('span', null, `Chapter ${nx.roman} · ${nx.title}`)], () => { done(); travelToChapter(nx); }, 'btn opt')] : [];
-      })(),
-      trainingOpen() ? btn([h('b', null, 'Enter the Trial of the Remnant'), h('span', null, `Endless rounds that grow with you${s.flags.trial_best ? ` · best: round ${s.flags.trial_best}` : ''}`)], () => {
-        done();
-        startTraining(1);
-      }, 'btn opt') : null,
-      trainingOpen() ? btn([h('b', null, 'Enter the Boss Gauntlet'), h('span', null, `Bosses only · stronger every round · best: ${s.flags.boss_trial_best ?? 0}`)], () => {
-        done();
-        startTraining(1, true);
-      }, 'btn opt') : null,
-      flag('ch1_done') ? btn([h('b', null, 'Begin New Game+'), h('span', null, 'Start Chapter I again with everything you have earned. Foes grow stronger.')], () => { done(); startNewGamePlus(); }, 'btn opt') : null,
-    ),
-  );
+  let travel = false;
+  const card = h('div', { class: 'choice-card panel scroll altar' });
   const layer = h('div', { class: 'layer dim' }, card);
-  document.getElementById('ui')!.appendChild(layer);
   const done = () => {
     popLayer(layer);
     pause(false);
   };
-  pushLayer({ el: layer, onBack: done });
+  // Travel is a second page of the same card, so Back steps out of it first.
+  const show = (t: boolean) => {
+    travel = t;
+    clear(card);
+    for (const el of t ? travelPage() : mainPage()) if (el) card.append(el);
+    card.scrollTop = 0;
+    focusFirst(card);
+  };
+  const mainPage = () => {
+    const groups = travelGroups(id), blocked = travelBlocked();
+    const count = groups.reduce((n, g) => n + g.stops.length, 0);
+    return [
+      h('div', { class: 'eyebrow' }, 'Altar'),
+      h('h2', { class: 'title-text' }, altarName(id)),
+      h('p', { class: 'muted' }, 'Health, Balm and Covenant Energy restored. Your Echoes are made whole. Foes of the Veil stir again. Progress saved.'),
+      h('div', { class: 'opts' },
+        btn([h('b', null, 'Continue')], () => done(), 'btn opt', { 'data-autofocus': '', 'data-k': 'altar_continue' }),
+        count ? btn([h('b', null, 'Travel'), h('span', null, blocked ?? `${count} kindled ${count === 1 ? 'altar' : 'altars'} to walk out at`)], () => show(true), 'btn opt', { disabled: !!blocked, 'data-k': 'altar_travel' }) : null,
+        s.statPoints || s.skillPoints ? btn([h('b', null, 'Spend points'), h('span', null, `${s.statPoints} stat · ${s.skillPoints} skill`)], () => { done(); openMenu(s.statPoints ? 'character' : 'skills'); }, 'btn opt') : null,
+        ...(() => {
+          // The next chapter, once the one before it is finished.
+          const nx = nextChapter();
+          return nx ? [btn([h('b', null, 'Journey on'), h('span', null, `Chapter ${nx.roman} · ${nx.title}`)], () => { done(); travelToChapter(nx); }, 'btn opt')] : [];
+        })(),
+        trainingOpen() ? btn([h('b', null, 'Enter the Trial of the Remnant'), h('span', null, `Endless rounds that grow with you${s.flags.trial_best ? ` · best: round ${s.flags.trial_best}` : ''}`)], () => {
+          done();
+          startTraining(1);
+        }, 'btn opt') : null,
+        trainingOpen() ? btn([h('b', null, 'Enter the Boss Gauntlet'), h('span', null, `Bosses only · stronger every round · best: ${s.flags.boss_trial_best ?? 0}`)], () => {
+          done();
+          startTraining(1, true);
+        }, 'btn opt') : null,
+        flag('ch1_done') ? btn([h('b', null, 'Begin New Game+'), h('span', null, 'Start Chapter I again with everything you have earned. Foes grow stronger.')], () => { done(); startNewGamePlus(); }, 'btn opt') : null,
+      ),
+    ];
+  };
+  const travelPage = () => {
+    const blocked = travelBlocked();
+    return [
+      h('div', { class: 'eyebrow' }, 'Travel'),
+      h('h2', { class: 'title-text' }, 'Walk out at another altar'),
+      blocked ? h('p', { class: 'muted' }, blocked) : null,
+      btn([h('b', null, 'Back'), h('span', null, altarName(id))], () => show(false), 'btn opt', { 'data-autofocus': '', 'data-k': 'travel_back', style: 'margin-top:10px' }),
+      h('div', { class: 'opts' },
+        // One column per chapter, so a phone in landscape shows several side by side.
+        travelGroups(id).map((g) => h('div', { class: 'travel-group', style: 'display:grid;gap:8px;align-content:start' },
+          h('div', { class: 'eyebrow', style: 'margin-top:6px' }, `Chapter ${g.roman} · ${g.title}`),
+          g.stops.map((st) => btn([h('b', null, st.name), ROOMS[st.room].name.replace(/^The /, '') === st.name.replace(/^The /, '') ? null : h('span', null, ROOMS[st.room].name)], () => {
+            if (travelBlocked()) return;
+            done();
+            travelTo(st.id);
+          }, 'btn opt', { disabled: !!blocked, 'data-k': 'travel_' + st.id })))),
+      ),
+    ];
+  };
+  document.getElementById('ui')!.appendChild(layer);
+  show(false);
+  pushLayer({ el: layer, onBack: () => (travel ? show(false) : done()) });
 }
 
 export { loadSlot, SLOT_COUNT, DEFAULT_KEYS };

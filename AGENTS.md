@@ -14,7 +14,10 @@ up next starts from the latest version.
 3. Merging deploys automatically. GitHub Actions builds `remnant/` and
    publishes it to GitHub Pages: https://mrbobb808.github.io/Boatride/.
    Installed copies on the owner's iPhone pick up the new build by themselves
-   (see `remnant/src/core/update.ts`).
+   (see `remnant/src/core/update.ts`). Settings shows the installed build and
+   provides Check for updates, which saves and resumes the current slot.
+   Explicit update navigations wait for the fresh document on slow connections;
+   failed refreshes retry after a cooldown.
 
 ## What is in the repository
 
@@ -79,6 +82,10 @@ up next starts from the latest version.
   - `game/feast.ts`: Vessel Wraith and Scribe of the Veil.
   - `game/princes.ts`: Undying Host (rises again unless finished) and Fallen
     Gale (a lightning flier).
+  - `game/fallenFoes.ts`: the VII–IX signature foes: Antlered Stalker
+    (marked pounce, parryable two-hit rake), Swarm Carrier (drifting swarm
+    clouds, spore burst on death) and Slag Golem (armoured front, slam with a
+    jumpable fire wave, exposed core). Verified by `scripts/fallen-foes.mjs`.
 - **Echoes** (purified allies): `game/echoes.ts` holds the kits, `game/data.ts`
   the species.
   - **Squad control:** the command wheel (`ui/ui.ts`, `openWheel`) has a
@@ -102,20 +109,18 @@ up next starts from the latest version.
   golden objective marker.
 - **Pixel art:** Settings → Art style (default Pixel) draws the world at one
   pixel per world unit and scales it up hard-edged (`Renderer.world`,
-  `Renderer.present`). Elior's illustrated frames are in
-  `assets/elior-sprites.png` (`render/heroSprites.ts`, see `SPRITE_ART.md`).
+  `Renderer.present`). Characters come from two sources:
+  - Elior and the foes and Echoes that have sheets use the PNG sprite atlases
+    (`render/heroSprites.ts`, `render/creatureSprites.ts`; see
+    `SPRITE_ART.md` and `ELIOR_UPGRADE.md`).
+  - Every other humanoid that reaches `drawHumanoid` (NPCs, Echoes and foes
+    without a sheet, human-sized bosses, Elior when his atlas cannot show his
+    gear) is painted pixel by pixel from its skeleton by
+    `render/pixelHero.ts`. See `PIXEL_ART.md`.
   World drawing must use `r.bw`/`r.bh` (the world target); the HUD uses
   `r.px` and CSS pixels; `r.cw`/`r.ch` is the screen canvas.
 - **UI:** `ui/` holds the HUD, menus, touch controls, dialogue and title
   screen.
-  - `ui/touch.ts`: the touch controls. A touch that misses a drawn button
-    goes to the nearest one within a thumb's width; the stick floats to
-    where the thumb lands. Settings → Touch controls → Customize opens
-    `ui/touchEditor.ts` to move and resize each control (saved as screen
-    fractions in `settings.touchLayout`, kept off the island and inside the
-    safe area by `clampSpot`).
-  - `core/haptics.ts`: phone haptics, a distinct pattern for a hit, parry,
-    wound, kill and boss phase (`navigator.vibrate`, or iOS 18's switch tick).
   - `ui/island.ts` draws game status around the Dynamic Island in landscape
     (add `?island=left`, or `?island=compact` / `?island=classic`, to the URL
     to preview it on a desktop). Settings → Island size fits it to the iPhone

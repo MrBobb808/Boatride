@@ -30,7 +30,7 @@ import { ITEMS } from './game/data';
 import { startTraining } from './game/chapters';
 import { heroSpriteReady } from './render/heroSprites';
 import { flush as flushCloud, initCloud } from './game/cloud';
-import { checkForUpdate, applyUpdate, takeResumeSlot } from './core/update';
+import { checkForUpdate, applyUpdate, takeResumeSlot, updatePending } from './core/update';
 
 const STEP = 1 / 120;
 
@@ -124,16 +124,17 @@ async function boot() {
     showTitle();
   }
   requestAnimationFrame(loop);
-  // Look for a newer build now and whenever the app comes back to the front.
+  // Check during long sessions too; install only at the title or a saved doorway.
   const lookForUpdate = () => {
-    if (import.meta.env.DEV) return;
+    if (import.meta.env.DEV || document.hidden || (updatePending() && app.mode !== 'title')) return;
     void checkForUpdate().then((ready) => {
       if (!ready) return;
       if (app.mode === 'title') applyUpdate(null);
-      else if (app.mode === 'game') G.ui.toast('An update has downloaded. It installs at the next doorway; your progress is kept.', 'info');
+      else if (app.mode === 'game') G.ui.toast('An update is ready. It installs at the next doorway; your progress is kept.', 'info');
     });
   };
   setTimeout(lookForUpdate, 4000);
+  setInterval(lookForUpdate, 60_000);
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden) lookForUpdate();
   });
