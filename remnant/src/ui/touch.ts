@@ -1,9 +1,13 @@
 // On-screen touch controls for iPhone: a floating left stick and a thumb arc
 // of buttons around ATTACK, kept clear of the Dynamic Island and the home
-// indicator. Multi-touch via pointer events; optional haptics.
+// indicator. Multi-touch via pointer events; optional haptics. Every control
+// can be moved and resized (ui/touchEditor.ts); a touch that misses the drawn
+// buttons still goes to the nearest one within a thumb's width.
 
 import { input, type Action } from '../core/input';
-import { settings, onSettingsChange, isIOS } from '../core/settings';
+import { settings, onSettingsChange, type TouchSpot } from '../core/settings';
+import { haptic as playHaptic, initHaptics, type HapticKind } from '../core/haptics';
+import { islandKeepOut } from './island';
 import { G, flag } from '../game/ctx';
 import { ABILITIES, SUPER_MOVES } from '../game/data';
 import { selectedSuper } from '../game/supers';
@@ -28,6 +32,13 @@ interface TBtn {
   corner?: 'tr';
   /** Last opacity factor applied, so styles change only when needed. */
   dim?: number;
+  /** Centre and drawn radius on screen, for the forgiving hit test. */
+  cx?: number;
+  cy?: number;
+  r?: number;
+  /** Fingers holding it: its own element and the catch layer can both press it. */
+  held?: number;
+  shown?: boolean;
 }
 
 const BTNS: TBtn[] = [
@@ -50,17 +61,104 @@ const BTNS: TBtn[] = [
   { id: 'voice', icon: 'voice', size: 40, dx: 0, dy: 96, label: '', corner: 'tr', ui: () => G.ui.voiceOrders() },
 ];
 
+/** Stick base radius and knob travel at size 1, in CSS px. */
+export const STICK_R = 62, STICK_TRAVEL = 46;
+/** Share of the travel ignored at the centre, so a resting thumb never walks. */
+const DEAD = 0.1;
+
 let root: HTMLElement;
 let zone: HTMLDivElement;
 let base: HTMLDivElement;
 let knob: HTMLDivElement;
+let catcher: HTMLDivElement;
 let stickId: number | null = null;
 let sx = 0, sy = 0;
+/** Where the stick rests (zone coordinates) and its scale, from the layout. */
+let homeX = 0, homeY = 0, stickU = 1;
 let visible = false;
-let hapticLabel: HTMLLabelElement | null = null;
+let bossPhase = 0;
+/** Which button each finger is holding. */
+const owner = new Map<number, TBtn>();
+
+/** The controls the layout editor can move. */
+export interface ControlSpec { id: string; icon: string; size: number; label: string; corner: boolean }
+export const CONTROL_SPECS: ControlSpec[] = BTNS.map((b) => ({ id: b.id, icon: b.icon, size: b.size, label: b.label, corner: !!b.corner }));
+
+/** Scale shared by every control: the size setting times the screen height. */
+export function touchUnit(H: number, scale = settings.touchScale) {
+  return scale * Math.max(0.82, Math.min(1.25, H / 430));
+}
+
+/** Scratch result of controlSpot (no allocation per layout). */
+export const spot = { cx: 0, cy: 0, r: 0 };
+
+/**
+ * Where a control sits on screen and how big it is: its default place (or the
+ * player's), mirrored when left-handed, then kept on screen, inside the safe
+ * area and away from the Dynamic Island.
+ */
+export function controlSpot(id: string, W: number, H: number, scale: number, lay: Record<string, TouchSpot>, lh: boolean) {
+  const u = touchUnit(H, scale);
+  const own = lay[id];
+  if (id === 'stick') {
+    const r = STICK_R * u * (own?.s ?? 1);
+    let x = own ? own.x * W : STICK_DEF_X * u + safe.left;
+    const y = own ? own.y * H : H * 0.78 - 90 * u;
+    // The stick keeps to its own half, so the floating zone stays clear of the buttons.
+    x = Math.min(x, W * 0.5);
+    clampSpot(lh ? W - x : x, y, r, W, H);
+    return spot;
+  }
+  const b = BTNS.find((q) => q.id === id)!;
+  const s0 = b.size * u;
+  let x: number, y: number;
+  if (own) {
+    x = own.x * W;
+    y = own.y * H;
+  } else if (b.corner) {
+    x = W - 12 - safe.right - s0 / 2;
+    y = 10 + safe.top + b.dy * u + s0 / 2;
+  } else {
+    const right = 24 + Math.max(safe.right, 8);
+    const bottom = 38 + Math.max(safe.bottom, 6);
+    x = W - (right + (78 * u) / 2 + b.dx * u);
+    y = H - (bottom + (78 * u) / 2 + b.dy * u);
+  }
+  clampSpot(lh ? W - x : x, y, (s0 * (own?.s ?? 1)) / 2, W, H, !!b.corner);
+  return spot;
+}
+const STICK_DEF_X = 110;
+
+/** Keep a circle of radius r inside the safe screen and out of the island; writes spot. */
+export function clampSpot(cx: number, cy: number, r: number, W: number, H: number, sideways = false) {
+  const m = 6;
+  cx = Math.max(safe.left + m + r, Math.min(W - safe.right - m - r, cx));
+  cy = Math.max(safe.top + m + r, Math.min(H - safe.bottom - m - r, cy));
+  const k = islandKeepOut(W, H);
+  if (k && cx + r > k.x0 && cx - r < k.x1 && cy + r > k.y0 && cy - r < k.y1) {
+    // Out by the shortest way; the corner column only sideways, so it never lands on its own neighbours.
+    const side = k.x0 === 0 ? k.x1 + r - cx : cx - (k.x0 - r);
+    const up = cy - (k.y0 - r), down = k.y1 + r - cy;
+    if (sideways || (side <= up && side <= down)) cx = k.x0 === 0 ? k.x1 + r : k.x0 - r;
+    else if (up <= down) cy = k.y0 - r;
+    else cy = k.y1 + r;
+  }
+  spot.cx = cx;
+  spot.cy = cy;
+  spot.r = r;
+  return spot;
+}
 
 export function initTouch(el: HTMLElement) {
   root = el;
+  // Under everything else: catches touches that miss a button and gives them to the nearest one.
+  catcher = document.createElement('div');
+  catcher.className = 'tc-catch';
+  root.appendChild(catcher);
+  catcher.addEventListener('pointerdown', onCatchDown);
+  for (const ev of ['pointerup', 'pointercancel', 'lostpointercapture'] as const) catcher.addEventListener(ev, onFingerUp);
+  catcher.addEventListener('touchstart', (e) => e.preventDefault(), { passive: false });
+  catcher.addEventListener('contextmenu', (e) => e.preventDefault());
   zone = document.createElement('div');
   zone.className = 'stick-zone';
   base = document.createElement('div');
@@ -77,8 +175,10 @@ export function initTouch(el: HTMLElement) {
   zone.addEventListener('lostpointercapture', onStickUp);
   zone.addEventListener('touchstart', (e) => e.preventDefault(), { passive: false });
   for (const b of BTNS) {
+    b.held = 0;
     const d = document.createElement('div');
     d.className = 'tc' + (b.id === 'attack' ? ' big' : '') + (b.corner ? ' sq' : '');
+    d.dataset.ctl = b.id;
     d.setAttribute('aria-label', b.id === 'voice' ? 'Voice squad orders' : b.label || b.id);
     const im = document.createElement('img');
     im.src = iconUrl(b.icon, b.id === 'mantle' ? '#d4d0ff' : '#f6dea0');
@@ -103,24 +203,14 @@ export function initTouch(el: HTMLElement) {
       b.cnt = c;
     }
     b.el = d;
-    const down = (e: PointerEvent) => {
+    d.addEventListener('pointerdown', (e) => {
       e.preventDefault();
       d.setPointerCapture(e.pointerId);
-      d.classList.add('down');
-      if (b.act) input.setTouch(b.act, true);
-      else input.setDevice('touch');
-      haptic(b.id === 'attack' ? 'light' : 'select');
-    };
-    const up = (e: PointerEvent) => {
-      if (!d.classList.contains('down')) return;
-      d.classList.remove('down');
-      if (b.act) input.setTouch(b.act, false);
-      if (b.ui && e.type === 'pointerup') b.ui();
-    };
-    d.addEventListener('pointerdown', down);
-    d.addEventListener('pointerup', up);
-    d.addEventListener('pointercancel', up);
-    d.addEventListener('lostpointercapture', up);
+      grab(e.pointerId, b);
+    });
+    d.addEventListener('pointerup', onFingerUp);
+    d.addEventListener('pointercancel', onFingerUp);
+    d.addEventListener('lostpointercapture', onFingerUp);
     d.addEventListener('contextmenu', (e) => e.preventDefault());
     // Swallow the compatibility click so it can't land on a menu that just opened.
     d.addEventListener('touchstart', (e) => e.preventDefault(), { passive: false });
@@ -130,93 +220,115 @@ export function initTouch(el: HTMLElement) {
   layout();
   onSettingsChange(layout);
   window.addEventListener('resize', () => setTimeout(layout, 50));
-  // iOS 18+ haptic feedback via a native switch control.
-  if (isIOS()) {
-    const inp = document.createElement('input');
-    inp.type = 'checkbox';
-    inp.setAttribute('switch', '');
-    inp.id = 'haptic-switch';
-    inp.style.cssText = 'position:fixed;left:-100px;top:-100px;opacity:0;pointer-events:none;';
-    const lab = document.createElement('label');
-    lab.htmlFor = 'haptic-switch';
-    lab.style.cssText = 'position:fixed;left:-100px;top:-100px;opacity:0;pointer-events:none;';
-    document.body.appendChild(inp);
-    document.body.appendChild(lab);
-    hapticLabel = lab;
-  }
+  // A finger lifted while the app lost focus never reports; let go of everything.
+  window.addEventListener('blur', releaseAll);
+  initHaptics();
 }
 
-export function haptic(kind: 'light' | 'select' | 'heavy' = 'light') {
-  if (!settings.haptics) return;
-  try {
-    if (hapticLabel) hapticLabel.click();
-    else if (navigator.vibrate) navigator.vibrate(kind === 'heavy' ? 24 : kind === 'light' ? 10 : 6);
-  } catch {
-    /* unsupported */
+export function haptic(kind: HapticKind = 'light') {
+  playHaptic(kind);
+}
+
+function grab(pid: number, b: TBtn) {
+  if (owner.has(pid)) return;
+  owner.set(pid, b);
+  if (b.held!++ > 0) return;
+  b.el!.classList.add('down');
+  if (b.act) input.setTouch(b.act, true);
+  else input.setDevice('touch');
+  haptic(b.id === 'attack' ? 'light' : 'select');
+}
+
+function onFingerUp(e: PointerEvent) {
+  const b = owner.get(e.pointerId);
+  if (!b) return;
+  owner.delete(e.pointerId);
+  if (--b.held! > 0) return;
+  b.held = 0;
+  b.el!.classList.remove('down');
+  if (b.act) input.setTouch(b.act, false);
+  if (b.ui && e.type === 'pointerup') b.ui();
+}
+
+/** A touch that missed every drawn button goes to the closest one it was meant for. */
+function onCatchDown(e: PointerEvent) {
+  // A mouse click hands play back to the keyboard, as it would on the bare canvas.
+  if (e.pointerType === 'mouse') {
+    input.setDevice('keyboard');
+    return;
+  }
+  e.preventDefault();
+  const rc = root.getBoundingClientRect();
+  const x = e.clientX - rc.left, y = e.clientY - rc.top;
+  let best: TBtn | null = null, bd = Infinity;
+  for (const b of BTNS) {
+    if (!b.shown || !b.r) continue;
+    // Distance from the drawn edge; the reach grows with the button but stays a thumb's width.
+    const d = Math.hypot(x - b.cx!, y - b.cy!) - b.r;
+    const reach = Math.max(12, Math.min(26, b.r * 0.6));
+    if (d <= reach && d < bd) {
+      bd = d;
+      best = b;
+    }
+  }
+  if (!best) return;
+  catcher.setPointerCapture(e.pointerId);
+  grab(e.pointerId, best);
+}
+
+function releaseAll() {
+  onStickUp();
+  owner.clear();
+  for (const b of BTNS) {
+    if (b.held && b.act) input.setTouch(b.act, false);
+    b.held = 0;
+    b.el?.classList.remove('down');
   }
 }
 
 export function layout() {
   if (!root) return;
   const W = window.innerWidth, H = window.innerHeight;
-  const u = settings.touchScale * Math.max(0.82, Math.min(1.25, H / 430));
-  const right = 24 + Math.max(safe.right, 8);
-  const bottom = 38 + Math.max(safe.bottom, 6);
+  const lay = settings.touchLayout ?? {};
   const lh = settings.leftHanded;
   for (const b of BTNS) {
     const el = b.el!;
-    const s = b.size * u;
+    const p = controlSpot(b.id, W, H, settings.touchScale, lay, lh);
+    const s = p.r * 2;
     el.style.width = el.style.height = s + 'px';
+    el.style.left = p.cx - p.r + 'px';
+    el.style.top = p.cy - p.r + 'px';
+    el.style.right = el.style.bottom = '';
+    b.cx = p.cx;
+    b.cy = p.cy;
+    b.r = p.r;
     b.dim = undefined;
     if (b.lbl) b.lbl.style.display = settings.buttonLabels ? '' : 'none';
-    if (b.corner === 'tr') {
-      const top = 10 + safe.top + b.dy * u;
-      el.style.top = top + 'px';
-      el.style.bottom = '';
-      if (lh) {
-        el.style.left = 12 + safe.left + 'px';
-        el.style.right = '';
-      } else {
-        el.style.right = 12 + safe.right + 'px';
-        el.style.left = '';
-      }
-      continue;
-    }
-    const attack = 78 * u;
-    const cx = right + attack / 2 + b.dx * u;
-    const cy = bottom + attack / 2 + b.dy * u;
-    el.style.bottom = cy - s / 2 + 'px';
-    el.style.top = '';
-    if (lh) {
-      el.style.left = cx - s / 2 + 'px';
-      el.style.right = '';
-    } else {
-      el.style.right = cx - s / 2 + 'px';
-      el.style.left = '';
-    }
   }
-  zone.style.left = lh ? '' : '0';
-  zone.style.right = lh ? '0' : '';
-  zone.style.width = (lh ? 44 : 44) + '%';
+  // The floating zone: the stick's half of the screen, from just above where it rests.
+  const p = controlSpot('stick', W, H, settings.touchScale, lay, lh);
+  stickU = p.r / STICK_R;
+  const zw = Math.min(W * 0.6, Math.max(W * 0.44, (lh ? W - p.cx : p.cx) + p.r + 20));
+  const zt = Math.max(safe.top, Math.min(H * 0.22, p.cy - p.r - 20));
+  zone.style.left = lh ? W - zw + 'px' : '0';
+  zone.style.right = '';
+  zone.style.width = zw + 'px';
+  zone.style.top = zt + 'px';
+  zone.style.height = H - zt + 'px';
+  homeX = p.cx - (lh ? W - zw : 0);
+  homeY = p.cy - zt;
   base.style.opacity = '0.35';
   if (stickId === null) {
-    const bx = lh ? W * 0.44 - 110 * u : 110 * u + safe.left;
-    base.style.left = (lh ? zone.clientWidth - 110 * u - safe.right : bx) + 'px';
-    base.style.top = H * 0.78 - 90 * u + 'px';
+    base.style.left = homeX + 'px';
+    base.style.top = homeY + 'px';
   }
-  base.style.transform = `scale(${u})`;
+  base.style.transform = `scale(${stickU})`;
 }
 
 export function setTouchVisible(v: boolean) {
   visible = v;
   root.style.display = v ? '' : 'none';
-  if (!v) {
-    onStickUp();
-    for (const b of BTNS) {
-      if (b.el?.classList.contains('down') && b.act) input.setTouch(b.act, false);
-      b.el?.classList.remove('down');
-    }
-  }
+  if (!v) releaseAll();
 }
 
 /** Refresh contextual buttons (called each frame while visible). */
@@ -225,6 +337,11 @@ export function updateTouch() {
   const s = G.save;
   const p = G.world?.player;
   if (!s || !p) return;
+  // A boss's new phase is felt as well as seen.
+  const boss = G.world.boss;
+  const ph = boss && G.world.bossActive && !boss.dying ? boss.phase : 0;
+  if (ph > bossPhase && bossPhase > 0) haptic('phase');
+  bossPhase = ph;
   for (const b of BTNS) {
     const el = b.el!;
     let show = true;
@@ -297,6 +414,7 @@ export function updateTouch() {
     }
     if (G.inCutscene && !b.corner) show = b.id === 'attack' || b.id === 'jump' ? true : false;
     el.classList.toggle('hidden', !show);
+    b.shown = show;
     if (show) {
       // Buttons that can't do anything right now step back.
       const f = dimFor(b);
@@ -329,10 +447,12 @@ function dimFor(b: TBtn): number {
 }
 
 function onStickDown(e: PointerEvent) {
-  if (stickId !== null) return;
+  // A finger whose lift was never reported must not lock the stick.
+  if (stickId !== null && zone.hasPointerCapture(stickId)) return;
   e.preventDefault();
   stickId = e.pointerId;
   zone.setPointerCapture(e.pointerId);
+  // Floating origin: the stick centres wherever the thumb lands.
   const r = zone.getBoundingClientRect();
   sx = e.clientX - r.left;
   sy = e.clientY - r.top;
@@ -346,8 +466,7 @@ function onStickDown(e: PointerEvent) {
 function onStickMove(e: PointerEvent) {
   if (e.pointerId !== stickId) return;
   const r = zone.getBoundingClientRect();
-  const u = settings.touchScale * Math.max(0.82, Math.min(1.25, window.innerHeight / 430));
-  const max = 46 * u;
+  const max = STICK_TRAVEL * stickU;
   let dx = e.clientX - r.left - sx, dy = e.clientY - r.top - sy;
   const d = Math.hypot(dx, dy);
   if (d > max) {
@@ -360,8 +479,16 @@ function onStickMove(e: PointerEvent) {
     dx = (dx / d) * max;
     dy = (dy / d) * max;
   }
-  knob.style.transform = `translate(${dx / u}px,${dy / u}px)`;
-  let nx = dx / max, ny = dy / max;
+  knob.style.transform = `translate(${dx / stickU}px,${dy / stickU}px)`;
+  // Radial dead zone, then rescaled so a push starts gently from zero.
+  const m = Math.min(1, d / max);
+  if (m < DEAD) {
+    input.setTouchAxis(0, 0);
+    return;
+  }
+  const k = (m - DEAD) / (1 - DEAD) / Math.max(1e-6, Math.hypot(dx, dy) / max);
+  let nx = (dx / max) * k, ny = (dy / max) * k;
+  // A push mostly up or down never creeps sideways.
   if (Math.abs(nx) < 0.18) nx = 0;
   input.setTouchAxis(nx, ny);
 }
@@ -371,5 +498,7 @@ function onStickUp(e?: PointerEvent) {
   stickId = null;
   knob.style.transform = 'translate(0px,0px)';
   base.style.opacity = '0.35';
+  base.style.left = homeX + 'px';
+  base.style.top = homeY + 'px';
   input.setTouchAxis(0, 0);
 }
