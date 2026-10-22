@@ -141,7 +141,8 @@ export function inWater(g: Grid, x: number, y: number) {
 
 /** Is there swimmable water just ahead of or under feet at (x, y)? */
 export function deepWaterAt(g: Grid, x: number, y: number) {
-  return (probeWater(g, x, y + 2, probe) || probeWater(g, x, y - 2, probe)) && probe.depth > SWIM_DEPTH;
+  // Just below the lip of a pool beside the feet, or water standing at body height.
+  return (probeWater(g, x, y + WATER_LIP + 2, probe) || probeWater(g, x, y - 2, probe)) && probe.depth > SWIM_DEPTH;
 }
 
 interface FoeBody { x: number; y: number; vx: number; vy: number; w: number; onGround: boolean }
