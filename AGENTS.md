@@ -108,6 +108,14 @@ up next starts from the latest version.
   `r.px` and CSS pixels; `r.cw`/`r.ch` is the screen canvas.
 - **UI:** `ui/` holds the HUD, menus, touch controls, dialogue and title
   screen.
+  - `ui/touch.ts`: the touch controls. A touch that misses a drawn button
+    goes to the nearest one within a thumb's width; the stick floats to
+    where the thumb lands. Settings → Touch controls → Customize opens
+    `ui/touchEditor.ts` to move and resize each control (saved as screen
+    fractions in `settings.touchLayout`, kept off the island and inside the
+    safe area by `clampSpot`).
+  - `core/haptics.ts`: phone haptics, a distinct pattern for a hit, parry,
+    wound, kill and boss phase (`navigator.vibrate`, or iOS 18's switch tick).
   - `ui/island.ts` draws game status around the Dynamic Island in landscape
     (add `?island=left`, or `?island=compact` / `?island=classic`, to the URL
     to preview it on a desktop). Settings → Island size fits it to the iPhone
