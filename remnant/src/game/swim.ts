@@ -81,6 +81,8 @@ const P: WaterProbe = { surface: 0, floor: 0, depth: 0, air: true };
 const H: WaterProbe = { surface: 0, floor: 0, depth: 0, air: true };
 const FLOW = { x: 0, y: 0 };
 let muffled = false;
+/** Is the mix muffled for being under water (for checks)? */
+export const waterMuffled = () => muffled;
 
 /** The low-pass on the whole mix while the head is under; restored on surfacing. */
 export function muffleWater(on: boolean) {
@@ -246,6 +248,8 @@ export function swimControl(p: Player, dt: number) {
     b.vy = approach(b.vy, tvy, SWIM_ACCEL * dt);
   }
   if (Math.abs(mx) > 0.2 && w.dashT <= 0) p.face = sign(mx);
+  // Diving down passes through ledges under water.
+  if (my > 0.5 || (w.dirY > 0.5 && w.dashT > 0)) b.dropT = 0.1;
 
   if (p.jumpBuf > 0) {
     p.jumpBuf = 0;
@@ -327,7 +331,8 @@ export function breach(p: Player) {
 
 /** Water instead of gravity: the carried states (a swing, a parry, a stagger) drift and settle. */
 export function waterPhysics(p: Player, dt: number) {
-  if (p.state === 'swim') return;
+  // The swim state steers itself, except when a cutscene holds the controls.
+  if (p.state === 'swim' && !G.inCutscene) return;
   const w = p.water, b = p.body;
   b.vx = w.flowX + (b.vx - w.flowX) * Math.exp(-2.5 * dt);
   const tvy = (w.air ? clamp((restY(w) - b.y) * 3, -RISE, 80) : -RISE) + w.flowY;

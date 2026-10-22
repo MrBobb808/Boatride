@@ -12,6 +12,8 @@
 //         air at its top, so the head stays under (breath drains).
 //         Empty tiles (`.`) left above water under a ceiling are natural air
 //         pockets: surfacing there refills breath like any other surface.
+//         One-way ledges (`=`) inside water stay under water (swim up through
+//         them; hold down to sink through).
 // CURRENT { t: 'current', x, y, w, h, vx, vy, cond? }  (tiles; vx/vy in px/s)
 //         Water flowing through that rectangle: swimmers, Echoes, bubbles and
 //         drift are carried at (vx, vy). Swim speed is SWIM_SPEED, so a current
@@ -67,8 +69,13 @@ export interface WaterProbe {
 export function probeWater(g: Grid, x: number, y: number, out: WaterProbe): boolean {
   const col = Math.floor(x / TILE), row = Math.floor(y / TILE);
   if (g.get(col, row) !== T.Water) return false;
+  // Ledges ('=') inside a pool are under water too: the column runs on past them.
   let top = row;
-  while (top > 0 && g.get(col, top - 1) === T.Water) top--;
+  for (;;) {
+    const up = g.get(col, top - 1);
+    if (top > 0 && (up === T.Water || (up === T.OneWay && top > 1 && g.get(col, top - 2) === T.Water))) top -= up === T.Water ? 1 : 2;
+    else break;
+  }
   let bot = row;
   while (bot < g.h - 1 && g.get(col, bot + 1) === T.Water) bot++;
   out.air = top === 0 || !isSolid(g.get(col, top - 1));
