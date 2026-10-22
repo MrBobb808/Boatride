@@ -27,7 +27,7 @@ import { Proj } from './projectiles';
 import { Story } from './story';
 import { G, flag, setFlag } from './ctx';
 import { los } from './physics';
-import { TileCache, buildParallax, drawSky, drawLiveProps, drawLiquids, drawGate, BIOMES, LIVE_DECOR, type Layer } from '../render/environment';
+import { TileCache, buildParallax, useRoomLook, drawSky, drawLiveProps, drawLiquids, drawGate, BIOMES, LIVE_DECOR, type Layer } from '../render/environment';
 import { lighting } from '../render/lighting';
 import { fx, PK } from '../render/fx';
 import { glow, rgba, makeCanvas, releaseCanvas, FONT_DISPLAY, type Ctx } from '../render/draw';
@@ -41,6 +41,7 @@ import { tickStatus, powerTier, SOVEREIGN_LV } from './power';
 import { MANTLE_LV, mantleTier, mantlePerks, announceMantle } from './mantle';
 import { islandNotify, islandRipple } from '../ui/island';
 import { placeLamps } from './lamps';
+import { RoomPrep, roomGrid, chunkScale, parallaxRes } from './roomPrep';
 import { updatePending, applyUpdate } from '../core/update';
 import { FINISHERS } from './finishers';
 import { ITEMS, ECHO_SPECIES, SUPER_MOVES, type SuperId, type Rarity, type EchoOrder } from './data';
@@ -51,6 +52,8 @@ import { noteSaved } from '../ui/hud';
 import { solve, newJoints, BASE_POSE } from '../render/skeleton';
 import { drawHumanoid } from '../render/actors';
 import { SENT_DIMS, SENT_BASE, sentinelStyle, ARCH_DIMS, ARCH_BASE, archerStyle } from './enemies';
+
+const byLayer = (a: Entity, b: Entity) => a.layer - b.layer;
 
 interface Weather { x: number; y: number; vx: number; vy: number; s: number; a: number; life: number }
 interface Timer { at: number; fn: () => void }
@@ -64,7 +67,10 @@ export class World {
   story: Story;
   cache: TileCache | null = null;
   layers: Layer[] = [];
-  layerGen = -1;
+  /** The renderer bake key the layers and chunks were made under. */
+  layerKey = '';
+  /** Idle-time baking of the rooms behind this room's doors. */
+  prep = new RoomPrep();
   gateClosed = false;
   gateAmt = 0;
   hitstopT = 0;
@@ -92,6 +98,12 @@ export class World {
   rallyWarriors: { x: number; y: number; kind: 'sentinel' | 'archer'; face: number }[] = [];
   vignette: HTMLCanvasElement | null = null;
   vigGen = -1;
+  private fog: CanvasGradient | null = null;
+  private fogRoom: RoomData | null = null;
+  private fogH = 0;
+  private lowHp: CanvasGradient | null = null;
+  private lowHpGen = -1;
+  private rayGrad = new WeakMap<object, CanvasGradient>();
   deathHandled = false;
   saveT = 0;
   lostT = 0;
@@ -121,15 +133,23 @@ export class World {
     runBlessings.reset();
     G.d = derive(G.save);
     const r = ROOMS[id] ?? ROOMS.sanctuary;
-    this.cache?.dispose();
-    for (const l of this.layers) releaseCanvas(l.c);
+    // The room being left stays prepared when its door is behind the player (or it reloads);
+    // otherwise its art is freed. Then take whatever idle time prepared for the new room.
+    const prev = this.room;
+    const kept = !!prev && !!this.cache && (prev.id === r.id || r.exits.some((e) => e.to === prev.id)) && this.prep.keep(prev, this.layers, this.cache, this.grid, this.layerKey);
+    if (!kept) {
+      this.cache?.dispose();
+      for (const l of this.layers) releaseCanvas(l.c);
+    }
+    this.cache = null;
     this.layers = [];
-    this.layerGen = -1;
+    this.layerKey = '';
+    const ready = this.prep.take(r.id);
     this.room = r;
+    useRoomLook(r.biome, r.seed, r.interior);
     this.arenaSector = -1;
     this.liveDecor = r.ents.filter((e) => e.t === 'decor' && LIVE_DECOR.has(e.k));
-    this.grid = new Grid(r.rows);
-    this.applyRoomMods();
+    this.grid = roomGrid(r);
     this.ents = [];
     this.echoes = [];
     this.triggers = [];
@@ -175,6 +195,11 @@ export class World {
     G.camera.viewMultTarget = 1;
     G.camera.snapTo(p.x + p.face * 30, p.y - 40);
     this.cache = new TileCache(this.grid, r.biome, r.interior, r.seed, r.ents, this.solid, this.cond);
+    if (ready?.layers) {
+      this.layers = ready.layers;
+      this.layerKey = ready.key;
+      this.cache.scale = chunkScale();
+    }
     this.ensureCaches();
     s.room = id;
     s.spawn = spawnName;
@@ -183,28 +208,22 @@ export class World {
     if (G.save.flags.army_out !== false) this.summonEchoes(true);
     if (r.music) music.play(r.music);
     this.story.onEnter(id, first);
-  }
-
-  private applyRoomMods() {
-    const g = this.grid;
-    if (this.room.id === 'temple_steps' && flag('collapsed')) {
-      for (let y = 0; y < g.h; y++) for (let x = 0; x < g.w; x++) if (g.get(x, y) === T.Collapse) g.set(x, y, T.Empty);
-    }
-    const broken = String(G.save.flags['broken:' + this.room.id] ?? '');
-    if (broken) for (const pair of broken.split(';')) {
-      const [x, y] = pair.split(',').map(Number);
-      if (Number.isFinite(x)) g.set(x, y, T.Empty);
-    }
+    // Prepared chunks go in only now, after the story has had its say about tiles and props
+    // (and only if the story did not move on to another room meanwhile).
+    if (ready && this.room === r && this.cache) this.prep.adoptChunks(ready, this.cache, this.grid);
+    else ready?.cache.dispose();
+    if (this.room === r) this.prep.enter(r);
   }
 
   configureTrial(wave: number) {
     if (this.room.id !== 'trial_arena' || this.arenaSector === trialSector(wave)) return false;
     this.arenaSector = trialSector(wave);
     this.room = trialArena(ROOMS.trial_arena, wave);
+    useRoomLook(this.room.biome, this.room.seed, this.room.interior);
     this.grid = new Grid(this.room.rows);
     this.cache?.dispose();
     for (const l of this.layers) releaseCanvas(l.c);
-    this.layers = []; this.layerGen = -1;
+    this.layers = []; this.layerKey = '';
     this.cache = new TileCache(this.grid, this.room.biome, this.room.interior, this.room.seed, this.room.ents, this.solid, this.cond);
     this.lights = this.room.ents.filter((e): e is Extract<EntDef, { t: 'light' }> => e.t === 'light');
     this.liveDecor = this.room.ents.filter((e) => e.t === 'decor' && LIVE_DECOR.has(e.k));
@@ -283,20 +302,28 @@ export class World {
   ensureCaches() {
     const r = G.renderer;
     if (!this.cache) return;
-    if (this.layerGen !== r.generation) {
-      this.layerGen = r.generation;
+    // Only settings that change what is baked rebuild it (not every resize or settings tweak).
+    if (this.layerKey !== r.bakeKey) {
+      this.layerKey = r.bakeKey;
       for (const l of this.layers) releaseCanvas(l.c);
-      // Pixel art draws the backdrop at full art resolution; it is small enough to be cheap.
-      const res = r.pixel ? r.scale : r.tier === 2 ? r.scale * 0.5 : r.scale * 0.4;
-      this.layers = buildParallax(this.room.biome, this.room.seed, this.room.interior, r.viewH * 1.35, res);
+      this.layers = buildParallax(this.room.biome, this.room.seed, this.room.interior, r.viewH * 1.35, parallaxRes());
       this.cache.dispose();
-      this.cache.scale = r.scale * (r.pixel || r.tier === 2 ? 1 : r.tier === 1 ? 0.85 : 0.7);
+      this.cache.scale = chunkScale();
     }
   }
 
   add(e: Entity) {
     this.ents.push(e);
     return e;
+  }
+
+  /** Busy fights get every millisecond; idle baking waits for calmer frames. */
+  combatHeavy() {
+    if (this.bossActive || this.rallyT >= 0 || this.slowT > 0 || fx.ps.length > fx.cap * 0.5) return true;
+    const p = this.player;
+    let n = 0;
+    for (const e of this.ents) if (e instanceof Enemy && e.aggro && !e.remove && Math.abs(e.x - p.x) < 420 && ++n >= 3) return true;
+    return false;
   }
 
   spawnEnemy(kind: Parameters<typeof makeEnemy>[0], x: number, y: number, elite: string | null = null) {
@@ -1685,11 +1712,15 @@ export class World {
       for (let x = ox; x < r.bw; x += W - 1) ctx.drawImage(l.c, x, sy, W, H);
       // fog band between layers
     }
-    // atmospheric fog gradient
-    const fog = ctx.createLinearGradient(0, r.bh * 0.35, 0, r.bh);
-    fog.addColorStop(0, rgba(pal.fog, 0));
-    fog.addColorStop(1, rgba(pal.fog, this.room.interior ? 0.12 : 0.22));
-    ctx.fillStyle = fog;
+    // atmospheric fog gradient (screen space: rebuilt only when the room or screen changes)
+    if (!this.fog || this.fogRoom !== this.room || this.fogH !== r.bh) {
+      this.fog = ctx.createLinearGradient(0, r.bh * 0.35, 0, r.bh);
+      this.fog.addColorStop(0, rgba(pal.fog, 0));
+      this.fog.addColorStop(1, rgba(pal.fog, this.room.interior ? 0.12 : 0.22));
+      this.fogRoom = this.room;
+      this.fogH = r.bh;
+    }
+    ctx.fillStyle = this.fog;
     ctx.fillRect(0, 0, r.bw, r.bh);
 
     cam.apply(ctx);
@@ -1704,7 +1735,7 @@ export class World {
     for (const e of this.ents) if (!e.remove) list.push(e);
     for (const e of this.echoes) if (!e.remove) list.push(e);
     list.push(this.player);
-    list.sort((a, b) => a.layer - b.layer);
+    list.sort(byLayer);
     for (const e of list) {
       if (e.x < v.x - 260 || e.x > v.x + v.w + 260) continue;
       if (e.slice) this.drawSliced(ctx, e);
@@ -1730,7 +1761,8 @@ export class World {
       }
     }
     for (const e of list) e.lights?.();
-    for (const p of fx.ps) if (p.k === PK.Flame && Math.random() < 0.3) lighting.add(p.x, p.y, 30, '#ffe6a8', 0.5, 0);
+    // Flame particles light their surroundings, unless auto quality is shedding effects.
+    if (r.effects < 2) for (const p of fx.ps) if (p.k === PK.Flame && Math.random() < 0.3) lighting.add(p.x, p.y, 30, '#ffe6a8', 0.5, 0);
     const dark = this.room.dark * (this.rallyT >= 0 ? 1.2 : 1);
     lighting.render(ctx, cam, r, Math.min(0.95, dark), pal.ambient);
     cam.apply(ctx);
@@ -1740,9 +1772,14 @@ export class World {
     for (const l of this.lights) {
       if (l.k !== 'window') continue;
       const lx = l.x * TILE, ly = l.y * TILE;
-      const g = ctx.createLinearGradient(lx, ly, lx + 60, ly + 260);
-      g.addColorStop(0, rgba('#a8bcf0', 0.16));
-      g.addColorStop(1, rgba('#a8bcf0', 0));
+      // World-space gradient: one per window, made once.
+      let g = this.rayGrad.get(l);
+      if (!g) {
+        g = ctx.createLinearGradient(lx, ly, lx + 60, ly + 260);
+        g.addColorStop(0, rgba('#a8bcf0', 0.16));
+        g.addColorStop(1, rgba('#a8bcf0', 0));
+        this.rayGrad.set(l, g);
+      }
       ctx.fillStyle = g;
       ctx.beginPath();
       ctx.moveTo(lx - 14, ly - 10);
@@ -1796,11 +1833,17 @@ export class World {
     const hpFrac = G.save.hp / G.d.maxHp;
     if (hpFrac < 0.3 && this.player.state !== 'dead') {
       const a = (0.3 - hpFrac) / 0.3 * (0.35 + Math.sin(G.time * 5) * 0.12);
-      const g = ctx.createRadialGradient(r.bw / 2, r.bh / 2, r.bh * 0.35, r.bw / 2, r.bh / 2, r.bw * 0.7);
-      g.addColorStop(0, 'rgba(120,10,20,0)');
-      g.addColorStop(1, `rgba(120,10,20,${a.toFixed(3)})`);
-      ctx.fillStyle = g;
+      // One gradient per screen size; the pulse rides on globalAlpha.
+      if (!this.lowHp || this.lowHpGen !== r.generation) {
+        this.lowHp = ctx.createRadialGradient(r.bw / 2, r.bh / 2, r.bh * 0.35, r.bw / 2, r.bh / 2, r.bw * 0.7);
+        this.lowHp.addColorStop(0, 'rgba(120,10,20,0)');
+        this.lowHp.addColorStop(1, 'rgba(120,10,20,1)');
+        this.lowHpGen = r.generation;
+      }
+      ctx.globalAlpha = clamp(a, 0, 1);
+      ctx.fillStyle = this.lowHp;
       ctx.fillRect(0, 0, r.bw, r.bh);
+      ctx.globalAlpha = 1;
     }
   }
 

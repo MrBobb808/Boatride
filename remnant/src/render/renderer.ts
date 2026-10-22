@@ -33,7 +33,11 @@ export class Renderer {
   /** 0 = low, 1 = medium, 2 = high. */
   tier = 2;
   autoPenalty = 0;
+  /** Auto quality's lighter effects before any resolution drop: 0 full, 1 fewer particles, 2 also coarser lighting and no fine detail. */
+  effects = 0;
   generation = 0;
+  /** Everything a baked backdrop or tile chunk depends on; caches made under another key are stale. */
+  bakeKey = '';
   private resizeCbs: (() => void)[] = [];
 
   constructor(canvas: HTMLCanvasElement) {
@@ -113,6 +117,7 @@ export class Renderer {
     }
     this.baseViewH = vh;
     this.applyView(vh);
+    this.bakeKey = `${this.tier}|${this.pixel ? 1 : 0}|${this.scale}|${this.viewH}`;
     this.generation++;
     for (const cb of this.resizeCbs) cb();
   }

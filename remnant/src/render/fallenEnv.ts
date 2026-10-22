@@ -10,7 +10,7 @@ import { makeCanvas, rgba, mix, shade, circle, poly, type Ctx } from './draw';
 import { RNG, hash2 } from '../core/math';
 import { TILE, T, type Biome } from '../game/tiles';
 import { blob, tier, wrapNoise, fillRidge, reedSil } from './env4';
-import type { BiomePal, Layer } from './environment';
+import type { BiomePal, Layer, ParallaxSteps } from './environment';
 
 export { fallenProp, drawFallenLive, FALLEN_LIVE } from './fallenProps';
 
@@ -345,14 +345,16 @@ function fillCeil(ctx: Ctx, w: number, hy: (x: number) => number, col: string) {
 
 // ---------------------------------------------------------------- parallax
 
-export function fallenParallax(biome: FallenBiome, pal: BiomePal, seed: number, interior: boolean, viewH: number, res: number): Layer[] {
+export function* fallenParallax(biome: FallenBiome, pal: BiomePal, seed: number, interior: boolean, viewH: number, res: number): ParallaxSteps {
   const layers: Layer[] = [];
   const W = 1024, H = Math.round(viewH * 1.6);
   const mk = (fx: number, fy: number, draw: (ctx: Ctx, w: number, h: number) => void, r = res) => {
     const m = makeCanvas(W * r, H * r);
     m.ctx.scale(r, r);
     draw(m.ctx, W, H);
-    layers.push({ c: m.c, w: W, h: H, fx, fy, oy: 0, res: r });
+    const l: Layer = { c: m.c, w: W, h: H, fx, fy, oy: 0, res: r };
+    layers.push(l);
+    return l;
   };
   /** Draw something near a strip edge twice so the wrap is seamless. */
   const wrap = (x: number, reach: number, w: number, f: (x: number) => void) => {
@@ -374,7 +376,7 @@ export function fallenParallax(biome: FallenBiome, pal: BiomePal, seed: number, 
 
   if (biome === 'hunt' && !interior) {
     // Far: a range of snowfields, the thaw eating them from below.
-    mk(0.04, 0.03, (ctx, w, h) => {
+    yield mk(0.04, 0.03, (ctx, w, h) => {
       const hz = h * 0.8, n0 = wrapNoise(w, 150, seed, 4), n1 = wrapNoise(w, 50, seed + 1, 3);
       const peak = (x: number) => hz - 10 - n0(x) * h * 0.17 - n1(x) * 10;
       fillRidge(ctx, w, h, peak, '#8a90aa');
@@ -393,7 +395,7 @@ export function fallenParallax(biome: FallenBiome, pal: BiomePal, seed: number, 
       mist(ctx, w, hz + 4, '#504860', 0.35);
     }, res * 0.7);
     // Mid: the pinewood, snow on its boughs, a watchtower's lamp.
-    mk(0.12, 0.07, (ctx, w, h) => {
+    yield mk(0.12, 0.07, (ctx, w, h) => {
       const base = h * 0.86, col = pal.mid, fr = new RNG(seed + 12), n = wrapNoise(w, 120, seed + 11, 3);
       scatter(w, fr, 14, 34, 50, (x, r) => pineSil(ctx, x, base - n(x) * 12 + 4, r.range(80, 150), col, '#4a5068', r));
       scatter(w, fr, 300, 500, 30, (x) => {
@@ -410,7 +412,7 @@ export function fallenParallax(biome: FallenBiome, pal: BiomePal, seed: number, 
       mist(ctx, w, base - 6, '#5a5068', 0.3);
     });
     // Near: great dark trunks and bare limbs, totems on the path.
-    mk(0.36, 0.14, (ctx, w, h) => {
+    yield mk(0.36, 0.14, (ctx, w, h) => {
       const base = h * 0.93, col = pal.near, fr = new RNG(seed + 22);
       scatter(w, fr, 160, 260, 40, (x, r) => {
         const tw = r.range(12, 22);
@@ -438,7 +440,7 @@ export function fallenParallax(biome: FallenBiome, pal: BiomePal, seed: number, 
   }
   if (biome === 'hunt') {
     // Den walls: earth and root, bones heaped where the packs eat.
-    mk(0.06, 0.04, (ctx, w, h) => {
+    yield mk(0.06, 0.04, (ctx, w, h) => {
       const n = wrapNoise(w, 90, seed, 4), n2 = wrapNoise(w, 70, seed + 3, 3);
       fillCeil(ctx, w, (x) => h * 0.14 + n(x) * h * 0.14, '#2a1e22');
       fillRidge(ctx, w, h, (x) => h * 0.8 - n2(x) * h * 0.14, '#2a1e22');
@@ -456,7 +458,7 @@ export function fallenParallax(biome: FallenBiome, pal: BiomePal, seed: number, 
       }
       ctx.stroke();
     }, res * 0.7);
-    mk(0.16, 0.08, (ctx, w, h) => {
+    yield mk(0.16, 0.08, (ctx, w, h) => {
       const col = '#1a1216', base = h * 0.88, fr = new RNG(seed + 14);
       scatter(w, fr, 60, 140, 40, (x, r) => drip(ctx, x, 0, r.range(8, 18), r.range(50, 140), col));
       scatter(w, fr, 90, 180, 50, (x, r) => boneHeap(ctx, x, base + 2, r.range(26, 44), col, '#5a4a44', r));
@@ -479,7 +481,7 @@ export function fallenParallax(biome: FallenBiome, pal: BiomePal, seed: number, 
       });
       fillRidge(ctx, w, h, () => base, col);
     });
-    mk(0.4, 0.15, (ctx, w, h) => {
+    yield mk(0.4, 0.15, (ctx, w, h) => {
       const col = '#0a0708', fr = new RNG(seed + 24);
       scatter(w, fr, 180, 320, 40, (x, r) => drip(ctx, x, 0, r.range(16, 30), r.range(80, 160), col));
       scatter(w, fr, 140, 260, 30, (x, r) => {
@@ -497,7 +499,7 @@ export function fallenParallax(biome: FallenBiome, pal: BiomePal, seed: number, 
   }
   if (biome === 'plague' && !interior) {
     // Far: the drowned town, its plague towers lit green.
-    mk(0.04, 0.03, (ctx, w, h) => {
+    yield mk(0.04, 0.03, (ctx, w, h) => {
       const hz = h * 0.8, col = '#2a4234', fr = new RNG(seed + 2), n = wrapNoise(w, 140, seed, 3);
       fillRidge(ctx, w, h, (x) => hz - 20 - n(x) * h * 0.14, '#365640');
       scatter(w, fr, 24, 60, 30, (x, r) => houseSil(ctx, x, hz + 2, r.range(16, 26), col, '#9ad070', r));
@@ -516,7 +518,7 @@ export function fallenParallax(biome: FallenBiome, pal: BiomePal, seed: number, 
       mist(ctx, w, hz, '#5a7a48', 0.35);
     }, res * 0.7);
     // Mid: willows over the bog, their moss hanging to the water.
-    mk(0.13, 0.07, (ctx, w, h) => {
+    yield mk(0.13, 0.07, (ctx, w, h) => {
       const base = h * 0.86, col = pal.mid, fr = new RNG(seed + 12), n = wrapNoise(w, 100, seed + 13, 3);
       scatter(w, fr, 70, 150, 70, (x, r) => willowSil(ctx, x, base + 2, r.range(90, 150), col, '#4a6a3c', r));
       scatter(w, fr, 40, 90, 30, (x, r) => fungusSil(ctx, x, base + 2, r.range(18, 34), col, '#9ae060', r));
@@ -524,7 +526,7 @@ export function fallenParallax(biome: FallenBiome, pal: BiomePal, seed: number, 
       mist(ctx, w, base - 4, '#6a8a50', 0.35);
     });
     // Near: reeds and fungus stalks, dark against the haze.
-    mk(0.38, 0.15, (ctx, w, h) => {
+    yield mk(0.38, 0.15, (ctx, w, h) => {
       const base = h * 0.93, col = pal.near, fr = new RNG(seed + 22);
       scatter(w, fr, 30, 70, 40, (x, r) => reedSil(ctx, x - 20, base + 4, 46, r.range(40, 80), col, r));
       scatter(w, fr, 160, 300, 50, (x, r) => fungusSil(ctx, x, base + 2, r.range(50, 90), col, '#7ad040', r));
@@ -534,7 +536,7 @@ export function fallenParallax(biome: FallenBiome, pal: BiomePal, seed: number, 
   }
   if (biome === 'plague') {
     // The sporeworks and the hive: vats glowing through their ports, wax and pipe.
-    mk(0.06, 0.04, (ctx, w, h) => {
+    yield mk(0.06, 0.04, (ctx, w, h) => {
       const col = '#14241a', base = h * 0.84, fr = new RNG(seed + 2);
       scatter(w, fr, 120, 200, 70, (x, r) => {
         const vw = r.range(40, 64), vh = r.range(90, 150);
@@ -554,7 +556,7 @@ export function fallenParallax(biome: FallenBiome, pal: BiomePal, seed: number, 
       fillCeil(ctx, w, () => h * 0.1, col);
       fillRidge(ctx, w, h, () => base, col);
     }, res * 0.7);
-    mk(0.16, 0.08, (ctx, w, h) => {
+    yield mk(0.16, 0.08, (ctx, w, h) => {
       const col = '#0c1810', fr = new RNG(seed + 12), base = h * 0.9;
       // fragments of wax comb
       ctx.strokeStyle = '#1c3020';
@@ -583,7 +585,7 @@ export function fallenParallax(biome: FallenBiome, pal: BiomePal, seed: number, 
       });
       fillRidge(ctx, w, h, () => base, col);
     });
-    mk(0.4, 0.15, (ctx, w, h) => {
+    yield mk(0.4, 0.15, (ctx, w, h) => {
       const col = '#060c08', fr = new RNG(seed + 22);
       box(ctx, col, 0, 0, w, 14);
       scatter(w, fr, 90, 200, 20, (x, r) => box(ctx, col, x, 0, r.range(10, 18), r.range(30, 70)));
@@ -601,7 +603,7 @@ export function fallenParallax(biome: FallenBiome, pal: BiomePal, seed: number, 
   }
   if (!interior) {
     // Far: the forge-mountain, lava threading its flanks, a plume over it.
-    mk(0.04, 0.03, (ctx, w, h) => {
+    yield mk(0.04, 0.03, (ctx, w, h) => {
       const hz = h * 0.78, n = wrapNoise(w, 70, seed, 3);
       const cone = (x: number) => {
         const d = Math.abs(((x - w * 0.55 + w * 1.5) % w) - w * 0.5) / (w * 0.5);
@@ -630,7 +632,7 @@ export function fallenParallax(biome: FallenBiome, pal: BiomePal, seed: number, 
       fillRidge(ctx, w, h, (x) => hz + 4 - n(x + 300) * 20, '#2c1c20');
     }, res * 0.7);
     // Mid: foundry towers, stacks and gantries.
-    mk(0.13, 0.07, (ctx, w, h) => {
+    yield mk(0.13, 0.07, (ctx, w, h) => {
       const base = h * 0.88, col = pal.mid, fr = new RNG(seed + 12);
       scatter(w, fr, 50, 110, 60, (x, r) => foundrySil(ctx, x, base, r.range(60, 110), col, '#e08a40', r));
       fillRidge(ctx, w, h, () => base, col);
@@ -639,7 +641,7 @@ export function fallenParallax(biome: FallenBiome, pal: BiomePal, seed: number, 
       ctx.globalCompositeOperation = 'source-over';
     });
     // Near: girders and hanging hooks.
-    mk(0.38, 0.15, (ctx, w, h) => {
+    yield mk(0.38, 0.15, (ctx, w, h) => {
       const base = h * 0.94, col = pal.near, fr = new RNG(seed + 22);
       scatter(w, fr, 200, 340, 30, (x) => girder(ctx, x, 0, base, 14, col));
       box(ctx, col, 0, h * 0.08, w, 6);
@@ -658,7 +660,7 @@ export function fallenParallax(biome: FallenBiome, pal: BiomePal, seed: number, 
     return layers;
   }
   // Inside the foundry: furnace mouths in the far wall, cogs and chains, a truss overhead.
-  mk(0.06, 0.04, (ctx, w, h) => {
+  yield mk(0.06, 0.04, (ctx, w, h) => {
     const col = '#20120e', base = h * 0.86, fr = new RNG(seed + 2);
     box(ctx, col, 0, 0, w, h);
     ctx.fillStyle = '#281812';
@@ -679,7 +681,7 @@ export function fallenParallax(biome: FallenBiome, pal: BiomePal, seed: number, 
     });
     box(ctx, '#140a08', 0, base, w, h - base);
   }, res * 0.7);
-  mk(0.16, 0.08, (ctx, w, h) => {
+  yield mk(0.16, 0.08, (ctx, w, h) => {
     const col = '#100806', fr = new RNG(seed + 12), base = h * 0.92;
     scatter(w, fr, 220, 380, 70, (x, r) => cog(ctx, x, h * r.range(0.3, 0.6), r.range(30, 56), col, r.int(9, 14)));
     scatter(w, fr, 80, 160, 10, (x, r) => {
@@ -695,7 +697,7 @@ export function fallenParallax(biome: FallenBiome, pal: BiomePal, seed: number, 
     });
     fillRidge(ctx, w, h, () => base, col);
   });
-  mk(0.4, 0.15, (ctx, w, h) => {
+  yield mk(0.4, 0.15, (ctx, w, h) => {
     const col = '#060303', fr = new RNG(seed + 22);
     box(ctx, col, 0, 0, w, 10);
     box(ctx, col, 0, 30, w, 4);

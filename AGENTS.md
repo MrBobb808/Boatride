@@ -100,6 +100,14 @@ up next starts from the latest version.
   - Death respawns the player at the doorway of the current room.
 - **Guidance:** `game/guide.ts` maps quest stages to targets and draws the
   golden objective marker.
+- **Room transitions and frame rate:** `game/roomPrep.ts` bakes the rooms
+  behind the current room's doors (parallax strips through the `parallaxSteps`
+  generators, tile chunks around the arrival) in idle slices, keyed by
+  `Renderer.bakeKey`, so doors arrive without a hitch. `core/frameBudget.ts`
+  is the auto-quality ladder: fewer particles, then coarser lighting and no
+  fine detail (`Renderer.effects`), and only then a lower tier. A new parallax
+  builder must `yield mk(...)` for each strip. Checked by
+  `scripts/transitions.mjs`.
 - **Pixel art:** Settings → Art style (default Pixel) draws the world at one
   pixel per world unit and scales it up hard-edged (`Renderer.world`,
   `Renderer.present`). Elior's illustrated frames are in

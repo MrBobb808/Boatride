@@ -244,12 +244,18 @@ export function roundRect(ctx: Ctx, x: number, y: number, w: number, h: number, 
 
 // ---------- Glow sprites ----------
 
-const glowCache = new Map<string, HTMLCanvasElement>();
+/** Sprites by colour, then by size and falloff: no key strings built per glow (hundreds a frame). */
+const glowCache = new Map<string, Map<number, HTMLCanvasElement>>();
 
 /** Radial glow sprite: drawn with drawImage, cheap and pretty. size = diameter in px. */
 export function glowSprite(color: string, size = 128, falloff = 2): HTMLCanvasElement {
-  const key = color + '|' + size + '|' + falloff;
-  let c = glowCache.get(key);
+  let byShape = glowCache.get(color);
+  if (!byShape) {
+    byShape = new Map();
+    glowCache.set(color, byShape);
+  }
+  const key = size * 1024 + Math.round(falloff * 100);
+  let c = byShape.get(key);
   if (c) return c;
   const m = makeCanvas(size, size);
   const g = m.ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
@@ -263,7 +269,7 @@ export function glowSprite(color: string, size = 128, falloff = 2): HTMLCanvasEl
   m.ctx.fillStyle = g;
   m.ctx.fillRect(0, 0, size, size);
   c = m.c;
-  glowCache.set(key, c);
+  byShape.set(key, c);
   return c;
 }
 

@@ -20,6 +20,9 @@ export class Lighting {
   lights: Light[] = [];
   private pool: Light[] = [];
   private div = 4;
+  private fillKey = '';
+  private fillDark = -1;
+  private fill = '';
 
   constructor() {
     const m = makeCanvas(4, 4);
@@ -40,7 +43,8 @@ export class Lighting {
 
   render(ctx: Ctx, cam: Camera, r: Renderer, darkness: number, tint: string) {
     if (darkness <= 0.01) return;
-    const div = r.pixel ? 2 : r.tier === 0 ? 6 : 4;
+    // Auto quality's second rung renders the darkness coarser before any resolution drop.
+    const div = (r.pixel ? 2 : r.tier === 0 ? 6 : 4) * (r.effects >= 2 ? 1.5 : 1);
     const w = Math.max(1, Math.ceil(r.bw / div)), h = Math.max(1, Math.ceil(r.bh / div));
     if (this.c.width !== w || this.c.height !== h) {
       this.c.width = w;
@@ -50,9 +54,15 @@ export class Lighting {
     const lc = this.ctx;
     lc.globalCompositeOperation = 'source-over';
     lc.setTransform(1, 0, 0, 1, 0, 0);
-    const [tr, tg, tb] = parseColor(tint);
+    if (tint !== this.fillKey || darkness !== this.fillDark) {
+      // Rebuilt only when the room's darkness changes, not every frame.
+      const [tr, tg, tb] = parseColor(tint);
+      this.fill = `rgba(${tr},${tg},${tb},${darkness.toFixed(3)})`;
+      this.fillKey = tint;
+      this.fillDark = darkness;
+    }
     lc.clearRect(0, 0, w, h);
-    lc.fillStyle = `rgba(${tr},${tg},${tb},${darkness.toFixed(3)})`;
+    lc.fillStyle = this.fill;
     lc.fillRect(0, 0, w, h);
     lc.globalCompositeOperation = 'destination-out';
     const s = cam.s / div;

@@ -9,7 +9,7 @@ import { buildParallaxCh2, drawDuskSky, drawPropCh2, drawPitch } from './env2';
 import { buildParallaxCh3, drawValleySky, drawCaveSky, drawVoidSky, drawHiveWall, drawSolidCh3, drawOneWayCh3, drawLiquidCh3, drawPropCh3, drawLivePropCh3, isCh3, LIVE_CH3 } from './env3';
 import { DEN_SEED, FEAST_SEED, drawDenWall, drawDenTile } from './env4';
 import { buildParallaxCh4, drawSkyCh4, drawSolidCh4, drawOneWayCh4, drawSpikesCh4, drawLiquidCh4, drawPropCh4, drawLivePropCh4, isCh4, LIVE_CH4, BACKDROP_CH4 } from './env4';
-import { buildParallaxCh6, drawSkyCh6, drawSolidCh6, drawOneWayCh6, drawSpikesCh6, drawLiquidCh6, drawPropCh6, drawLivePropCh6, isCh6, LIVE_CH6, BACKDROP_CH6 } from './env6';
+import { buildParallaxCh6, useRoomCh6, drawSkyCh6, drawSolidCh6, drawOneWayCh6, drawSpikesCh6, drawLiquidCh6, drawPropCh6, drawLivePropCh6, isCh6, LIVE_CH6, BACKDROP_CH6 } from './env6';
 import { fallenSky, fallenParallax, fallenProp, drawFallenLive, FALLEN_LIVE, isFallen, drawSolidFallen, drawOneWayFallen, drawSpikesFallen, drawLiquidFallen } from './fallenEnv';
 import { buildParallaxCh5, drawSkyCh5, drawSolidCh5, drawOneWayCh5, drawSpikesCh5, drawLiquidCh5, drawPropCh5, drawLivePropCh5, isCh5, LIVE_CH5, BACKDROP_CH5 } from './env5';
 
@@ -148,14 +148,39 @@ export interface Layer {
   res: number;
 }
 
+/** A parallax bake that pauses after each strip (yielding it), so idle time can spread it over several slices. */
+export type ParallaxSteps = Generator<Layer, Layer[], void>;
+
+const look: { biome: Biome; seed: number; interior: boolean } = { biome: 'sanctuary', seed: 0, interior: false };
+
+/** The live room's look, which some chapters' sky, tiles and props share while drawing. */
+export function useRoomLook(biome: Biome, seed: number, interior: boolean) {
+  look.biome = biome;
+  look.seed = seed;
+  look.interior = interior;
+  if (isCh6(biome)) useRoomCh6(biome, seed, interior);
+}
+
+/** Bakes done on the spot, in a frame, because nothing prepared them (debug API and browser checks). */
+export const bakeStats = { parallax: 0, lateChunks: 0 };
+
 export function buildParallax(biome: Biome, seed: number, interior: boolean, viewH: number, res: number): Layer[] {
+  bakeStats.parallax++;
+  const it = parallaxSteps(biome, seed, interior, viewH, res);
+  for (;;) {
+    const s = it.next();
+    if (s.done) return s.value;
+  }
+}
+
+export function* parallaxSteps(biome: Biome, seed: number, interior: boolean, viewH: number, res: number): ParallaxSteps {
   const pal = BIOMES[biome];
-  if (isFallen(biome)) return fallenParallax(biome, pal, seed, interior, viewH, res);
-  if (biome === 'plain' || biome === 'tower') return buildParallaxCh2(biome, pal, seed, viewH, res);
-  if (isCh3(biome)) return buildParallaxCh3(biome, pal, seed, viewH, res);
-  if (isCh4(biome)) return buildParallaxCh4(biome, pal, seed, viewH, res);
-  if (isCh5(biome)) return buildParallaxCh5(biome, pal, seed, interior, viewH, res);
-  if (isCh6(biome)) return buildParallaxCh6(biome, pal, seed, interior, viewH, res);
+  if (isFallen(biome)) return yield* fallenParallax(biome, pal, seed, interior, viewH, res);
+  if (biome === 'plain' || biome === 'tower') return yield* buildParallaxCh2(biome, pal, seed, viewH, res);
+  if (isCh3(biome)) return yield* buildParallaxCh3(biome, pal, seed, viewH, res);
+  if (isCh4(biome)) return yield* buildParallaxCh4(biome, pal, seed, viewH, res);
+  if (isCh5(biome)) return yield* buildParallaxCh5(biome, pal, seed, interior, viewH, res);
+  if (isCh6(biome)) return yield* buildParallaxCh6(biome, pal, seed, interior, viewH, res);
   const layers: Layer[] = [];
   const rng = new RNG(seed);
   const W = 1024;
@@ -164,11 +189,13 @@ export function buildParallax(biome: Biome, seed: number, interior: boolean, vie
     const m = makeCanvas(W * r, H * r);
     m.ctx.scale(r, r);
     draw(m.ctx, W, H);
-    layers.push({ c: m.c, w: W, h: H, fx, fy, oy: 0, res: r });
+    const l: Layer = { c: m.c, w: W, h: H, fx, fy, oy: 0, res: r };
+    layers.push(l);
+    return l;
   };
   if (!interior) {
     // Distant mountains + ruined spires of a fallen kingdom.
-    mk(0.08, 0.04, (ctx, w, h) => {
+    yield mk(0.08, 0.04, (ctx, w, h) => {
       ctx.fillStyle = pal.far;
       ctx.beginPath();
       ctx.moveTo(0, h);
@@ -191,7 +218,7 @@ export function buildParallax(biome: Biome, seed: number, interior: boolean, vie
         }
       }
     }, res * 0.6);
-    mk(0.25, 0.1, (ctx, w, h) => {
+    yield mk(0.25, 0.1, (ctx, w, h) => {
       // Ruined city skyline: towers, broken domes, arches.
       const base = h * 0.7;
       ctx.fillStyle = pal.mid;
@@ -229,7 +256,7 @@ export function buildParallax(biome: Biome, seed: number, interior: boolean, vie
         x += bw + rng.range(-6, 18);
       }
     });
-    mk(0.5, 0.2, (ctx, w, h) => {
+    yield mk(0.5, 0.2, (ctx, w, h) => {
       // Burnt houses & dead trees, closer and darker.
       const base = h * 0.82;
       ctx.fillStyle = pal.near;
@@ -258,7 +285,7 @@ export function buildParallax(biome: Biome, seed: number, interior: boolean, vie
   } else {
     const isCrypt = biome === 'crypt';
     const isSanct = biome === 'sanctum' || biome === 'sanctuary';
-    mk(0.15, 0.08, (ctx, w, h) => {
+    yield mk(0.15, 0.08, (ctx, w, h) => {
       // Vast arches and columns lost in darkness.
       const col = biome === 'sanctum' ? '#2a1c10' : pal.far;
       ctx.fillStyle = col;
@@ -282,7 +309,7 @@ export function buildParallax(biome: Biome, seed: number, interior: boolean, vie
         }
       }
     }, res * 0.6);
-    mk(0.4, 0.18, (ctx, w, h) => {
+    yield mk(0.4, 0.18, (ctx, w, h) => {
       const col = pal.mid;
       ctx.fillStyle = col;
       for (let x = 0; x < w; x += 160) {
@@ -378,10 +405,25 @@ export function drawSky(ctx: Ctx, pal: BiomePal, w: number, h: number, interior:
 // ---------------------------------------------------------------- Tiles & props
 
 export class TileCache {
-  chunks = new Map<string, HTMLCanvasElement>();
+  /** Baked chunks by chunkKey(cx, cy): numeric keys keep the per-frame lookups allocation-free. */
+  chunks = new Map<number, HTMLCanvasElement>();
   static CH = 256;
+  /** Wall-clock budget for baking missing chunks inside one frame; the rest wait for the next frames. */
+  static frameBudgetMs = 4;
   scale = 1;
+  private miss: number[] = [];
   constructor(public grid: Grid, public biome: Biome, public interior: boolean, public seed: number, public ents: EntDef[], public solidFn: (t: T) => boolean, public cond: (c?: string, n?: string) => boolean) {}
+
+  static key(cx: number, cy: number) {
+    return cy * 4096 + cx;
+  }
+
+  get cols() {
+    return Math.ceil((this.grid.w * TILE) / TileCache.CH);
+  }
+  get rows() {
+    return Math.ceil((this.grid.h * TILE) / TileCache.CH);
+  }
 
   dispose() {
     for (const c of this.chunks.values()) releaseCanvas(c);
@@ -392,8 +434,12 @@ export class TileCache {
     this.dispose();
   }
 
+  has(cx: number, cy: number) {
+    return this.chunks.has(TileCache.key(cx, cy));
+  }
+
   get(cx: number, cy: number): HTMLCanvasElement {
-    const key = cx + ',' + cy;
+    const key = TileCache.key(cx, cy);
     let c = this.chunks.get(key);
     if (!c) {
       c = this.bake(cx, cy);
@@ -402,25 +448,60 @@ export class TileCache {
     return c;
   }
 
+  /** Backing pixels of one chunk at the current scale (memory accounting). */
+  chunkPx() {
+    const n = Math.ceil(TileCache.CH * this.scale);
+    return n * n;
+  }
+
   draw(ctx: Ctx, view: { x: number; y: number; w: number; h: number }) {
     const CH = TileCache.CH;
-    const x0 = Math.max(0, Math.floor(view.x / CH)), x1 = Math.floor((view.x + view.w) / CH);
-    const y0 = Math.max(0, Math.floor(view.y / CH)), y1 = Math.floor((view.y + view.h) / CH);
-    const maxX = Math.ceil((this.grid.w * TILE) / CH) - 1, maxY = Math.ceil((this.grid.h * TILE) / CH) - 1;
-    for (let cy = y0; cy <= Math.min(y1, maxY); cy++)
-      for (let cx = x0; cx <= Math.min(x1, maxX); cx++) {
-        const c = this.get(cx, cy);
-        ctx.drawImage(c, cx * CH, cy * CH, CH + 0.5, CH + 0.5);
+    const x0 = Math.max(0, Math.floor(view.x / CH)), x1 = Math.min(Math.floor((view.x + view.w) / CH), this.cols - 1);
+    const y0 = Math.max(0, Math.floor(view.y / CH)), y1 = Math.min(Math.floor((view.y + view.h) / CH), this.rows - 1);
+    const miss = this.miss;
+    miss.length = 0;
+    for (let cy = y0; cy <= y1; cy++)
+      for (let cx = x0; cx <= x1; cx++) {
+        const c = this.chunks.get(TileCache.key(cx, cy));
+        if (c) ctx.drawImage(c, cx * CH, cy * CH, CH + 0.5, CH + 0.5);
+        else miss.push(TileCache.key(cx, cy));
       }
+    if (!miss.length) return;
+    // Bake what is missing nearest the view's centre first, within a frame budget, so
+    // arriving in an unprepared room (or a fast scroll) spreads its bakes over a few frames.
+    const mx = (view.x + view.w / 2) / CH - 0.5, my = (view.y + view.h / 2) / CH - 0.5;
+    const d = (k: number) => {
+      const dx = (k % 4096) - mx, dy = Math.floor(k / 4096) - my;
+      return dx * dx + dy * dy;
+    };
+    if (miss.length > 1) miss.sort((a, b) => d(a) - d(b));
+    const t0 = performance.now();
+    for (let i = 0; i < miss.length; i++) {
+      if (i > 0 && performance.now() - t0 > TileCache.frameBudgetMs) break;
+      const k = miss[i], cx = k % 4096, cy = Math.floor(k / 4096);
+      bakeStats.lateChunks++;
+      ctx.drawImage(this.get(cx, cy), cx * CH, cy * CH, CH + 0.5, CH + 0.5);
+    }
   }
 
   bakeAll() {
-    const CH = TileCache.CH;
-    const nx = Math.ceil((this.grid.w * TILE) / CH), ny = Math.ceil((this.grid.h * TILE) / CH);
+    const nx = this.cols, ny = this.rows;
     for (let y = 0; y < ny; y++) for (let x = 0; x < nx; x++) this.get(x, y);
   }
 
   private bake(cx: number, cy: number) {
+    // A neighbour baked ahead borrows the shared Chapter VI look for the bake, then hands it back.
+    const biome = this.biome;
+    const other = isCh6(biome) && (biome !== look.biome || this.seed !== look.seed || this.interior !== look.interior);
+    if (other) useRoomCh6(biome, this.seed, this.interior);
+    try {
+      return this.bakeChunk(cx, cy);
+    } finally {
+      if (other) useRoomLook(look.biome, look.seed, look.interior);
+    }
+  }
+
+  private bakeChunk(cx: number, cy: number) {
     const CH = TileCache.CH;
     const s = this.scale;
     const m = makeCanvas(CH * s, CH * s);

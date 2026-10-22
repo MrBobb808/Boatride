@@ -46,6 +46,7 @@ jobs:
       - run: node scripts/background-audio.mjs
       - run: node scripts/power-walls.mjs
       - run: node scripts/fallen-campaign.mjs
+      - run: node scripts/transitions.mjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:
