@@ -282,6 +282,8 @@ function setupDebug() {
       return out;
     },
     load: (slot: number) => loadGameSlot(slot),
+    // Scripted fights drive the same virtual buttons as the touch controls.
+    input,
     ios: isIOS(),
   };
   (window as unknown as { __remnant: typeof api }).__remnant = api;

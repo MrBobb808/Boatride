@@ -39,7 +39,7 @@ export const CURVE: readonly ChapterCurve[] = [
   // The Fallen Crowns: bosses sized to ~200–230 average blows of a balanced
   // build at the arrival level on Hard, and ~6 heavy blows to fell Elior.
   { level: 34, foeHp: 10.5, foeDmg: 3.9, xp: 7.4, clearXp: 22000, bossHp: 96000, bossDmg: 210 }, // VII · Varkhos
-  { level: 40, foeHp: 13, foeDmg: 4.4, xp: 9.0, clearXp: 29000, bossHp: 120000, bossDmg: 250 }, // VIII · Morvane
+  { level: 40, foeHp: 13, foeDmg: 4.4, xp: 9.0, clearXp: 29000, bossHp: 120000, bossDmg: 230 }, // VIII · Morvane
   { level: 46, foeHp: 15.5, foeDmg: 4.9, xp: 10.8, clearXp: 32000, bossHp: 150000, bossDmg: 290 }, // IX · Azkar
   { level: 52, foeHp: 18, foeDmg: 5.4, xp: 12.6, clearXp: 34000, bossHp: 180000, bossDmg: 330 }, // X · the Prince of Grecia
 ];
