@@ -7,6 +7,7 @@ import { RNG, hash2 } from '../core/math';
 import { flag } from '../game/ctx';
 import { TILE, type EntDef } from '../game/tiles';
 import { blob, solidify } from './env4';
+import { greciaProp, drawGreciaLive, GRECIA_LIVE } from './envGrecia';
 
 type Decor = Extract<EntDef, { t: 'decor' }>;
 type PropFn = (ctx: Ctx, e: Decor, rng: RNG) => void;
@@ -722,10 +723,11 @@ const PROPS: Record<string, PropFn> = {
 };
 
 /** Kinds with a moving part drawn every frame (their static part, if any, is baked). */
-export const FALLEN_LIVE: ReadonlySet<string> = new Set(['hunt_gate', 'plague_gate', 'cinders_gate', 'hunt_banner', 'hunt_fire', 'plague_lantern', 'plague_brood', 'cinders_crucible', 'cinders_chain']);
+export const FALLEN_LIVE: ReadonlySet<string> = new Set(['hunt_gate', 'plague_gate', 'cinders_gate', 'hunt_banner', 'hunt_fire', 'plague_lantern', 'plague_brood', 'cinders_crucible', 'cinders_chain', ...GRECIA_LIVE]);
 
 /** Static part of a Chapter VII–IX prop, baked with the tiles. False for other kinds. */
 export function fallenProp(ctx: Ctx, e: Decor): boolean {
+  if (e.k.startsWith('grecia_')) return greciaProp(ctx, e);
   if (!e.k.startsWith('hunt_') && !e.k.startsWith('plague_') && !e.k.startsWith('cinders_')) return false;
   const f = PROPS[e.k];
   if (!f) return FALLEN_LIVE.has(e.k);
@@ -739,6 +741,7 @@ export function fallenProp(ctx: Ctx, e: Decor): boolean {
 
 /** Moving parts: banners, flames, lantern light, the brood's pulse, chains, and the boundary seals. */
 export function drawFallenLive(ctx: Ctx, e: Decor, t: number) {
+  if (e.k.startsWith('grecia_')) return drawGreciaLive(ctx, e, t);
   const x = e.x * TILE, y = e.y * TILE, ph = hash2(e.x | 0, e.y | 0, 791) * TAU;
   ctx.save();
   ctx.translate(x, y);

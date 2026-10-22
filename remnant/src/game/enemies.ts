@@ -262,7 +262,8 @@ export abstract class Enemy extends Entity {
     // Chapter II foes are tougher, and worth more.
     const rid = G.world?.room?.id ?? '';
     this.tier = chapterForRoom(rid)?.n ?? (CH6_ROOM_IDS.has(rid) ? 6 : CH5_ROOM_IDS.has(rid) ? 5 : CH4_ROOM_IDS.has(rid) ? 4 : CH3_ROOM_IDS.has(rid) ? 3 : CH2_ROOM_IDS.has(rid) ? 2 : 1);
-    const th = [1, 1, 1.8, 3.0, 4.4, 6.2, 8.4, 10.5, 13, 15.5][this.tier], td = [1, 1, 1.4, 1.9, 2.4, 2.9, 3.4, 3.9, 4.4, 4.9][this.tier];
+    // One entry per chapter; a chapter past the end of the table takes the last one.
+    const th = [1, 1, 1.8, 3.0, 4.4, 6.2, 8.4, 10.5, 13, 15.5, 18][Math.min(this.tier, 10)], td = [1, 1, 1.4, 1.9, 2.4, 2.9, 3.4, 3.9, 4.4, 4.9, 5.4][Math.min(this.tier, 10)];
     this.maxHp = this.hp = Math.round(this.stats.hp * ng * em * th);
     this.dmg = this.stats.dmg * ng * (elite ? 1.15 : 1) * td;
     this.maxPoise = this.poise = this.stats.poise * (elite ? 1.6 : 1);
