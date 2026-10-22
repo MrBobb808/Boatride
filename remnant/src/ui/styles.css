@@ -363,14 +363,19 @@ textarea.code { width: 100%; height: 70px; background: rgba(10,8,14,0.9); color:
 .tce-stick .stick-knob { pointer-events: none; }
 .tce-stick .lbl { position: absolute; bottom: -15px; left: 50%; transform: translateX(-50%); font-family: var(--font-display); font-size: 8.5px; letter-spacing: 0.12em; white-space: nowrap; pointer-events: none; text-transform: uppercase; }
 .tce-island { position: absolute; border: 1.5px dashed rgba(255,110,110,0.55); border-radius: 18px; background: rgba(255,60,60,0.08); pointer-events: none; }
-.tce-panel { position: absolute; left: 50%; top: max(8px, env(safe-area-inset-top, 0px)); transform: translateX(-50%); width: min(400px, 46vw); padding: 8px 10px; display: flex; flex-direction: column; gap: 4px;
-  background: rgba(10,8,15,0.92); border: 1px solid var(--line); font-size: 12px; color: var(--bone); }
-.tce-panel.low { top: auto; bottom: max(8px, env(safe-area-inset-bottom, 0px)); }
-.tce-head { display: flex; justify-content: space-between; gap: 8px; color: var(--muted); }
+.tce-panel { position: absolute; left: 50%; top: max(6px, env(safe-area-inset-top, 0px)); transform: translateX(-50%); width: min(600px, 66vw); padding: 6px 10px 4px; display: flex; flex-direction: column; gap: 2px;
+  background: rgba(10,8,15,0.92); border: 1px solid var(--line); font-size: 12px; color: var(--bone); transition: opacity 0.15s; }
+.tce-panel.low { top: auto; bottom: max(6px, env(safe-area-inset-bottom, 0px)); }
+/* Out of the way while a control is dragged past it. */
+.tce-panel.ghost { opacity: 0.2; pointer-events: none; }
+.tce-head { display: flex; align-items: center; gap: 6px; }
+.tce-sel { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.2; }
+.tce-sel span { color: var(--muted); font-size: 10.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tce-name { color: var(--gold-hi); font-family: var(--font-display); letter-spacing: 0.06em; font-weight: 600; white-space: nowrap; }
-.tce-row { display: grid; grid-template-columns: 54px 1fr; align-items: center; gap: 8px; }
-.tce-row input { width: 100%; }
-.tce-acts { display: flex; gap: 6px; justify-content: space-between; }
+.tce-sliders { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.tce-sliders label { display: flex; flex-direction: column; min-width: 0; }
+.tce-sliders span { color: var(--muted); font-size: 10.5px; line-height: 1; margin-top: 2px; }
+.tce-sliders input { width: 100%; height: 26px; margin: 0; }
 
 /* Fingers, not a mouse: keep every control at least about 38-40px tall. */
 @media (pointer: coarse) {

@@ -43,20 +43,24 @@ export function openTouchEditor(onClose?: () => void) {
   const size = h('input', { type: 'range', min: String(S_MIN), max: String(S_MAX), step: '0.05', 'data-nav': '', 'data-k': 'ed_size', 'aria-label': 'Size of the selected control' }) as HTMLInputElement;
   const all = h('input', { type: 'range', min: '0.8', max: '1.3', step: '0.05', 'data-nav': '', 'data-k': 'ed_all', 'aria-label': 'Size of every control' }) as HTMLInputElement;
   const fade = h('input', { type: 'range', min: '0.3', max: '1', step: '0.05', 'data-nav': '', 'data-k': 'ed_op', 'aria-label': 'Opacity' }) as HTMLInputElement;
+  // A slim bar: what is selected and the three actions, then the sliders side by side,
+  // so most of a 390 px tall screen stays free for dragging.
   const panel = h('div', { class: 'tce-panel' },
-    h('div', { class: 'tce-head' }, h('span', null, 'Drag to move · pinch to resize'), selName),
-    h('label', { class: 'tce-row' }, h('span', null, 'Size'), size),
-    h('label', { class: 'tce-row' }, h('span', null, 'All'), all),
-    h('label', { class: 'tce-row' }, h('span', null, 'Opacity'), fade),
-    h('div', { class: 'tce-acts' },
-      btn('Reset to default', () => {
+    h('div', { class: 'tce-head' },
+      h('div', { class: 'tce-sel' }, selName, h('span', null, 'Drag to move · pinch to resize')),
+      btn('Reset', () => {
         for (const k of Object.keys(work)) delete work[k];
         scale = TOUCH_DEFAULTS.touchScale;
         opacity = TOUCH_DEFAULTS.touchOpacity;
         place();
-      }, 'btn small', { 'data-k': 'ed_reset' }),
-      btn('Move panel', () => panel.classList.toggle('low'), 'btn small', { 'data-k': 'ed_panel' }),
+      }, 'btn small', { 'data-k': 'ed_reset', 'aria-label': 'Reset to default' }),
+      btn('Move bar', () => panel.classList.toggle('low'), 'btn small', { 'data-k': 'ed_panel' }),
       btn('Done', () => done(), 'btn small primary', { 'data-k': 'ed_done' }),
+    ),
+    h('div', { class: 'tce-sliders' },
+      h('label', null, h('span', null, 'This control'), size),
+      h('label', null, h('span', null, 'All controls'), all),
+      h('label', null, h('span', null, 'Opacity'), fade),
     ),
   );
   const el = h('div', { class: 'tc-editor' }, stage, panel);
@@ -148,6 +152,7 @@ export function openTouchEditor(onClose?: () => void) {
       dragId = e.pointerId;
       offX = e.clientX - c.x;
       offY = e.clientY - c.y;
+      panel.classList.add('ghost');
       place();
     } else if (pts.size === 2) {
       dragId = null;
@@ -173,6 +178,7 @@ export function openTouchEditor(onClose?: () => void) {
     if (!pts.delete(e.pointerId)) return;
     if (e.pointerId === dragId) dragId = null;
     if (pts.size < 2) pinch0 = 0;
+    if (!pts.size) panel.classList.remove('ghost');
   };
   stage.addEventListener('pointerup', lift);
   stage.addEventListener('pointercancel', lift);

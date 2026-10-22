@@ -149,6 +149,8 @@ try {
     await page.locator('.menu .tab', { hasText: 'Settings' }).tap();
     await page.locator('[data-k=tc_edit]').tap();
     await page.locator('.tc-editor').waitFor();
+    await page.waitForTimeout(150);
+    await page.screenshot({ path: `qa/touch-editor-default-${tag}.png` });
     const ed = id => page.evaluate(id => { const r = document.querySelector(`.tc-editor [data-ctl=${id}]`).getBoundingClientRect(); return { cx: r.left + r.width / 2, cy: r.top + r.height / 2, r: r.width / 2 }; }, id);
     const drag = async (id, x, y) => {
       const a = await ed(id);
@@ -199,6 +201,17 @@ try {
     await page.evaluate(() => { const p = window.__remnant.G.world.player; p.body.vy = 0; p.body.onGround = true; });
     await page.locator('#touch [data-ctl=jump]').tap();
     await page.waitForFunction(() => window.__remnant.G.world.player.body.vy < 0);
+    // The moved stick still walks, from where it now rests.
+    await page.waitForFunction(() => window.__remnant.G.world.player.body.onGround);
+    const home = await page.evaluate(() => { const r = document.querySelector('#touch .stick-base').getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; });
+    assert.ok(home.x > vp.width * 0.4, `${tag}: stick rests where it was dragged (${home.x})`);
+    const px0 = await page.evaluate(() => window.__remnant.G.world.player.x);
+    await touch('touchStart', [[home.x, home.y]]);
+    await touch('touchMove', [[home.x - 50, home.y]]);
+    await page.waitForTimeout(300);
+    await touch('touchEnd', []);
+    assert.ok(await page.evaluate(() => window.__remnant.G.world.player.x) < px0 - 15, `${tag}: moved stick walks left`);
+    await page.screenshot({ path: `qa/touch-custom-${tag}.png` });
 
     // 5. Reset restores the default layout.
     await page.locator('#touch [data-ctl=menu]').tap();
