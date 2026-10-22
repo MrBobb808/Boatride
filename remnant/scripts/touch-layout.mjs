@@ -72,6 +72,8 @@ const rects = page => page.evaluate(() => Object.fromEntries([...document.queryS
   const r = e.getBoundingClientRect();
   return [e.dataset.ctl, { cx: r.left + r.width / 2, cy: r.top + r.height / 2, r: r.width / 2, shown: !e.classList.contains('hidden') }];
 })));
+/** Elior standing ready, so a jump press is not swallowed by the end of a swing, dodge or parry. */
+const settle = page => page.waitForFunction(() => { const p = window.__remnant.G.world.player; return p.state === 'free' && p.body.onGround; }, null, { timeout: 5000 });
 const isDown = (page, id) => page.evaluate(id => document.querySelector(`#touch [data-ctl=${id}]`).classList.contains('down'), id);
 /** A point outside the drawn button, within its reach, that no other button is nearer to. */
 function offCentre(all, id) {
@@ -114,9 +116,10 @@ try {
     assert.equal(await page.evaluate(() => document.querySelectorAll('#touch .tc.down').length), 0, 'Far tap presses nothing');
     await touch('touchEnd', []);
     const jumpPt = offCentre(def, 'jump');
-    await page.evaluate(() => { const p = window.__remnant.G.world.player; p.body.vy = 0; p.body.onGround = true; });
-    await page.touchscreen.tap(jumpPt.x, jumpPt.y);
+    await settle(page);
+    await touch('touchStart', [[jumpPt.x, jumpPt.y]]);
     await page.waitForFunction(() => window.__remnant.G.world.player.body.vy < 0);
+    await touch('touchEnd', []);
 
     // 2. Multi-touch: walk right with the stick while attacking and jumping.
     await page.waitForFunction(() => window.__remnant.G.world.player.body.onGround);
@@ -201,9 +204,10 @@ try {
     await touch('touchStart', [[jp.x, jp.y]]);
     assert.ok(await isDown(page, 'jump'), `${tag}: moved jump answers an off-centre touch`);
     await touch('touchEnd', []);
-    await page.evaluate(() => { const p = window.__remnant.G.world.player; p.body.vy = 0; p.body.onGround = true; });
-    await page.locator('#touch [data-ctl=jump]').tap();
+    await settle(page);
+    await touch('touchStart', [[after.jump.cx, after.jump.cy]]);
     await page.waitForFunction(() => window.__remnant.G.world.player.body.vy < 0);
+    await touch('touchEnd', []);
     // The moved stick still walks, from where it now rests.
     await page.waitForFunction(() => window.__remnant.G.world.player.body.onGround);
     const home = await page.evaluate(() => { const r = document.querySelector('#touch .stick-base').getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; });
