@@ -14,7 +14,10 @@ up next starts from the latest version.
 3. Merging deploys automatically. GitHub Actions builds `remnant/` and
    publishes it to GitHub Pages: https://mrbobb808.github.io/Boatride/.
    Installed copies on the owner's iPhone pick up the new build by themselves
-   (see `remnant/src/core/update.ts`).
+   (see `remnant/src/core/update.ts`). Settings shows the installed build and
+   provides Check for updates, which saves and resumes the current slot.
+   Explicit update navigations wait for the fresh document on slow connections;
+   failed refreshes retry after a cooldown.
 
 ## What is in the repository
 
@@ -106,8 +109,14 @@ up next starts from the latest version.
   golden objective marker.
 - **Pixel art:** Settings → Art style (default Pixel) draws the world at one
   pixel per world unit and scales it up hard-edged (`Renderer.world`,
-  `Renderer.present`). Elior's illustrated frames are in
-  `assets/elior-sprites.png` (`render/heroSprites.ts`, see `SPRITE_ART.md`).
+  `Renderer.present`). Characters come from two sources:
+  - Elior and the foes and Echoes that have sheets use the PNG sprite atlases
+    (`render/heroSprites.ts`, `render/creatureSprites.ts`; see
+    `SPRITE_ART.md` and `ELIOR_UPGRADE.md`).
+  - Every other humanoid that reaches `drawHumanoid` (NPCs, Echoes and foes
+    without a sheet, human-sized bosses, Elior when his atlas cannot show his
+    gear) is painted pixel by pixel from its skeleton by
+    `render/pixelHero.ts`. See `PIXEL_ART.md`.
   World drawing must use `r.bw`/`r.bh` (the world target); the HUD uses
   `r.px` and CSS pixels; `r.cw`/`r.ch` is the screen canvas.
 - **UI:** `ui/` holds the HUD, menus, touch controls, dialogue and title

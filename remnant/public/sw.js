@@ -35,11 +35,14 @@ self.addEventListener('fetch', (e) => {
     });
     // Keep the refresh alive even when the timeout has already served an offline copy.
     e.waitUntil(network.then(() => {}, () => {}));
+    const offline = () => caches.match('./index.html').then((r) => r || caches.match('./'));
+    // Explicit update reloads must finish downloading the new game, even on a slow connection.
+    if (url.searchParams.has('v')) { e.respondWith(network.catch(offline)); return; }
     e.respondWith(
       Promise.race([
         network,
         new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 3500)),
-      ]).catch(() => caches.match('./index.html').then((r) => r || caches.match('./'))),
+      ]).catch(offline),
     );
     return;
   }

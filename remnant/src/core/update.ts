@@ -6,8 +6,10 @@
 
 const RESUME = 'remnant-resume-slot';
 const TRIED = 'remnant-update-tried';
+const TRIED_AT = 'remnant-update-tried-at';
+const RETRY_MS = 60_000;
 
-const current = () => document.querySelector('meta[name="remnant-build"]')?.getAttribute('content') ?? '';
+export const currentBuild = () => document.querySelector('meta[name="remnant-build"]')?.getAttribute('content') ?? '';
 
 let pending = false;
 let checking = false;
@@ -17,10 +19,10 @@ let nextBuild = '';
 /** True once a newer build has been found and is waiting for a safe moment. */
 export const updatePending = () => pending;
 
-export async function checkForUpdate(): Promise<boolean> {
-  const here = current();
+export async function checkForUpdate(force = false): Promise<boolean> {
+  const here = currentBuild();
   if (!here || checking || pending) return pending;
-  if (Date.now() - lastCheck < 60_000) return false;
+  if (!force && Date.now() - lastCheck < RETRY_MS) return false;
   if (location.protocol !== 'https:' && location.hostname !== 'localhost') return false;
   if (window.top !== window) return false; // embedded previews update with their host
   checking = true;
@@ -30,11 +32,12 @@ export async function checkForUpdate(): Promise<boolean> {
     if (!res.ok) return false;
     const info = await res.json() as { build?: string };
     const latest = info.build ?? '';
-    // One attempt per build per session also permits an intentional rollback.
-    if (latest && latest !== here && sessionStorage.getItem(TRIED) !== latest) {
+    // A timed-out navigation may still return the old offline document. Retry after a cooldown.
+    let retryAfter = 0;
+    try { if (sessionStorage.getItem(TRIED) === latest) retryAfter = (Number(sessionStorage.getItem(TRIED_AT) ?? 0) || 0) + RETRY_MS; } catch { /* storage is optional */ }
+    if (latest && latest !== here && (force || Date.now() >= retryAfter)) {
       pending = true;
       nextBuild = latest;
-      sessionStorage.setItem(TRIED, latest);
     }
   } catch {
     /* offline: try again later */
@@ -47,6 +50,7 @@ export async function checkForUpdate(): Promise<boolean> {
 /** Reload into the new build; `slot` resumes that save right after. */
 export function applyUpdate(slot: number | null) {
   try {
+    if (nextBuild) { sessionStorage.setItem(TRIED, nextBuild); sessionStorage.setItem(TRIED_AT, String(Date.now())); }
     if (slot !== null) sessionStorage.setItem(RESUME, String(slot));
   } catch {
     /* storage unavailable: the title screen's Continue still works */
