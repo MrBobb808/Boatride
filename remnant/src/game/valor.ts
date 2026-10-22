@@ -225,7 +225,7 @@ export function addTally(k: Tally, n = 1) {
   if (!s) return;
   const v = valorOf(s);
   v.n[k] = (v.n[k] ?? 0) + n;
-  checkT = CHECK;
+  checkT = 0;
 }
 
 // ---------------------------------------------------------------- live tracking
@@ -273,7 +273,7 @@ export const valorTrack = {
     const key = b.key ?? 'idol';
     if (b === bossRef && clean) unlock('flawless_' + key);
     if (b === bossRef && zeroParry) unlock('riposte');
-    checkT = CHECK;
+    checkT = 0;
   },
   rushDone() {
     unlock('rush_done');
