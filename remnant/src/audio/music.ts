@@ -1894,6 +1894,8 @@ export const TRACKS: Record<string, TrackDef> = {
   // slow, crushing march; each phase thickens it, the last doubles the time.
   persia: {
     bpm: 112,
+    // Enraged (phase 3): the march finally breaks into a run.
+    phaseBpm: [112, 112, 112, 122],
     ambience: 'none',
     gen(m, d, s, t) {
       const b = bar(s), p = pos(s);
@@ -1930,6 +1932,11 @@ export const TRACKS: Record<string, TrackDef> = {
         m.strings(d, r + 36 + [0, 7, 3, 7][p % 4], t, 0.07, 0.35, 3600, 0.003);
         if (b % 4 === 3 && p >= 8) m.snare(d, t, 0.2 + (p - 8) * 0.05);
         if (p === 8 && b % 2 === 0) m.swell(d, t, beat * 2, 1);
+      }
+      if (ph >= 3) {
+        // Enraged: the motif shouted an octave up, and a roll into every bar.
+        if (mo !== undefined) m.brass(d, r + mo + 24, t, beat * 0.8, 0.4, 0.03);
+        if (p >= 12) m.snare(d, t, 0.2 + (p - 12) * 0.06);
       }
     },
   },

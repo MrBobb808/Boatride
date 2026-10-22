@@ -626,6 +626,7 @@ export class Carrier extends Enemy {
         if (this.st >= SWELL_T) {
           const dmg = this.dmg * 0.2;
           G.world.add(new SwarmCloud(this, this.x - this.face * 4 * s, this.y - 18 * s, dmg));
+          sfx('swarmBuzz', { pan: G.world.pan(this.x), vol: 0.7, gap: 250 });
           if (this.elite) G.world.add(new SwarmCloud(this, this.x + this.face * 10, this.y - 30 * s, dmg));
           sfx('chitter', { pan: G.world.pan(this.x), vol: 0.7, pitch: 0.9 });
           fx.ring(this.x - this.face * 4 * s, this.y - 24 * s, 4, 26, BILE.c, 0.3, 2);
@@ -954,7 +955,7 @@ export class Golem extends Enemy {
     else if (frontal && this.staggered <= 0 && !h.dot) mul = h.guardBreak ? 0.7 : 0.4;
     if (mul === 1) return super.takeHit(h);
     if (mul < 1) {
-      sfx('hitMetal', { pan: G.world.pan(this.x), vol: 0.5, pitch: 0.7, gap: 60 });
+      sfx('armorClank', { pan: G.world.pan(this.x), vol: 0.8, pitch: 0.75, gap: 60 });
       fx.hitSparks(this.x + this.face * 12, this.y - 28, -this.face, '#d8b898', 6, 0.8);
     } else fx.hitSparks(this.x + this.face * 4, this.y - 30, h.dir || 1, SLAG.core, 10, 1.2);
     return super.takeHit({ ...h, dmg: h.dmg * mul, crit: h.crit || mul > 1 });
@@ -1051,6 +1052,7 @@ export class Golem extends Enemy {
     const hx = this.x + f * 26 * s, floor = floorBelow(hx, this.y - 8);
     this.strike(4, -30 * s, 40 * s, 32 * s, 1.25, { poise: 60, kx: f * 200, ky: -260, parryable: false });
     W.add(new SlagWave(hx + f * 8, floor, f, this.dmg * 0.6));
+    sfx('waveWhoosh', { pan: W.pan(hx), vol: 0.8, pitch: 1.1 });
     W.add(new Proj('puddle', hx, floor, 'enemy', this.dmg * 0.18, { life: 2.4, w: 40, h: 8 }));
     sfx('bossSlam', { pan: W.pan(this.x), vol: 0.75, pitch: 1.3 });
     sfx('fireBurst', { pan: W.pan(hx), vol: 0.5 });
