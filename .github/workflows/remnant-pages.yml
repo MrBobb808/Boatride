@@ -51,6 +51,7 @@ jobs:
       - run: node scripts/fallen-foes.mjs
       - run: node scripts/update-delivery.mjs
       - run: node scripts/touch-layout.mjs
+      - run: node scripts/curve-onboarding.mjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:
