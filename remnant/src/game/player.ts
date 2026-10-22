@@ -31,6 +31,10 @@ import {
   SHADE, SHADE_GHOST, mantleUnlocked, mantleGain, beginTransform, updateTransform, skipTransform, tickMantle, endMantle,
   mantleStyle, drawMantleBack, drawMantleOverlay, mantleLights,
 } from './mantle';
+import {
+  makeSwim, senseWater, swimControl, waterPhysics, swimPhysicsOn, swimInvuln, startDash, animateSwim, SWIM_CLIPS, SWIM_ATTACK_SPEED,
+} from './swim';
+import { WADE_SLOW } from './water';
 
 const GRAV = 1500;
 const MAX_FALL = 560;
@@ -43,7 +47,7 @@ export const DIMS = { torso: 12.5, head: 4.6, neck: 1.5, upperArm: 7, foreArm: 6
 /** How long the pause branch after the second strike stays open. */
 const LINGER_LONG = 0.62;
 
-type PState = 'free' | 'attack' | 'charge' | 'dodge' | 'airdash' | 'parry' | 'block' | 'hurt' | 'heal' | 'cast' | 'execute' | 'plunge' | 'dead' | 'scripted' | 'phantom' | 'transform';
+type PState = 'free' | 'attack' | 'charge' | 'dodge' | 'airdash' | 'parry' | 'block' | 'hurt' | 'heal' | 'cast' | 'execute' | 'plunge' | 'dead' | 'scripted' | 'phantom' | 'transform' | 'swim';
 
 /** Covenant Energy spent per Phantom Step blink, and for Judgment Cross. */
 const PHANTOM_COST = 5;
@@ -61,6 +65,8 @@ export class Player extends Entity {
   j: Joints = newJoints();
   pose: Pose = { ...BASE_POSE };
   state: PState = 'free';
+  /** Water around him: wading/swimming, breath, the dash-stroke (game/swim.ts). */
+  water = makeSwim();
   st = 0;
   private spriteStride = 0;
   coyote = 0;
@@ -176,7 +182,7 @@ export class Player extends Entity {
   constructor(x: number, y: number) {
     super(x, y, 12, 34);
     this.team = 'player';
-    this.anim = new Animator(clipsFor('blade'));
+    this.anim = new Animator({ ...clipsFor('blade'), ...SWIM_CLIPS });
     this.anim.play('idle', 0);
     this.anim.onStep = () => this.footstep();
     this.scarf = new Chain(7, 3.2, x, y - 28);
@@ -193,7 +199,7 @@ export class Player extends Entity {
     if (d.family !== this.family) {
       this.family = d.family;
       this.moves = MOVESETS[this.family];
-      this.anim.clips = clipsFor(this.family);
+      this.anim.clips = { ...clipsFor(this.family), ...SWIM_CLIPS };
       this.anim.play('idle', 0.1, true);
     }
     const helm = getItem(s, s.equipment.helm);
@@ -273,10 +279,10 @@ export class Player extends Entity {
   isInvuln() {
     return this.invuln > 0 || this.untouchable > 0 || this.state === 'execute' || this.state === 'dead' || this.state === 'phantom' || this.state === 'transform' ||
       (this.state === 'attack' && (this.atk?.id === 'cross' || this.atk?.id === 'pstrike') && this.atkT < 0.12) ||
-      (this.state === 'dodge' && this.st > 0.02 && this.st < 0.28) || (this.state === 'airdash' && this.st < 0.15) || this.shieldT > 0 || G.inCutscene;
+      (this.state === 'dodge' && this.st > 0.02 && this.st < 0.28) || (this.state === 'airdash' && this.st < 0.15) || swimInvuln(this) || this.shieldT > 0 || G.inCutscene;
   }
 
-  private setState(s: PState) {
+  setState(s: PState) {
     this.state = s;
     this.st = 0;
   }
@@ -351,10 +357,12 @@ export class Player extends Entity {
       if (healing > 0 && G.save.hp > 0) G.save.hp = Math.min(d.maxHp, G.save.hp + d.maxHp * healing);
     }
 
+    senseWater(this, dt);
     if (this.state === 'dead') {
       this.deadT += dt;
       b.vx = approach(b.vx, 0, 600 * dt);
-      b.vy = Math.min(MAX_FALL, b.vy + GRAV * dt);
+      // Under water he sinks slowly instead of dropping.
+      b.vy = this.water.swimming ? approach(b.vy, 30, 500 * dt) : Math.min(MAX_FALL, b.vy + GRAV * dt);
       moveBody(b, dt, G.world.grid, G.world.solid);
       this.animate(dt);
       return;
@@ -364,14 +372,17 @@ export class Player extends Entity {
     if (ctrl) this.handleInput(dt);
     else this.scripted(dt);
 
-    // physics
-    let g = GRAV;
-    if (this.state === 'airdash' || this.state === 'execute' || this.state === 'phantom' || this.state === 'transform') g = 0;
-    else if (this.state === 'attack' && (this.atk?.id === 'pstrike' || this.atk?.id === 'cross') && !b.onGround) g = GRAV * 0.22;
-    else if (this.state === 'attack' && this.atk?.air) g = GRAV * (this.atk.id === 'air3' ? 0.9 : 0.32);
-    else if (this.state === 'charge' && !b.onGround) g = GRAV * 0.5;
-    if (b.vy < 0 && !input.down('jump') && this.state === 'free' && !this.launchCarry) b.vy += GRAV * 0.9 * dt;
-    b.vy = Math.min(this.state === 'plunge' ? 620 : MAX_FALL, b.vy + g * dt);
+    // physics: in deep water, buoyancy and drag stand in for gravity
+    if (swimPhysicsOn(this)) waterPhysics(this, dt);
+    else {
+      let g = GRAV;
+      if (this.state === 'airdash' || this.state === 'execute' || this.state === 'phantom' || this.state === 'transform') g = 0;
+      else if (this.state === 'attack' && (this.atk?.id === 'pstrike' || this.atk?.id === 'cross') && !b.onGround) g = GRAV * 0.22;
+      else if (this.state === 'attack' && this.atk?.air) g = GRAV * (this.atk.id === 'air3' ? 0.9 : 0.32);
+      else if (this.state === 'charge' && !b.onGround) g = GRAV * 0.5;
+      if (b.vy < 0 && !input.down('jump') && this.state === 'free' && !this.launchCarry && this.water.breachT <= 0) b.vy += GRAV * 0.9 * dt;
+      b.vy = Math.min(this.state === 'plunge' ? 620 : MAX_FALL, b.vy + g * dt);
+    }
     const preVy = b.vy;
     const beforeX = b.x;
     moveBody(b, dt, G.world.grid, G.world.solid);
@@ -383,13 +394,13 @@ export class Player extends Entity {
     }
     if (b.onGround && (this.state === 'free' || this.state === 'scripted')) this.spriteStride += Math.min(12, Math.abs(b.x - beforeX)) * 0.08;
     if (b.onGround) {
-      if (!this.wasGround) this.onLand(preVy);
+      if (!this.wasGround && !this.water.swimming) this.onLand(preVy);
       this.coyote = 0.1;
       this.airJumps = this.hasDouble() ? 1 : 0;
       this.airDash = 1;
       this.airAttacks = 0;
       this.launchCarry = false;
-      if (bodyFits(b, G.world.grid, G.world.solid, b.x, b.y) && !touchesTile(b, G.world.grid, (t) => t === T.Spikes || t === T.Veil, 0) && b.groundTile !== T.Collapse) {
+      if (bodyFits(b, G.world.grid, G.world.solid, b.x, b.y) && !touchesTile(b, G.world.grid, (t) => t === T.Spikes || t === T.Veil, 0) && b.groundTile !== T.Collapse && !this.water.swimming) {
         this.lastSafe.x = b.x;
         this.lastSafe.y = b.y;
       }
@@ -476,6 +487,11 @@ export class Player extends Entity {
 
   /** Defending wins over a buffered follow-up, without bypassing recovery or dash limits. */
   private tryDefense(): boolean {
+    if (this.dodgeBuf > 0 && this.water.swimming) {
+      if (this.water.dashCd > 0) return false;
+      startDash(this);
+      return true;
+    }
     if (this.dodgeBuf > 0) {
       if (this.body.onGround) { this.startDodge(); return true; }
       if (this.airDash > 0) { this.startAirDash(); return true; }
@@ -490,14 +506,14 @@ export class Player extends Entity {
     const ax = input.axisX;
     const speedMul = d.speed * (this.veiled > 0 ? 0.6 : 1) * (this.lion > 0 ? 1.08 : 1) * (this.mantleT > 0 ? 1.22 : 1);
     // The Mantle can be called from almost anything, even a stagger.
-    if (input.pressed('transform') && this.state !== 'transform' && this.state !== 'execute' && this.state !== 'phantom' && this.state !== 'heal' && this.state !== 'plunge') {
+    if (input.pressed('transform') && this.state !== 'transform' && this.state !== 'swim' && this.state !== 'execute' && this.state !== 'phantom' && this.state !== 'heal' && this.state !== 'plunge') {
       if (this.tryTransform()) return;
     }
     this.bufferCombatInput();
 
     switch (this.state) {
       case 'free': {
-        const target = ax * RUN * speedMul;
+        const target = ax * RUN * speedMul * (this.water.wading ? WADE_SLOW : 1);
         const accel = b.onGround ? 1500 : 1050;
         b.vx = approach(b.vx, target, accel * dt);
         if (Math.abs(ax) > 0.2) this.face = sign(ax);
@@ -528,6 +544,9 @@ export class Player extends Entity {
         this.tryActions(dt);
         break;
       }
+      case 'swim':
+        swimControl(this, dt);
+        break;
       case 'attack':
         this.updateAttack(dt);
         break;
@@ -779,7 +798,7 @@ export class Player extends Entity {
 
   /** Spend a full gauge to put on the Shadow Mantle. */
   tryTransform(): boolean {
-    if (!mantleUnlocked() || this.mantleT > 0) return false;
+    if (!mantleUnlocked() || this.mantleT > 0 || this.water.swimming) return false;
     const g = G.save.mantle ?? 0;
     if (g < 100) {
       G.ui.toast(`The shadows are still gathering (${Math.floor(g)}%). Keep fighting.`, 'warn');
@@ -921,7 +940,7 @@ export class Player extends Entity {
   }
 
   aspd() {
-    return G.d.aspd * this.moves.speed * (this.lion > 0 ? 1.1 : 1) * (this.mantleT > 0 ? 1.2 : 1);
+    return G.d.aspd * this.moves.speed * (this.lion > 0 ? 1.1 : 1) * (this.mantleT > 0 ? 1.2 : 1) * (this.water.swimming ? SWIM_ATTACK_SPEED : 1);
   }
 
   private updateAttack(dt: number) {
@@ -1602,7 +1621,9 @@ export class Player extends Entity {
   private animate(dt: number) {
     const b = this.body;
     const a = this.anim;
-    if (this.state === 'free' || this.state === 'scripted') {
+    if (this.state === 'swim') {
+      animateSwim(this, dt);
+    } else if (this.state === 'free' || this.state === 'scripted') {
       if (!b.onGround) {
         if (a.name === 'flip' && !a.done) {
           // keep flipping
@@ -1622,7 +1643,9 @@ export class Player extends Entity {
     }
     a.update(dt);
     this.pose = a.sample();
-    solve(this.pose, DIMS, b.onGround || this.state === 'dodge', this.j);
+    if (this.state === 'swim') this.pose.rot = this.water.angle;
+    else this.water.angle = 0;
+    solve(this.pose, DIMS, (b.onGround && this.state !== 'swim') || this.state === 'dodge', this.j);
   }
 
   private updateCloth(dt: number) {
@@ -1630,9 +1653,11 @@ export class Player extends Entity {
     const j = this.j;
     const ax = this.x + f * (j.neckX - 1.6), ay = this.y + j.neckY + 1;
     const wind = Math.sin(G.time * 1.7) * 30 - 20 * f;
-    this.scarf.update(ax, ay, dt, -this.body.vx * 3.2 + wind - f * 120, 260, 0.9);
+    // Under water, cloth floats and trails instead of hanging.
+    const sink = this.water.swimming ? -30 : 1;
+    this.scarf.update(ax, ay, dt, -this.body.vx * 3.2 + wind - f * 120, sink < 0 ? sink : 260, 0.9);
     const cx = this.x + f * (j.shBX - 1), cy = this.y + j.shBY;
-    this.cape.update(cx, cy, dt, -this.body.vx * 2.6 + wind - f * 60, 420, 0.88);
+    this.cape.update(cx, cy, dt, -this.body.vx * 2.6 + wind - f * 60, sink < 0 ? sink : 420, 0.88);
     // The Mantle's cloak: longer, and blown back harder.
     if (this.mantleT > 0) this.cloak.update(cx, cy + 1, dt, -this.body.vx * 3.2 + wind * 1.3 - f * 70, 380, 0.9);
   }
