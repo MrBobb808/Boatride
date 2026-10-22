@@ -31,7 +31,7 @@ export const REST_HOMES: [NpcKind, number, number][] = [
 export const REST_BOARD_X = 34;
 
 type P = [k: string, x: number, o?: { v?: number; w?: number; h?: number; flip?: boolean; fg?: boolean; cond?: string; ncond?: string; dy?: number }];
-type L = [k: 'glow' | 'torch' | 'brazier' | 'lantern' | 'forge' | 'candles', x: number, lift: number, cond?: string, r?: number, c?: string];
+type L = [k: 'glow' | 'torch' | 'brazier' | 'forge' | 'candles', x: number, lift: number, cond?: string, r?: number, c?: string];
 
 const T1 = 'rest_t1', T2 = 'rest_t2', T3 = 'rest_t3', T4 = 'rest_t4';
 const WARM = '#ffb060', HEARTH = '#ff9a4a', DOOR = '#ffc070';
@@ -65,22 +65,24 @@ const PROPS: P[] = [
   ['rest_booth', 98.5, { cond: T4, v: 1, flip: true }],
   // ---- things that move, and the festival
   ['rest_fire', 24.5], ['rest_banner', 34, { cond: T3, h: 4 }], ['rest_banner', 50, { cond: T3, h: 4, v: 1 }], ['rest_banner', 96, { cond: T3, h: 5, v: 2 }],
-  ['rest_children', 106, { cond: T3 }], ['rest_smoke', 15.5, { cond: T1, dy: -60 }], ['rest_smoke', 54, { cond: T2, dy: -78, v: 1 }],
+  ['rest_children', 106, { cond: T3 }], ['rest_smoke', 17.1, { cond: T1, dy: -70 }], ['rest_smoke', 51.5, { cond: T2, dy: -84, v: 1 }],
   ['rest_bunting', 29, { cond: T4, w: 20 }], ['rest_bunting', 77, { cond: T4, w: 21, v: 1 }], ['rest_bunting', 101, { cond: T4, w: 14, v: 2 }],
-  ['rest_flag', 121, { cond: T4, dy: -132 }],
+  ['rest_flag', 121, { cond: T4, dy: -162 }],
+  ['rest_lamp', 6, { h: 3 }], ['rest_lamp', 36, { h: 3 }], ['rest_lamp', 49, { h: 3, cond: T1 }], ['rest_lamp', 77, { h: 3, cond: T2 }], ['rest_lamp', 97, { h: 3, cond: T3 }],
   // near the eye
   ['grass', 0, { w: 9, fg: true }], ['rest_flowers', 60, { w: 4, fg: true }], ['rest_flowers', 100, { w: 6, fg: true, cond: T3 }], ['grass', 122, { w: 6, fg: true }],
 ];
 
 const LAMPS: L[] = [
-  ['lantern', 4, 6], ['glow', 4, 5, undefined, 50, WARM], ['glow', 24.5, 1, undefined, 90, HEARTH],
+  ['glow', 6.5, 2.3, undefined, 60, WARM], ['glow', 36.5, 2.3, undefined, 60, WARM], ['glow', 49.5, 2.3, T1, 60, WARM],
+  ['glow', 77.5, 2.3, T2, 60, WARM], ['glow', 97.5, 2.3, T3, 60, WARM], ['glow', 24.5, 1, undefined, 90, HEARTH],
   ['glow', 15, 1, undefined, 40, HEARTH], ['glow', 27.5, 1, undefined, 40, HEARTH],
   ['glow', 15.5, 2, T1, 50, WARM], ['glow', 27, 2, T1, 50, WARM], ['glow', 22, 1, T2, 40, HEARTH],
-  ['lantern', 33, 6], ['glow', 38.5, 3, undefined, 46, '#ffd890'], ['lantern', 44, 6, T1], ['glow', 44, 3, T1, 70, WARM],
+  ['glow', 38.5, 3, undefined, 46, '#ffd890'], ['glow', 44, 3, T1, 70, WARM],
   ['forge', 51, 0, T2], ['glow', 54, 2, T2, 90, '#ff8a3a'],
-  ['glow', 70, 2, T2, 70, WARM], ['lantern', 76, 6, T2],
+  ['glow', 70, 2, T2, 70, WARM],
   ['glow', 87, 3, T3, 120, DOOR], ['glow', 87, 1, T2, 50, WARM], ['candles', 92.5, 0, T3],
-  ['lantern', 104, 7, T3], ['glow', 109, 2, T3, 60, '#ffd890'],
+  ['glow', 109, 2, T3, 60, '#ffd890'],
   ['glow', 121, 9, T4, 70, WARM], ['glow', 121, 1, undefined, 40, HEARTH],
   // the festival's strings of lamps
   ['glow', 33, 6, T4, 60, '#ffcf80'], ['glow', 41, 6, T4, 60, '#ffcf80'], ['glow', 82, 7, T4, 60, '#ffcf80'], ['glow', 92, 7, T4, 60, '#ffcf80'], ['glow', 106, 8, T4, 60, '#ffcf80'],

@@ -29,6 +29,7 @@ import { ECHO_COMBOS } from '../game/echoCombos';
 import { MANTLE_LV, mantlePerks } from '../game/mantle';
 import { nextChapter, travelToChapter, trainingOpen, startTraining } from '../game/chapters';
 import { altarName, travelGroups, travelBlocked, travelTo } from '../game/travel';
+import { restStock, restRecipes } from '../game/settlement';
 import { chaptersTab, gameModes } from './chapters';
 import { progressionTab } from './progression';
 import { GEAR_SETS } from '../game/progression';
@@ -793,6 +794,8 @@ function recipes(): Recipe[] {
     { id: 'plate', name: 'Bulwark Plate', desc: 'Black plate with gold seams. Heavy protection and health.', cost: { sentinel_steel: 5, iron_scrap: 4, covenant_fragment: 1, silver: 150 }, forge: true, icon: 'armor', make: give('bulwark_plate') },
     { id: 'sigil', name: 'Sigil of the Sentinel', desc: 'A relic that strengthens every Echo near you.', cost: { sentinel_steel: 2, covenant_fragment: 2 }, forge: true, icon: 'sigil', make: give('sentinel_sigil') },
     { id: 'blade', name: 'Covenant Blade', desc: 'Reforge a blade around light from the relic. Epic sword with crit and ability power.', cost: { covenant_fragment: 4, iron_scrap: 4, silver: 120 }, forge: true, icon: 'sword', max: () => !flag('relic_taken'), make: give('covenant_blade') },
+    // The settlement's forge adds its own work (empty anywhere else).
+    ...restRecipes(),
   ];
 }
 
@@ -1064,7 +1067,7 @@ function renderShop() {
   shopEl.append(top, shopBody);
   let content: HTMLElement;
   if (shopTab === 'buy') {
-    content = h('div', { class: 'list' }, STOCK.filter((x) => !(x.once && G.save.flags['bought_' + x.id]) && (!x.cond || flag(x.cond))).map((x) => {
+    content = h('div', { class: 'list' }, [...STOCK, ...restStock()].filter((x) => !(x.once && G.save.flags['bought_' + x.id]) && (!x.cond || flag(x.cond))).map((x) => {
       const base = ITEMS[x.id];
       return h('div', { class: 'row-item', style: 'cursor:default' }, img(base.icon, RARITY_COLORS[base.rarity]),
         h('div', null, h('div', { class: 'nm', style: rarityStyle(base.rarity) }, base.name), h('div', { class: 'sub' }, base.desc)),
@@ -1165,7 +1168,7 @@ export function openAltar(id: string) {
       h('div', { class: 'opts' },
         // One column per chapter, so a phone in landscape shows several side by side.
         travelGroups(id).map((g) => h('div', { class: 'travel-group', style: 'display:grid;gap:8px;align-content:start' },
-          h('div', { class: 'eyebrow', style: 'margin-top:6px' }, `Chapter ${g.roman} · ${g.title}`),
+          h('div', { class: 'eyebrow', style: 'margin-top:6px' }, g.n ? `Chapter ${g.roman} · ${g.title}` : g.title),
           g.stops.map((st) => btn([h('b', null, st.name), ROOMS[st.room].name.replace(/^The /, '') === st.name.replace(/^The /, '') ? null : h('span', null, ROOMS[st.room].name)], () => {
             if (travelBlocked()) return;
             done();

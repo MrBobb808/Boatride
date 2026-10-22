@@ -4,16 +4,16 @@
 // arrive. Residents, services and the quest board are data here; the room is
 // game/restRoom.ts, its art render/envRest.ts and its menus ui/settlement.ts.
 
-import { G, flag, setFlag } from './ctx';
+import { G, flag } from './ctx';
 import type { Story, QuestDef } from './story';
 import { Entity } from './entity';
-import { Npc, Pickup } from './props';
+import { Pickup, type Npc } from './props';
 import type { Enemy } from './enemies';
 import type { Loot, NpcKind } from './tiles';
 import { TILE } from './tiles';
 import { CHAPTERS } from './chapters';
 import { chapterForRoom } from './fallenChapters';
-import { REST_ID, REST_HOMES, REST_BOARD_X, restGround } from './restRoom';
+import { REST_ID, REST_BOARD_X, restGround } from './restRoom';
 import { makeItem, addMaterial, hasMaterials, payMaterials, derive } from './state';
 import { ITEMS } from './data';
 import { sfx } from '../audio/audio';
@@ -21,6 +21,7 @@ import { fx } from '../render/fx';
 import { lighting } from '../render/lighting';
 import { drawBoard, drawWaypost } from '../render/envRest';
 import type { Ctx } from '../render/draw';
+import { openBoard } from '../ui/settlement';
 
 export { REST_ID };
 
@@ -53,7 +54,7 @@ export const restOpen = () => flag('ending_done');
 /** People brought home, weighted by how many came with them. */
 const SURVIVORS: [flag: string, people: number][] = [
   ['tobiah_saved', 1], ['captives_freed', 3], ['ch5_writing', 1], ['ch6_storm_done', 1],
-  ['ch7_rescued', 2], ['ch8_rescued', 2], ['ch9_rescued', 2],
+  ['ch7_rescued', 2], ['ch8_rescued', 2], ['ch9_rescued', 2], ['ch10_rescued', 1],
 ];
 /** Score needed for each tier: roughly Ch I, II, IV, VI and VIII with their rescues. */
 const TIER_AT = [0, 3, 8, 12, 18];
@@ -140,9 +141,10 @@ export const RESIDENTS: Resident[] = [
     [t(3), '"But they shall sit every man under his vine and under his fig tree; and none shall make them afraid: for the mouth of the LORD of hosts hath spoken it." Micah 4:4 (KJV). I am holding Him to it.'],
     [() => flag('ch7_rescued'), 'The grove children follow me about the gardens. I tell them about the furnace. They do not believe a word.'],
   ] },
-  { kind: 'hanan', role: 'Elder', here: () => restTier() >= 3 && flag('ch5_writing'), lines: [
+  { kind: 'hanan', role: 'Elder', here: () => restTier() >= 3 && (flag('ch5_writing') || flag('ch10_rescued')), lines: [
     [always, 'Here the answer comes as bread, and a roof, and rain at the right time. I am content to wait for that kind.'],
     [() => flag('ch6_done'), 'I fasted three weeks by a river for one word. Here they ring a bell for supper. I come running like a boy.'],
+    [() => flag('ch10_rescued'), 'I sat in that drowned library so long I forgot the colour of a field. Thank you for bringing me back to one.'],
   ] },
   { kind: 'arshan', role: 'Keeper of the Tower', here: () => restTier() >= 4 && flag('ch6_storm_done'), lines: [
     [always, 'Captain of a king\'s guard, now keeper of a wooden tower. I have never slept so well.'],
@@ -224,7 +226,7 @@ export function questReady(q: RestQuest) {
 
 // ---------------------------------------------------------------- the market and the smithy
 
-export interface RestStock { id: string; price: number; mat?: boolean; once?: boolean }
+export interface RestStock { id: string; price: number; mat?: boolean; once?: boolean; cond?: string }
 /** What Ilan adds to his stall at the Rest, tier by tier. Elsewhere he sells as before. */
 const STOCK_BY_TIER: (RestStock & { tier: number })[] = [
   { id: 'sentinel_steel', price: 60, mat: true, tier: 1 },
@@ -280,7 +282,7 @@ export class QuestBoard extends Entity {
     this.collide = false;
   }
   prompt() { return 'Read the board'; }
-  interact() { void import('../ui/settlement').then((m) => m.openBoard()); }
+  interact() { openBoard(); }
   update() {}
   draw(ctx: Ctx) {
     const posted = REST_QUESTS.filter((q) => questPosted(q) && !questState(q)?.done).length;
@@ -385,7 +387,7 @@ export class Settlement {
     await this.st.say([{ who: n.kind, text }]);
     if (n.kind === 'ilan') G.ui.openShop('merchant');
     else if (n.kind === 'dov') G.ui.openShop('smith');
-    else if (n.kind === 'mara') void import('../ui/settlement').then((m) => m.openBoard());
+    else if (n.kind === 'mara') openBoard();
     return true;
   }
 
@@ -449,5 +451,3 @@ export class Settlement {
 
 export const restTitle = () => restSave().titles[restSave().titles.length - 1] ?? '';
 export const restResidents = () => RESIDENTS.filter((r) => r.here());
-export const residentName = (k: NpcKind) => k;
-export { REST_HOMES, setFlag };

@@ -5,6 +5,7 @@
 import { G } from './ctx';
 import { ROOMS, chapterOf } from './rooms';
 import { CHAPTERS } from './chapters';
+import { REST_ID, restOpen } from './settlement';
 
 export interface AltarStop { id: string; room: string; spawn: string; name: string; chapter: number }
 export interface AltarGroup { n: number; roman: string; title: string; stops: AltarStop[] }
@@ -16,7 +17,7 @@ const ALTAR_NAMES: Record<string, string> = {
   valley_camp: 'Camp at the Valley\'s Edge', hive_mouth: 'Mouth of the Hive',
   river_camp: 'Camp by the Rivers', dura_plain: 'The Plain of Dura',
   reed_camp: 'Camp in the Reeds', hanging_gardens: 'The Hanging Gardens', palace_stair: 'The Palace Stair',
-  hiddekel_camp: 'Camp by the Great River', high_places: 'The High Places',
+  hiddekel_camp: 'Camp by the Great River', high_places: 'The High Places', remnant_rest: 'Remnant\'s Rest',
 };
 
 /** Practice rooms are entered from the Chapters tab, never by altar. */
@@ -63,8 +64,11 @@ export function travelBlocked(): string | null {
 export function travelGroups(here: string): AltarGroup[] {
   const all = altarStops(), s = G.save;
   const groups: AltarGroup[] = [];
+  // The settlement's altar burns for everyone who has finished Chapter I; it heads the list.
+  if (restOpen() && !s.altarsLit.includes(REST_ID)) s.altarsLit.push(REST_ID);
+  if (restOpen() && here !== REST_ID && G.world.room.id !== REST_ID) groups.push({ n: 0, roman: '', title: 'Remnant\'s Rest', stops: [all[REST_ID]] });
   for (const c of CHAPTERS) {
-    const list = s.altarsLit.filter((id) => id !== here && all[id]?.chapter === c.n && all[id].room !== G.world.room.id).map((id) => all[id]);
+    const list = s.altarsLit.filter((id) => id !== here && id !== REST_ID && all[id]?.chapter === c.n && all[id].room !== G.world.room.id).map((id) => all[id]);
     if (list.length) groups.push({ n: c.n, roman: c.roman, title: c.title, stops: list });
   }
   return groups;
