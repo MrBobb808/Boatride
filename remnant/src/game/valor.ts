@@ -52,6 +52,8 @@ export interface Trophy {
   title?: string;
   /** Reward: a cape colour (CAPES key). */
   cape?: string;
+  /** The tally it counts, so a rise is judged at once (even under a result card). */
+  tally?: Tally;
   /** Progress toward the goal; won when cur ≥ max. Without it, only an event wins it. */
   prog?: (s: SaveData) => readonly [number, number];
 }
@@ -120,10 +122,10 @@ export const TROPHIES: Trophy[] = [
     desc: `Defeat ${b.name} without taking a blow. Parries and blocks are allowed; the story, Boss Gauntlet and Boss Rush all count.`,
     ...FLAWLESS_REWARD[b.key],
   })),
-  { id: 'parry_25', name: 'Turned Aside', desc: 'Land 25 perfect parries.', cat: 'Combat', icon: 'parry', prog: (s) => count(s, 'parry', 25) },
-  { id: 'parry_100', name: 'Steady Hand', desc: 'Land 100 perfect parries.', cat: 'Combat', icon: 'parry', title: 'the Unmoved', prog: (s) => count(s, 'parry', 100) },
-  { id: 'fin_10', name: 'The Final Word', desc: 'Perform 10 finishers.', cat: 'Combat', icon: 'sword', prog: (s) => count(s, 'finisher', 10) },
-  { id: 'fin_50', name: 'Executioner', desc: 'Perform 50 finishers.', cat: 'Combat', icon: 'sword', title: 'the Executioner', prog: (s) => count(s, 'finisher', 50) },
+  { id: 'parry_25', name: 'Turned Aside', desc: 'Land 25 perfect parries.', cat: 'Combat', icon: 'parry', tally: 'parry', prog: (s) => count(s, 'parry', 25) },
+  { id: 'parry_100', name: 'Steady Hand', desc: 'Land 100 perfect parries.', cat: 'Combat', icon: 'parry', title: 'the Unmoved', tally: 'parry', prog: (s) => count(s, 'parry', 100) },
+  { id: 'fin_10', name: 'The Final Word', desc: 'Perform 10 finishers.', cat: 'Combat', icon: 'sword', tally: 'finisher', prog: (s) => count(s, 'finisher', 10) },
+  { id: 'fin_50', name: 'Executioner', desc: 'Perform 50 finishers.', cat: 'Combat', icon: 'sword', title: 'the Executioner', tally: 'finisher', prog: (s) => count(s, 'finisher', 50) },
   { id: 'riposte', name: 'Answer in Kind', desc: 'Strike a boss\'s killing blow within a moment of a perfect parry.', cat: 'Combat', icon: 'parry', hidden: true, title: 'the Answerer', cape: 'royal' },
   { id: 'combo_30', name: 'Unbroken Chain', desc: 'Land a combo of 30 hits.', cat: 'Combat', icon: 'attack', prog: (s) => [Math.min(30, s.bestCombo ?? 0), 30] },
   { id: 'kills_1000', name: 'Legion\'s Bane', desc: 'Defeat 1,000 foes.', cat: 'Combat', icon: 'sword', title: 'Hostbreaker', prog: (s) => [Math.min(1000, s.kills), 1000] },
@@ -140,10 +142,10 @@ export const TROPHIES: Trophy[] = [
   { id: 'contract_1', name: 'Contract Kept', desc: 'Complete a five-wave contract.', cat: 'Trial', icon: 'armor', prog: (s) => [Math.min(1, CONTRACT_IDS.reduce((n, id) => n + contractWins(s, id), 0)), 1] },
   { id: 'rush_done', name: 'The Rush Is Run', desc: 'Finish the Boss Rush.', cat: 'Trial', icon: 'crown', title: 'the Tireless' },
   { id: 'rush_merciless', name: 'Without Mercy', desc: 'Finish the Boss Rush on Merciless.', cat: 'Trial', icon: 'crown', hidden: true, title: 'the Unrelenting', cape: 'blood' },
-  { id: 'daily_1', name: 'Today\'s Trial', desc: 'Clear all ten waves of a daily challenge.', cat: 'Trial', icon: 'sigil', prog: (s) => count(s, 'daily', 1) },
-  { id: 'daily_7', name: 'Faithful', desc: 'Clear seven daily challenges.', cat: 'Trial', icon: 'sigil', title: 'the Faithful', prog: (s) => count(s, 'daily', 7) },
+  { id: 'daily_1', name: 'Today\'s Trial', desc: 'Clear all ten waves of a daily challenge.', cat: 'Trial', icon: 'sigil', tally: 'daily', prog: (s) => count(s, 'daily', 1) },
+  { id: 'daily_7', name: 'Faithful', desc: 'Clear seven daily challenges.', cat: 'Trial', icon: 'sigil', title: 'the Faithful', tally: 'daily', prog: (s) => count(s, 'daily', 7) },
   { id: 'lamps_ch1', name: 'Lamplighter', desc: 'Break every lamp in Chapter I (they need not fall on the same visit).', cat: 'Journey', icon: 'lamp', title: 'Lamplighter', cape: 'lamp', prog: (s) => lampProgress(s) },
-  { id: 'lamps_200', name: 'Oil and Ember', desc: 'Break 200 lamps.', cat: 'Journey', icon: 'lamp', prog: (s) => count(s, 'lamp', 200) },
+  { id: 'lamps_200', name: 'Oil and Ember', desc: 'Break 200 lamps.', cat: 'Journey', icon: 'lamp', tally: 'lamp', prog: (s) => count(s, 'lamp', 200) },
   { id: 'ch1_secrets', name: 'Hearthward\'s Secrets', desc: 'Open every chest and read every lore stone in Chapter I.', cat: 'Journey', icon: 'book', title: 'the Seeker', cape: 'linen',
     prog: (s) => { const f = ch1Secrets(); return [f.chests.filter((id) => s.opened.includes(id)).length + f.lore.filter((id) => s.lore.includes(id)).length, f.chests.length + f.lore.length]; } },
   { id: 'crown_caches', name: 'Crown Hoards', desc: 'Find all nine hidden caches of Chapters VII, VIII and IX.', cat: 'Journey', icon: 'fragment', title: 'Treasure-Finder',
@@ -225,7 +227,7 @@ export function addTally(k: Tally, n = 1) {
   if (!s) return;
   const v = valorOf(s);
   v.n[k] = (v.n[k] ?? 0) + n;
-  checkT = 0;
+  for (const t of TROPHIES) if (t.tally === k && v.got[t.id] === undefined && t.prog) { const [cur, max] = t.prog(s); if (cur >= max) unlock(t.id); }
 }
 
 // ---------------------------------------------------------------- live tracking

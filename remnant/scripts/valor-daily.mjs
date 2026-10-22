@@ -188,7 +188,7 @@ try {
   await page.locator('.trophy[data-trophy=parry_25].won').waitFor();
   assert.equal(await page.locator('.trophy[data-trophy=low_ch9] b').innerText(), '???', 'Hidden trophies stay hidden');
   assert.equal(await page.locator('.trophy[data-trophy=riposte] b').innerText(), 'Answer in Kind', 'A won hidden trophy is revealed');
-  assert.match(await page.locator('.trophy[data-trophy=parry_100] .trophy-bar').innerText(), /25\/100/);
+  assert.match(await page.locator('.trophy[data-trophy=parry_100] .trophy-bar').innerText(), /26\/100/); // 25 parries and the one before the kill
   await page.locator('[data-k=title_riposte]').click();
   await page.locator('[data-k=cape_royal]').click();
   await page.screenshot({ path: 'qa/valor-menu-desktop.png' });
