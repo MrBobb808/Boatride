@@ -64,20 +64,24 @@ function wet(x: number, y: number) {
 }
 
 let ambT = 0, curT = 0;
+/** Spawn rates per quality tier (per second). */
+const AMBIENT = [2, 4, 7], STREAKS = [5, 10, 16];
+/** The front tint's fill, built once per biome colour. */
+let frontKey = '', frontFill = '';
 
 /** Spawn ambient bubbles and current streaks in view, and move everything. Runs every step. */
 export function updateWater(dt: number) {
   if (!waterRoom.any) { count = 0; return; }
   const r = G.renderer, v = G.camera.view(), tier = r.tier;
   // Ambient: a few bubbles from random water in view.
-  ambT += dt * [2, 4, 7][tier];
+  ambT += dt * AMBIENT[tier];
   while (ambT >= 1) {
     ambT -= 1;
     const x = v.x + Math.random() * v.w, y = v.y + Math.random() * v.h;
     if (wet(x, y) && wet(x, y - 8)) emitBubble(x, y, 0, -rand(12, 26), rand(0.5, 1));
   }
   // Currents: streaks running with the flow, and bubbles caught in it.
-  curT += dt * [5, 10, 16][tier];
+  curT += dt * STREAKS[tier];
   for (const c of waterRoom.currents) {
     if (c.x1 < v.x || c.x0 > v.x + v.w || c.y1 < v.y || c.y0 > v.y + v.h || (c.cond && !G.save.flags[c.cond])) continue;
     const area = ((c.x1 - c.x0) * (c.y1 - c.y0)) / (TILE * TILE * 40);
@@ -126,10 +130,11 @@ export const bubbleCount = () => count;
 export function drawWaterFront(ctx: Ctx, view: { x: number; y: number; w: number; h: number }, t: number) {
   if (!waterRoom.any) return;
   const g = G.world.grid;
-  const [tint] = tintOf(G.world.room.biome);
+  const tint = tintOf(G.world.room.biome)[0];
+  if (frontKey !== tint) { frontKey = tint; frontFill = rgba(tint, 0.26); }
   const tx0 = Math.max(0, Math.floor(view.x / TILE)), tx1 = Math.min(g.w - 1, Math.floor((view.x + view.w) / TILE));
   const ty0 = Math.max(0, Math.floor(view.y / TILE)), ty1 = Math.min(g.h - 1, Math.floor((view.y + view.h) / TILE));
-  ctx.fillStyle = rgba(tint, 0.26);
+  ctx.fillStyle = frontFill;
   for (let ty = ty0; ty <= ty1; ty++) {
     let run = -1;
     for (let tx = tx0; tx <= tx1 + 1; tx++) {
@@ -144,7 +149,7 @@ export function drawWaterFront(ctx: Ctx, view: { x: number; y: number; w: number
       if (g.get(tx, ty) !== T.Water || g.get(tx, ty - 1) === T.Water) continue;
       const open = g.get(tx, ty - 1) === T.Empty;
       const y = ty * TILE + (open ? WATER_LIP : 0);
-      ctx.fillStyle = rgba(tint, 0.26);
+      ctx.fillStyle = frontFill;
       ctx.fillRect(tx * TILE, y, TILE, ty * TILE + TILE - y);
       if (!open) continue;
       const wv = Math.sin(t * 2.2 + tx * 0.9) > 0.55 ? 1 : 0;

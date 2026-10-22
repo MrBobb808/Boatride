@@ -20,6 +20,7 @@ import { lighting } from '../render/lighting';
 export const EEL = { coil: 0.62, dartV: 420, reach: 170, sight: 190, bite: 0.32, rest: [1.4, 2.2] as const };
 const C = { body: '#1c3a3e', back: '#10262a', belly: '#6f9a86', fin: '#2e5a5a', line: '#061012', glow: '#7fffd4', eye: '#e8ff8a' };
 const N = 12;
+const SPOT = 'rgba(127,255,212,0.75)';
 const DASH = [4, 3];
 const NODASH: number[] = [];
 
@@ -199,7 +200,7 @@ export class Eel extends Enemy {
         ctx.beginPath(); ctx.moveTo(px + nx * o, py + ny * o); ctx.lineTo(x + nx * o, y + ny * o); ctx.stroke();
         // Glowing spots down its flank.
         if (pass === 1 && i % 3 === 0 && i < N) {
-          ctx.fillStyle = rgba(C.glow, 0.75);
+          ctx.fillStyle = SPOT;
           ctx.fillRect(Math.round(x - nx * thick * 0.25), Math.round(y - ny * thick * 0.25), 1, 1);
         }
         px = x; py = y;
