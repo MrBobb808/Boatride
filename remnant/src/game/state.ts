@@ -1,6 +1,7 @@
 // Persistent game state (what a save slot holds) and the derived numbers
 // every system reads: health, damage, defense, crits, Echo bonuses.
 
+import type { SettlementSave } from './settlement';
 import {
   ITEMS, STAT_KEYS, SKILLS, AFFIX_POOL, RARITY_AFFIX_COUNT, ECHO_SPECIES, xpToNext,
   ABILITIES, SUPER_MOVES, ECHO_ROLES, TRIAL_REWARDS, ECHO_LEVEL_CAP, echoXpToNext, type SuperId,
@@ -78,6 +79,8 @@ export interface SaveData extends ProgressionData {
   /** Earned by defeating originals; consumed only when the player absorbs one. */
   echoImprints?: Record<string, number>;
   trialMilestones?: number[];
+  /** Remnant's Rest: tier last seen, accepted requests, titles (game/settlement.ts). */
+  settlement?: SettlementSave;
 }
 
 export function makeItem(id: string, rarity?: Rarity, plus = 0, rollAffixes = true): ItemInst {
@@ -288,6 +291,7 @@ export function migrateSave(s: SaveData) {
   if (s.bestCombo === undefined) s.bestCombo = 0;
   if (!s.equippedSuper || !SUPER_MOVES[s.equippedSuper]) s.equippedSuper = 'rally';
   s.echoImprints ??= {};
+  s.settlement ??= { seen: -1, quests: {}, titles: [] };
   for (const e of s.echoes) {
     e.absorptions ??= e.stage + 1;
     if (e.role && !ECHO_ROLES[e.role]) e.role = undefined;

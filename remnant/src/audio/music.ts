@@ -594,6 +594,8 @@ const TRIAL_CALL: Record<number, number>[] = [
 ];
 
 export const TRACKS: Record<string, TrackDef> = {
+  // Remnant's Rest: G major at an easy walk, harp and flute over warm strings, a hand drum on the off-beats.
+  rest: {bpm:76,ambience:'fire',gen(m,d,s,t){const b=bar(s),p=pos(s),ch=[[43,[67,71,74]],[48,[67,72,76]],[40,[67,71,76]],[50,[66,69,74]]][b%4] as [number,number[]],mel=[[79,-1,78,76,74,-1,76,-1],[76,-1,79,-1,81,79,76,-1],[74,76,78,-1,79,-1,76,-1],[74,-1,72,71,69,-1,-1,-1]][b%4],beat=60/76;if(p===0){m.bass(d,ch[0]-12,t,beat*4,.55);for(const n of ch[1])m.strings(d,n-12,t,beat*4,.45,1200,.8);}if(p%2===0)m.harp(d,ch[1][[0,1,2,1,2,1,0,1][(p/2)%8]]+12,t,.6,1.6);if(Math.floor(b/4)%2===1&&p%2===0&&mel[p/2]>0)m.flute(d,mel[p/2],t,beat*0.9,.75);if(p===6||p===14)m.taiko(d,t,.18,1.6);}},
   hunt: {bpm:78,ambience:'wind',gen(m,d,s,t){const b=bar(s),p=pos(s),root=[38,41,36,34][b%4];if(p===0){m.strings(d,root,t,3,.7,1000,.7);m.choir(d,root+19,t,3,.4,'oo');}if(p===0||p===10)m.harp(d,root+24,t,.6,2);if(p===8)m.taiko(d,t,.35,.7);}},
   cinders: {bpm:68,ambience:'fire',gen(m,d,s,t){const root=[36,32,39,34][bar(s)%4],p=pos(s);if(p===0){m.strings(d,root,t,3.6,.65,800,.7);m.choir(d,root+19,t,3.6,.4,'oo');}if(p===0||p===8)m.taiko(d,t,.35,.55);if(p===4||p===12)m.bell(d,root+24,t,.4,2.1);}},
   cinder_monarch: {bpm:108,ambience:'fire',gen(m,d,s,t,I){const root=[36,32,39,34][bar(s)%4],p=pos(s);if(p===0){m.brass(d,root+12,t,1.7,.7);m.strings(d,root,t,2.1,.9,1100,.15);}if(p%4===0){m.taiko(d,t,.9,.55);m.bass(d,root-12,t,.6,.7);}if(p===6||p===14)m.snare(d,t,.5);if(I>0&&p===0)m.choir(d,root+19,t,2.1,.65,'ah');}},

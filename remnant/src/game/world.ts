@@ -1,4 +1,5 @@
 import { CinderMonarch } from './cinderBoss';
+import { syncRest } from './settlement';
 import { BeastMonarch, PlagueMonarch, FallenMonarch } from './fallenBosses';
 // The World: loads rooms, runs every entity, resolves combat, handles exits,
 // triggers, loot, altars, the Echo army, Rally the Remnant, and draws the
@@ -173,6 +174,8 @@ export class World {
     this.firedTriggers.clear();
     fx.clear();
     const s = G.save;
+    // Remnant's Rest: its tier and residents are flags the room's decor reads.
+    syncRest(r.id);
     for (const e of r.ents) this.spawnDef(e);
     placeLamps(r);
     if (r.id === 'covenant_chamber' && !flag('relic_taken')) this.add(new RelicVisual(34.5 * TILE, 20 * TILE));

@@ -1,4 +1,5 @@
 import { FallenStory, FALLEN_QUESTS } from './fallenStory';
+import { Settlement, REST_QUEST_DEFS } from './settlement';
 // Narrative: cutscenes, conversations, choices, quests, purification and the
 // chapter's ending. Scripture is quoted from the King James Version; the world
 // and its people are fictional.
@@ -57,6 +58,7 @@ export const QUESTS: QuestDef[] = [
   ...QUESTS5,
   ...QUESTS6,
   ...FALLEN_QUESTS,
+  ...REST_QUEST_DEFS,
 ];
 
 const TEMPLE_LORE = ['eph610', 'eph612', 'cor104', 'isa4031', 'josh620'];
@@ -71,6 +73,7 @@ export class Story {
   ch5 = new Chapter5(this);
   ch6 = new Chapter6(this);
   fallen = new FallenStory(this);
+  rest = new Settlement(this);
   // ---------------------------------------------------------------- helpers
   fmt(text: string) {
     const L = (a: Parameters<typeof input.label>[0]) => {
@@ -136,6 +139,7 @@ export class Story {
     this.ch6.roomChanged();
     // Before any chapter claims the room, so leaving the Trial into Chapters VII–IX ends the run too.
     if (id !== 'trial_arena') this.ch3.leftTrial();
+    if (this.rest.onEnter(id, first)) return;
     if (this.fallen.onEnter(id, first)) return;
     if (this.ch3.onEnter(id, first)) return;
     if (this.ch4.onEnter(id, first)) return;
@@ -449,6 +453,7 @@ export class Story {
   async talk(n: Npc) {
     const s = G.save;
     n.talkT = 4;
+    if (await this.rest.talk(n)) return;
     if (await this.ch3.talk(n)) return;
     if (await this.ch4.talk(n)) return;
     if (await this.ch5.talk(n)) return;
@@ -665,7 +670,7 @@ export class Story {
     G.world.autosave(true);
   }
 
-  onKill(e: Enemy) { this.fallen.onKill(e); }
+  onKill(e: Enemy) { this.fallen.onKill(e); this.rest.onKill(e); }
 
   // ---------------------------------------------------------------- purification
   async purify(e: Enemy) {

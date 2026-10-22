@@ -12,7 +12,7 @@ export const CHAR_TILE: Record<string, T> = {
   '~': T.Veil, 'w': T.Water, 'X': T.Collapse, 'S': T.Seal, 'G': T.Gate,
 };
 
-export type Biome = 'sanctuary' | 'village' | 'temple' | 'crypt' | 'sanctum' | 'plain' | 'tower' | 'valley' | 'hive' | 'trial' | 'dura' | 'babylon' | 'furnace' | 'riverbed' | 'gardens' | 'palace' | 'hiddekel' | 'shushan' | 'highplaces' | 'hunt' | 'plague' | 'cinders' | 'grecia';
+export type Biome = 'sanctuary' | 'village' | 'temple' | 'crypt' | 'sanctum' | 'plain' | 'tower' | 'valley' | 'hive' | 'trial' | 'dura' | 'babylon' | 'furnace' | 'riverbed' | 'gardens' | 'palace' | 'hiddekel' | 'shushan' | 'highplaces' | 'hunt' | 'plague' | 'cinders' | 'grecia' | 'rest';
 
 export type EntDef =
   | { t: 'enemy'; k: EnemyKind; x: number; y: number; face?: number; elite?: string; cond?: string; ncond?: string }
