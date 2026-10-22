@@ -1,12 +1,17 @@
 // Original fiction: each Fallen Crown commands a distinct domain.
 import { MapBuilder, type RoomDef, type EntDef, type EnemyKind, type NpcKind } from './tiles';
 export interface FallenChapter {
-  n: 7 | 8 | 9; roman: string; title: string; name: string; boss: 'beast_monarch' | 'plague_monarch' | 'cinder_monarch'; biome: 'hunt' | 'plague' | 'cinders';
+  n: 7 | 8 | 9 | 10; roman: string; title: string; name: string; boss: 'beast_monarch' | 'plague_monarch' | 'cinder_monarch' | 'grecia_prince'; biome: 'hunt' | 'plague' | 'cinders' | 'grecia';
   hub: string; trail: string; depths: string; side: string; ridge: string; arena: string; rescue: NpcKind;
   objectives: {id: string; flag: string; room: string; name: string}[];
   rewards: string[]; optional: string; caches: string[]; record: string; intro: string[]; challenge: string[]; ending: string[]; tips: string;
   /** What Tobiah and the rescued survivor say at camp: before the crown falls, and after. */
   voices: { tobiah: [string, string]; rescued: [string, string] };
+  /** Later chapters carry their own names and lines; VII–IX fall back to the ones written into the code. */
+  places?: [hub: string, trail: string, depths: string, side: string, ridge: string, arena: string];
+  foes?: { lead: EnemyKind; signature: EnemyKind; rear: EnemyKind; guard: EnemyKind; side: [EnemyKind, EnemyKind] };
+  cacheItems?: [string, string];
+  words?: { sideQuest: string; sidePlace: string; guardWarn: string; rescueBlock: string; rescueThanks: string; maraReward: string; recordPlace: string; theme: string; stay: string };
 }
 export const FALLEN_CHAPTERS: FallenChapter[] = [
   { n:7, roman:'VII', title:'The Crown of the Hunt', name:'Varkhos', boss:'beast_monarch', biome:'hunt', hub:'thaw_outpost', trail:'riftwood_trail', depths:'fang_pits', side:'moonlit_grove', ridge:'claw_ridge', arena:'hunt_throne', rescue:'barak',
@@ -36,6 +41,19 @@ export const FALLEN_CHAPTERS: FallenChapter[] = [
     tips:'Parry the hammer or dodge behind Azkar. Leave orange cracks before they erupt; jump over low fire waves. In phase II, parry to shatter his armor and expose him. During the Last Bellows, evade three marked eruptions, then punish his long recovery.',
     voices:{tobiah:['The hammers missed a stroke when you passed the procession. Every forge in the valley heard it.','Quiet, is it not? I keep waiting for the next stroke.'],rescued:['Our hands remember ploughs and hinges. Give us a quiet week and we will prove it.','The first thing we forged free was a cradle. Then a gate hinge. Then a hook for this lantern.']},
   },
+  { n:10, roman:'X', title:'The Prince of Grecia', name:'The Prince of Grecia', boss:'grecia_prince', biome:'grecia', hub:'chittim_harbor', trail:'shattered_colonnade', depths:'sunken_temple', side:'drowned_library', ridge:'stormwall_cliffs', arena:'grecia_throne', rescue:'hanan',
+    objectives:[{id:'grecia_beacon_a',flag:'grecia_beacon_a',room:'shattered_colonnade',name:'Westward Beacon'},{id:'grecia_beacon_b',flag:'grecia_beacon_b',room:'sunken_temple',name:'Drowned Beacon'}],
+    rewards:['great_horn_sarissa','oath_of_the_four_winds'], optional:'hanans_lamp', caches:['grecia_colonnade_cache','grecia_library_cache','grecia_cliffs_cache'], record:'grecia_testament',
+    intro:['West of every kingdom the sea runs grey and wild. Ships lie broken on the rocks of Chittim, and along the cliffs above them a horned shadow runs on the storm without touching the ground.', 'The prince of Grecia has come, as the messenger said. Two beacons once guided ships to this shore, and his storm drowned them both. Relight them, and the storm wall around his throne will fall.', 'Hanan sailed ahead of us to read the old sea-shrines, and he has not come back. The tide has taken the lower temple. Learn the deep halls, mind your breath, and bring him home.'],
+    challenge:['Persia’s prince held you one-and-twenty days. I do not hold. I run, and the world breaks under me.', 'Your storm is out. The beacons burn again. The ships are coming home.', 'Kingdoms are the horn I wear. Break this one, and four will rise in its place.', 'Then I will stand against each of them. I did not come here for a kingdom.', 'Come, then. See how far you fall before I touch the ground.'],
+    ending:['The great horn cracks from brow to tip, and the prince is driven back into the storm. The wind dies. On the black water the first sail of the morning turns toward the harbour.', 'Light the harbour lamps. Let the ships find their way in.', 'Four horns rose where the one was broken, toward the four winds. This war is not finished. But tonight the sea is quiet, and every soul on this shore is going home.'],
+    tips:'Watch the line he charges along: dodge through it, or jump when he skims low. Parry the spear thrusts. When he strikes a wall, punish the stun. When the great horn breaks, read the four winds: each marked lane strikes in turn, then he is open.',
+    voices:{tobiah:['The fishermen say the storm only breaks over the cliffs, never over the harbour. As if it wants us to watch.','Calm water. I had forgotten what the sea sounds like when it is not angry.'],rescued:['I went down to read the old stones, and the sea came in after me. I have read them now. I would rather not have.','He said the prince of Grecia would come. He did not say we would still be standing when he went.']},
+    places:['The Harbour of Chittim','The Shattered Colonnade','The Sunken Temple','The Drowned Library','The Stormwall Cliffs','The Horned Throne'],
+    foes:{lead:'gale',signature:'undying',rear:'archer',guard:'bulwark',side:['knight','gale']},
+    cacheItems:['tidewalker_greaves','stormglass_mantle'],
+    words:{sideQuest:'What the Deep Kept',sidePlace:'the Drowned Library off the Sunken Temple',guardWarn:'Clear the nearby guards before relighting the beacon.',rescueBlock:'They are still circling in the water. Clear them first; I am too old to outswim them.',rescueThanks:'I came to read what the shrines say of the prince of Grecia. The sea kept me here, and the scrolls with me. Take my notes to Mara. I can walk, if you go slowly.',maraReward:'Hanan’s notes are soaked, but the words held. Take his lamp; it found you in the deep, and it will find you again.',recordPlace:'library',theme:'The fury of a conqueror runs over the earth without touching it. Those who stand on it remain.',stay:'Return to Chittim'},
+  },
 ];
 export const chapterForRoom = (id: string) => FALLEN_CHAPTERS.find(c => [c.hub,c.trail,c.depths,c.side,c.ridge,c.arena].includes(id));
 export const fallenObjective = (id: string) => FALLEN_CHAPTERS.flatMap(c => c.objectives).find(o => o.id === id);
@@ -46,8 +64,9 @@ const foe = (k: EnemyKind,x:number,y:number,elite?:string,ncond?:string):EntDef 
 // Ground features stay clear of exits, spawns, altars and objectives.
 type Feat = [kind: 'mound' | 'pit' | 'hang', x: number, w: number, n: number, fill?: '^' | '~' | 'w'];
 type Prop = [k: string, x: number, o?: { v?: number; w?: number; h?: number; flip?: boolean; fg?: boolean; y?: number }];
-type Lamp = [k: 'glow' | 'torch' | 'brazier' | 'forge', x: number, lift: number, r?: number, c?: string];
+type Lamp = [k: 'glow' | 'torch' | 'brazier' | 'forge' | 'lantern', x: number, lift: number, r?: number, c?: string];
 interface Dress { feats?: Feat[]; props: Prop[]; lamps?: Lamp[] }
+const SEA_FIRE = '#ffb070', SEA_LIGHT = '#6ad0d8';
 const FIRE = '#ff9a50', MOON = '#9ab8e8', BILE = '#9ae050', LAMP = '#d8f080', SLAG = '#ff7a2a';
 const DRESS: Record<string, Dress> = {
   // ---- VII · the Hunt
@@ -106,6 +125,24 @@ const DRESS: Record<string, Dress> = {
   cinder_throne: { props: [['cinders_anvil', 14], ['cinders_crucible', 22], ['cinders_statue', 34], ['cinders_statue', 44, { flip: true }], ['cinders_throne', 59], ['cinders_crucible', 72],
       ['cinders_chain', 28, { y: 12, h: 10 }], ['cinders_chain', 50, { y: 9, h: 7 }], ['cinders_chain', 68, { y: 12, h: 10 }]],
     lamps: [['glow', 22, 2, 60, SLAG], ['glow', 72, 2, 60, SLAG], ['glow', 49, 9, 150, '#ffad62']] },
+  // ---- X · the prince of Grecia
+  chittim_harbor: { props: [['grecia_lighthouse', 4], ['grecia_awning', 18], ['grecia_nets', 29], ['grecia_amphora', 37, { v: 1 }], ['grecia_anchor', 46], ['grecia_banner', 53, { h: 4 }], ['grecia_awning', 61, { flip: true }], ['grecia_wreck', 71], ['grecia_banner', 74, { h: 5 }]],
+    lamps: [['glow', 4, 9, 110, '#ffb060'], ['torch', 15, 3], ['torch', 41, 3], ['glow', 18, 2, 50, SEA_FIRE], ['glow', 61, 2, 50, SEA_FIRE]] },
+  shattered_colonnade: { feats: [['pit', 28, 6, 2, 'w'], ['mound', 40, 8, 1], ['pit', 60, 5, 2, 'w'], ['mound', 68, 8, 2]],
+    props: [['grecia_column', 8], ['grecia_olive', 14], ['grecia_column', 21, { v: 1 }], ['grecia_kelp', 30, { h: 2 }], ['grecia_statue', 35, { v: 1 }], ['grecia_column', 44, { v: 2 }], ['grecia_column', 50], ['grecia_column', 57, { v: 1 }], ['grecia_kelp', 62, { h: 2 }], ['grecia_amphora', 66], ['grecia_statue', 72], ['grecia_column', 82], ['grecia_column', 88, { v: 1 }], ['grecia_olive', 92, { v: 1 }], ['grecia_column', 101, { v: 1 }],
+      ['grass', 10, { w: 5, fg: true }], ['grass', 46, { w: 4, fg: true }]],
+    lamps: [['glow', 30, 0, 60, SEA_LIGHT], ['glow', 62, 0, 60, SEA_LIGHT], ['glow', 50, 7, 60, '#c8d8ff']] },
+  sunken_temple: { feats: [['mound', 36, 11, 1], ['mound', 83, 8, 2], ['hang', 15, 7, 3], ['hang', 50, 9, 3], ['hang', 76, 8, 4], ['hang', 99, 8, 2]],
+    props: [['grecia_statue', 20], ['grecia_column', 28], ['grecia_kelp', 33, { h: 5 }], ['grecia_column', 46, { v: 1 }], ['grecia_kelp', 58, { h: 6 }], ['grecia_statue', 64, { v: 1 }], ['grecia_column', 72], ['grecia_amphora', 80], ['grecia_kelp', 88, { h: 4 }], ['grecia_kelp', 92, { h: 6 }], ['grecia_column', 104, { v: 1 }]],
+    lamps: [['glow', 28, 8, 90, SEA_LIGHT], ['glow', 64, 8, 90, SEA_LIGHT], ['glow', 97, 6, 90, SEA_LIGHT], ['glow', 46, 4, 70, SEA_LIGHT]] },
+  drowned_library: { props: [['grecia_shelf', 8], ['grecia_shelf', 16, { v: 1 }], ['grecia_kelp', 26, { h: 3 }], ['grecia_shelf', 34], ['grecia_shelf', 42, { v: 1 }], ['grecia_amphora', 54], ['grecia_shelf', 64]],
+    lamps: [['lantern', 20, 6], ['lantern', 38, 6], ['lantern', 58, 6], ['glow', 20, 5, 70, SEA_FIRE], ['glow', 38, 5, 70, SEA_FIRE], ['glow', 58, 5, 70, SEA_FIRE]] },
+  stormwall_cliffs: { feats: [['mound', 16, 7, 1], ['mound', 27, 11, 2], ['pit', 44, 4, 2, '^'], ['mound', 60, 10, 2], ['mound', 73, 9, 3]],
+    props: [['grecia_olive', 13], ['grecia_column', 20, { v: 1 }], ['grecia_statue', 31], ['grecia_column', 38, { v: 2 }], ['grecia_olive', 52, { v: 1 }], ['grecia_column', 64, { v: 1 }], ['grecia_statue', 70, { v: 1 }], ['grecia_olive', 86], ['grecia_banner', 92, { h: 4 }], ['grecia_column', 96], ['grecia_banner', 104, { h: 4 }], ['grecia_gate', 108],
+      ['grass', 4, { w: 6, fg: true }], ['grass', 52, { w: 5, fg: true }]],
+    lamps: [['torch', 98, 3], ['glow', 98, 3, 60, SEA_FIRE]] },
+  grecia_throne: { props: [['grecia_column', 10], ['grecia_statue', 18], ['grecia_column', 26, { v: 1 }], ['grecia_banner', 34, { h: 5 }], ['grecia_column', 42, { v: 2 }], ['grecia_throne', 59], ['grecia_banner', 68, { h: 5 }], ['grecia_column', 74]],
+    lamps: [['glow', 49, 9, 150, '#c8d8ff']] },
 };
 
 /** Shape the floor, then put every grounded thing back on the ground it now has. */
@@ -136,18 +173,19 @@ function makeRooms(c:FallenChapter):RoomDef[] {
   const theme=c.biome, floor=24, width=104;
   const room=(id:string,name:string,w=width,f=floor,interior=false):RoomDef=>{
     const b=new MapBuilder(w,f+4).rect(0,f,w,4);if(interior)b.rect(0,0,w,2);
-    return {id,name,region:c.title,biome:theme,music:theme,dark:interior?.36:.23,interior,weather:c.n===9?'embers':c.n===7&&!interior?'ash':'motes',seed:c.n*100+[c.hub,c.trail,c.depths,c.side,c.ridge,c.arena].indexOf(id),map:{x:0,y:c.n*2},w,h:b.h,rows:b.rows(),spawns:{start:{x:6,y:f},left:{x:4,y:f},right:{x:w-4,y:f,face:-1}},exits:[],ents:[]};
+    return {id,name,region:c.title,biome:theme,music:theme,dark:interior?.36:.23,interior,weather:c.n===10?(interior?'drips':'rain'):c.n===9?'embers':c.n===7&&!interior?'ash':'motes',seed:c.n*100+[c.hub,c.trail,c.depths,c.side,c.ridge,c.arena].indexOf(id),map:{x:0,y:c.n*2},w,h:b.h,rows:b.rows(),spawns:{start:{x:6,y:f},left:{x:4,y:f},right:{x:w-4,y:f,face:-1}},exits:[],ents:[]};
   };
-  const hub=room(c.hub,c.n===9?'Ashwatch Refuge':c.n===7?'Thawgate Outpost':'Lantern Quarantine',76,20);
+  const P=c.places;
+  const hub=room(c.hub,P?P[0]:c.n===9?'Ashwatch Refuge':c.n===7?'Thawgate Outpost':'Lantern Quarantine',76,20);
   hub.spawns.altar={x:9,y:20};hub.rows=hub.rows.map((r,y)=>y<20?'##'+r.slice(2):r);
   hub.ents=[{t:'altar',id:c.hub,x:9,y:20},
     ...(['azriel','mara','tobiah','ilan','dov'] as NpcKind[]).map((k,i):EntDef=>({t:'npc',k,x:[25,32,43,56,66][i],y:20})),{t:'npc',k:c.rescue,x:49,y:20,cond:`ch${c.n}_rescued`},
     {t:'hint',id:`ch${c.n}_help`,x:18,w:25,text:c.intro[1]}];
-  const trail=room(c.trail,c.n===9?'The Slag Procession':c.n===7?'The Riftwood Trail':'Greenfall Marsh');
-  const depths=room(c.depths,c.n===9?'The Bellows Foundry':c.n===7?'The Fang Pits':'The Sporeworks',112,27,true);
-  const side=room(c.side,c.n===9?'The Last Smithy':c.n===7?'The Unhunted Grove':'The Silent Infirmary',68,24);
-  const ridge=room(c.ridge,c.n===9?'The Ember Aqueduct':c.n===7?'Clawscar Ridge':'The Pestilent Causeway',110,25);
-  const arena=room(c.arena,c.n===9?'The Throne of Cinders':c.n===7?'The Throne of Fangs':'The Throne of the Swarm',80,23,true);
+  const trail=room(c.trail,P?P[1]:c.n===9?'The Slag Procession':c.n===7?'The Riftwood Trail':'Greenfall Marsh');
+  const depths=room(c.depths,P?P[2]:c.n===9?'The Bellows Foundry':c.n===7?'The Fang Pits':'The Sporeworks',112,27,true);
+  const side=room(c.side,P?P[3]:c.n===9?'The Last Smithy':c.n===7?'The Unhunted Grove':'The Silent Infirmary',68,24,c.n===10);
+  const ridge=room(c.ridge,P?P[4]:c.n===9?'The Ember Aqueduct':c.n===7?'Clawscar Ridge':'The Pestilent Causeway',110,25);
+  const arena=room(c.arena,P?P[5]:c.n===9?'The Throne of Cinders':c.n===7?'The Throne of Fangs':'The Throne of the Swarm',80,23,c.n!==10);
   const route=[hub,trail,depths,ridge,arena];
   let mapX=0;for(const r of route){r.map={x:mapX,y:c.n*2};mapX+=r.w/16+.3;}
   side.map={x:depths.map.x+2.5,y:c.n*2-2.2};
@@ -167,20 +205,34 @@ function makeRooms(c:FallenChapter):RoomDef[] {
   if(c.n===9){addPlatforms(trail,[[7,21,7],[86,19,8]]);addPlatforms(ridge,[[12,22,6],[94,21,7]]);}
   for(const [i,r]of [trail,depths,ridge].entries()){
     // The middle foe of every route room is the chapter's own: stalker, carrier or golem.
-    const f=r.h-4;r.ents.push(foe(c.n===9?'lion':c.n===7?'hound':'drone',24,f),foe(c.n===9?'golem':c.n===7?'stalker':'carrier',55,f),foe(c.n===9?'priest':c.n===7?'archer':'priest',78,f));
-    if(i<2){const o=c.objectives[i];if(c.n===7)r.ents.push(foe(i?'lion':'knight',94,f,o.id,o.flag));else r.ents.push({t:'shrine',id:o.id,grants:o.id,x:97,y:f},foe(c.n===9?'bulwark':'soldier',94,f));}
+    const f=r.h-4,F=c.foes;r.ents.push(foe(F?F.lead:c.n===9?'lion':c.n===7?'hound':'drone',24,f),foe(F?F.signature:c.n===9?'golem':c.n===7?'stalker':'carrier',55,f),foe(F?F.rear:c.n===9?'priest':c.n===7?'archer':'priest',78,f));
+    if(i<2){const o=c.objectives[i];if(c.n===7)r.ents.push(foe(i?'lion':'knight',94,f,o.id,o.flag));else r.ents.push({t:'shrine',id:o.id,grants:o.id,x:97,y:f},foe(F?F.guard:c.n===9?'bulwark':'soldier',94,f));}
   }
   depths.spawns.altar={x:10,y:27};depths.ents.push({t:'altar',id:depths.id,x:10,y:27},{t:'light',k:'brazier',x:10,y:27});
   ridge.spawns.altar={x:9,y:25};ridge.ents.push({t:'altar',id:ridge.id,x:9,y:25},{t:'light',k:'brazier',x:9,y:25},{t:'trigger',id:`ch${c.n}_gate`,x:98,y:18,w:8,h:7});
-  side.ents.push(foe(c.n===9?'golem':c.n===7?'stalker':'carrier',24,24),foe(c.n===9?'knight':c.n===7?'lion':'soldier',49,24),{t:'npc',k:c.rescue,x:60,y:24,ncond:`ch${c.n}_rescued`},{t:'lore',id:c.record,x:48,y:12});
-  trail.ents.push({t:'chest',id:c.caches[0],secret:true,x:38,y:13,loot:[{item:c.n===9?'quencher_grips':c.n===7?'trailwarden_grips':'antidote_greaves',rarity:4},{silver:900}]});
-  side.ents.push({t:'chest',id:c.caches[1],secret:true,x:51,y:12,loot:[{item:c.n===9?'ashwatch_plate':c.n===7?'moonpath_boots':'quarantine_mantle',rarity:4},{mat:'radiant_core',n:4}]});
+  side.ents.push(foe(c.foes?c.foes.side[0]:c.n===9?'golem':c.n===7?'stalker':'carrier',24,24),foe(c.foes?c.foes.side[1]:c.n===9?'knight':c.n===7?'lion':'soldier',49,24),{t:'npc',k:c.rescue,x:60,y:24,ncond:`ch${c.n}_rescued`},{t:'lore',id:c.record,x:48,y:12});
+  trail.ents.push({t:'chest',id:c.caches[0],secret:true,x:38,y:13,loot:[{item:c.cacheItems?c.cacheItems[0]:c.n===9?'quencher_grips':c.n===7?'trailwarden_grips':'antidote_greaves',rarity:4},{silver:900}]});
+  side.ents.push({t:'chest',id:c.caches[1],secret:true,x:51,y:12,loot:[{item:c.cacheItems?c.cacheItems[1]:c.n===9?'ashwatch_plate':c.n===7?'moonpath_boots':'quarantine_mantle',rarity:4},{mat:'radiant_core',n:4}]});
   ridge.ents.push({t:'chest',id:c.caches[2],secret:true,x:76,y:12,loot:[{silver:1200},{mat:'covenant_fragment',n:6}]},{t:'hint',id:`ch${c.n}_boss_hint`,x:84,w:18,text:c.tips});
   arena.spawns.left=arena.spawns.altar={x:9,y:23};arena.rows=arena.rows.map((r,y)=>y>=3&&y<23?r.slice(0,3)+'G'+r.slice(4,78)+'##':r);
   arena.ents.push({t:'boss',k:c.boss,x:50,y:23},{t:'trigger',id:c.boss+'_start',x:23,y:14,w:10,h:9});
   const rooms=[hub,trail,depths,side,ridge,arena];
+  if(c.n===10)tide(c,depths,side,trail,ridge);
   for(const r of rooms)dress(r);
   return rooms;
+}
+/**
+ * Chapter X: the sea has come in. The Sunken Temple is flooded from just under
+ * its upper door to the floor, the Drowned Library stands knee-deep, and the
+ * coast keeps its scripture in carved stone along the way.
+ */
+function tide(c:FallenChapter,depths:RoomDef,side:RoomDef,trail:RoomDef,ridge:RoomDef){
+  const flood=(r:RoomDef,x0:number,x1:number,y0:number,y1:number)=>{r.rows=r.rows.map((row,y)=>y<y0||y>y1?row:row.split('').map((ch,x)=>x>=x0&&x<=x1&&ch==='.'?'w':ch).join(''));};
+  flood(depths,16,depths.w-1,14,depths.h-5);
+  flood(side,12,56,21,side.h-5);
+  trail.ents.push({t:'lore',id:'dan85',x:48,y:18});
+  depths.ents.push({t:'lore',id:'dan88',x:68,y:21});
+  ridge.ents.push({t:'lore',id:'dan821',x:64,y:16});
 }
 export const FALLEN_ROOMS=FALLEN_CHAPTERS.flatMap(makeRooms);
 

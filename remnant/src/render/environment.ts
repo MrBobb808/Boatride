@@ -32,6 +32,7 @@ export interface BiomePal {
 
 export const BIOMES: Record<Biome, BiomePal> = {
   hunt: {sky:['#101323','#31353c','#8a6755'],far:'#35363e',mid:'#252832',near:'#171d27',fog:'#b78c6e',stone:'#514751',stoneDark:'#25232d',cap:'#9c8770',capTuft:'#b09269',back:'#211f29',backLine:'#3f3540',moon:'#f1cf9c',plat:'#9a7f64',ambient:'#1a1422'},
+  grecia: {sky:['#121a24','#2c3a4a','#7a8c96'],far:'#3a4858',mid:'#24303c',near:'#121820',fog:'#9ab4bc',stone:'#a49c8a',stoneDark:'#4a4a44',cap:'#dcd4c2',capTuft:'#5a7a5a',back:'#283038',backLine:'#4a5662',moon:null,plat:'#8a7a62',ambient:'#0e1620'},
   cinders: {sky:['#16131d','#593c3c','#bb754b'],far:'#64413b',mid:'#463139',near:'#251e25',fog:'#c28a65',stone:'#665049',stoneDark:'#33272b',cap:'#cb9665',capTuft:'#e4ad71',back:'#30242a',backLine:'#67483f',moon:'#db9b67',plat:'#d39d6d',ambient:'#2b1c21'},
   plague: {sky:['#101b22','#304e46','#7d9666'],far:'#374f46',mid:'#294637',near:'#192c29',fog:'#b6ce8d',stone:'#455947',stoneDark:'#202f2c',cap:'#9bb478',capTuft:'#bed28c',back:'#1b2e26',backLine:'#3c5941',moon:'#d4eda5',plat:'#a4b77b',ambient:'#12271f'},
   village: {
@@ -356,7 +357,7 @@ function tree(ctx: Ctx, x: number, base: number, h: number, col: string, rng: RN
 }
 
 export function drawSky(ctx: Ctx, pal: BiomePal, w: number, h: number, interior: boolean, t: number) {
-  if (pal === BIOMES.hunt || pal === BIOMES.plague || pal === BIOMES.cinders) return fallenSky(ctx, pal === BIOMES.hunt ? 'hunt' : pal === BIOMES.plague ? 'plague' : 'cinders', w, h, interior, t);
+  if (pal === BIOMES.hunt || pal === BIOMES.plague || pal === BIOMES.cinders || pal === BIOMES.grecia) return fallenSky(ctx, pal === BIOMES.hunt ? 'hunt' : pal === BIOMES.plague ? 'plague' : pal === BIOMES.grecia ? 'grecia' : 'cinders', w, h, interior, t);
   if (pal === BIOMES.plain && !interior) {
     drawDuskSky(ctx, pal, w, h, t);
     return;

@@ -15,6 +15,7 @@ import { RNG } from '../core/math';
 import { blob, wrapNoise, fillRidge, strokeRidge, reedSil } from './env4';
 import type { BiomePal, Layer, ParallaxSteps } from './environment';
 import type { FallenBiome } from './fallenEnv';
+import { greciaParallax } from './envGrecia';
 
 const TAU = Math.PI * 2;
 
@@ -997,7 +998,8 @@ export function* fallenParallax(biome: FallenBiome, pal: BiomePal, seed: number,
     }
   };
   const b: Builder = { mk, scatter, seed, slot: seed % 100, pal, res };
-  if (biome === 'hunt') (interior ? huntIn : huntOut)(b);
+  if (biome === 'grecia') greciaParallax(b, interior);
+  else if (biome === 'hunt') (interior ? huntIn : huntOut)(b);
   else if (biome === 'plague') (interior ? plagueIn : plagueOut)(b);
   else (interior ? cinderIn : cinderOut)(b);
   // Each strip draws from its own seeded RNGs, so baking them later and one at a time gives the same pixels.
