@@ -4,6 +4,7 @@ import type { Npc, Shrine } from './props';
 import type { Enemy } from './enemies';
 import type { BossBase } from './bosses2';
 import { FALLEN_CHAPTERS, chapterForRoom, fallenObjective, type FallenChapter } from './fallenChapters';
+import { chapterCurve } from './curve';
 import { makeItem, addMaterial, derive } from './state';
 import { registerGuide } from './guide';
 import { music } from '../audio/music';
@@ -67,7 +68,7 @@ export class FallenStory {
     if(this.completing||flag(`ch${c.n}_done`))return;this.completing=true;const W=G.world,s=G.save,token=this.epoch;
     this.cine(true);W.bossActive=false;W.closeGate(false);G.ui.bossBar(null);music.play('victory');
     // Commit rewards and progress before any awaited dialogue. Reloads cannot duplicate them.
-    if(!flag(`ch${c.n}_rewarded`)){setFlag(`ch${c.n}_rewarded`);for(const id of c.rewards)if(!s.inventory.some(i=>i.id===id)){const it=makeItem(id);s.inventory.push(it);G.ui.itemGet(it);}s.silver+=(c.n-4)*1000;addMaterial(s,'radiant_core',c.n);addMaterial(s,'covenant_fragment',c.n+1);W.giveXp(10000+(c.n-7)*3000);}
+    if(!flag(`ch${c.n}_rewarded`)){setFlag(`ch${c.n}_rewarded`);for(const id of c.rewards)if(!s.inventory.some(i=>i.id===id)){const it=makeItem(id);s.inventory.push(it);G.ui.itemGet(it);}s.silver+=(c.n-4)*1000;addMaterial(s,'radiant_core',c.n);addMaterial(s,'covenant_fragment',c.n+1);W.giveXp(chapterCurve(c.n).clearXp??10000);}
     if(!s.defeated.includes(c.boss))s.defeated.push(c.boss);this.st.quest(`m_crown${c.n}`,2,true);setFlag(`ch${c.n}_done`);G.d=derive(s);G.camera.focus=null;G.camera.viewMultTarget=1;W.autosave(true);
     await this.st.say(c.ending.map((text,i)=>({who:['narrator','elior','mara'][i],text})));if(!this.current(token))return;
     this.cine(false);const next=await G.ui.chapterEnd(c.n);if(!this.current(token))return;if(next==='next'&&FALLEN_CHAPTERS.some(n=>n.n===c.n+1))await this.begin(c.n+1);else await W.transition(c.hub,'altar');

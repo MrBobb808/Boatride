@@ -3,6 +3,7 @@ import { chapterForRoom } from './fallenChapters';
 // Veil Wisps. Each has a readable telegraph, a stagger state that opens an
 // execution, and its own sound signature.
 
+import { chapterCurve } from './curve';
 import { Entity, type HitInfo } from './entity';
 import { moveBody, groundAhead, wallAhead, hazardAhead, los } from './physics';
 import { Animator, solve, newJoints, BASE_POSE, Chain, drawRibbon, type Clip, type Joints, type Pose, type RigDims } from '../render/skeleton';
@@ -259,11 +260,10 @@ export abstract class Enemy extends Entity {
     this.stats = ENEMY_STATS[kind];
     const ng = 1 + (G.save?.ng ?? 0) * 0.6;
     const em = elite ? 2.0 : 1;
-    // Chapter II foes are tougher, and worth more.
     const rid = G.world?.room?.id ?? '';
     this.tier = chapterForRoom(rid)?.n ?? (CH6_ROOM_IDS.has(rid) ? 6 : CH5_ROOM_IDS.has(rid) ? 5 : CH4_ROOM_IDS.has(rid) ? 4 : CH3_ROOM_IDS.has(rid) ? 3 : CH2_ROOM_IDS.has(rid) ? 2 : 1);
-    // One entry per chapter; a chapter past the end of the table takes the last one.
-    const th = [1, 1, 1.8, 3.0, 4.4, 6.2, 8.4, 10.5, 13, 15.5, 18][Math.min(this.tier, 10)], td = [1, 1, 1.4, 1.9, 2.4, 2.9, 3.4, 3.9, 4.4, 4.9, 5.4][Math.min(this.tier, 10)];
+    // Per-chapter health and damage come from the difficulty curve (game/curve.ts).
+    const { foeHp: th, foeDmg: td } = chapterCurve(this.tier);
     this.maxHp = this.hp = Math.round(this.stats.hp * ng * em * th);
     this.dmg = this.stats.dmg * ng * (elite ? 1.15 : 1) * td;
     this.maxPoise = this.poise = this.stats.poise * (elite ? 1.6 : 1);

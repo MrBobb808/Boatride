@@ -3,6 +3,7 @@ import { cleansingBeacon } from './fallenChapters';
 import { Entity, type HitInfo } from './entity';
 import { G } from './ctx';
 import { bossScale } from './difficulty';
+import { chapterCurve } from './curve';
 import { moveBody, bodyFits } from './physics';
 import { clamp, approach, sign } from '../core/math';
 import { poly, rgba, glow, type Ctx } from '../render/draw';
@@ -40,7 +41,7 @@ export class CrownAdd extends Entity {
   }
 }
 
-/** Original Fallen Crowns: fixed campaign HP, readable tells, and phase gates for very strong builds. */
+/** Original Fallen Crowns: campaign HP and blows from the chapter curve (never the player's level), readable tells, and phase gates for very strong builds. */
 export class FallenMonarch extends BossBase {
   // Already drawn from painted sprite atlases.
   pixelShade = false;
@@ -48,12 +49,12 @@ export class FallenMonarch extends BossBase {
   adds:CrownAdd[]=[];spores:Spore[]=[];beaconX=0;purgePulse=-1;purgeHits=new Set<number>();
   color:string;
   constructor(public plague:boolean,x:number,y:number){
-    super(plague?'plague_monarch':'beast_monarch',x,y,plague?40:50,90,plague?820000:650000);
+    super(plague?'plague_monarch':'beast_monarch',x,y,plague?40:50,90,chapterCurve(plague?8:7).bossHp!);
     this.name=plague?'Morvane · Crown of Pestilence':'Varkhos · Crown of the Hunt';this.sub=plague?'I · The Living Swarm':'I · The Unbroken Pack';this.color=plague?'#baed8c':'#ffbd79';
     this.floorY=y;this.face=-1;this.maxPoise=this.poise=plague?560:620;this.p2At=.67;this.p3At=.32;this.phaseMarks=[.67,.32];this.hitColor=this.color;
   }
   get addCount(){let n=0;for(const a of this.adds)if(!a.remove&&!a.dying)n++;return n;}
-  get dmg(){return(this.plague?300:280)*this.ngMul*this.encounterDamage*(this.plague?1:1+this.addCount*.12)*(this.phase===3?1.12:1);}
+  get dmg(){return chapterCurve(this.plague?8:7).bossDmg!*this.ngMul*this.encounterDamage*(this.plague?1:1+this.addCount*.12)*(this.phase===3?1.12:1);}
   canBeTargeted(){return super.canBeTargeted()&&!this.ward;}
   takeHit(h:HitInfo){
     if(this.ward)return false;

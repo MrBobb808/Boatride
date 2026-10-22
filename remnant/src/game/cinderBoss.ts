@@ -3,6 +3,7 @@ import { BossBase } from './bosses2';
 import { Entity, type HitInfo } from './entity';
 import { G } from './ctx';
 import { bossScale } from './difficulty';
+import { chapterCurve } from './curve';
 import { moveBody } from './physics';
 import { clamp, approach, sign } from '../core/math';
 import { rgba, poly, type Ctx } from '../render/draw';
@@ -32,11 +33,11 @@ export class CinderMonarch extends BossBase {
   faults:Fault[]=[];waves:CinderWave[]=[];ward=false;bellowsStep=-1;armor=false;
   readonly color='#ffb16b';
   constructor(x:number,y:number){
-    super('cinder_monarch',x,y,48,94,1020000);this.floorY=y;this.face=-1;
+    super('cinder_monarch',x,y,48,94,chapterCurve(9).bossHp!);this.floorY=y;this.face=-1;
     this.name='Azkar · Crown of Cinders';this.sub='I · The Living Anvil';this.maxPoise=this.poise=680;
     this.p2At=.67;this.p3At=.32;this.phaseMarks=[.67,.32];this.hitColor=this.color;this.kneelTime=3.2;
   }
-  get dmg(){return 330*this.ngMul*this.encounterDamage*(this.phase===3?1.1:1);}
+  get dmg(){return chapterCurve(9).bossDmg!*this.ngMul*this.encounterDamage*(this.phase===3?1.1:1);}
   canBeTargeted(){return super.canBeTargeted()&&!this.ward;}
   takeHit(h:HitInfo){
     if(this.ward)return false;

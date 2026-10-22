@@ -898,7 +898,7 @@ function settingsTab() {
       row('Show frame rate', '', toggle(st.showFps, (v) => (st.showFps = v), 'sf')),
     ),
     h('div', { class: 'box' }, h('h3', null, 'Challenge'),
-      row('Boss difficulty', 'Hard: bosses have more health, hit harder and move faster. Normal is the original balance. Merciless is for those who have outgrown Hard. Applies from the next boss room.',
+      row('Boss difficulty', 'Hard (default) is tuned to be won at the level you reach by playing straight through. Normal is gentler. Merciless gives bosses far more health, harder blows and a faster tempo: the harder path. Applies from the next boss room.',
         seg(st.bossDifficulty, [['normal', 'Normal'], ['hard', 'Hard'], ['merciless', 'Merciless']], (v) => (st.bossDifficulty = v), 'bd')),
     ),
     h('div', { class: 'box' }, h('h3', null, 'Accessibility'),
