@@ -952,7 +952,7 @@ export class GreciaPrince extends BossBase {
       this.flapAmp = 0.22;
       this.ward = true;
       this.x = approach(this.x, mid, dt * 420);
-      this.air = approach(this.air, 118, dt * 220);
+      this.air = approach(this.air, 84, dt * 200);
       this.face = G.world.player.x < this.x ? -1 : 1;
       if (t > 0.9) {
         this.step = 1;
@@ -969,7 +969,7 @@ export class GreciaPrince extends BossBase {
     if (this.step === 1) {
       this.pt = GP.aloft;
       this.ward = true;
-      this.air = 118 + Math.sin(G.time * 2) * 4;
+      this.air = 84 + Math.sin(G.time * 2) * 4;
       this.face = G.world.player.x < this.x ? -1 : 1;
       this.windT += dt;
       // The south wind rises three times, each under where Elior stands.
