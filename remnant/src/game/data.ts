@@ -80,6 +80,9 @@ export interface ItemBase {
 }
 
 export const ITEMS: Record<string, ItemBase> = {
+  // Remnant's Rest: forged only at the settlement's smithy.
+  settlers_ward: {id:'settlers_ward',name:'Settler\'s Ward',slot:'ring',rarity:4,icon:'ring',unique:true,value:900,mods:{hp:150,def:10,res:2,echoHp:20},desc:'Hinge-iron from the Rest, bound around a sliver of covenant light. A charm against the cruelty of the road.'},
+  rest_standard: {id:'rest_standard',name:'Standard of the Rest',slot:'relic',rarity:5,icon:'sigil',unique:true,value:2600,mods:{rally:30,echoDmg:25,echoHp:25,xp:10},desc:'The festival banner of Remnant\'s Rest, cut down to a standard you can carry. Every settler\'s name is stitched into its hem.'},
   cinderbreak: {id:'cinderbreak',name:'Cinderbreak',slot:'weapon',family:'greatsword',rarity:5,icon:'greatsword',element:'fire',look:2,unique:true,value:4200,mods:{atk:470,poise:35,critDmg:25},desc:'Azkar’s broken hammer reforged into a blade by free hands. Trophy of Chapter IX.'},
   oath_of_the_unburnt: {id:'oath_of_the_unburnt',name:'Oath of the Unburnt',slot:'relic',rarity:5,icon:'crown',unique:true,value:3200,mods:{hp:300,def:18,echoDmg:35,echoHp:35},desc:'The foundry’s freedom, carried into every battle.'},
   quencher_grips: {id:'quencher_grips',name:'Quencher Grips',slot:'gauntlets',rarity:4,icon:'gauntlet',look:2,unique:true,value:2300,mods:{atk:75,parry:15,poise:20},desc:'Hidden above the Slag Procession. A smith’s steady hands can turn a hammer aside.'},
@@ -503,6 +506,7 @@ export interface LoreEntry {
   note: string;
 }
 export const LORE: Record<string, LoreEntry> = {
+  jer295: {id:'jer295',title:'The Well-Stone of the Rest',ref:'Jeremiah 29:5 (KJV)',text:'Build ye houses, and dwell in them; and plant gardens, and eat the fruit of them;',note:'Cut into the well-stone at Remnant\'s Rest by its first settlers.'},
   cinder_testament: {id:'cinder_testament',title:'The Testament of Free Hands',ref:'Remnant chronicle · Original fiction',text:'We know the names of every chain we forged. We kept this last workshop for hinges, ploughs and cradles. If the furnaces are freed, let no crown decide what our hands are for again.',note:'Rescue Talia in the Last Smithy, then bring this testament to Mara at Ashwatch.'},
   hunt_plague: {id:'hunt_plague',title:'The Green-Stained Record',ref:'Remnant chronicle · Original fiction',text:'Morvane’s wings carry a thousand smaller wings. The green dust is not pollen. It is a road for her army.',note:'Rescue Barak in the grove, then bring this record to Mara at Thawgate.'},
   plague_cinders: {id:'plague_cinders',title:'Beyond the Last Clean Breath',ref:'Remnant chronicle · Original fiction',text:'Azkar’s shadow leaves ash where it falls. The Crown of Cinders has lit the furnaces beyond the marsh, but the swarm has not yet crossed his fire.',note:'Rescue Ezra in the infirmary and bring this warning to Mara. The freed causeway now leads to the Cinders campaign.'},

@@ -8,6 +8,7 @@ import { ROOMS3, CH3_ROOM_IDS } from './rooms3';
 import { ROOMS4, CH4_ROOM_IDS } from './rooms4';
 import { ROOMS5, CH5_ROOM_IDS } from './rooms5';
 import { ROOMS6, CH6_ROOM_IDS } from './rooms6';
+import { REST_ROOM } from './restRoom';
 
 export interface RoomSpec extends Omit<RoomDef, 'rows' | 'w' | 'h' | 'exits'> {
   exits: (Exit & { cond?: string })[];
@@ -553,7 +554,7 @@ function sanctum() {
 export type RoomData = ReturnType<typeof sanctuary>;
 
 export const ROOMS: Record<string, RoomData> = Object.fromEntries(
-  [sanctuary(), ashenRoad(), villageSquare(), cistern(), templeSteps(), templeHall(), chamber(), crypt(), gallery(), vault(), antechamber(), sanctum(), ...ROOMS2, ...ROOMS3, ...ROOMS4, ...ROOMS5, ...ROOMS6, ...FALLEN_ROOMS]
+  [sanctuary(), ashenRoad(), villageSquare(), cistern(), templeSteps(), templeHall(), chamber(), crypt(), gallery(), vault(), antechamber(), sanctum(), ...ROOMS2, ...ROOMS3, ...ROOMS4, ...ROOMS5, ...ROOMS6, ...FALLEN_ROOMS, REST_ROOM]
     .map((r) => [r.id, r]),
 );
 
