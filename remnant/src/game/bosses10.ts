@@ -43,17 +43,17 @@ const BOX = { x: 0, y: 0, w: 0, h: 0 };
 
 const C = {
   outl: '#07060a',
-  marble: '#e8e3d8', marbleMid: '#c8c2b6', marbleDk: '#948e86', vein: '#9a95a2',
-  bronze: '#b98238', bronzeHi: '#f6d184', bronzeDk: '#6a4119', bronzeDeep: '#3e250e',
+  marble: '#d8d2c6', marbleMid: '#b4aea2', marbleDk: '#87817a', vein: '#9a95a2',
+  bronze: '#a8702c', bronzeHi: '#f2c46e', bronzeDk: '#5e3814', bronzeDeep: '#3e250e',
   fur: '#5d6476', furDk: '#353a4c', furHi: '#a3adc2', hoof: '#1e1916',
   crest: '#a8222c', crestDk: '#5c1018', crestHi: '#ff7462', plume: '#f2eee4',
   linen: '#dcd2bb', linenDk: '#a39a84', leather: '#4a2c1c',
   horn: '#f1e8d2', hornDk: '#a8966c', hornHi: '#fffaf0',
   eye: '#c4e8ff', beard: '#cfcbc2',
   wing: '#ece8e0', wingMid: '#c9c4bb', wingDk: '#9a958e', ash: '#4a4448', ashDk: '#262226',
-  sea: '#183444', seaMid: '#2c5a6c', seaHi: '#4f8696', foam: '#d8eff0',
+  sea: '#1b4253', seaMid: '#2f6c7e', seaHi: '#5a9cac', foam: '#d8eff0',
   wood: '#6a4a2a', woodHi: '#a8805a',
-  ram: '#d9b8ff', ramDk: '#5a3a86', ramHi: '#fff0c8',
+  ram: '#b48cff', ramDk: '#6a3ab6', ramHi: '#f2e4ff',
 };
 const TELL = { parry: '#ffd36b', dodge: '#ff5a46', dodgeHot: '#ffd2c4', calm: '#ffe6a8' };
 /** The four winds, in the order he calls them: north, east, south, west. */
@@ -65,11 +65,15 @@ const WINDS = [
 ];
 
 // Shades of the palette, worked out once (shade() is cached, but a constant is free).
-const FUR_FAR = '#424858', MARBLE_FAR = '#aaa49a', BRONZE_SIDE = '#8a5f27', WING_FAR = '#b7b2aa', WINGMID_FAR = '#98938b', ASH_FAR = '#333034';
+const FUR_FAR = '#424858', MARBLE_FAR = '#9a948a', BRONZE_SIDE = '#7a4b1c', BRONZE_LIT = '#c68a3c', WING_FAR = '#b7b2aa', WINGMID_FAR = '#98938b', ASH_FAR = '#333034';
 
 interface GPose { pitch: number; drop: number; crouch: number; tuck: number; arm: number; fore: number; spear: number; farArm: number; farFore: number; head: number; wing: number }
 const KEYS = ['pitch', 'drop', 'crouch', 'tuck', 'arm', 'fore', 'spear', 'farArm', 'farFore', 'head', 'wing'] as const;
-const P0: GPose = { pitch: 0.05, drop: 0, crouch: 0.2, tuck: 0, arm: 0.2, fore: 0.95, spear: -1.3, farArm: -0.15, farFore: 0.7, head: 0.05, wing: 0.4 };
+const P0: GPose = { pitch: 0.05, drop: 0, crouch: 0.2, tuck: 0, arm: 0.2, fore: 0.95, spear: -1.3, farArm: -0.15, farFore: 0.7, head: 0.05, wing: 0.62 };
+/** He is drawn larger than his rig's units: a prince stands over men. */
+const S = 1.16;
+/** The head is drawn larger again, so the face and horn read on a phone. */
+const HS = 1.3;
 const pose = (o: Partial<GPose>): GPose => ({ ...P0, ...o });
 // Arm angles are measured from straight down, forward positive; the spear's is
 // from level forward, down positive; all in the body's own (pitched) frame.
@@ -184,7 +188,7 @@ export class RamHorn extends Entity {
 
 export class GreciaPrince extends BossBase {
   // Wings, sarissa and crest: the art reaches far either side and well above the head.
-  pixelBox = [-170, -178, 170, 26] as const;
+  pixelBox = [-200, -208, 200, 28] as const;
   atk: GAtk | null = null;
   last: GAtk | null = null;
   n = 0;
@@ -250,7 +254,7 @@ export class GreciaPrince extends BossBase {
     this.phaseMarks = [0.66, 0.33];
     this.hitColor = '#f4e6c0';
     this.hitSound = 'hitMetal';
-    this.cape = new Chain(7, 8, x, y - 86);
+    this.cape = new Chain(8, 9, x, y - 86);
     for (let i = 0; i < LANES; i++) this.lanes.push({ on: false, wind: 0, x: 0, w: 0, t: 0, tele: 1, act: 0, front: 0, dir: 1, y0: 0, y1: 0, hits: new Set() });
   }
 
@@ -1108,13 +1112,13 @@ export class GreciaPrince extends BossBase {
     const p = this.pz, c = Math.cos(p.pitch), s = Math.sin(p.pitch);
     const py = by + 50;
     const rx = bx * c - py * s, ry = bx * s + py * c;
-    this.tx = this.x + this.face * rx;
-    this.ty = this.y - this.hover + p.drop + p.crouch * 6 + ry - 50;
+    this.tx = this.x + this.face * rx * S;
+    this.ty = this.y - this.hover + p.drop + p.crouch * 6 + (ry - 50) * S;
   }
   /** As bodyPoint, for a point in the head's frame (origin at the top of the neck). */
   private headPoint(hx: number, hy: number) {
     const c = Math.cos(this.pz.head), s = Math.sin(this.pz.head);
-    this.bodyPoint(5 + hx * c - hy * s, -94 + hx * s + hy * c);
+    this.bodyPoint(5 + (hx * c - hy * s) * HS, -94 + (hx * s + hy * c) * HS);
   }
 
   // ------------------------------------------------------------ rendering
@@ -1135,7 +1139,7 @@ export class GreciaPrince extends BossBase {
     this.drawCape(ctx, detail);
     ctx.save();
     ctx.translate(Math.round(this.x), Math.round(this.y - this.hover + p.drop + p.crouch * 6));
-    ctx.scale(this.face, 1);
+    ctx.scale(this.face * S, S);
     ctx.translate(0, -50);
     ctx.rotate(p.pitch);
     ctx.translate(0, 50);
@@ -1170,7 +1174,7 @@ export class GreciaPrince extends BossBase {
         let dx = ch.xs[i1] - ch.xs[i0], dy = ch.ys[i1] - ch.ys[i0];
         const l = Math.hypot(dx, dy) || 1;
         dx /= l; dy /= l;
-        const w = (8 + i * 2.6) * (pass ? -1 : 1);
+        const w = (9 + i * 3.2) * (pass ? -1 : 1);
         const x = ch.xs[i] - dy * w, y = ch.ys[i] + dx * w;
         if (pass === 0 && k === 0) ctx.moveTo(x, y);
         else ctx.lineTo(x, y);
@@ -1198,18 +1202,31 @@ export class GreciaPrince extends BossBase {
       ctx.lineTo(ch.xs[i + 1] - 1, ch.ys[i + 1]);
     }
     ctx.stroke();
-    // Foam breaking along the hem.
+    // Swells breaking across the cloth, and foam curling along the hem.
+    for (let i = 2; i < n; i += 2) {
+      const i0 = i - 1;
+      let dx = ch.xs[i] - ch.xs[i0], dy = ch.ys[i] - ch.ys[i0];
+      const l = Math.hypot(dx, dy) || 1;
+      dx /= l; dy /= l;
+      const w = 9 + i * 3.2, ph = G.time * 2.4 + i;
+      ctx.strokeStyle = i === n - 2 || i === n - 1 ? C.foam : C.seaHi;
+      ctx.lineWidth = i >= n - 2 ? 1.6 : 1.1;
+      ctx.beginPath();
+      ctx.moveTo(ch.xs[i] + dy * w * 0.9, ch.ys[i] - dx * w * 0.9);
+      ctx.quadraticCurveTo(ch.xs[i] + dx * (4 + Math.sin(ph) * 2), ch.ys[i] + dy * (4 + Math.sin(ph) * 2), ch.xs[i] - dy * w * 0.9, ch.ys[i] + dx * w * 0.9);
+      ctx.stroke();
+    }
     const i = n - 1, j = n - 2;
     const dx = ch.xs[i] - ch.xs[j], dy = ch.ys[i] - ch.ys[j];
-    const l = Math.hypot(dx, dy) || 1, nx = -dy / l, ny = dx / l;
+    const l = Math.hypot(dx, dy) || 1, nx = -dy / l, ny = dx / l, w = 9 + i * 3.2;
     ctx.strokeStyle = C.foam;
-    ctx.lineWidth = 1.4;
+    ctx.lineWidth = 1.3;
     ctx.beginPath();
-    for (let k = -2; k <= 2; k++) {
-      const fx2 = ch.xs[i] + nx * k * 5, fy2 = ch.ys[i] + ny * k * 5;
-      const ph = G.time * 4 + k;
-      ctx.moveTo(fx2 - 2, fy2);
-      ctx.quadraticCurveTo(fx2 + 1, fy2 - 3 - Math.sin(ph), fx2 + 3, fy2 + 0.5);
+    for (let k = -3; k <= 3; k++) {
+      const fx2 = ch.xs[i] + nx * k * w / 3.5, fy2 = ch.ys[i] + ny * k * w / 3.5;
+      const r = 2.4 + Math.sin(G.time * 4 + k) * 0.7;
+      ctx.moveTo(fx2 + r, fy2);
+      ctx.arc(fx2, fy2, r, 0, Math.PI * 1.4, true);
     }
     ctx.stroke();
   }
@@ -1231,7 +1248,7 @@ export class GreciaPrince extends BossBase {
     for (let i = N - 1; i >= 0; i--) {
       const u = (i + 1) / N;
       const px = u < 0.5 ? lerp(rx, ex, u * 2) : lerp(ex, wx, (u - 0.5) * 2), py = u < 0.5 ? lerp(ry, ey, u * 2) : lerp(ey, wy, (u - 0.5) * 2);
-      const fp = phi - fan * (1 - u * 0.75);
+      const fp = phi - fan * (1.05 - u * 1.15);
       // Every third feather is torn short; its end is ragged.
       const torn = i % 3 === 1;
       const flen = L * (0.42 + 0.36 * u) * (torn ? 0.8 : 1);
@@ -1322,11 +1339,11 @@ export class GreciaPrince extends BossBase {
     // Outline every segment first so the joints read as one leg.
     ctx.strokeStyle = C.outl;
     ctx.lineWidth = 1.6;
-    ctx.beginPath(); capsulePath(ctx, hx, hy, kx, ky, 7.5, 5); ctx.stroke();
+    ctx.beginPath(); capsulePath(ctx, hx, hy, kx, ky, 8.6, 5.4); ctx.stroke();
     ctx.beginPath(); capsulePath(ctx, kx, ky, hkx, hky, 4.6, 3.2); ctx.stroke();
     ctx.beginPath(); capsulePath(ctx, hkx, hky, fx2, fy2, 3, 2.3); ctx.stroke();
     ctx.fillStyle = fur;
-    ctx.beginPath(); capsulePath(ctx, hx, hy, kx, ky, 7.5, 5); ctx.fill();
+    ctx.beginPath(); capsulePath(ctx, hx, hy, kx, ky, 8.6, 5.4); ctx.fill();
     ctx.beginPath(); capsulePath(ctx, kx, ky, hkx, hky, 4.6, 3.2); ctx.fill();
     ctx.beginPath(); capsulePath(ctx, hkx, hky, fx2, fy2, 3, 2.3); ctx.fill();
     // Shaggy fur at the back of the thigh and a feathered hock.
@@ -1491,18 +1508,24 @@ export class GreciaPrince extends BossBase {
     ctx.fillStyle = C.marbleMid;
     ctx.beginPath(); capsulePath(ctx, 2, -86, 5, -95, 5, 4.2); ctx.fill();
     ctx.beginPath();
-    ctx.moveTo(-9, -50); ctx.lineTo(-12, -62); ctx.lineTo(-12.5, -76); ctx.lineTo(-9.5, -87); ctx.lineTo(-3, -92);
-    ctx.lineTo(6, -92); ctx.lineTo(12, -86.5); ctx.lineTo(14.5, -78); ctx.lineTo(13, -68); ctx.lineTo(9.5, -58); ctx.lineTo(8.5, -50);
+    ctx.moveTo(-8, -50); ctx.lineTo(-10.5, -62); ctx.lineTo(-14, -76); ctx.lineTo(-13, -87); ctx.lineTo(-5, -93);
+    ctx.lineTo(7, -93); ctx.lineTo(14, -88); ctx.lineTo(16.5, -79); ctx.lineTo(14, -68); ctx.lineTo(10, -58); ctx.lineTo(8.5, -50);
     ctx.closePath();
     ctx.fillStyle = C.bronze;
     ctx.fill();
     ctx.strokeStyle = C.outl; ctx.lineWidth = 1; ctx.stroke();
     // The back half in shadow.
     ctx.beginPath();
-    ctx.moveTo(-9, -50); ctx.lineTo(-12, -62); ctx.lineTo(-12.5, -76); ctx.lineTo(-9.5, -87); ctx.lineTo(-5, -89);
-    ctx.lineTo(-6.5, -74); ctx.lineTo(-5, -60); ctx.lineTo(-3.5, -50);
+    ctx.moveTo(-8, -50); ctx.lineTo(-10.5, -62); ctx.lineTo(-14, -76); ctx.lineTo(-13, -87); ctx.lineTo(-7, -90);
+    ctx.lineTo(-7.5, -74); ctx.lineTo(-5, -60); ctx.lineTo(-3.5, -50);
     ctx.closePath();
     ctx.fillStyle = BRONZE_SIDE;
+    ctx.fill();
+    // The lit swell of the chest.
+    ctx.beginPath();
+    ctx.moveTo(1, -91); ctx.lineTo(12, -88.5); ctx.lineTo(15.5, -80); ctx.lineTo(12, -74.5); ctx.lineTo(2.5, -76);
+    ctx.closePath();
+    ctx.fillStyle = BRONZE_LIT;
     ctx.fill();
     // Sculpted chest and belly, lit from above.
     ctx.strokeStyle = C.bronzeDk; ctx.lineWidth = 0.9;
@@ -1570,6 +1593,7 @@ export class GreciaPrince extends BossBase {
     ctx.save();
     ctx.translate(5, -94);
     ctx.rotate(p.head);
+    ctx.scale(HS, HS);
     // Crest, behind the helm: a long crimson plume streaming back in the wind.
     const sway = Math.sin(G.time * 3.2) * 1.6 + (this.charging ? 4 : 0);
     ctx.beginPath();
@@ -1609,6 +1633,14 @@ export class GreciaPrince extends BossBase {
     ctx.fillStyle = C.marble;
     ctx.fill();
     ctx.strokeStyle = C.outl; ctx.lineWidth = 0.9; ctx.stroke();
+    // Shadow under the brow and down the cheek, and the set of the mouth.
+    ctx.beginPath();
+    ctx.moveTo(1, -9); ctx.lineTo(8, -8.6); ctx.lineTo(8.4, -6.4); ctx.lineTo(6, -4); ctx.lineTo(4, 2); ctx.lineTo(0, 3);
+    ctx.closePath();
+    ctx.fillStyle = C.marbleMid;
+    ctx.fill();
+    ctx.strokeStyle = C.marbleDk; ctx.lineWidth = 0.7;
+    ctx.beginPath(); ctx.moveTo(6.4, -0.8); ctx.lineTo(8.6, -1.2); ctx.stroke();
     // The rough goat's beard, long and pointed.
     ctx.beginPath();
     ctx.moveTo(7.6, 1.6); ctx.lineTo(6.4, 8); ctx.lineTo(3.6, 13.5 + Math.sin(G.time * 2.5) * 0.6); ctx.lineTo(2.6, 7.5); ctx.lineTo(0, 3.6);
@@ -1622,9 +1654,12 @@ export class GreciaPrince extends BossBase {
     }
     // Eye: a storm-lit slit under the brow.
     ctx.fillStyle = C.outl;
-    ctx.fillRect(4, -8, 4, 2);
+    ctx.fillRect(4.4, -7.8, 3.6, 1.2);
     ctx.fillStyle = C.eye;
-    ctx.fillRect(5.5, -7.6, 2.2, 1.2);
+    ctx.fillRect(5.6, -7.8, 2.2, 1);
+    ctx.globalCompositeOperation = 'lighter';
+    glow(ctx, 6.6, -7.3, 5, C.eye, 0.7);
+    ctx.globalCompositeOperation = 'source-over';
     // Attic helm: bronze dome, brow band and a cheek guard.
     ctx.beginPath();
     ctx.moveTo(-7, -5); ctx.lineTo(-7.6, -11); ctx.lineTo(-3, -16); ctx.lineTo(3, -16.6); ctx.lineTo(7.4, -13); ctx.lineTo(9.2, -9.6);
@@ -1758,6 +1793,7 @@ export class GreciaPrince extends BossBase {
     if (this.fade <= 0.05) return;
     for (const l of this.lanes) if (l.on) this.drawLane(ctx, l);
     if (this.state === 'kneel') this.drawExposed(ctx);
+    if (!this.charging && this.air < 60 && this.state !== 'dead') this.drawUpdraft(ctx);
     if (this.ward && this.wind >= 0) this.drawCompass(ctx);
     if (this.state !== 'attack') return;
     const t = this.st;
@@ -1937,6 +1973,23 @@ export class GreciaPrince extends BossBase {
     ctx.ellipse(x, Math.round(this.y - 58), 40, 66, 0, 0, Math.PI * 2);
     ctx.stroke();
     ctx.globalAlpha = 1;
+  }
+
+  /** The storm he stands on: he never touches the ground. */
+  private drawUpdraft(ctx: Ctx) {
+    const x = Math.round(this.x), y = this.floorY - 2 - this.air;
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.strokeStyle = '#9fb8c8';
+    ctx.lineWidth = 1;
+    for (let k = 0; k < 3; k++) {
+      const a = G.time * (3 + k) + k * 2;
+      ctx.globalAlpha = 0.35 - k * 0.08;
+      ctx.beginPath();
+      ctx.ellipse(x, y - k * 4, 16 + k * 6, 2.5 + k, 0, a, a + 2.4);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = 'source-over';
   }
 
   /** Over a reeling or spent prince: strike now. */
