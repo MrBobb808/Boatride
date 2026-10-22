@@ -28,6 +28,8 @@ export class FrameBudget {
   private recoverAfter = 4;
   private sinceUp = 1e9;
   private lastUp = false;
+  /** The display has shown it refreshes at 120 Hz: work is then judged against an 8.3 ms frame. */
+  private hi = false;
 
   /** Forget the window (pauses, menus, cutscenes); the rung is kept. */
   reset() {
@@ -35,7 +37,8 @@ export class FrameBudget {
     this.sinceEval = this.over = this.calm = 0;
   }
 
-  sample(dt: number, workMs: number): number {
+  /** capped: the 60 FPS setting holds frames to 16.7 ms whatever the display can do. */
+  sample(dt: number, workMs: number, capped = false): number {
     this.dts[this.head] = dt;
     this.works[this.head] = workMs;
     this.head = (this.head + 1) & 255;
@@ -48,8 +51,13 @@ export class FrameBudget {
     let k = 0, span = 0;
     while (k < this.n && span < 1.5) span += this.dts[(this.head - 1 - k++) & 255];
     if (span < 0.75) return this.level;
-    const overloaded = this.pct(this.dts, k, 0.75) > 1 / 55 || this.pct(this.works, k, 0.75) > 14;
-    const comfortable = this.pct(this.dts, k, 0.9) < 1 / 58 && this.pct(this.works, k, 0.9) < 8;
+    // A quarter of the frames under 11 ms means a ProMotion display running free.
+    if (!capped && this.pct(this.dts, k, 0.25) < 1 / 90) this.hi = true;
+    // Missing 60 is always overload. At 120 Hz, frame times only show the cap (Low Power Mode
+    // holds the display at 60), so the work itself is judged against the shorter frame.
+    const frame = this.hi && !capped ? 1000 / 120 : 1000 / 60;
+    const overloaded = this.pct(this.dts, k, 0.75) > 1 / 55 || this.pct(this.works, k, 0.75) > frame * 0.84;
+    const comfortable = this.pct(this.dts, k, 0.9) < 1 / 58 && this.pct(this.works, k, 0.9) < frame * 0.5;
     // A recovery that has held for half a minute clears the back-off.
     if (this.lastUp && this.sinceUp > 30) this.recoverAfter = 4;
     if (overloaded) {

@@ -410,6 +410,8 @@ export class TileCache {
   static CH = 256;
   /** Wall-clock budget for baking missing chunks inside one frame; the rest wait for the next frames. */
   static frameBudgetMs = 4;
+  /** Set while a door's fade still covers the screen: only then may a missing chunk wait a frame. */
+  static spread = false;
   scale = 1;
   private miss: number[] = [];
   constructor(public grid: Grid, public biome: Biome, public interior: boolean, public seed: number, public ents: EntDef[], public solidFn: (t: T) => boolean, public cond: (c?: string, n?: string) => boolean) {}
@@ -467,8 +469,8 @@ export class TileCache {
         else miss.push(TileCache.key(cx, cy));
       }
     if (!miss.length) return;
-    // Bake what is missing nearest the view's centre first, within a frame budget, so
-    // arriving in an unprepared room (or a fast scroll) spreads its bakes over a few frames.
+    // Bake what is missing nearest the view's centre first. Behind a door's fade the bakes of an
+    // unprepared room spread over a few frames; in play every visible chunk is drawn (no holes).
     const mx = (view.x + view.w / 2) / CH - 0.5, my = (view.y + view.h / 2) / CH - 0.5;
     const d = (k: number) => {
       const dx = (k % 4096) - mx, dy = Math.floor(k / 4096) - my;
@@ -477,7 +479,7 @@ export class TileCache {
     if (miss.length > 1) miss.sort((a, b) => d(a) - d(b));
     const t0 = performance.now();
     for (let i = 0; i < miss.length; i++) {
-      if (i > 0 && performance.now() - t0 > TileCache.frameBudgetMs) break;
+      if (i > 0 && TileCache.spread && performance.now() - t0 > TileCache.frameBudgetMs) break;
       const k = miss[i], cx = k % 4096, cy = Math.floor(k / 4096);
       bakeStats.lateChunks++;
       ctx.drawImage(this.get(cx, cy), cx * CH, cy * CH, CH + 0.5, CH + 0.5);

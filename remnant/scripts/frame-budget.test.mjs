@@ -66,3 +66,18 @@ test('a load that only one rung can carry settles there instead of oscillating',
   for (let i = 2; i < tries.length; i++) assert.ok(tries[i] - tries[i - 1] >= tries[i - 1] - tries[i - 2] - 0.5, 'each retry waits at least as long');
   assert.ok(tries.at(-1) - tries.at(-2) > 60, 'retries end up a minute apart');
 });
+
+test('at 120 Hz the work is judged against the 8.3 ms frame, and the 60 FPS cap against 16.7 ms', () => {
+  // 3 ms of work leaves headroom at 120 Hz; 7.5 ms fills the frame, so effects go first.
+  const ok = new FrameBudget();
+  assert.deepEqual(run(ok, 20, 1 / 120, 3), []);
+  const busy = new FrameBudget();
+  assert.deepEqual(run(busy, 3, 1 / 120, 7.5).map(c => c[1]).slice(0, 1), [1]);
+  // The same 7.5 ms at the 60 FPS cap is comfortable.
+  const capped = new FrameBudget();
+  for (let t = 0; t < 20; t += 1 / 60) capped.sample(1 / 60, 7.5, true);
+  assert.equal(capped.level, 0);
+  // Low Power Mode holds a 120 Hz display at 60: light work there is no reason to shed.
+  run(ok, 20, 1 / 60, 3);
+  assert.equal(ok.level, 0);
+});

@@ -1733,6 +1733,7 @@ export class World {
     ctx.fillRect(0, 0, r.bw, r.bh);
 
     cam.apply(ctx);
+    TileCache.spread = this.transitioning;
     this.cache?.draw(ctx, v);
     drawLiquids(ctx, this.grid, G.time, v, this.room.biome);
     drawLiveProps(ctx, this.lights, G.time, v, this.cond, false);

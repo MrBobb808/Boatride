@@ -230,7 +230,7 @@ function adaptQuality(dt: number, workMs: number) {
     frameBudget.reset();
     return;
   }
-  const level = frameBudget.sample(dt, workMs);
+  const level = frameBudget.sample(dt, workMs, settings.fps === '60');
   setEffects(FrameBudget.effects(level));
   const pen = FrameBudget.penalty(level);
   if (pen !== r.autoPenalty) { r.autoPenalty = pen; r.resize(); }
