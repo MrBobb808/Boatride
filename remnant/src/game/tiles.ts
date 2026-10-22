@@ -26,9 +26,13 @@ export type EntDef =
   | { t: 'hint'; x: number; w: number; text: string; id: string; cond?: string }
   | { t: 'light'; x: number; y: number; k: 'torch' | 'brazier' | 'lantern' | 'candles' | 'forge' | 'window' | 'glow'; r?: number; c?: string; cond?: string }
   | { t: 'decor'; k: string; x: number; y: number; w?: number; h?: number; v?: number; flip?: boolean; fg?: boolean; cond?: string; ncond?: string }
+  /** Water flow (tiles; vx, vy in px/s) that carries swimmers, bubbles and drift. See game/water.ts. */
+  | { t: 'current'; x: number; y: number; w: number; h: number; vx: number; vy: number; cond?: string }
+  /** A trapped air bell under water (centre and radius in tiles): breathing refills inside it. See game/water.ts. */
+  | { t: 'air'; x: number; y: number; r?: number; cond?: string }
   | { t: 'boss'; k: 'idol' | 'gatekeeper' | 'marshal' | 'locust_king' | 'golden_image' | 'weigher' | 'storm_prince' | 'persia_prince' | 'beast_monarch' | 'plague_monarch' | 'cinder_monarch'; x: number; y: number };
 
-export type EnemyKind = 'husk' | 'hound' | 'archer' | 'sentinel' | 'wisp' | 'brute' | 'bulwark' | 'knight' | 'drone' | 'soldier' | 'lion' | 'priest' | 'vessel' | 'scribe' | 'undying' | 'gale' | 'stalker' | 'carrier' | 'golem';
+export type EnemyKind = 'husk' | 'hound' | 'archer' | 'sentinel' | 'wisp' | 'brute' | 'bulwark' | 'knight' | 'drone' | 'soldier' | 'lion' | 'priest' | 'vessel' | 'scribe' | 'undying' | 'gale' | 'stalker' | 'carrier' | 'golem' | 'eel';
 export type NpcKind = 'azriel' | 'mara' | 'tobiah' | 'ilan' | 'dov' | 'regent' | 'marshal' | 'satrap' | 'ezra' | 'talia' | 'barak' | 'hanan' | 'feastlord' | 'arshan' | 'storm_prince' | 'persia_prince';
 
 export interface Loot {
