@@ -8,7 +8,8 @@ import { Renderer, Camera } from './render/renderer';
 import { input } from './core/input';
 import { FrameBudget } from './core/frameBudget';
 import { settings, isTouchDevice, isIOS, onSettingsChange } from './core/settings';
-import { audio } from './audio/audio';
+import { audio, SFX } from './audio/audio';
+import { drawPortrait, hasPortrait } from './render/portraits';
 import { music } from './audio/music';
 import { G } from './game/ctx';
 import { World } from './game/world';
@@ -292,8 +293,11 @@ function setupDebug() {
     },
     load: (slot: number) => loadGameSlot(slot),
     music,
-    tracks: () => Object.keys(TRACKS),
+    tracks: TRACKS,
     audio,
+    sfxDefs: SFX,
+    portraits: { draw: drawPortrait, has: hasPortrait },
+    settings,
     cinema,
     recap: recapText,
     ios: isIOS(),
