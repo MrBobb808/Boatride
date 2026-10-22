@@ -919,7 +919,7 @@ export function restSky(ctx: Ctx, w: number, h: number, t: number) {
   }
   ctx.globalAlpha = 1;
   // the sun, low and large, with its halo
-  const sx = w * 0.7, sy = h * 0.76, sr = h * 0.07;
+  const sx = w * 0.7, sy = h * 0.5, sr = h * 0.06;
   ctx.globalCompositeOperation = 'lighter';
   blob(ctx, '#ff9a50', sx, sy, w * 0.55, h * 0.3, 0.35);
   blob(ctx, '#ffc070', sx, sy, sr * 4, sr * 3.4, 0.5);
@@ -1028,8 +1028,8 @@ export function restParallax(pal: BiomePal, seed: number, viewH: number, res: nu
   };
   // L0: the far mountains, violet, their western faces catching the sun.
   mk(0.02, 0.02, (ctx, w, h) => {
-    const hz = h * 0.74, n0 = wrapNoise(w, 160, seed, 4), n1 = wrapNoise(w, 60, seed + 1, 3);
-    const peak = (x: number) => hz - 8 - n0(x) * h * 0.2 - n1(x) * 12;
+    const hz = h * 0.86, n0 = wrapNoise(w, 160, seed, 4), n1 = wrapNoise(w, 60, seed + 1, 3);
+    const peak = (x: number) => hz - 8 - n0(x) * h * 0.15 - n1(x) * 12;
     fillRidge(ctx, w, h, peak, '#7a5e88');
     fillRidge(ctx, w, h, (x) => peak(x) + 10 + n1(x) * 20 + n0(x) * 14, '#644c7a');
     strokeRidge(ctx, w, peak, rgba('#ffc8a0', 0.7), 1, 0.5);
@@ -1037,8 +1037,8 @@ export function restParallax(pal: BiomePal, seed: number, viewH: number, res: nu
   }, res * 0.7);
   // L1: the far hills, terraced, a river shining in the valley floor, a hamlet's lights.
   mk(0.05, 0.03, (ctx, w, h) => {
-    const hz = h * 0.8, n = wrapNoise(w, 110, seed + 2, 3), col = '#523e66';
-    const hy = (x: number) => hz - n(x) * h * 0.1;
+    const hz = h * 0.9, n = wrapNoise(w, 110, seed + 2, 3), col = '#5a405e';
+    const hy = (x: number) => hz - n(x) * h * 0.06;
     fillRidge(ctx, w, h, hy, col);
     ctx.strokeStyle = rgba('#8a6a8a', 0.5);
     ctx.lineWidth = 1;
@@ -1058,7 +1058,7 @@ export function restParallax(pal: BiomePal, seed: number, viewH: number, res: nu
     ctx.lineWidth = 2;
     ctx.beginPath();
     for (let x = 0; x <= w; x += 8) {
-      const yy = h * 0.86 + Math.sin(x * 0.012 + seed) * 6 + Math.sin(x * 0.031) * 2;
+      const yy = h * 0.94 + Math.sin(x * 0.012 + seed) * 6 + Math.sin(x * 0.031) * 2;
       if (!x) ctx.moveTo(x, yy);
       else ctx.lineTo(x, yy);
     }
@@ -1074,8 +1074,8 @@ export function restParallax(pal: BiomePal, seed: number, viewH: number, res: nu
   }, res * 0.7);
   // L2: orchards and vineyards, stone walls, farmhouses with lit windows and smoke.
   mk(0.1, 0.06, (ctx, w, h) => {
-    const base = h * 0.86, n = wrapNoise(w, 140, seed + 11, 3), col = '#3e2c4a', fr = new RNG(seed + 12);
-    const ground = (x: number) => base - n(x) * 26;
+    const base = h * 0.94, n = wrapNoise(w, 140, seed + 11, 3), col = '#44303e', fr = new RNG(seed + 12);
+    const ground = (x: number) => base - n(x) * 20;
     fillRidge(ctx, w, h, ground, col);
     // vine rows down the slope
     ctx.strokeStyle = '#4e3a58';
@@ -1105,7 +1105,7 @@ export function restParallax(pal: BiomePal, seed: number, viewH: number, res: nu
   });
   // L3: the near slope: cypress rows, olives, a sheepfold and its flock, rim-lit by the sun.
   mk(0.2, 0.1, (ctx, w, h) => {
-    const base = h * 0.92, col = '#2a1c30', fr = new RNG(seed + 17), rim = rgba('#f0a070', 0.55);
+    const base = h * 0.97, col = '#2c1c26', fr = new RNG(seed + 17), rim = rgba('#f0a070', 0.55);
     const ground = (x: number) => base - 6 + Math.sin(x * 0.008 + seed) * 8;
     scatter(w, fr, 60, 140, 30, (x, r) => {
       const hh = r.range(60, 110);

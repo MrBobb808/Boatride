@@ -106,7 +106,7 @@ function build(): RoomDef {
   );
   return {
     id: REST_ID, name: 'Remnant\'s Rest', region: 'The Valley of the Rest', biome: 'rest', music: 'rest',
-    dark: 0.3, weather: 'motes', map: { x: -4.5, y: 4.3 }, seed: 1207, interior: false,
+    dark: 0.2, weather: 'motes', map: { x: -4.5, y: 4.3 }, seed: 1207, interior: false,
     w: W, h: H, rows: b.rows(),
     spawns: { left: { x: 3, y: F, face: 1 }, altar: { x: 9, y: F, face: 1 }, start: { x: 9, y: F, face: 1 } },
     exits: [{ x: 0, y: F - 7, w: 1, h: 7, to: 'ashen_road', spawn: 'left' }],

@@ -32,7 +32,7 @@ export interface BiomePal {
 }
 
 export const BIOMES: Record<Biome, BiomePal> = {
-  rest: {sky:['#121636','#8a4a6c','#ffe0a0'],far:'#7a5e88',mid:'#3e2c4a',near:'#160e18',fog:'#f0a070',stone:'#5a3c2c',stoneDark:'#24160f',cap:'#5a6a2e',capTuft:'#8a9a44',back:'',backLine:'',moon:null,plat:'#6a4630',ambient:'#2a1a2e'},
+  rest: {sky:['#121636','#8a4a6c','#ffe0a0'],far:'#7a5e88',mid:'#3e2c4a',near:'#160e18',fog:'#f0a070',stone:'#5a3c2c',stoneDark:'#24160f',cap:'#5a6a2e',capTuft:'#8a9a44',back:'',backLine:'',moon:null,plat:'#6a4630',ambient:'#3a2420'},
   hunt: {sky:['#101323','#31353c','#8a6755'],far:'#35363e',mid:'#252832',near:'#171d27',fog:'#b78c6e',stone:'#514751',stoneDark:'#25232d',cap:'#9c8770',capTuft:'#b09269',back:'#211f29',backLine:'#3f3540',moon:'#f1cf9c',plat:'#9a7f64',ambient:'#1a1422'},
   grecia: {sky:['#121a24','#2c3a4a','#7a8c96'],far:'#3a4858',mid:'#24303c',near:'#121820',fog:'#9ab4bc',stone:'#a49c8a',stoneDark:'#4a4a44',cap:'#dcd4c2',capTuft:'#5a7a5a',back:'#283038',backLine:'#4a5662',moon:null,plat:'#8a7a62',ambient:'#0e1620'},
   cinders: {sky:['#16131d','#593c3c','#bb754b'],far:'#64413b',mid:'#463139',near:'#251e25',fog:'#c28a65',stone:'#665049',stoneDark:'#33272b',cap:'#cb9665',capTuft:'#e4ad71',back:'#30242a',backLine:'#67483f',moon:'#db9b67',plat:'#d39d6d',ambient:'#2b1c21'},
