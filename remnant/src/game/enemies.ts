@@ -13,6 +13,7 @@ import { sfx } from '../audio/audio';
 import { G } from './ctx';
 import { approach, clamp, rand, sign, choose, easeOutCubic, easeInQuad, easeOutBack, easeInOutSine } from '../core/math';
 import { Proj } from './projectiles';
+import { waterRoom, landFoeWater } from './water';
 import type { EnemyKind } from './tiles';
 import { lighting } from '../render/lighting';
 import { shakeScale } from '../core/settings';
@@ -51,6 +52,7 @@ export const ENEMY_STATS: Record<EnemyKind, EnemyStats> = {
   stalker: { hp: 150, dmg: 19, poise: 34, xp: 66, silver: [10, 18], name: 'Antlered Stalker' },
   carrier: { hp: 165, dmg: 17, poise: 48, xp: 68, silver: [10, 18], name: 'Swarm Carrier' },
   golem: { hp: 300, dmg: 24, poise: 120, xp: 86, silver: [12, 22], name: 'Slag Golem' },
+  eel: { hp: 120, dmg: 18, poise: 24, xp: 60, silver: [8, 16], name: 'Brine Eel' },
 };
 
 export const CORRUPT = { glow: '#b04cff', eye: '#ff3355', outline: '#07050a' };
@@ -298,6 +300,8 @@ export abstract class Enemy extends Entity {
   physics(dt: number, gravity = 1500) {
     const b = this.body;
     if (this.grav > 0) b.vy = Math.min(560, b.vy + gravity * this.grav * dt);
+    // Walkers stop at deep water (and wade the bottom if knocked in); fliers and swimmers ignore it.
+    if (this.grav > 0 && waterRoom.any) landFoeWater(b, G.world.grid, dt);
     const wasAir = !b.onGround;
     moveBody(b, dt, G.world.grid, G.world.solid, this.collide);
     if (b.onGround && wasAir && this.airborne) {

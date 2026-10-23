@@ -12,6 +12,10 @@ import { audio } from './audio/audio';
 import { music } from './audio/music';
 import { G } from './game/ctx';
 import { World } from './game/world';
+import { ROOMS } from './game/rooms';
+import { swimTestRoom } from './game/water';
+import { waterMuffled } from './game/swim';
+import { bubbleCount } from './render/underwater';
 import { makeEnemy } from './game/foes';
 import type { EnemyKind } from './game/tiles';
 import { setDetail } from './render/actors';
@@ -318,6 +322,13 @@ function setupDebug() {
       if (reset) fx.peakSpawned = 0;
       return out;
     },
+    input,
+    /** The water proving room (game/water.ts): deep basin, current, flooded tunnel and air bell. */
+    swimRoom(spawn = 'left') {
+      ROOMS.swim_test ??= swimTestRoom() as (typeof ROOMS)[string];
+      G.world.load('swim_test', spawn);
+    },
+    water: () => ({ muffled: waterMuffled(), bubbles: bubbleCount() }),
     ios: isIOS(),
   };
   (window as unknown as { __remnant: typeof api }).__remnant = api;

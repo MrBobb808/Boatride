@@ -44,6 +44,8 @@ import { MANTLE_LV, mantleTier, mantlePerks, announceMantle } from './mantle';
 import { islandNotify, islandRipple } from '../ui/island';
 import { placeLamps } from './lamps';
 import { RoomPrep, roomGrid, chunkScale, parallaxRes } from './roomPrep';
+import { prepareWater } from './water';
+import { updateWater, drawWaterFront, drawUnderwater } from '../render/underwater';
 import { updatePending, applyUpdate } from '../core/update';
 import { FINISHERS } from './finishers';
 import { ITEMS, ECHO_SPECIES, SUPER_MOVES, type SuperId, type Rarity, type EchoOrder } from './data';
@@ -153,6 +155,7 @@ export class World {
     this.arenaSector = -1;
     this.liveDecor = r.ents.filter((e) => e.t === 'decor' && LIVE_DECOR.has(e.k));
     this.grid = roomGrid(r);
+    prepareWater(r.ents, this.grid);
     this.ents = [];
     this.echoes = [];
     this.triggers = [];
@@ -226,6 +229,7 @@ export class World {
     this.room = trialArena(ROOMS.trial_arena, wave);
     useRoomLook(this.room.biome, this.room.seed, this.room.interior);
     this.grid = new Grid(this.room.rows);
+    prepareWater(this.room.ents, this.grid);
     this.cache?.dispose();
     for (const l of this.layers) releaseCanvas(l.c);
     this.layers = []; this.layerKey = '';
@@ -431,6 +435,7 @@ export class World {
     this.updateInteract(dt);
     this.updateMusic();
     this.updateWeather(dt);
+    updateWater(dt);
     fx.update(dt);
   }
 
@@ -1763,6 +1768,7 @@ export class World {
       if (e.slice) this.drawSliced(ctx, e);
       else this.drawActor(ctx, e);
     }
+    drawWaterFront(ctx, v, G.time);
     fx.drawBack(ctx);
     drawLiveProps(ctx, this.room.ents, G.time, v, this.cond, true);
     // lighting
@@ -1813,6 +1819,7 @@ export class World {
     }
     fx.drawAdd(ctx);
     ctx.globalCompositeOperation = 'source-over';
+    drawUnderwater(ctx, G.time);
     for (const e of list) e.drawOverlay?.(ctx);
     if (settings.guide && !G.inCutscene && !this.bossActive) this.drawGuide(ctx);
     // priority target reticle

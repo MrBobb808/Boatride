@@ -1,5 +1,12 @@
 /** Pose-local timing keeps one-shot actions independent of the world clock. */
 export function heroFrameAt(action: string, time: number, speed: number, grounded: boolean, vy: number, attackProgress: number, stateTime = 0, stride = time * 11, hitStart = 0.46) {
+  // Swimming: a reaching stroke (arm overhead, turned head-first by the body angle) and kicking strides; upright while treading.
+  if (action === 'swim') {
+    const moving = Math.abs(speed) > 30 || Math.abs(vy) > 30;
+    if (!moving) return Math.floor(time * 3.2) % 4;
+    const k = Math.floor(time * (Math.abs(speed) + Math.abs(vy) > 160 ? 9 : 5.5)) % 4;
+    return k === 0 ? 10 : 4 + k;
+  }
   if (action === 'charge' || action === 'block' || action === 'parry') return 10;
   if (action === 'attack' || action === 'execute') return attackProgress < hitStart ? 10 : 11;
   if (action === 'plunge') return 11;

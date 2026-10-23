@@ -5,6 +5,7 @@ import { newGame, derive, migrateSave, type SaveData } from './game/state';
 import { saveSlot, loadSlot, requestPersistence } from './game/save';
 import { music } from './audio/music';
 import { input } from './core/input';
+import { muffleWater } from './game/swim';
 
 export type Mode = 'boot' | 'title' | 'intro' | 'game';
 
@@ -73,6 +74,7 @@ export function returnToTitle() {
   G.ui.hint(null);
   G.ui.caption(null);
   G.ui.cinematicBars(false);
+  muffleWater(false);
   music.play('title');
   hooks.showTitle();
 }

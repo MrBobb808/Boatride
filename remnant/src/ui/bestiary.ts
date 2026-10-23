@@ -30,6 +30,7 @@ const NOTES: Record<EnemyKind, Entry> = {
   stalker: { ch: 7, icon: 'horn', note: 'A hunter of the antler crown. It circles out of reach, then crouches while an amber mark burns where it means to land. Leave the mark, then parry the two-handed rake and it is yours.' },
   carrier: { ch: 8, icon: 'vial', note: 'A host swollen with the swarm. When its sac swells, a cloud drifts after you: walk out of it or cut it apart. It bursts when it dies; step out of the green ring before the spores bloom.' },
   golem: { ch: 9, icon: 'gauntlet', note: 'Basalt and slag round a molten core. Blows to its plated front are blunted. Jump the fire it sends along the floor, then strike the bare core while its chest stands open.' },
+  eel: { ch: 10, icon: 'veil', note: 'A long grey-green hunter of drowned places. It waits in its lair where no blade can reach it. When it coils, a line of light shows the path it will take: leave the line, or parry the bite at the end of it and strike while it is stunned.' },
 };
 
 const GREAT: { id: string; name: string; ch: number; boss: boolean }[] = [

@@ -8,6 +8,7 @@
 
 import { Entity, type HitInfo } from './entity';
 import { moveBody, groundAhead, wallAhead } from './physics';
+import { echoSwim, makeEchoSwim } from './swim';
 import { Animator, solve, newJoints, Chain, drawRibbon, type Joints, type Pose, type Clip, type RigDims, BASE_POSE } from '../render/skeleton';
 import { drawHumanoid, type HumanStyle } from '../render/actors';
 import { drawEchoSprite } from '../render/creatureSprites';
@@ -246,6 +247,8 @@ export class EchoUnit extends Entity {
   hitSet = new Set<number>();
   summonT = 0;
   recallT = 0;
+  /** Paddling after Elior through deep water (game/swim.ts). */
+  swim = makeEchoSwim();
   cape: Chain;
   slot: number;
   shots = 0;
@@ -408,6 +411,10 @@ export class EchoUnit extends Entity {
       this.y = p.y;
       b.vx = b.vy = 0;
       fx.holyBurst(this.x, this.y - 20, 10, 0.6);
+    }
+    if (echoSwim(this, dt)) {
+      this.animate(dt);
+      return;
     }
     this.chooseTarget(mode);
     tickEchoRole(this, dt);
@@ -862,6 +869,12 @@ export class EchoUnit extends Entity {
     ctx.globalAlpha = (this.recallT > 0 ? 0.5 : 0.95) * fade;
     ctx.translate(this.x, this.y);
     ctx.scale(this.face, 1);
+    if (this.swim.tilt) {
+      // Leaning into the stroke while it swims.
+      ctx.translate(0, -this.body.h / 2);
+      ctx.rotate(this.swim.tilt);
+      ctx.translate(0, this.body.h / 2);
+    }
     if (!drawEchoSprite(ctx, this)) {
       // World-space cloth belongs only to the procedural fallback.
       if (this.kit.cape) {

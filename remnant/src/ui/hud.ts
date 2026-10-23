@@ -16,6 +16,7 @@ import { CH2_ROOM_IDS } from '../game/rooms2';
 import { guidePoint } from '../game/guide';
 import { mantleUnlocked } from '../game/mantle';
 import { drawIsland } from './island';
+import { drawBreath } from '../render/underwater';
 import { SUBS, type SubId } from '../game/subweapons';
 import { rushClock } from '../game/board';
 import { FONT_DISPLAY, FONT_BODY, roundRect, glow, type Ctx } from '../render/draw';
@@ -353,6 +354,7 @@ export function drawHud(ctx: Ctx, dt: number) {
   drawCombo(ctx, W, H, u, touch, sar);
   drawSaved(ctx, H, u, sal, sab, dt);
   ctx.globalAlpha = 1;
+  drawBreath(ctx, u);
   drawIsland(ctx, W, H, dt);
   if (settings.guide && !G.inCutscene && !G.world.bossActive) drawGuideArrow(ctx, W, H, u, sat, sal, sar, sab);
   if (settings.showFps) text(ctx, `${fps.toFixed(0)} fps · q${r.tier}`, W / 2, H - 6 - sab, `600 ${9}px ${FONT_DISPLAY}`, '#9b92a6', 'center');

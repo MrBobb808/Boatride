@@ -24,6 +24,8 @@ export class AudioEngine {
   private unlocked = false;
   /** Global low-pass used for "muffled" moments (pause menu, near-death). */
   duck!: BiquadFilterNode;
+  /** Low-pass for hearing the world from under water (swimming), apart from the menus' duck. */
+  water!: BiquadFilterNode;
 
   init() {
     if (this.ctx) return;
@@ -43,7 +45,12 @@ export class AudioEngine {
     this.duck.type = 'lowpass';
     this.duck.frequency.value = 20000;
     this.duck.Q.value = 0.4;
-    this.master.connect(this.duck);
+    this.water = ctx.createBiquadFilter();
+    this.water.type = 'lowpass';
+    this.water.frequency.value = 20000;
+    this.water.Q.value = 0.7;
+    this.master.connect(this.water);
+    this.water.connect(this.duck);
     this.duck.connect(comp);
     comp.connect(ctx.destination);
     this.musicBus = ctx.createGain();
@@ -127,6 +134,11 @@ export class AudioEngine {
   setMuffled(on: boolean) {
     if (!this.ctx) return;
     this.duck.frequency.setTargetAtTime(on ? 900 : 20000, this.ctx.currentTime, 0.12);
+  }
+
+  setUnderwater(on: boolean) {
+    if (!this.ctx) return;
+    this.water.frequency.setTargetAtTime(on ? 620 : 20000, this.ctx.currentTime, on ? 0.06 : 0.1);
   }
 
   private makeImpulse(seconds: number, decay: number) {
@@ -357,6 +369,30 @@ export const SFX: Record<string, SfxFn> = {
     const d = a.out(pan, 0.1);
     a.osc('sine', 100 * p, t, 0.1, d, 0.3 * v, 0.002, 45);
     a.noiseHit(t, 0.1, d, 'lowpass', 900, 0.8, 0.2 * v);
+  },
+  splash(a, t, v, p, pan) {
+    const d = a.out(pan, 0.25);
+    a.noiseHit(t, 0.32, d, 'lowpass', 2600 * p, 0.8, 0.42 * v, 500, 0.008);
+    a.noiseHit(t + 0.04, 0.22, d, 'bandpass', 4200 * p, 1.2, 0.14 * v, 1600, 0.01);
+    a.osc('sine', 180 * p, t, 0.14, d, 0.12 * v, 0.004, 70);
+  },
+  splashSmall(a, t, v, p, pan) {
+    const d = a.out(pan, 0.1);
+    a.noiseHit(t, 0.12, d, 'bandpass', 2400 * p, 1.4, 0.16 * v, 900, 0.006);
+  },
+  swimStroke(a, t, v, p, pan) {
+    const d = a.out(pan, 0.2);
+    a.noiseHit(t, 0.28, d, 'lowpass', 700 * p, 0.9, 0.3 * v, 240, 0.05);
+    a.osc('sine', 300 * p, t + 0.05, 0.08, d, 0.05 * v, 0.004, 520);
+  },
+  gasp(a, t, v, p, pan) {
+    const d = a.out(pan, 0.15);
+    a.noiseHit(t, 0.34, d, 'bandpass', 1400 * p, 2.2, 0.22 * v, 2400, 0.04);
+  },
+  choke(a, t, v, p, pan) {
+    const d = a.out(pan, 0.2);
+    for (let i = 0; i < 3; i++) a.osc('sine', (260 + i * 90) * p, t + i * 0.06, 0.05, d, 0.12 * v, 0.003, 520 + i * 120);
+    a.noiseHit(t, 0.2, d, 'lowpass', 600, 1, 0.25 * v, 200);
   },
   dash(a, t, v, p, pan) {
     const d = a.out(pan, 0.3);
