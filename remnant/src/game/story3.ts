@@ -5,7 +5,7 @@
 // arena that keeps pace with Elior's level. Scripture is quoted from the
 // King James Version; the world and its people are fictional.
 
-import { G, flag, setFlag } from './ctx';
+import { G, flag, setFlag, placeBanner } from './ctx';
 import { fx } from '../render/fx';
 import { sfx } from '../audio/audio';
 import { music } from '../audio/music';
@@ -96,7 +96,7 @@ export class Chapter3 {
     }
     if (first) {
       const r = G.world.room;
-      setTimeout(() => G.ui.banner(r.name.toUpperCase(), r.region, 'area'), 400);
+      placeBanner(r, r.name.toUpperCase(), r.region);
     }
     if (id === 'bone_road' && first) {
       this.st.quest('m_valley', 0);

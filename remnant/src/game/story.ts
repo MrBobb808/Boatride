@@ -4,7 +4,7 @@ import { Settlement, REST_QUEST_DEFS } from './settlement';
 // chapter's ending. Scripture is quoted from the King James Version; the world
 // and its people are fictional.
 
-import { G, flag, setFlag, type DialogueLine } from './ctx';
+import { G, flag, setFlag, placeBanner, type DialogueLine } from './ctx';
 import { input } from '../core/input';
 import { fx } from '../render/fx';
 import { sfx } from '../audio/audio';
@@ -136,6 +136,7 @@ export class Story {
   // ---------------------------------------------------------------- room entry
   onEnter(id: string, first: boolean) {
     const s = G.save;
+    G.ui.clearAreaBanner();
     this.ch6.roomChanged();
     // Before any chapter claims the room, so leaving the Trial into Chapters VII–IX ends the run too.
     if (id !== 'trial_arena') this.ch3.leftTrial();
@@ -156,7 +157,7 @@ export class Story {
     }
     if (first) {
       const r = G.world.room;
-      setTimeout(() => G.ui.banner(r.name.toUpperCase(), r.region, 'area'), 400);
+      placeBanner(r, r.name.toUpperCase(), r.region);
     }
     if (id === 'temple_hall' && !flag('hall_arrived')) {
       setFlag('hall_arrived');
@@ -171,10 +172,11 @@ export class Story {
 
   // ---------------------------------------------------------------- opening
   async opening() {
+    const home = G.world.room;
     this.cine(true);
     music.play('sanctuary');
+    placeBanner(home, 'HEARTHWARD SANCTUARY', 'The Ashen Village', 1000);
     await wait(1.0);
-    G.ui.banner('HEARTHWARD SANCTUARY', 'The Ashen Village', 'area');
     await wait(1.6);
     const choice = await this.say([
       { who: 'azriel', text: 'Elior. You\'re on the expedition.' },

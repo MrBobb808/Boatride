@@ -8,6 +8,8 @@ import type { ItemInst } from './data';
 export interface UIHooks {
   toast(text: string, kind?: 'info' | 'good' | 'warn' | 'loot', color?: string): void;
   banner(title: string, sub?: string, kind?: 'area' | 'boss' | 'level' | 'chapter' | 'echo' | 'ability'): void;
+  /** Take down a showing place-name banner (it belongs to the room just left). */
+  clearAreaBanner(): void;
   dialogue(lines: DialogueLine[]): Promise<number>;
   itemGet(it: ItemInst): void;
   levelUp(levels: number): void;
@@ -61,4 +63,15 @@ export function flag(name: string): boolean {
 }
 export function setFlag(name: string, v: number | string | boolean = true) {
   G.save.flags[name] = v;
+}
+
+/**
+ * A place-name banner for `room`, after `delay` ms, only if Elior is still in it and no boss
+ * has woken there: doors are instant, so a late name would otherwise land in the next room.
+ */
+export function placeBanner(room: World['room'], title: string, sub: string, delay = 400) {
+  setTimeout(() => {
+    const W = G.world;
+    if (W.room === room && (!W.boss || W.boss.state === 'dormant')) G.ui.banner(title, sub, 'area');
+  }, delay);
 }

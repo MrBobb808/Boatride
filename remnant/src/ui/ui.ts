@@ -93,6 +93,10 @@ const hooks: UIHooks = {
     setTimeout(() => b.remove(), dur + 900);
   },
 
+  clearAreaBanner() {
+    uiRoot.querySelectorAll('.banner.area').forEach((x) => x.remove());
+  },
+
   dialogue(lines: DialogueLine[]) {
     return new Promise<number>((resolve) => {
       blocking++;

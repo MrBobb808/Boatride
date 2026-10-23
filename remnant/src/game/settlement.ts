@@ -4,7 +4,7 @@
 // arrive. Residents, services and the quest board are data here; the room is
 // game/restRoom.ts, its art render/envRest.ts and its menus ui/settlement.ts.
 
-import { G, flag } from './ctx';
+import { G, flag, placeBanner } from './ctx';
 import type { Story, QuestDef } from './story';
 import { Entity } from './entity';
 import { Pickup, type Npc } from './props';
@@ -351,7 +351,7 @@ export class Settlement {
     const tier = restTier(), grew = s.seen >= 0 && tier > s.seen;
     if (prev !== REST_ID) {
       if (grew) setTimeout(() => G.ui.banner('THE SETTLEMENT GROWS', `Remnant's Rest · ${REST_TIERS[tier].name}`, 'chapter'), 500);
-      else if (first || s.seen < 0) setTimeout(() => G.ui.banner('REMNANT\'S REST', REST_TIERS[tier].name, 'area'), 400);
+      else if (first || s.seen < 0) placeBanner(G.world.room, 'REMNANT\'S REST', REST_TIERS[tier].name);
       if (grew) setTimeout(() => G.ui.toast(REST_TIERS[tier].sub, 'good'), 2400);
     }
     if (s.seen < 0 && !G.inCutscene) void this.welcome();

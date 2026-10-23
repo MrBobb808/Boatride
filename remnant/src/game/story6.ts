@@ -8,7 +8,7 @@
 // are fictional. The princes are fallen angels: Elior can withstand them, but
 // it is not his hand that casts the great prince down.
 
-import { G, flag, setFlag } from './ctx';
+import { G, flag, setFlag, placeBanner } from './ctx';
 import { fx } from '../render/fx';
 import { sfx } from '../audio/audio';
 import { music } from '../audio/music';
@@ -107,7 +107,7 @@ export class Chapter6 {
     }
     if (first) {
       const r = G.world.room;
-      setTimeout(() => G.ui.banner(r.name.toUpperCase(), r.region, 'area'), 400);
+      placeBanner(r, r.name.toUpperCase(), r.region);
     }
     if (id === 'ulai_marsh' && first) {
       this.st.quest('m_persia', 0);
