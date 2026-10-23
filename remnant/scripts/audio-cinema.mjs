@@ -48,8 +48,12 @@ async function boot(context, { updatedAgo = 0 } = {}) {
   await page.evaluate((ago) => { const s = JSON.parse(localStorage.getItem('remnant-save-2')); s.updated = Date.now() - ago; localStorage.setItem('remnant-save-2', JSON.stringify(s)); }, updatedAgo);
   return page;
 }
-const load = async (page) => {
-  await page.evaluate(() => window.__remnant.load(2));
+/** Load slot 2, optionally aged first in the same tick so nothing can re-save it in between. */
+const load = async (page, ago = 0) => {
+  await page.evaluate((ago) => {
+    if (ago) { const s = JSON.parse(localStorage.getItem('remnant-save-2')); s.updated = Date.now() - ago; localStorage.setItem('remnant-save-2', JSON.stringify(s)); }
+    window.__remnant.load(2);
+  }, ago);
   await page.waitForFunction(() => window.__remnant.G.world.player.style);
 };
 
@@ -124,7 +128,10 @@ try {
     await new Promise(r => setTimeout(r, 200));
     const p0 = audio.stats.played, d0 = audio.stats.dropped;
     const names = Object.keys(sfxDefs).filter(n => !['parry', 'parryPerfect', 'finisherThud', 'shieldBreak', 'execute', 'finisher', 'hurt', 'death', 'levelup'].includes(n) && !n.startsWith('ui'));
+    const t0 = performance.now();
     for (let i = 0; i < 80; i++) audio.play(names[i % names.length], { vol: 0.2 });
+    // The budget is per 90 ms window; a slow machine may spread the burst over a few.
+    const windows = Math.ceil((performance.now() - t0 + 1) / 90);
     const burstPlayed = audio.stats.played - p0, dropped = audio.stats.dropped - d0;
     const p1 = audio.stats.played;
     audio.play('parryPerfect', { vol: 0.2 });
@@ -132,10 +139,10 @@ try {
     await new Promise(r => setTimeout(r, 150));
     const p2 = audio.stats.played;
     audio.play('hit', { vol: 0.2 });
-    return { thrown, burstPlayed, dropped, priority, recovered: audio.stats.played - p2 };
+    return { thrown, burstPlayed, dropped, priority, recovered: audio.stats.played - p2, cap: 14 * windows };
   });
   assert.deepEqual(sounds.thrown, []);
-  assert.ok(sounds.burstPlayed <= 14 && sounds.dropped >= 60, JSON.stringify(sounds));
+  assert.ok(sounds.burstPlayed <= sounds.cap && sounds.dropped >= 80 - sounds.cap, JSON.stringify(sounds));
   assert.equal(sounds.priority, 1, 'perfect parry is never dropped');
   assert.equal(sounds.recovered, 1, 'the budget refills');
 
@@ -172,9 +179,9 @@ try {
     assert.ok(await page.locator('.dialogue canvas').isVisible());
     await page.touchscreen.tap(480, 200); await page.waitForTimeout(1900);
     await page.screenshot({ path: `qa/dialogue-boss-${style}-phone.png` });
-    await page.touchscreen.tap(480, 200); await page.waitForTimeout(300);
-    await page.touchscreen.tap(480, 200); await page.waitForTimeout(300);
-    await page.waitForFunction(() => !document.querySelector('.dialogue'));
+    // Finish the line, then close the box (a tap first completes any typing).
+    for (let i = 0; i < 12 && await page.locator('.dialogue').count(); i++) { await page.touchscreen.tap(480, 200); await page.waitForTimeout(350); }
+    assert.equal(await page.locator('.dialogue').count(), 0);
   }
 
   // ---- the cinematic toolkit: a full sequence, then an abandoned one; both restore everything.
@@ -231,8 +238,8 @@ try {
 
   // ---- the recap: once after time away, skippable, never on a quick reload.
   const recap = await browser.newContext({ viewport: { width: 956, height: 440 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
-  const rp = await boot(recap, { updatedAgo: 2 * 3600 * 1000 });
-  await load(rp);
+  const rp = await boot(recap);
+  await load(rp, 2 * 3600 * 1000);
   await rp.waitForSelector('.recap', { timeout: 5000 });
   const card = await rp.evaluate(() => ({ text: document.querySelector('.recap').innerText, held: window.__remnant.G.ui.isBlocking() }));
   assert.match(card.text, /Previously/i);
@@ -245,12 +252,10 @@ try {
   await load(rp); await rp.waitForTimeout(1200);
   assert.equal(await rp.locator('.recap').count(), 0, 'no second recap without another absence');
   // Twenty minutes away: shown on a fresh launch only, and dismissed by any game button.
-  await rp.evaluate(() => { const s = JSON.parse(localStorage.getItem('remnant-save-2')); s.updated = Date.now() - 20 * 60 * 1000; localStorage.setItem('remnant-save-2', JSON.stringify(s)); });
-  await load(rp); await rp.waitForTimeout(1200);
+  await load(rp, 20 * 60 * 1000); await rp.waitForTimeout(1200);
   assert.equal(await rp.locator('.recap').count(), 0, 'a short absence mid-session is not recapped');
   await rp.reload(); await rp.waitForFunction(() => !!window.__remnant);
-  await rp.evaluate(() => { const s = JSON.parse(localStorage.getItem('remnant-save-2')); s.updated = Date.now() - 20 * 60 * 1000; localStorage.setItem('remnant-save-2', JSON.stringify(s)); });
-  await load(rp);
+  await load(rp, 20 * 60 * 1000);
   await rp.waitForSelector('.recap', { timeout: 5000 });
   await rp.keyboard.press('KeyJ');
   await rp.waitForFunction(() => !document.querySelector('.recap'));
