@@ -230,6 +230,10 @@ function tide(c:FallenChapter,depths:RoomDef,side:RoomDef,trail:RoomDef,ridge:Ro
   const flood=(r:RoomDef,x0:number,x1:number,y0:number,y1:number)=>{r.rows=r.rows.map((row,y)=>y<y0||y>y1?row:row.split('').map((ch,x)=>x>=x0&&x<=x1&&ch==='.'?'w':ch).join(''));};
   flood(depths,16,depths.w-1,14,depths.h-5);
   flood(side,12,56,21,side.h-5);
+  // The flooded halls belong to the eels: land foes would only stand on the bottom.
+  for(const r of [depths,side])for(const e of r.ents)if(e.t==='enemy'&&e.k!=='gale'&&e.x>=16)e.k='eel';
+  // An air bell beside the Drowned Beacon, and the tide running back along the temple floor.
+  depths.ents.push({t:'air',x:100,y:22,r:1.4},{t:'air',x:62,y:20},{t:'current',x:66,y:22,w:14,h:5,vx:-70,vy:0});
   trail.ents.push({t:'lore',id:'dan85',x:48,y:18});
   depths.ents.push({t:'lore',id:'dan88',x:68,y:21});
   ridge.ents.push({t:'lore',id:'dan821',x:64,y:16});
