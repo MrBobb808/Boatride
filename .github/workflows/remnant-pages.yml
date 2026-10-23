@@ -47,6 +47,7 @@ jobs:
       - run: node scripts/power-walls.mjs
       - run: node scripts/fallen-campaign.mjs
       - run: node scripts/boss-rush.mjs
+      - run: node scripts/valor-daily.mjs
       - run: node scripts/travel-camera.mjs
       - run: node scripts/fallen-foes.mjs
       - run: node scripts/settlement.mjs

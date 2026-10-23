@@ -11,13 +11,15 @@ import { uid, randInt, rand } from '../core/math';
 import { runBlessings } from './blessings';
 import { ASCENDANT_LOOT, lootScale, waveLootPower, sovereignDamage, softGrowth, trainingBonus } from './balance';
 import { masteryRank, migrateProgression, contractPrize, contractWins, type GearSetId, type ContractId, type ProgressionData } from './progression';
+import { migrateValor, type ValorSave } from './valor';
+import type { DailySave } from './daily';
 
 export interface QuestState {
   stage: number;
   done: boolean;
 }
 
-export interface SaveData extends ProgressionData {
+export interface SaveData extends ProgressionData, ValorSave, DailySave {
   version: 1;
   name: string;
   created: number;
@@ -298,6 +300,7 @@ export function migrateSave(s: SaveData) {
     if (e.targetPriority && !['ranged', 'boss', 'crowd'].includes(e.targetPriority)) e.targetPriority = undefined;
   }
   unlockCombatSkills(s);
+  migrateValor(s);
   s.equippedSkills = Array.from({ length: 3 }, (_, i) => {
     const id = s.equippedSkills[i];
     return id && ABILITIES[id] && s.abilities.includes(id) && s.equippedSkills.indexOf(id) === i ? id : null;

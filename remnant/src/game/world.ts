@@ -46,6 +46,7 @@ import { placeLamps } from './lamps';
 import { RoomPrep, roomGrid, chunkScale, parallaxRes } from './roomPrep';
 import { prepareWater } from './water';
 import { updateWater, drawWaterFront, drawUnderwater } from '../render/underwater';
+import { valorTick, valorTrack } from './valor';
 import { updatePending, applyUpdate } from '../core/update';
 import { FINISHERS } from './finishers';
 import { ITEMS, ECHO_SPECIES, SUPER_MOVES, type SuperId, type Rarity, type EchoOrder } from './data';
@@ -379,6 +380,7 @@ export class World {
     }
     G.time += dt;
     s.playtime += dtRaw;
+    valorTick(dtRaw);
     // Lost for a while? Point at the marker.
     if (!G.inCutscene && !this.bossActive) this.lostT += dtRaw;
     if (this.lostT > 100 && settings.guide) {
@@ -811,9 +813,9 @@ export class World {
     }
   }
 
-  /** In the Boss Rush nothing is earned: no experience, loot, kill counts or quest progress. */
+  /** In the Boss Rush and the daily challenge nothing is earned: no experience, loot, kill counts or quest progress. */
   get rushing() {
-    return this.room.id === 'trial_arena' && this.story.ch3.rounds.rush;
+    return this.room.id === 'trial_arena' && this.story.ch3.rounds.isolated;
   }
 
   onEnemyKilled(e: Enemy) {
@@ -1524,6 +1526,7 @@ export class World {
   }
 
   onBossDefeated(b: Idol | BossBase) {
+    valorTrack.bossDown(b as Idol & { key?: string });
     if (this.room.id === 'trial_arena' && this.story.ch3.rounds.bossOnly) {
       this.story.ch3.rounds.bossDefeated(b);
       return;

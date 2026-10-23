@@ -15,13 +15,15 @@ export const BLESSINGS: Record<BlessingId, { name: string; icon: string; cap: nu
 export class RunBlessings {
   active = false;
   ranks: Partial<Record<BlessingId, number>> = {};
-  reset(active = false) { this.active = active; this.ranks = {}; }
+  /** A daily challenge's rules: run-only multipliers on weapon, Echo and incoming damage. */
+  rule = { weapon: 1, echoes: 1, incoming: 1 };
+  reset(active = false) { this.active = active; this.ranks = {}; this.rule.weapon = this.rule.echoes = this.rule.incoming = 1; }
   rank(id: BlessingId) { return this.active ? this.ranks[id] ?? 0 : 0; }
-  get weapon() { return 1 + 0.12 * this.rank('steel') + 0.18 * this.rank('bloodprice'); }
-  get echoes() { return 1 + 0.15 * this.rank('bond'); }
+  get weapon() { return (1 + 0.12 * this.rank('steel') + 0.18 * this.rank('bloodprice')) * this.rule.weapon; }
+  get echoes() { return (1 + 0.15 * this.rank('bond')) * this.rule.echoes; }
   get regen() { return 0.005 * this.rank('mending'); }
   get recharge() { return 1 + 0.18 * this.rank('rhythm'); }
-  get incoming() { return (1 + 0.1 * this.rank('bloodprice')) * 0.94 ** this.rank('ward'); }
+  get incoming() { return (1 + 0.1 * this.rank('bloodprice')) * 0.94 ** this.rank('ward') * this.rule.incoming; }
   offer(random = Math.random): BlessingId[] {
     const pool = (Object.keys(BLESSINGS) as BlessingId[]).filter(id => !BLESSINGS[id].cap || this.rank(id) < BLESSINGS[id].cap);
     for (let i = pool.length - 1; i > 0; i--) {
