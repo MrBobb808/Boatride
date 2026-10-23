@@ -210,7 +210,7 @@ abstract class Tank extends Enemy {
     this.grav = 0.72;
     this.setState('stagger', 'stagger', 0.05);
     sfx('stagger', { pan: G.world.pan(this.x), pitch: 0.7 });
-    sfx('shieldBash', { pan: G.world.pan(this.x), pitch: 0.6 });
+    sfx('shieldBreak', { pan: G.world.pan(this.x), pitch: 0.85 });
     fx.ring(this.cx, this.cy, 8, 44, '#fff1c4', 0.35, 3);
     fx.shards(this.cx, this.cy - 6, 10, '#6a6470', 1.2);
     G.camera.addTrauma(0.2 * shakeScale());
@@ -435,7 +435,7 @@ export class Bulwark extends Tank {
       this.stagger();
       return false;
     }
-    sfx('block', { pan: G.world.pan(this.x) });
+    sfx('armorClank', { pan: G.world.pan(this.x), gap: 50 });
     fx.hitSparks(this.x + this.face * 12, this.y - 26, -this.face, '#e8c8a8', 8);
     this.body.vx = -this.face * 30;
     if (h.src && h.src === G.world.player && h.kind === 'melee') G.world.player.body.vx = this.face * 140;

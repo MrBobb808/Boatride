@@ -1,6 +1,7 @@
 // Persistent game state (what a save slot holds) and the derived numbers
 // every system reads: health, damage, defense, crits, Echo bonuses.
 
+import type { SettlementSave } from './settlement';
 import {
   ITEMS, STAT_KEYS, SKILLS, AFFIX_POOL, RARITY_AFFIX_COUNT, ECHO_SPECIES, xpToNext,
   ABILITIES, SUPER_MOVES, ECHO_ROLES, TRIAL_REWARDS, ECHO_LEVEL_CAP, echoXpToNext, type SuperId,
@@ -10,13 +11,15 @@ import { uid, randInt, rand } from '../core/math';
 import { runBlessings } from './blessings';
 import { ASCENDANT_LOOT, lootScale, waveLootPower, sovereignDamage, softGrowth, trainingBonus } from './balance';
 import { masteryRank, migrateProgression, contractPrize, contractWins, type GearSetId, type ContractId, type ProgressionData } from './progression';
+import { migrateValor, type ValorSave } from './valor';
+import type { DailySave } from './daily';
 
 export interface QuestState {
   stage: number;
   done: boolean;
 }
 
-export interface SaveData extends ProgressionData {
+export interface SaveData extends ProgressionData, ValorSave, DailySave {
   version: 1;
   name: string;
   created: number;
@@ -54,6 +57,8 @@ export interface SaveData extends ProgressionData {
   choices: Record<string, string>;
   affinity: { mara: number; azriel: number; tobiah: number };
   rally: number;
+  /** Coaching cards seen on this journey: 1 shown or skipped, 2 tried (ui/coach.ts). */
+  coached?: Record<string, number>;
   /** Shadow Mantle gauge, 0–100 (from level 25). */
   mantle?: number;
   /** Hearts (sub-weapon ammunition) and the sub-weapon carried. */
@@ -78,6 +83,8 @@ export interface SaveData extends ProgressionData {
   /** Earned by defeating originals; consumed only when the player absorbs one. */
   echoImprints?: Record<string, number>;
   trialMilestones?: number[];
+  /** Remnant's Rest: tier last seen, accepted requests, titles (game/settlement.ts). */
+  settlement?: SettlementSave;
 }
 
 export function makeItem(id: string, rarity?: Rarity, plus = 0, rollAffixes = true): ItemInst {
@@ -288,12 +295,15 @@ export function migrateSave(s: SaveData) {
   if (s.bestCombo === undefined) s.bestCombo = 0;
   if (!s.equippedSuper || !SUPER_MOVES[s.equippedSuper]) s.equippedSuper = 'rally';
   s.echoImprints ??= {};
+  s.settlement ??= { seen: -1, quests: {}, titles: [] };
+  s.coached ??= {};
   for (const e of s.echoes) {
     e.absorptions ??= e.stage + 1;
     if (e.role && !ECHO_ROLES[e.role]) e.role = undefined;
     if (e.targetPriority && !['ranged', 'boss', 'crowd'].includes(e.targetPriority)) e.targetPriority = undefined;
   }
   unlockCombatSkills(s);
+  migrateValor(s);
   s.equippedSkills = Array.from({ length: 3 }, (_, i) => {
     const id = s.equippedSkills[i];
     return id && ABILITIES[id] && s.abilities.includes(id) && s.equippedSkills.indexOf(id) === i ? id : null;

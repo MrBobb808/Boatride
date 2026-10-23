@@ -9,6 +9,7 @@ import { openLeaderboard } from './leaderboard';
 import { CHAPTERS, chapterOpen, travelToChapter, trainingOpen, trainingBest, trainingStarts, startTraining, rushOpen, rushCount, startBossRush, RUSH_MIN } from '../game/chapters';
 import { loadBoard, rushClock } from '../game/board';
 import { contractBoard } from './progression';
+import { dailyBox } from './daily';
 
 /** Kept at the top of Settings so wave entry never disappears below the trophy catalog. */
 export function gameModes(close: () => void): HTMLElement {
@@ -75,6 +76,7 @@ export function chaptersTab(close: () => void): HTMLElement {
     h('div', { class: 'box' }, h('h3', null, 'Chapters'), h('div', { class: 'list' }, rows)),
     training,
     bossRush(close, busy),
+    dailyBox(close, busy),
     trainingOpen() ? h('div', { class: 'box' }, contractBoard(close)) : null,
     trainingOpen() ? h('div', { class: 'box boss-trial' },
       h('div', { class: 'eyebrow' }, 'Endless challenge'),

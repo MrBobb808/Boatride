@@ -17,15 +17,19 @@ import { SUBS, SUB_IDS, MAX_HEARTS, type SubId } from './subweapons';
 import { chapterOf } from './rooms';
 import { islandNotify } from '../ui/island';
 import { icon } from '../ui/icons';
+import { valorTrack } from './valor';
 
 export class Lamp extends Entity {
   phase = rand(0, 10);
   /** Hanging lamps swing from a chain in open rooms; bracket lamps sit on walls indoors. */
   hanging: boolean;
+  /** Its place in the room's row of lamps (the same every visit), for the Lamplighter trophy. */
+  index: number;
 
-  constructor(x: number, y: number, hanging: boolean) {
+  constructor(x: number, y: number, hanging: boolean, index = 0) {
     super(x, y, 10, 14);
     this.hanging = hanging;
+    this.index = index;
     this.collide = false;
     this.grav = 0;
     this.layer = 3;
@@ -36,6 +40,7 @@ export class Lamp extends Entity {
   smash() {
     if (this.remove) return;
     this.remove = true;
+    valorTrack.lamp(G.world.room.id, this.index);
     input.rumble(0, 0.3, 40);
     const x = this.x, y = this.y - 8;
     sfx('shatter', { vol: 0.35, pitch: 2.2 });
@@ -260,7 +265,7 @@ export function placeLamps(r: RoomDef) {
     return t === T.Empty;
   };
   const step = r.interior ? 11 : 15;
-  let x = 6 + Math.floor(rng.next() * 5);
+  let x = 6 + Math.floor(rng.next() * 5), lit = 0;
   while (x < r.w - 5) {
     if (clear(x)) {
       // Lowest standing surface in this column: the main floor.
@@ -270,9 +275,10 @@ export function placeLamps(r: RoomDef) {
       }
       const ly = floor - 3;
       if (floor > 0 && open(x, ly) && open(x, ly - 1) && open(x, ly + 1)) {
-        W.add(new Lamp((x + 0.5) * TILE, ly * TILE + 10, !r.interior));
+        W.add(new Lamp((x + 0.5) * TILE, ly * TILE + 10, !r.interior, lit++));
       }
     }
     x += step + Math.floor(rng.next() * 5) - 2;
   }
+  valorTrack.lampsLit(r.id, lit);
 }

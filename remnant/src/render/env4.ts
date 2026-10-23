@@ -8,7 +8,7 @@ import { makeCanvas, glowSprite, rgba, shade, mix, circle, ellipse, type Ctx } f
 import { RNG, hash2, fbm1, clamp } from '../core/math';
 import { TILE, T, type Biome, type EntDef } from '../game/tiles';
 import { fx } from './fx';
-import type { BiomePal, Layer } from './environment';
+import type { BiomePal, Layer, ParallaxSteps } from './environment';
 
 type Decor = Extract<EntDef, { t: 'decor' }>;
 export type Ch4Biome = 'dura' | 'babylon' | 'furnace';
@@ -803,7 +803,7 @@ function kneeler(ctx: Ctx, x: number, base: number, s: number, dir: number, pose
 
 // ---------------------------------------------------------------- parallax
 
-export function buildParallaxCh4(biome: Ch4Biome, pal: BiomePal, seed: number, viewH: number, res: number): Layer[] {
+export function* buildParallaxCh4(biome: Ch4Biome, pal: BiomePal, seed: number, viewH: number, res: number): ParallaxSteps {
   const layers: Layer[] = [];
   const rng = new RNG(seed);
   const W = 1024;
@@ -812,7 +812,9 @@ export function buildParallaxCh4(biome: Ch4Biome, pal: BiomePal, seed: number, v
     const m = makeCanvas(W * r, H * r);
     m.ctx.scale(r, r);
     draw(m.ctx, W, H);
-    layers.push({ c: m.c, w: W, h: H, fx, fy, oy: 0, res: r });
+    const l: Layer = { c: m.c, w: W, h: H, fx, fy, oy: 0, res: r };
+    layers.push(l);
+    return l;
   };
   /** Draw something near a strip edge twice so the wrap is seamless. */
   const wrap = (x: number, reach: number, w: number, f: (x: number) => void) => {
@@ -825,7 +827,7 @@ export function buildParallaxCh4(biome: Ch4Biome, pal: BiomePal, seed: number, v
     const img = IMAGE_FAR[seed] ?? 0;
     const camp = img > 0 && img < 1;
     // Far: Babylon low on the horizon, and on the plain the Image catching the sun.
-    mk(0.04, 0.03, (ctx, w, h) => {
+    yield mk(0.04, 0.03, (ctx, w, h) => {
       const hz = h * 0.8;
       const haze = mix(pal.far, pal.fog, 0.55);
       const n0 = wrapNoise(w, 300, seed, 3);
@@ -862,7 +864,7 @@ export function buildParallaxCh4(biome: Ch4Biome, pal: BiomePal, seed: number, v
       strokeRidge(ctx, w, r1, rgba('#ffc080', 0.35), 0.8);
     }, img >= 1 ? res : res * 0.7);
     // Mid: dunes, palm groves and mud-brick hamlets; on the plain, crowds bowed toward the Image.
-    mk(0.17, 0.07, (ctx, w, h) => {
+    yield mk(0.17, 0.07, (ctx, w, h) => {
       const n = wrapNoise(w, 220, seed + 11, 4);
       const hy = (x: number) => h * 0.84 - n(x) * h * 0.045;
       const col = pal.mid, rim = rgba('#ff9a5a', 0.32);
@@ -922,7 +924,7 @@ export function buildParallaxCh4(biome: Ch4Biome, pal: BiomePal, seed: number, v
       strokeRidge(ctx, w, hy, rgba('#ffb070', 0.28), 1.1);
     });
     // Near: tall palms and reeds, dark against the dusk.
-    mk(0.42, 0.16, (ctx, w, h) => {
+    yield mk(0.42, 0.16, (ctx, w, h) => {
       const n = wrapNoise(w, 120, seed + 21, 3);
       const hy = (x: number) => h * 0.9 - n(x) * h * 0.03;
       const fr = new RNG(seed + 22);
@@ -938,7 +940,7 @@ export function buildParallaxCh4(biome: Ch4Biome, pal: BiomePal, seed: number, v
     });
   } else if (biome === 'babylon') {
     // Far: the city under the moon, the ziggurat burning at its summit.
-    mk(0.04, 0.03, (ctx, w, h) => {
+    yield mk(0.04, 0.03, (ctx, w, h) => {
       const hz = h * 0.8;
       const col = mix(pal.far, '#3a3060', 0.25), rim = rgba('#b8c4ff', 0.28);
       ctx.globalCompositeOperation = 'lighter';
@@ -972,7 +974,7 @@ export function buildParallaxCh4(biome: Ch4Biome, pal: BiomePal, seed: number, v
       ctx.globalCompositeOperation = 'source-over';
     }, res * 0.75);
     // Mid: rooftops and the terraces of the hanging gardens, lamps in the windows.
-    mk(0.15, 0.08, (ctx, w, h) => {
+    yield mk(0.15, 0.08, (ctx, w, h) => {
       const base = h * 0.86;
       const col = pal.mid, rim = rgba('#a8b4f0', 0.22), leaf = '#13202a', leafHi = 'rgba(150,190,200,0.16)';
       const fr = new RNG(seed + 14);
@@ -1093,7 +1095,7 @@ export function buildParallaxCh4(biome: Ch4Biome, pal: BiomePal, seed: number, v
       }
     });
     // Near: the inner wall's battlements and towers, palms against them.
-    mk(0.35, 0.15, (ctx, w, h) => {
+    yield mk(0.35, 0.15, (ctx, w, h) => {
       const base = h * 0.92, top = h * 0.74;
       const col = mix(pal.near, '#16284e', 0.4), rim = rgba('#9aa8e8', 0.22);
       ctx.fillStyle = col;
@@ -1155,7 +1157,7 @@ export function buildParallaxCh4(biome: Ch4Biome, pal: BiomePal, seed: number, v
     });
   } else {
     // Far: soot-black vaults over deep fire, vents glowing in the piers.
-    mk(0.1, 0.05, (ctx, w, h) => {
+    yield mk(0.1, 0.05, (ctx, w, h) => {
       const fl = h * 0.88;
       ctx.globalCompositeOperation = 'lighter';
       for (let i = 0; i < 8; i++) blob(ctx, '#c03c08', (w / 8) * i + rng.range(0, 60), fl - rng.range(0, 30), rng.range(60, 110), rng.range(40, 80), rng.range(0.25, 0.4));
@@ -1217,7 +1219,7 @@ export function buildParallaxCh4(biome: Ch4Biome, pal: BiomePal, seed: number, v
       ctx.fillRect(0, fl, w, h - fl);
     }, res * 0.7);
     // Mid: iron-banded pillars, a catwalk across the depths, chains and hooks.
-    mk(0.28, 0.12, (ctx, w, h) => {
+    yield mk(0.28, 0.12, (ctx, w, h) => {
       const col = pal.mid, rim = 'rgba(255,110,40,0.3)';
       const walk = h * 0.66;
       // catwalk with railing and trusses

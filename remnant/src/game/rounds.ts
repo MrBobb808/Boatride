@@ -30,6 +30,10 @@ import { gameOver } from '../ui/leaderboard';
 import { rand, choose, overlaps } from '../core/math';
 import { gauntletBoss, gauntletImprint, originalForm, gauntletCount, rushBoss, rushName, rushRoster } from './gauntlet';
 import { bossScale } from './difficulty';
+import { beginDaily, rankedUsed, useRanked, recordDaily, dailyScore, claimDailyReward, loadDaily, DAILY_WAVES, DAILY_MODS, type DailyRun, type DailyEntry } from './daily';
+import { valorTrack } from './valor';
+import { settings } from '../core/settings';
+import { dailyOver } from '../ui/daily';
 
 const BREAK = 7;
 /** The Boss Rush's breather between bosses (the clock keeps running). */
@@ -56,6 +60,12 @@ export class Rounds {
   rushKeys: string[] = [];
   /** Health, energy and Balm on entering the rush, given back on leaving so a run costs nothing. */
   private rushKeep: { hp: number; ce: number; balm: number } | null = null;
+  /** The daily challenge's rules, while one is running. */
+  daily: DailyRun | null = null;
+  /** Whether this wave ends with a Champion. */
+  private champ = false;
+  /** The Boss Rush and the daily challenge earn nothing for the campaign. */
+  get isolated() { return this.rush || !!this.daily; }
   private boss: Entity | null = null;
   private bossHp = 1800;
   private bossDamage = 12;
@@ -89,7 +99,7 @@ export class Rounds {
   contractReward: string | null = null;
   contractTier = 0;
   get contractCleared() { return Math.max(0, Math.min(5, this.completed - this.from + 1)); }
-  get balmSealed() { return this.active && this.contract === 'vigil' && !this.contractComplete; }
+  get balmSealed() { return this.active && ((this.contract === 'vigil' && !this.contractComplete) || !!this.daily?.on.fasting); }
   private blessingEpoch = 0;
   private blessingAbort: AbortController | null = null;
   get awaitingBlessing() { return this.pendingBlessings.length > 0; }
@@ -104,10 +114,10 @@ export class Rounds {
     return this.total - this.spawned + this.alive;
   }
 
-  start(from = 1, bossOnly = false, rush = false) {
+  start(from = 1, bossOnly = false, rush = false, daily: 'ranked' | 'practice' | null = null) {
     this.stop(false);
     // Switching from a rush to another run in the arena ends the rush's loan.
-    if (!rush) this.restoreRush();
+    if (!rush && !daily) this.restoreRush();
     this.rush = rush;
     this.rushKeys = rush ? rushRoster(G.save.defeated) : [];
     if (rush && !this.rushKeys.length) {
@@ -123,15 +133,30 @@ export class Rounds {
       // Every run starts whole, so times compare fairly.
       G.world.rest();
     }
+    // A ranked daily is spent the moment it begins; later runs that day are practice.
+    this.daily = daily ? beginDaily(daily === 'ranked' && !rankedUsed()) : null;
+    if (this.daily) {
+      bossOnly = false;
+      from = 1;
+      if (this.daily.ranked) useRanked(this.daily.key);
+      this.rushKeep ??= { hp: G.save.hp, ce: G.save.ce, balm: G.save.balm };
+      G.world.rest();
+    }
     this.active = true;
     this.bossOnly = bossOnly;
     this.lastWaveLoot = null;
     const chosen = G.save.flags.trial_contract;
-    this.contract = !bossOnly && isContract(chosen) ? chosen : null;
+    this.contract = !bossOnly && !this.daily && isContract(chosen) ? chosen : null;
     this.contractComplete = false;
     this.contractReward = null;
     this.contractTier = this.contract ? contractTier(G.save, this.contract) : 0;
     runBlessings.reset(!bossOnly);
+    if (this.daily) {
+      const on = this.daily.on, r = runBlessings.rule;
+      r.weapon = (on.glass ? 2 : 1) * (on.commander ? 0.2 : 1);
+      r.echoes = (on.glass ? 2 : 1) * (on.commander ? 2 : 1);
+      r.incoming = on.glass ? 2 : 1;
+    }
     G.d = derive(G.save);
     const original = String(G.save.flags.echo_trial_species ?? '');
     this.rematchSpecies = bossOnly && ECHO_SPECIES[original] && G.save.echoes.some((e) => e.species === original) ? original : null;
@@ -152,6 +177,11 @@ export class Rounds {
     this.foes = [];
     this.breakT = 3.2;
     if (!bossOnly) G.world.configureTrial(this.from);
+    if (this.daily) {
+      const d = this.daily;
+      G.ui.banner('THE DAILY CHALLENGE', `${d.key} · ${d.mods.map((m) => DAILY_MODS[m].name).join(' · ')} · ${DAILY_WAVES} waves · ${d.ranked ? 'ranked attempt' : 'practice (unranked)'}`, 'boss');
+      return;
+    }
     if (rush) {
       this.rematchSpecies = null;
       G.ui.banner('THE BOSS RUSH', `${this.rushKeys.length} bosses · against the clock · Boss 1/${this.rushKeys.length} · ${rushName(this.rushKeys[0])}`, 'boss');
@@ -166,6 +196,7 @@ export class Rounds {
     if (this.active && record && this.round > 0) this.record();
     this.active = false;
     this.rush = false;
+    this.daily = null;
     this.rushKeys = [];
     this.lastWaveLoot = null;
     this.contract = null;
@@ -184,6 +215,9 @@ export class Rounds {
     const W = G.world;
     if (W.player.state === 'dead') return;
     this.time += dt;
+    // Fasting: health may fall but never rise.
+    const day = this.daily;
+    if (day?.on.fasting) { if (G.save.hp > day.hpCap) G.save.hp = day.hpCap; else day.hpCap = G.save.hp; }
     this.changeT += dt;
     if (this.bossOnly) {
       if (this.rematchSpecies && this.boss instanceof Enemy && this.boss.remove) this.bossDefeated(this.boss);
@@ -251,19 +285,28 @@ export class Rounds {
       G.ui.banner(`BOSS ROUND ${n}`, `${this.boss.name} · cycle ${1 + Math.floor((n - 1) / gauntletCount())}`, 'boss');
       return;
     }
-    this.pack = n % 5 === 0 && n % 10 !== 0;
-    this.total = this.pack ? 6 + n : Math.min(70, 4 + n * 2 + (n > 10 ? n - 10 : 0));
+    const day = this.daily;
+    if (day) {
+      // Ten set waves: a Pack on the fourth and eighth, a Champion on the fifth and tenth.
+      this.pack = n % 4 === 0;
+      this.champ = n % 5 === 0 || day.on.champions;
+      this.total = Math.min(36, 6 + n * 3) * (day.on.double ? 2 : 1);
+    } else {
+      this.pack = n % 5 === 0 && n % 10 !== 0;
+      this.champ = n % 10 === 0;
+      this.total = this.pack ? 6 + n : Math.min(70, 4 + n * 2 + (n > 10 ? n - 10 : 0));
+    }
     this.spawned = 0;
     this.spawnT = 0.6;
     this.boonsThisRound = 0;
     this.changeT = 0;
-    if (n % 10 === 0) this.total += 1; // the Champion
+    if (this.champ) this.total += 1; // the Champion
     this.waveXp = xpToNext(G.save.level) * trialXpLevels(n);
     sfx(this.pack ? 'horn' : 'bell', { pitch: this.pack ? 0.8 : 0.55 + Math.min(0.5, n * 0.015) });
     input.rumble(0.5, 0.5, 280);
     islandNotify(`ROUND ${n}`, this.pack ? '#ff6a5a' : '#ffe6a8', 'rally', 2);
-    if (this.pack) G.ui.banner(`ROUND ${n}`, 'The Pack runs', 'boss');
-    else if (n % 10 === 0) G.ui.banner(`ROUND ${n}`, 'A Champion of the Trial comes', 'boss');
+    if (this.pack) G.ui.banner(`${day ? 'WAVE' : 'ROUND'} ${n}`, 'The Pack runs', 'boss');
+    else if (this.champ) G.ui.banner(`${day ? 'WAVE' : 'ROUND'} ${n}`, 'A Champion of the Trial comes', 'boss');
   }
 
   private endRound() {
@@ -271,6 +314,7 @@ export class Rounds {
     if (n <= this.completed) return;
     const s = G.save;
     this.completed = n;
+    if (this.daily) { this.dailyWave(n); return; }
     this.lastWaveLoot = grantWaveLoot(s, n);
     sfx('lootRare', { vol: 0.55 });
     G.ui.toast(`${RARITY_NAMES[this.lastWaveLoot.rarity]} · ${ITEMS[this.lastWaveLoot.id].name} · Power ${this.lastWaveLoot.lootPower} → Equipment`, 'good');
@@ -373,6 +417,7 @@ export class Rounds {
     this.releaseBoss(b);
     if (n >= total) {
       this.ending = true;
+      valorTrack.rushDone(settings.bossDifficulty === 'merciless');
       sfx('rally', { vol: 0.7 });
       G.ui.banner('THE RUSH IS RUN', `${total}/${total} bosses · ${rushClock(this.time)}`, 'boss');
       G.world.after(1.6, async () => {
@@ -419,16 +464,67 @@ export class Rounds {
     return gameOver(stats, res.entry, res.place, res.best);
   }
 
+  /** A daily wave held: nothing for the campaign, only the breather, a blessing, or the finish. */
+  private dailyWave(n: number) {
+    if (n >= DAILY_WAVES) {
+      this.ending = true;
+      sfx('rally', { vol: 0.7 });
+      G.ui.banner('TODAY\'S TRIAL IS WON', `${DAILY_WAVES} waves · score ${dailyScore(n, this.time)}`, 'boss');
+      G.world.after(1.6, async () => {
+        if (!this.daily || !this.active || G.world.room.id !== 'trial_arena') return;
+        await G.world.afterRun(await this.dailyCard(true));
+      });
+      return;
+    }
+    this.breakT = BREAK;
+    this.changeT = 0;
+    sfx('rally', { vol: 0.5 });
+    this.offerBlessing();
+  }
+
+  /** The daily's result card: score, the day's board, and the reward on a first clear. */
+  private async dailyCard(done: boolean): Promise<'again' | 'leave'> {
+    const d = this.daily!;
+    this.ending = true;
+    G.inCutscene = false;
+    G.camera.focus = null;
+    G.world.bossActive = false;
+    G.ui.cinematicBars(false);
+    for (const f of this.foes) f.aggro = false;
+    const ranked = d.ranked;
+    const res = this.recordDaily();
+    const reward = done && claimDailyReward(G.save, d.key);
+    const stats = { waves: this.completed, time: this.time, kills: this.kills, level: G.save.level, score: dailyScore(this.completed, this.time), done, ranked, reward, def: d };
+    this.active = false;
+    runBlessings.reset();
+    G.d = derive(G.save);
+    return dailyOver(stats, res.entry, res.place, res.best);
+  }
+
+  /** A ranked daily goes on its day's board once, whether it ends by falling, finishing or leaving. */
+  private recordDaily(): { entry: DailyEntry | null; place: number; best: boolean } {
+    const d = this.daily;
+    if (!d?.ranked || this.round <= 0) return { entry: null, place: 0, best: false };
+    d.ranked = false;
+    const prev = loadDaily(d.key)[0]?.score ?? 0, score = dailyScore(this.completed, this.time);
+    const { entry, place } = recordDaily({ score, waves: this.completed, time: this.time, level: G.save.level, date: d.key });
+    return { entry, place, best: score > prev };
+  }
+
   private spawnOne() {
     const W = G.world;
     const s = G.save;
     const n = this.round;
     this.spawned++;
-    const champion = n % 10 === 0 && this.spawned === this.total;
+    // The Trial's Champion closes every tenth round; the daily sets its own.
+    const champion = (this.daily ? this.champ : n % 10 === 0) && this.spawned === this.total;
+    // The daily draws from its own seeded stream and plays wave n as round 2n.
+    const day = this.daily, rn = day ? n * 2 : n;
+    const roll = day ? day.rng.next() : Math.random();
     let k: EnemyKind;
-    if (champion) k = (['brute', 'knight', 'bulwark', 'soldier'] as EnemyKind[])[(n / 10 - 1) % 4];
-    else if (this.pack) k = n >= 15 && Math.random() < 0.35 ? 'lion' : 'hound';
-    else k = choose(this.pool(n));
+    if (champion) k = (['brute', 'knight', 'bulwark', 'soldier'] as EnemyKind[])[(day ? n - 1 : n / 10 - 1) % 4];
+    else if (this.pack) k = rn >= 15 && roll < 0.35 ? 'lion' : 'hound';
+    else k = day ? day.rng.pick(this.pool(rn)) : choose(this.pool(n));
     // Heavies are a seasoning, never the meal.
     if (!champion && (k === 'brute' || k === 'bulwark' || k === 'golem') && this.foes.filter((f) => !f.dying && (f.kind === 'brute' || f.kind === 'bulwark' || f.kind === 'golem')).length >= 2) k = 'soldier';
     const px = W.player.x / TILE;
@@ -436,7 +532,7 @@ export class Rounds {
     const x = choose(lanes.length ? lanes : LANES) * TILE + rand(-12, 12);
     const flier = k === 'drone' || k === 'wisp' || k === 'vessel' || k === 'gale';
     const e = W.spawnEnemy(k, x, flier ? SKY_Y : FLOOR_Y, champion ? 'trial_champion' : null);
-    const scale = trialStrength(n);
+    const scale = trialStrength(rn);
     const hpMul = scale.hp * (champion ? 3 : 1);
     e.maxHp = e.hp = Math.round(e.maxHp * hpMul);
     e.dmg *= scale.damage;
@@ -446,6 +542,10 @@ export class Rounds {
       e.maxHp = e.hp = Math.round(e.maxHp * c.hp * (1 + tier * 0.1));
       e.dmg *= c.damage * (1 + tier * 0.05);
       e.tempo *= c.tempo;
+    }
+    if (day) {
+      if (day.on.mighty) { e.maxHp = e.hp = Math.round(e.maxHp * 1.75); e.dmg *= 1.2; }
+      if (day.on.swift) e.tempo *= 1.25;
     }
     e.xpOverride = Math.max(1, Math.round(this.waveXp / (this.total + (n % 10 === 0 ? 3 : 0)) * (champion ? 4 : 1) * (this.doubleT > 0 ? 2 : 1)));
     if (champion) {
@@ -483,7 +583,8 @@ export class Rounds {
 
   // ---------------------------------------------------------------- blessings
   private maybeBoon(f: Enemy) {
-    if (this.boonsThisRound >= 4 || Math.random() > 0.035) return;
+    // No random boons in the daily: every player meets the same run.
+    if (this.daily || this.boonsThisRound >= 4 || Math.random() > 0.035) return;
     this.boonsThisRound++;
     const b: Boon = choose(['judgment', 'wrath', 'double', 'manna'] as Boon[]);
     G.world.add(new BoonDrop(b, f.cx, f.cy));
@@ -519,6 +620,7 @@ export class Rounds {
   // ---------------------------------------------------------------- the end of a run
   private record(): { entry: RunEntry | null; place: number; best: boolean } {
     if (this.rematchSpecies) return { entry: null, place: 0, best: false };
+    if (this.daily) { this.recordDaily(); return { entry: null, place: 0, best: false }; }
     if (this.rush) {
       // A separate board, and no save flags: the rush leaves the campaign untouched.
       if (this.completed <= 0) return { entry: null, place: 0, best: false };
@@ -540,6 +642,7 @@ export class Rounds {
   async onDeath(): Promise<'again' | 'leave'> {
     this.cancelBlessing();
     if (this.rush) return this.rushCard(false);
+    if (this.daily) return this.dailyCard(false);
     this.ending = true;
     G.inCutscene = false;
     G.camera.focus = null;

@@ -5,7 +5,7 @@
 // arena that keeps pace with Elior's level. Scripture is quoted from the
 // King James Version; the world and its people are fictional.
 
-import { G, flag, setFlag } from './ctx';
+import { G, flag, setFlag, placeBanner } from './ctx';
 import { fx } from '../render/fx';
 import { sfx } from '../audio/audio';
 import { music } from '../audio/music';
@@ -74,10 +74,11 @@ export class Chapter3 {
     G.save.flags.trial_contract = '';
     this.rounds.restoreRush();
     // A finished or fallen rush is already recorded; only its mode is left to clear.
-    if (!this.rounds.active) { this.rounds.rush = false; return; }
-    const n = this.rounds.round, rush = this.rounds.rush, beaten = this.rounds.completed;
+    if (!this.rounds.active) { this.rounds.rush = false; this.rounds.daily = null; return; }
+    const n = this.rounds.round, rush = this.rounds.rush, beaten = this.rounds.completed, daily = this.rounds.daily, ranked = !!daily?.ranked;
     this.rounds.stop();
-    if (rush) { if (beaten > 0) G.ui.toast(`Boss Rush recorded: ${beaten} boss${beaten > 1 ? 'es' : ''} beaten.`, 'info'); }
+    if (daily) { if (n > 0) G.ui.toast(`Daily challenge ended: ${beaten}/10 waves${ranked ? ', recorded on today\'s board' : ' (unranked)'}.`, 'info'); }
+    else if (rush) { if (beaten > 0) G.ui.toast(`Boss Rush recorded: ${beaten} boss${beaten > 1 ? 'es' : ''} beaten.`, 'info'); }
     else if (n > 0) G.ui.toast(`Trial run recorded: round ${n}.`, 'info');
   }
 
@@ -95,7 +96,7 @@ export class Chapter3 {
     }
     if (first) {
       const r = G.world.room;
-      setTimeout(() => G.ui.banner(r.name.toUpperCase(), r.region, 'area'), 400);
+      placeBanner(r, r.name.toUpperCase(), r.region);
     }
     if (id === 'bone_road' && first) {
       this.st.quest('m_valley', 0);
@@ -119,8 +120,9 @@ export class Chapter3 {
       // Training from the menu may skip ahead to a wave near your best.
       const from = Math.max(1, Number(s.flags.trial_from ?? 1));
       delete s.flags.trial_from;
-      this.rounds.start(from, s.flags.trial_mode === 'boss', s.flags.trial_mode === 'rush');
-      if (!this.rounds.bossOnly && !s.quests.s_trial) this.st.quest('s_trial', 0);
+      const mode = s.flags.trial_mode;
+      this.rounds.start(from, mode === 'boss', mode === 'rush', mode === 'daily' ? (s.flags.trial_daily === 'ranked' ? 'ranked' : 'practice') : null);
+      if (!this.rounds.bossOnly && !this.rounds.daily && !s.quests.s_trial) this.st.quest('s_trial', 0);
     }
     return true;
   }

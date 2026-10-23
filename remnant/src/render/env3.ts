@@ -7,7 +7,7 @@
 import { makeCanvas, glowSprite, capsulePath, rgba, shade, mix, circle, ellipse, type Ctx } from './draw';
 import { RNG, hash2, fbm1, clamp } from '../core/math';
 import { TILE, T, type Biome, type EntDef } from '../game/tiles';
-import type { BiomePal, Layer } from './environment';
+import type { BiomePal, Layer, ParallaxSteps } from './environment';
 
 type Decor = Extract<EntDef, { t: 'decor' }>;
 export type Ch3Biome = 'valley' | 'hive' | 'trial';
@@ -536,7 +536,7 @@ function floatRock(ctx: Ctx, cx: number, cy: number, s: number, col: string, rim
   ctx.stroke();
 }
 
-export function buildParallaxCh3(biome: Ch3Biome, pal: BiomePal, seed: number, viewH: number, res: number): Layer[] {
+export function* buildParallaxCh3(biome: Ch3Biome, pal: BiomePal, seed: number, viewH: number, res: number): ParallaxSteps {
   const layers: Layer[] = [];
   const rng = new RNG(seed);
   const W = 1024;
@@ -545,7 +545,9 @@ export function buildParallaxCh3(biome: Ch3Biome, pal: BiomePal, seed: number, v
     const m = makeCanvas(W * r, H * r);
     m.ctx.scale(r, r);
     draw(m.ctx, W, H);
-    layers.push({ c: m.c, w: W, h: H, fx, fy, oy: 0, res: r });
+    const l: Layer = { c: m.c, w: W, h: H, fx, fy, oy: 0, res: r };
+    layers.push(l);
+    return l;
   };
   /** Draw something near a strip edge twice so the wrap is seamless. */
   const wrap = (x: number, reach: number, w: number, f: (x: number) => void) => {
@@ -556,7 +558,7 @@ export function buildParallaxCh3(biome: Ch3Biome, pal: BiomePal, seed: number, v
 
   if (biome === 'valley') {
     // Far range bleached by dust, and something enormous dead along its foot.
-    mk(0.05, 0.03, (ctx, w, h) => {
+    yield mk(0.05, 0.03, (ctx, w, h) => {
       const n1 = wrapNoise(w, 190, seed, 5);
       const r1 = (x: number) => h * 0.75 - (1 - Math.abs(2 * n1(x) - 1)) * h * 0.13;
       fillRidge(ctx, w, h, r1, mix(pal.far, pal.fog, 0.3));
@@ -580,7 +582,7 @@ export function buildParallaxCh3(biome: Ch3Biome, pal: BiomePal, seed: number, v
       fillRidge(ctx, w, h, r2, mix(pal.far, pal.fog, 0.1));
     }, res * 0.6);
     // Rolling hills with colossal skeletons; a swarm boils up from behind one.
-    mk(0.2, 0.08, (ctx, w, h) => {
+    yield mk(0.2, 0.08, (ctx, w, h) => {
       const n = wrapNoise(w, 230, seed + 11, 4);
       const hy = (x: number) => h * 0.84 - n(x) * h * 0.06;
       const bone = mix(pal.mid, pal.fog, 0.3), rim = rgba(pal.fog, 0.35);
@@ -610,7 +612,7 @@ export function buildParallaxCh3(biome: Ch3Biome, pal: BiomePal, seed: number, v
       ctx.stroke();
     });
     // Near: dead trees, rib stakes and cairns, dark against the dust.
-    mk(0.45, 0.18, (ctx, w, h) => {
+    yield mk(0.45, 0.18, (ctx, w, h) => {
       const n = wrapNoise(w, 110, seed + 21, 3);
       const hy = (x: number) => h * 0.9 - n(x) * h * 0.03;
       const fr = new RNG(seed + 22);
@@ -669,7 +671,7 @@ export function buildParallaxCh3(biome: Ch3Biome, pal: BiomePal, seed: number, v
     });
   } else if (biome === 'hive') {
     // Inside the bones: colossal ribs arch overhead, comb grown between them, warm glow deep in.
-    mk(0.08, 0.05, (ctx, w, h) => {
+    yield mk(0.08, 0.05, (ctx, w, h) => {
       ctx.globalCompositeOperation = 'lighter';
       for (let i = 0; i < 6; i++) blob(ctx, '#b0601a', rng.range(0, w), h * rng.range(0.55, 0.95), rng.range(60, 130), rng.range(40, 90), rng.range(0.12, 0.24));
       ctx.globalCompositeOperation = 'source-over';
@@ -709,7 +711,7 @@ export function buildParallaxCh3(biome: Ch3Biome, pal: BiomePal, seed: number, v
       }
     }, res * 0.6);
     // Twisted resin columns, hanging strands and pods.
-    mk(0.28, 0.12, (ctx, w, h) => {
+    yield mk(0.28, 0.12, (ctx, w, h) => {
       let x = rng.range(20, 60);
       while (x < w - 30) {
         const sd = rng.int(0, 9999);
@@ -760,7 +762,7 @@ export function buildParallaxCh3(biome: Ch3Biome, pal: BiomePal, seed: number, v
     });
   } else {
     // The Trial: stars, a great faint ring of light, stone adrift.
-    mk(0.03, 0.02, (ctx, w, h) => {
+    yield mk(0.03, 0.02, (ctx, w, h) => {
       ctx.globalCompositeOperation = 'lighter';
       blob(ctx, '#3a2470', w * 0.25, h * 0.6, 260, 120, 0.25);
       blob(ctx, '#1c3a5e', w * 0.78, h * 0.72, 220, 100, 0.2);
@@ -804,7 +806,7 @@ export function buildParallaxCh3(biome: Ch3Biome, pal: BiomePal, seed: number, v
       ctx.globalCompositeOperation = 'source-over';
     }, res * 0.6);
     // distant fragments
-    mk(0.12, 0.06, (ctx, w, h) => {
+    yield mk(0.12, 0.06, (ctx, w, h) => {
       for (let i = 0; i < 16; i++) {
         const x = rng.range(10, w - 10), y = h * rng.range(0.5, 0.92), s = rng.range(5, 16);
         const sd = rng.int(0, 9999);
@@ -812,7 +814,7 @@ export function buildParallaxCh3(biome: Ch3Biome, pal: BiomePal, seed: number, v
       }
     });
     // near fragments, bigger and darker, with gold glints
-    mk(0.32, 0.14, (ctx, w, h) => {
+    yield mk(0.32, 0.14, (ctx, w, h) => {
       for (let i = 0; i < 7; i++) {
         const x = (w / 7) * i + rng.range(10, 100), y = h * rng.range(0.58, 0.9), s = rng.range(18, 42);
         const sd = rng.int(0, 9999);

@@ -3,12 +3,14 @@ import { BossBase } from './bosses2';
 import { Entity, type HitInfo } from './entity';
 import { G } from './ctx';
 import { bossScale } from './difficulty';
+import { chapterCurve } from './curve';
 import { moveBody } from './physics';
 import { clamp, approach, sign } from '../core/math';
 import { rgba, poly, type Ctx } from '../render/draw';
 import { drawCinderArt } from '../render/fallenArt';
 import { fx } from '../render/fx';
 import { lighting } from '../render/lighting';
+import { sfx } from '../audio/audio';
 import { music } from '../audio/music';
 
 type Attack='hammer'|'fault'|'sweep'|'bellows';
@@ -32,11 +34,11 @@ export class CinderMonarch extends BossBase {
   faults:Fault[]=[];waves:CinderWave[]=[];ward=false;bellowsStep=-1;armor=false;
   readonly color='#ffb16b';
   constructor(x:number,y:number){
-    super('cinder_monarch',x,y,48,94,1020000);this.floorY=y;this.face=-1;
+    super('cinder_monarch',x,y,48,94,chapterCurve(9).bossHp!);this.floorY=y;this.face=-1;
     this.name='Azkar · Crown of Cinders';this.sub='I · The Living Anvil';this.maxPoise=this.poise=680;
     this.p2At=.67;this.p3At=.32;this.phaseMarks=[.67,.32];this.hitColor=this.color;this.kneelTime=3.2;
   }
-  get dmg(){return 330*this.ngMul*this.encounterDamage*(this.phase===3?1.1:1);}
+  get dmg(){return chapterCurve(9).bossDmg!*this.ngMul*this.encounterDamage*(this.phase===3?1.1:1);}
   canBeTargeted(){return super.canBeTargeted()&&!this.ward;}
   takeHit(h:HitInfo){
     if(this.ward)return false;
@@ -55,12 +57,12 @@ export class CinderMonarch extends BossBase {
     if(this.st<1.5)return;this.invuln=0;this.poise=this.maxPoise;this.staggered=0;
     if(this.phase===1){this.phase=2;this.armor=true;this.sub='II · Parry to break the tempered armor';this.finish(1.2);}
     else{this.sub='III · Evade the bellows, punish the broken furnace';this.startAttack('bellows');}
-    music.phase=this.phase-1;G.ui.bossBar(this.name,this.sub);
+    music.bossPhase(this.phase-1);G.ui.bossBar(this.name,this.sub);
   }
   updateKneel(_dt:number){this.body.vx=0;}
   onKneel(){this.armor=false;this.body.vx=0;this.clearHeat();}
   recover(){super.recover();this.armor=this.phase===2;}
-  parried(){if(!this.fighting||this.ward)return;this.poise-=230;this.body.vx=0;if(this.phase===2||this.poise<=0){this.kneel();G.ui.toast('The armor shatters — Azkar is exposed.','good');}else this.finish(1.8);}
+  parried(){if(!this.fighting||this.ward)return;this.poise-=230;this.body.vx=0;if(this.phase===2||this.poise<=0){this.kneel();sfx('shieldBreak',{vol:1,pitch:.7});G.ui.toast('The armor shatters — Azkar is exposed.','good');}else this.finish(1.8);}
   startAttack(a:Attack){
     this.attack=a;this.attackCount++;this.state='attack';this.st=0;this.released=false;this.hitSet.clear();this.body.vx=0;
     this.face=sign(G.world.player.x-this.x)||this.face;this.targetX=clamp(G.world.player.x,110,G.world.grid.w*16-110);
@@ -87,7 +89,7 @@ export class CinderMonarch extends BossBase {
       if(t>2.15)this.finish(1.1);
     }else if(this.attack==='fault'){if(t>2.4)this.finish(1.1);}
     else if(this.attack==='sweep'){
-      if(t>=1.2&&!this.released){this.released=true;this.waves=this.waves.filter(w=>!w.remove);for(const dir of [-1,1]){const w=new CinderWave(this,this.x+dir*44,this.floorY,dir);this.waves.push(w);G.world.add(w);}}
+      if(t>=1.2&&!this.released){this.released=true;this.waves=this.waves.filter(w=>!w.remove);for(const dir of [-1,1]){const w=new CinderWave(this,this.x+dir*44,this.floorY,dir);this.waves.push(w);G.world.add(w);}sfx('waveWhoosh',{vol:1,pitch:.85});}
       if(t>2.45)this.finish(1.2);
     }else{
       const step=Math.min(2,Math.floor(t/2.4));if(step!==this.bellowsStep){this.bellowsStep=step;const x=G.world.player.x;this.markFault(x);this.markFault(x-185);this.markFault(x+185);}

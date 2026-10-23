@@ -22,3 +22,10 @@ export function drawCinderArt(ctx:Ctx,frame:number,x:number,y:number,face:number
   const [sx,sy,sw,sh,px,py]=c,scale=.21;ctx.save();ctx.translate(Math.round(x),Math.round(y));ctx.scale(face,1);ctx.globalAlpha*=alpha;ctx.imageSmoothingEnabled=false;
   ctx.drawImage(im,sx*unit,sy*unit,sw*unit,sh*unit,-px*scale,-py*scale,sw*scale,sh*scale);ctx.restore();return true;
 }
+
+/** Head-and-shoulders crops of each Fallen Crown for the dialogue box (atlas pixels at 1254/1536 wide). */
+const PORTRAIT=[[165,20,220,220,1536],[335,25,170,170,1254],[278,88,200,200,1254]];
+export function drawFallenPortrait(ctx:Ctx,which:0|1|2,x:number,y:number,w:number,h:number){
+  const im=images[which];if(!im.complete||!im.naturalWidth)return false;
+  const[sx,sy,sw,sh,base]=PORTRAIT[which],u=im.naturalWidth/base;ctx.drawImage(im,sx*u,sy*u,sw*u,sh*u,x,y,w,h);return true;
+}

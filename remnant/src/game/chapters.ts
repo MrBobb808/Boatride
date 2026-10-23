@@ -1,4 +1,5 @@
 import { FALLEN_CHAPTERS } from './fallenChapters';
+import { chapterCurve } from './curve';
 // The chapters, for chapter select, and the training grounds (the Trial of
 // the Remnant entered from the menu). Travelling to a chapter you have
 // reached puts you at its hub altar; a chapter you have unlocked but not yet
@@ -26,36 +27,36 @@ export interface ChapterDef {
 
 export const CHAPTERS: ChapterDef[] = [
   {
-    n: 1, roman: 'I', title: 'The Ashen Village', hub: 'sanctuary', level: 1,
+    n: 1, roman: 'I', title: 'The Ashen Village', hub: 'sanctuary', level: chapterCurve(1).level,
     blurb: 'Hearthward, the ash road and the Temple of the First Lamp, where the Gilded Idol waits.',
     reached: () => true, done: () => flag('ending_done'),
   },
   {
-    n: 2, roman: 'II', title: 'The Tower of Shinar', hub: 'shinar_camp', level: 12,
+    n: 2, roman: 'II', title: 'The Tower of Shinar', hub: 'shinar_camp', level: chapterCurve(2).level,
     blurb: 'Down to the plain of Shinar and up the tower, past the Gatekeeper to the Crimson Marshal.',
     reached: () => flag('ch2_intro'), done: () => flag('ch2_done'),
   },
   {
-    n: 3, roman: 'III', title: 'The Valley of Bones', hub: 'valley_camp', level: 22,
+    n: 3, roman: 'III', title: 'The Valley of Bones', hub: 'valley_camp', level: chapterCurve(3).level,
     blurb: 'Ezekiel\'s valley, stripped bare by a swarm. Its king waits to be born in the hive.',
     reached: () => flag('ch3_intro'), done: () => flag('ch3_done'),
   },
   {
-    n: 4, roman: 'IV', title: 'The Plain of Dura', hub: 'river_camp', level: 32,
+    n: 4, roman: 'IV', title: 'The Plain of Dura', hub: 'river_camp', level: chapterCurve(4).level,
     blurb: 'By the rivers of Babylon an image of gold demands every knee, and three captives are bound for the furnace.',
     reached: () => flag('ch4_intro'), done: () => flag('ch4_done'),
   },
   {
-    n: 5, roman: 'V', title: 'The Writing on the Wall', hub: 'reed_camp', level: 42,
+    n: 5, roman: 'V', title: 'The Writing on the Wall', hub: 'reed_camp', level: chapterCurve(5).level,
     blurb: 'The river is turned aside and Babylon feasts on holy vessels. A hand writes on the palace wall.',
     reached: () => flag('ch5_intro'), done: () => flag('ch5_done'),
   },
   {
-    n: 6, roman: 'VI', title: 'The Prince of Persia', hub: 'hiddekel_camp', level: 52,
+    n: 6, roman: 'VI', title: 'The Prince of Persia', hub: 'hiddekel_camp', level: chapterCurve(6).level,
     blurb: 'By the great river an old man fasts for an answer that is held back. Above Shushan, fallen princes rule the air.',
     reached: () => flag('ch6_intro'), done: () => flag('ch6_done'),
   },
-  ...FALLEN_CHAPTERS.map(c => ({n:c.n,roman:c.roman,title:c.title,hub:c.hub,level:80+(c.n-7)*20,blurb:c.intro[1],reached:()=>flag(`ch${c.n}_intro`),done:()=>flag(`ch${c.n}_done`)})),
+  ...FALLEN_CHAPTERS.map(c => ({n:c.n,roman:c.roman,title:c.title,hub:c.hub,level:chapterCurve(c.n).level,blurb:c.intro[1],reached:()=>flag(`ch${c.n}_intro`),done:()=>flag(`ch${c.n}_done`)})),
 ];
 
 /** A chapter can be played once you have reached it or finished the one before. */
@@ -140,5 +141,17 @@ export function startBossRush() {
   markReturn();
   G.save.flags.trial_from = 1;
   G.save.flags.trial_mode = 'rush';
+  G.world.transition('trial_arena', 'start');
+}
+
+// ---------------------------------------------------------------- the daily challenge
+
+/** Today's seeded ten waves; a ranked run if today's attempt is unspent, else practice. */
+export function startDaily(ranked: boolean) {
+  if (!trainingOpen()) return;
+  markReturn();
+  G.save.flags.trial_from = 1;
+  G.save.flags.trial_mode = 'daily';
+  G.save.flags.trial_daily = ranked ? 'ranked' : 'practice';
   G.world.transition('trial_arena', 'start');
 }

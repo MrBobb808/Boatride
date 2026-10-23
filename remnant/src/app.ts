@@ -5,6 +5,8 @@ import { newGame, derive, migrateSave, type SaveData } from './game/state';
 import { saveSlot, loadSlot, requestPersistence } from './game/save';
 import { music } from './audio/music';
 import { input } from './core/input';
+import { muffleWater } from './game/swim';
+import { maybeRecap } from './game/recap';
 
 export type Mode = 'boot' | 'title' | 'intro' | 'game';
 
@@ -59,8 +61,11 @@ export function startNewGame(slot: number, skipIntro = false) {
 export function loadGameSlot(slot: number) {
   const s = loadSlot(slot);
   if (!s) return false;
+  // Measured before entering, which saves (and so stamps the slot as fresh).
+  const away = Date.now() - (s.updated ?? NaN);
   // Resume where the player last stood; fall back to the last altar.
   enterGame(s, slot, s.room || s.altar.room, s.spawn || s.altar.spawn);
+  maybeRecap(away);
   return true;
 }
 
@@ -73,6 +78,7 @@ export function returnToTitle() {
   G.ui.hint(null);
   G.ui.caption(null);
   G.ui.cinematicBars(false);
+  muffleWater(false);
   music.play('title');
   hooks.showTitle();
 }
@@ -121,6 +127,12 @@ export function startNewGamePlus() {
   for (const f of ['mantle_known', 'mantle_used', 'mantle_ready_seen', 'trial_best']) if (old.flags[f] !== undefined) s.flags[f] = old.flags[f];
   s.mantle = old.mantle;
   s.echoMode = old.echoMode;
+  // Trophies, the daily record and lessons learned belong to the player, not the cycle;
+  // the Rest is rebuilt, but titles and Ezra's one-time gift stay given.
+  if (old.valor) s.valor = structuredClone(old.valor);
+  if (old.daily) s.daily = { ...old.daily };
+  if (old.coached) s.coached = { ...old.coached };
+  if (old.settlement) s.settlement = { seen: -1, quests: {}, titles: [...old.settlement.titles], gift: old.settlement.gift };
   saveSlot(G.slot, s);
   G.ui.fade(1, 0.6).then(() => {
     enterGame(s, G.slot, 'sanctuary', 'start');

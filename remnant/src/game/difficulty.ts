@@ -1,6 +1,7 @@
-// Boss difficulty. Hard is the default: bosses have more health, hit harder
-// and move a little faster. Normal is the original balance; Merciless is for
-// players who have outgrown Hard. Read when a boss is built (HP, damage) and
+// Boss difficulty: the place where challenge lives. Hard is the default and is
+// tuned (with the chapter curve in curve.ts) to be beatable at the level a
+// straight-through player reaches; Normal is gentler; Merciless is the harder
+// path for players who have outgrown Hard or out-levelled the curve. Read when a boss is built (HP, damage) and
 // every step (tempo), so a change applies from the next boss room.
 
 import { settings } from '../core/settings';

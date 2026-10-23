@@ -9,8 +9,9 @@ import { buildParallaxCh2, drawDuskSky, drawPropCh2, drawPitch } from './env2';
 import { buildParallaxCh3, drawValleySky, drawCaveSky, drawVoidSky, drawHiveWall, drawSolidCh3, drawOneWayCh3, drawLiquidCh3, drawPropCh3, drawLivePropCh3, isCh3, LIVE_CH3 } from './env3';
 import { DEN_SEED, FEAST_SEED, drawDenWall, drawDenTile } from './env4';
 import { buildParallaxCh4, drawSkyCh4, drawSolidCh4, drawOneWayCh4, drawSpikesCh4, drawLiquidCh4, drawPropCh4, drawLivePropCh4, isCh4, LIVE_CH4, BACKDROP_CH4 } from './env4';
-import { buildParallaxCh6, drawSkyCh6, drawSolidCh6, drawOneWayCh6, drawSpikesCh6, drawLiquidCh6, drawPropCh6, drawLivePropCh6, isCh6, LIVE_CH6, BACKDROP_CH6 } from './env6';
+import { buildParallaxCh6, useRoomCh6, drawSkyCh6, drawSolidCh6, drawOneWayCh6, drawSpikesCh6, drawLiquidCh6, drawPropCh6, drawLivePropCh6, isCh6, LIVE_CH6, BACKDROP_CH6 } from './env6';
 import { fallenSky, fallenParallax, fallenProp, drawFallenLive, FALLEN_LIVE, isFallen, drawSolidFallen, drawOneWayFallen, drawSpikesFallen, drawLiquidFallen } from './fallenEnv';
+import { restSky, restParallax, restProp, drawRestLive, REST_LIVE, drawSolidRest, drawOneWayRest } from './envRest';
 import { buildParallaxCh5, drawSkyCh5, drawSolidCh5, drawOneWayCh5, drawSpikesCh5, drawLiquidCh5, drawPropCh5, drawLivePropCh5, isCh5, LIVE_CH5, BACKDROP_CH5 } from './env5';
 
 export interface BiomePal {
@@ -31,7 +32,9 @@ export interface BiomePal {
 }
 
 export const BIOMES: Record<Biome, BiomePal> = {
+  rest: {sky:['#121636','#8a4a6c','#ffe0a0'],far:'#7a5e88',mid:'#3e2c4a',near:'#160e18',fog:'#f0a070',stone:'#5a3c2c',stoneDark:'#24160f',cap:'#5a6a2e',capTuft:'#8a9a44',back:'',backLine:'',moon:null,plat:'#6a4630',ambient:'#3a2420'},
   hunt: {sky:['#101323','#31353c','#8a6755'],far:'#35363e',mid:'#252832',near:'#171d27',fog:'#b78c6e',stone:'#514751',stoneDark:'#25232d',cap:'#9c8770',capTuft:'#b09269',back:'#211f29',backLine:'#3f3540',moon:'#f1cf9c',plat:'#9a7f64',ambient:'#1a1422'},
+  grecia: {sky:['#121a24','#2c3a4a','#7a8c96'],far:'#3a4858',mid:'#24303c',near:'#121820',fog:'#9ab4bc',stone:'#a49c8a',stoneDark:'#4a4a44',cap:'#dcd4c2',capTuft:'#5a7a5a',back:'#283038',backLine:'#4a5662',moon:null,plat:'#8a7a62',ambient:'#0e1620'},
   cinders: {sky:['#16131d','#593c3c','#bb754b'],far:'#64413b',mid:'#463139',near:'#251e25',fog:'#c28a65',stone:'#665049',stoneDark:'#33272b',cap:'#cb9665',capTuft:'#e4ad71',back:'#30242a',backLine:'#67483f',moon:'#db9b67',plat:'#d39d6d',ambient:'#2b1c21'},
   plague: {sky:['#101b22','#304e46','#7d9666'],far:'#374f46',mid:'#294637',near:'#192c29',fog:'#b6ce8d',stone:'#455947',stoneDark:'#202f2c',cap:'#9bb478',capTuft:'#bed28c',back:'#1b2e26',backLine:'#3c5941',moon:'#d4eda5',plat:'#a4b77b',ambient:'#12271f'},
   village: {
@@ -148,14 +151,41 @@ export interface Layer {
   res: number;
 }
 
+/** A parallax bake that pauses after each strip (yielding it), so idle time can spread it over several slices. */
+export type ParallaxSteps = Generator<Layer, Layer[], void>;
+
+const look: { biome: Biome; seed: number; interior: boolean } = { biome: 'sanctuary', seed: 0, interior: false };
+
+/** The live room's look, which some chapters' sky, tiles and props share while drawing. */
+export function useRoomLook(biome: Biome, seed: number, interior: boolean) {
+  look.biome = biome;
+  look.seed = seed;
+  look.interior = interior;
+  if (isCh6(biome)) useRoomCh6(biome, seed, interior);
+}
+
+/** Bakes done on the spot, in a frame, because nothing prepared them (debug API and browser checks). */
+export const bakeStats = { parallax: 0, lateChunks: 0 };
+
 export function buildParallax(biome: Biome, seed: number, interior: boolean, viewH: number, res: number): Layer[] {
+  bakeStats.parallax++;
+  const it = parallaxSteps(biome, seed, interior, viewH, res);
+  for (;;) {
+    const s = it.next();
+    if (s.done) return s.value;
+  }
+}
+
+export function* parallaxSteps(biome: Biome, seed: number, interior: boolean, viewH: number, res: number): ParallaxSteps {
   const pal = BIOMES[biome];
-  if (isFallen(biome)) return fallenParallax(biome, pal, seed, interior, viewH, res);
-  if (biome === 'plain' || biome === 'tower') return buildParallaxCh2(biome, pal, seed, viewH, res);
-  if (isCh3(biome)) return buildParallaxCh3(biome, pal, seed, viewH, res);
-  if (isCh4(biome)) return buildParallaxCh4(biome, pal, seed, viewH, res);
-  if (isCh5(biome)) return buildParallaxCh5(biome, pal, seed, interior, viewH, res);
-  if (isCh6(biome)) return buildParallaxCh6(biome, pal, seed, interior, viewH, res);
+  // The settlement's valley is small enough to bake in one step.
+  if (biome === 'rest') return restParallax(pal, seed, viewH, res);
+  if (isFallen(biome)) return yield* fallenParallax(biome, pal, seed, interior, viewH, res);
+  if (biome === 'plain' || biome === 'tower') return yield* buildParallaxCh2(biome, pal, seed, viewH, res);
+  if (isCh3(biome)) return yield* buildParallaxCh3(biome, pal, seed, viewH, res);
+  if (isCh4(biome)) return yield* buildParallaxCh4(biome, pal, seed, viewH, res);
+  if (isCh5(biome)) return yield* buildParallaxCh5(biome, pal, seed, interior, viewH, res);
+  if (isCh6(biome)) return yield* buildParallaxCh6(biome, pal, seed, interior, viewH, res);
   const layers: Layer[] = [];
   const rng = new RNG(seed);
   const W = 1024;
@@ -164,11 +194,13 @@ export function buildParallax(biome: Biome, seed: number, interior: boolean, vie
     const m = makeCanvas(W * r, H * r);
     m.ctx.scale(r, r);
     draw(m.ctx, W, H);
-    layers.push({ c: m.c, w: W, h: H, fx, fy, oy: 0, res: r });
+    const l: Layer = { c: m.c, w: W, h: H, fx, fy, oy: 0, res: r };
+    layers.push(l);
+    return l;
   };
   if (!interior) {
     // Distant mountains + ruined spires of a fallen kingdom.
-    mk(0.08, 0.04, (ctx, w, h) => {
+    yield mk(0.08, 0.04, (ctx, w, h) => {
       ctx.fillStyle = pal.far;
       ctx.beginPath();
       ctx.moveTo(0, h);
@@ -191,7 +223,7 @@ export function buildParallax(biome: Biome, seed: number, interior: boolean, vie
         }
       }
     }, res * 0.6);
-    mk(0.25, 0.1, (ctx, w, h) => {
+    yield mk(0.25, 0.1, (ctx, w, h) => {
       // Ruined city skyline: towers, broken domes, arches.
       const base = h * 0.7;
       ctx.fillStyle = pal.mid;
@@ -229,7 +261,7 @@ export function buildParallax(biome: Biome, seed: number, interior: boolean, vie
         x += bw + rng.range(-6, 18);
       }
     });
-    mk(0.5, 0.2, (ctx, w, h) => {
+    yield mk(0.5, 0.2, (ctx, w, h) => {
       // Burnt houses & dead trees, closer and darker.
       const base = h * 0.82;
       ctx.fillStyle = pal.near;
@@ -258,7 +290,7 @@ export function buildParallax(biome: Biome, seed: number, interior: boolean, vie
   } else {
     const isCrypt = biome === 'crypt';
     const isSanct = biome === 'sanctum' || biome === 'sanctuary';
-    mk(0.15, 0.08, (ctx, w, h) => {
+    yield mk(0.15, 0.08, (ctx, w, h) => {
       // Vast arches and columns lost in darkness.
       const col = biome === 'sanctum' ? '#2a1c10' : pal.far;
       ctx.fillStyle = col;
@@ -282,7 +314,7 @@ export function buildParallax(biome: Biome, seed: number, interior: boolean, vie
         }
       }
     }, res * 0.6);
-    mk(0.4, 0.18, (ctx, w, h) => {
+    yield mk(0.4, 0.18, (ctx, w, h) => {
       const col = pal.mid;
       ctx.fillStyle = col;
       for (let x = 0; x < w; x += 160) {
@@ -329,7 +361,8 @@ function tree(ctx: Ctx, x: number, base: number, h: number, col: string, rng: RN
 }
 
 export function drawSky(ctx: Ctx, pal: BiomePal, w: number, h: number, interior: boolean, t: number) {
-  if (pal === BIOMES.hunt || pal === BIOMES.plague || pal === BIOMES.cinders) return fallenSky(ctx, pal === BIOMES.hunt ? 'hunt' : pal === BIOMES.plague ? 'plague' : 'cinders', w, h, interior, t);
+  if (pal === BIOMES.rest) return restSky(ctx, w, h, t);
+  if (pal === BIOMES.hunt || pal === BIOMES.plague || pal === BIOMES.cinders || pal === BIOMES.grecia) return fallenSky(ctx, pal === BIOMES.hunt ? 'hunt' : pal === BIOMES.plague ? 'plague' : pal === BIOMES.grecia ? 'grecia' : 'cinders', w, h, interior, t);
   if (pal === BIOMES.plain && !interior) {
     drawDuskSky(ctx, pal, w, h, t);
     return;
@@ -378,10 +411,27 @@ export function drawSky(ctx: Ctx, pal: BiomePal, w: number, h: number, interior:
 // ---------------------------------------------------------------- Tiles & props
 
 export class TileCache {
-  chunks = new Map<string, HTMLCanvasElement>();
+  /** Baked chunks by chunkKey(cx, cy): numeric keys keep the per-frame lookups allocation-free. */
+  chunks = new Map<number, HTMLCanvasElement>();
   static CH = 256;
+  /** Wall-clock budget for baking missing chunks inside one frame; the rest wait for the next frames. */
+  static frameBudgetMs = 4;
+  /** Set while a door's fade still covers the screen: only then may a missing chunk wait a frame. */
+  static spread = false;
   scale = 1;
+  private miss: number[] = [];
   constructor(public grid: Grid, public biome: Biome, public interior: boolean, public seed: number, public ents: EntDef[], public solidFn: (t: T) => boolean, public cond: (c?: string, n?: string) => boolean) {}
+
+  static key(cx: number, cy: number) {
+    return cy * 4096 + cx;
+  }
+
+  get cols() {
+    return Math.ceil((this.grid.w * TILE) / TileCache.CH);
+  }
+  get rows() {
+    return Math.ceil((this.grid.h * TILE) / TileCache.CH);
+  }
 
   dispose() {
     for (const c of this.chunks.values()) releaseCanvas(c);
@@ -392,8 +442,12 @@ export class TileCache {
     this.dispose();
   }
 
+  has(cx: number, cy: number) {
+    return this.chunks.has(TileCache.key(cx, cy));
+  }
+
   get(cx: number, cy: number): HTMLCanvasElement {
-    const key = cx + ',' + cy;
+    const key = TileCache.key(cx, cy);
     let c = this.chunks.get(key);
     if (!c) {
       c = this.bake(cx, cy);
@@ -402,25 +456,60 @@ export class TileCache {
     return c;
   }
 
+  /** Backing pixels of one chunk at the current scale (memory accounting). */
+  chunkPx() {
+    const n = Math.ceil(TileCache.CH * this.scale);
+    return n * n;
+  }
+
   draw(ctx: Ctx, view: { x: number; y: number; w: number; h: number }) {
     const CH = TileCache.CH;
-    const x0 = Math.max(0, Math.floor(view.x / CH)), x1 = Math.floor((view.x + view.w) / CH);
-    const y0 = Math.max(0, Math.floor(view.y / CH)), y1 = Math.floor((view.y + view.h) / CH);
-    const maxX = Math.ceil((this.grid.w * TILE) / CH) - 1, maxY = Math.ceil((this.grid.h * TILE) / CH) - 1;
-    for (let cy = y0; cy <= Math.min(y1, maxY); cy++)
-      for (let cx = x0; cx <= Math.min(x1, maxX); cx++) {
-        const c = this.get(cx, cy);
-        ctx.drawImage(c, cx * CH, cy * CH, CH + 0.5, CH + 0.5);
+    const x0 = Math.max(0, Math.floor(view.x / CH)), x1 = Math.min(Math.floor((view.x + view.w) / CH), this.cols - 1);
+    const y0 = Math.max(0, Math.floor(view.y / CH)), y1 = Math.min(Math.floor((view.y + view.h) / CH), this.rows - 1);
+    const miss = this.miss;
+    miss.length = 0;
+    for (let cy = y0; cy <= y1; cy++)
+      for (let cx = x0; cx <= x1; cx++) {
+        const c = this.chunks.get(TileCache.key(cx, cy));
+        if (c) ctx.drawImage(c, cx * CH, cy * CH, CH + 0.5, CH + 0.5);
+        else miss.push(TileCache.key(cx, cy));
       }
+    if (!miss.length) return;
+    // Bake what is missing nearest the view's centre first. Behind a door's fade the bakes of an
+    // unprepared room spread over a few frames; in play every visible chunk is drawn (no holes).
+    const mx = (view.x + view.w / 2) / CH - 0.5, my = (view.y + view.h / 2) / CH - 0.5;
+    const d = (k: number) => {
+      const dx = (k % 4096) - mx, dy = Math.floor(k / 4096) - my;
+      return dx * dx + dy * dy;
+    };
+    if (miss.length > 1) miss.sort((a, b) => d(a) - d(b));
+    const t0 = performance.now();
+    for (let i = 0; i < miss.length; i++) {
+      if (i > 0 && TileCache.spread && performance.now() - t0 > TileCache.frameBudgetMs) break;
+      const k = miss[i], cx = k % 4096, cy = Math.floor(k / 4096);
+      bakeStats.lateChunks++;
+      ctx.drawImage(this.get(cx, cy), cx * CH, cy * CH, CH + 0.5, CH + 0.5);
+    }
   }
 
   bakeAll() {
-    const CH = TileCache.CH;
-    const nx = Math.ceil((this.grid.w * TILE) / CH), ny = Math.ceil((this.grid.h * TILE) / CH);
+    const nx = this.cols, ny = this.rows;
     for (let y = 0; y < ny; y++) for (let x = 0; x < nx; x++) this.get(x, y);
   }
 
   private bake(cx: number, cy: number) {
+    // A neighbour baked ahead borrows the shared Chapter VI look for the bake, then hands it back.
+    const biome = this.biome;
+    const other = isCh6(biome) && (biome !== look.biome || this.seed !== look.seed || this.interior !== look.interior);
+    if (other) useRoomCh6(biome, this.seed, this.interior);
+    try {
+      return this.bakeChunk(cx, cy);
+    } finally {
+      if (other) useRoomLook(look.biome, look.seed, look.interior);
+    }
+  }
+
+  private bakeChunk(cx: number, cy: number) {
     const CH = TileCache.CH;
     const s = this.scale;
     const m = makeCanvas(CH * s, CH * s);
@@ -501,6 +590,10 @@ export class TileCache {
       return isSolid(tt) && tt !== T.Gate;
     };
     if (t === T.OneWay) {
+      if (this.biome === 'rest') {
+        drawOneWayRest(ctx, tx, ty, g.get(tx - 1, ty) !== T.OneWay, g.get(tx + 1, ty) !== T.OneWay);
+        return;
+      }
       if (isCh3(this.biome)) {
         drawOneWayCh3(ctx, this.biome, pal, tx, ty, g.get(tx - 1, ty) !== T.OneWay, g.get(tx + 1, ty) !== T.OneWay);
         return;
@@ -565,6 +658,11 @@ export class TileCache {
         depth = d - 1;
         break;
       }
+    }
+    if (this.biome === 'rest') {
+      drawSolidRest(ctx, tx, ty, t, depth, v, solid);
+      this.drawMarks(ctx, x, y, t);
+      return;
     }
     if (isCh3(this.biome)) {
       drawSolidCh3(ctx, this.biome, pal, tx, ty, t, depth, v, solid);
@@ -696,7 +794,7 @@ export function drawProp(ctx: Ctx, e: Extract<EntDef, { t: 'decor' }>, pal: Biom
   const rng = new RNG(seed + Math.floor(e.x * 31 + e.y * 7));
   const o = '#08060a';
   ctx.save();
-  if (fallenProp(ctx,e) || drawPropCh2(ctx, e, pal, seed) || drawPropCh3(ctx, e, pal, seed) || drawPropCh4(ctx, e, pal, seed, isCh5(biome) || seed === FEAST_SEED) || drawPropCh5(ctx, e, pal, seed) || drawPropCh6(ctx, e, pal, seed)) {
+  if (restProp(ctx, e) || fallenProp(ctx,e) || drawPropCh2(ctx, e, pal, seed) || drawPropCh3(ctx, e, pal, seed) || drawPropCh4(ctx, e, pal, seed, isCh5(biome) || seed === FEAST_SEED) || drawPropCh5(ctx, e, pal, seed) || drawPropCh6(ctx, e, pal, seed)) {
     ctx.restore();
     return;
   }
@@ -1296,7 +1394,7 @@ function drawHallBack(ctx: Ctx, e: Extract<EntDef, { t: 'decor' }>, pal: BiomePa
 }
 
 /** Decor kinds animated by drawLiveProps behind the actors (pass these in the background pass). */
-export const LIVE_DECOR: ReadonlySet<string> = new Set(['banner', ...LIVE_CH3, ...LIVE_CH4, ...LIVE_CH5, ...LIVE_CH6, ...FALLEN_LIVE]);
+export const LIVE_DECOR: ReadonlySet<string> = new Set(['banner', ...REST_LIVE, ...LIVE_CH3, ...LIVE_CH4, ...LIVE_CH5, ...LIVE_CH6, ...FALLEN_LIVE]);
 let liveCh3Frame = -1;
 
 /** Animated props drawn every frame (banners, flames, water, veil pools, grass). */
@@ -1306,6 +1404,11 @@ export function drawLiveProps(ctx: Ctx, ents: EntDef[], t: number, view: { x: nu
     const x = e.x * TILE, y = e.y * TILE;
     if (x < view.x - 200 || x > view.x + view.w + 200 || y < view.y - 200 || y > view.y + view.h + 300) continue;
     if (e.t === 'decor') {
+      // Remnant's Rest: its live props may stand in front (flowers) or behind.
+      if (REST_LIVE.has(e.k)) {
+        if (!!e.fg === fg && cond(e.cond, e.ncond)) drawRestLive(ctx, e, t);
+        continue;
+      }
       if (LIVE_CH3.has(e.k) || LIVE_CH4.has(e.k) || LIVE_CH5.has(e.k) || LIVE_CH6.has(e.k) || FALLEN_LIVE.has(e.k)) {
         // Chapter III and IV overlays belong to the background pass; if this frame's
         // background pass did not include them, the foreground pass draws them.

@@ -17,6 +17,12 @@ export interface Settings {
   touchScale: number;
   touchOpacity: number;
   leftHanded: boolean;
+  /**
+   * Touch controls the player has moved or resized: centre as a fraction of the
+   * screen (laid out right-handed; left-handed mirrors it) and a size factor.
+   * Anything absent keeps its default place.
+   */
+  touchLayout?: Record<string, TouchSpot>;
   haptics: boolean;
   /** Golden objective marker and edge arrow. */
   guide: boolean;
@@ -40,9 +46,13 @@ export interface Settings {
   name: string;
   /** How hard the bosses fight (game/difficulty.ts). */
   bossDifficulty: 'normal' | 'hard' | 'merciless';
+  /** First-time coaching cards (ui/coach.ts); absent means on. */
+  coach?: boolean;
   /** Pixel: the world is drawn at one pixel per world unit and scaled up crisply. */
   artStyle: 'pixel' | 'smooth';
 }
+
+export interface TouchSpot { x: number; y: number; s?: number }
 
 export const isTouchDevice = () =>
   'ontouchstart' in window || (navigator.maxTouchPoints ?? 0) > 0;
@@ -55,6 +65,9 @@ export const isStandalone = () =>
   (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) ||
   (window.matchMedia && window.matchMedia('(display-mode: fullscreen)').matches) ||
   (navigator as unknown as { standalone?: boolean }).standalone === true;
+
+/** Default touch button size and opacity (the layout editor resets to these). */
+export const TOUCH_DEFAULTS = { touchScale: 1, touchOpacity: 0.55 } as const;
 
 const DEFAULTS: Settings = {
   master: 0.85,
@@ -69,9 +82,10 @@ const DEFAULTS: Settings = {
   dmgNumbers: true,
   zoom: 'normal',
   textSize: 'normal',
-  touchScale: 1,
-  touchOpacity: 0.55,
+  touchScale: TOUCH_DEFAULTS.touchScale,
+  touchOpacity: TOUCH_DEFAULTS.touchOpacity,
   leftHanded: false,
+  touchLayout: {},
   haptics: true,
   guide: true,
   buttonLabels: false,
@@ -137,6 +151,7 @@ function load(): Settings {
       // Older saves requested exclusive playback by default. Opt them into mixing
       // without changing their volume sliders, bindings, or silent-switch choice.
       if (typeof parsed.mixAudio !== 'boolean') s.mixAudio = true;
+      s.touchLayout = cleanTouchLayout(parsed.touchLayout);
       if ((parsed.v ?? 1) < 4) {
         s.v = 4;
         store.set(KEY, JSON.stringify(s));
@@ -146,6 +161,19 @@ function load(): Settings {
     }
   }
   return s;
+}
+
+/** Keep only well-formed layout entries, so a damaged value never strands a button off-screen. */
+function cleanTouchLayout(v: unknown): Record<string, TouchSpot> {
+  const out: Record<string, TouchSpot> = {};
+  if (!v || typeof v !== 'object') return out;
+  const ok = (n: unknown): n is number => typeof n === 'number' && Number.isFinite(n);
+  for (const [k, e] of Object.entries(v as Record<string, Partial<TouchSpot>>)) {
+    if (!e || !ok(e.x) || !ok(e.y)) continue;
+    out[k] = { x: Math.min(1, Math.max(0, e.x)), y: Math.min(1, Math.max(0, e.y)) };
+    if (ok(e.s)) out[k].s = Math.min(1.8, Math.max(0.6, e.s));
+  }
+  return out;
 }
 
 export const settings: Settings = load();

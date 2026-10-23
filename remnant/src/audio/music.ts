@@ -10,8 +10,10 @@ type Gen = (m: Music, d: AudioNode, step: number, t: number, I: number) => void;
 
 interface TrackDef {
   bpm: number;
+  /** Boss tracks: tempo for each phase (index = music.phase); missing entries keep the last. */
+  phaseBpm?: number[];
   gen: Gen;
-  ambience?: 'wind' | 'drone' | 'none' | 'fire' | 'swarm' | 'furnace' | 'den';
+  ambience?: 'wind' | 'drone' | 'none' | 'fire' | 'swarm' | 'furnace' | 'den' | 'sea';
 }
 
 interface Playing {
@@ -30,7 +32,10 @@ export class Music {
   intensity = 0;
   private target = 0;
   private timer = 0;
+  /** Boss phase (0 = first). Bosses set it through bossPhase(); older code assigns it directly. */
   phase = 0;
+  /** How many phase changes have been heard (lets tests and the HUD see a change land). */
+  phaseChanges = 0;
 
   start() {
     if (this.timer) return;
@@ -81,6 +86,40 @@ export class Music {
 
   setIntensity(v: number) {
     this.target = v;
+  }
+
+  /**
+   * A boss entered phase n (0 = the first). Layers in the boss track key off
+   * `phase`; a rise also lands a stinger and restarts the bar, so the new
+   * layers enter on a downbeat. Safe to call before audio is unlocked.
+   */
+  bossPhase(n: number) {
+    const prev = this.phase;
+    this.phase = n;
+    if (n <= prev) return;
+    this.phaseChanges++;
+    const ctx = audio.ctx, c = this.cur;
+    if (!ctx || !c || ctx.state !== 'running') return;
+    const t = ctx.currentTime + 0.03;
+    this.stinger(c.out, t, n);
+    // Re-enter at the top of the next bar, a beat after the stinger lands.
+    c.step = Math.ceil(c.step / 16) * 16;
+    c.next = Math.max(c.next, t + 60 / this.bpmOf(c.def) * 0.75);
+  }
+
+  private bpmOf(def: TrackDef) {
+    const pb = def.phaseBpm;
+    return pb && pb.length ? pb[Math.min(this.phase, pb.length - 1)] : def.bpm;
+  }
+
+  /** A phase-change hit: drum, gong and a choir chord over a rising swell. */
+  private stinger(d: AudioNode, t: number, n: number) {
+    this.taiko(d, t, 1, 0.5);
+    this.taiko(d, t + 0.09, 0.7, 0.62);
+    this.gong(d, 33 + n, t, 0.8, 4);
+    for (const k of [0, 7, 12 + (n % 2 ? 1 : 0)]) this.choir(d, 57 + n + k, t, 1.6, 0.55, 'ah');
+    this.brass(d, 45 + n, t, 1.2, 0.8, 0.03);
+    audio.noiseHit(t - 0.02, 0.5, d, 'bandpass', 600, 1.2, 0.12, 4200, 0.4);
   }
 
   private startAmbience(p: Playing) {
@@ -187,6 +226,27 @@ export class Music {
       lfo.start();
       sweep.start();
       p.amb.push(lfo, sweep);
+    } else if (kind === 'sea') {
+      // Surf on a stony shore: low noise breathing in long swells, the filter lifting as each one breaks.
+      f.type = 'lowpass';
+      f.frequency.value = 520;
+      f.Q.value = 0.5;
+      g.gain.value = 0.06;
+      const lfo = ctx.createOscillator();
+      lfo.frequency.value = 0.085;
+      const lg = ctx.createGain();
+      lg.gain.value = 0.045;
+      lfo.connect(lg);
+      lg.connect(g.gain);
+      const sweep = ctx.createOscillator();
+      sweep.frequency.value = 0.085;
+      const sg = ctx.createGain();
+      sg.gain.value = 380;
+      sweep.connect(sg);
+      sg.connect(f.frequency);
+      lfo.start();
+      sweep.start();
+      p.amb.push(lfo, sweep);
     } else {
       f.type = 'lowpass';
       f.frequency.value = 180;
@@ -219,7 +279,7 @@ export class Music {
     }
     const c = this.cur;
     if (!c) return;
-    const stepDur = 60 / c.def.bpm / 4;
+    const stepDur = 60 / this.bpmOf(c.def) / 4;
     if (c.next < now - 0.5) c.next = now + 0.05; // recovered from suspension
     while (c.next < now + 0.18) {
       try {
@@ -489,6 +549,93 @@ export class Music {
     if (out) audio.osc('sawtooth', 48, t + dur * 0.2, dur * 0.6, d, 0.025 * v, dur * 0.3, 40);
   }
 
+  /** A hunting horn: soft-edged brass that slides up into the note, with a breathy onset. */
+  horn(d: AudioNode, m: number, t: number, dur: number, v = 1, dark = 1) {
+    const ctx = audio.ctx!;
+    const f = ctx.createBiquadFilter();
+    f.type = 'lowpass';
+    f.Q.value = 1.4;
+    f.frequency.setValueAtTime(380 * dark, t);
+    f.frequency.linearRampToValueAtTime(1500 * dark, t + 0.09);
+    f.frequency.setTargetAtTime(900 * dark, t + 0.12, 0.3);
+    const g = ctx.createGain();
+    this.sustain(g, t, 0.07, dur, 0.055 * v, 0.3);
+    f.connect(g);
+    g.connect(d);
+    for (const [type, det] of [['sawtooth', -5], ['triangle', 4]] as const) {
+      const o = ctx.createOscillator();
+      o.type = type;
+      o.frequency.setValueAtTime(mtof(m - 0.6), t);
+      o.frequency.exponentialRampToValueAtTime(mtof(m), t + 0.07);
+      o.detune.value = det;
+      o.connect(f);
+      o.start(t);
+      o.stop(t + dur + 0.45);
+    }
+    audio.noiseHit(t, 0.08, d, 'bandpass', mtof(m) * 3, 2, 0.012 * v, undefined, 0.01);
+  }
+
+  /** A lyre: a bright gut-string pluck whose brightness falls away quickly. */
+  lyre(d: AudioNode, m: number, t: number, v = 1, dec = 1.2) {
+    const ctx = audio.ctx!;
+    const f = ctx.createBiquadFilter();
+    f.type = 'lowpass';
+    f.Q.value = 1.6;
+    f.frequency.setValueAtTime(4200, t);
+    f.frequency.exponentialRampToValueAtTime(700, t + dec * 0.4);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(0.05 * v, t + 0.003);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dec);
+    f.connect(g);
+    g.connect(d);
+    const o = ctx.createOscillator();
+    o.type = 'square';
+    o.frequency.value = mtof(m);
+    o.connect(f);
+    o.start(t);
+    o.stop(t + dec + 0.05);
+    audio.osc('sine', mtof(m) * 2, t, dec * 0.5, d, 0.018 * v, 0.002);
+  }
+
+  /** An aulos: two buzzing reeds a hair apart, through a nasal band, with a slow vibrato. */
+  aulos(d: AudioNode, m: number, t: number, dur: number, v = 1, slide = 0) {
+    const ctx = audio.ctx!;
+    const f = ctx.createBiquadFilter();
+    f.type = 'bandpass';
+    f.frequency.value = Math.min(3600, mtof(m) * 2.2);
+    f.Q.value = 1.3;
+    const g = ctx.createGain();
+    this.sustain(g, t, 0.05, dur, 0.06 * v, 0.18);
+    f.connect(g);
+    g.connect(d);
+    const lfo = ctx.createOscillator();
+    lfo.frequency.value = 5.6;
+    const lg = ctx.createGain();
+    lg.gain.setValueAtTime(0, t);
+    lg.gain.linearRampToValueAtTime(14, t + Math.min(0.5, dur));
+    lfo.connect(lg);
+    for (const det of [-7, 7]) {
+      const o = ctx.createOscillator();
+      o.type = 'sawtooth';
+      o.frequency.setValueAtTime(mtof(m - slide), t);
+      if (slide) o.frequency.exponentialRampToValueAtTime(mtof(m), t + 0.09);
+      o.detune.value = det;
+      lg.connect(o.detune);
+      o.connect(f);
+      o.start(t);
+      o.stop(t + dur + 0.3);
+    }
+    lfo.start(t);
+    lfo.stop(t + dur + 0.3);
+  }
+
+  /** A wave gathering and breaking: low noise swelling, then a hiss as it falls. */
+  surf(d: AudioNode, t: number, dur: number, v = 1) {
+    audio.noiseHit(t, dur * 0.7, d, 'lowpass', 220, 0.7, 0.16 * v, 1400, dur * 0.6);
+    audio.noiseHit(t + dur * 0.62, dur * 0.5, d, 'highpass', 2600, 0.5, 0.05 * v, 900, 0.03);
+  }
+
   swell(d: AudioNode, t: number, dur: number, v = 1) {
     const ctx = audio.ctx!;
     const s = ctx.createBufferSource();
@@ -593,13 +740,324 @@ const TRIAL_CALL: Record<number, number>[] = [
   { 0: 76, 8: 74 },
 ];
 
+// Chapters VII–IX, the Fallen Crowns, and Chapter X.
+const HUNT_PROG = [[38, [62, 65, 69]], [34, [62, 65, 70]], [36, [60, 64, 67]], [33, [61, 64, 69]]] as const;
+/** The chase: 3 + 3 + 2. */
+const HUNT_DRUM = [0, 6, 12];
+/** The horn's call, in open fourths and fifths like a real hunting horn, then its answer. */
+const HUNT_CALL: Record<number, number>[] = [
+  { 0: 62, 3: 69, 4: 69, 6: 74, 12: 69 },
+  { 0: 70, 4: 69, 6: 67, 8: 65, 12: 62 },
+  { 0: 67, 3: 72, 4: 72, 6: 76, 12: 72 },
+  { 0: 69, 4: 73, 8: 76, 12: 69 },
+];
+const PLAGUE_PROG = [[36, [60, 63, 67]], [37, [61, 65, 68]], [32, [60, 63, 68]], [35, [59, 62, 67]]] as const;
+/** The lament: each bar sighs a step down, the last falling to the leading tone. */
+const PLAGUE_SIGH: Record<number, number>[] = [
+  { 0: 75, 4: 74, 8: 72, 12: 71 },
+  { 0: 77, 4: 75, 8: 73, 12: 72 },
+  { 0: 75, 4: 72, 8: 70, 12: 68 },
+  { 0: 67, 4: 68, 8: 65, 12: 67 },
+];
+const CINDER_PROG = [[41, [65, 68, 72]], [42, [66, 70, 73]], [39, [63, 67, 70]], [36, [60, 64, 67]]] as const;
+/** Hammer strength by step: strike, strike, rest, tap. */
+const CINDER_ANVIL: Record<number, number> = { 0: 0.85, 3: 0.35, 6: 0.6, 8: 0.75, 11: 0.3, 14: 0.45 };
+/** D Dorian: D E F G A B C. */
+const GRECIA_SCALE = [62, 64, 65, 67, 69, 71, 72, 74, 76, 77, 79, 81, 83, 84];
+/** Where the lyre's figure starts on the mode in each bar, so it follows the chord. */
+const GRECIA_SHIFT = [0, 3, 6, 4];
+const GRECIA_LYRE = [0, 2, 4, 7, 6, 4, 3, 1];
+const GRECIA_PROG = [[38, [62, 65, 69]], [43, [62, 67, 71]], [36, [60, 64, 67]], [45, [61, 64, 69]]] as const;
+const GRECIA_MEL: Record<number, number>[] = [
+  { 0: 74, 4: 76, 6: 77, 8: 76, 12: 74 },
+  { 0: 71, 4: 72, 6: 74, 8: 72, 12: 71 },
+  { 0: 69, 3: 71, 4: 72, 8: 74, 12: 76 },
+  { 0: 77, 4: 76, 6: 74, 8: 73, 12: 74 },
+];
+/** E Phrygian for the storm: E F G A B C D. */
+const GRECIA_BOSS_PROG = [[40, [64, 67, 71]], [41, [65, 69, 72]], [40, [64, 67, 71]], [38, [62, 65, 69]]] as const;
+const GRECIA_BOSS_OST = [0, 7, 12, 7, 1, 7, 12, 7, 0, 7, 12, 7, 3, 1, 0, 1];
+const GRECIA_BOSS_KICK = [0, 3, 6, 8, 11, 14];
+const GRECIA_RIFF: Record<number, number> = { 0: 12, 2: 13, 4: 12, 6: 10, 8: 8, 10: 7, 12: 5 };
+
 export const TRACKS: Record<string, TrackDef> = {
-  hunt: {bpm:78,ambience:'wind',gen(m,d,s,t){const b=bar(s),p=pos(s),root=[38,41,36,34][b%4];if(p===0){m.strings(d,root,t,3,.7,1000,.7);m.choir(d,root+19,t,3,.4,'oo');}if(p===0||p===10)m.harp(d,root+24,t,.6,2);if(p===8)m.taiko(d,t,.35,.7);}},
-  cinders: {bpm:68,ambience:'fire',gen(m,d,s,t){const root=[36,32,39,34][bar(s)%4],p=pos(s);if(p===0){m.strings(d,root,t,3.6,.65,800,.7);m.choir(d,root+19,t,3.6,.4,'oo');}if(p===0||p===8)m.taiko(d,t,.35,.55);if(p===4||p===12)m.bell(d,root+24,t,.4,2.1);}},
-  cinder_monarch: {bpm:108,ambience:'fire',gen(m,d,s,t,I){const root=[36,32,39,34][bar(s)%4],p=pos(s);if(p===0){m.brass(d,root+12,t,1.7,.7);m.strings(d,root,t,2.1,.9,1100,.15);}if(p%4===0){m.taiko(d,t,.9,.55);m.bass(d,root-12,t,.6,.7);}if(p===6||p===14)m.snare(d,t,.5);if(I>0&&p===0)m.choir(d,root+19,t,2.1,.65,'ah');}},
-  plague: {bpm:62,ambience:'drone',gen(m,d,s,t){const b=bar(s),p=pos(s),root=[36,37,32,35][b%4];if(p===0){m.strings(d,root,t,4,.55,700,1);m.choir(d,root+19,t,4,.4,'oo');}if(p===2||p===10)m.bell(d,root+31,t,.35,2.5);}},
-  beast_monarch: {bpm:112,ambience:'drone',gen(m,d,s,t,I){const root=[38,34,41,36][bar(s)%4],p=pos(s);if(p===0)m.strings(d,root,t,2.2,1.1,1300,.1);if(p%4===0){m.taiko(d,t,.9,.7);m.bass(d,root-12,t,.5,.7);}if(p%4===2)m.snare(d,t,.5);if(I>0&&p===0)m.choir(d,root+19,t,2.2,.7,'ah');}},
-  plague_monarch: {bpm:104,ambience:'drone',gen(m,d,s,t,I){const root=[36,37,32,35][bar(s)%4],p=pos(s);if(p===0){m.strings(d,root,t,2.4,1,950,.3);m.choir(d,root+19,t,2.4,.7,'ah');}if(p%4===0)m.taiko(d,t,.65,.85);if(p===2||p===10)m.bell(d,root+31,t,.65,1.5);if(I>0&&p%4===2)m.snare(d,t,.4);}},
+  // Remnant's Rest: G major at an easy walk, harp and flute over warm strings, a hand drum on the off-beats.
+  rest: {bpm:76,ambience:'fire',gen(m,d,s,t){const b=bar(s),p=pos(s),ch=[[43,[67,71,74]],[48,[67,72,76]],[40,[67,71,76]],[50,[66,69,74]]][b%4] as [number,number[]],mel=[[79,-1,78,76,74,-1,76,-1],[76,-1,79,-1,81,79,76,-1],[74,76,78,-1,79,-1,76,-1],[74,-1,72,71,69,-1,-1,-1]][b%4],beat=60/76;if(p===0){m.bass(d,ch[0]-12,t,beat*4,.55);for(const n of ch[1])m.strings(d,n-12,t,beat*4,.45,1200,.8);}if(p%2===0)m.harp(d,ch[1][[0,1,2,1,2,1,0,1][(p/2)%8]]+12,t,.6,1.6);if(Math.floor(b/4)%2===1&&p%2===0&&mel[p/2]>0)m.flute(d,mel[p/2],t,beat*0.9,.75);if(p===6||p===14)m.taiko(d,t,.18,1.6);}},
+  // Chapter VII: the Crown of the Hunt. D minor in a winter wood: horn calls across the
+  // trees and their echo, taiko beating a 3+3+2 chase, a gallop in the strings when foes close.
+  hunt: {
+    bpm: 84,
+    ambience: 'wind',
+    gen(m, d, s, t, I) {
+      const b = bar(s), p = pos(s);
+      const beat = 60 / 84;
+      const [r, ch] = HUNT_PROG[b % 4];
+      if (p === 0) {
+        m.strings(d, r - 12, t, beat * 4, 0.9, 520, 0.9);
+        m.strings(d, r - 5, t, beat * 4, 0.4, 520, 0.9);
+        if (b % 2 === 0) for (const n of ch) m.choir(d, n - 12, t, beat * 8, 0.22, 'oo');
+      }
+      // The chase: low drums in threes and a two, a rim on the off-beat.
+      if (HUNT_DRUM.includes(p)) m.taiko(d, t, (p === 0 ? 0.42 : 0.28) + I * 0.3, p === 0 ? 0.62 : 0.78);
+      if (p === 4 || p === 12) m.frame(d, t, 0.22, true);
+      // The horn calls on alternate phrases; its echo answers from the far ridge.
+      const call = HUNT_CALL[b % 4][p];
+      if (Math.floor(b / 4) % 2 === 0 && call !== undefined) {
+        const len = beat * (p === 0 || p === 12 ? 1.8 : 0.85);
+        m.horn(d, call, t, len, 0.8);
+        m.horn(d, call, t + beat * 1.5, len, 0.28, 0.6);
+      } else if (p % 4 === 2) m.harp(d, ch[(p >> 2) % 3] + 12, t, 0.32, 1.6);
+      if (p === 8 && b % 8 === 7) m.horn(d, r + 19, t, beat * 3, 0.45, 0.7);
+      if (I > 0.12) {
+        const v = Math.min(1, I * 1.3);
+        // the gallop: da-da-dum in the low strings
+        if (p % 4 !== 3) m.strings(d, r + 12 + (p % 4 === 2 ? 7 : 0), t, 0.12, 0.55 * v, 2200, 0.004);
+        if (p === 0 && b % 2 === 1) m.brass(d, r, t, beat * 2, 0.55 * v);
+        if (p === 6 || p === 14) m.snare(d, t, 0.22 * v);
+        if (p === 10) m.taiko(d, t, 0.5 * v, 1.1);
+      }
+    },
+  },
+  // Chapter VIII: the Crown of Pestilence. C minor, sick and close: a drone that will not
+  // lift, strings sighing down the minor mode, a buzz that drifts in and out of tune.
+  plague: {
+    bpm: 66,
+    ambience: 'drone',
+    gen(m, d, s, t, I) {
+      const b = bar(s), p = pos(s);
+      const beat = 60 / 66;
+      const [r, ch] = PLAGUE_PROG[b % 4];
+      if (p === 0) {
+        m.strings(d, 24, t, beat * 4, 0.75, 320, 1.4);
+        m.strings(d, 31, t, beat * 4, 0.3, 320, 1.4);
+        // the rub: the chord's root and the semitone above it, held together
+        m.strings(d, r + 12, t, beat * 4, 0.28, 700, 1.2);
+        m.strings(d, r + 13, t, beat * 4, 0.14, 700, 1.2);
+        if (b % 4 === 1) m.choir(d, ch[1], t, beat * 6, 0.2, 'oo');
+      }
+      // the lament: a sighing line in the violas, slurred two by two
+      const n = PLAGUE_SIGH[b % 4][p];
+      if (Math.floor(b / 4) % 2 === 1 && n !== undefined) m.strings(d, n, t, beat * 1.7, 0.42, 1500, 0.25);
+      else if (p % 4 === 2 && Math.random() < 0.4) m.harp(d, ch[(p >> 2) % 3] + 12, t, 0.2, 2.2);
+      // the swarm: a buzz on the weak beats, a little out of tune each bar
+      if (p === 6 || p === 14) m.buzz(d, r + 24 + (b % 3 === 2 ? 1 : 0), t, beat * 0.6, 0.28);
+      if (p === 10 && b % 4 === 3) m.bell(d, r + 24, t, 0.3, 3.5);
+      if (p === 0 || p === 9) m.frame(d, t, 0.32);
+      if (I > 0.12) {
+        const v = Math.min(1, I * 1.3);
+        if (p % 2 === 0) m.strings(d, r + 24 + [0, 1, 0, 3][(p >> 1) % 4], t, 0.14, 0.45 * v, 2000, 0.004);
+        if (p === 0 || p === 6) m.taiko(d, t, 0.5 * v, 0.8);
+        if (p === 4 || p === 12) m.buzz(d, r + 12, t, beat * 0.5, 0.5 * v);
+        if (p === 0 && b % 2 === 1) m.brass(d, r, t, beat * 2, 0.45 * v);
+      }
+    },
+  },
+  // Chapter IX: the Crown of Cinders. F Phrygian in the foundries: hammers ring on anvils in a
+  // smith's rhythm, the bellows breathe, and a low brass chorale moves underneath like slag.
+  cinders: {
+    bpm: 76,
+    ambience: 'furnace',
+    gen(m, d, s, t, I) {
+      const b = bar(s), p = pos(s);
+      const beat = 60 / 76;
+      const [r, ch] = CINDER_PROG[b % 4];
+      if (p === 0) {
+        m.bass(d, r - 12, t, beat * 4, 0.55);
+        // the chorale: low brass swelling in, every bar
+        for (const n of ch) m.brass(d, n - 12, t, beat * 3.7, 0.3, 0.7);
+      }
+      // the smith's rhythm: strike, strike, rest, and a lighter tap that rings on
+      const hit = CINDER_ANVIL[p];
+      if (hit !== undefined) m.anvil(d, t, hit, p === 0 ? 392 : p === 8 ? 466 : 523);
+      if (p === 0 && b % 2 === 0) m.taiko(d, t, 0.45, 0.55);
+      if (p === 8 && b % 2 === 1) m.breath(d, t, beat * 1.8, 0.55, true);
+      if (p === 0 && b % 8 === 0) m.gong(d, r, t, 0.45, 4);
+      if (p === 12 && b % 4 === 2) m.horn(d, ch[2], t, beat * 1.6, 0.35, 0.6);
+      if (I > 0.12) {
+        const v = Math.min(1, I * 1.3);
+        if (p === 4 || p === 12) m.snare(d, t, 0.3 * v);
+        if (p === 0 || p === 6 || p === 10) m.taiko(d, t, 0.55 * v, 0.75);
+        if (p % 2 === 1) m.strings(d, r + 12 + [0, 1, 0, 3][(p >> 1) % 4], t, 0.12, 0.45 * v, 2200, 0.004);
+        if (p === 0 && b % 2 === 1) m.brass(d, r, t, beat * 1.8, 0.65 * v);
+      }
+    },
+  },
+  // Varkhos, Crown of the Hunt. Phase 0: drums and the horn, the hunt in earnest.
+  // Phase 1, the Hunt Shades: a choir and the gallop doubled. Phase 2, the Great Hunt:
+  // faster, the horn an octave up, rolls into every phrase.
+  beast_monarch: {
+    bpm: 120,
+    phaseBpm: [120, 128, 138],
+    ambience: 'wind',
+    gen(m, d, s, t) {
+      const b = bar(s), p = pos(s);
+      const ph = m.phase;
+      const beat = 60 / (120 + ph * 9);
+      const [r, ch] = HUNT_PROG[b % 4];
+      if (p % 4 !== 3) m.strings(d, r + 12 + (p % 4 === 2 ? 7 : 0), t, 0.11, 0.7 + ph * 0.1, 2400, 0.003);
+      if (p % 4 === 0) m.bass(d, r, t, beat * 0.9, 0.95);
+      if (HUNT_DRUM.includes(p)) m.taiko(d, t, 0.85, p === 0 ? 0.55 : 0.7);
+      if (p === 4 || p === 12) m.snare(d, t, 0.32 + ph * 0.1);
+      const call = HUNT_CALL[b % 4][p];
+      if (call !== undefined && b % 2 === 0) m.horn(d, call + (ph >= 2 ? 12 : 0), t, beat * (p === 0 || p === 12 ? 1.6 : 0.8), 0.9);
+      if (p === 0) m.brass(d, r, t, beat * 1.5, 0.75);
+      if (ph >= 1) {
+        if (p === 0) for (const n of ch) m.choir(d, n, t, beat * 4, 0.45 + ph * 0.1, 'ah');
+        if (p % 4 !== 3) m.strings(d, r + 24 + (p % 4 === 2 ? 7 : 0), t, 0.09, 0.4, 3000, 0.003);
+        if (call !== undefined && b % 2 === 1) m.horn(d, call - 12, t, beat * 0.8, 0.5, 0.7);
+        if (p % 2 === 1) m.tick2(d, t, 0.45);
+      }
+      if (ph >= 2) {
+        if (p % 2 === 0 && !HUNT_DRUM.includes(p)) m.taiko(d, t, 0.45, 1.2);
+        if (p === 8) m.brass(d, r + 12 + 1, t, beat * 1.2, 0.6);
+        if (b % 2 === 1 && p >= 12) m.snare(d, t, 0.22 + (p - 12) * 0.08);
+        if (p === 8 && b % 4 === 3) m.swell(d, t, beat * 2, 0.9);
+      }
+    },
+  },
+  // Morvane, Crown of Pestilence. Phase 0: tremolo strings in the minor mode, a buzzing
+  // pulse. Phase 1, the Brood: the swarm's riff, clicks and a choir a semitone apart.
+  // Phase 2, the Great Miasma: faster, high shimmer, brass, and the drums doubled.
+  plague_monarch: {
+    bpm: 100,
+    phaseBpm: [100, 108, 116],
+    ambience: 'swarm',
+    gen(m, d, s, t) {
+      const b = bar(s), p = pos(s);
+      const ph = m.phase;
+      const beat = 60 / (100 + ph * 8);
+      const [r, ch] = PLAGUE_PROG[b % 4];
+      // tremolo strings carrying the chord
+      if (p % 2 === 0) for (const n of ch) m.strings(d, n, t, 0.18, 0.28 + ph * 0.06, 2400, 0.004);
+      if (p % 4 === 0) m.bass(d, r, t, beat * 0.9, 0.85);
+      if (p === 0) m.choir(d, ch[0], t, beat * 4, 0.4, 'oo');
+      if (p === 0 || p === 6 || p === 10) m.taiko(d, t, 0.7, 0.8);
+      if (p === 4 || p === 12) m.frame(d, t, 0.5, true);
+      if (p === 2 || p === 10) m.buzz(d, r + 24, t, beat * 0.4, 0.45);
+      const n = PLAGUE_SIGH[b % 4][p];
+      if (n !== undefined && b % 2 === 0) m.strings(d, n + 12, t, beat * 1.4, 0.5, 2200, 0.08);
+      if (ph >= 1) {
+        if (p === 0 || p === 3 || p === 6) m.buzz(d, r + 12 + (p === 6 ? 1 : 0), t, beat * 1.1, 0.75);
+        if (p % 4 === 2) m.click(d, t, 0.45, 3400);
+        if (p === 0 && b % 2 === 0) for (const k of [0, 1, 7]) m.choir(d, ch[0] + k, t, beat * 7, 0.45, 'ah');
+        if (p === 4 || p === 12) m.snare(d, t, 0.35);
+      }
+      if (ph >= 2) {
+        m.strings(d, r + 36 + [0, 1, 0, 3][p % 4], t, 0.07, 0.3, 3600, 0.003);
+        if (p === 0) {
+          m.brass(d, r + 12, t, beat * 1.5, 0.8);
+          m.brass(d, r + 13, t, beat * 1.5, 0.5);
+        }
+        if (p % 2 === 0) m.taiko(d, t, 0.4, 1.25);
+        if (p === 8 && b % 4 === 3) m.swell(d, t, beat * 2, 1);
+      }
+    },
+  },
+  // Azkar, Crown of Cinders. Phase 0: anvils on every beat, low brass, the furnace's roar.
+  // Phase 1, the Tempered Crown: a second hammer on the off-beats, choir, snare. Phase 2,
+  // the Last Bellows: faster, a gong each phrase, strings racing, drums doubled.
+  cinder_monarch: {
+    bpm: 104,
+    phaseBpm: [104, 112, 122],
+    ambience: 'furnace',
+    gen(m, d, s, t) {
+      const b = bar(s), p = pos(s);
+      const ph = m.phase;
+      const beat = 60 / (104 + ph * 9);
+      const [r, ch] = CINDER_PROG[b % 4];
+      if (p % 4 === 0) {
+        m.anvil(d, t, p === 0 ? 0.95 : 0.65, p === 0 ? 392 : 440);
+        m.bass(d, r, t, beat * 0.9, 0.95);
+      }
+      if (p === 0 || p === 8) m.taiko(d, t, 0.9, 0.5);
+      if (p === 0) for (const n of ch) m.brass(d, n - 12, t, beat * 3.6, 0.5, 0.25);
+      if (p === 10 && b % 2 === 1) m.brass(d, r + 12, t, beat * 1.2, 0.7);
+      m.strings(d, r + 12 + [0, 0, 1, 0, 0, 0, 3, 1][p % 8], t, 0.1, 0.5 + ph * 0.1, 2000, 0.003);
+      if (ph >= 1) {
+        if (p % 4 === 2) m.anvil(d, t, 0.5, 659);
+        if (p === 4 || p === 12) m.snare(d, t, 0.42);
+        if (p === 0 && b % 2 === 0) for (const n of ch) m.choir(d, n, t, beat * 7, 0.5, 'ah');
+        if (p === 0) m.brass(d, r + 12, t, beat * 1.4, 0.8);
+      }
+      if (ph >= 2) {
+        if (p === 0 && b % 2 === 0) m.gong(d, r + 12, t, 0.6, 3.5);
+        if (p % 2 === 0 && p % 8 !== 0) m.taiko(d, t, 0.45, 1.15);
+        m.strings(d, r + 24 + [0, 7, 3, 7][p % 4], t, 0.07, 0.32, 3200, 0.003);
+        if (b % 4 === 3 && p >= 12) m.snare(d, t, 0.22 + (p - 12) * 0.08);
+        if (p === 8 && b % 4 === 3) m.swell(d, t, beat * 2, 1);
+      }
+    },
+  },
+  // Chapter X: Grecia. D Dorian on an island shore: a lyre picking out the mode, an aulos
+  // singing over it on alternate phrases, and the sea gathering in long swells.
+  grecia: {
+    bpm: 80,
+    ambience: 'sea',
+    gen(m, d, s, t, I) {
+      const b = bar(s), p = pos(s);
+      const beat = 60 / 80;
+      const [r, ch] = GRECIA_PROG[b % 4];
+      if (p === 0) {
+        m.strings(d, r - 12, t, beat * 4, 0.7, 600, 1);
+        m.strings(d, r - 5, t, beat * 4, 0.3, 600, 1);
+        if (b % 4 === 2) for (const n of ch) m.choir(d, n - 12, t, beat * 8, 0.18, 'oo');
+      }
+      // the lyre: up the chord and down the mode
+      if (p % 2 === 0) m.lyre(d, GRECIA_SCALE[GRECIA_LYRE[(p >> 1) % 8] + GRECIA_SHIFT[b % 4]], t, 0.55, p % 8 === 0 ? 1.6 : 1);
+      // the aulos on alternate phrases, sliding into its long notes
+      const n = GRECIA_MEL[b % 4][p];
+      if (Math.floor(b / 4) % 2 === 1 && n !== undefined) m.aulos(d, n, t, beat * (p === 0 || p === 12 ? 1.8 : 0.9), 0.5, p === 0 ? 1 : 0);
+      // the sea
+      if (p === 0 && b % 2 === 0) m.surf(d, t, beat * 6, 0.6);
+      if (p === 0 || p === 10) m.frame(d, t, 0.3);
+      if (p === 6 || p === 14) m.frame(d, t, 0.18, true);
+      if (I > 0.12) {
+        const v = Math.min(1, I * 1.3);
+        if (p === 0 || p === 6 || p === 10) m.taiko(d, t, 0.5 * v, 0.85);
+        if (p % 2 === 1) m.strings(d, r + 12 + [0, 7, 3, 7][(p >> 1) % 4], t, 0.12, 0.45 * v, 2400, 0.004);
+        if (p === 0 && b % 2 === 1) m.brass(d, r, t, beat * 2, 0.5 * v);
+        if (p === 4 || p === 12) m.snare(d, t, 0.22 * v);
+      }
+    },
+  },
+  // Chapter X's boss: E Phrygian, a storm at sea. The aulos riff over a racing lyre;
+  // phase 1 brings the choir and brass, phase 2 the thunder, the surf and the rolls.
+  grecia_boss: {
+    bpm: 126,
+    phaseBpm: [126, 134, 144],
+    ambience: 'sea',
+    gen(m, d, s, t) {
+      const b = bar(s), p = pos(s);
+      const ph = m.phase;
+      const beat = 60 / (126 + ph * 9);
+      const [r, ch] = GRECIA_BOSS_PROG[b % 4];
+      m.lyre(d, r + 24 + GRECIA_BOSS_OST[p], t, 0.5 + ph * 0.1, 0.4);
+      if (p % 4 === 0) m.bass(d, r, t, beat * 0.9, 0.9);
+      if (GRECIA_BOSS_KICK.includes(p)) m.taiko(d, t, 0.8, p === 0 ? 0.6 : 0.8);
+      if (p === 4 || p === 12) m.snare(d, t, 0.38);
+      const riff = GRECIA_RIFF[p];
+      if (riff !== undefined) m.aulos(d, r + 24 + riff, t, beat * (p === 12 ? 1.4 : 0.7), 0.65, p === 0 ? 1 : 0);
+      if (p === 0) m.strings(d, r, t, beat * 4, 0.7, 600, 0.2);
+      if (ph >= 1) {
+        if (p === 0) {
+          for (const n of ch) m.choir(d, n, t, beat * 4, 0.45, 'ah');
+          m.brass(d, r + 12, t, beat * 1.5, 0.85);
+          m.brass(d, r + 19, t, beat * 1.5, 0.6);
+        }
+        if (p === 8 && b % 2 === 1) m.brass(d, r + 13, t, beat * 1.2, 0.6);
+        if (p % 2 === 1) m.tick2(d, t, 0.5);
+      }
+      if (ph >= 2) {
+        if (p === 0 && b % 2 === 0) {
+          m.gong(d, r, t, 0.6, 3);
+          m.taiko(d, t + 0.03, 0.8, 0.45);
+        }
+        if (p === 8 && b % 2 === 0) m.surf(d, t, beat * 3, 0.8);
+        if (p % 2 === 0 && !GRECIA_BOSS_KICK.includes(p)) m.taiko(d, t, 0.4, 1.25);
+        if (b % 4 === 3 && p >= 12) m.snare(d, t, 0.25 + (p - 12) * 0.08);
+      }
+    },
+  },
   title: {
     bpm: 54,
     ambience: 'wind',
@@ -1438,6 +1896,8 @@ export const TRACKS: Record<string, TrackDef> = {
   // slow, crushing march; each phase thickens it, the last doubles the time.
   persia: {
     bpm: 112,
+    // Enraged (phase 3): the march finally breaks into a run.
+    phaseBpm: [112, 112, 112, 122],
     ambience: 'none',
     gen(m, d, s, t) {
       const b = bar(s), p = pos(s);
@@ -1474,6 +1934,11 @@ export const TRACKS: Record<string, TrackDef> = {
         m.strings(d, r + 36 + [0, 7, 3, 7][p % 4], t, 0.07, 0.35, 3600, 0.003);
         if (b % 4 === 3 && p >= 8) m.snare(d, t, 0.2 + (p - 8) * 0.05);
         if (p === 8 && b % 2 === 0) m.swell(d, t, beat * 2, 1);
+      }
+      if (ph >= 3) {
+        // Enraged: the motif shouted an octave up, and a roll into every bar.
+        if (mo !== undefined) m.brass(d, r + mo + 24, t, beat * 0.8, 0.4, 0.03);
+        if (p >= 12) m.snare(d, t, 0.2 + (p - 12) * 0.06);
       }
     },
   },

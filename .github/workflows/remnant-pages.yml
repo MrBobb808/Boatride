@@ -47,9 +47,17 @@ jobs:
       - run: node scripts/power-walls.mjs
       - run: node scripts/fallen-campaign.mjs
       - run: node scripts/boss-rush.mjs
+      - run: node scripts/valor-daily.mjs
       - run: node scripts/travel-camera.mjs
       - run: node scripts/fallen-foes.mjs
+      - run: node scripts/settlement.mjs
+      - run: node scripts/grecia-boss.mjs
+      - run: node scripts/swim.mjs
       - run: node scripts/update-delivery.mjs
+      - run: node scripts/touch-layout.mjs
+      - run: node scripts/transitions.mjs
+      - run: node scripts/curve-onboarding.mjs
+      - run: node scripts/audio-cinema.mjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:

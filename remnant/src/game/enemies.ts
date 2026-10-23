@@ -3,6 +3,7 @@ import { chapterForRoom } from './fallenChapters';
 // Veil Wisps. Each has a readable telegraph, a stagger state that opens an
 // execution, and its own sound signature.
 
+import { chapterCurve } from './curve';
 import { Entity, type HitInfo } from './entity';
 import { moveBody, groundAhead, wallAhead, hazardAhead, los } from './physics';
 import { Animator, solve, newJoints, BASE_POSE, Chain, drawRibbon, type Clip, type Joints, type Pose, type RigDims } from '../render/skeleton';
@@ -13,6 +14,7 @@ import { sfx } from '../audio/audio';
 import { G } from './ctx';
 import { approach, clamp, rand, sign, choose, easeOutCubic, easeInQuad, easeOutBack, easeInOutSine } from '../core/math';
 import { Proj } from './projectiles';
+import { waterRoom, landFoeWater } from './water';
 import type { EnemyKind } from './tiles';
 import { lighting } from '../render/lighting';
 import { shakeScale } from '../core/settings';
@@ -51,6 +53,7 @@ export const ENEMY_STATS: Record<EnemyKind, EnemyStats> = {
   stalker: { hp: 150, dmg: 19, poise: 34, xp: 66, silver: [10, 18], name: 'Antlered Stalker' },
   carrier: { hp: 165, dmg: 17, poise: 48, xp: 68, silver: [10, 18], name: 'Swarm Carrier' },
   golem: { hp: 300, dmg: 24, poise: 120, xp: 86, silver: [12, 22], name: 'Slag Golem' },
+  eel: { hp: 120, dmg: 18, poise: 24, xp: 60, silver: [8, 16], name: 'Brine Eel' },
 };
 
 export const CORRUPT = { glow: '#b04cff', eye: '#ff3355', outline: '#07050a' };
@@ -259,10 +262,10 @@ export abstract class Enemy extends Entity {
     this.stats = ENEMY_STATS[kind];
     const ng = 1 + (G.save?.ng ?? 0) * 0.6;
     const em = elite ? 2.0 : 1;
-    // Chapter II foes are tougher, and worth more.
     const rid = G.world?.room?.id ?? '';
     this.tier = chapterForRoom(rid)?.n ?? (CH6_ROOM_IDS.has(rid) ? 6 : CH5_ROOM_IDS.has(rid) ? 5 : CH4_ROOM_IDS.has(rid) ? 4 : CH3_ROOM_IDS.has(rid) ? 3 : CH2_ROOM_IDS.has(rid) ? 2 : 1);
-    const th = [1, 1, 1.8, 3.0, 4.4, 6.2, 8.4, 10.5, 13, 15.5][this.tier], td = [1, 1, 1.4, 1.9, 2.4, 2.9, 3.4, 3.9, 4.4, 4.9][this.tier];
+    // Per-chapter health and damage come from the difficulty curve (game/curve.ts).
+    const { foeHp: th, foeDmg: td } = chapterCurve(this.tier);
     this.maxHp = this.hp = Math.round(this.stats.hp * ng * em * th);
     this.dmg = this.stats.dmg * ng * (elite ? 1.15 : 1) * td;
     this.maxPoise = this.poise = this.stats.poise * (elite ? 1.6 : 1);
@@ -297,6 +300,8 @@ export abstract class Enemy extends Entity {
   physics(dt: number, gravity = 1500) {
     const b = this.body;
     if (this.grav > 0) b.vy = Math.min(560, b.vy + gravity * this.grav * dt);
+    // Walkers stop at deep water (and wade the bottom if knocked in); fliers and swimmers ignore it.
+    if (this.grav > 0 && waterRoom.any) landFoeWater(b, G.world.grid, dt);
     const wasAir = !b.onGround;
     moveBody(b, dt, G.world.grid, G.world.solid, this.collide);
     if (b.onGround && wasAir && this.airborne) {

@@ -10,6 +10,12 @@ type AC = AudioContext;
 
 export const mtof = (m: number) => 440 * Math.pow(2, (m - 69) / 12);
 
+/** At most VOICE_CAP effects start in any VOICE_WINDOW ms (priority ones excepted). */
+const VOICE_CAP = 14;
+const VOICE_WINDOW = 90;
+/** Effects that must never be dropped: they confirm the player's own timing. */
+const PRIORITY = new Set(['parry', 'parryPerfect', 'finisherThud', 'shieldBreak', 'execute', 'finisher', 'hurt', 'death', 'levelup', 'ui', 'uiConfirm', 'uiBack', 'uiOpen']);
+
 export class AudioEngine {
   ctx: AC | null = null;
   master!: GainNode;
@@ -24,6 +30,8 @@ export class AudioEngine {
   private unlocked = false;
   /** Global low-pass used for "muffled" moments (pause menu, near-death). */
   duck!: BiquadFilterNode;
+  /** Low-pass for hearing the world from under water (swimming), apart from the menus' duck. */
+  water!: BiquadFilterNode;
 
   init() {
     if (this.ctx) return;
@@ -43,7 +51,12 @@ export class AudioEngine {
     this.duck.type = 'lowpass';
     this.duck.frequency.value = 20000;
     this.duck.Q.value = 0.4;
-    this.master.connect(this.duck);
+    this.water = ctx.createBiquadFilter();
+    this.water.type = 'lowpass';
+    this.water.frequency.value = 20000;
+    this.water.Q.value = 0.7;
+    this.master.connect(this.water);
+    this.water.connect(this.duck);
     this.duck.connect(comp);
     comp.connect(ctx.destination);
     this.musicBus = ctx.createGain();
@@ -127,6 +140,11 @@ export class AudioEngine {
   setMuffled(on: boolean) {
     if (!this.ctx) return;
     this.duck.frequency.setTargetAtTime(on ? 900 : 20000, this.ctx.currentTime, 0.12);
+  }
+
+  setUnderwater(on: boolean) {
+    if (!this.ctx) return;
+    this.water.frequency.setTargetAtTime(on ? 620 : 20000, this.ctx.currentTime, on ? 0.06 : 0.1);
   }
 
   private makeImpulse(seconds: number, decay: number) {
@@ -226,6 +244,12 @@ export class AudioEngine {
     return g;
   }
 
+  /** Start times of the last VOICE_CAP effects (a ring), for the global budget. */
+  private starts = new Float64Array(VOICE_CAP);
+  private startIx = 0;
+  /** Counters for the debug API and tests: effects played, and dropped by the budget. */
+  stats = { played: 0, dropped: 0 };
+
   /** Play a named effect. pan in -1..1, vol multiplier, pitch multiplier. */
   play(name: string, o: { pan?: number; vol?: number; pitch?: number; gap?: number } = {}) {
     if (!this.ready || !this.ctx || this.ctx.state !== 'running') return;
@@ -233,11 +257,27 @@ export class AudioEngine {
     const gap = o.gap ?? 28;
     const last = this.last.get(name) ?? 0;
     if (nowMs - last < gap) return;
-    this.last.set(name, nowMs);
     const fn = SFX[name];
     if (!fn) return;
+    // A global budget: a mass hit (a squad on a swarm) would otherwise start
+    // hundreds of nodes in one frame. Past VOICE_CAP starts in VOICE_WINDOW ms,
+    // ordinary effects are dropped; the key beats of combat always sound.
+    const oldest = this.starts[this.startIx];
+    const busy = nowMs - oldest < VOICE_WINDOW;
+    if (busy && !PRIORITY.has(name)) {
+      this.stats.dropped++;
+      return;
+    }
+    this.last.set(name, nowMs);
+    this.starts[this.startIx] = nowMs;
+    this.startIx = (this.startIx + 1) % VOICE_CAP;
+    this.stats.played++;
+    // Crowded moments are mixed down a little so the bus never piles up.
+    let crowd = 0;
+    for (let i = 0; i < VOICE_CAP; i++) if (nowMs - this.starts[i] < VOICE_WINDOW) crowd++;
+    const v = (o.vol ?? 1) * (crowd > VOICE_CAP / 2 ? 1 - (crowd - VOICE_CAP / 2) / VOICE_CAP : 1);
     try {
-      fn(this, this.ctx.currentTime + 0.005, o.vol ?? 1, o.pitch ?? 1, o.pan ?? 0);
+      fn(this, this.ctx.currentTime + 0.005, v, o.pitch ?? 1, o.pan ?? 0);
     } catch {
       /* never let audio break the game */
     }
@@ -330,9 +370,12 @@ export const SFX: Record<string, SfxFn> = {
     a.osc('sine', 140, t, 0.1, d, 0.3 * v, 0.002, 70);
   },
   parry(a, t, v, p, pan) {
+    // Steel on steel that keeps ringing: a bright strike, then two partials beating slowly.
     const d = a.out(pan, 1);
     metal(a, t, 880 * p, 1.3 * v, d, 0.9);
     bell(a, t, 1760 * p, 0.6 * v, d, 1.2);
+    a.osc('sine', 2637 * p, t, 1.4, d, 0.03 * v, 0.002, undefined, 6);
+    a.osc('sine', 2637 * p, t, 1.4, d, 0.03 * v, 0.002, undefined, -6);
     a.noiseHit(t, 0.08, d, 'highpass', 5000, 1, 0.35 * v);
   },
   step(a, t, v, p, pan) {
@@ -357,6 +400,30 @@ export const SFX: Record<string, SfxFn> = {
     const d = a.out(pan, 0.1);
     a.osc('sine', 100 * p, t, 0.1, d, 0.3 * v, 0.002, 45);
     a.noiseHit(t, 0.1, d, 'lowpass', 900, 0.8, 0.2 * v);
+  },
+  splash(a, t, v, p, pan) {
+    const d = a.out(pan, 0.25);
+    a.noiseHit(t, 0.32, d, 'lowpass', 2600 * p, 0.8, 0.42 * v, 500, 0.008);
+    a.noiseHit(t + 0.04, 0.22, d, 'bandpass', 4200 * p, 1.2, 0.14 * v, 1600, 0.01);
+    a.osc('sine', 180 * p, t, 0.14, d, 0.12 * v, 0.004, 70);
+  },
+  splashSmall(a, t, v, p, pan) {
+    const d = a.out(pan, 0.1);
+    a.noiseHit(t, 0.12, d, 'bandpass', 2400 * p, 1.4, 0.16 * v, 900, 0.006);
+  },
+  swimStroke(a, t, v, p, pan) {
+    const d = a.out(pan, 0.2);
+    a.noiseHit(t, 0.28, d, 'lowpass', 700 * p, 0.9, 0.3 * v, 240, 0.05);
+    a.osc('sine', 300 * p, t + 0.05, 0.08, d, 0.05 * v, 0.004, 520);
+  },
+  gasp(a, t, v, p, pan) {
+    const d = a.out(pan, 0.15);
+    a.noiseHit(t, 0.34, d, 'bandpass', 1400 * p, 2.2, 0.22 * v, 2400, 0.04);
+  },
+  choke(a, t, v, p, pan) {
+    const d = a.out(pan, 0.2);
+    for (let i = 0; i < 3; i++) a.osc('sine', (260 + i * 90) * p, t + i * 0.06, 0.05, d, 0.12 * v, 0.003, 520 + i * 120);
+    a.noiseHit(t, 0.2, d, 'lowpass', 600, 1, 0.25 * v, 200);
   },
   dash(a, t, v, p, pan) {
     const d = a.out(pan, 0.3);
@@ -1526,6 +1593,69 @@ export const SFX: Record<string, SfxFn> = {
     a.noiseHit(t, 0.11, d, 'bandpass', 2600 * p, 1.6, 0.32 * v, 700 * p, 0.003);
     a.noiseHit(t + 0.02, 0.14, d, 'lowpass', 900 * p, 6, 0.3 * v, 260, 0.004);
     a.osc('sine', 120 * p, t + 0.02, 0.1, d, 0.2 * v, 0.003, 60);
+  },
+  // ----- impacts -----
+  /** A perfect parry: a glassy shimmer climbing over the ring of the blade. */
+  parryPerfect(a, t, v, p, pan) {
+    const d = a.out(pan, 1.2);
+    [0, 7, 12, 19, 24].forEach((s, i) => a.osc('sine', mtof(84 + s) * p, t + 0.02 + i * 0.028, 0.5 - i * 0.05, d, 0.05 * v, 0.004));
+    a.noiseHit(t, 0.45, d, 'bandpass', 7000, 5, 0.07 * v, 11000, 0.05);
+    a.osc('triangle', mtof(96) * p, t + 0.12, 0.7, d, 0.025 * v, 0.08);
+  },
+  /** The weight of an execution: a sub-bass drop under a hard body thud. */
+  finisherThud(a, t, v, p, pan) {
+    const d = a.out(pan, 0.5);
+    a.osc('sine', 72 * p, t, 0.7, d, 0.85 * v, 0.003, 28);
+    a.osc('sine', 46 * p, t + 0.02, 0.9, d, 0.5 * v, 0.01, 30);
+    a.osc('triangle', 180 * p, t, 0.1, d, 0.3 * v, 0.002, 70);
+    a.noiseHit(t, 0.2, d, 'lowpass', 1400, 0.8, 0.55 * v, 160, 0.002);
+  },
+  /** A guard or armour giving way: a cracking bark, then plates ringing apart. */
+  shieldBreak(a, t, v, p, pan) {
+    const d = a.out(pan, 0.8);
+    a.noiseHit(t, 0.12, d, 'bandpass', 2400 * p, 1.2, 0.5 * v, 600, 0.001);
+    metal(a, t + 0.01, 300 * p, 1.2 * v, d, 0.7);
+    metal(a, t + 0.07, 470 * p, 0.7 * v, d, 0.5);
+    a.osc('sine', 110 * p, t, 0.3, d, 0.45 * v, 0.002, 45);
+    for (let i = 0; i < 4; i++) a.noiseHit(t + 0.08 + i * 0.05, 0.03, d, 'highpass', 3500 + i * 600, 1, 0.12 * v, undefined, 0.001);
+  },
+  /** A blow turned by plate: a dull clank, no ring to speak of. */
+  armorClank(a, t, v, p, pan) {
+    const d = a.out(pan, 0.3);
+    a.osc('square', 230 * p, t, 0.06, d, 0.06 * v, 0.001, 160);
+    a.osc('triangle', 610 * p, t, 0.12, d, 0.08 * v, 0.001);
+    a.osc('sine', 917 * p, t, 0.09, d, 0.05 * v, 0.001);
+    a.noiseHit(t, 0.07, d, 'bandpass', 1500 * p, 2, 0.35 * v, 900, 0.001);
+  },
+  /** A swarm rising: wingbeat-chopped drone with a fizz on top. */
+  swarmBuzz(a, t, v, p, pan) {
+    const d = a.out(pan, 0.25);
+    const ctx = a.ctx!;
+    const o = ctx.createOscillator();
+    o.type = 'sawtooth';
+    o.frequency.setValueAtTime(150 * p, t);
+    o.frequency.linearRampToValueAtTime(190 * p, t + 0.5);
+    const f = ctx.createBiquadFilter();
+    f.type = 'bandpass';
+    f.frequency.value = 900 * p;
+    f.Q.value = 1.6;
+    const am = chopped(a, t, 0.7, 38, 0.6);
+    const g = ctx.createGain();
+    a.env(g, t, 0.12, 0.3 * v, 0.55);
+    o.connect(f);
+    f.connect(am);
+    am.connect(g);
+    g.connect(d);
+    o.start(t);
+    o.stop(t + 0.75);
+    a.noiseHit(t, 0.5, d, 'bandpass', 5200, 3, 0.04 * v, 6400, 0.15);
+  },
+  /** A ground wave going out: air torn low to high, with a rumble under it. */
+  waveWhoosh(a, t, v, p, pan) {
+    const d = a.out(pan, 0.4);
+    a.noiseHit(t, 0.5, d, 'bandpass', 300 * p, 0.8, 0.45 * v, 2600 * p, 0.08);
+    a.noiseHit(t + 0.05, 0.35, d, 'highpass', 4000, 0.6, 0.06 * v, undefined, 0.12);
+    a.osc('sine', 70 * p, t, 0.45, d, 0.28 * v, 0.04, 40);
   },
 };
 

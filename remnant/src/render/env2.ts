@@ -5,7 +5,7 @@
 import { makeCanvas, glow, rgba, shade, mix, poly, circle, ellipse, type Ctx } from './draw';
 import { RNG, hash2, fbm1 } from '../core/math';
 import { TILE, type EntDef } from '../game/tiles';
-import type { BiomePal, Layer } from './environment';
+import type { BiomePal, Layer, ParallaxSteps } from './environment';
 
 // ---------------------------------------------------------------- sky
 
@@ -46,7 +46,7 @@ export function drawDuskSky(ctx: Ctx, pal: BiomePal, w: number, h: number, t: nu
 
 // ---------------------------------------------------------------- parallax
 
-export function buildParallaxCh2(biome: 'plain' | 'tower', pal: BiomePal, seed: number, viewH: number, res: number): Layer[] {
+export function* buildParallaxCh2(biome: 'plain' | 'tower', pal: BiomePal, seed: number, viewH: number, res: number): ParallaxSteps {
   const layers: Layer[] = [];
   const rng = new RNG(seed);
   const W = 1024;
@@ -55,11 +55,13 @@ export function buildParallaxCh2(biome: 'plain' | 'tower', pal: BiomePal, seed: 
     const m = makeCanvas(W * r, H * r);
     m.ctx.scale(r, r);
     draw(m.ctx, W, H);
-    layers.push({ c: m.c, w: W, h: H, fx, fy, oy: 0, res: r });
+    const l: Layer = { c: m.c, w: W, h: H, fx, fy, oy: 0, res: r };
+    layers.push(l);
+    return l;
   };
   if (biome === 'plain') {
     // The Tower on the horizon, tier upon tier, scaffolded and lit.
-    mk(0.05, 0.03, (ctx, w, h) => {
+    yield mk(0.05, 0.03, (ctx, w, h) => {
       ctx.fillStyle = pal.far;
       ctx.beginPath();
       ctx.moveTo(0, h);
@@ -116,7 +118,7 @@ export function buildParallaxCh2(biome: 'plain' | 'tower', pal: BiomePal, seed: 
       ctx.stroke();
     }, res * 0.6);
     // Kiln domes trailing smoke, ruined walls, palms.
-    mk(0.22, 0.08, (ctx, w, h) => {
+    yield mk(0.22, 0.08, (ctx, w, h) => {
       const base = h * 0.74;
       ctx.fillStyle = pal.mid;
       ctx.fillRect(0, base, w, h - base);
@@ -154,7 +156,7 @@ export function buildParallaxCh2(biome: 'plain' | 'tower', pal: BiomePal, seed: 
       }
     });
     // Near: scaffolds, brick stacks and camp tents in silhouette.
-    mk(0.48, 0.18, (ctx, w, h) => {
+    yield mk(0.48, 0.18, (ctx, w, h) => {
       const base = h * 0.85;
       ctx.fillStyle = pal.near;
       ctx.fillRect(0, base, w, h - base);
@@ -184,7 +186,7 @@ export function buildParallaxCh2(biome: 'plain' | 'tower', pal: BiomePal, seed: 
     });
   } else {
     // Tower interior: vaulted brick, a spiral stair rising out of sight, light shafts.
-    mk(0.12, 0.06, (ctx, w, h) => {
+    yield mk(0.12, 0.06, (ctx, w, h) => {
       ctx.fillStyle = pal.far;
       for (let x = 0; x < w; x += 170) {
         ctx.fillRect(x + 60, h * 0.1, 34, h * 0.9);
@@ -220,7 +222,7 @@ export function buildParallaxCh2(biome: 'plain' | 'tower', pal: BiomePal, seed: 
         ctx.fill();
       }
     }, res * 0.6);
-    mk(0.36, 0.16, (ctx, w, h) => {
+    yield mk(0.36, 0.16, (ctx, w, h) => {
       ctx.fillStyle = pal.mid;
       for (let x = 0; x < w; x += 150) {
         ctx.fillRect(x + 18, 0, 26, h);

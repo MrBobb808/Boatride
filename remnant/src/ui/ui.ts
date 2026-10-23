@@ -9,7 +9,8 @@ import { img } from './icons';
 import { input } from '../core/input';
 import { sfx, audio } from '../audio/audio';
 import { music } from '../audio/music';
-import { NPC_DEFS, renderPortrait } from '../game/props';
+import { NPC_DEFS } from '../game/props';
+import { drawPortrait, hasPortrait, moodOf, type Mood } from '../render/portraits';
 import { LORE, ITEMS, RARITY_COLORS, RARITY_NAMES, ECHO_SPECIES, type ItemInst, type EchoOrder } from '../game/data';
 import { ORDER_MARK } from '../game/echoes';
 import { setBoss } from './hud';
@@ -92,6 +93,10 @@ const hooks: UIHooks = {
     setTimeout(() => b.remove(), dur + 900);
   },
 
+  clearAreaBanner() {
+    uiRoot.querySelectorAll('.banner.area').forEach((x) => x.remove());
+  },
+
   dialogue(lines: DialogueLine[]) {
     return new Promise<number>((resolve) => {
       blocking++;
@@ -109,9 +114,10 @@ const hooks: UIHooks = {
       let shown = 0;
       let typing: number | null = null;
       let raf = 0;
+      let mood: Mood = 'neutral';
       const anim = () => {
         const l = lines[i];
-        if (l) renderPortrait(canvas, l.who, performance.now() / 1000);
+        if (l) drawPortrait(canvas, l.who, performance.now() / 1000, mood, typing !== null);
         raf = requestAnimationFrame(anim);
       };
       anim();
@@ -122,7 +128,8 @@ const hooks: UIHooks = {
         if (l.who === 'elior') who.append('Elior', h('small', null, 'Watchman of Hearthward'));
         else if (def) who.append(def.name, h('small', null, def.title));
         else who.append(l.who === 'narrator' ? '' : l.who);
-        canvas.style.display = l.who === 'elior' || def ? '' : 'none';
+        canvas.style.display = hasPortrait(l.who) ? '' : 'none';
+        mood = moodOf(l.who, l.text, l.mood);
         clear(choices);
         full = l.text;
         shown = 0;
@@ -322,7 +329,7 @@ const hooks: UIHooks = {
         { n: 'Chapter IV', title: 'THE PLAIN OF DURA', secrets: CH4_SECRETS, sl: 'Hidden caches', theme: 'The furnace could not burn those who would not bow. Every image of gold stands on feet of clay.', next: 'Across the river, Babylon holds a feast for a thousand lords, and they mean to drink from the vessels of the temple.', go: 'Begin Chapter V', stay: 'Stay by the river', music: 'dura' },
         { n: 'Chapter V', title: 'THE WRITING ON THE WALL', secrets: CH5_SECRETS, sl: 'Treasures and vessels', theme: 'Pride drinks from holy things and calls itself a god. It is weighed in a single night, and found wanting.', next: 'Babylon has fallen and Persia rules. By the great river Hiddekel, old Hanan has fasted three weeks for an answer that does not come.', go: 'Begin Chapter VI', stay: 'Stay in Babylon', music: 'riverbed' },
         { n: 'Chapter VI', title: 'THE PRINCE OF PERSIA', secrets: CH6_SECRETS, sl: 'Hidden caches', theme: 'The war behind every throne is not against flesh and blood. Stand, and keep standing, until help comes.', next: 'Beyond the fallen princes, a horned king drives the northern villages into his hunting grounds. Varkhos, Crown of the Hunt, is waiting.', go: 'Begin Chapter VII', stay: 'Continue exploring', music: 'hiddekel' },
-        ...FALLEN_CHAPTERS.map(c=>({n:'Chapter '+c.roman,title:c.title.toUpperCase(),secrets:c.caches,sl:'Hidden caches',theme:c.n===9?'Hands made for building need not remain bound to destruction.':c.n===7?'Strength makes the road home your responsibility.':'A thousand voices are worth hearing separately.',next:c.ending[2],go:FALLEN_CHAPTERS.find(n=>n.n===c.n+1)?'Begin Chapter '+FALLEN_CHAPTERS.find(n=>n.n===c.n+1)!.roman:'',stay:c.n===9?'Return to Ashwatch':c.n===7?'Return to Thawgate':'Return to Quarantine',music:c.biome})),
+        ...FALLEN_CHAPTERS.map(c=>({n:'Chapter '+c.roman,title:c.title.toUpperCase(),secrets:c.caches,sl:'Hidden caches',theme:c.words?c.words.theme:c.n===9?'Hands made for building need not remain bound to destruction.':c.n===7?'Strength makes the road home your responsibility.':'A thousand voices are worth hearing separately.',next:c.ending[2],go:FALLEN_CHAPTERS.find(n=>n.n===c.n+1)?'Begin Chapter '+FALLEN_CHAPTERS.find(n=>n.n===c.n+1)!.roman:'',stay:c.words?c.words.stay:c.n===9?'Return to Ashwatch':c.n===7?'Return to Thawgate':'Return to Quarantine',music:c.biome})),
       ][Math.min(5+FALLEN_CHAPTERS.length, Math.max(1, chapter) - 1)];
       const card = h('div', { class: 'chapter panel scroll' },
         h('div', { class: 'eyebrow' }, C.n),

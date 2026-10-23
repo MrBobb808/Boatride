@@ -1,10 +1,13 @@
 import { CinderMonarch } from './cinderBoss';
+import { syncRest } from './settlement';
+import { GreciaPrince } from './bosses10';
 import { BeastMonarch, PlagueMonarch, FallenMonarch } from './fallenBosses';
 // The World: loads rooms, runs every entity, resolves combat, handles exits,
 // triggers, loot, altars, the Echo army, Rally the Remnant, and draws the
 // whole layered scene.
 
-import { ROOMS, type RoomData } from './rooms';
+import { ROOMS, chapterOf, type RoomData } from './rooms';
+import { chapterCurve, catchUpXp } from './curve';
 import { Grid, T, TILE, isSolid, type EntDef, type Loot } from './tiles';
 import { Player } from './player';
 import { Entity, type HitInfo } from './entity';
@@ -27,7 +30,7 @@ import { Proj } from './projectiles';
 import { Story } from './story';
 import { G, flag, setFlag } from './ctx';
 import { los } from './physics';
-import { TileCache, buildParallax, drawSky, drawLiveProps, drawLiquids, drawGate, BIOMES, LIVE_DECOR, type Layer } from '../render/environment';
+import { TileCache, buildParallax, useRoomLook, drawSky, drawLiveProps, drawLiquids, drawGate, BIOMES, LIVE_DECOR, type Layer } from '../render/environment';
 import { lighting } from '../render/lighting';
 import { fx, PK } from '../render/fx';
 import { glow, rgba, makeCanvas, releaseCanvas, FONT_DISPLAY, type Ctx } from '../render/draw';
@@ -41,6 +44,10 @@ import { tickStatus, powerTier, SOVEREIGN_LV } from './power';
 import { MANTLE_LV, mantleTier, mantlePerks, announceMantle } from './mantle';
 import { islandNotify, islandRipple } from '../ui/island';
 import { placeLamps } from './lamps';
+import { RoomPrep, roomGrid, chunkScale, parallaxRes } from './roomPrep';
+import { prepareWater } from './water';
+import { updateWater, drawWaterFront, drawUnderwater } from '../render/underwater';
+import { valorTick, valorTrack } from './valor';
 import { updatePending, applyUpdate } from '../core/update';
 import { FINISHERS } from './finishers';
 import { ITEMS, ECHO_SPECIES, SUPER_MOVES, type SuperId, type Rarity, type EchoOrder } from './data';
@@ -51,6 +58,8 @@ import { noteSaved } from '../ui/hud';
 import { solve, newJoints, BASE_POSE } from '../render/skeleton';
 import { drawHumanoid } from '../render/actors';
 import { SENT_DIMS, SENT_BASE, sentinelStyle, ARCH_DIMS, ARCH_BASE, archerStyle } from './enemies';
+
+const byLayer = (a: Entity, b: Entity) => a.layer - b.layer;
 
 interface Weather { x: number; y: number; vx: number; vy: number; s: number; a: number; life: number }
 interface Timer { at: number; fn: () => void }
@@ -64,7 +73,10 @@ export class World {
   story: Story;
   cache: TileCache | null = null;
   layers: Layer[] = [];
-  layerGen = -1;
+  /** The renderer bake key the layers and chunks were made under. */
+  layerKey = '';
+  /** Idle-time baking of the rooms behind this room's doors. */
+  prep = new RoomPrep();
   gateClosed = false;
   gateAmt = 0;
   hitstopT = 0;
@@ -92,6 +104,13 @@ export class World {
   rallyWarriors: { x: number; y: number; kind: 'sentinel' | 'archer'; face: number }[] = [];
   vignette: HTMLCanvasElement | null = null;
   vigGen = -1;
+  private fog: CanvasGradient | null = null;
+  private fogRoom: RoomData | null = null;
+  private fogH = 0;
+  private lowHp: CanvasGradient | null = null;
+  private lowHpGen = -1;
+  private rayGrad = new WeakMap<object, CanvasGradient>();
+  private beamGrad: CanvasGradient | null = null;
   deathHandled = false;
   saveT = 0;
   lostT = 0;
@@ -121,15 +140,24 @@ export class World {
     runBlessings.reset();
     G.d = derive(G.save);
     const r = ROOMS[id] ?? ROOMS.sanctuary;
-    this.cache?.dispose();
-    for (const l of this.layers) releaseCanvas(l.c);
+    // The room being left stays prepared when its door is behind the player (or it reloads);
+    // otherwise its art is freed. Then take whatever idle time prepared for the new room.
+    const prev = this.room;
+    const kept = !!prev && !!this.cache && (prev.id === r.id || r.exits.some((e) => e.to === prev.id)) && this.prep.keep(prev, this.layers, this.cache, this.grid, this.layerKey);
+    if (!kept) {
+      this.cache?.dispose();
+      for (const l of this.layers) releaseCanvas(l.c);
+    }
+    this.cache = null;
     this.layers = [];
-    this.layerGen = -1;
+    this.layerKey = '';
+    const ready = this.prep.take(r.id);
     this.room = r;
+    useRoomLook(r.biome, r.seed, r.interior);
     this.arenaSector = -1;
     this.liveDecor = r.ents.filter((e) => e.t === 'decor' && LIVE_DECOR.has(e.k));
-    this.grid = new Grid(r.rows);
-    this.applyRoomMods();
+    this.grid = roomGrid(r);
+    prepareWater(r.ents, this.grid);
     this.ents = [];
     this.echoes = [];
     this.triggers = [];
@@ -152,6 +180,8 @@ export class World {
     this.firedTriggers.clear();
     fx.clear();
     const s = G.save;
+    // Remnant's Rest: its tier and residents are flags the room's decor reads.
+    syncRest(r.id);
     for (const e of r.ents) this.spawnDef(e);
     placeLamps(r);
     if (r.id === 'covenant_chamber' && !flag('relic_taken')) this.add(new RelicVisual(34.5 * TILE, 20 * TILE));
@@ -175,6 +205,11 @@ export class World {
     G.camera.viewMultTarget = 1;
     G.camera.snapTo(p.x + p.face * 30, p.y - 40);
     this.cache = new TileCache(this.grid, r.biome, r.interior, r.seed, r.ents, this.solid, this.cond);
+    if (ready?.layers) {
+      this.layers = ready.layers;
+      this.layerKey = ready.key;
+      this.cache.scale = chunkScale();
+    }
     this.ensureCaches();
     s.room = id;
     s.spawn = spawnName;
@@ -183,28 +218,23 @@ export class World {
     if (G.save.flags.army_out !== false) this.summonEchoes(true);
     if (r.music) music.play(r.music);
     this.story.onEnter(id, first);
-  }
-
-  private applyRoomMods() {
-    const g = this.grid;
-    if (this.room.id === 'temple_steps' && flag('collapsed')) {
-      for (let y = 0; y < g.h; y++) for (let x = 0; x < g.w; x++) if (g.get(x, y) === T.Collapse) g.set(x, y, T.Empty);
-    }
-    const broken = String(G.save.flags['broken:' + this.room.id] ?? '');
-    if (broken) for (const pair of broken.split(';')) {
-      const [x, y] = pair.split(',').map(Number);
-      if (Number.isFinite(x)) g.set(x, y, T.Empty);
-    }
+    // Prepared chunks go in only now, after the story has had its say about tiles and props
+    // (and only if the story did not move on to another room meanwhile).
+    if (ready && this.room === r && this.cache) this.prep.adoptChunks(ready, this.cache, this.grid);
+    else ready?.cache.dispose();
+    if (this.room === r) this.prep.enter(r);
   }
 
   configureTrial(wave: number) {
     if (this.room.id !== 'trial_arena' || this.arenaSector === trialSector(wave)) return false;
     this.arenaSector = trialSector(wave);
     this.room = trialArena(ROOMS.trial_arena, wave);
+    useRoomLook(this.room.biome, this.room.seed, this.room.interior);
     this.grid = new Grid(this.room.rows);
+    prepareWater(this.room.ents, this.grid);
     this.cache?.dispose();
     for (const l of this.layers) releaseCanvas(l.c);
-    this.layers = []; this.layerGen = -1;
+    this.layers = []; this.layerKey = '';
     this.cache = new TileCache(this.grid, this.room.biome, this.room.interior, this.room.seed, this.room.ents, this.solid, this.cond);
     this.lights = this.room.ents.filter((e): e is Extract<EntDef, { t: 'light' }> => e.t === 'light');
     this.liveDecor = this.room.ents.filter((e) => e.t === 'decor' && LIVE_DECOR.has(e.k));
@@ -274,7 +304,7 @@ export class World {
       case 'boss':
         // The beaten Image stays on its dais until the stone falls (the story finishes it).
         if (s.defeated.includes(e.k) && !(e.k === 'golden_image' && !flag('ch4_image_done')) && !(e.k === 'weigher' && !flag('ch5_weigher_done')) && !(e.k === 'storm_prince' && !flag('ch6_storm_done')) && !(e.k === 'persia_prince' && !flag('ch6_prince_done')) && !(e.k === 'storm_prince' && !flag('ch6_storm_done')) && !(e.k === 'persia_prince' && !flag('ch6_prince_done'))) return;
-        this.boss = e.k === 'gatekeeper' ? new Gatekeeper(x, y) : e.k === 'marshal' ? new Marshal(x, y) : e.k === 'locust_king' ? new LocustKing(x, y) : e.k === 'golden_image' ? new GoldenImage(x, y) : e.k === 'weigher' ? new Weigher(x, y) : e.k === 'storm_prince' ? new StormPrince(x, y) : e.k === 'persia_prince' ? new PersiaPrince(x, y) : e.k === 'beast_monarch' ? new BeastMonarch(x,y) : e.k === 'plague_monarch' ? new PlagueMonarch(x,y) : e.k === 'cinder_monarch' ? new CinderMonarch(x,y) : new Idol(x, y);
+        this.boss = e.k === 'gatekeeper' ? new Gatekeeper(x, y) : e.k === 'marshal' ? new Marshal(x, y) : e.k === 'locust_king' ? new LocustKing(x, y) : e.k === 'golden_image' ? new GoldenImage(x, y) : e.k === 'weigher' ? new Weigher(x, y) : e.k === 'storm_prince' ? new StormPrince(x, y) : e.k === 'persia_prince' ? new PersiaPrince(x, y) : e.k === 'beast_monarch' ? new BeastMonarch(x,y) : e.k === 'plague_monarch' ? new PlagueMonarch(x,y) : e.k === 'cinder_monarch' ? new CinderMonarch(x,y) : e.k === 'grecia_prince' ? new GreciaPrince(x, y) : new Idol(x, y);
         this.add(this.boss);
         return;
     }
@@ -283,20 +313,28 @@ export class World {
   ensureCaches() {
     const r = G.renderer;
     if (!this.cache) return;
-    if (this.layerGen !== r.generation) {
-      this.layerGen = r.generation;
+    // Only settings that change what is baked rebuild it (not every resize or settings tweak).
+    if (this.layerKey !== r.bakeKey) {
+      this.layerKey = r.bakeKey;
       for (const l of this.layers) releaseCanvas(l.c);
-      // Pixel art draws the backdrop at full art resolution; it is small enough to be cheap.
-      const res = r.pixel ? r.scale : r.tier === 2 ? r.scale * 0.5 : r.scale * 0.4;
-      this.layers = buildParallax(this.room.biome, this.room.seed, this.room.interior, r.viewH * 1.35, res);
+      this.layers = buildParallax(this.room.biome, this.room.seed, this.room.interior, r.viewH * 1.35, parallaxRes());
       this.cache.dispose();
-      this.cache.scale = r.scale * (r.pixel || r.tier === 2 ? 1 : r.tier === 1 ? 0.85 : 0.7);
+      this.cache.scale = chunkScale();
     }
   }
 
   add(e: Entity) {
     this.ents.push(e);
     return e;
+  }
+
+  /** Busy fights get every millisecond; idle baking waits for calmer frames. */
+  combatHeavy() {
+    if (this.bossActive || this.rallyT >= 0 || this.slowT > 0 || fx.ps.length > fx.cap * 0.5) return true;
+    const p = this.player;
+    let n = 0;
+    for (const e of this.ents) if (e instanceof Enemy && e.aggro && !e.remove && Math.abs(e.x - p.x) < 420 && ++n >= 3) return true;
+    return false;
   }
 
   spawnEnemy(kind: Parameters<typeof makeEnemy>[0], x: number, y: number, elite: string | null = null) {
@@ -343,6 +381,7 @@ export class World {
     }
     G.time += dt;
     s.playtime += dtRaw;
+    valorTick(dtRaw);
     // Lost for a while? Point at the marker.
     if (!G.inCutscene && !this.bossActive) this.lostT += dtRaw;
     if (this.lostT > 100 && settings.guide) {
@@ -399,6 +438,7 @@ export class World {
     this.updateInteract(dt);
     this.updateMusic();
     this.updateWeather(dt);
+    updateWater(dt);
     fx.update(dt);
   }
 
@@ -774,9 +814,9 @@ export class World {
     }
   }
 
-  /** In the Boss Rush nothing is earned: no experience, loot, kill counts or quest progress. */
+  /** In the Boss Rush and the daily challenge nothing is earned: no experience, loot, kill counts or quest progress. */
   get rushing() {
-    return this.room.id === 'trial_arena' && this.story.ch3.rounds.rush;
+    return this.room.id === 'trial_arena' && this.story.ch3.rounds.isolated;
   }
 
   onEnemyKilled(e: Enemy) {
@@ -785,7 +825,7 @@ export class World {
     const st = e.stats;
     s.kills++;
     (s.bestiary ??= {})[e.kind] = (s.bestiary[e.kind] ?? 0) + 1;
-    const tier = e.tier === 9 ? 10.8 : e.tier === 8 ? 9.0 : e.tier === 7 ? 7.4 : e.tier === 6 ? 6.0 : e.tier === 5 ? 4.8 : e.tier === 4 ? 3.6 : e.tier === 3 ? 2.6 : e.tier === 2 ? 1.7 : 1;
+    const tier = chapterCurve(e.tier).xp;
     const xp = e.xpOverride ?? Math.round(st.xp * (e.elite ? 4 : 1) * G.d.xpMult * (1 + s.ng * 0.5) * tier);
     this.giveXp(xp);
     const loot: Loot[] = [{ silver: Math.round(randInt(st.silver[0], st.silver[1]) * (e.elite ? 4 : 1) * tier) }];
@@ -810,6 +850,8 @@ export class World {
   giveXp(xp: number) {
     const s = G.save;
     const lvBefore = s.level;
+    // Story XP catches a player up to the chapter's arrival level; the Trial pays by its own rules.
+    if (this.room.id !== 'trial_arena') xp = Math.round(xp * catchUpXp(s.level, chapterOf(this.room.id)));
     const levels = gainXp(s, xp);
     fx.number(this.player.x, this.player.y - 56, `+${xp} XP`, false, '#cfe6ff');
     if (levels > 0) {
@@ -1487,6 +1529,7 @@ export class World {
   }
 
   onBossDefeated(b: Idol | BossBase) {
+    valorTrack.bossDown(b as Idol & { key?: string });
     if (this.room.id === 'trial_arena' && this.story.ch3.rounds.bossOnly) {
       this.story.ch3.rounds.bossDefeated(b);
       return;
@@ -1505,7 +1548,7 @@ export class World {
     else if (b instanceof Weigher) this.story.ch5.weigherDefeated(b);
     else if (b instanceof StormPrince) this.story.ch6.stormDefeated(b);
     else if (b instanceof PersiaPrince) this.story.ch6.princeDefeated(b);
-    else if (b instanceof FallenMonarch || b instanceof CinderMonarch) this.story.fallen.bossDefeated(b);
+    else if (b instanceof FallenMonarch || b instanceof CinderMonarch || b instanceof GreciaPrince) this.story.fallen.bossDefeated(b);
     else if (b instanceof Idol) {
       this.closeGate(false);
       this.story.bossDefeated(b);
@@ -1569,11 +1612,18 @@ export class World {
     const my = y - 38 + Math.sin(t * 3) * 3;
     ctx.globalCompositeOperation = 'lighter';
     glow(ctx, x, my, 24, '#ffcf6b', 0.5 + Math.sin(t * 4) * 0.12);
-    const gr = ctx.createLinearGradient(0, my, 0, y);
-    gr.addColorStop(0, rgba('#ffe6a8', 0.35));
-    gr.addColorStop(1, rgba('#ffe6a8', 0));
-    ctx.fillStyle = gr;
-    ctx.fillRect(x - 1.2, my, 2.4, y - my);
+    // The beam's gradient runs 0..1 and is stretched to fit, so it is made once, not every frame.
+    if (!this.beamGrad) {
+      this.beamGrad = ctx.createLinearGradient(0, 0, 0, 1);
+      this.beamGrad.addColorStop(0, rgba('#ffe6a8', 0.35));
+      this.beamGrad.addColorStop(1, rgba('#ffe6a8', 0));
+    }
+    ctx.save();
+    ctx.translate(x, my);
+    ctx.scale(1, y - my);
+    ctx.fillStyle = this.beamGrad;
+    ctx.fillRect(-1.2, 0, 2.4, 1);
+    ctx.restore();
     glow(ctx, x, y - 2, 18, '#ffcf6b', 0.3);
     ctx.globalCompositeOperation = 'source-over';
     ctx.beginPath();
@@ -1694,14 +1744,19 @@ export class World {
       for (let x = ox; x < r.bw; x += W - 1) ctx.drawImage(l.c, x, sy, W, H);
       // fog band between layers
     }
-    // atmospheric fog gradient
-    const fog = ctx.createLinearGradient(0, r.bh * 0.35, 0, r.bh);
-    fog.addColorStop(0, rgba(pal.fog, 0));
-    fog.addColorStop(1, rgba(pal.fog, this.room.interior ? 0.12 : 0.22));
-    ctx.fillStyle = fog;
+    // atmospheric fog gradient (screen space: rebuilt only when the room or screen changes)
+    if (!this.fog || this.fogRoom !== this.room || this.fogH !== r.bh) {
+      this.fog = ctx.createLinearGradient(0, r.bh * 0.35, 0, r.bh);
+      this.fog.addColorStop(0, rgba(pal.fog, 0));
+      this.fog.addColorStop(1, rgba(pal.fog, this.room.interior ? 0.12 : 0.22));
+      this.fogRoom = this.room;
+      this.fogH = r.bh;
+    }
+    ctx.fillStyle = this.fog;
     ctx.fillRect(0, 0, r.bw, r.bh);
 
     cam.apply(ctx);
+    TileCache.spread = this.transitioning;
     this.cache?.draw(ctx, v);
     drawLiquids(ctx, this.grid, G.time, v, this.room.biome);
     drawLiveProps(ctx, this.lights, G.time, v, this.cond, false);
@@ -1713,12 +1768,13 @@ export class World {
     for (const e of this.ents) if (!e.remove) list.push(e);
     for (const e of this.echoes) if (!e.remove) list.push(e);
     list.push(this.player);
-    list.sort((a, b) => a.layer - b.layer);
+    list.sort(byLayer);
     for (const e of list) {
       if (e.x < v.x - 260 || e.x > v.x + v.w + 260) continue;
       if (e.slice) this.drawSliced(ctx, e);
       else this.drawActor(ctx, e);
     }
+    drawWaterFront(ctx, v, G.time);
     fx.drawBack(ctx);
     drawLiveProps(ctx, this.room.ents, G.time, v, this.cond, true);
     // lighting
@@ -1739,7 +1795,8 @@ export class World {
       }
     }
     for (const e of list) e.lights?.();
-    for (const p of fx.ps) if (p.k === PK.Flame && Math.random() < 0.3) lighting.add(p.x, p.y, 30, '#ffe6a8', 0.5, 0);
+    // Flame particles light their surroundings, unless auto quality is shedding effects.
+    if (r.effects < 2) for (const p of fx.ps) if (p.k === PK.Flame && Math.random() < 0.3) lighting.add(p.x, p.y, 30, '#ffe6a8', 0.5, 0);
     const dark = this.room.dark * (this.rallyT >= 0 ? 1.2 : 1);
     lighting.render(ctx, cam, r, Math.min(0.95, dark), pal.ambient);
     cam.apply(ctx);
@@ -1749,9 +1806,14 @@ export class World {
     for (const l of this.lights) {
       if (l.k !== 'window') continue;
       const lx = l.x * TILE, ly = l.y * TILE;
-      const g = ctx.createLinearGradient(lx, ly, lx + 60, ly + 260);
-      g.addColorStop(0, rgba('#a8bcf0', 0.16));
-      g.addColorStop(1, rgba('#a8bcf0', 0));
+      // World-space gradient: one per window, made once.
+      let g = this.rayGrad.get(l);
+      if (!g) {
+        g = ctx.createLinearGradient(lx, ly, lx + 60, ly + 260);
+        g.addColorStop(0, rgba('#a8bcf0', 0.16));
+        g.addColorStop(1, rgba('#a8bcf0', 0));
+        this.rayGrad.set(l, g);
+      }
       ctx.fillStyle = g;
       ctx.beginPath();
       ctx.moveTo(lx - 14, ly - 10);
@@ -1763,6 +1825,7 @@ export class World {
     }
     fx.drawAdd(ctx);
     ctx.globalCompositeOperation = 'source-over';
+    drawUnderwater(ctx, G.time);
     for (const e of list) e.drawOverlay?.(ctx);
     if (settings.guide && !G.inCutscene && !this.bossActive) this.drawGuide(ctx);
     // priority target reticle
@@ -1805,11 +1868,17 @@ export class World {
     const hpFrac = G.save.hp / G.d.maxHp;
     if (hpFrac < 0.3 && this.player.state !== 'dead') {
       const a = (0.3 - hpFrac) / 0.3 * (0.35 + Math.sin(G.time * 5) * 0.12);
-      const g = ctx.createRadialGradient(r.bw / 2, r.bh / 2, r.bh * 0.35, r.bw / 2, r.bh / 2, r.bw * 0.7);
-      g.addColorStop(0, 'rgba(120,10,20,0)');
-      g.addColorStop(1, `rgba(120,10,20,${a.toFixed(3)})`);
-      ctx.fillStyle = g;
+      // One gradient per screen size; the pulse rides on globalAlpha.
+      if (!this.lowHp || this.lowHpGen !== r.generation) {
+        this.lowHp = ctx.createRadialGradient(r.bw / 2, r.bh / 2, r.bh * 0.35, r.bw / 2, r.bh / 2, r.bw * 0.7);
+        this.lowHp.addColorStop(0, 'rgba(120,10,20,0)');
+        this.lowHp.addColorStop(1, 'rgba(120,10,20,1)');
+        this.lowHpGen = r.generation;
+      }
+      ctx.globalAlpha = clamp(a, 0, 1);
+      ctx.fillStyle = this.lowHp;
       ctx.fillRect(0, 0, r.bw, r.bh);
+      ctx.globalAlpha = 1;
     }
   }
 

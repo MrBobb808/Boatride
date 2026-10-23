@@ -13,7 +13,7 @@ import {
   palmSil, reedSil, housesSil, rosette, jar,
 } from './env4';
 import { cypressSil } from './env5';
-import type { BiomePal, Layer } from './environment';
+import type { BiomePal, Layer, ParallaxSteps } from './environment';
 
 type Decor = Extract<EntDef, { t: 'decor' }>;
 export type Ch6Biome = 'hiddekel' | 'shushan' | 'highplaces';
@@ -263,9 +263,20 @@ function floatIsle(ctx: Ctx, cx: number, cy: number, s: number, col: string, rim
 
 // ---------------------------------------------------------------- parallax
 
-export function buildParallaxCh6(biome: Ch6Biome, pal: BiomePal, seed: number, interior: boolean, viewH: number, res: number): Layer[] {
+const variantOf = (biome: Ch6Biome, seed: number) => (biome === 'hiddekel' ? (seed === DUSK_SEED ? 'dusk' : 'dawn') : seed === STORM_SEED ? 'storm' : 'day');
+
+/**
+ * Set the look Chapter VI's sky, tiles and props share for one room: the live room, or
+ * briefly a room whose tiles are being baked ahead of the player.
+ */
+export function useRoomCh6(biome: Ch6Biome, seed: number, interior: boolean) {
   hall = biome === 'shushan' && interior;
-  skyVariant = biome === 'hiddekel' ? (seed === DUSK_SEED ? 'dusk' : 'dawn') : seed === STORM_SEED ? 'storm' : 'day';
+  skyVariant = variantOf(biome, seed);
+}
+
+// Baked ahead of time for a neighbouring room, so it reads its own look, not the live room's.
+export function* buildParallaxCh6(biome: Ch6Biome, pal: BiomePal, seed: number, interior: boolean, viewH: number, res: number): ParallaxSteps {
+  const variant = variantOf(biome, seed);
   const layers: Layer[] = [];
   const W = 1024;
   const H = Math.round(viewH * 1.6);
@@ -273,7 +284,9 @@ export function buildParallaxCh6(biome: Ch6Biome, pal: BiomePal, seed: number, i
     const m = makeCanvas(W * r, H * r);
     m.ctx.scale(r, r);
     draw(m.ctx, W, H);
-    layers.push({ c: m.c, w: W, h: H, fx, fy, oy: 0, res: r });
+    const l: Layer = { c: m.c, w: W, h: H, fx, fy, oy: 0, res: r };
+    layers.push(l);
+    return l;
   };
   /** Draw something near a strip edge twice so the wrap is seamless. */
   const wrap = (x: number, reach: number, w: number, f: (x: number) => void) => {
@@ -284,10 +297,10 @@ export function buildParallaxCh6(biome: Ch6Biome, pal: BiomePal, seed: number, i
   const rng = new RNG(seed);
 
   if (biome === 'hiddekel') {
-    const dusk = skyVariant === 'dusk';
+    const dusk = variant === 'dusk';
     const lit = rgba(dusk ? '#ff9a6a' : '#ffc8a0', 0.35);
     // Far: the plain across the river, low hills and groves in the haze.
-    mk(0.04, 0.03, (ctx, w, h) => {
+    yield mk(0.04, 0.03, (ctx, w, h) => {
       const hz = h * 0.8;
       const n0 = wrapNoise(w, 280, seed, 3);
       fillRidge(ctx, w, h, (x) => hz - 6 - n0(x) * 18, mix(pal.far, pal.fog, 0.5));
@@ -300,7 +313,7 @@ export function buildParallaxCh6(biome: Ch6Biome, pal: BiomePal, seed: number, i
       mistBand(ctx, w, hz, 10, dusk ? '#c08a8a' : '#d8c8c8', 0.3, fr);
     }, res * 0.7);
     // Mid: the great river, wide and slow, the far bank's reeds and palms.
-    mk(0.15, 0.07, (ctx, w, h) => {
+    yield mk(0.15, 0.07, (ctx, w, h) => {
       const bank = h * 0.8, water = h * 0.84;
       const col = pal.mid, fr = new RNG(seed + 12);
       ctx.fillStyle = mix(pal.mid, dusk ? '#c86a4a' : '#d8a080', 0.35);
@@ -320,7 +333,7 @@ export function buildParallaxCh6(biome: Ch6Biome, pal: BiomePal, seed: number, i
       mistBand(ctx, w, water + 4, 8, dusk ? '#c89090' : '#e0d4d4', 0.25, fr);
     });
     // Near: reeds and dead branches, dark against the bright water.
-    mk(0.42, 0.16, (ctx, w, h) => {
+    yield mk(0.42, 0.16, (ctx, w, h) => {
       const n = wrapNoise(w, 120, seed + 21, 3);
       const hy = (x: number) => h * 0.9 - n(x) * h * 0.03;
       const fr = new RNG(seed + 22), col = pal.near;
@@ -334,7 +347,7 @@ export function buildParallaxCh6(biome: Ch6Biome, pal: BiomePal, seed: number, i
     });
   } else if (biome === 'shushan' && interior) {
     // The hall of a hundred columns: a forest of them receding into lamplit dark.
-    mk(0.08, 0.05, (ctx, w, h) => {
+    yield mk(0.08, 0.05, (ctx, w, h) => {
       ctx.fillStyle = pal.far;
       ctx.fillRect(0, 0, w, h);
       ctx.globalCompositeOperation = 'lighter';
@@ -357,7 +370,7 @@ export function buildParallaxCh6(biome: Ch6Biome, pal: BiomePal, seed: number, i
       ctx.fillStyle = 'rgba(0,0,0,0.4)';
       ctx.fillRect(0, h * 0.9, w, h * 0.1);
     }, res * 0.7);
-    mk(0.24, 0.12, (ctx, w, h) => {
+    yield mk(0.24, 0.12, (ctx, w, h) => {
       const col = pal.mid;
       for (let x = 60; x < w; x += 200) {
         ctx.fillStyle = col;
@@ -377,10 +390,10 @@ export function buildParallaxCh6(biome: Ch6Biome, pal: BiomePal, seed: number, i
       }
     });
   } else if (biome === 'shushan') {
-    const storm = skyVariant === 'storm';
+    const storm = variant === 'storm';
     const rim = rgba(storm ? '#8aa0d8' : '#fff0d0', storm ? 0.25 : 0.35);
     // Far: the citadel of Susa on its mound (from the summit of the storm, the city far below).
-    mk(0.04, 0.03, (ctx, w, h) => {
+    yield mk(0.04, 0.03, (ctx, w, h) => {
       const hz = h * (storm ? 0.84 : 0.8);
       const n0 = wrapNoise(w, 300, seed, 3);
       fillRidge(ctx, w, h, (x) => hz - 4 - n0(x) * 14, mix(pal.far, pal.fog, storm ? 0.15 : 0.45));
@@ -390,7 +403,7 @@ export function buildParallaxCh6(biome: Ch6Biome, pal: BiomePal, seed: number, i
       fillRidge(ctx, w, h, (x) => hz + 2, mix(pal.far, pal.fog, storm ? 0.05 : 0.25));
     }, res * 0.75);
     // Mid: the royal road through palms and poplars, a caravanserai or two.
-    mk(0.16, 0.07, (ctx, w, h) => {
+    yield mk(0.16, 0.07, (ctx, w, h) => {
       const n = wrapNoise(w, 220, seed + 11, 4);
       const hy = (x: number) => h * 0.84 - n(x) * h * 0.04;
       const col = pal.mid, fr = new RNG(seed + 12);
@@ -407,7 +420,7 @@ export function buildParallaxCh6(biome: Ch6Biome, pal: BiomePal, seed: number, i
       strokeRidge(ctx, w, hy, rim, 1);
     });
     // Near: palms and cypress, dark.
-    mk(0.42, 0.16, (ctx, w, h) => {
+    yield mk(0.42, 0.16, (ctx, w, h) => {
       const n = wrapNoise(w, 120, seed + 21, 3);
       const hy = (x: number) => h * 0.9 - n(x) * h * 0.03;
       const fr = new RNG(seed + 22), col = pal.near;
@@ -422,7 +435,7 @@ export function buildParallaxCh6(biome: Ch6Biome, pal: BiomePal, seed: number, i
     });
   } else {
     // Above the world. Far: luminous cloud seas and distant floating ruins.
-    mk(0.04, 0.03, (ctx, w, h) => {
+    yield mk(0.04, 0.03, (ctx, w, h) => {
       const fr = new RNG(seed + 3);
       ctx.globalCompositeOperation = 'lighter';
       for (let i = 0; i < 14; i++) blob(ctx, '#fff4dc', fr.range(0, w), h * fr.range(0.62, 0.95), fr.range(90, 180), fr.range(20, 40), fr.range(0.2, 0.35));
@@ -433,7 +446,7 @@ export function buildParallaxCh6(biome: Ch6Biome, pal: BiomePal, seed: number, i
       }
     }, res * 0.7);
     // Mid: marble isles adrift, chains hanging from nothing.
-    mk(0.15, 0.08, (ctx, w, h) => {
+    yield mk(0.15, 0.08, (ctx, w, h) => {
       const fr = new RNG(seed + 13);
       const col = mix(pal.mid, '#cfc4b0', 0.55);
       for (let i = 0; i < 7; i++) {

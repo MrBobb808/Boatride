@@ -16,6 +16,7 @@ import { makeEcho, skillRank } from './state';
 import type { Player } from './player';
 import { mantleOn } from './mantle';
 import { input } from '../core/input';
+import { haptic } from '../core/haptics';
 
 export type FinId = 'verdict' | 'shadowstep' | 'severance' | 'thousand' | 'skyfall' | 'requiem' | 'element' | 'arise';
 
@@ -340,6 +341,7 @@ function climax(p: Player, f: FinState, mult: number, o: { slow?: number; scale?
   if (f.struck) return;
   f.struck = true;
   input.rumble(0.9, 0.6, 260);
+  haptic('kill');
   const e = f.target;
   const exec = skillRank(G.save, 'w_exec') > 0;
   G.world.execute(p, e, mult * (exec ? 1.6 : 1) * (1 + powerTier() * 0.08));
@@ -349,6 +351,7 @@ function climax(p: Player, f: FinState, mult: number, o: { slow?: number; scale?
   G.camera.addTrauma(0.5 * shakeScale());
   speedLines(e.cx, e.cy, color());
   sfx('finisher', { vol: 0.9 });
+  sfx('finisherThud', { vol: exec ? 1 : 0.75 });
   const el = weaponElement();
   if (el) fx.ring(e.cx, e.cy, 6, 70, ELEMENTS[el].c, 0.4, 4);
   // A finished foe falls in two.
@@ -443,6 +446,7 @@ export function killBlow(p: Player, e: Entity, arcA0: number, arcA1: number) {
     fx.flash('#ffffff', 0.35);
     speedLines(e.cx, e.cy, color());
     sfx('finisher', { vol: 0.7 });
+    sfx('finisherThud', { vol: 0.6 });
     sfx('slice');
   } else if (Math.random() < 0.15 + tier * 0.06) {
     e.slice = { a: cut, t: 0 };
