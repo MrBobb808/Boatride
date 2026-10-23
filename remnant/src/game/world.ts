@@ -6,7 +6,8 @@ import { BeastMonarch, PlagueMonarch, FallenMonarch } from './fallenBosses';
 // triggers, loot, altars, the Echo army, Rally the Remnant, and draws the
 // whole layered scene.
 
-import { ROOMS, type RoomData } from './rooms';
+import { ROOMS, chapterOf, type RoomData } from './rooms';
+import { chapterCurve, catchUpXp } from './curve';
 import { Grid, T, TILE, isSolid, type EntDef, type Loot } from './tiles';
 import { Player } from './player';
 import { Entity, type HitInfo } from './entity';
@@ -824,7 +825,7 @@ export class World {
     const st = e.stats;
     s.kills++;
     (s.bestiary ??= {})[e.kind] = (s.bestiary[e.kind] ?? 0) + 1;
-    const tier = e.tier === 9 ? 10.8 : e.tier === 8 ? 9.0 : e.tier === 7 ? 7.4 : e.tier === 6 ? 6.0 : e.tier === 5 ? 4.8 : e.tier === 4 ? 3.6 : e.tier === 3 ? 2.6 : e.tier === 2 ? 1.7 : 1;
+    const tier = chapterCurve(e.tier).xp;
     const xp = e.xpOverride ?? Math.round(st.xp * (e.elite ? 4 : 1) * G.d.xpMult * (1 + s.ng * 0.5) * tier);
     this.giveXp(xp);
     const loot: Loot[] = [{ silver: Math.round(randInt(st.silver[0], st.silver[1]) * (e.elite ? 4 : 1) * tier) }];
@@ -849,6 +850,8 @@ export class World {
   giveXp(xp: number) {
     const s = G.save;
     const lvBefore = s.level;
+    // Story XP catches a player up to the chapter's arrival level; the Trial pays by its own rules.
+    if (this.room.id !== 'trial_arena') xp = Math.round(xp * catchUpXp(s.level, chapterOf(this.room.id)));
     const levels = gainXp(s, xp);
     fx.number(this.player.x, this.player.y - 56, `+${xp} XP`, false, '#cfe6ff');
     if (levels > 0) {
