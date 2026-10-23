@@ -69,8 +69,14 @@ up next starts from the latest version.
   - `game/bosses5.ts`: the Weigher.
   - `game/bosses6.ts`: the Prince of the Power of the Air (storm) and the
     Prince of the Kingdom of Persia (with the Twenty-First Day phase).
+  - `game/bosses10.ts`: the Prince of Grecia (the he-goat of Daniel 8: a
+    charging great horn, then four horns toward the four winds).
   - `game/difficulty.ts`: Settings → Challenge → Boss difficulty (Normal,
     Hard by default, Merciless) scales every boss's health, damage and tempo.
+  - `game/curve.ts`: one table per chapter of the level a straight-through
+    player arrives at, foe health/damage/XP and the Fallen Crown bosses'
+    health and blow. Below the arrival level XP comes faster (catch-up).
+    `scripts/curve-onboarding.mjs` fights VII–IX on Hard at those levels.
 - **Combat:**
   - `game/player.ts`: the player.
   - `game/weapons.ts`: movesets and animation clips.
@@ -110,6 +116,31 @@ up next starts from the latest version.
     inside a claude.ai preview.
   - There is autosave every 30 seconds and whenever the app is hidden.
   - Death respawns the player at the doorway of the current room.
+- **Swimming:** `game/water.ts` marks deep water, currents and air bells
+  (`prepareWater` on room load), `game/swim.ts` is the swim state (breath
+  ring, dives, muffled sound) and `render/underwater.ts` draws it. Chapter X's
+  Sunken Temple and Drowned Library are flooded; eels live there.
+- **Remnant's Rest** (`remnant_rest`): the survivor settlement grows by tier
+  from people rescued and chapters finished (`game/settlement.ts`,
+  `game/restRoom.ts`, `render/envRest.ts`, `ui/settlement.ts`).
+- **Trials of Valor and the daily challenge:** `game/valor.ts` holds the
+  trophies (a boss trophy and a flawless title/cape per boss) and
+  `game/daily.ts` one seeded ten-wave Trial run per day with its own board.
+  Valor is in the pause menu's Journey section; the daily challenge is on
+  the Chapters page (`ui/daily.ts`).
+- **Smoothness:** `game/roomPrep.ts` bakes the rooms behind the doors in idle
+  time so doors are instant; `core/frameBudget.ts` steps quality down only on
+  sustained load. Touch controls can be moved and resized
+  (`ui/touchEditor.ts`); `core/haptics.ts` handles vibration.
+- **Music and staging:** `audio/music.ts` scores every chapter; bosses call
+  `music.bossPhase(n)` to layer their tracks. `game/cinema.ts` is the
+  awaitable cutscene toolkit (camera pans, letterbox bars, title cards),
+  `render/portraits.ts` draws dialogue busts and `game/recap.ts` shows a
+  "Previously…" card on resume. Verified by `scripts/audio-cinema.mjs`.
+- **Menus and first-time flow:** the pause menu has five sections with
+  sub-tabs (`ui/menus.ts`, `SECTIONS`; old page names still open).
+  `ui/coach.ts` shows optional one-time coaching cards (`SaveData.coached`)
+  and `ui/statTips.ts` explains every stat on hover or long-press.
 - **Guidance:** `game/guide.ts` maps quest stages to targets and draws the
   golden objective marker.
 - **Pixel art:** Settings → Art style (default Pixel) draws the world at one

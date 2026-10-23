@@ -516,7 +516,8 @@ export class Rounds {
     const s = G.save;
     const n = this.round;
     this.spawned++;
-    const champion = this.champ && this.spawned === this.total;
+    // The Trial's Champion closes every tenth round; the daily sets its own.
+    const champion = (this.daily ? this.champ : n % 10 === 0) && this.spawned === this.total;
     // The daily draws from its own seeded stream and plays wave n as round 2n.
     const day = this.daily, rn = day ? n * 2 : n;
     const roll = day ? day.rng.next() : Math.random();
