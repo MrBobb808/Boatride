@@ -152,7 +152,8 @@ try {
 
     // 3. The editor: from the pause menu's Settings.
     await page.locator('#touch [data-ctl=menu]').tap();
-    await page.locator('.menu .tab', { hasText: 'Settings' }).tap();
+    await page.locator('[data-k=sec_settings]').tap();
+    await page.locator('[data-k=tab_settings]').tap();
     await page.locator('[data-k=tc_edit]').tap();
     await page.locator('.tc-editor').waitFor();
     await page.waitForTimeout(150);
@@ -222,7 +223,8 @@ try {
 
     // 5. Reset restores the default layout.
     await page.locator('#touch [data-ctl=menu]').tap();
-    await page.locator('.menu .tab', { hasText: 'Settings' }).tap();
+    await page.locator('[data-k=sec_settings]').tap();
+    await page.locator('[data-k=tab_settings]').tap();
     await page.locator('[data-k=tc_edit]').tap();
     await page.locator('[data-k=ed_reset]').tap();
     await page.locator('[data-k=ed_done]').tap();

@@ -144,7 +144,8 @@ try {
       s.flags['ch' + n + '_intro'] = s.flags['ch' + n + '_boundary_open'] = true;
       W.load(room, 'left'); G.save.hp = G.d.maxHp;
       W.story.onTrigger(trig);
-      for (let i = 0; i < 50 && W.boss.state === 'dormant'; i++) await new Promise(r => setTimeout(r, 20));
+      // The staged entrance (game/cinema.ts) runs on real time; let it finish before stepping by hand.
+      for (let i = 0; i < 1000 && (W.boss.state === 'dormant' || W.boss.state === 'intro' || G.inCutscene); i++) await new Promise(r => setTimeout(r, 20));
       G.paused = true;
       // Seeded so a CI run replays the same fight; the balance margin is measured above, not left to chance.
       const rnd = Math.random; let seed = 0x9e3779b9 ^ n; Math.random = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
