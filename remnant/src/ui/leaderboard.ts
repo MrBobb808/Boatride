@@ -11,7 +11,7 @@ import { formatTime } from '../core/math';
 import { loadBoard, renameRun, rushClock, type RunEntry, type BoardId } from '../game/board';
 import { pullBoard, cloudActive } from '../game/cloud';
 
-export interface RunStats { rounds: number; kills: number; time: number; level: number; levels: number; from: number; bossOnly?: boolean; rematch?: boolean; contract?: string;
+export interface RunStats { rounds: number; kills: number; time: number; level: number; levels: number; from: number; bossOnly?: boolean; extreme?: boolean; rematch?: boolean; contract?: string;
   /** Boss Rush: bosses in the run, whether all fell, and the best run before this one. */
   rush?: { total: number; done: boolean; best: RunEntry | null } }
 
@@ -60,9 +60,9 @@ function boardBox(highlight: number | null, top = 10, bossOnly: BoardId = false)
 /** Open the leaderboard on its own (from the Chapters tab). */
 export function openLeaderboard(bossOnly: BoardId = false) {
   const card = h('div', { class: 'chapter panel scroll' },
-    h('div', { class: 'eyebrow' }, bossOnly === 'rush' ? 'The Boss Rush' : bossOnly ? 'The Boss Gauntlet' : 'The Trial of the Remnant'),
+    h('div', { class: 'eyebrow' }, bossOnly === 'rush' ? 'The Boss Rush' : bossOnly === 'extreme' ? 'Extreme Survival' : bossOnly ? 'The Boss Gauntlet' : 'The Trial of the Remnant'),
     h('h2', null, 'LEADERBOARD'),
-    h('p', { class: 'muted' }, bossOnly === 'rush' ? 'Finished runs rank first, fastest first. Unfinished runs rank by bosses beaten.' : bossOnly ? 'Ranked by bosses defeated. Only runs starting at round 1 are ranked. This board is separate from survival.' : 'Ranked by the round each run reached. Only runs that start at round 1 are ranked.'),
+    h('p', { class: 'muted' }, bossOnly === 'rush' ? 'Finished runs rank first, fastest first. Unfinished runs rank by bosses beaten.' : bossOnly === 'extreme' ? 'Ranked by the round each Extreme run reached. Every Extreme run starts at round 1. This board is separate from survival.' : bossOnly ? 'Ranked by bosses defeated. Only runs starting at round 1 are ranked. This board is separate from survival.' : 'Ranked by the round each run reached. Only runs that start at round 1 are ranked.'),
     boardBox(null, 10, bossOnly),
     h('div', { class: 'row', style: 'justify-content:center;margin-top:10px' }, btn('Close', () => close(), 'btn primary', { 'data-autofocus': '', 'data-k': 'lb_close' })),
   );
@@ -86,7 +86,7 @@ export function gameOver(st: RunStats, entry: RunEntry | null, place: number, be
       nameBox = h('input', { type: 'text', maxlength: '16', value: entry.name, 'data-nav': '', 'data-k': 'go_name', 'aria-label': 'Name on the board' }) as HTMLInputElement;
     }
     const rush = st.rush;
-    const board: BoardId = rush ? 'rush' : !!st.bossOnly;
+    const board: BoardId = rush ? 'rush' : st.extreme ? 'extreme' : !!st.bossOnly;
     const pb = rush?.best ? (rush.best.done ? rushClock(rush.best.time) : `${rush.best.rounds}/${rush.best.total ?? rush.best.rounds}`) : '—';
     // Landscape phones get two columns: the result on the left, the board on the right.
     const card = rush ? h('div', { class: 'chapter panel scroll gameover' },
@@ -113,7 +113,7 @@ export function gameOver(st: RunStats, entry: RunEntry | null, place: number, be
     ) : h('div', { class: 'chapter panel scroll gameover' },
       h('div', { class: 'go-cols' },
         h('div', { class: 'go-left' },
-          h('div', { class: 'eyebrow' }, st.rematch ? 'Original-form rematch' : st.bossOnly ? 'The Boss Gauntlet' : 'The Trial of the Remnant'),
+          h('div', { class: 'eyebrow' }, st.rematch ? 'Original-form rematch' : st.bossOnly ? 'The Boss Gauntlet' : st.extreme ? 'Extreme Survival' : 'The Trial of the Remnant'),
           h('h2', null, st.rematch ? 'FORMS DEFEATED' : st.bossOnly ? 'BOSSES DEFEATED' : 'YOU SURVIVED'),
           h('div', { class: 'go-round' }, `${st.rounds}`),
           h('div', { class: 'go-sub' }, st.bossOnly ? `REACHED ROUND ${st.rounds + 1}` : st.rounds === 1 ? 'ROUND' : 'ROUNDS'),
@@ -124,13 +124,13 @@ export function gameOver(st: RunStats, entry: RunEntry | null, place: number, be
           entry
             ? h('div', { class: 'go-name' }, h('span', null, place > 0 ? `Place ${place} on this device as` : 'Ranked as'), nameBox)
             : h('p', { class: 'muted' }, st.contract ? `${st.contract}. Contracts are unranked. Mastery and earned gear stay with you.` : st.rematch ? 'Original-form rematches are unranked. Your earned imprints are saved; absorb them in Echoes.' : `This run began at round ${st.from}, so it is not ranked. Start from round 1 to get on the board.`),
-          st.rematch ? null : boardBox(entry?.id ?? null, 5, st.bossOnly),
+          st.rematch ? null : boardBox(entry?.id ?? null, 5, board),
         ),
       ),
       h('p', { class: 'muted go-verse' }, '“Be thou faithful unto death, and I will give thee a crown of life.” Revelation 2:10 (KJV)'),
       h('div', { class: 'row', style: 'justify-content:center;gap:10px;margin-top:8px' },
         btn('Again from round 1', () => done('again'), 'btn primary', { 'data-autofocus': '', 'data-k': 'go_again' }),
-        btn(st.rematch ? 'Leave rematch' : st.bossOnly ? 'Leave the Gauntlet' : 'Leave the Trial', () => done('leave'), 'btn', { 'data-k': 'go_leave' })),
+        btn(st.rematch ? 'Leave rematch' : st.bossOnly ? 'Leave the Gauntlet' : st.extreme ? 'Leave Extreme' : 'Leave the Trial', () => done('leave'), 'btn', { 'data-k': 'go_leave' })),
     );
     const layer = h('div', { class: 'layer death' }, card);
     root().appendChild(layer);

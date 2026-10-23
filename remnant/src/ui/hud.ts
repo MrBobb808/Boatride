@@ -670,12 +670,13 @@ function drawRounds(ctx: CanvasRenderingContext2D, W: number, y0: number, u: num
     ctx.fillText(`${n}`, cx, top);
   }
   ctx.restore();
-  const best = Math.max(Number(G.save.flags.trial_best ?? 0), n);
+  const best = Math.max(Number(G.save.flags[R.extreme ? 'extreme_best' : 'trial_best'] ?? 0), n);
   const line = R.daily ? (R.breakT > 0 ? `Wave ${n + 1}/10 in ${Math.ceil(R.breakT)}` : `Wave ${n}/10  ·  ${R.left} left  ·  ${R.kills} kills`)
     : R.breakT > 0 ? `Round ${n + 1} in ${Math.ceil(R.breakT)}` : `${R.left} left  ·  ${R.kills} kills  ·  best ${best}`;
   text(ctx, line, cx, top + 42 * u, `600 ${8 * u}px ${FONT_DISPLAY}`, '#d8c8b0', 'center');
   const boons = [R.wrathT > 0 ? `WRATH ${Math.ceil(R.wrathT)}` : '', R.doubleT > 0 ? `DOUBLE PORTION ${Math.ceil(R.doubleT)}` : ''].filter(Boolean).join('   ');
   if (boons) text(ctx, boons, cx, top + 53 * u, `700 ${8 * u}px ${FONT_DISPLAY}`, '#ffb35a', 'center');
+  if (R.extreme) text(ctx, 'EXTREME', cx, top + (boons ? 64 : 53) * u, `700 ${8 * u}px ${FONT_DISPLAY}`, '#ff5a4a', 'center');
   if (R.daily) text(ctx, R.daily.label, cx, top + (boons ? 64 : 53) * u, `600 ${8 * u}px ${FONT_DISPLAY}`, '#f6dea0', 'center');
   if (R.contract) text(ctx, `${CONTRACTS[R.contract].name} · ${R.contractComplete ? 'COMPLETE' : `${R.contractCleared}/5`}`, cx, top + (boons ? 64 : 53) * u, `600 ${8 * u}px ${FONT_DISPLAY}`, '#b6d7d4', 'center');
 }

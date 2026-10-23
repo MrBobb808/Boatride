@@ -223,3 +223,7 @@ remnant/FALLEN_CHAPTERS.md for mechanics and verification. The Trial of the Remn
 (`trial_arena`) is an endless Zombies-style rounds mode (`game/rounds.ts`) with
 a Game Over card and leaderboard (`game/board.ts`, `ui/leaderboard.ts`); it is
 also the endless way to level 100 and beyond.
+**Extreme Survival** (Chapters page, `startExtreme`) is the same Trial made
+brutal by the `EXTREME` table in `game/rounds.ts`: deeper and tougher foes,
+Elites, more of them, no dropped blessings, harder incoming blows and its own
+board (`'extreme'` in `game/board.ts`). Verified by `scripts/extreme-survival.mjs`.

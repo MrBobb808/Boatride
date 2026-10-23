@@ -6,7 +6,7 @@ import { h, btn } from './dom';
 import { ITEMS, TRIAL_REWARDS, RARITY_NAMES, RARITY_COLORS, SLOT_NAMES } from '../game/data';
 import { chapterOf } from '../game/rooms';
 import { openLeaderboard } from './leaderboard';
-import { CHAPTERS, chapterOpen, travelToChapter, trainingOpen, trainingBest, trainingStarts, startTraining, rushOpen, rushCount, startBossRush, RUSH_MIN } from '../game/chapters';
+import { CHAPTERS, chapterOpen, travelToChapter, trainingOpen, trainingBest, trainingStarts, startTraining, startExtreme, rushOpen, rushCount, startBossRush, RUSH_MIN } from '../game/chapters';
 import { loadBoard, rushClock } from '../game/board';
 import { contractBoard } from './progression';
 import { dailyBox } from './daily';
@@ -20,6 +20,9 @@ export function gameModes(close: () => void): HTMLElement {
       h('b', null, 'Endless monster waves'),
       h('p', { class: 'muted' }, `The Trial of the Remnant · highest available round: ${Math.max(1, trainingBest())}. Start fresh for a ranked run, or practise from an unlocked round.`),
       h('div', { class: 'ch-waves' }, trainingStarts().map((w) => btn(w === 1 ? 'Start waves at round 1' : `Continue from round ${w}`, () => { close(); startTraining(w); }, 'btn small' + (w === 1 ? ' primary' : ''), { disabled: busy, 'data-k': 'settings_tw_' + w }))),
+      h('hr', { class: 'rule' }),
+      h('b', null, 'Extreme Survival'),
+      h('div', { class: 'ch-waves' }, btn('Start Extreme Survival', () => { close(); startExtreme(); }, 'btn small', { disabled: busy, 'data-k': 'settings_extreme' })),
       h('hr', { class: 'rule' }),
       h('b', null, 'Boss Gauntlet'),
       h('div', { class: 'ch-waves' }, trainingStarts(true).map((w) => btn(w === 1 ? 'Start boss round 1' : `Boss round ${w}`, () => { close(); startTraining(w, true); }, 'btn small', { disabled: busy, 'data-k': 'settings_bt_' + w }))),
@@ -75,6 +78,7 @@ export function chaptersTab(close: () => void): HTMLElement {
   return h('div', { class: 'col scroll', style: 'flex:1' },
     h('div', { class: 'box' }, h('h3', null, 'Chapters'), h('div', { class: 'list' }, rows)),
     training,
+    trainingOpen() ? extremeBox(close, busy) : null,
     bossRush(close, busy),
     dailyBox(close, busy),
     trainingOpen() ? h('div', { class: 'box' }, contractBoard(close)) : null,
@@ -88,6 +92,21 @@ export function chaptersTab(close: () => void): HTMLElement {
       ),
       h('small', { class: 'muted' }, `Best: ${trainingBest(true)} bosses defeated. Records are separate from survival.`),
     ) : null,
+  );
+}
+
+/** Extreme Survival: the Trial at its hardest, on its own board. */
+function extremeBox(close: () => void, busy: boolean): HTMLElement {
+  const best = Number(G.save.flags.extreme_best ?? 0);
+  return h('div', { class: 'box extreme' },
+    h('div', { class: 'eyebrow' }, 'For the strongest'),
+    h('h3', null, 'Extreme Survival'),
+    h('p', { class: 'muted' }, 'The Trial at its hardest. Foes come as if eight rounds deeper, with more than twice the health, heavier blows and quicker attacks, and every blow on you lands 35% harder. Half again as many of them, more at once, arriving faster. One in five is an Elite with double health. A Champion comes every fifth round and the Pack runs every third. No blessings fall from foes and the breather is short. Wave loot and blessings between rounds still come, with half again the experience.'),
+    h('div', { class: 'ch-waves' },
+      busy ? h('span', { class: 'muted' }, 'Not during a boss fight.') : btn('Start Extreme Survival', () => { close(); startExtreme(); }, 'btn small primary', { 'data-k': 'extreme_start' }),
+      btn('Extreme leaderboard', () => openLeaderboard('extreme'), 'btn small', { 'data-k': 'extreme_board' }),
+    ),
+    h('small', { class: 'muted' }, best ? `Best: round ${best}. Records are separate from survival.` : 'Every run is ranked on its own board.'),
   );
 }
 
