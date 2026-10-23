@@ -9,6 +9,8 @@ import { makeItem, addMaterial, derive } from './state';
 import { registerGuide } from './guide';
 import { music } from '../audio/music';
 import { fx } from '../render/fx';
+import { sfx } from '../audio/audio';
+import { cinema } from './cinema';
 export const FALLEN_QUESTS:QuestDef[]=FALLEN_CHAPTERS.flatMap(c=>[
   {id:`m_crown${c.n}`,title:c.title,kind:'main' as const,stages:[c.intro[1],`One objective remains. ${c.intro[1]}`,`The boundary is open. Rest at the ridge altar, then confront ${c.name}.`],done:`${c.name} has fallen. The road belongs to the living again.`},
   {id:`s_crown${c.n}`,title:c.words?c.words.sideQuest:c.n===9?'Hands That Build':c.n===7?'Those Who Would Not Run':'The Last Clean Breath',kind:'side' as const,stages:[`Find the survivors in ${c.words?c.words.sidePlace:c.n===9?'the Last Smithy above the Bellows Foundry':c.n===7?'the Unhunted Grove above the Fang Pits':'the Silent Infirmary above the Sporeworks'}. Clear their guards, speak to ${c.n===10?'Hanan':c.n===9?'Talia':c.n===7?'Barak':'Ezra'}, and bring the record there to Mara.`],done:'The survivors are safe and Mara has the warning of the next Fallen Crown.'},
@@ -37,7 +39,10 @@ export class FallenStory {
   private refresh(c:FallenChapter){if(c.objectives.every(o=>flag(o.flag)))setFlag(`ch${c.n}_boundary_open`);}
   private async opening(c:FallenChapter){
     const token=this.epoch,s=G.save;setFlag(`ch${c.n}_intro`);if(!s.altarsLit.includes(c.hub))s.altarsLit.push(c.hub);s.altar={room:c.hub,spawn:'altar'};
-    this.st.quest(`m_crown${c.n}`,c.objectives.filter(o=>flag(o.flag)).length);this.st.quest(`s_crown${c.n}`,0);G.world.autosave(true);this.cine(true);G.ui.banner('CHAPTER '+c.roman,c.title,'chapter');
+    this.st.quest(`m_crown${c.n}`,c.objectives.filter(o=>flag(o.flag)).length);this.st.quest(`s_crown${c.n}`,0);G.world.autosave(true);this.cine(true);
+    // The title over the hub, then a look down the road ahead and back to Elior.
+    const p=G.world.player;await cinema.run(async k=>{await k.zoom(.88,.2);await k.title('CHAPTER '+c.roman,c.title,2.2);await k.pan(p.x+170*p.face,p.y-58,1.8);await k.hold(.5);await k.pan(p.x+24*p.face,p.y-40,1.1);},()=>token===this.epoch);
+    if(!this.current(token))return;
     const choice=await this.st.say([{who:'narrator',text:c.intro[0]},{who:'mara',text:c.intro[1]},{who:'azriel',text:c.intro[2]},{who:'elior',text:'We bring them home.',choices:[{label:'The survivors come first.'},{label:'Tell me how to break the crown.'}]}]);
     if(!this.current(token))return;s.choices[`crown${c.n}`]=choice===0?'mercy':'resolve';
     await this.st.say([{who:'azriel',text:c.tips},{who:'tobiah',text:'I will keep the road behind you. No one gets left on it.'}]);if(!this.current(token))return;this.cine(false);G.world.autosave(true);
@@ -60,8 +65,16 @@ export class FallenStory {
   private async bossStart(c:FallenChapter){
     this.refresh(c);if(!flag(`ch${c.n}_boundary_open`)){G.ui.toast('Complete both objectives before entering the throne.','warn');return;}
     const W=G.world,b=W.boss as BossBase|null,token=this.epoch;if(!b||b.key!==c.boss||b.state!=='dormant')return;
-    W.bossActive=true;W.closeGate(true);W.player.body.vx=0;this.cine(true);G.camera.focus={x:b.x-90,y:b.y-65};G.camera.viewMultTarget=1.2;
-    await this.st.say(c.challenge.map((text,i)=>({who:i%2?'elior':c.name,text})));if(!this.current(token)||W.boss!==b)return;this.ownsCine=false;b.awaken();
+    W.bossActive=true;W.closeGate(true);W.player.body.vx=0;this.cine(true);
+    // Entrance: the camera travels from Elior to the throne and settles close on the crown.
+    const alive=()=>token===this.epoch&&W.boss===b;
+    await cinema.run(async k=>{await k.pan(b.x,b.y-70,1.5);await k.zoom(.8,.9);},alive);if(!this.current(token)||!alive())return;
+    G.camera.focus={x:b.x-90,y:b.y-65};G.camera.viewMultTarget=1.2;
+    await this.st.say(c.challenge.map((text,i)=>({who:i%2?'elior':c.name,text})));if(!this.current(token)||W.boss!==b)return;
+    // The name card, on a roar and a beat of slow time.
+    const[title,sub]=b.name.split(' · ');
+    await cinema.run(async k=>{await k.pan(b.x-20,b.y-62,.6);sfx('bossRoar',{pitch:c.n===8?1.3:c.n===9?.7:.9});if(c.n===8)sfx('swarmBuzz',{vol:.8});G.camera.addTrauma(.35);G.world.slowmo(1.6,.5);await k.zoom(.74,.25);await k.title(title.toUpperCase(),sub??'',1.9);},alive);if(!this.current(token)||!alive())return;
+    this.ownsCine=false;b.awaken();
   }
   bossDefeated(b:BossBase){const c=FALLEN_CHAPTERS.find(c=>c.boss===b.key);if(c)return this.complete(c);}
   private async complete(c:FallenChapter){

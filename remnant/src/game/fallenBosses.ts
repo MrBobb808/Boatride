@@ -72,7 +72,7 @@ export class FallenMonarch extends BossBase {
     if(this.st<1.4)return;this.invuln=0;this.poise=this.maxPoise;this.staggered=0;
     if(this.phase===1){this.phase=2;this.summon();this.state='idle';this.st=0;this.cd=1;this.sub=this.plague?'II · Brood Cocoons restore the queen':'II · Hunt Shades empower the king';}
     else{this.sub=this.plague?'III · Shelter in gold, strike after the miasma':'III · Evade three marks, strike after the landing';this.startAttack(this.plague?'purge':'hunt');}
-    music.phase=this.phase-1;G.ui.bossBar(this.name,this.sub);
+    music.bossPhase(this.phase-1);G.ui.bossBar(this.name,this.sub);
   }
   updateKneel(_dt:number){this.body.vx=0;}
   onKneel(){this.body.vx=0;}

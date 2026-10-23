@@ -602,7 +602,7 @@ export class StormPrince extends Prince {
       sfx('bossRoar', { pitch: 1.2, vol: 0.6 });
       fx.flash('#cfe0ff', 0.4);
       G.camera.addTrauma(0.7 * shakeScale());
-      music.phase = this.phase - 1;
+      music.bossPhase(this.phase - 1);
       if (this.phase === 2) G.ui.banner('THE STORM BREAKS', 'Every wind over Elam bends to him', 'boss');
       else G.ui.banner('THE EYE OF THE STORM', 'Stand where the storm is still', 'boss');
       for (let i = -2; i <= 2; i++) if (i) this.strikeAt(this.x + i * 90, 0.3 + Math.abs(i) * 0.12, 0);
@@ -1576,6 +1576,7 @@ export class PersiaPrince extends Prince {
       G.camera.addTrauma(0.6 * shakeScale());
       fx.ring(this.x, this.y - 40, 10, 220, '#ff9a2a', 0.6, 5);
       G.ui.banner('THE PRINCE, ENRAGED', 'His guard is broken. He will not yield.', 'boss');
+      music.bossPhase(3);
     }
   }
 
@@ -1621,7 +1622,7 @@ export class PersiaPrince extends Prince {
         sfx('princeHorn', { vol: 1 });
         sfx('monarchRoar', { vol: 0.8 });
         G.camera.addTrauma(0.6 * shakeScale());
-        music.phase = 1;
+        music.bossPhase(1);
         G.ui.banner('ARISE', 'The host of the prince stands with him', 'boss');
         this.raise(3);
       }
@@ -1637,7 +1638,7 @@ export class PersiaPrince extends Prince {
         sfx('bell', { vol: 0.8, pitch: 0.6 });
         fx.flash('#ffcf6b', 0.3);
         G.camera.addTrauma(0.7 * shakeScale());
-        music.phase = 2;
+        music.bossPhase(2);
         G.ui.banner('THE TWENTY-FIRST DAY', 'Nothing can touch him. Stand, and withstand.', 'boss');
       }
       if (t > 2.6) {

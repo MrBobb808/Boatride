@@ -19,6 +19,7 @@ import { CH6_ROOM_IDS } from './rooms6';
 import { registerGuide } from './guide';
 import { shakeScale } from '../core/settings';
 import { input } from '../core/input';
+import { cinema } from './cinema';
 import type { Story, QuestDef } from './story';
 
 export const QUESTS6: QuestDef[] = [
@@ -211,11 +212,18 @@ export class Chapter6 {
     W.closeGate(true);
     music.stop(1);
     await st.walkPlayer(26 * TILE, 60);
+    // Up from the stair to the prince in the cloud, held close as the thunder breaks.
+    await cinema.run(async (k) => {
+      await k.pan(b.x, b.y - 110, 1.6);
+      sfx('thunder', { vol: 0.9 });
+      fx.flash('#cfe0ff', 0.25);
+      G.camera.addTrauma(0.4 * shakeScale());
+      await k.zoom(0.82, 0.9);
+    }, () => G.world.boss === (b as unknown));
+    if (G.world.boss !== (b as unknown)) return;
     G.camera.focus = { x: b.x - 40, y: b.y - 90 };
     G.camera.viewMultTarget = 1.2;
-    sfx('thunder', { vol: 0.9 });
-    G.camera.addTrauma(0.4 * shakeScale());
-    await wait(1.0);
+    await wait(0.4);
     await st.say([
       { who: 'storm_prince', text: 'A son of dust, climbing to the high places. Do you know whose air you breathe, little watchman?' },
       { who: 'elior', text: '...', choices: [{ label: 'Not yours.' }, { label: 'Let the answer through.' }] },

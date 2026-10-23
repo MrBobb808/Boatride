@@ -36,7 +36,7 @@ import { Chain } from '../render/skeleton';
 import { Proj } from './projectiles';
 
 /** The fight's music key (the chapter picks the track; until it exists the Persia theme stands in). */
-export const GRECIA_MUSIC = 'grecia';
+export const GRECIA_MUSIC = 'grecia_boss';
 
 /** Scratch hit box (no allocation per strike). */
 const BOX = { x: 0, y: 0, w: 0, h: 0 };
@@ -416,7 +416,7 @@ export class GreciaPrince extends BossBase {
         sfx('stormGust', { vol: 0.9, pitch: 0.8 });
         G.camera.addTrauma(0.6 * shakeScale());
         fx.ring(this.x, this.y - 50, 10, 240, TELL.dodge, 0.5, 4);
-        music.phase = 1;
+        music.bossPhase(1);
         G.ui.banner('IN THE FURY OF HIS POWER', 'The last charge strikes the wall · the ram’s horns come back', 'boss');
         G.ui.caption('and ran unto him in the fury of his power', 'Daniel 8:6 (KJV)');
         G.world.after(4, () => { if (!this.dying) G.ui.caption(null); });
@@ -482,7 +482,7 @@ export class GreciaPrince extends BossBase {
         }
         sfx('bell', { vol: 0.8, pitch: 0.7 });
         sfx('stormGust', { vol: 1 });
-        music.phase = 2;
+        music.bossPhase(2);
         G.ui.banner('FOUR NOTABLE HORNS', 'Survive the four winds; then he falls exposed', 'boss');
         G.ui.caption('the great horn was broken; and for it came up four notable ones toward the four winds of heaven', 'Daniel 8:8 (KJV)');
         G.world.after(5, () => { if (!this.dying) G.ui.caption(null); });

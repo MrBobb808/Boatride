@@ -1497,6 +1497,7 @@ export class Player extends Entity {
       this.parryT = 0;
       this.counterT = 0.75;
       sfx('parry');
+      sfx('parryPerfect');
       fx.flash('#fff6dc', 0.35);
       fx.hitSparks(this.x + this.face * 10, this.y - 24, this.face, '#fff6dc', 16, 1.2);
       fx.ring(this.x + this.face * 10, this.y - 24, 4, 34, '#fff1c4', 0.3, 3);

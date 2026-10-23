@@ -8,7 +8,8 @@ import { Renderer, Camera } from './render/renderer';
 import { input } from './core/input';
 import { FrameBudget } from './core/frameBudget';
 import { settings, isTouchDevice, isIOS, onSettingsChange } from './core/settings';
-import { audio } from './audio/audio';
+import { audio, SFX } from './audio/audio';
+import { drawPortrait, hasPortrait } from './render/portraits';
 import { music } from './audio/music';
 import { G } from './game/ctx';
 import { World } from './game/world';
@@ -35,6 +36,9 @@ import { ITEMS } from './game/data';
 import { startTraining, startDaily } from './game/chapters';
 import { heroSpriteReady } from './render/heroSprites';
 import { flush as flushCloud, initCloud } from './game/cloud';
+import { maybeRecap, recapText } from './game/recap';
+import { cinema } from './game/cinema';
+import { TRACKS } from './audio/music';
 import { checkForUpdate, applyUpdate, takeResumeSlot, updatePending } from './core/update';
 import { valorTrack, unlock, TROPHIES } from './game/valor';
 import { dailyFor, dayKey } from './game/daily';
@@ -105,8 +109,14 @@ async function boot() {
     if (app.mode === 'game' && G.save) G.world.autosave(true);
     flushCloud();
   };
+  let hiddenAt = 0;
   document.addEventListener('visibilitychange', () => {
-    if (!document.hidden) return;
+    if (!document.hidden) {
+      // Back after a long time away: the same recap a resumed save gets.
+      if (hiddenAt && app.mode === 'game') maybeRecap(Date.now() - hiddenAt);
+      return;
+    }
+    hiddenAt = Date.now();
     saveNow();
     if (app.mode === 'game' && !isMenuOpen() && !G.inCutscene && layerCount() === 0) openMenu();
   });
@@ -333,6 +343,13 @@ function setupDebug() {
     water: () => ({ muffled: waterMuffled(), bubbles: bubbleCount() }),
     valor: { track: valorTrack, unlock, trophies: TROPHIES },
     daily: { dailyFor, dayKey, start: startDaily },
+    music,
+    tracks: TRACKS,
+    audio,
+    sfxDefs: SFX,
+    portraits: { draw: drawPortrait, has: hasPortrait },
+    cinema,
+    recap: recapText,
     ios: isIOS(),
   };
   (window as unknown as { __remnant: typeof api }).__remnant = api;

@@ -10,6 +10,7 @@ import { rgba, poly, type Ctx } from '../render/draw';
 import { drawCinderArt } from '../render/fallenArt';
 import { fx } from '../render/fx';
 import { lighting } from '../render/lighting';
+import { sfx } from '../audio/audio';
 import { music } from '../audio/music';
 
 type Attack='hammer'|'fault'|'sweep'|'bellows';
@@ -56,12 +57,12 @@ export class CinderMonarch extends BossBase {
     if(this.st<1.5)return;this.invuln=0;this.poise=this.maxPoise;this.staggered=0;
     if(this.phase===1){this.phase=2;this.armor=true;this.sub='II · Parry to break the tempered armor';this.finish(1.2);}
     else{this.sub='III · Evade the bellows, punish the broken furnace';this.startAttack('bellows');}
-    music.phase=this.phase-1;G.ui.bossBar(this.name,this.sub);
+    music.bossPhase(this.phase-1);G.ui.bossBar(this.name,this.sub);
   }
   updateKneel(_dt:number){this.body.vx=0;}
   onKneel(){this.armor=false;this.body.vx=0;this.clearHeat();}
   recover(){super.recover();this.armor=this.phase===2;}
-  parried(){if(!this.fighting||this.ward)return;this.poise-=230;this.body.vx=0;if(this.phase===2||this.poise<=0){this.kneel();G.ui.toast('The armor shatters — Azkar is exposed.','good');}else this.finish(1.8);}
+  parried(){if(!this.fighting||this.ward)return;this.poise-=230;this.body.vx=0;if(this.phase===2||this.poise<=0){this.kneel();sfx('shieldBreak',{vol:1,pitch:.7});G.ui.toast('The armor shatters — Azkar is exposed.','good');}else this.finish(1.8);}
   startAttack(a:Attack){
     this.attack=a;this.attackCount++;this.state='attack';this.st=0;this.released=false;this.hitSet.clear();this.body.vx=0;
     this.face=sign(G.world.player.x-this.x)||this.face;this.targetX=clamp(G.world.player.x,110,G.world.grid.w*16-110);
@@ -88,7 +89,7 @@ export class CinderMonarch extends BossBase {
       if(t>2.15)this.finish(1.1);
     }else if(this.attack==='fault'){if(t>2.4)this.finish(1.1);}
     else if(this.attack==='sweep'){
-      if(t>=1.2&&!this.released){this.released=true;this.waves=this.waves.filter(w=>!w.remove);for(const dir of [-1,1]){const w=new CinderWave(this,this.x+dir*44,this.floorY,dir);this.waves.push(w);G.world.add(w);}}
+      if(t>=1.2&&!this.released){this.released=true;this.waves=this.waves.filter(w=>!w.remove);for(const dir of [-1,1]){const w=new CinderWave(this,this.x+dir*44,this.floorY,dir);this.waves.push(w);G.world.add(w);}sfx('waveWhoosh',{vol:1,pitch:.85});}
       if(t>2.45)this.finish(1.2);
     }else{
       const step=Math.min(2,Math.floor(t/2.4));if(step!==this.bellowsStep){this.bellowsStep=step;const x=G.world.player.x;this.markFault(x);this.markFault(x-185);this.markFault(x+185);}

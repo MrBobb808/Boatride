@@ -9,7 +9,8 @@ import { img } from './icons';
 import { input } from '../core/input';
 import { sfx, audio } from '../audio/audio';
 import { music } from '../audio/music';
-import { NPC_DEFS, renderPortrait } from '../game/props';
+import { NPC_DEFS } from '../game/props';
+import { drawPortrait, hasPortrait, moodOf, type Mood } from '../render/portraits';
 import { LORE, ITEMS, RARITY_COLORS, RARITY_NAMES, ECHO_SPECIES, type ItemInst, type EchoOrder } from '../game/data';
 import { ORDER_MARK } from '../game/echoes';
 import { setBoss } from './hud';
@@ -109,9 +110,10 @@ const hooks: UIHooks = {
       let shown = 0;
       let typing: number | null = null;
       let raf = 0;
+      let mood: Mood = 'neutral';
       const anim = () => {
         const l = lines[i];
-        if (l) renderPortrait(canvas, l.who, performance.now() / 1000);
+        if (l) drawPortrait(canvas, l.who, performance.now() / 1000, mood, typing !== null);
         raf = requestAnimationFrame(anim);
       };
       anim();
@@ -122,7 +124,8 @@ const hooks: UIHooks = {
         if (l.who === 'elior') who.append('Elior', h('small', null, 'Watchman of Hearthward'));
         else if (def) who.append(def.name, h('small', null, def.title));
         else who.append(l.who === 'narrator' ? '' : l.who);
-        canvas.style.display = l.who === 'elior' || def ? '' : 'none';
+        canvas.style.display = hasPortrait(l.who) ? '' : 'none';
+        mood = moodOf(l.who, l.text, l.mood);
         clear(choices);
         full = l.text;
         shown = 0;
