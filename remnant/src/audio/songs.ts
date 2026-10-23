@@ -45,6 +45,8 @@ interface Deck {
 class Songs {
   private decks: Deck[] = [];
   private live: Deck | null = null;
+  /** The deck started last: the next song takes the other one, so an outgoing song can finish its fade. */
+  private last: Deck | null = null;
   /** The score track the current song stands in for. */
   private key = '';
   private blobs = new Map<string, string>();
@@ -197,7 +199,7 @@ class Songs {
 
   private start(song: SongDef, url: string) {
     const ctx = audio.ctx;
-    const deck = this.decks.find((d) => d !== this.live);
+    const deck = this.decks.find((d) => d !== this.last);
     if (!ctx || !deck) return; // before the first tap; prime() comes back here
     this.fadeOut();
     deck.id = song.id;
@@ -210,7 +212,7 @@ class Songs {
     deck.gain.gain.linearRampToValueAtTime(this.ducked ? 0.32 : 1, t + FADE);
     deck.el.play().catch(() => {});
     if (song.kind === 'vocal') this.heard.add(song.id);
-    this.live = deck;
+    this.live = this.last = deck;
     music.hold(true, FADE);
   }
 

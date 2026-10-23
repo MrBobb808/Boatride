@@ -106,6 +106,10 @@ try {
   // Back on: the place's vocal plays (it has not been heard yet).
   await page.evaluate(() => { const { settings, songs } = window.__remnant; settings.vocals = true; songs.player.refresh(); });
   await until(() => window.__remnant.songs.player.playing === 'ch7_hunt');
+  // The outgoing song keeps playing on the other deck while it fades: a crossfade, not a cut.
+  const decks = await page.evaluate(() => window.__remnant.songs.player.decks.map((d) => ({ id: d.id, paused: d.el.paused })));
+  assert.deepEqual(decks.map((d) => d.id).sort(), ['ch7_hunt', 'ch7_hunt_inst'], `both decks in use: ${JSON.stringify(decks)}`);
+  assert.ok(!decks.find((d) => d.id === 'ch7_hunt_inst').paused, 'the outgoing song is still fading, not cut off');
   // Score only: no song anywhere, the score plays.
   await page.evaluate(() => { const { settings, songs } = window.__remnant; settings.soundtrack = 'score'; songs.player.refresh(); });
   await until(() => !window.__remnant.songs.player.playing && !window.__remnant.music.holding);
