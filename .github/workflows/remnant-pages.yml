@@ -50,6 +50,7 @@ jobs:
       - run: node scripts/travel-camera.mjs
       - run: node scripts/fallen-foes.mjs
       - run: node scripts/settlement.mjs
+      - run: node scripts/grecia-boss.mjs
       - run: node scripts/update-delivery.mjs
       - run: node scripts/touch-layout.mjs
       - run: node scripts/transitions.mjs

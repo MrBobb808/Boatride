@@ -26,7 +26,7 @@ import { moveBody } from './physics';
 import { SENT_BASE, SENT_DIMS } from './enemies';
 import { marshalStyle } from './tanks';
 
-export type BossKey = 'gatekeeper' | 'marshal' | 'locust_king' | 'golden_image' | 'weigher' | 'storm_prince' | 'persia_prince' | 'beast_monarch' | 'plague_monarch' | 'cinder_monarch';
+export type BossKey = 'gatekeeper' | 'marshal' | 'locust_king' | 'golden_image' | 'weigher' | 'storm_prince' | 'persia_prince' | 'beast_monarch' | 'plague_monarch' | 'cinder_monarch' | 'grecia_prince';
 
 /** Shared lifecycle for the Chapter II bosses: intro, phases, kneel, defeat. */
 /** The Marshal is drawn larger than a man: a commander, not a soldier. */
