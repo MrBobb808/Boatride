@@ -11,6 +11,7 @@ import { settings, isTouchDevice, isIOS, onSettingsChange } from './core/setting
 import { audio, SFX } from './audio/audio';
 import { drawPortrait, hasPortrait } from './render/portraits';
 import { music } from './audio/music';
+import { songs, SONGS } from './audio/songs';
 import { G } from './game/ctx';
 import { World } from './game/world';
 import { ROOMS } from './game/rooms';
@@ -344,6 +345,7 @@ function setupDebug() {
     valor: { track: valorTrack, unlock, trophies: TROPHIES },
     daily: { dailyFor, dayKey, start: startDaily },
     music,
+    songs: { player: songs, plan: SONGS },
     tracks: TRACKS,
     audio,
     sfxDefs: SFX,

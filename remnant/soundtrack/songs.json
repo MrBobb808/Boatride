@@ -1,0 +1,337 @@
+{
+  "about": "The song plan for Remnant's music layer. Each song is generated in Suno from its style and lyrics, titled with its code (\"The Ashen Village R05\") so a shared link or a download names the song it is, then added with `node scripts/add-songs.mjs`. `keys` are the game's music keys (a room's music or a story cue) the song plays over. A vocal song plays once per session where it is mapped; after that, and wherever only an instrumental is mapped, the instrumental loops. Bosses keep the adaptive score. Scripture in lyrics is King James Version word for word; `scripture` lists the references.",
+  "songs": [
+    {
+      "id": "title_remnant",
+      "code": "R01",
+      "title": "Remnant",
+      "chapter": "Title",
+      "kind": "vocal",
+      "keys": [
+        "title"
+      ],
+      "style": "cinematic dark fantasy hymn, solemn male choir, low strings, taiko, distant female solo vocal, minor key, slow build to an epic chorus, 70 bpm",
+      "scripture": [
+        "Isaiah 10:21"
+      ],
+      "lyrics": "[Intro]\n(low choir, humming)\n\n[Verse 1]\nAsh on the altar, smoke on the hill\nA watchman's lantern burning still\nNo crown was promised, no sword was given\nOnly a vow and a road toward heaven\n\n[Pre-Chorus]\nWhen the towers rise and the idols stand\nHold the light in a trembling hand\n\n[Chorus]\nWe are the remnant, few but awake\nBending, not broken, for His name's sake\nThrough fire and flood to the long night's end\nThe remnant shall return, return again\n\n[Verse 2]\nKingdoms are built upon borrowed gold\nPrinces of air and their hearts grown cold\nOne small flame in the gathering storm\nHuman and faithful, still holding his ground\n\n[Bridge]\n(choir)\nThe remnant shall return, even the remnant of Jacob, unto the mighty God\n\n[Final Chorus]\nWe are the remnant, few but awake\nBending, not broken, for His name's sake\nThrough fire and flood to the long night's end\nThe remnant shall return, return again\n\n[Outro]\n(lone female voice)\nReturn again"
+    },
+    {
+      "id": "rest_hearth",
+      "code": "R02",
+      "title": "Remnant's Rest",
+      "chapter": "Remnant's Rest",
+      "kind": "vocal",
+      "keys": [
+        "rest"
+      ],
+      "style": "warm folk hymn, acoustic guitar, harp, hand drum, soft male and female duet, hopeful campfire song, major key, 76 bpm",
+      "scripture": [
+        "Psalm 46:1"
+      ],
+      "lyrics": "[Verse 1]\nThey came in from the ashes, they came in from the rain\nA potter and a shepherd and a boy who lost his name\nWe set another table, we light another lamp\nThe road is long behind them, but the fire's warm in camp\n\n[Chorus]\nSo come in, come in, there's bread enough to share\nThe walls are thin, but the door is always there\nGod is our refuge and strength, a very present help in trouble\nCome in, come home\n\n[Verse 2]\nThe forge is ringing early, the garden's coming green\nThe children chase the swallows where the battle lines had been\nAnd every face he carries home is one more stone we lay\nA village built of rescued hearts, a little more each day\n\n[Chorus]\nSo come in, come in, there's bread enough to share\nThe walls are thin, but the door is always there\nGod is our refuge and strength, a very present help in trouble\nCome in, come home\n\n[Outro]\n(humming, guitar)\nCome home"
+    },
+    {
+      "id": "rest_hearth_inst",
+      "code": "R03",
+      "title": "Remnant's Rest (Hearth)",
+      "chapter": "Remnant's Rest",
+      "kind": "instrumental",
+      "keys": [
+        "rest"
+      ],
+      "style": "warm acoustic folk instrumental, harp, wooden flute, fingerpicked guitar, soft hand drum, peaceful village, seamless loop, no vocals, 76 bpm"
+    },
+    {
+      "id": "trial_remnant",
+      "code": "R04",
+      "title": "The Trial of the Remnant",
+      "chapter": "Trial",
+      "kind": "instrumental",
+      "keys": [
+        "trial"
+      ],
+      "style": "relentless dark orchestral combat loop, taiko, low brass ostinato, choir stabs, driving strings, arena battle, seamless loop, no vocals, 140 bpm"
+    },
+    {
+      "id": "ch1_ashen",
+      "code": "R05",
+      "title": "The Ashen Village",
+      "chapter": "I",
+      "kind": "vocal",
+      "keys": [
+        "village"
+      ],
+      "style": "dark folk ballad, lone male vocal, cello, frame drum, village bells, mournful, builds to a choir, D minor, 80 bpm",
+      "scripture": [
+        "Exodus 20:4"
+      ],
+      "lyrics": "[Verse 1]\nThe bell rang once at midnight, then never rang again\nThe thatch went up like candles in the wind across the glen\nI stood the watch at Hearthward, I was no one, I was young\nI saw the gold go glowing where the village hymns were sung\n\n[Pre-Chorus]\nThey raised it in the market square\nAnd called the people down to prayer\n\n[Chorus]\nThou shalt not make unto thee any graven image\nI will not bow, I will not kneel\nLet the gold burn bright, let the idol stand\nI will hold the lamp in my own two hands\n\n[Verse 2]\nThe ashes in the doorway, the ashes on my sleeve\nThe ones who stayed behind me and the ones who would not leave\nThere's a relic in the temple and a covenant below\nAnd a road that leads through fire to a place I do not know\n\n[Chorus]\nThou shalt not make unto thee any graven image\nI will not bow, I will not kneel\nLet the gold burn bright, let the idol stand\nI will hold the lamp in my own two hands\n\n[Outro]\n(choir)\nI will hold the lamp"
+    },
+    {
+      "id": "ch1_hearthward",
+      "code": "R06",
+      "title": "Hearthward",
+      "chapter": "I",
+      "kind": "instrumental",
+      "keys": [
+        "village",
+        "sanctuary",
+        "temple",
+        "crypt"
+      ],
+      "style": "dark medieval ambient, cello drone, harp, distant bells, sparse frame drum, ashes and candlelight, exploration loop, no vocals, 72 bpm"
+    },
+    {
+      "id": "ch2_shinar",
+      "code": "R07",
+      "title": "The Tower of Shinar",
+      "chapter": "II",
+      "kind": "vocal",
+      "keys": [
+        "shinar"
+      ],
+      "style": "epic Middle Eastern orchestral, oud, low male choir, war drums, brass, ominous ancient city, Phrygian mode, 92 bpm",
+      "scripture": [
+        "Genesis 11:4",
+        "Genesis 11:9"
+      ],
+      "lyrics": "[Verse 1]\nIn a single month it rose, red brick upon red brick\nA tower on the plain where the smoke hangs thick\nThe gatekeeper is waiting with a key that will not turn\nAnd the marshal in his crimson watches cities burn\n\n[Pre-Chorus]\nI hear the builders singing in a tongue I almost know\n\n[Chorus]\nLet us build us a city and a tower, whose top may reach unto heaven\nHigher, higher, every stair\nLet us build us a city and a tower, whose top may reach unto heaven\nBut heaven isn't there\n\n[Verse 2]\nEvery floor a promise, every promise made of clay\nEvery name they carve in stone, the rain will wash away\nI climb against the current of a thousand marching feet\nTo the crown of all their glory where the words and wonders meet\n\n[Bridge]\n(choir)\nTherefore is the name of it called Babel\n\n[Final Chorus]\nLet us build us a city and a tower, whose top may reach unto heaven\nHigher, higher, every stair\nLet us build us a city and a tower, whose top may reach unto heaven\nBut heaven isn't there"
+    },
+    {
+      "id": "ch2_tower",
+      "code": "R08",
+      "title": "Red Brick, Red Sky",
+      "chapter": "II",
+      "kind": "instrumental",
+      "keys": [
+        "shinar",
+        "tower"
+      ],
+      "style": "ancient Mesopotamian dark ambient, oud, duduk, low drones, hand percussion, tense climb, exploration loop, no vocals, 90 bpm"
+    },
+    {
+      "id": "ch3_bones",
+      "code": "R09",
+      "title": "The Valley of Bones",
+      "chapter": "III",
+      "kind": "vocal",
+      "keys": [
+        "valley"
+      ],
+      "style": "haunting gothic choral, rattling bone percussion, desert wind, solo female vocal rising to a massive choir, awe and resurrection, 68 bpm",
+      "scripture": [
+        "Ezekiel 37:4",
+        "Ezekiel 37:10"
+      ],
+      "lyrics": "[Verse 1]\nWhite as salt and dry as dust, the valley lies in rows\nEvery shield laid down to rust, and every name nobody knows\nThe wind goes through the ribcage of a kingdom long asleep\nAnd the locusts sing a hunger that is older than the deep\n\n[Chorus]\nO ye dry bones, hear the word of the LORD\nHear it in the silence, hear it in the sword\nO ye dry bones, hear the word of the LORD\nRise\n\n[Verse 2]\nI walk among the fallen and I do not walk alone\nThere's a rattle in the stillness, there's a breath in every bone\nThe king of all the swarming has his throne upon the hill\nBut the valley is remembering, and the valley isn't still\n\n[Bridge]\n(choir, building)\nand they lived, and stood up upon their feet, an exceeding great army\n\n[Final Chorus]\nO ye dry bones, hear the word of the LORD\nHear it in the silence, hear it in the sword\nO ye dry bones, hear the word of the LORD\nRise"
+    },
+    {
+      "id": "ch3_hive",
+      "code": "R10",
+      "title": "The Hive",
+      "chapter": "III",
+      "kind": "instrumental",
+      "keys": [
+        "valley",
+        "hive"
+      ],
+      "style": "dark ambient desert, insect drone textures, tribal percussion, eerie high strings, wind through bones, exploration loop, no vocals, 84 bpm"
+    },
+    {
+      "id": "ch4_dura",
+      "code": "R11",
+      "title": "The Plain of Dura",
+      "chapter": "IV",
+      "kind": "vocal",
+      "keys": [
+        "dura"
+      ],
+      "style": "fiery epic orchestral, Middle Eastern percussion, brass fanfare, defiant male vocal trio, full choir, heat and courage, 100 bpm",
+      "scripture": [
+        "Daniel 3:17",
+        "Daniel 3:25"
+      ],
+      "lyrics": "[Verse 1]\nThe horns are blowing on the plain, the image burns like noon\nThe whole world bows its head as one when the music strikes the tune\nThe cornet and the harp and the dulcimer and drum\nAnd the furnace mouth is open for the ones who will not come\n\n[Pre-Chorus]\nSo heat it seven times, O king\nWe will not bow, we will not sing\n\n[Chorus]\nOur God whom we serve is able to deliver us from the burning fiery furnace\nAnd if He will not, still we stand\nOur God whom we serve is able to deliver us from the burning fiery furnace\nThe gold is only sand\n\n[Verse 2]\nThe soldiers at the doorway fell before the flame\nBut in the white heat of the fire someone called our name\nThe ropes fell off like ashes and the smoke forgot our skin\nAnd the king looked through the burning and he saw who walked within\n\n[Bridge]\n(choir)\nLo, I see four men loose, walking in the midst of the fire\n\n[Final Chorus]\nOur God whom we serve is able to deliver us from the burning fiery furnace\nAnd if He will not, still we stand\nOur God whom we serve is able to deliver us from the burning fiery furnace\nThe gold is only sand"
+    },
+    {
+      "id": "ch4_furnace",
+      "code": "R12",
+      "title": "Seven Times Hotter",
+      "chapter": "IV",
+      "kind": "instrumental",
+      "keys": [
+        "dura",
+        "babylon",
+        "den",
+        "furnace"
+      ],
+      "style": "Babylonian ceremonial orchestral, horns, dulcimer, harp, low sackbut brass, war drums, shimmering heat, exploration loop, no vocals, 96 bpm"
+    },
+    {
+      "id": "ch5_wall",
+      "code": "R13",
+      "title": "The Writing on the Wall",
+      "chapter": "V",
+      "kind": "vocal",
+      "keys": [
+        "riverbed"
+      ],
+      "style": "decadent dark orchestral waltz, harpsichord, muted brass, sultry female vocal, ominous Babylonian banquet, 3/4 time, 88 bpm",
+      "scripture": [
+        "Daniel 5:25",
+        "Daniel 5:27"
+      ],
+      "lyrics": "[Verse 1]\nPour the wine in golden cups they carried from the temple door\nRaise them to the gods of brass and gods of stone, and pour some more\nA thousand lords are laughing and the lamps are burning bright\nWhile the river slips away beneath the city in the night\n\n[Pre-Chorus]\nThen the music stops\nAnd a hand appears\n\n[Chorus]\nMENE, MENE, TEKEL, UPHARSIN\nWritten on the plaster by the candlestick\nMENE, MENE, TEKEL, UPHARSIN\nThe night is falling quick\n\n[Verse 2]\nThe king's knees knock together and his face has lost its gold\nNo wise man in the kingdom reads the words that must be told\nSo bring the old man in, the one they swore they'd never need\nAnd let him read the writing that the empire couldn't read\n\n[Bridge]\n(whispered, then sung)\nTEKEL; Thou art weighed in the balances, and art found wanting\n\n[Final Chorus]\nMENE, MENE, TEKEL, UPHARSIN\nWritten on the plaster by the candlestick\nMENE, MENE, TEKEL, UPHARSIN\nThe night is falling quick"
+    },
+    {
+      "id": "ch5_palace",
+      "code": "R14",
+      "title": "The Hanging Gardens",
+      "chapter": "V",
+      "kind": "instrumental",
+      "keys": [
+        "riverbed",
+        "gardens",
+        "palace",
+        "feast"
+      ],
+      "style": "eerie palace ambient, harp glissandi, low strings, music box, distant revelry, dread under luxury, exploration loop, no vocals, 80 bpm"
+    },
+    {
+      "id": "ch6_persia",
+      "code": "R15",
+      "title": "The Prince of Persia",
+      "chapter": "VI",
+      "kind": "vocal",
+      "keys": [
+        "hiddekel"
+      ],
+      "style": "epic Persian orchestral, santur, kamancheh, thunder drums, male lead vocal, choir, spiritual warfare in a storm, 96 bpm",
+      "scripture": [
+        "Daniel 10:19",
+        "Ephesians 6:12"
+      ],
+      "lyrics": "[Verse 1]\nBy the river Hiddekel I waited and I prayed\nOne and twenty days of mourning, and the answer was delayed\nThere's a prince above the kingdom with a shadow for a crown\nAnd the storm is in his keeping and the rain is coming down\n\n[Pre-Chorus]\nFor we wrestle not against flesh and blood\n\n[Chorus]\nO man greatly beloved, fear not\nPeace be unto thee, be strong, yea, be strong\nI cannot cast him down, but I can stand\nUntil the light comes on\n\n[Verse 2]\nIn the palace of Shushan where the high places burn\nEvery lamp has gone to ashes and the princes wait their turn\nI am only flesh and blood and I am trembling where I stand\nBut I will not yield the ground I hold, I will not lose this land\n\n[Bridge]\n(choir, thunder)\nAnd then the light, the light of the great prince comes\n\n[Final Chorus]\nO man greatly beloved, fear not\nPeace be unto thee, be strong, yea, be strong\nI cannot cast him down, but I can stand\nUntil the light comes on"
+    },
+    {
+      "id": "ch6_shushan",
+      "code": "R16",
+      "title": "Shushan the Palace",
+      "chapter": "VI",
+      "kind": "instrumental",
+      "keys": [
+        "hiddekel",
+        "shushan",
+        "highplaces"
+      ],
+      "style": "Persian dark ambient, santur, ney flute, low drones, rolling thunder, storm wind, exploration loop, no vocals, 86 bpm"
+    },
+    {
+      "id": "ch7_hunt",
+      "code": "R17",
+      "title": "The Crown of the Hunt",
+      "chapter": "VII",
+      "kind": "vocal",
+      "keys": [
+        "hunt"
+      ],
+      "style": "dark nordic folk, war horns, deep frame drums, chanting male vocals, throat singing, winter forest chase, D minor, 84 bpm",
+      "scripture": [
+        "Psalm 23:4"
+      ],
+      "lyrics": "[Verse 1]\nThe horn goes out across the snow and every village hears\nVarkhos rides the northern wood and drives them on with spears\nAntlers in the treeline and the stakes are in the ground\nAnd every fire the hunter lights is one more trap he's found\n\n[Chorus]\nYea, though I walk through the valley of the shadow of death\nI will fear no evil: for thou art with me\nRun if you must, but the hunted come home\nThe crown of the hunt cannot hunt me\n\n[Verse 2]\nI follow tracks of children through the frost and through the thorn\nI cut the snares and break the stakes and answer horn with horn\nThe pack is at the river and the pack is on the hill\nBut the ones he called his quarry are the ones I'm carrying still\n\n[Bridge]\n(chant)\nHome, home, bring them home\n\n[Final Chorus]\nYea, though I walk through the valley of the shadow of death\nI will fear no evil: for thou art with me\nRun if you must, but the hunted come home\nThe crown of the hunt cannot hunt me"
+    },
+    {
+      "id": "ch7_hunt_inst",
+      "code": "R18",
+      "title": "The Winter Wood",
+      "chapter": "VII",
+      "kind": "instrumental",
+      "keys": [
+        "hunt"
+      ],
+      "style": "dark nordic ambient, distant war horns, taiko chase rhythm in threes, cold wind, galloping low strings, exploration loop, no vocals, 84 bpm"
+    },
+    {
+      "id": "ch8_plague",
+      "code": "R19",
+      "title": "The Crown of Pestilence",
+      "chapter": "VIII",
+      "kind": "vocal",
+      "keys": [
+        "plague"
+      ],
+      "style": "dark gothic lament, droning cello, buzzing strings, sparse tolling bells, haunting female vocal, slow and sickly, C minor, 66 bpm",
+      "scripture": [
+        "Psalm 91:5-6"
+      ],
+      "lyrics": "[Verse 1]\nThe bog is breathing slowly and the reeds are full of wings\nMorvane walks the marshes and the swarm is what she brings\nThe bile is in the water and the fever's in the bread\nAnd the bells across the fen are ringing for the not-yet-dead\n\n[Chorus]\nThou shalt not be afraid for the terror by night\nNor for the arrow that flieth by day\nNor for the pestilence that walketh in darkness\nNor for the destruction that wasteth at noonday\n\n[Verse 2]\nI carry out the sick ones on a stretcher made of oars\nI burn the hives at sundown and I seal the cellar doors\nThe swarm can cloud the moonlight, it can blacken all the sky\nBut it cannot take the ones who are still singing, though they cry\n\n[Bridge]\n(lone voice)\nWalketh in darkness, walketh in darkness\nBut I walk in the light\n\n[Final Chorus]\nThou shalt not be afraid for the terror by night\nNor for the arrow that flieth by day\nNor for the pestilence that walketh in darkness\nNor for the destruction that wasteth at noonday"
+    },
+    {
+      "id": "ch8_plague_inst",
+      "code": "R20",
+      "title": "The Fen",
+      "chapter": "VIII",
+      "kind": "instrumental",
+      "keys": [
+        "plague"
+      ],
+      "style": "dark ambient plague drone, sighing cello, insect buzz textures, distant bells, bog atmosphere, exploration loop, no vocals, 66 bpm"
+    },
+    {
+      "id": "ch9_cinders",
+      "code": "R21",
+      "title": "The Crown of Cinders",
+      "chapter": "IX",
+      "kind": "vocal",
+      "keys": [
+        "cinders"
+      ],
+      "style": "industrial orchestral, anvil and hammer percussion, choir, distorted low brass, gritty male vocal, forge fire, F Phrygian, 104 bpm",
+      "scripture": [
+        "Isaiah 43:2"
+      ],
+      "lyrics": "[Verse 1]\nHammer on the anvil, hammer on the chain\nAzkar works the foundries and the slag comes down like rain\nThe bellows breathe like dragons and the furnaces are red\nAnd every bar they're forging is a bar above a head\n\n[Pre-Chorus]\nStrike, strike, the iron calls\nThe fire climbs the foundry walls\n\n[Chorus]\nWhen thou walkest through the fire, thou shalt not be burned\nNeither shall the flame kindle upon thee\nBreak the armor, break the chain\nThe cinders cannot keep me\n\n[Verse 2]\nThe ground is cracking open where the molten rivers run\nThree times the mountain answers and the sky forgets the sun\nI parry every hammer and I step across the wave\nAnd I carry out the workers from the forge into the day\n\n[Final Chorus]\nWhen thou walkest through the fire, thou shalt not be burned\nNeither shall the flame kindle upon thee\nBreak the armor, break the chain\nThe cinders cannot keep me"
+    },
+    {
+      "id": "ch9_cinders_inst",
+      "code": "R22",
+      "title": "The Foundry",
+      "chapter": "IX",
+      "kind": "instrumental",
+      "keys": [
+        "cinders"
+      ],
+      "style": "industrial dark orchestral, ringing anvil strikes, bellows rhythm, low brass, choir pads, heat haze, exploration loop, no vocals, 100 bpm"
+    },
+    {
+      "id": "ch10_grecia",
+      "code": "R23",
+      "title": "The Prince of Grecia",
+      "chapter": "X",
+      "kind": "vocal",
+      "keys": [
+        "grecia"
+      ],
+      "style": "epic Greek-inspired orchestral, lyre, aulos, crashing waves, storm drums, male and female choir, heroic and stormy, 92 bpm",
+      "scripture": [
+        "Daniel 10:20",
+        "Isaiah 43:2",
+        "Daniel 8:5"
+      ],
+      "lyrics": "[Verse 1]\nAnd when I am gone forth, lo, the prince of Grecia shall come\nSo the messenger had promised, and the promise wasn't done\nNow the storm is on Chittim and the beacons have gone cold\nAnd the temple lies beneath the sea with all its stolen gold\n\n[Pre-Chorus]\nAn he goat came from the west on the face of the whole earth, and touched not the ground\n\n[Chorus]\nWhen thou passest through the waters, I will be with thee\nAnd through the rivers, they shall not overflow thee\nDive down, dive deep, relight the flame\nThe sea will give them back again\n\n[Verse 2]\nIn the library of drowned men there's a lamp that Hanan keeps\nAnd a breath of air in a bell of stone, down where the scholar sleeps\nThe horns are on the cliffside and the great horn charges home\nBut I have learned to hold my breath, and I have learned to roam\n\n[Bridge]\n(choir, waves)\nFour winds, four horns, one storm, one shore\n\n[Final Chorus]\nWhen thou passest through the waters, I will be with thee\nAnd through the rivers, they shall not overflow thee\nDive down, dive deep, relight the flame\nThe sea will give them back again"
+    },
+    {
+      "id": "ch10_grecia_inst",
+      "code": "R24",
+      "title": "The Storm Coast",
+      "chapter": "X",
+      "kind": "instrumental",
+      "keys": [
+        "grecia"
+      ],
+      "style": "Greek storm ambient, lyre, aulos, ocean waves, rain, low strings, distant thunder, exploration loop, no vocals, 88 bpm"
+    }
+  ]
+}

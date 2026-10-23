@@ -18,6 +18,8 @@ const PRIORITY = new Set(['parry', 'parryPerfect', 'finisherThud', 'shieldBreak'
 
 export class AudioEngine {
   ctx: AC | null = null;
+  /** Run inside every unlocking gesture (the song layer primes its <audio> elements here). */
+  unlockHooks: (() => void)[] = [];
   master!: GainNode;
   musicBus!: GainNode;
   sfxBus!: GainNode;
@@ -115,6 +117,7 @@ export class AudioEngine {
     const ctx = this.ctx;
     if (!ctx) return;
     this.applySession();
+    for (const f of this.unlockHooks) f();
     if (this.unlocked && ctx.state === 'running') return;
     if (ctx.state !== 'running') ctx.resume().catch(() => {});
     // A one-sample silent buffer kicks iOS into actually starting output.

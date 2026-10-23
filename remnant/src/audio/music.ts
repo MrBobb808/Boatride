@@ -24,6 +24,8 @@ interface Playing {
   next: number;
   stopAt: number;
   amb: AudioScheduledSourceNode[];
+  /** A recorded song is standing in for this track (audio/songs.ts): no notes are scheduled. */
+  held: boolean;
 }
 
 export class Music {
@@ -46,6 +48,11 @@ export class Music {
     return this.cur?.name ?? '';
   }
 
+  /** A recorded song is standing in for the current track. */
+  get holding() {
+    return this.cur?.held ?? false;
+  }
+
   play(name: string, fade = 2.2) {
     const ctx = audio.ctx;
     if (!ctx) {
@@ -64,7 +71,10 @@ export class Music {
       this.old.push(c);
       this.cur = null;
     }
-    if (!def) return;
+    if (!def) {
+      this.onTrack?.(name);
+      return;
+    }
     const out = ctx.createGain();
     out.gain.setValueAtTime(0.0001, t);
     out.gain.linearRampToValueAtTime(1, t + Math.max(0.05, fade * 0.8));
@@ -73,12 +83,28 @@ export class Music {
     verb.gain.value = 0.8;
     out.connect(verb);
     verb.connect(audio.musicVerb);
-    const p: Playing = { name, def, out, step: 0, next: t + 0.1, stopAt: Infinity, amb: [] };
+    const p: Playing = { name, def, out, step: 0, next: t + 0.1, stopAt: Infinity, amb: [], held: false };
     this.startAmbience(p);
     this.cur = p;
     this.phase = 0;
+    // After the switch, so a song standing in can hold the new track.
+    this.onTrack?.(name);
   }
   pending = '';
+  /** Told whenever the score changes track, so the song layer can stand in for it. */
+  onTrack?: (name: string) => void;
+
+  /** A song takes over (`on`) or hands back the current track: its notes stop or resume, faded. */
+  hold(on: boolean, fade = 2.4) {
+    const c = this.cur, ctx = audio.ctx;
+    if (!c || !ctx || c.held === on) return;
+    c.held = on;
+    const t = ctx.currentTime;
+    c.out.gain.cancelScheduledValues(t);
+    c.out.gain.setValueAtTime(c.out.gain.value, t);
+    c.out.gain.linearRampToValueAtTime(on ? 0.0001 : 1, t + fade);
+    if (!on) c.next = t + 0.05;
+  }
 
   stop(fade = 1.5) {
     this.play('', fade);
@@ -278,7 +304,8 @@ export class Music {
       }
     }
     const c = this.cur;
-    if (!c) return;
+    // Held under a song: keep the notes that are already fading, schedule no more.
+    if (!c || (c.held && c.out.gain.value < 0.002)) return;
     const stepDur = 60 / this.bpmOf(c.def) / 4;
     if (c.next < now - 0.5) c.next = now + 0.05; // recovered from suspension
     while (c.next < now + 0.18) {

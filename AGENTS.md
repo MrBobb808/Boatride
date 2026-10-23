@@ -31,7 +31,8 @@ up next starts from the latest version.
 
 - **Stack:** TypeScript (strict) and Vite. It uses no game engine and has no
   image or audio assets: every character, room, effect, sound and piece of
-  music is generated in code (Canvas 2D and Web Audio).
+  music is generated in code (Canvas 2D and Web Audio). The one exception is
+  the optional song layer below: recorded songs in `public/music/`.
 - **Commands:**
   - `cd remnant && npm install`
   - `npm run dev`: a dev server on port 5173. Add `?debug` to the URL for
@@ -137,6 +138,21 @@ up next starts from the latest version.
   awaitable cutscene toolkit (camera pans, letterbox bars, title cards),
   `render/portraits.ts` draws dialogue busts and `game/recap.ts` shows a
   "Previously…" card on resume. Verified by `scripts/audio-cinema.mjs`.
+- **Songs:** chapter songs made in Suno play over the generated score
+  (`audio/songs.ts`). The plan, with every song's Suno style, lyrics and the
+  music keys it covers, is `soundtrack/songs.json`; `SOUNDTRACK.md` is
+  generated from it (`node scripts/soundtrack-doc.mjs`). Files go in
+  `public/music/<id>.mp3` through `node scripts/add-songs.mjs <downloads>`,
+  which matches Suno's file names and levels the loudness (needs ffmpeg), or
+  `node scripts/suno-links.mjs <notes>` for Suno share links (needs network
+  access to suno.com and *.suno.ai). Every song has a code (R01–R24) that its
+  Suno title ends in, so a link or a file names its song. A
+  chapter's vocal song plays once per session where it is mapped, then its
+  instrumental loops; bosses keep the adaptive score; a missing file falls back
+  to the score. The service worker keeps songs in a `remnant-music` cache that
+  updates leave alone. Settings → Audio → Soundtrack (Songs / Score only) and
+  Sung songs. Verified by `scripts/soundtrack.mjs` and
+  `scripts/soundtrack.test.mjs`.
 - **Menus and first-time flow:** the pause menu has five sections with
   sub-tabs (`ui/menus.ts`, `SECTIONS`; old page names still open).
   `ui/coach.ts` shows optional one-time coaching cards (`SaveData.coached`)
@@ -167,7 +183,9 @@ up next starts from the latest version.
 ## Rules to keep
 
 - **Scripture:** quote the King James Version word for word, and always cite
-  the reference (for example "Ezekiel 37:10 (KJV)"). Everything else is
+  the reference (for example "Ezekiel 37:10 (KJV)"). Song lyrics follow the same
+  rule: any scripture they sing is KJV word for word, listed under the song's
+  `scripture` in `soundtrack/songs.json`. Everything else is
   original fiction. Elior stays human, and Echoes are cleansed battle-imprints,
   not souls.
 - **Saves:** players have real progress.

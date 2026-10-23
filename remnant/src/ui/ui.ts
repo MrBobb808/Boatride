@@ -9,6 +9,7 @@ import { img } from './icons';
 import { input } from '../core/input';
 import { sfx, audio } from '../audio/audio';
 import { music } from '../audio/music';
+import { songs } from '../audio/songs';
 import { NPC_DEFS } from '../game/props';
 import { drawPortrait, hasPortrait, moodOf, type Mood } from '../render/portraits';
 import { LORE, ITEMS, RARITY_COLORS, RARITY_NAMES, ECHO_SPECIES, type ItemInst, type EchoOrder } from '../game/data';
@@ -100,6 +101,7 @@ const hooks: UIHooks = {
   dialogue(lines: DialogueLine[]) {
     return new Promise<number>((resolve) => {
       blocking++;
+      songs.duck(true);
       let i = 0;
       let choice = 0;
       const canvas = h('canvas', { width: '152', height: '152' });
@@ -176,6 +178,7 @@ const hooks: UIHooks = {
           cancelAnimationFrame(raf);
           popLayer(layer);
           blocking--;
+          songs.duck(false);
           resolve(choice);
           return;
         }
