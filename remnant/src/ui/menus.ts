@@ -238,7 +238,7 @@ function characterTab() {
   const rows = STAT_KEYS.map((k) => h('div', { class: 'stat-row' },
     h('div', { 'data-tip': `${STAT_INFO[k].desc} Next ${amount || 1} point${(amount || 1) > 1 ? 's' : ''}: ${preview(k, amount || 1)}.`, 'data-k': 'tip_' + k }, h('div', { class: 'nm' }, STAT_INFO[k].name), h('div', { class: 'ds' }, STAT_INFO[k].desc), amount ? h('div', { class: 'ds up', 'data-k': 'preview_' + k }, preview(k)) : null),
     h('div', { class: 'val' }, String(d.stats[k]), d.stats[k] !== s.stats[k] ? h('span', { class: 'up', style: 'font-size:0.7em;margin-left:4px' }, `(${s.stats[k]}+${d.stats[k] - s.stats[k]})`) : null),
-    btn('+' + (amount || 1), () => { spendStat(k); }, 'btn plus', { disabled: s.statPoints <= 0, 'data-k': 'st_' + k, 'aria-label': 'Raise ' + STAT_INFO[k].name + ' by ' + amount }),
+    btn('+' + (amount || 1), () => { spendStat(k); }, 'btn plus', { disabled: s.statPoints <= 0, 'data-k': 'st_' + k, 'aria-label': 'Raise ' + STAT_INFO[k].name + ' by ' + amount, 'data-tip': `${STAT_INFO[k].name}: ${preview(k, amount || 1)}.` }),
   ));
   rows.push(h('div', { class: 'stat-row' }, h('div', null, h('div', { class: 'nm' }, 'Covenant Energy'), h('div', { class: 'ds' }, flag('relic_taken') ? 'Fuels abilities. Grows with Wisdom.' : 'Dormant. Something in the temple may wake it.')), h('div', { class: 'val' }, flag('relic_taken') ? String(d.maxCe) : '—'), h('span')));
   rows.push(h('div', { class: 'stat-row' }, h('div', null, h('div', { class: 'nm' }, 'Summon Capacity'), h('div', { class: 'ds' }, 'Echoes that can fight beside you at once. Grows with the story and the Commander tree.')), h('div', { class: 'val' }, String(d.echoSlots)), h('span')));

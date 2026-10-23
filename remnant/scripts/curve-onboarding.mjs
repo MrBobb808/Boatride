@@ -221,7 +221,7 @@ try {
     await page.evaluate(() => window.__remnant.G.ui.openMenu('character'));
     await page.screenshot({ path: 'qa/menu-sections-phone.png' });
     await page.evaluate(() => window.__remnant.G.ui.openMenu('moves'));
-    assert.match(await page.locator('.menu-body').innerText(), /Techniques/);
+    assert.match(await page.locator('.menu-body').innerText(), /techniques/i);
     console.log('Five sections with sub-tabs at 956×440, large targets, remembered sub-tabs and old page names');
 
     // ---------------------------------------------------------------- stat tips: hover, tap, long-press, current vs new
@@ -266,8 +266,9 @@ try {
     await page.evaluate(async () => {
       const { G, input } = window.__remnant, p = G.world.player;
       for (let i = 0; i < 80 && !(G.save.coached.combo === 2); i++) {
-        const foe = G.world.ents.find(e => e.isFoe && !e.dying);
-        if (foe) { p.face = Math.sign(foe.x - p.x) || 1; if (Math.abs(foe.x - p.x) > 30) p.x = foe.x - p.face * 26; foe.hp = foe.maxHp; }
+        // A sturdy practice foe that stays in reach, so three blows can land in a row.
+        const foe = G.world.ents.find(e => e.isFoe && !e.dying) ?? window.__remnant.spawn('husk', p.x + 40);
+        foe.maxHp = foe.hp = 99999; p.face = Math.sign(foe.x - p.x) || 1; if (Math.abs(foe.x - p.x) > 30) p.x = foe.x - p.face * 26;
         input.setTouch('attack', true); await new Promise(r => setTimeout(r, 60)); input.setTouch('attack', false); await new Promise(r => setTimeout(r, 90));
       }
     });
@@ -304,6 +305,7 @@ try {
     // The Echo lesson: summon, then an order from the wheel.
     await page.evaluate(() => window.__remnant.G.ui.openMenu('settings'));
     await page.locator('[data-k=coachon]').tap();
+    await page.keyboard.press('Escape');
     await page.evaluate(() => { const { G } = window.__remnant; G.ui.closeMenu?.(); G.save.coached = { combo: 2, dodge: 1, parry: 1 }; for (const e of G.world.ents) if (e.isFoe) e.remove = true; window.__remnant.echo('sentinel'); });
     await page.locator('[data-k=coach_echo]').waitFor({ timeout: 10000 });
     await page.waitForFunction(() => document.querySelectorAll('.coach-steps .ok').length === 1);
