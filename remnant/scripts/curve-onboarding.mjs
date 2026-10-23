@@ -276,7 +276,8 @@ try {
       }
     });
     await page.waitForFunction(() => window.__remnant.G.save.coached.combo === 2 && !document.querySelector('[data-k=coach_combo]'), null, { timeout: 8000 });
-    // The next lesson comes when it matters; Skip ends it for good.
+    // The next lesson comes when it matters (a foe near; a finisher may have taken the last one); Skip ends it for good.
+    await spawn();
     await page.locator('[data-k=coach_dodge]').waitFor({ timeout: 10000 });
     await page.locator('[data-k=coach_skip]').tap();
     assert.equal(await page.evaluate(() => window.__remnant.G.save.coached.dodge), 1);
