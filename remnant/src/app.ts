@@ -127,6 +127,12 @@ export function startNewGamePlus() {
   for (const f of ['mantle_known', 'mantle_used', 'mantle_ready_seen', 'trial_best']) if (old.flags[f] !== undefined) s.flags[f] = old.flags[f];
   s.mantle = old.mantle;
   s.echoMode = old.echoMode;
+  // Trophies, the daily record and lessons learned belong to the player, not the cycle;
+  // the Rest is rebuilt, but titles and Ezra's one-time gift stay given.
+  if (old.valor) s.valor = structuredClone(old.valor);
+  if (old.daily) s.daily = { ...old.daily };
+  if (old.coached) s.coached = { ...old.coached };
+  if (old.settlement) s.settlement = { seen: -1, quests: {}, titles: [...old.settlement.titles], gift: old.settlement.gift };
   saveSlot(G.slot, s);
   G.ui.fade(1, 0.6).then(() => {
     enterGame(s, G.slot, 'sanctuary', 'start');
