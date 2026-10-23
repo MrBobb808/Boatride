@@ -10,6 +10,7 @@ import { img, iconUrl } from './icons';
 import { input, ACTION_LABELS, DEFAULT_KEYS, type Action } from '../core/input';
 import { settings, saveSettings, resetSettings, isTouchDevice } from '../core/settings';
 import { sfx, audio } from '../audio/audio';
+import { songs } from '../audio/songs';
 import { music } from '../audio/music';
 import {
   ITEMS, SLOTS, SLOT_NAMES, STAT_KEYS, STAT_INFO, MOD_LABEL, RARITY_COLORS, RARITY_NAMES, TREES, SKILLS, ABILITIES,
@@ -954,6 +955,8 @@ function settingsTab() {
       row('Master volume', '', slider(st.master, 0, 1, 0.05, (v) => (st.master = v), 'vm')),
       row('Music', 'Set to zero to hear your own soundtrack with the game sound effects.', slider(st.music, 0, 1, 0.05, (v) => (st.music = v), 'vmu')),
       row('Sound effects', '', slider(st.sfx, 0, 1, 0.05, (v) => (st.sfx = v), 'vs')),
+      row('Soundtrack', 'Songs: the chapter songs wherever they have been added, the game’s own score everywhere else (bosses always keep the score).', seg(st.soundtrack, [['songs', 'Songs'], ['score', 'Score only']], (v) => { st.soundtrack = v; setTimeout(() => songs.refresh(), 0); }, 'soundtrack')),
+      st.soundtrack === 'songs' ? row('Sung songs', 'On: a chapter’s song with lyrics plays once when you arrive, then its instrumental. Off: instrumentals only.', toggle(st.vocals, (v) => { st.vocals = v; setTimeout(() => songs.refresh(), 0); }, 'vocals')) : null,
       !st.mixAudio ? row('Respect the silent switch', 'On: iPhone Silent Mode mutes the game and allows other music to keep playing.', toggle(st.respectSilent, (v) => (st.respectSilent = v), 'rs')) : null,
     ),
     h('div', { class: 'box' }, h('h3', null, 'Display'),

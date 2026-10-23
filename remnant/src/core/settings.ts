@@ -3,6 +3,10 @@ import { DEFAULT_KEYS, DEFAULT_PAD, input, type Action } from './input';
 export interface Settings {
   master: number;
   music: number;
+  /** Songs: recorded songs (audio/songs.ts) where they exist, the generated score elsewhere. Score: never songs. */
+  soundtrack: 'songs' | 'score';
+  /** Vocal songs at their places; off plays only instrumentals. */
+  vocals: boolean;
   sfx: number;
   /** Share audio with Spotify and other apps instead of requesting exclusive playback. */
   mixAudio: boolean;
@@ -72,6 +76,8 @@ export const TOUCH_DEFAULTS = { touchScale: 1, touchOpacity: 0.55 } as const;
 const DEFAULTS: Settings = {
   master: 0.85,
   music: 0.6,
+  soundtrack: 'songs',
+  vocals: true,
   sfx: 0.85,
   mixAudio: true,
   respectSilent: false,

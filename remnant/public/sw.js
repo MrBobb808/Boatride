@@ -2,6 +2,8 @@
 // so caching a handful of files is enough to play with no connection.
 const VERSION = '__BUILD__';
 const CACHE = 'remnant-' + VERSION;
+// Songs (public/music) are big and do not change between builds, so they keep a cache of their own that updates leave alone.
+const MUSIC = 'remnant-music';
 const CORE = ['./', './index.html', './manifest.webmanifest', './icons/apple-touch-icon.png', './icons/icon-192.png', './icons/icon-512.png'];
 
 self.addEventListener('install', (e) => {
@@ -11,7 +13,7 @@ self.addEventListener('install', (e) => {
 self.addEventListener('activate', (e) => {
   e.waitUntil(
     caches.keys()
-      .then((keys) => Promise.all(keys.filter((k) => k.startsWith('remnant-') && k !== CACHE).map((k) => caches.delete(k))))
+      .then((keys) => Promise.all(keys.filter((k) => k.startsWith('remnant-') && k !== CACHE && k !== MUSIC).map((k) => caches.delete(k))))
       .then(() => self.clients.claim()),
   );
 });
@@ -23,6 +25,14 @@ self.addEventListener('fetch', (e) => {
   // Update probes must never get trapped in an installed copy's offline cache.
   if (url.pathname.endsWith('/version.json') || (req.mode !== 'navigate' && url.searchParams.has('v'))) {
     e.respondWith(fetch(req, { cache: 'no-store' }));
+    return;
+  }
+  if (url.pathname.includes('/music/')) {
+    // Cache first, whole files only (the game fetches a song in one piece; partial range replies cannot be stored).
+    e.respondWith(caches.open(MUSIC).then((c) => c.match(req).then((hit) => hit || fetch(req).then((res) => {
+      if (res.status === 200 && !req.headers.has('range')) c.put(req, res.clone()).catch(() => {});
+      return res;
+    }))));
     return;
   }
   if (req.mode === 'navigate') {
