@@ -1,6 +1,7 @@
 // Adds songs made in Suno to the game: `node scripts/add-songs.mjs <files or folders>`.
-// Each file is matched to a song in soundtrack/songs.json by its id or its title
-// (Suno names downloads after the song title), levelled to the same loudness
+// Each file is matched to a song in soundtrack/songs.json by the code in its
+// title ("The Ashen Village R05"), its id or its title (Suno names downloads
+// after the song title), levelled to the same loudness
 // with ffmpeg and written to public/music/<id>.mp3, where the game looks for it.
 // `--as <id>` names the song for a single file whose name does not match.
 // Run with no files to see which songs are present and which are still to make.
@@ -32,6 +33,9 @@ if (as && !songs.some((s) => s.id === as)) { console.error(`No song with id "${a
 function match(file) {
   const name = basename(file, extname(file));
   const n = norm(name);
+  // The code Suno titles carry ("The Ashen Village R05") names the song outright.
+  const code = name.match(/\bR(\d{2})\b/i);
+  if (code) return songs.find((s) => s.code === 'R' + code[1]) ?? null;
   const byId = songs.find((s) => s.id === name || norm(s.id) === n);
   if (byId) return byId;
   // A title that includes its brackets, like "Remnant's Rest (Hearth)", wins outright.
@@ -68,4 +72,4 @@ if (files.length) {
 
 const have = new Set((await readdir(out).catch(() => [])).filter((f) => f.endsWith('.mp3')).map((f) => f.slice(0, -4)));
 console.log(`\n${have.size} of ${songs.length} songs present:`);
-for (const s of songs) console.log(`  ${have.has(s.id) ? '✓' : '·'} ${s.id.padEnd(18)} ${s.chapter.padEnd(15)} ${s.kind.padEnd(12)} ${s.title}`);
+for (const s of songs) console.log(`  ${have.has(s.id) ? '✓' : '·'} ${s.code} ${s.id.padEnd(18)} ${s.chapter.padEnd(15)} ${s.kind.padEnd(12)} ${s.title}`);

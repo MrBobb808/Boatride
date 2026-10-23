@@ -11,42 +11,43 @@ Generated from `soundtrack/songs.json` by `node scripts/soundtrack-doc.mjs`; edi
 
 ## Making a song in Suno
 
-1. In Suno, choose Custom. Paste the **Style** below into the style box and the **Lyrics** into the lyrics box (for an instrumental, switch Instrumental on and leave the lyrics empty). Use the **Title** as the song title.
+1. In Suno, choose Custom. Paste the **Style** below into the style box and the **Lyrics** into the lyrics box (for an instrumental, switch Instrumental on and leave the lyrics empty). Use the **Suno title** as the song title: it ends in the song code (R01–R24), so a shared link or a download says which song it is.
 2. Pick the take you like and download it as MP3 (WAV also works).
-3. Add it to the game: `node scripts/add-songs.mjs ~/Downloads/<file>` (it matches the file to the song by title, levels the volume and writes `public/music/<id>.mp3`). If the name does not match, add `--as <id>`. Run the script with no files to see which songs are still to make.
+3. Either share it (Share → Copy link) and give Claude the links, or download it as MP3 and add it yourself: `node scripts/add-songs.mjs ~/Downloads/<file>` (it matches the file to the song by title, levels the volume and writes `public/music/<id>.mp3`). If the name does not match, add `--as <id>`. Run the script with no files to see which songs are still to make.
 4. Listen for the scripture lines: they must be sung word for word as written (King James Version). If Suno changes a word, regenerate or pick another take.
 
 ## The songs
 
-| Id | Chapter | Kind | Title | Plays in |
-|---|---|---|---|---|
-| `title_remnant` | Title | vocal | Remnant | `title` |
-| `rest_hearth` | Remnant's Rest | vocal | Remnant's Rest | `rest` |
-| `rest_hearth_inst` | Remnant's Rest | instrumental | Remnant's Rest (Hearth) | `rest` |
-| `trial_remnant` | Trial | instrumental | The Trial of the Remnant | `trial` |
-| `ch1_ashen` | I | vocal | The Ashen Village | `village` |
-| `ch1_hearthward` | I | instrumental | Hearthward | `village`, `sanctuary`, `temple`, `crypt` |
-| `ch2_shinar` | II | vocal | The Tower of Shinar | `shinar` |
-| `ch2_tower` | II | instrumental | Red Brick, Red Sky | `shinar`, `tower` |
-| `ch3_bones` | III | vocal | The Valley of Bones | `valley` |
-| `ch3_hive` | III | instrumental | The Hive | `valley`, `hive` |
-| `ch4_dura` | IV | vocal | The Plain of Dura | `dura` |
-| `ch4_furnace` | IV | instrumental | Seven Times Hotter | `dura`, `babylon`, `den`, `furnace` |
-| `ch5_wall` | V | vocal | The Writing on the Wall | `riverbed` |
-| `ch5_palace` | V | instrumental | The Hanging Gardens | `riverbed`, `gardens`, `palace`, `feast` |
-| `ch6_persia` | VI | vocal | The Prince of Persia | `hiddekel` |
-| `ch6_shushan` | VI | instrumental | Shushan the Palace | `hiddekel`, `shushan`, `highplaces` |
-| `ch7_hunt` | VII | vocal | The Crown of the Hunt | `hunt` |
-| `ch7_hunt_inst` | VII | instrumental | The Winter Wood | `hunt` |
-| `ch8_plague` | VIII | vocal | The Crown of Pestilence | `plague` |
-| `ch8_plague_inst` | VIII | instrumental | The Fen | `plague` |
-| `ch9_cinders` | IX | vocal | The Crown of Cinders | `cinders` |
-| `ch9_cinders_inst` | IX | instrumental | The Foundry | `cinders` |
-| `ch10_grecia` | X | vocal | The Prince of Grecia | `grecia` |
-| `ch10_grecia_inst` | X | instrumental | The Storm Coast | `grecia` |
+| Code | Suno title | Chapter | Kind | Id | Plays in |
+|---|---|---|---|---|---|
+| R01 | Remnant R01 | Title | vocal | `title_remnant` | `title` |
+| R02 | Remnant's Rest R02 | Remnant's Rest | vocal | `rest_hearth` | `rest` |
+| R03 | Remnant's Rest (Hearth) R03 | Remnant's Rest | instrumental | `rest_hearth_inst` | `rest` |
+| R04 | The Trial of the Remnant R04 | Trial | instrumental | `trial_remnant` | `trial` |
+| R05 | The Ashen Village R05 | I | vocal | `ch1_ashen` | `village` |
+| R06 | Hearthward R06 | I | instrumental | `ch1_hearthward` | `village`, `sanctuary`, `temple`, `crypt` |
+| R07 | The Tower of Shinar R07 | II | vocal | `ch2_shinar` | `shinar` |
+| R08 | Red Brick, Red Sky R08 | II | instrumental | `ch2_tower` | `shinar`, `tower` |
+| R09 | The Valley of Bones R09 | III | vocal | `ch3_bones` | `valley` |
+| R10 | The Hive R10 | III | instrumental | `ch3_hive` | `valley`, `hive` |
+| R11 | The Plain of Dura R11 | IV | vocal | `ch4_dura` | `dura` |
+| R12 | Seven Times Hotter R12 | IV | instrumental | `ch4_furnace` | `dura`, `babylon`, `den`, `furnace` |
+| R13 | The Writing on the Wall R13 | V | vocal | `ch5_wall` | `riverbed` |
+| R14 | The Hanging Gardens R14 | V | instrumental | `ch5_palace` | `riverbed`, `gardens`, `palace`, `feast` |
+| R15 | The Prince of Persia R15 | VI | vocal | `ch6_persia` | `hiddekel` |
+| R16 | Shushan the Palace R16 | VI | instrumental | `ch6_shushan` | `hiddekel`, `shushan`, `highplaces` |
+| R17 | The Crown of the Hunt R17 | VII | vocal | `ch7_hunt` | `hunt` |
+| R18 | The Winter Wood R18 | VII | instrumental | `ch7_hunt_inst` | `hunt` |
+| R19 | The Crown of Pestilence R19 | VIII | vocal | `ch8_plague` | `plague` |
+| R20 | The Fen R20 | VIII | instrumental | `ch8_plague_inst` | `plague` |
+| R21 | The Crown of Cinders R21 | IX | vocal | `ch9_cinders` | `cinders` |
+| R22 | The Foundry R22 | IX | instrumental | `ch9_cinders_inst` | `cinders` |
+| R23 | The Prince of Grecia R23 | X | vocal | `ch10_grecia` | `grecia` |
+| R24 | The Storm Coast R24 | X | instrumental | `ch10_grecia_inst` | `grecia` |
 
-### Remnant (`title_remnant`)
+### R01 · Remnant (`title_remnant`)
 
+- **Suno title:** Remnant R01
 - **Chapter:** Title
 - **Kind:** vocal
 - **Style:** cinematic dark fantasy hymn, solemn male choir, low strings, taiko, distant female solo vocal, minor key, slow build to an epic chorus, 70 bpm
@@ -93,8 +94,9 @@ The remnant shall return, return again
 Return again
 ```
 
-### Remnant's Rest (`rest_hearth`)
+### R02 · Remnant's Rest (`rest_hearth`)
 
+- **Suno title:** Remnant's Rest R02
 - **Chapter:** Remnant's Rest
 - **Kind:** vocal
 - **Style:** warm folk hymn, acoustic guitar, harp, hand drum, soft male and female duet, hopeful campfire song, major key, 76 bpm
@@ -130,20 +132,23 @@ Come in, come home
 Come home
 ```
 
-### Remnant's Rest (Hearth) (`rest_hearth_inst`)
+### R03 · Remnant's Rest (Hearth) (`rest_hearth_inst`)
 
+- **Suno title:** Remnant's Rest (Hearth) R03
 - **Chapter:** Remnant's Rest
 - **Kind:** instrumental
 - **Style:** warm acoustic folk instrumental, harp, wooden flute, fingerpicked guitar, soft hand drum, peaceful village, seamless loop, no vocals, 76 bpm
 
-### The Trial of the Remnant (`trial_remnant`)
+### R04 · The Trial of the Remnant (`trial_remnant`)
 
+- **Suno title:** The Trial of the Remnant R04
 - **Chapter:** Trial
 - **Kind:** instrumental
 - **Style:** relentless dark orchestral combat loop, taiko, low brass ostinato, choir stabs, driving strings, arena battle, seamless loop, no vocals, 140 bpm
 
-### The Ashen Village (`ch1_ashen`)
+### R05 · The Ashen Village (`ch1_ashen`)
 
+- **Suno title:** The Ashen Village R05
 - **Chapter:** I
 - **Kind:** vocal
 - **Style:** dark folk ballad, lone male vocal, cello, frame drum, village bells, mournful, builds to a choir, D minor, 80 bpm
@@ -183,14 +188,16 @@ I will hold the lamp in my own two hands
 I will hold the lamp
 ```
 
-### Hearthward (`ch1_hearthward`)
+### R06 · Hearthward (`ch1_hearthward`)
 
+- **Suno title:** Hearthward R06
 - **Chapter:** I
 - **Kind:** instrumental
 - **Style:** dark medieval ambient, cello drone, harp, distant bells, sparse frame drum, ashes and candlelight, exploration loop, no vocals, 72 bpm
 
-### The Tower of Shinar (`ch2_shinar`)
+### R07 · The Tower of Shinar (`ch2_shinar`)
 
+- **Suno title:** The Tower of Shinar R07
 - **Chapter:** II
 - **Kind:** vocal
 - **Style:** epic Middle Eastern orchestral, oud, low male choir, war drums, brass, ominous ancient city, Phrygian mode, 92 bpm
@@ -229,14 +236,16 @@ Let us build us a city and a tower, whose top may reach unto heaven
 But heaven isn't there
 ```
 
-### Red Brick, Red Sky (`ch2_tower`)
+### R08 · Red Brick, Red Sky (`ch2_tower`)
 
+- **Suno title:** Red Brick, Red Sky R08
 - **Chapter:** II
 - **Kind:** instrumental
 - **Style:** ancient Mesopotamian dark ambient, oud, duduk, low drones, hand percussion, tense climb, exploration loop, no vocals, 90 bpm
 
-### The Valley of Bones (`ch3_bones`)
+### R09 · The Valley of Bones (`ch3_bones`)
 
+- **Suno title:** The Valley of Bones R09
 - **Chapter:** III
 - **Kind:** vocal
 - **Style:** haunting gothic choral, rattling bone percussion, desert wind, solo female vocal rising to a massive choir, awe and resurrection, 68 bpm
@@ -272,14 +281,16 @@ O ye dry bones, hear the word of the LORD
 Rise
 ```
 
-### The Hive (`ch3_hive`)
+### R10 · The Hive (`ch3_hive`)
 
+- **Suno title:** The Hive R10
 - **Chapter:** III
 - **Kind:** instrumental
 - **Style:** dark ambient desert, insect drone textures, tribal percussion, eerie high strings, wind through bones, exploration loop, no vocals, 84 bpm
 
-### The Plain of Dura (`ch4_dura`)
+### R11 · The Plain of Dura (`ch4_dura`)
 
+- **Suno title:** The Plain of Dura R11
 - **Chapter:** IV
 - **Kind:** vocal
 - **Style:** fiery epic orchestral, Middle Eastern percussion, brass fanfare, defiant male vocal trio, full choir, heat and courage, 100 bpm
@@ -319,14 +330,16 @@ Our God whom we serve is able to deliver us from the burning fiery furnace
 The gold is only sand
 ```
 
-### Seven Times Hotter (`ch4_furnace`)
+### R12 · Seven Times Hotter (`ch4_furnace`)
 
+- **Suno title:** Seven Times Hotter R12
 - **Chapter:** IV
 - **Kind:** instrumental
 - **Style:** Babylonian ceremonial orchestral, horns, dulcimer, harp, low sackbut brass, war drums, shimmering heat, exploration loop, no vocals, 96 bpm
 
-### The Writing on the Wall (`ch5_wall`)
+### R13 · The Writing on the Wall (`ch5_wall`)
 
+- **Suno title:** The Writing on the Wall R13
 - **Chapter:** V
 - **Kind:** vocal
 - **Style:** decadent dark orchestral waltz, harpsichord, muted brass, sultry female vocal, ominous Babylonian banquet, 3/4 time, 88 bpm
@@ -366,14 +379,16 @@ MENE, MENE, TEKEL, UPHARSIN
 The night is falling quick
 ```
 
-### The Hanging Gardens (`ch5_palace`)
+### R14 · The Hanging Gardens (`ch5_palace`)
 
+- **Suno title:** The Hanging Gardens R14
 - **Chapter:** V
 - **Kind:** instrumental
 - **Style:** eerie palace ambient, harp glissandi, low strings, music box, distant revelry, dread under luxury, exploration loop, no vocals, 80 bpm
 
-### The Prince of Persia (`ch6_persia`)
+### R15 · The Prince of Persia (`ch6_persia`)
 
+- **Suno title:** The Prince of Persia R15
 - **Chapter:** VI
 - **Kind:** vocal
 - **Style:** epic Persian orchestral, santur, kamancheh, thunder drums, male lead vocal, choir, spiritual warfare in a storm, 96 bpm
@@ -412,14 +427,16 @@ I cannot cast him down, but I can stand
 Until the light comes on
 ```
 
-### Shushan the Palace (`ch6_shushan`)
+### R16 · Shushan the Palace (`ch6_shushan`)
 
+- **Suno title:** Shushan the Palace R16
 - **Chapter:** VI
 - **Kind:** instrumental
 - **Style:** Persian dark ambient, santur, ney flute, low drones, rolling thunder, storm wind, exploration loop, no vocals, 86 bpm
 
-### The Crown of the Hunt (`ch7_hunt`)
+### R17 · The Crown of the Hunt (`ch7_hunt`)
 
+- **Suno title:** The Crown of the Hunt R17
 - **Chapter:** VII
 - **Kind:** vocal
 - **Style:** dark nordic folk, war horns, deep frame drums, chanting male vocals, throat singing, winter forest chase, D minor, 84 bpm
@@ -455,14 +472,16 @@ Run if you must, but the hunted come home
 The crown of the hunt cannot hunt me
 ```
 
-### The Winter Wood (`ch7_hunt_inst`)
+### R18 · The Winter Wood (`ch7_hunt_inst`)
 
+- **Suno title:** The Winter Wood R18
 - **Chapter:** VII
 - **Kind:** instrumental
 - **Style:** dark nordic ambient, distant war horns, taiko chase rhythm in threes, cold wind, galloping low strings, exploration loop, no vocals, 84 bpm
 
-### The Crown of Pestilence (`ch8_plague`)
+### R19 · The Crown of Pestilence (`ch8_plague`)
 
+- **Suno title:** The Crown of Pestilence R19
 - **Chapter:** VIII
 - **Kind:** vocal
 - **Style:** dark gothic lament, droning cello, buzzing strings, sparse tolling bells, haunting female vocal, slow and sickly, C minor, 66 bpm
@@ -499,14 +518,16 @@ Nor for the pestilence that walketh in darkness
 Nor for the destruction that wasteth at noonday
 ```
 
-### The Fen (`ch8_plague_inst`)
+### R20 · The Fen (`ch8_plague_inst`)
 
+- **Suno title:** The Fen R20
 - **Chapter:** VIII
 - **Kind:** instrumental
 - **Style:** dark ambient plague drone, sighing cello, insect buzz textures, distant bells, bog atmosphere, exploration loop, no vocals, 66 bpm
 
-### The Crown of Cinders (`ch9_cinders`)
+### R21 · The Crown of Cinders (`ch9_cinders`)
 
+- **Suno title:** The Crown of Cinders R21
 - **Chapter:** IX
 - **Kind:** vocal
 - **Style:** industrial orchestral, anvil and hammer percussion, choir, distorted low brass, gritty male vocal, forge fire, F Phrygian, 104 bpm
@@ -542,14 +563,16 @@ Break the armor, break the chain
 The cinders cannot keep me
 ```
 
-### The Foundry (`ch9_cinders_inst`)
+### R22 · The Foundry (`ch9_cinders_inst`)
 
+- **Suno title:** The Foundry R22
 - **Chapter:** IX
 - **Kind:** instrumental
 - **Style:** industrial dark orchestral, ringing anvil strikes, bellows rhythm, low brass, choir pads, heat haze, exploration loop, no vocals, 100 bpm
 
-### The Prince of Grecia (`ch10_grecia`)
+### R23 · The Prince of Grecia (`ch10_grecia`)
 
+- **Suno title:** The Prince of Grecia R23
 - **Chapter:** X
 - **Kind:** vocal
 - **Style:** epic Greek-inspired orchestral, lyre, aulos, crashing waves, storm drums, male and female choir, heroic and stormy, 92 bpm
@@ -588,8 +611,9 @@ Dive down, dive deep, relight the flame
 The sea will give them back again
 ```
 
-### The Storm Coast (`ch10_grecia_inst`)
+### R24 · The Storm Coast (`ch10_grecia_inst`)
 
+- **Suno title:** The Storm Coast R24
 - **Chapter:** X
 - **Kind:** instrumental
 - **Style:** Greek storm ambient, lyre, aulos, ocean waves, rain, low strings, distant thunder, exploration loop, no vocals, 88 bpm

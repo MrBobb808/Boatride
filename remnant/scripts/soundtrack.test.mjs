@@ -43,6 +43,8 @@ test('ids are unique and file-safe; kinds and fields are complete', () => {
   const ids = new Set();
   for (const s of songs) {
     assert.match(s.id, /^[a-z0-9_]+$/);
+    assert.match(s.code, /^R\d{2}$/, `${s.id}: code`);
+    assert.ok(!songs.some((o) => o !== s && o.code === s.code), `duplicate code ${s.code}`);
     assert.ok(!ids.has(s.id), `duplicate ${s.id}`);
     ids.add(s.id);
     assert.ok(['vocal', 'instrumental'].includes(s.kind), s.id);
@@ -66,6 +68,7 @@ test('SOUNDTRACK.md is generated from the plan', async () => {
   const doc = await readFile(join(root, 'SOUNDTRACK.md'), 'utf8');
   for (const s of songs) {
     assert.ok(doc.includes('`' + s.id + '`'), `${s.id} missing from SOUNDTRACK.md: run node scripts/soundtrack-doc.mjs`);
+    assert.ok(doc.includes(`${s.title} ${s.code}`), `${s.code} Suno title missing from SOUNDTRACK.md`);
     if (s.lyrics) assert.ok(doc.includes(s.lyrics), `${s.id} lyrics out of date: run node scripts/soundtrack-doc.mjs`);
   }
 });

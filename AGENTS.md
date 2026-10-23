@@ -143,7 +143,10 @@ up next starts from the latest version.
   music keys it covers, is `soundtrack/songs.json`; `SOUNDTRACK.md` is
   generated from it (`node scripts/soundtrack-doc.mjs`). Files go in
   `public/music/<id>.mp3` through `node scripts/add-songs.mjs <downloads>`,
-  which matches Suno's file names and levels the loudness (needs ffmpeg). A
+  which matches Suno's file names and levels the loudness (needs ffmpeg), or
+  `node scripts/suno-links.mjs <notes>` for Suno share links (needs network
+  access to suno.com and *.suno.ai). Every song has a code (R01–R24) that its
+  Suno title ends in, so a link or a file names its song. A
   chapter's vocal song plays once per session where it is mapped, then its
   instrumental loops; bosses keep the adaptive score; a missing file falls back
   to the score. The service worker keeps songs in a `remnant-music` cache that
