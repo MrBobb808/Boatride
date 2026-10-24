@@ -49,6 +49,7 @@ jobs:
       - run: node scripts/boss-rush.mjs
       - run: node scripts/valor-daily.mjs
       - run: node scripts/extreme-survival.mjs
+      - run: node scripts/hud-layout.mjs
       - run: node scripts/travel-camera.mjs
       - run: node scripts/fallen-foes.mjs
       - run: node scripts/settlement.mjs
