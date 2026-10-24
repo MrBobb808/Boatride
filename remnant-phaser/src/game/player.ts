@@ -388,7 +388,7 @@ export class Player {
       this.w.spark(this.x + this.face * 10, this.y, 0x9fd8ff, 8);
       return false;
     }
-    if (!h.hazard && this.parryT > 0 && facing) {
+    if (!h.hazard && !h.unblockable && this.parryT > 0 && facing) {
       this.parryT = 0;
       this.counterT = 0.75;
       this.w.save.ce = Math.min(this.maxCe, this.w.save.ce + CE_PARRY);
@@ -400,7 +400,7 @@ export class Player {
       return false;
     }
     let dmg = h.dmg;
-    if (!h.hazard && (this.state === 'block' || this.state === 'parry') && facing) {
+    if (!h.hazard && !h.unblockable && (this.state === 'block' || this.state === 'parry') && facing) {
       dmg = Math.max(1, Math.round(dmg * 0.25));
       this.hp = Math.max(1, this.hp - dmg);
       this.w.floatText(this.x, this.body.top - 6, String(dmg), '#e8c8a0');

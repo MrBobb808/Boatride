@@ -72,7 +72,7 @@ export class Foe {
   private shownBar = 0;
   removed = false;
 
-  constructor(private w: WorldApi, kind: EnemyKind, x: number, feet: number, face = -1, private elite = false) {
+  constructor(private w: WorldApi, kind: EnemyKind, x: number, feet: number, face = -1, private elite = false, private eliteId?: string) {
     this.kind = kind;
     const st = (this.stats = FOE_STATS[kind]);
     this.mode = MODE[kind] ?? 'melee';
@@ -126,7 +126,7 @@ export class Foe {
       this.body.setVelocity(dir * 140, -160);
       this.body.setGravityY(GRAV);
       this.body.checkCollision.none = false;
-      this.w.onFoeDied(this.stats.xp * (this.elite ? 3 : 1), Phaser.Math.Between(...this.stats.silver), this.x, this.body.top);
+      this.w.onFoeDied(this.stats.xp * (this.elite ? 3 : 1), Phaser.Math.Between(...this.stats.silver), this.x, this.body.top, this.eliteId);
       return true;
     }
     // Poise breaks: the blow staggers it out of whatever it was doing.

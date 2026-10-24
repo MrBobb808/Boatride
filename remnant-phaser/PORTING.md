@@ -10,8 +10,8 @@ the iPhone as it lands.
 ## How it is built
 
 - `npm install`, then `npm run dev` (port 5174) or `npm run build` (writes `dist/`).
-- `node scripts/smoke.mjs` and `node scripts/combat.mjs` play the build in
-  headless Chromium (after a build). CI runs them on every push
+- `node scripts/smoke.mjs`, `node scripts/combat.mjs` and `node scripts/bosses.mjs`
+  play the build in headless Chromium (after a build). CI runs them on every push
   (`.github/workflows/remnant-pages.yml`).
 - `?debug` exposes `window.__remnant` (`world`, `controls`, `warp(room, spawn)`,
   `give(xp)`, `rooms`). Add `&autostart` to skip the title and `&fresh` for a new
@@ -43,6 +43,8 @@ the iPhone as it lands.
 | `src/game/player.ts` | Elior: movement, three-hit combo, air strike, charged heavy blow, parry, block, counters, crits, dodge, Balm, skills, hazards. |
 | `src/game/abilities.ts` | Covenant skills: Sword of the Word, Trumpet of Victory, Shield of Faith. |
 | `src/game/foes.ts` | Every foe with a PNG sheet, with melee, beast, archer or flier behaviour. |
+| `src/game/bosses.ts` | The boss framework (intro, phases, phase gates, poise and kneeling, wards) and the Fallen Crowns: Varkhos, Morvane and Azkar. |
+| `src/game/types.ts` | What actors may ask of the world (`WorldApi`), and the shape of a blow. |
 | `src/game/tileset.ts` | Per-biome tilesets and backdrops, generated in code. |
 | `src/game/save.ts` | The Phaser build's save, and the level curve. |
 
@@ -51,7 +53,7 @@ the iPhone as it lands.
 Status: ✅ ported · 🟡 partly · ⬜ not yet. The original's file is named so the
 port can follow it.
 
-### Part 1 (this PR)
+### Part 1: the world
 - ✅ Project, build, CI test and publishing at `/phaser/`.
 - ✅ Every room (all 77) builds from the shared room data: tiles, one-way
   platforms (drop through with down + jump), spikes and the Veil hurt, doorways
@@ -94,6 +96,33 @@ port can follow it.
   cooldowns on keyboard and pad; on touch, PARRY, BALM and three skill buttons
   that darken while recharging.
 
+### Part 3: bosses
+- ✅ The boss framework (`src/game/bosses.ts`): the arena trigger wakes the boss
+  with its title, the gate shuts behind Elior and opens at the defeat; three
+  phases with gates, so no blow skips one; poise that breaks into a kneel
+  (blows take half again); parries that cost poise; warded final attacks.
+- ✅ Varkhos, Crown of the Hunt (`game/fallenBosses.ts`): claws, charge, leap
+  and call; Hunt Shades in phase II, each sharpening his blows; the Great Hunt
+  of three marked pounces.
+- ✅ Morvane, Crown of Pestilence: needles, spore clouds, claws; Brood Cocoons
+  that heal her in phase II; the Great Miasma with the gold beacon to shelter in.
+- ✅ Azkar, Crown of Cinders (`game/cinderBoss.ts`): the hammer, the marked
+  fault, the low fire waves to jump; tempered armor in phase II (blows do 55%)
+  that a parry shatters; the Last Bellows of three marked eruptions.
+- ✅ Their PNG atlases with the original's crops and feet.
+- ✅ The boss bar (`ui/hud.ts`): on a phone it keeps to its own lane between
+  Elior's column and the pause button and hides the room name; on keyboard and
+  pad it sits above the skill bar. Phase marks, a ghost of lost health, the
+  poise line and the phase's instruction.
+- ✅ Chapters VII–IX objectives: the two commanders of VII, the Spore Hearts of
+  VIII and the Pressure Wheels of IX (guards first) open the boundary; a sealed
+  boundary says what is left. A defeat sets `defeated_*` and `ch*_done` and pays
+  the chapter's experience.
+- Note: until stats and gear are ported, a Crown's health is sized to Elior's
+  blows at the level a straight-through player reaches its chapter (110 of them
+  on Hard) and its blow to 9% of his health there (×1.25 on Hard). When gear
+  lands, the original's tables in `game/curve.ts` take over.
+
 ### Still to port
 - ⬜ Combat, the rest: the fourth combo strike and other moves from the skill
   trees, Phantom Step and the other combos (`game/weapons.ts`), the other nine
@@ -101,9 +130,9 @@ port can follow it.
   finishers (`game/finishers.ts`), power tiers and weapon elements
   (`game/power.ts`), the Shadow Mantle (`game/mantle.ts`), stats from gear.
 - ⬜ Echoes, the squad and command wheel (`game/echoes.ts`, `ui/ui.ts`).
-- ⬜ Bosses: Gilded Idol through the Prince of Grecia (`game/boss.ts`,
-  `bosses2–6.ts`, `bosses10.ts`, `fallenBosses.ts`, `cinderBoss.ts`), with the
-  boss-bar lane on phones (from `ui/hud.ts`).
+- ⬜ The other bosses: Gilded Idol through the Prince of Grecia (`game/boss.ts`,
+  `bosses2–6.ts`, `bosses10.ts`), the boss difficulty setting
+  (`game/difficulty.ts`, Hard for now), boss trophies.
 - ⬜ Story, dialogue, portraits, quests, the guide marker, cutscenes
   (`game/story*.ts`, `fallenStory.ts`, `game/cinema.ts`, `game/guide.ts`,
   `render/portraits.ts`).

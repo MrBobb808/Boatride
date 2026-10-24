@@ -15,6 +15,10 @@ import type { World } from './World';
 
 const GOLD = '#e2b85a', BONE = '#ddd4c6';
 
+/** This frame's HUD boxes in screen pixels, [x, y, w, h] (zero when absent), for layout checks. */
+export const hudBoxes = { column: [0, 0, 0, 0], boss: [0, 0, 0, 0] };
+const box = (b: number[], x: number, y: number, w: number, h: number) => { b[0] = x; b[1] = y; b[2] = w; b[3] = h; };
+
 interface Btn { a: Action; x: number; y: number; r: number; label: string; g: Phaser.GameObjects.Arc; t: Phaser.GameObjects.Text; down: boolean }
 
 export class Hud extends Phaser.Scene {
@@ -42,6 +46,12 @@ export class Hud extends Phaser.Scene {
   /** Cooldown shading over the touch buttons. */
   private cdG!: Phaser.GameObjects.Graphics;
   private balmText!: Phaser.GameObjects.Text;
+  private bossName: string | null = null;
+  private bossSub = '';
+  private bossGhost = 1;
+  private bossG!: Phaser.GameObjects.Graphics;
+  private bossTitle!: Phaser.GameObjects.Text;
+  private bossSubText!: Phaser.GameObjects.Text;
 
   constructor() { super('hud'); }
 
@@ -63,6 +73,9 @@ export class Hud extends Phaser.Scene {
     this.menuBtn = this.add.text(0, 0, '❚❚', font(14, BONE)).setOrigin(1, 0).setInteractive({ useHandCursor: true }).setPadding(10 * k, 6 * k, 10 * k, 6 * k);
     this.menuBtn.on('pointerup', () => this.togglePause());
     this.balmText = this.add.text(0, 0, '', font(8.5)).setOrigin(0, 0.5);
+    this.bossG = this.add.graphics();
+    this.bossTitle = this.add.text(0, 0, '', font(11, '#f6dea0', true)).setOrigin(0.5);
+    this.bossSubText = this.add.text(0, 0, '', { ...font(9.5, '#9b92a6'), fontFamily: 'Georgia, serif', fontStyle: 'italic' }).setOrigin(0.5);
     this.skillG = this.add.graphics();
     this.skillBar = this.add.container(0, 0, [this.skillG]);
     SLOTS.forEach((id) => {
@@ -135,6 +148,8 @@ export class Hud extends Phaser.Scene {
     if (this.silverText.text !== silver) this.silverText.setText(silver);
     this.silverText.setPosition(hx + s.balmMax * 12 * k + 8 * k, cy + 1 * k);
     const touch = w.controls.device === 'touch';
+    box(hudBoxes.column, x0, y0, hx + hw - x0, cy - y0 + 8 * k);
+    this.drawBoss(w, touch, hx + hw);
     this.touchUi.setVisible(touch);
     this.skillBar.setVisible(!touch);
     if (touch) this.drawTouchCooldowns(w); else this.drawSkillBar(w);
@@ -178,6 +193,56 @@ export class Hud extends Phaser.Scene {
       b.t.setAlpha(w.save.ce >= def.cost ? 0.9 : 0.4);
       if (cd > 0) g.fillStyle(0x000000, 0.5).slice(b.x, b.y, b.r, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * cd, false).fillPath();
     }
+  }
+
+  /** Show (or with null, hide) the boss bar. */
+  bossBar(name: string | null, sub = '') {
+    this.bossName = name;
+    this.bossSub = sub;
+    if (name) this.bossGhost = 1;
+  }
+
+  /**
+   * The boss bar. On a phone it takes its own lane along the top, between
+   * Elior's column and the pause button, so the two health bars never cross
+   * (as in the original's ui/hud.ts); on keyboard and pad it sits at the bottom.
+   */
+  private drawBoss(w: World, touch: boolean, colRight: number) {
+    const g = this.bossG.clear(), b = w.boss, k = this.k, { width: W, height: H } = this.scale;
+    const show = !!(this.bossName && b && b.alive && b.state !== 'dormant' && b.state !== 'intro');
+    this.bossTitle.setVisible(show);
+    this.bossSubText.setVisible(show && !touch);
+    box(hudBoxes.boss, 0, 0, 0, 0);
+    if (!show || !b) return;
+    let bw = Math.min(W * 0.46, 460 * k), bx = (W - bw) / 2, by = H - (Math.max(safe.bottom, 6) + 84) * k;
+    if (touch) {
+      const left = colRight + 18 * k, right = W - (safe.right + 12 + 52) * k;
+      bw = Math.min(right - left, 460 * k);
+      bx = left + (right - left - bw) / 2;
+      by = (10 + safe.top + 16) * k;
+      // The room name steps aside while the fight is on.
+      this.roomText.setAlpha(0);
+    }
+    const f = Phaser.Math.Clamp(b.hp / b.maxHp, 0, 1);
+    this.bossGhost = Phaser.Math.Linear(this.bossGhost, f, 0.05);
+    const bh = 8 * k;
+    g.fillStyle(0x0a070c, 0.85).fillRect(bx - k, by - k, bw + 2 * k, bh + 2 * k);
+    g.fillStyle(0xf0d8c0, 0.45).fillRect(bx, by, bw * this.bossGhost, bh);
+    g.fillStyle(b.ward ? 0x8a7a6a : 0xd8902a, 1).fillRect(bx, by, bw * f, bh);
+    g.fillStyle(0xffd27a, 1).fillRect(bx, by, bw * f, 2 * k);
+    g.lineStyle(k, 0xe2b85a, 0.8).strokeRect(bx - k, by - k, bw + 2 * k, bh + 2 * k);
+    for (const m of b.phaseMarks) g.fillStyle(0x000000, 0.7).fillRect(bx + bw * m - k, by - 2 * k, 2 * k, bh + 4 * k);
+    // Poise: when it empties, the boss kneels.
+    if (b.state !== 'kneel') {
+      g.fillStyle(0xffffff, 0.08).fillRect(bx, by + bh + 2 * k, bw, 2 * k);
+      g.fillStyle(0xe8d8a8, 1).fillRect(bx, by + bh + 2 * k, bw * Phaser.Math.Clamp(b.poise / b.maxPoise, 0, 1), 2 * k);
+    }
+    const title = this.bossName!.toUpperCase();
+    if (this.bossTitle.text !== title) this.bossTitle.setText(title);
+    this.bossTitle.setPosition(bx + bw / 2, by - 8 * k);
+    if (this.bossSubText.text !== this.bossSub) this.bossSubText.setText(this.bossSub);
+    this.bossSubText.setPosition(bx + bw / 2, by + bh + 14 * k);
+    box(hudBoxes.boss, bx, by - 15 * k, bw, bh + 21 * k);
   }
 
   roomEntered(r: RoomDef) {
