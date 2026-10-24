@@ -57,6 +57,8 @@ export interface WorldApi {
   castCovenant(id: SkillId): void;
   lightWave(): void;
   playEffect(name: string): void;
+  heroHit(f: FoeLike, damage: number, heavy: boolean): void;
+  strikeLamps(box: { x: number; y: number; w: number; h: number }): void;
   /** Bring a new foe into the room (a boss's adds). */
   addFoe(f: FoeLike): void;
   /** Room width in pixels. */

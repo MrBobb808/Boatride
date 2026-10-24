@@ -12,6 +12,7 @@ import { MOVESETS, extraFor, type AttackDef } from '../../../remnant/src/game/we
 import { skillRank } from '../../../remnant/src/game/state';
 import { SKILLS, skillSlots, castSkill, type SkillId } from './abilities';
 import type { WorldApi, Blow, FoeLike } from './types';
+import type { HeroPowers } from '../classic/hero';
 
 export const GRAV = 1500;
 const MAX_FALL = 560;
@@ -33,7 +34,7 @@ const CHARGE_MULT = [1, 1.35, 1.8, 2.5];
 /** Sheet frames (4×4, 128 px): idle 0–3, run 4–7, rise 8, fall 9, wind-up 10, strike 11, dodge 12–13, hurt 14, cast 15. */
 const FRAME = 128, FOOT = 120, DRAW = 56;
 
-type State = 'free' | 'attack' | 'charge' | 'parry' | 'block' | 'heal' | 'cast' | 'dodge' | 'airdash' | 'phantom' | 'plunge' | 'hurt' | 'dead';
+type State = 'free' | 'attack' | 'charge' | 'parry' | 'block' | 'heal' | 'cast' | 'dodge' | 'airdash' | 'phantom' | 'plunge' | 'execute' | 'transform' | 'scripted' | 'swim' | 'hurt' | 'dead';
 
 export class Player {
   rect: Phaser.GameObjects.Rectangle;
@@ -43,7 +44,10 @@ export class Player {
   aura: Phaser.GameObjects.Graphics;
   state: State = 'free';
   face = 1;
-  hp: number;
+  powers?: HeroPowers;
+  mantleT = 0;
+  get hp() { return this.w.save.hp; }
+  set hp(v: number) { this.w.save.hp = v; }
   maxHp: number;
   maxCe: number;
   /** Shield of Faith: while positive, every blow is blocked. */
@@ -120,11 +124,11 @@ export class Player {
   get y() { return this.body.center.y; }
   get dead() { return this.state === 'dead'; }
   get onGround() { return this.body.blocked.down || this.body.touching.down; }
-  get vulnerable() { return this.invuln <= 0 && this.untouchable <= 0 && this.state !== 'dead' && this.state !== 'phantom' && !(this.state === 'attack' && ['pstrike', 'cross'].includes(this.atk.id) && this.st < 0.12) && !(this.state === 'dodge' && this.st < DODGE_T - 0.04) && !(this.state === 'airdash' && this.st < 0.15); }
+  get vulnerable() { return this.invuln <= 0 && this.untouchable <= 0 && !['dead', 'phantom', 'execute', 'transform'].includes(this.state) && !(this.state === 'attack' && ['pstrike', 'cross'].includes(this.atk.id) && this.st < 0.12) && !(this.state === 'dodge' && this.st < DODGE_T - 0.04) && !(this.state === 'airdash' && this.st < 0.15); }
   get ce() { return this.w.save.ce; }
   get moves() { return MOVESETS[this.w.d.family]; }
   /** A blow's base: the original's attack from stats and gear, its melee multiplier and the level's power tier. */
-  power() { const d = this.w.d; return d.atk * d.meleeMult * sovereignDamage(this.w.save.level) * (this.lion > 0 ? 1.35 : 1); }
+  power() { const d = this.w.d; return d.atk * d.meleeMult * sovereignDamage(this.w.save.level) * (this.lion > 0 ? 1.35 : 1) * (this.powers?.multiplier ?? 1); }
   /** A Covenant skill's base: attack times the original's ability power. */
   skillPower() { const d = this.w.d; return d.atk * d.abil * sovereignDamage(this.w.save.level); }
 
@@ -197,6 +201,7 @@ export class Player {
     this.jumpBuf = c.pressed('jump') ? BUFFER : Math.max(0, this.jumpBuf - dt);
 
     if (this.state === 'dead') { b.setVelocityX(b.velocity.x * 0.9); this.draw(); return; }
+    if (this.powers?.update(dt)) { this.draw(dt); return; }
 
     // Short hops: letting go of jump on the way up pulls Elior down sooner.
     const airSwing = (this.state === 'attack' || this.state === 'charge') && !this.onGround;
@@ -206,7 +211,7 @@ export class Player {
       case 'free': {
         const ax = c.axis;
         const accel = this.onGround ? 1400 : 900;
-        b.setVelocityX(Phaser.Math.Linear(b.velocity.x, ax * RUN * this.w.d.speed, Math.min(1, (accel * dt) / RUN)));
+        b.setVelocityX(Phaser.Math.Linear(b.velocity.x, ax * RUN * this.w.d.speed * (this.mantleT > 0 ? 1.25 : 1), Math.min(1, (accel * dt) / RUN)));
         if (Math.abs(ax) > 0.2) this.face = Math.sign(ax);
         if (this.jumpBuf > 0 && c.down('down') && this.onGround && this.standingOnOneWay()) {
           this.dropT = 0.25;
@@ -219,7 +224,7 @@ export class Player {
           this.airJumps--; this.jumpBuf = 0; b.setVelocityY(-JUMP_V * 0.9);
         }
         if (this.defence()) break;
-        if (c.pressed('heavy')) {
+        if (c.pressed('heavy') && !c.down('up')) {
           if (this.onGround && [this.moves.combo[2].id, this.moves.extra.id].includes(this.linger)) this.startMove(this.moves.storm);
           else if (!this.onGround) this.startPlunge();
           else this.startCharge('heavy');
@@ -362,13 +367,14 @@ export class Player {
   }
 
   private startMove(a: AttackDef) {
-    const speed = this.w.d.aspd * this.moves.speed * (this.lion > 0 ? 1.1 : 1);
+    const speed = this.w.d.aspd * this.moves.speed * (this.lion > 0 ? 1.1 : 1) * (this.mantleT > 0 ? 1.2 : 1);
     this.atk = swing(a, speed);
     this.atkMult = 1;
     this.combo = this.moves.combo.findIndex((v) => v.id === a.id);
     this.hitSeg = -1;
     this.swung = false;
     this.linger = '';
+    this.powers?.onSwing(!!a.finisher, !!a.air);
     this.begin();
     this.w.playEffect(a.sfx);
     if (a.rise && (this.w.controls.down('up') || a.forceRise)) this.body.setVelocityY(a.rise);
@@ -380,6 +386,7 @@ export class Player {
     const m = this.moves, c = this.w.controls;
     if (this.phantomN >= 3 && this.phantomT > 0 && this.ce >= 10) { this.startCross(); return; }
     if (this.counterT > 0) { this.startMove({ ...m.counter, dmg: m.counter.dmg * (skillRank(this.w.save, 'g_counter') ? 1.7 : 1) }); return; }
+    if (this.state === 'free' && this.powers?.tryExecution()) return;
     if (!this.onGround) {
       if (c.down('down')) this.startPlunge();
       else if (this.linger === m.air[2].id || this.airAttacks >= 3) this.startMove(m.rend);
@@ -459,6 +466,10 @@ export class Player {
     const ax = this.w.controls.axis;
     if (Math.abs(ax) > 0.2) this.face = Math.sign(ax);
   }
+  /** Shared cinematic systems return to ordinary Arcade movement here. */
+  releaseState() { this.toFree(); this.body.setGravityY(GRAV); }
+  startTechnique(a: AttackDef) { this.startMove(a); }
+  castPose() { this.state = 'cast'; this.st = 0; this.castId = null; }
 
   private startCharge(key: 'attack' | 'heavy') {
     this.state = 'charge';
@@ -549,7 +560,7 @@ export class Player {
     return best;
   }
   canPhantom() {
-    if (!this.w.save.flags.phantom || (this.recentHit <= 0 && this.phantomT <= 0) || (this.ce < 5 && this.w.save.level < 100)) return false;
+    if ((!this.w.save.flags.phantom && this.mantleT <= 0) || (this.recentHit <= 0 && this.phantomT <= 0 && this.mantleT <= 0) || (this.ce < 5 && this.w.save.level < 100 && this.mantleT <= 0)) return false;
     const f = this.phantomTargetForStep();
     return !!f && !!this.blinkSpot(f);
   }
@@ -567,7 +578,7 @@ export class Player {
     const f = this.phantomTargetForStep();
     const spot = f && this.blinkSpot(f);
     if (!f || !spot) return;
-    if (this.w.save.level < 100) this.w.save.ce -= 5;
+    if (this.w.save.level < 100 && this.mantleT <= 0) this.w.save.ce -= 5;
     this.phantomTarget = f; this.phantomTo = spot; this.phantomLast = f;
     this.phantomN++; this.phantomT = 1; this.phantomStruck.add(f);
     this.state = 'phantom'; this.st = 0; this.body.setVelocity(0, 0);
@@ -599,6 +610,7 @@ export class Player {
 
   private strike() {
     const box = this.blade();
+    this.w.strikeLamps({ x: box.x, y: box.y, w: box.width, h: box.height });
     for (const f of this.w.foes()) {
       if (!f.alive || this.hitDone.has(f) || !Phaser.Geom.Rectangle.Overlaps(box, f.box)) continue;
       this.hitDone.add(f);
@@ -610,6 +622,7 @@ export class Player {
       const swap = this.swapStrikeT > 0 ? 1.5 : 1;
       const force = this.atk.force * this.atkMult * (counter ? 1.5 : 1) * swap;
       if (f.hit(Math.round(dmg * swap), this.face, force, crit, { poise: this.atk.poise * this.atkMult * this.w.d.heavyPoiseMult, kx: this.atk.kx * this.face, ky: this.atk.ky, launch: this.atk.launch, heavy: this.atk.heavy, guardBreak: this.atk.guardBreak })) {
+        this.w.heroHit(f, Math.round(dmg * swap), this.atk.heavy);
         this.counterT = 0;
         this.swapStrikeT = 0;
         this.recentHit = 0.65;
@@ -651,7 +664,7 @@ export class Player {
     }
     // The original's armour: damage reduction from Endurance and gear (half of it against hazards).
     const dr = this.w.d.dr * (h.hazard ? 0.5 : 1);
-    let dmg = h.dmg * (1 - dr) * (this.armorLight > 0 ? 0.6 : 1);
+    let dmg = h.dmg * (1 - dr) * (this.armorLight > 0 ? 0.6 : 1) * (this.mantleT > 0 ? 0.5 : 1);
     if (!h.hazard && !h.unblockable && (this.state === 'block' || this.state === 'parry') && facing) {
       dmg = Math.max(1, Math.round(dmg * 0.25));
       this.hp = Math.max(1, this.hp - dmg);
@@ -676,7 +689,7 @@ export class Player {
       this.body.setVelocity(dir * 120, -200);
       return true;
     }
-    if (this.lion > 0) return true;
+    if (this.lion > 0 || this.mantleT > 0) return true;
     this.state = 'hurt';
     this.st = 0;
     this.body.setVelocity(dir * 170, -170);
@@ -704,6 +717,7 @@ export class Player {
     else if (!this.onGround) f = b.velocity.y < 0 ? 8 : 9;
     else if (vx > 24) { this.stride += dt * (vx / RUN) * 11; f = 4 + (Math.floor(this.stride) % 4); }
     else f = Math.floor(this.w.sc.time.now / 1000 * 3.8) % 4;
+    if (['execute', 'transform', 'scripted'].includes(this.state)) f = this.powers?.frame ?? f;
     this.sprite.setFrame(f);
     this.sprite.setFlipX(this.face < 0);
     this.sprite.setPosition(Math.round(b.center.x), Math.round(b.bottom));

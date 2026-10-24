@@ -33,6 +33,7 @@ const place = (page, opts) => E(page, (o) => {
   const f = foes.find((e) => e.kind === 'husk' && !e.dying && open(e.x - gap, e.y - 2) && open(e.x - gap, e.y - 24) && !open(e.x - gap, e.y + 2));
   for (const e of foes) if (e !== f) e.remove = true;
   f.hp = f.maxHp = 1e6;
+  f.executable = () => false; // Finisher priority is exercised by powers.mjs.
   f.staggered = 0;
   f.hurtT = 0;
   f.poise = f.maxPoise;

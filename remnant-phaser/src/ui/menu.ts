@@ -8,7 +8,7 @@
 
 import {
   ITEMS, SLOTS, SLOT_NAMES, STAT_KEYS, STAT_INFO, MOD_LABEL, RARITY_COLORS, RARITY_NAMES, TREES, SKILLS, ABILITIES,
-  ECHO_SPECIES, ECHO_ROLES, ECHO_LEVEL_CAP, echoRole, FAMILY_NAMES, echoXpToNext, xpToNext,
+  ECHO_SPECIES, ECHO_ROLES, ECHO_LEVEL_CAP, echoRole, FAMILY_NAMES, echoXpToNext, xpToNext, SUPER_MOVES,
   type ItemInst, type Slot, type ModKey, type EchoInst, type StatKey,
 } from '../../../remnant/src/game/data';
 import { derive, getItem, itemMods, canLearn, skillRank, echoMaxHp, echoAtk, unlockCombatSkills, allocateStat, learnRanks, learn, absorbEcho, equipAbility, COMBAT_UNLOCKS } from '../../../remnant/src/game/state';
@@ -419,7 +419,10 @@ function abilitiesTab() {
   }));
   return h('div', { class: 'col scroll', style: 'flex:1' },
     h('div', { class: 'box' }, h('h3', null, 'Ability loadout'), h('p', { class: 'muted' }, 'Select a slot, then an ability. Equipping one already carried swaps its two slots. Cooldowns stay with the ability.'), loadout,
-      btn('Clear selected slot', () => { equipAbility(s, null, abilitySlot); refresh(); }, 'btn small', { 'data-k': 'ability_clear' })), catalog);
+      btn('Clear selected slot', () => { equipAbility(s, null, abilitySlot); refresh(); }, 'btn small', { 'data-k': 'ability_clear' })), catalog,
+    h('div', { class: 'box' }, h('h3', null, 'Super move'), h('p', { class: 'muted' }, 'Supers use the earned Super gauge. Shadow Mantle has its own separate gauge.'),
+      Object.entries(SUPER_MOVES).map(([id, def]) => h('div', { class: 'ability-card' }, h('h3', null, def.name), h('p', null, def.desc),
+        btn((s.equippedSuper ?? 'rally') === id ? 'Equipped' : 'Equip super', () => { s.equippedSuper = id as keyof typeof SUPER_MOVES; refresh(); }, 'btn small', { 'data-k': 'super_' + id, 'aria-pressed': String((s.equippedSuper ?? 'rally') === id) })))));
 }
 
 function movesTab() {
