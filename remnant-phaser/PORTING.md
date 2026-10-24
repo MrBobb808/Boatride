@@ -13,7 +13,7 @@ the iPhone as it lands.
 - `node scripts/smoke.mjs`, `node scripts/combat.mjs`, `node scripts/foes.mjs`,
   `node scripts/echoes.mjs`,
   `node scripts/saves.mjs`, `node scripts/bosses.mjs` and
-  `node scripts/classic-bosses.mjs` play the build in headless Chromium (after a build). CI runs them on every push
+  `node scripts/classic-bosses.mjs`, `node scripts/menu.mjs` play the build in headless Chromium (after a build). CI runs them on every push
   (`.github/workflows/remnant-pages.yml`).
 - `?debug` exposes `window.__remnant` (`world`, `controls`, `warp(room, spawn)`,
   `give(xp)`, `rooms`). Add `&autostart` to skip the title and `&fresh` for a new
@@ -56,6 +56,7 @@ the iPhone as it lands.
 | `src/scenes/Title.ts` | Continue or begin a new journey. |
 | `src/scenes/World.ts` | Builds a room (tiles, backdrop, lights, entities), runs the actors, doorways, death and respawn, saves. |
 | `src/scenes/Hud.ts` | Health, level, experience, silver, room name, hints, toasts, banners, pause, touch controls. |
+| `src/ui/menu.ts` | The pause menu: the original's sectioned DOM menu (`ui/dom.ts`, `icons.ts`, `statTips.ts`, `styles.css`) in `#ui` over the held world. |
 | `src/game/controls.ts` | One action layer for keyboard, gamepad and touch. |
 | `src/game/player.ts` | Elior: movement, three-hit combo, air strike, charged heavy blow, parry, block, counters, crits, dodge, Balm, skills, hazards. |
 | `src/game/abilities.ts` | Covenant skills: Sword of the Word, Trumpet of Victory, Shield of Faith. |
@@ -219,23 +220,46 @@ port can follow it.
   the Switch's cooldown.
 - `core/input.ts` joins the shims: the Echo and swim modules read the Phaser
   controls through it.
-- ⬜ The per-Echo orders panel, picking the squad, the lineup and formations
-  come with the Echo menus; the Crowns (Phaser-native bosses) are not yet a
+- ⬜ The per-Echo orders panel comes with the rest of the Echo menus (the
+  lineup, squad pick and formations arrived in part 8); the Crowns (Phaser-native bosses) are not yet a
   target for Echoes.
+
+### Part 8: the pause menu
+- ✅ Escape, P, Options or the ❚❚ button opens the original's sectioned menu,
+  built from its own DOM helpers, icons, stat tips and stylesheet; the world
+  waits until it closes. Sections: Journey (where the road stands, bosses
+  overcome), Elior (Character, Equipment, Skills), Echoes (Squad) and System
+  (save, save and quit to title).
+- ✅ Character: spend stat points one or many at a time with the preview of
+  what each changes; the derived numbers with their tips. Equipment: slots, the
+  pack, the If-equipped comparison, equip and unequip, sets, materials.
+  Skills: the four trees, learn ranks, Regeneration. Echoes: the roster,
+  active and reserve within the summon capacity, the squad pick, combat role,
+  Commander, stance, formations and absorbing imprints; the field follows
+  the lineup at once. Every change refreshes Elior's and the Echoes' numbers
+  and saves.
+- ✅ Keys and pad drive it through the Phaser controls (`menuInput` calls the
+  original's `navigate` from `ui/dom.ts`): arrows or stick move focus, attack,
+  jump or interact choose, dodge goes back, Q/E or L1/R1 change tabs. A tap
+  presses the button under the finger even beside the canvas (touch
+  adjustment would otherwise hand it to the game below).
+- ⬜ Quests, lore, the bestiary, the map, crafting, shops, settings, controls,
+  the move list, choosing Covenant abilities and coaching cards come with
+  their systems.
 
 ### Still to port
 - ⬜ Combat, the rest: the fourth combo strike and other moves from the skill
   trees, Phantom Step and the other combos (`game/weapons.ts`), the other nine
   skills and choosing them (`game/abilities.ts`, `data.ts` `ABILITIES`),
   finishers (`game/finishers.ts`), power tiers and weapon elements
-  (`game/power.ts`), the Shadow Mantle (`game/mantle.ts`), stats from gear.
+  (`game/power.ts`), the Shadow Mantle (`game/mantle.ts`).
 - ⬜ The boss difficulty setting (`game/difficulty.ts`, Hard for now), boss
   trophies, Tobiah's walk-on in the Idol fight.
 - ⬜ Story, dialogue, portraits, quests, the guide marker, cutscenes
   (`game/story*.ts`, `fallenStory.ts`, `game/cinema.ts`, `game/guide.ts`,
   `render/portraits.ts`).
-- ⬜ The pause menu's five sections (stats, skills, gear, Echoes, journey) and
-  coaching (`ui/menus.ts`, `ui/coach.ts`, `ui/statTips.ts`).
+- ⬜ The rest of the pause menu (quests, lore, bestiary, map, crafting, shops,
+  settings, controls) and coaching (`ui/menus.ts`, `ui/coach.ts`).
 - ⬜ Audio: the generated score and effects, and the Suno song layer
   (`audio/*.ts`).
 - ⬜ Swimming (`game/water.ts`, `game/swim.ts`).
