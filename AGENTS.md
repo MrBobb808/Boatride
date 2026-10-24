@@ -25,7 +25,8 @@ up next starts from the latest version.
 |---|---|
 | `remnant/` | The game: a 2D side-scrolling biblical dark-fantasy action RPG for iPhone (installable web app). |
 | `index.html`, `README.md` (root) | **Gangway**, a separate single-file boat-ride check-in app. Leave these alone unless asked. |
-| `.github/workflows/remnant-pages.yml` | Builds the game on every push. It deploys to Pages from the default branch only. |
+| `remnant-phaser/` | The game being rebuilt on Phaser 4, part by part. Published beside the live game at https://mrbobb808.github.io/Boatride/phaser/. Read `remnant-phaser/PORTING.md` (status checklist and conventions) before working on it. |
+| `.github/workflows/remnant-pages.yml` | Builds both on every push. It deploys to Pages from the default branch only. |
 
 ## The game at a glance (`remnant/`)
 
