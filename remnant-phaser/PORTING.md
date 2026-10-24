@@ -10,8 +10,9 @@ the iPhone as it lands.
 ## How it is built
 
 - `npm install`, then `npm run dev` (port 5174) or `npm run build` (writes `dist/`).
-- `node scripts/smoke.mjs` plays the build in headless Chromium (after a build).
-  CI runs it on every push (`.github/workflows/remnant-pages.yml`).
+- `node scripts/smoke.mjs` and `node scripts/combat.mjs` play the build in
+  headless Chromium (after a build). CI runs them on every push
+  (`.github/workflows/remnant-pages.yml`).
 - `?debug` exposes `window.__remnant` (`world`, `controls`, `warp(room, spawn)`,
   `give(xp)`, `rooms`). Add `&autostart` to skip the title and `&fresh` for a new
   journey. `?boxes` draws the physics bodies.
@@ -39,7 +40,8 @@ the iPhone as it lands.
 | `src/scenes/World.ts` | Builds a room (tiles, backdrop, lights, entities), runs the actors, doorways, death and respawn, saves. |
 | `src/scenes/Hud.ts` | Health, level, experience, silver, room name, hints, toasts, banners, pause, touch controls. |
 | `src/game/controls.ts` | One action layer for keyboard, gamepad and touch. |
-| `src/game/player.ts` | Elior: movement, three-hit combo, air strike, dodge, hazards. |
+| `src/game/player.ts` | Elior: movement, three-hit combo, air strike, charged heavy blow, parry, block, counters, crits, dodge, Balm, skills, hazards. |
+| `src/game/abilities.ts` | Covenant skills: Sword of the Word, Trumpet of Victory, Shield of Faith. |
 | `src/game/foes.ts` | Every foe with a PNG sheet, with melee, beast, archer or flier behaviour. |
 | `src/game/tileset.ts` | Per-biome tilesets and backdrops, generated in code. |
 | `src/game/save.ts` | The Phaser build's save, and the level curve. |
@@ -70,11 +72,34 @@ port can follow it.
   multi-touch, inside the safe areas. Keyboard and gamepad.
 - 🟡 Altars (rest, heal, save), chests (silver for now) and NPC stand-ins.
 
+### Part 2: combat depth
+- ✅ Controls as in the original: J attack, K heavy, L or Shift dodge, I parry,
+  H Balm, Q / E / R skills, F interact; the pad's □ ✕ ○ △, L1 parry, R1 / L2 / R2
+  skills, D-pad ↑ interact and ↓ Balm. Presses are latched, so a tap shorter
+  than a frame or made during hit-stop still counts.
+- ✅ A heavy blow charged on K, or by holding STRIKE after its first swing,
+  through the original's three levels (0.35 s and 0.85 s; ×1, ×1.35, ×1.8).
+- ✅ Parry (a 0.17 s window): the blow is turned aside, the attacker reels,
+  +5 Covenant Energy, and a 0.75 s counter that is always critical and hits
+  half again harder; a perfect parry opens straight into the riposte. Held
+  past the window it is a block that takes a quarter.
+- ✅ Critical hits (5%, ×1.6). Reeling foes, from a parry or broken poise, take
+  half again; they show a ring of sparks.
+- ✅ Covenant Energy (regenerates 2.6 a second, +2.4 a blow, up to 100), Balm
+  (three flasks, 42% each, refilled at altars and on rising), and three skills
+  with the original's costs and cooldowns: Sword of the Word (a piercing arc),
+  Trumpet of Victory (a staggering shockwave), Shield of Faith (1.4 s of
+  immunity that staggers attackers). Skills chain once the last is loosed.
+- ✅ HUD: the energy bar, Balm flasks, a skill bar with keys, costs and
+  cooldowns on keyboard and pad; on touch, PARRY, BALM and three skill buttons
+  that darken while recharging.
+
 ### Still to port
-- ⬜ Combat depth: heavy and charged blows, parry, abilities and skills, the
-  Covenant Energy bar, Phantom Step and other combos (`game/weapons.ts`,
-  `game/player.ts`), finishers (`game/finishers.ts`), power tiers
-  (`game/power.ts`), the Shadow Mantle (`game/mantle.ts`).
+- ⬜ Combat, the rest: the fourth combo strike and other moves from the skill
+  trees, Phantom Step and the other combos (`game/weapons.ts`), the other nine
+  skills and choosing them (`game/abilities.ts`, `data.ts` `ABILITIES`),
+  finishers (`game/finishers.ts`), power tiers and weapon elements
+  (`game/power.ts`), the Shadow Mantle (`game/mantle.ts`), stats from gear.
 - ⬜ Echoes, the squad and command wheel (`game/echoes.ts`, `ui/ui.ts`).
 - ⬜ Bosses: Gilded Idol through the Prince of Grecia (`game/boss.ts`,
   `bosses2–6.ts`, `bosses10.ts`, `fallenBosses.ts`, `cinderBoss.ts`), with the

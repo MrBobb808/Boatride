@@ -48,7 +48,7 @@ export const FOE_SHEETS = [...new Set([...ROWS.values()].map((r) => r.sheet))];
 export const foeDrawable = (k: string) => ROWS.has(k);
 const CELL = spriteManifest.cell;
 
-type State = 'idle' | 'chase' | 'windup' | 'strike' | 'recover' | 'hurt' | 'dead';
+type State = 'idle' | 'chase' | 'windup' | 'strike' | 'recover' | 'hurt' | 'stagger' | 'dead';
 
 export class Foe {
   rect: Phaser.GameObjects.Rectangle;
@@ -98,13 +98,26 @@ export class Foe {
   get alive() { return this.state !== 'dead'; }
   get x() { return this.body.center.x; }
 
-  /** Take a blow from Elior; returns true when it landed. */
-  hit(dmg: number, dir: number, force: number) {
+  /** Its blow was parried (or met the Shield of Faith): it reels, open to punishment. */
+  parried() {
+    if (!this.alive) return;
+    this.state = 'stagger';
+    this.st = 0;
+    this.poise = this.stats.poise;
+    this.flash = 0.12;
+    this.body.setVelocityX(-this.face * 60);
+  }
+
+  get staggered() { return this.state === 'stagger'; }
+
+  /** Take a blow from Elior; returns true when it landed. A reeling foe takes half again. */
+  hit(dmg: number, dir: number, force: number, crit = false) {
     if (!this.alive) return false;
+    if (this.state === 'stagger') dmg = Math.round(dmg * 1.5);
     this.hp -= dmg;
     this.flash = 0.12;
     this.shownBar = 2.5;
-    this.w.floatText(this.x, this.body.top - 4, String(dmg), '#ffe6a8');
+    this.w.floatText(this.x, this.body.top - 4, crit ? `${dmg}!` : String(dmg), crit ? '#ffd23a' : '#ffe6a8');
     this.w.spark(this.x - dir * 4, this.body.center.y, 0xffe0a0, 6);
     this.poise -= dmg * force;
     if (this.hp <= 0) {
@@ -117,8 +130,13 @@ export class Foe {
       return true;
     }
     // Poise breaks: the blow staggers it out of whatever it was doing.
-    if (this.poise <= 0 || this.state !== 'windup') {
-      if (this.poise <= 0) this.poise = this.stats.poise;
+    if (this.poise <= 0) {
+      // Poise broken: a long stagger, as a parry gives.
+      this.poise = this.stats.poise;
+      this.state = 'stagger';
+      this.st = 0;
+      this.body.setVelocityX(dir * 90 * force * (this.stats.poise > 80 ? 0.4 : 1));
+    } else if (this.state !== 'windup' && this.state !== 'stagger') {
       this.state = 'hurt';
       this.st = 0;
       this.body.setVelocityX(dir * 90 * force * (this.stats.poise > 80 ? 0.4 : 1));
@@ -185,7 +203,7 @@ export class Foe {
         const p = this.w.player;
         if (!this.struck && this.mode !== 'archer' && Phaser.Geom.Rectangle.Contains(box, p.x, p.feet - 12)) {
           this.struck = true;
-          p.hurt(Math.round(st.dmg * (this.elite ? 1.4 : 1)), this.face);
+          p.hurt({ dmg: Math.round(st.dmg * (this.elite ? 1.4 : 1)), dir: this.face, src: this });
         }
         if (this.st >= 0.25) { this.state = 'recover'; this.st = 0; this.cool = this.mode === 'archer' ? 1.6 : 0.9; }
         break;
@@ -198,6 +216,11 @@ export class Foe {
       case 'hurt':
         b.setVelocityX(b.velocity.x * 0.85);
         if (this.st >= 0.28) { this.state = 'chase'; this.st = 0; }
+        break;
+      case 'stagger':
+        b.setVelocityX(b.velocity.x * 0.85);
+        if (fly) b.setVelocityY(b.velocity.y * 0.9);
+        if (this.st >= 1.2) { this.state = 'chase'; this.st = 0; this.cool = 0.4; }
         break;
     }
     this.draw();
@@ -221,7 +244,7 @@ export class Foe {
       const t = this.w.tileAt(tx, ty);
       if ((t >= 1 && t <= 3) || t === 6 || sc.time.now - born > 2500) { arrow.destroy(); return; }
       if (Math.abs(arrow.x - p.x) < 8 && arrow.y > p.feet - 34 && arrow.y < p.feet) {
-        p.hurt(dmg, Math.sign(ab.velocity.x) || 1);
+        p.hurt({ dmg, dir: Math.sign(ab.velocity.x) || 1, ranged: true });
         arrow.destroy();
         return;
       }
@@ -245,7 +268,7 @@ export class Foe {
       const k = Math.min(1, this.st / 0.45);
       this.sprite.setAngle(-this.face * k * 80).setAlpha(Math.max(0, 1 - (this.st - 0.4) / 0.5));
     } else {
-      this.sprite.setAngle(this.state === 'hurt' ? -this.face * 7 : 0);
+      this.sprite.setAngle(this.state === 'hurt' ? -this.face * 7 : this.state === 'stagger' ? -this.face * (10 + Math.sin(this.st * 14) * 4) : 0);
       // A white flash on impact, then back to its own colours.
       if (this.flash > 0) this.sprite.setTint(0xfff6e5).setTintMode(Phaser.TintModes.FILL);
       else if (this.elite) this.sprite.setTint(0xffb0b0).setTintMode(Phaser.TintModes.MULTIPLY);
@@ -259,6 +282,13 @@ export class Foe {
       g.fillStyle(0xffbf77, 1);
       g.fillRect(b.center.x + this.face * 6, b.top - 9, 1, 7);
       g.fillRect(b.center.x + this.face * 6 - 3, b.top - 6, 7, 1);
+    }
+    if (this.state === 'stagger') {
+      // Reeling: a ring of sparks over its head.
+      for (let i = 0; i < 3; i++) {
+        const a = this.st * 6 + (i * Math.PI * 2) / 3;
+        g.fillStyle(0xfff1c4, 0.9).fillRect(b.center.x + Math.cos(a) * 7 - 1, b.top - 8 + Math.sin(a) * 2, 2, 2);
+      }
     }
     if (this.alive && (this.shownBar > 0 || this.elite)) {
       const wpx = Math.max(18, b.width + 6);

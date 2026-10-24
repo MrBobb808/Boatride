@@ -71,6 +71,8 @@ jobs:
         working-directory: remnant-phaser
       - run: node scripts/smoke.mjs
         working-directory: remnant-phaser
+      - run: node scripts/combat.mjs
+        working-directory: remnant-phaser
       - run: cp -r remnant-phaser/dist remnant/dist/phaser
         working-directory: .
       - uses: actions/upload-artifact@v4
