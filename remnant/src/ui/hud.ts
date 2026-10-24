@@ -39,6 +39,11 @@ let objSeen = '';
 let objT = 0;
 let silverSeen = -1;
 let silverT = 0;
+// Where a phone's boss bar sits this frame (0 when none): the Trial's labels go under it.
+let laneX = 0, laneY = 0;
+/** This frame's HUD boxes in CSS px, [x, y, w, h] (zero when absent), for layout checks. */
+export const hudBoxes = { column: [0, 0, 0, 0], boss: [0, 0, 0, 0], map: [0, 0, 0, 0] };
+const box = (b: number[], x: number, y: number, w: number, h: number) => { b[0] = x; b[1] = y; b[2] = w; b[3] = h; };
 
 export function setBoss(name: string | null, sub = '') {
   bossName = name;
@@ -91,6 +96,13 @@ export function drawHud(ctx: Ctx, dt: number) {
   const x0 = 12 + sal, y0 = 10 + sat;
   const touch = input.lastDevice === 'touch';
   ctx.globalAlpha = G.inCutscene ? 0.35 : 1;
+  // A boss (or an engaged elite) on a phone takes the top row between Elior's
+  // column and the minimap, so the two health bars never cross.
+  const boss = bossName && G.world.boss && !G.inCutscene ? G.world.boss : null;
+  const elite = !bossName && G.world.purifyTarget === null ? G.world.ents.find((e) => (e as { elite?: string | null }).elite && !e.dying && (e as { aggro?: boolean }).aggro) : undefined;
+  const lane = touch && (!!boss || !!elite);
+  laneX = laneY = 0;
+  box(hudBoxes.boss, 0, 0, 0, 0);
 
   // ----- level badge
   const bx = x0 + 15 * u, by = y0 + 15 * u;
@@ -110,6 +122,7 @@ export function drawHud(ctx: Ctx, dt: number) {
   const frac = clamp(s.hp / d.maxHp, 0, 1);
   hpGhost = frac > hpGhost ? frac : lerp(hpGhost, frac, Math.min(1, dt * 2.5));
   bar(ctx, hx, hy, hw, hh, frac, hpGhost, HP_COLS);
+  let colRight = hx + hw;
   text(ctx, `${Math.ceil(s.hp)} / ${d.maxHp}`, hx + hw - 4, hy + hh / 2 + 0.5, `600 ${8.5 * u}px ${FONT_DISPLAY}`, '#f4e8e0', 'right');
   // ----- covenant energy
   let cy = hy + hh + 4 * u;
@@ -132,7 +145,9 @@ export function drawHud(ctx: Ctx, dt: number) {
       glow(ctx, hx + mw * f, cy + 2 * u, 10 * u, '#6f7bff', 0.45 + Math.sin(G.time * 6) * 0.2);
       ctx.globalCompositeOperation = 'source-over';
       const k = touch ? '' : ` · ${input.label('transform')}`;
-      text(ctx, on ? `SHADOW MANTLE ${Math.ceil(pl.mantleT)}s` : `MANTLE READY${k}`, hx + mw + 6 * u, cy + 2.5 * u, `700 ${7 * u}px ${FONT_DISPLAY}`, '#c8ccff', 'left');
+      const label = on ? `SHADOW MANTLE ${Math.ceil(pl.mantleT)}s` : `MANTLE READY${k}`;
+      text(ctx, label, hx + mw + 6 * u, cy + 2.5 * u, `700 ${7 * u}px ${FONT_DISPLAY}`, '#c8ccff', 'left');
+      colRight = Math.max(colRight, hx + mw + 6 * u + ctx.measureText(label).width);
     }
     cy += 4 * u + 3 * u;
   }
@@ -231,14 +246,15 @@ export function drawHud(ctx: Ctx, dt: number) {
   objT += dt;
   if (s.silver !== silverSeen) { if (silverSeen >= 0) silverT = 0; else silverT = 99; silverSeen = s.silver; }
   silverT += dt;
-  const nameA = touch ? clamp((7 - roomT) / 1.5, 0, 1) : 1;
+  // In a phone fight the room name and objective step aside for the boss bar.
+  const nameA = lane ? 0 : touch ? clamp((7 - roomT) / 1.5, 0, 1) : 1;
   if (nameA > 0) {
     ctx.globalAlpha = base * nameA;
     text(ctx, room.name.toUpperCase(), rx, y0 + 6 * u, `600 ${8.5 * u}px ${FONT_DISPLAY}`, '#e2b85a', 'right');
   }
   const of = touch ? 9.5 : 10.5;
   ctx.font = `italic ${of * u}px ${FONT_BODY}`;
-  const lines = wrap(ctx, obj, (touch ? 190 : 230) * u).slice(0, touch ? 2 : 3);
+  const lines = lane ? NO_LINES : wrap(ctx, obj, (touch ? 190 : 230) * u).slice(0, touch ? 2 : 3);
   const oy = touch ? y0 + (nameA > 0 ? 18 : 6) * u : y0 + 19 * u;
   ctx.globalAlpha = base * (touch && objT > 10 ? 0.55 : 1);
   lines.forEach((l, i) => text(ctx, l, rx, oy + i * (of + 1.5) * u, `italic ${of * u}px ${FONT_BODY}`, '#ddd4c6', 'right'));
@@ -247,6 +263,7 @@ export function drawHud(ctx: Ctx, dt: number) {
   const mw = (touch ? 84 : 110) * u, mh = (touch ? 36 : 46) * u;
   ctx.globalAlpha = base * (touch ? 0.75 : 1);
   minimap(ctx, rx - mw, my, mw, mh);
+  box(hudBoxes.map, rx - mw, my, mw, mh);
   ctx.globalAlpha = base;
   const silverA = touch ? clamp((4 - silverT) / 0.8, 0, 1) : 1;
   if (silverA > 0) {
@@ -255,17 +272,24 @@ export function drawHud(ctx: Ctx, dt: number) {
     text(ctx, `${s.silver} silver`, rx, my + mh + 9 * u, `600 ${8.5 * u}px ${FONT_DISPLAY}`, '#ece4d4', 'right');
     ctx.globalAlpha = base;
   }
-  // ----- the Trial: a round counter in blood red, as in Zombies
-  if (room.id === 'trial_arena') drawRounds(ctx, W, y0, u);
+  // The phone's fight lane: from Elior's column to the minimap, centred in the gap.
+  let lx = W / 2, lw = Math.min(W * 0.46, 460 * u);
+  if (lane) {
+    const left = colRight + 18 * u, right = rx - mw - 18 * u;
+    if (right - left >= 150 * u) { lw = Math.min(right - left, 460 * u); lx = (left + right) / 2; }
+  }
+  const ly = y0 + 16 * u;
+  box(hudBoxes.column, hx - 30 * u, y0, colRight - hx + 30 * u, cy - y0);
 
   // ----- boss bar
-  if (bossName && G.world.boss && !G.inCutscene) {
-    const b = G.world.boss;
-    const bw = Math.min(W * 0.46, 460 * u);
-    const bxx = (W - bw) / 2, byy = touch ? y0 + 6 * u : H - sab - 70 * u;
+  if (boss && bossName) {
+    const b = boss;
+    const bw = lw;
+    const bxx = touch ? lx - bw / 2 : (W - bw) / 2, byy = touch ? ly : H - sab - 70 * u;
+    const mid = bxx + bw / 2;
     const f = clamp(b.hp / b.maxHp, 0, 1);
     bossGhost = lerp(bossGhost, f, Math.min(1, dt * 2));
-    text(ctx, bossName.toUpperCase(), W / 2, byy - 8 * u, `700 ${11 * u}px ${FONT_DISPLAY}`, '#f6dea0', 'center');
+    text(ctx, bossName.toUpperCase(), mid, byy - 8 * u, `700 ${11 * u}px ${FONT_DISPLAY}`, '#f6dea0', 'center');
     bar(ctx, bxx, byy, bw, 8 * u, f, bossGhost, BOSS_COLS);
     // phase marks
     for (const m of b.phaseMarks) {
@@ -280,17 +304,20 @@ export function drawHud(ctx: Ctx, dt: number) {
       ctx.fillRect(bxx, byy + 10 * u, bw * clamp(b.poise / b.maxPoise, 0, 1), 2 * u);
     }
     if (bossSub && !touch) text(ctx, bossSub, W / 2, byy + 20 * u, `italic ${9.5 * u}px ${FONT_BODY}`, '#9b92a6', 'center');
-  } else if (G.world.purifyTarget === null && !bossName) {
+    if (touch) { laneX = mid; laneY = byy + 22 * u; }
+    // From the top of its name to the poise line.
+    box(hudBoxes.boss, bxx, byy - 15 * u, bw, 27 * u);
+  } else if (elite) {
     // elite enemy bar when one is engaged
-    const el = G.world.ents.find((e) => (e as { elite?: string | null }).elite && !e.dying && (e as { aggro?: boolean }).aggro);
-    if (el) {
-      const bw = Math.min(W * 0.36, 340 * u);
-      const bxx = (W - bw) / 2, byy = touch ? y0 + 8 * u : H - sab - 66 * u;
-      text(ctx, el.name.toUpperCase(), W / 2, byy - 8 * u, `700 ${10 * u}px ${FONT_DISPLAY}`, '#f0c0d0', 'center');
-      const f = clamp(el.hp / el.maxHp, 0, 1);
-      bar(ctx, bxx, byy, bw, 6 * u, f, f, ELITE_COLS);
-    }
+    const bw = touch ? Math.min(lw, 340 * u) : Math.min(W * 0.36, 340 * u);
+    const bxx = touch ? lx - bw / 2 : (W - bw) / 2, byy = touch ? ly : H - sab - 66 * u;
+    text(ctx, elite.name.toUpperCase(), bxx + bw / 2, byy - 8 * u, `700 ${10 * u}px ${FONT_DISPLAY}`, '#f0c0d0', 'center');
+    const f = clamp(elite.hp / elite.maxHp, 0, 1);
+    bar(ctx, bxx, byy, bw, 6 * u, f, f, ELITE_COLS);
   }
+
+  // ----- the Trial: a round counter in blood red, as in Zombies (under the boss bar in a phone fight)
+  if (room.id === 'trial_arena') drawRounds(ctx, W, y0, u);
 
   // ----- bottom centre: skills, echo stance, rally (keyboard / controller)
   if (!touch && s.abilities.length + s.echoes.length > 0) {
@@ -472,6 +499,7 @@ function drawCombo(ctx: Ctx, W: number, H: number, u: number, touch: boolean, sa
   ctx.restore();
 }
 
+const NO_LINES: string[] = [];
 function text(ctx: Ctx, t: string, x: number, y: number, font: string, color: string, align: CanvasTextAlign) {
   ctx.font = font;
   ctx.textAlign = align;
@@ -614,9 +642,9 @@ function drawRush(ctx: CanvasRenderingContext2D, W: number, y0: number, u: numbe
   }
   if (u !== rushU) { rushU = u; rushFontBig = `700 ${13 * u}px ${FONT_DISPLAY}`; rushFontSmall = `700 ${9 * u}px ${FONT_DISPLAY}`; }
   // Below the phone's boss bar while a fight is on, as the gauntlet's label is.
-  const y = y0 + (input.lastDevice === 'touch' && G.world.bossActive ? 38 : 10) * u;
-  text(ctx, rushTime, W / 2, y, rushFontBig, '#ffe6a8', 'center');
-  text(ctx, rushLabel, W / 2, y + 14 * u, rushFontSmall, '#c8ccff', 'center');
+  const x = laneY ? laneX : W / 2, y = laneY ? laneY + 4 * u : y0 + 10 * u;
+  text(ctx, rushTime, x, y, rushFontBig, '#ffe6a8', 'center');
+  text(ctx, rushLabel, x, y + 14 * u, rushFontSmall, '#c8ccff', 'center');
 }
 
 function drawRounds(ctx: CanvasRenderingContext2D, W: number, y0: number, u: number) {
@@ -625,11 +653,11 @@ function drawRounds(ctx: CanvasRenderingContext2D, W: number, y0: number, u: num
   if (!R.active || R.round <= 0) return;
   const n = R.round;
   if (R.bossOnly) {
-    // Leave room for the phone's boss health bar above this compact round label.
-    const y = y0 + (input.lastDevice === 'touch' && G.world.bossActive ? 38 : 10) * u;
+    // Under the phone's boss health bar, in its lane.
+    const x = laneY ? laneX : W / 2, y = laneY ? laneY + 2 * u : y0 + 10 * u;
     const best = Number(G.save.flags.boss_trial_best ?? 0);
-    text(ctx, R.breakT > 0 ? `BOSS ROUND ${n + 1} IN ${Math.ceil(R.breakT)}` : `BOSS ROUND ${n}`, W / 2, y, `700 ${10 * u}px ${FONT_DISPLAY}`, '#c8ccff', 'center');
-    text(ctx, `${R.kills} defeated · best ${best}`, W / 2, y + 13 * u, `600 ${8 * u}px ${FONT_DISPLAY}`, '#d8c8b0', 'center');
+    text(ctx, R.breakT > 0 ? `BOSS ROUND ${n + 1} IN ${Math.ceil(R.breakT)}` : `BOSS ROUND ${n}`, x, y, `700 ${10 * u}px ${FONT_DISPLAY}`, '#c8ccff', 'center');
+    text(ctx, `${R.kills} defeated · best ${best}`, x, y + 13 * u, `600 ${8 * u}px ${FONT_DISPLAY}`, '#d8c8b0', 'center');
     return;
   }
   const flash = clamp(1 - R.changeT / 1.6, 0, 1);

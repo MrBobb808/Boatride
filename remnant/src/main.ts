@@ -27,7 +27,7 @@ import { bakeStats } from './render/environment';
 import { initUI, blockingUI } from './ui/ui';
 import { installNav, layerCount } from './ui/dom';
 import { initTouch, setTouchVisible, updateTouch, layout as layoutTouch } from './ui/touch';
-import { drawHud, tickFps, currentFps } from './ui/hud';
+import { drawHud, tickFps, currentFps, hudBoxes } from './ui/hud';
 import { measureSafe } from './ui/safe';
 import { app, setAppHooks, loadGameSlot, startNewGame } from './app';
 import { showTitle, hideTitle, drawTitleScene, startIntro, drawIntro, updateIntro } from './ui/screens';
@@ -292,6 +292,7 @@ function setupDebug() {
     hero: () => ({ ready: heroSpriteReady(G.world.player.style, G.world.player.state, G.world.player.mantleT), skin: G.world.player.style.skin, hair: G.world.player.style.hair, beard: G.world.player.style.beard }),
     trial: (bossOnly = false, from = 1) => startTraining(from, bossOnly),
     extreme: () => startExtreme(),
+    hud: hudBoxes,
     spawn(kind: EnemyKind, x = G.world.player.x + 90, y = G.world.player.y) {
       return G.world.add(makeEnemy(kind, x, y, null));
     },
