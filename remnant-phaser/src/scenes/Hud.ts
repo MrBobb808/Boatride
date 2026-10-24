@@ -7,6 +7,7 @@
 
 import Phaser from 'phaser';
 import { xpToNext, type RoomDef } from '../shared';
+import { SKILLS, SLOTS } from '../game/abilities';
 import { dpr } from '../game/screen';
 import { measureSafe, safe } from '../game/safe';
 import type { Action } from '../game/controls';
@@ -34,6 +35,13 @@ export class Hud extends Phaser.Scene {
   private touchUi!: Phaser.GameObjects.Container;
   private interactLabel: string | null = null;
   private menuBtn!: Phaser.GameObjects.Text;
+  /** The keyboard and pad skill bar along the bottom (touch has its buttons). */
+  private skillBar!: Phaser.GameObjects.Container;
+  private skillG!: Phaser.GameObjects.Graphics;
+  private skillTexts: Phaser.GameObjects.Text[] = [];
+  /** Cooldown shading over the touch buttons. */
+  private cdG!: Phaser.GameObjects.Graphics;
+  private balmText!: Phaser.GameObjects.Text;
 
   constructor() { super('hud'); }
 
@@ -54,6 +62,14 @@ export class Hud extends Phaser.Scene {
     this.hintText = this.add.text(0, 0, '', { ...font(10), fontFamily: 'Georgia, serif', fontStyle: 'italic', wordWrap: { width: 260 * k }, align: 'center' }).setOrigin(0.5, 0).setAlpha(0);
     this.menuBtn = this.add.text(0, 0, '❚❚', font(14, BONE)).setOrigin(1, 0).setInteractive({ useHandCursor: true }).setPadding(10 * k, 6 * k, 10 * k, 6 * k);
     this.menuBtn.on('pointerup', () => this.togglePause());
+    this.balmText = this.add.text(0, 0, '', font(8.5)).setOrigin(0, 0.5);
+    this.skillG = this.add.graphics();
+    this.skillBar = this.add.container(0, 0, [this.skillG]);
+    SLOTS.forEach((id) => {
+      const t = this.add.text(0, 0, '', { ...font(8, '#f6dea0'), align: 'center' }).setOrigin(0.5);
+      this.skillTexts.push(t);
+      this.skillBar.add(t);
+    });
     this.buildTouch();
     this.layout();
     // A turn of the phone changes the scale: rebuild the HUD at the new size.
@@ -98,13 +114,70 @@ export class Hud extends Phaser.Scene {
     g.fillStyle(0xe05060, 1).fillRect(hx, hy, hw * f, 2 * k);
     g.lineStyle(k, 0xe2b85a, 0.7).strokeRect(hx - k, hy - k, hw + 2 * k, hh + 2 * k);
     this.hpText.setText(`${Math.ceil(p.hp)} / ${p.maxHp}`).setPosition(hx + hw - 4 * k, hy + hh / 2);
-    // Experience.
+    // Covenant Energy, then experience.
+    let cy = hy + hh + 4 * k;
+    const cf = Phaser.Math.Clamp(s.ce / p.maxCe, 0, 1);
+    g.fillStyle(0x0a070c, 0.85).fillRect(hx - k, cy - k, hw * 0.82 + 2 * k, 6 * k + 2 * k);
+    g.fillStyle(0xd8b45a, 1).fillRect(hx, cy, hw * 0.82 * cf, 6 * k);
+    g.fillStyle(0xfff1c4, 0.8).fillRect(hx, cy, hw * 0.82 * cf, 1.5 * k);
+    cy += 6 * k + 4 * k;
     const xf = Phaser.Math.Clamp(s.xp / xpToNext(s.level), 0, 1);
-    g.fillStyle(0xffffff, 0.08).fillRect(hx, hy + hh + 4 * k, hw * 0.82, 2 * k);
-    g.fillStyle(0x9fc4ff, 1).fillRect(hx, hy + hh + 4 * k, hw * 0.82 * xf, 2 * k);
-    this.silverText.setText(`${s.silver} silver`).setPosition(hx, hy + hh + 14 * k);
-    this.touchUi.setVisible(w.controls.device === 'touch');
+    g.fillStyle(0xffffff, 0.08).fillRect(hx, cy, hw * 0.82, 2 * k);
+    g.fillStyle(0x9fc4ff, 1).fillRect(hx, cy, hw * 0.82 * xf, 2 * k);
+    cy += 2 * k + 8 * k;
+    // Balm flasks: full ones red, spent ones dim.
+    for (let i = 0; i < s.balmMax; i++) {
+      const vx = hx + i * 12 * k;
+      g.fillStyle(i < s.balm ? 0xd04a5a : 0x5a4a5a, i < s.balm ? 1 : 0.5);
+      g.fillCircle(vx + 4 * k, cy + 2 * k, 4 * k).fillRect(vx + 2.5 * k, cy - 5 * k, 3 * k, 4 * k);
+    }
+    const silver = `${s.silver} silver`;
+    if (this.silverText.text !== silver) this.silverText.setText(silver);
+    this.silverText.setPosition(hx + s.balmMax * 12 * k + 8 * k, cy + 1 * k);
+    const touch = w.controls.device === 'touch';
+    this.touchUi.setVisible(touch);
+    this.skillBar.setVisible(!touch);
+    if (touch) this.drawTouchCooldowns(w); else this.drawSkillBar(w);
     this.updateInteractBtn();
+  }
+
+  /** Keyboard and pad: the three skills along the bottom, with their key, cost and cooldown. */
+  private drawSkillBar(w: World) {
+    const k = this.k, { width: W, height: H } = this.scale, p = w.player;
+    const size = 34 * k, gap = 8 * k, total = SLOTS.length * size + (SLOTS.length - 1) * gap;
+    const x0 = (W - total) / 2, y0 = H - (14 + safe.bottom) * k - size;
+    const keys = w.controls.device === 'gamepad' ? ['R1', 'L2', 'R2'] : ['Q', 'E', 'R'];
+    const g = this.skillG.clear();
+    SLOTS.forEach((id, i) => {
+      const def = SKILLS[id], x = x0 + i * (size + gap);
+      const ready = p.cds[id] <= 0 && w.save.ce >= def.cost;
+      g.fillStyle(0x0c0910, 0.82).fillRect(x, y0, size, size);
+      g.lineStyle(1.2 * k, ready ? def.color : 0x5a5060, ready ? 0.9 : 0.6).strokeRect(x, y0, size, size);
+      const cd = p.cds[id] / def.cd;
+      if (cd > 0) g.fillStyle(0x000000, 0.55).fillRect(x, y0 + size * (1 - cd), size, size * cd);
+      const label = `${def.short}\n${keys[i]} · ${def.cost}`;
+      const t = this.skillTexts[i];
+      if (t.text !== label) t.setText(label);
+      t.setPosition(x + size / 2, y0 + size / 2).setAlpha(ready ? 1 : 0.5);
+    });
+  }
+
+  /** Touch: each skill button darkens from the top while it recharges, and dims without the energy. */
+  private drawTouchCooldowns(w: World) {
+    const g = this.cdG.clear(), p = w.player;
+    for (const b of this.btns) {
+      const id = b.a === 'skill1' ? SLOTS[0] : b.a === 'skill2' ? SLOTS[1] : b.a === 'skill3' ? SLOTS[2] : null;
+      if (b.a === 'heal') {
+        const label = `BALM ${w.save.balm}`;
+        if (b.t.text !== label) b.t.setText(label);
+        b.t.setAlpha(w.save.balm > 0 ? 0.85 : 0.35);
+        continue;
+      }
+      if (!id) continue;
+      const def = SKILLS[id], cd = p.cds[id] / def.cd;
+      b.t.setAlpha(w.save.ce >= def.cost ? 0.9 : 0.4);
+      if (cd > 0) g.fillStyle(0x000000, 0.5).slice(b.x, b.y, b.r, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * cd, false).fillPath();
+    }
   }
 
   roomEntered(r: RoomDef) {
@@ -127,7 +200,9 @@ export class Hud extends Phaser.Scene {
   private keyNames(text: string) {
     const dev = this.world.controls.device;
     const names: Record<string, [string, string, string]> = {
-      attack: ['STRIKE', 'J', 'X'], jump: ['JUMP', 'Space', 'A'], dodge: ['DODGE', 'L', 'B'], interact: ['the context button', 'F', 'Y'],
+      attack: ['STRIKE', 'J', '□ / X'], jump: ['JUMP', 'Space', '✕ / A'], dodge: ['DODGE', 'L', '○ / B'], interact: ['the context button', 'F', 'D-pad ↑'],
+      heavy: ['a held STRIKE', 'K', '△ / Y'], parry: ['PARRY', 'I', 'L1'], heal: ['BALM', 'H', 'D-pad ↓'],
+      skill1: [SKILLS[SLOTS[0]].short, 'Q', 'R1'], skill2: [SKILLS[SLOTS[1]].short, 'E', 'L2'], skill3: [SKILLS[SLOTS[2]].short, 'R', 'R2'],
       left: ['the stick', 'A / ←', 'the stick'], right: ['the stick', 'D / →', 'the stick'], down: ['the stick down', 'S / ↓', 'down'], up: ['the stick up', 'W / ↑', 'up'],
     };
     const i = dev === 'touch' ? 0 : dev === 'keyboard' ? 1 : 2;
@@ -189,11 +264,16 @@ export class Hud extends Phaser.Scene {
     this.touchUi = this.add.container(0, 0).setDepth(50);
     const mk = (a: Action, label: string, r: number): Btn => {
       const g = this.add.circle(0, 0, r * k, 0x1a1420, 0.35).setStrokeStyle(1.5 * k, 0xe2b85a, 0.55);
-      const t = this.add.text(0, 0, label, { fontFamily: 'Cinzel, Georgia, serif', fontSize: `${(r > 30 ? 13 : 10) * k}px`, color: '#f6dea0' }).setOrigin(0.5).setAlpha(0.85);
+      const t = this.add.text(0, 0, label, { fontFamily: 'Cinzel, Georgia, serif', fontSize: `${(r > 30 ? 13 : r < 20 ? 8 : 10) * k}px`, color: '#f6dea0' }).setOrigin(0.5).setAlpha(0.85);
       this.touchUi.add([g, t]);
       return { a, x: 0, y: 0, r: r * k, label, g, t, down: false };
     };
-    this.btns = [mk('attack', 'STRIKE', 36), mk('jump', 'JUMP', 28), mk('dodge', 'DODGE', 24), mk('interact', '', 22)];
+    this.btns = [
+      mk('attack', 'STRIKE', 36), mk('jump', 'JUMP', 28), mk('dodge', 'DODGE', 24), mk('parry', 'PARRY', 24), mk('interact', '', 22),
+      mk('heal', 'BALM', 19), ...SLOTS.map((id, i) => mk(`skill${i + 1}` as Action, SKILLS[id].short, 19)),
+    ];
+    this.cdG = this.add.graphics();
+    this.touchUi.add(this.cdG);
     this.stick.base = this.add.circle(0, 0, 54 * k, 0x1a1420, 0.25).setStrokeStyle(1.5 * k, 0xe2b85a, 0.3).setVisible(false);
     this.stick.knob = this.add.circle(0, 0, 22 * k, 0xe2b85a, 0.35).setVisible(false);
     this.touchUi.add([this.stick.base, this.stick.knob]);
@@ -206,11 +286,17 @@ export class Hud extends Phaser.Scene {
   private placeTouch() {
     const k = this.k, { width: W, height: H } = this.scale;
     const rx = W - (24 + safe.right) * k, by = H - (24 + Math.max(safe.bottom, 6)) * k;
+    // Thumb reach: STRIKE in the corner, JUMP beside it, DODGE and PARRY above; skills in an arc over them.
     const pos: Record<string, [number, number]> = {
       attack: [rx - 42 * k, by - 40 * k],
       jump: [rx - 120 * k, by - 22 * k],
       dodge: [rx - 26 * k, by - 120 * k],
-      interact: [rx - 116 * k, by - 104 * k],
+      parry: [rx - 100 * k, by - 98 * k],
+      interact: [rx - 186 * k, by - 50 * k],
+      heal: [rx - 174 * k, by - 112 * k],
+      skill1: [rx - 140 * k, by - 162 * k],
+      skill2: [rx - 86 * k, by - 172 * k],
+      skill3: [rx - 32 * k, by - 182 * k],
     };
     for (const b of this.btns) {
       [b.x, b.y] = pos[b.a];

@@ -13,11 +13,15 @@ export interface PhaserSave {
   silver: number;
   flags: Record<string, boolean | number | string>;
   kills: number;
+  /** Covenant Energy, and the Balm flasks left of the most Elior can carry. */
+  ce: number;
+  balm: number;
+  balmMax: number;
 }
 
 const KEY = 'remnant-phaser.save.v1';
 
-export const newSave = (): PhaserSave => ({ v: 1, room: 'sanctuary', spawn: 'start', level: 1, xp: 0, hp: -1, silver: 0, flags: {}, kills: 0 });
+export const newSave = (): PhaserSave => ({ v: 1, room: 'sanctuary', spawn: 'start', level: 1, xp: 0, hp: -1, silver: 0, flags: {}, kills: 0, ce: 0, balm: 3, balmMax: 3 });
 
 export function loadSave(): PhaserSave | null {
   try {
@@ -38,6 +42,10 @@ export function writeSave(s: PhaserSave) {
 /** Elior's health and blow at a level (the original's early curve, simplified until stats are ported). */
 export const maxHpAt = (lv: number) => 100 + (lv - 1) * 12;
 export const powerAt = (lv: number) => 14 * (1 + (lv - 1) * 0.09);
+/** Covenant Energy capacity: the original's 40 + 12 per Wisdom, with Wisdom 5 until stats are ported. */
+export const maxCeAt = (_lv: number) => 100;
+/** The original's parry window at base Resolve (0.15 s + 0.004 per point). */
+export const PARRY_WIN = 0.17;
 
 /** Add experience; returns the number of levels gained. */
 export function gainXp(s: PhaserSave, xp: number) {

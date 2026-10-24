@@ -95,9 +95,7 @@ export class World extends Phaser.Scene implements WorldApi {
     this.map = undefined;
     this.interactables = [];
     this.hints = [];
-    this.player?.sprite.destroy();
-    this.player?.slash.destroy();
-    this.player?.rect.destroy();
+    this.player?.destroy();
   }
 
   loadRoom(id: string, spawnName: string) {
@@ -278,14 +276,15 @@ export class World extends Phaser.Scene implements WorldApi {
   update(_t: number, delta: number) {
     if (!this.ready) return;
     const dt = Math.min(delta / 1000, 1 / 30);
-    this.controls.poll();
     this.parallax();
-    if (this.transitioning) return;
+    // Hit-stop freezes the moment; input waits (latched) so a press made in it still lands after.
     if (this.hitstopT > 0) {
       this.hitstopT -= dt;
       if (this.hitstopT <= 0) this.physics.resume();
       return;
     }
+    this.controls.poll();
+    if (this.transitioning) return;
     if (this.controls.pressed('menu')) { this.hud.togglePause(); return; }
     if (this.hud.paused) return;
     this.player.update(dt);
@@ -305,7 +304,7 @@ export class World extends Phaser.Scene implements WorldApi {
       if (this.deadT > 1.4) this.respawn();
     } else this.checkExits();
     // Below the room: back to the doorway.
-    if (this.player.feet > this.gh * TILE + 40 && !this.player.dead) { this.player.hurt(15, 0); this.respawn(true); }
+    if (this.player.feet > this.gh * TILE + 40 && !this.player.dead) { this.player.hurt({ dmg: 15, dir: 0, hazard: true }); this.respawn(true); }
 
     this.saveT += dt;
     if (this.saveT > 30) this.persist();
@@ -351,6 +350,8 @@ export class World extends Phaser.Scene implements WorldApi {
   /** Fallen: rise again at the doorway of this room, whole. */
   private respawn(keepHp = false) {
     this.deadT = 0;
+    // Rising after a fall is a rest, as in the original: the Balm comes back too.
+    if (!keepHp) this.save.balm = this.save.balmMax;
     const hp = this.player.hp;
     this.save.hp = keepHp ? Math.max(1, hp) : -1;
     this.transitioning = true;
@@ -365,11 +366,12 @@ export class World extends Phaser.Scene implements WorldApi {
 
   private rest(id: string) {
     this.player.heal();
+    this.save.balm = this.save.balmMax;
     this.save.hp = this.player.hp;
     this.save.flags[`altar_${id}`] = true;
     this.persist();
     this.spark(this.player.x, this.player.feet - 20, 0xffd27a, 14);
-    this.hud.toast('Rested · health restored · saved');
+    this.hud.toast('Rested · health and Balm restored · saved');
   }
 
   persist() {
