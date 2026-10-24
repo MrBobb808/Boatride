@@ -83,16 +83,19 @@ try {
   await warp(page, ROOMS.gatekeeper);
   await enter(page, 'gatekeeper');
   await fighting(page);
+  // Out of reach and vulnerable, so the one blow measured is the one sent.
+  await E(page, () => { const w = window.__remnant.world; w.player.placeAt(Math.max(40, w.cboss.x - 260), w.cboss.y, 1); });
+  await until(page, () => { const p = window.__remnant.world.player; return p.state === 'free' && p.vulnerable; });
   const hurt = await E(page, () => {
     const w = window.__remnant.world, p = w.player, hp = p.hp;
-    p.placeAt(w.cboss.x - 60, w.cboss.y, 1);
     const took = w.classic.playerView.takeHit({ dmg: 30, poise: 20, kx: -120, ky: -80, dir: -1, kind: 'melee', src: w.cboss });
     return { took, lost: hp - p.hp, scale: w.classic.dmgScale };
   });
   assert.ok(hurt.took && hurt.lost === Math.round(30 * hurt.scale), `a classic blow hurts Elior, scaled to his health (${JSON.stringify(hurt)})`);
   await godMode(page, true);
-  await page.waitForTimeout(1000);
-  await until(page, () => window.__remnant.world.player.state === 'free');
+  // Out of the hound's reach, and past the last bite's invulnerability, so only the parry decides.
+  await E(page, () => { const w = window.__remnant.world; w.player.placeAt(Math.max(40, w.cboss.x - 260), w.cboss.y, 1); });
+  await until(page, () => { const p = window.__remnant.world.player; return p.state === 'free' && p.vulnerable; });
   await page.keyboard.press('KeyI');
   await until(page, () => window.__remnant.world.player.state === 'parry');
   const parried = await E(page, () => {
