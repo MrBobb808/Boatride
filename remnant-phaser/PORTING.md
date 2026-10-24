@@ -27,7 +27,7 @@ copies progress; it does not overwrite the original save.
 | Part | Status | Work / completion check |
 |---|---|---|
 | 9 · Combat moves and Covenant loadout | Done for the listed routes | Shared blade/spear/greatsword definitions; Relentless fourth strike; delayed flurry, Storm, dash/Comet, launcher, air combo/Rend/plunge, Phantom Step/Cross; all 12 abilities, unlock rules and saved slot swaps. |
-| 10 · Finishers, elements, power visuals, Shadow Mantle | Next | Preserve stagger executions, elemental statuses/procs, tier effects and transformation including throw/blink. Sub-weapons and selectable supers also need parity; they are not implied by Part 9. |
+| 10 · Finishers, elements, power visuals, Shadow Mantle | Implemented | Shared stagger executions and kill cams, all six element procs, tier waves/auras, level-25 transformation, pursuit, chain throw/impact teleport, sub-weapons and all four selectable supers. Native hero art uses sheet poses with pooled afterimages. |
 | 11 · Story I (I–V) | Pending | Real NPCs and portraits, dialogue, quest stages, pickups, story triggers, objective guide; walk each campaign without debug warps. |
 | 12 · Story II (VI–X) | Pending | Later story/cutscenes, chapter-end screens and resume recap; verify all transitions and persistent flags. |
 | 13 · Audio | Done | Shared Web Audio engine, score/phase layers, recorded-song decks, missing-song fallback, menu ducking, audio settings and gesture unlock. Actual iOS audio-session behaviour still needs a device check. |
@@ -54,6 +54,7 @@ merely because the Phaser application boots.
   (`.github/workflows/remnant-pages.yml`).
 - `node scripts/combat-moves.mjs` checks the added combo routes, all twelve
   abilities, loadout persistence, paused spell simulation and phone casting.
+- `node scripts/powers.mjs` checks real executions, elemental statuses, five sub-weapons, four supers and Mantle throw/teleport on the native hero.
 - `node scripts/install-audio.mjs` checks the audio graph/song layer, settings,
   difficulty, a complete offline reload and a save-preserving update.
 - `?debug` exposes `window.__remnant` (`world`, `controls`, `warp(room, spawn)`,

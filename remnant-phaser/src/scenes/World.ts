@@ -30,6 +30,7 @@ import { audio, sfx } from '../classic/shim/audio';
 import { music } from '../classic/shim/music';
 import { songs } from '../../../remnant/src/audio/songs';
 import { settings, shakeScale } from '../classic/shim/settings';
+import { placeLamps, strikeLamps } from '../../../remnant/src/game/lamps';
 
 const VIEW_H = 300;
 
@@ -174,8 +175,10 @@ export class World extends Phaser.Scene implements WorldApi {
     this.physics.world.setBounds(0, 0, r.w * TILE, r.h * TILE + 64);
     const sp = r.spawns[this.entrySpawn];
     this.player = new Player(this, sp.x * TILE + 8, sp.y * TILE, sp.face ?? 1);
+    this.classic.attachPlayer();
     this.colliders.push(this.physics.add.collider(this.player.rect, this.layer, undefined, (_o, t) => this.passable(t as Phaser.Tilemaps.Tile, this.player.dropT > 0), this));
     for (const e of r.ents) this.spawnEnt(e);
+    placeLamps(r);
     // The Echoes come along through every door, unless they were dismissed.
     if (this.save.echoes.length && this.save.flags.army_out !== false) this.classic.summonEchoes(true);
     this.fitCamera();
@@ -368,7 +371,9 @@ export class World extends Phaser.Scene implements WorldApi {
 
   update(_t: number, delta: number) {
     if (!this.ready) return;
-    const dt = Math.min(delta / 1000, 1 / 30);
+    const rawDt = Math.min(delta / 1000, 1 / 30);
+    const dt = rawDt * this.classic.simulationScale;
+    this.physics.world.timeScale = 1 / this.classic.simulationScale;
     this.parallax();
     // Hit-stop freezes the moment; input waits (latched) so a press made in it still lands after.
     if (this.hitstopT > 0) {
@@ -389,7 +394,7 @@ export class World extends Phaser.Scene implements WorldApi {
     this.player.update(dt);
     for (const f of this.foeList) if (!f.removed) f.update(dt * this.classic.nativeScale(f));
     this.foeList = this.foeList.filter((f) => !f.removed);
-    this.classic.update(dt);
+    this.classic.update(rawDt);
     this.classic.render();
     if (this.boss?.fighting) {
       if (music.name !== this.boss.key) music.play(this.boss.key, 0.6);
@@ -565,6 +570,8 @@ export class World extends Phaser.Scene implements WorldApi {
     this.classic.add(new Proj('lightwave', p.x + p.face * 14, p.feet - 14, 'player', p.skillPower() * 0.8, { vx: p.face * 380, life: 0.55, w: 18, h: 30, poise: 10 }));
   }
   playEffect(name: string) { sfx(name); }
+  heroHit(f: FoeLike, damage: number, heavy: boolean) { const e = this.classic.entityFor(f); if (e) this.classic.hero?.onHit(e, damage, heavy); }
+  strikeLamps(box: { x: number; y: number; w: number; h: number }) { strikeLamps(box); }
   banner(title: string, sub: string) { this.hud.banner(title, sub); }
   toast(text: string) { this.hud.toast(text); }
 

@@ -4,8 +4,8 @@
 
 import Phaser from 'phaser';
 
-export type Action = 'left' | 'right' | 'up' | 'down' | 'jump' | 'attack' | 'heavy' | 'dodge' | 'parry' | 'heal' | 'skill1' | 'skill2' | 'skill3' | 'interact' | 'menu' | 'echo' | 'switch';
-export const ACTIONS: Action[] = ['left', 'right', 'up', 'down', 'jump', 'attack', 'heavy', 'dodge', 'parry', 'heal', 'skill1', 'skill2', 'skill3', 'interact', 'menu', 'echo', 'switch'];
+export type Action = 'left' | 'right' | 'up' | 'down' | 'jump' | 'attack' | 'heavy' | 'dodge' | 'parry' | 'heal' | 'skill1' | 'skill2' | 'skill3' | 'interact' | 'menu' | 'echo' | 'switch' | 'transform' | 'ultimate' | 'sub';
+export const ACTIONS: Action[] = ['left', 'right', 'up', 'down', 'jump', 'attack', 'heavy', 'dodge', 'parry', 'heal', 'skill1', 'skill2', 'skill3', 'interact', 'menu', 'echo', 'switch', 'transform', 'ultimate', 'sub'];
 
 const KEYS: Record<Action, string[]> = {
   left: ['A', 'LEFT'],
@@ -26,10 +26,11 @@ const KEYS: Record<Action, string[]> = {
   menu: ['ESC', 'P'],
   echo: ['C'],
   switch: ['X'],
+  transform: ['G'], ultimate: ['T'], sub: ['U'],
 };
 // The original's pad: ✕ jump, ○ dodge, □ attack, △ heavy, L1 parry, R1/L2/R2 skills,
 // D-pad ↑ interact, ↓ Balm and ← Switch, L3 the Echo wheel, Options menu.
-const PAD: Partial<Record<Action, number[]>> = { jump: [0], dodge: [1], attack: [2], heavy: [3], parry: [4], skill1: [5], skill2: [6], skill3: [7], menu: [9], echo: [10], interact: [12], heal: [13], switch: [14] };
+const PAD: Partial<Record<Action, number[]>> = { jump: [0], dodge: [1], attack: [2], heavy: [3], parry: [4], skill1: [5], skill2: [6], skill3: [7], menu: [9], echo: [10], ultimate: [11], interact: [12], heal: [13], switch: [14], sub: [15] };
 
 export type Device = 'keyboard' | 'gamepad' | 'touch';
 
@@ -82,6 +83,7 @@ export class Controls {
     let ax = this.touchAxis;
     const pad = this.scene.input.gamepad?.pad1;
     if (pad) {
+      if (pad.buttons[10]?.pressed && pad.buttons[11]?.pressed) { this.held.add('transform'); }
       for (const [a, bs] of Object.entries(PAD) as [Action, number[]][]) {
         if (bs.some((b) => pad.buttons[b]?.pressed)) { this.held.add(a); this.device = 'gamepad'; }
       }
@@ -90,6 +92,7 @@ export class Controls {
       // Movement is the left stick only: the D-pad holds quick actions, as in the original.
       if (sy < -0.6) this.held.add('up');
       if (sy > 0.6) this.held.add('down');
+      if (this.held.has('transform')) { this.held.delete('echo'); this.held.delete('ultimate'); }
     }
     if (this.locked) { this.held.clear(); ax = 0; }
     if (!ax) ax = (this.held.has('right') ? 1 : 0) - (this.held.has('left') ? 1 : 0);

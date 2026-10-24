@@ -27,6 +27,7 @@ const setup = async (p, opts = {}) => {
     const f = w.classic.ents.find((e) => e.kind === 'husk' && open(e.x - 22, e.y - 2) && open(e.x - 22, e.y - 24) && !open(e.x - 22, e.y + 2));
     for (const e of w.classic.ents) if (e !== f) e.remove = true;
     f.hp = f.maxHp = 1e7;
+    f.executable = () => false; // Combo routes are tested apart from executions.
     f.think = function () { this.body.vx = 0; };
     f.setState('idle', 'idle');
     const s = w.save;

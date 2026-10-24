@@ -58,6 +58,7 @@ export class Hud extends Phaser.Scene {
   private captionText!: Phaser.GameObjects.Text;
   /** How many Echoes are out, under the silver. */
   private echoText!: Phaser.GameObjects.Text;
+  private powerText!: Phaser.GameObjects.Text;
   /** The Echo command wheel (the original's ui/ui.ts openWheel): open while it is shown, and the world waits. */
   wheelOpen = false;
   private wheelBox?: Phaser.GameObjects.Container;
@@ -94,6 +95,7 @@ export class Hud extends Phaser.Scene {
     this.bossSubText = this.add.text(0, 0, '', { ...font(9.5, '#9b92a6'), fontFamily: 'Georgia, serif', fontStyle: 'italic' }).setOrigin(0.5);
     this.barsG = this.add.graphics().setDepth(40);
     this.captionText = this.add.text(0, 0, '', { ...font(11), fontFamily: 'Georgia, serif', fontStyle: 'italic', align: 'center', wordWrap: { width: 520 * k } }).setOrigin(0.5, 1).setDepth(41).setAlpha(0);
+    this.powerText = this.add.text(0, 0, '', font(8.5, '#b8bdff'));
     this.skillG = this.add.graphics();
     this.skillBar = this.add.container(0, 0, [this.skillG]);
     SLOTS.forEach((id) => {
@@ -175,6 +177,9 @@ export class Hud extends Phaser.Scene {
       this.echoText.setPosition(hx, cy + 1 * k);
     }
     this.echoText.setVisible(total > 0);
+    cy += 13 * k;
+    const power = `Super ${Math.floor(s.rally)}%${s.level >= 25 ? p.mantleT > 0 ? ` · Mantle ${Math.ceil(p.mantleT)}s` : ` · Mantle ${Math.floor(s.mantle ?? 0)}%` : ''}${s.sub ? ` · ${s.sub.replace('_', ' ')} ${s.hearts ?? 0}♥` : ''}`;
+    this.powerText.setText(power).setPosition(hx, cy);
     const touch = w.controls.device === 'touch';
     box(hudBoxes.column, x0, y0, hx + hw - x0, cy - y0 + 8 * k);
     this.drawBoss(w, touch, hx + hw);
@@ -224,6 +229,11 @@ export class Hud extends Phaser.Scene {
         b.t.setAlpha(w.save.balm > 0 ? 0.85 : 0.35);
         continue;
       }
+      if (b.a === 'ultimate' || b.a === 'transform') {
+        const ready = b.a === 'ultimate' ? w.save.rally >= 100 : (w.save.mantle ?? 0) >= 100 && p.mantleT <= 0;
+        b.t.setAlpha(ready ? 1 : 0.4); b.g.setStrokeStyle(1.5 * this.k, ready ? 0xb8bdff : 0xe2b85a, ready ? 1 : 0.4); continue;
+      }
+      if (b.a === 'sub') { b.t.setText(p.mantleT > 0 ? 'THROW' : 'SUB'); continue; }
       if (!id) { if (slot >= 0) b.t.setText('EMPTY').setAlpha(0.35); continue; }
       const def = SKILLS[id], cd = p.cds[id] / def.cd;
       if (b.t.text !== def.short) b.t.setText(def.short);
@@ -381,6 +391,7 @@ export class Hud extends Phaser.Scene {
       mk('attack', 'STRIKE', 36), mk('jump', 'JUMP', 28), mk('dodge', 'DODGE', 24), mk('parry', 'PARRY', 24), mk('interact', '', 22),
       mk('heal', 'BALM', 19), ...SLOTS.map((_, i) => mk(`skill${i + 1}` as Action, '', 19)),
       mk('echo', 'ECHOES', 18), mk('switch', 'SWITCH', 18),
+      mk('transform', 'MANTLE', 18), mk('ultimate', 'SUPER', 18), mk('sub', 'SUB', 18),
     ];
     this.cdG = this.add.graphics();
     this.touchUi.add(this.cdG);
@@ -409,6 +420,7 @@ export class Hud extends Phaser.Scene {
       skill3: [rx - 32 * k, by - 182 * k],
       echo: [rx - 196 * k, by - 160 * k],
       switch: [rx - 236 * k, by - 106 * k],
+      transform: [rx - 290 * k, by - 168 * k], ultimate: [rx - 300 * k, by - 48 * k], sub: [rx - 248 * k, by - 48 * k],
     };
     for (const b of this.btns) {
       [b.x, b.y] = pos[b.a];
@@ -425,6 +437,11 @@ export class Hud extends Phaser.Scene {
     // The Echo buttons appear once there is an Echo to command.
     const echoes = this.world.save.echoes.length > 0;
     for (const x of this.btns) if (x.a === 'echo' || x.a === 'switch') { x.g.setVisible(echoes); x.t.setVisible(echoes); }
+    for (const x of this.btns) {
+      if (x.a === 'transform') { x.g.setVisible(this.world.save.level >= 25); x.t.setVisible(this.world.save.level >= 25); }
+      if (x.a === 'ultimate') { x.g.setVisible(!!this.world.save.flags.relic_taken); x.t.setVisible(!!this.world.save.flags.relic_taken); }
+      if (x.a === 'sub') { const on = !!this.world.save.sub || this.world.player.mantleT > 0; x.g.setVisible(on); x.t.setVisible(on); }
+    }
   }
 
   // ---------------------------------------------------------------- the Echo wheel

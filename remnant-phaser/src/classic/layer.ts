@@ -24,6 +24,10 @@ import { chapterCurve } from '../../../remnant/src/game/curve';
 import type { Blow, FoeLike, WorldApi } from '../game/types';
 import type { EnemyKind } from '../shared';
 import type { Player } from '../game/player';
+import { HeroPowers } from './hero';
+import { tickStatus } from '../../../remnant/src/game/power';
+import { Proj } from '../../../remnant/src/game/projectiles';
+import { BASE_POSE } from '../../../remnant/src/render/skeleton';
 
 /** Phaser blow force to the original's poise (a light strike is ~10, a full heavy ~34). */
 const POISE_PER_FORCE = 14;
@@ -93,6 +97,7 @@ class PlayerView {
   get cx() { return this.p.x; }
   get cy() { return this.p.feet - this.p.body.height / 2; }
   get face() { return this.p.face; }
+  set face(v: number) { this.p.face = v; }
   get state() { return this.p.dead ? 'dead' : this.p.state; }
   get hp() { return this.p.hp; }
   set hp(v: number) { this.p.hp = v; }
@@ -111,6 +116,24 @@ class PlayerView {
   get untouchable() { return this.p.untouchable; }
   set untouchable(v: number) { this.p.untouchable = v; }
   styleKey = '';
+  pose = { ...BASE_POSE };
+  j = { haFX: 8, haFY: -24 };
+  get style() { return { weaponColor: '#dce0e8' }; }
+  get family() { return this.L.host.d.family; }
+  get grounded() { return this.p.onGround; }
+  get mantleT() { return this.p.mantleT; }
+  set mantleT(v: number) { this.p.mantleT = v; }
+  get ghosts() { return this.p.powers!.ghosts; }
+  get fin() { return this.p.powers?.fin; }
+  get subCd() { return this.p.powers?.subCd ?? 0; }
+  set subCd(v: number) { if (this.p.powers) this.p.powers.subCd = v; }
+  get weaponFlight() { return this.p.powers?.weaponFlight ?? null; }
+  set weaponFlight(v: import('../../../remnant/src/game/chain').ChainBlade | null) { if (this.p.powers) this.p.powers.weaponFlight = v; }
+  anim = { play: (id: string, ..._args: unknown[]) => { if (this.p.powers) this.p.powers.clip = id; } };
+  throwPose() { this.p.castPose(); }
+  weaponImpact(t: Entity) { this.p.powers?.weaponImpact(t); }
+  practiceHit(_e: Entity, _damage: number) {}
+  leechHeal(damage: number, rate: number) { this.p.hp = Math.min(this.p.maxHp, this.p.hp + damage * rate); }
   blinkSpot(t: Entity) { return t.canBeTargeted() ? this.p.blinkSpotAt(t.x, t.y, t.body.w / 2) : null; }
   blinkToFoe(t: Entity) {
     const spot = this.blinkSpot(t);
@@ -221,11 +244,12 @@ class NativeTarget extends Entity {
     this.sync();
     return landed;
   }
-  update(dt: number) { this.chill = Math.max(0, this.chill - dt); this.sync(); }
+  update(dt: number) { tickStatus(this, dt); this.sync(); }
   draw() {}
 }
 
 export class ClassicLayer {
+  hero: HeroPowers | null = null;
   ents: Entity[] = [];
   grid!: Grid;
   boss: (Entity & { key?: string; state: string; awaken(): void }) | null = null;
@@ -305,6 +329,7 @@ export class ClassicLayer {
   }
 
   clear() {
+    this.hero?.destroy(); this.hero = null;
     this.ents = [];
     this.foeViews = [];
     this.timers = [];
@@ -319,6 +344,7 @@ export class ClassicLayer {
   }
 
   get player() { return this.playerView; }
+  attachPlayer() { this.hero = this.host.player.powers = new HeroPowers(this, this.host.player); }
   get room() { return this.host.room; }
   // The squad's side of the original world, which the Echo modules call on G.world.
   get echoes() { return this.squad.echoes; }
@@ -353,6 +379,7 @@ export class ClassicLayer {
   get gateClosed() { return this.host.gateClosed; }
   solid = (t: T) => (t === T.Gate ? this.host.gateClosed : isSolid(t));
   solidAt(x: number, y: number) { return this.solid(this.grid.get(Math.floor(x / TILE), Math.floor(y / TILE))); }
+  keyLabel(a: string) { return ({ attack: 'J / STRIKE', sub: 'U / SUB', transform: 'G / MANTLE', ultimate: 'T / SUPER' } as Record<string, string>)[a] ?? a; }
 
   add<E extends Entity>(e: E) {
     this.ents.push(e);
@@ -379,7 +406,7 @@ export class ClassicLayer {
     const v = this.host.sc.cameras.main.worldView;
     return Phaser.Math.Clamp((x - v.centerX) / (v.width * 0.6), -1, 1);
   }
-  addRally() {}
+  addRally(n = 1) { this.hero?.gain(n); }
   echoBlocks() { return false; }
   healAlliesIn(x0: number, x1: number, y: number, frac: number, energy = false) {
     const p = this.host.player;
@@ -392,6 +419,22 @@ export class ClassicLayer {
     }
   }
   breakWalls() { return false; }
+  spawnShockwave(x: number, y: number, dir: number, damage: number, team: 'player' | 'enemy') {
+    this.add(new Proj('wave', x, y, team, damage, { vx: dir * 260, life: 1.2, w: 14, h: 24 }));
+  }
+  spawnLightWave(x: number, y: number, dir: number, mult: number) {
+    this.add(new Proj('lightwave', x, y, 'player', this.host.d.atk * this.host.d.abil * 0.55 * mult, { vx: dir * 380, life: 0.5, w: 18, h: 36, poise: 10 }));
+  }
+  execute(p: PlayerView, e: Entity, mult: number) {
+    const d = this.host.d;
+    const tank = e instanceof Enemy && e.tank;
+    const damage = e.isBoss ? Math.max(d.atk * 9, e.maxHp * 0.07) * mult : tank ? Math.max(d.atk * 8, e.maxHp * ((e as Enemy).elite ? 0.22 : 0.35)) * mult : e instanceof Enemy && e.elite ? d.atk * 8 * mult : e.hp + 5;
+    if (tank) { (e as Enemy).execUsed = true; e.staggered = Math.min(e.staggered, 1.4); } else e.staggered = e.isBoss ? 0.6 : 0;
+    e.takeHit({ dmg: damage, poise: 0, kx: p.face * 300, ky: -260, dir: p.face, kind: 'melee', src: p as unknown as Entity, heavy: true, crit: true, stop: 0.12 });
+    this.host.save.ce = Math.min(d.maxCe, this.host.save.ce + 10);
+    this.addRally(12); this.host.shake(0.01, 220); fx.holyBurst(e.cx, e.cy, 26, 1.4);
+  }
+  entityFor(f: FoeLike) { return (f as FoeView).e ?? this.nativeViews.get(f); }
   /** A foe's target: Elior or the nearest Echo (a defensive sentinel draws it), as in the original. */
   targetFor(en: Entity, range: number): Entity | null {
     let best: Entity | null = null, bd = range;
@@ -480,8 +523,8 @@ export class ClassicLayer {
   /** Anything to run or draw: actors, or effects still fading after them. */
   get active() { return this.ents.length > 0 || this.squad.echoes.length > 0 || fx.ps.length > 0 || fx.rings.length > 0 || fx.arcs.length > 0 || fx.streaks.length > 0 || fx.cols.length > 0 || fx.flashA > 0; }
 
+  get simulationScale() { return this.slowT > 0 ? this.slowScale : 1; }
   update(dtRaw: number) {
-    if (!this.active && !this.timers.length) return;
     let dt = dtRaw;
     if (this.slowT > 0) {
       this.slowT -= dtRaw;
