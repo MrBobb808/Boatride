@@ -260,8 +260,9 @@ try {
       await page.evaluate(kind => {
         const a = window.__remnant, { G } = a, W = G.world, p = W.player;
         const hit = { dmg: 1, poise: 0, kx: 0, ky: 0, dir: -p.face, kind: 'melee' };
+        // Each moment alone: the last kill's loot must not be picked up (a heavy tick) during the next.
+        if (kind !== 'phase') W.ents = W.ents.filter(e => e === p);
         if (kind === 'hit' || kind === 'kill') {
-          W.ents = W.ents.filter(e => e === p);
           const foe = a.spawn('brute', p.x + p.face * 30, p.y);
           foe.hp = kind === 'kill' ? 1 : (foe.maxHp = 1e7);
           p.atkHit.clear(); p.activeHits(p.moves.combo[0], 1);

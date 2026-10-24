@@ -145,6 +145,8 @@ try {
       a.give('twentyfirst_day'); s.equipment.weapon = s.inventory.at(-1).uid;
       s.flags['ch' + n + '_intro'] = s.flags['ch' + n + '_boundary_open'] = true;
       W.load(room, 'left'); G.save.hp = G.d.maxHp;
+      // A lost attempt leaves Elior fallen (loading clears the respawn timer): stand him up for the next.
+      if (W.player.state === 'dead') W.player.revive();
       W.story.onTrigger(trig);
       // The staged entrance (game/cinema.ts) runs on real time; let it finish before stepping by hand.
       for (let i = 0; i < 1000 && (W.boss.state === 'dormant' || W.boss.state === 'intro' || G.inCutscene); i++) await new Promise(r => setTimeout(r, 20));

@@ -121,12 +121,20 @@ try {
  await page.waitForFunction(()=>window.__remnant.G.world.room.id==='ashwatch_refuge'&&window.__remnant.G.save.flags.ch9_intro&&!window.__remnant.G.inCutscene&&!window.__remnant.G.world.transitioning);
  const cinderWorld=await page.evaluate(async()=>{
   const {G}=window.__remnant,W=G.world,s=G.save;G.paused=true;const check=(x,m)=>{if(!x)throw Error(m);};
+  // A sealed boundary names what is left and where, not just a count.
+  const said=[],toast=G.ui.toast;G.ui.toast=(t)=>said.push(t);W.load('ember_aqueduct','right');W.story.onTrigger('ch9_gate');G.ui.toast=toast;
+  check(/Slag Pressure Wheel in The Slag Procession and the Bellows Pressure Wheel in The Bellows Foundry/.test(said[0]),'sealed boundary names both wheels: '+said[0]);
   for(const [room,id]of [['slag_procession','cinder_valve_a'],['bellows_foundry','cinder_valve_b']]){
    W.load(room,'left');const sh=W.ents.find(e=>e.grants===id);check(sh.prompt()==='Release Pressure Wheel','valve prompt');await W.story.shrine(sh);check(!s.flags[id],'guards block wheel');for(const e of W.ents)if(e.isFoe)e.remove=true;await W.story.shrine(sh);check(sh.taken,'pressure released');
   }
   check(s.flags.ch9_boundary_open&&s.quests.m_crown9.stage===2,'cinder throne unlocked');
   W.load('last_smithy','left');const npc=W.ents.find(e=>e.kind==='talia');await W.story.talk(npc);check(!s.flags.ch9_rescued,'smithy guards block rescue');for(const e of W.ents)if(e.isFoe)e.remove=true;await W.story.talk(npc);await W.story.readLore('cinder_testament');W.ents.find(e=>e.idKey==='cinder_smithy_cache').interact();
   W.load('ashwatch_refuge','altar');const mara=W.ents.find(e=>e.kind==='mara');await W.story.talk(mara);await W.story.talk(mara);check(s.quests.s_crown9.done&&s.inventory.filter(i=>i.id==='smiths_lantern').length===1,'smith reward once');
+  // Walk the open road: the Aqueduct's far door leads to Azkar, who waits on his throne.
+  W.load('ember_aqueduct','left');for(const e of W.ents)if(e.isFoe)e.remove=true;W.player.x=104*16;W.player.y=25*16-1;G.paused=false;G.inCutscene=false;const key=(t)=>window.dispatchEvent(new KeyboardEvent(t,{code:'ArrowRight',key:'ArrowRight'}));key('keydown');
+  for(let i=0;i<150&&W.room.id!=='cinder_throne';i++)await new Promise(r=>setTimeout(r,20));
+  key('keyup');for(let i=0;i<150&&W.transitioning;i++)await new Promise(r=>setTimeout(r,20));G.paused=true;
+  check(W.room.id==='cinder_throne'&&W.boss?.key==='cinder_monarch'&&W.boss.state==='dormant','walked from the Ember Aqueduct to Azkar: '+W.room.id);
   // Render every new room, including the ridge, and exercise real enemy constructors.
   for(const room of ['ashwatch_refuge','slag_procession','bellows_foundry','last_smithy','ember_aqueduct','cinder_throne']){W.load(room,'left');for(const e of W.ents)e.update(1/120);W.draw(G.renderer.wctx);for(const e of W.ents)check(Number.isFinite(e.hp)&&Number.isFinite(e.x),'finite stats');}
   W.load('cinder_throne','left');const hp=W.boss.maxHp;s.level=200;W.load('cinder_throne','left');check(W.boss.maxHp===hp,'Azkar fixed HP');W.story.onTrigger('cinder_monarch_start');return{wheels:2,rescue:!!s.flags.ch9_rescued,fixedHp:hp};

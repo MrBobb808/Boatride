@@ -439,7 +439,8 @@ export class LoreStone extends Entity implements Interactable {
 export class Shrine extends Entity implements Interactable {
   idKey: string;
   grants: string;
-  range = 30;
+  // Wide enough that a wheel or beacon is not run past on a phone.
+  range = 42;
   constructor(x: number, y: number, id: string, grants: string) {
     super(x, y, 16, 30);
     this.idKey = id;
@@ -450,7 +451,7 @@ export class Shrine extends Entity implements Interactable {
     return fallenObjective(this.grants) ? !!G.save.flags[this.grants] : G.save.keyItems.includes(this.grants);
   }
   prompt() {
-    return this.taken ? '' : fallenObjective(this.grants) ? this.grants.startsWith('cinder_')?'Release Pressure Wheel':'Cleanse Spore Heart' : 'Take the relic';
+    return this.taken ? '' : fallenObjective(this.grants) ? this.grants.startsWith('cinder_')?'Release Pressure Wheel':this.grants.startsWith('grecia_')?'Relight the Beacon':'Cleanse Spore Heart' : 'Take the relic';
   }
   interact() {
     if (!this.taken) G.world.story.shrine(this);

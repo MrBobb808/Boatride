@@ -7,6 +7,7 @@ import { FALLEN_CHAPTERS, chapterForRoom, fallenObjective, type FallenChapter } 
 import { chapterCurve } from './curve';
 import { makeItem, addMaterial, derive } from './state';
 import { registerGuide } from './guide';
+import { ROOMS } from './rooms';
 import { music } from '../audio/music';
 import { fx } from '../render/fx';
 import { sfx } from '../audio/audio';
@@ -59,11 +60,16 @@ export class FallenStory {
   }
   onTrigger(id:string){
     const c=chapterForRoom(G.world.room.id);if(!c)return false;
-    if(id===`ch${c.n}_gate`){if(!flag(`ch${c.n}_boundary_open`))G.ui.toast(`${c.objectives.filter(o=>flag(o.flag)).length}/2 objectives complete. The boundary is still sealed.`,'warn');return true;}
+    if(id===`ch${c.n}_gate`){if(!flag(`ch${c.n}_boundary_open`))G.ui.toast(this.sealed(c),'warn');return true;}
     if(id===c.boss+'_start'){if(!G.save.defeated.includes(c.boss)&&!G.world.bossActive)void this.bossStart(c);return true;}return false;
   }
+  /** The sealed boundary says what is still to do and where, not just a count. */
+  private sealed(c:FallenChapter){
+    const left=c.objectives.filter(o=>!flag(o.flag)).map(o=>`the ${o.name} in ${ROOMS[o.room]?.name??o.room}`);
+    return `The boundary is still sealed (${2-left.length}/2). Still to do: ${left.join(' and ')}. Follow the golden marker.`;
+  }
   private async bossStart(c:FallenChapter){
-    this.refresh(c);if(!flag(`ch${c.n}_boundary_open`)){G.ui.toast('Complete both objectives before entering the throne.','warn');return;}
+    this.refresh(c);if(!flag(`ch${c.n}_boundary_open`)){G.ui.toast(this.sealed(c),'warn');return;}
     const W=G.world,b=W.boss as BossBase|null,token=this.epoch;if(!b||b.key!==c.boss||b.state!=='dormant')return;
     W.bossActive=true;W.closeGate(true);W.player.body.vx=0;this.cine(true);
     // Entrance: the camera travels from Elior to the throne and settles close on the crown.
