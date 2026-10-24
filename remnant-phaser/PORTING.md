@@ -11,8 +11,8 @@ the iPhone as it lands.
 
 - `npm install`, then `npm run dev` (port 5174) or `npm run build` (writes `dist/`).
 - `node scripts/smoke.mjs`, `node scripts/combat.mjs`, `node scripts/foes.mjs`,
-  `node scripts/bosses.mjs` and `node scripts/classic-bosses.mjs` play the build
-  in headless Chromium (after a build). CI runs them on every push
+  `node scripts/saves.mjs`, `node scripts/bosses.mjs` and
+  `node scripts/classic-bosses.mjs` play the build in headless Chromium (after a build). CI runs them on every push
   (`.github/workflows/remnant-pages.yml`).
 - `?debug` exposes `window.__remnant` (`world`, `controls`, `warp(room, spawn)`,
   `give(xp)`, `rooms`). Add `&autostart` to skip the title and `&fresh` for a new
@@ -22,9 +22,12 @@ the iPhone as it lands.
   `restRoom.ts`), the tile legend (`game/tiles.ts`), `game/data.ts` and the PNG
   sprite sheets in `src/assets`. A room or item fixed there is fixed in both
   builds. When the old engine is retired, these move into this folder.
-- **Saves.** This build keeps its own save under `remnant-phaser.save.v1`, so it
-  never touches progress in the live game. Importing a live save comes with the
-  inventory and story ports.
+- **Saves.** This build's save is the original's own `SaveData`
+  (`game/state.ts`), kept under `remnant-phaser.save.v2` so it never touches
+  progress in the live game. The title can bring a live slot over: both builds
+  are served from the same origin, so the live slots (`remnant-save-0..2`) are
+  in this browser's storage; they are copied, never changed. A save from parts
+  1–5 (`remnant-phaser.save.v1`) is carried over on first load.
 - **Screen.** The canvas is sized in device pixels and shown at CSS size, so it
   stays sharp on Retina screens. The world camera shows 300 world pixels of
   height, as the original does. The HUD scales like the original's `u`.
@@ -130,10 +133,7 @@ port can follow it.
   VIII and the Pressure Wheels of IX (guards first) open the boundary; a sealed
   boundary says what is left. A defeat sets `defeated_*` and `ch*_done` and pays
   the chapter's experience.
-- Note: until stats and gear are ported, a Crown's health is sized to Elior's
-  blows at the level a straight-through player reaches its chapter (110 of them
-  on Hard) and its blow to 9% of his health there (×1.25 on Hard). When gear
-  lands, the original's tables in `game/curve.ts` take over.
+- Health and blows: the original's (`game/curve.ts`, on Hard) since Part 6.
 
 ### Part 4: the older bosses
 - ✅ The classic layer (above), with the original Canvas art and its pixel
@@ -151,10 +151,8 @@ port can follow it.
   open the way (`idol_defeated`, `gate_open`, `marshal_raised`, `ch3_king_done`,
   `ch4_image_done`, `ch5_weigher_done`, `ch6_storm_done`, `ch6_prince_done`,
   `ch10_done`), records it in `defeated`, opens the gate and pays experience.
-- Note: like the Crowns, a classic boss's health is sized to the Phaser Elior's
-  blows at its chapter's arrival level, and every original blow is scaled to
-  his health (`ClassicLayer.dmgScale`) until stats and gear are ported. The
-  dialogue before and after each fight comes with the story port.
+- Their health and blows are the original's (since Part 6). The dialogue before
+  and after each fight comes with the story port.
 - In the original: Elior's body proportions moved to `game/playerDims.ts` and
   the torch flame to `render/flame.ts`, so the NPC module no longer loads the
   player or the environment.
@@ -173,13 +171,31 @@ port can follow it.
 - ✅ A beaten elite kneels in the Veil's grip; holding interact (or up) beside
   it for 1.1 s purifies it, as in the original: the Veil burns away, it is
   recorded in `defeated` and its species in `purified`, and it does not return.
-  The Echo itself takes the field with the Echo port. The Chapter VII
+  Since Part 6 it becomes a real Echo in the save; it takes the field with the Echo port. The Chapter VII
   commanders still break the boundary when they fall.
-- Note: until stats and gear are ported, a foe's health grows with Elior's blow
-  at its chapter's arrival level (`sizeFoe`), so a husk takes as many blows in
-  Chapter VI as in Chapter I; the original grows it for a geared Elior.
+- Their health, blows and experience are the original's for the chapter (since Part 6).
 - ⬜ Finishers on staggered foes (`game/finishers.ts`) come with the rest of
   combat.
+
+### Part 6: the save, stats and gear
+- ✅ The save is the original's `SaveData`, settled by its own `migrateSave`;
+  level-ups give stat and skill points as in the original (`state.gainXp`).
+- ✅ Elior's stats are the original's `derive()`: health, Covenant Energy, attack
+  (from his equipped weapon and Strength), melee and heavy multipliers, critical
+  chance and damage, the parry window (Resolve), energy regeneration and damage
+  reduction (Endurance and armour, half against hazards), times the level's
+  power tier (`balance.sovereignDamage`). A new journey starts with the
+  original's starting gear.
+- ✅ The temporary balance is gone: foes, the older bosses and the Crowns use the
+  original's own health and blows (`game/curve.ts`, `game/difficulty.ts` on Hard).
+- ✅ Chests give the original's loot (silver, materials, items into the pack,
+  key items) and stay open (`opened`).
+- ✅ Purification raises a real Echo into the save (`absorbEcho`): created,
+  reinforced or evolved, into the lineup if a slot is free.
+- ✅ The title brings a live slot over (a second tap when it would replace this
+  build's journey).
+- ⬜ Spending stat and skill points, equipping gear and the rest of the menus
+  come with the menus port; until then a new journey's points wait unspent.
 
 ### Still to port
 - ⬜ Combat, the rest: the fourth combo strike and other moves from the skill
@@ -193,9 +209,8 @@ port can follow it.
 - ⬜ Story, dialogue, portraits, quests, the guide marker, cutscenes
   (`game/story*.ts`, `fallenStory.ts`, `game/cinema.ts`, `game/guide.ts`,
   `render/portraits.ts`).
-- ⬜ Items, gear, inventory, stats, the pause menu's five sections and coaching
-  (`game/state.ts`, `ui/menus.ts`, `ui/coach.ts`, `ui/statTips.ts`), and
-  importing a live save.
+- ⬜ The pause menu's five sections (stats, skills, gear, Echoes, journey) and
+  coaching (`ui/menus.ts`, `ui/coach.ts`, `ui/statTips.ts`).
 - ⬜ Audio: the generated score and effects, and the Suno song layer
   (`audio/*.ts`).
 - ⬜ Swimming (`game/water.ts`, `game/swim.ts`).

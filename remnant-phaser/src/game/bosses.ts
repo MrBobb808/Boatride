@@ -7,22 +7,18 @@
 // Azkar, with their adds, marked hazards and warded final phases, drawn from
 // their PNG atlases.
 //
-// Until gear and stats are ported, health and blows are sized to the Phaser
-// Elior at the chapter's arrival level (game/curve.ts), not the original's
-// absolute numbers, on the original's default Hard difficulty.
+// Health and blows are the original's for the chapter (game/curve.ts), on the
+// original's default Hard difficulty.
 
 import Phaser from 'phaser';
 import { chapterCurve, cleansingBeacon } from '../shared';
 import { GRAV } from './player';
-import { maxHpAt, powerAt } from './save';
 import type { WorldApi, FoeLike } from './types';
 
 /** Settings → Boss difficulty "Hard" (the default) from remnant/src/game/difficulty.ts. */
 export const HARD = { hp: 1.3, dmg: 1.25, tempo: 1.1 };
 /** Blows of Elior's at the arrival level a Crown can take, before difficulty. */
-const HP_IN_BLOWS = 110;
 /** A Crown's base blow as a share of Elior's health at the arrival level. */
-const BLOW_SHARE = 0.09;
 
 export type BossKey = 'beast_monarch' | 'plague_monarch' | 'cinder_monarch';
 export const BOSS_CHAPTER: Record<BossKey, number> = { beast_monarch: 7, plague_monarch: 8, cinder_monarch: 9 };
@@ -70,9 +66,10 @@ export abstract class Boss implements FoeLike {
   constructor(protected w: WorldApi, public key: BossKey, x: number, feet: number, bw: number, bh: number, texture: string) {
     const sc = w.sc;
     this.chapter = BOSS_CHAPTER[key];
-    const lv = chapterCurve(this.chapter).level;
-    this.maxHp = this.hp = Math.round(powerAt(lv) * HP_IN_BLOWS * HARD.hp);
-    this.base = maxHpAt(lv) * BLOW_SHARE * HARD.dmg;
+    // The original's health and blow for the chapter (game/curve.ts), on Hard.
+    const cv = chapterCurve(this.chapter);
+    this.maxHp = this.hp = Math.round(cv.bossHp! * HARD.hp);
+    this.base = cv.bossDmg! * HARD.dmg;
     this.floorY = feet;
     this.rect = sc.add.rectangle(x, feet - bh / 2, bw, bh, 0xffffff, 0);
     sc.physics.add.existing(this.rect);
