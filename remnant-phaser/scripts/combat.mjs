@@ -175,13 +175,15 @@ try {
   const btn = (a) => E(phone, (a) => { const b = window.__remnant.game.scene.getScene('hud').btns.find((b) => b.a === a); return [b.x / 2, b.y / 2]; }, a);
   for (const [a, expect] of [['parry', 'parry'], ['skill1', 'cast']]) {
     await E(phone, () => { const w = window.__remnant.world; w.save.ce = 100; w.player.hp = w.player.maxHp; });
-    await phone.waitForTimeout(400);
+    // A press during another move is ignored, as in the original: tap once Elior is free.
+    await phone.waitForFunction(() => window.__remnant.world.player.state === 'free', null, { timeout: 5000 });
     const [x, y] = await btn(a);
     await phone.touchscreen.tap(x, y);
     await phone.waitForTimeout(40);
     assert.equal(await E(phone, () => window.__remnant.world.player.state), expect, `the ${a} button`);
     await phone.waitForTimeout(500);
   }
+  await phone.waitForFunction(() => window.__remnant.world.player.state === 'free', null, { timeout: 5000 });
   await E(phone, () => { const p = window.__remnant.world.player; p.hp = 40; });
   const [hx, hy] = await btn('heal');
   await phone.touchscreen.tap(hx, hy);
