@@ -81,7 +81,7 @@ try {
   // Holding the attack button charges too (as on touch).
   await dummy(page);
   await page.keyboard.down('KeyJ');
-  await page.waitForTimeout(800);
+  await page.waitForFunction(() => window.__remnant.world.player.state === 'charge', null, { timeout: 5000 });
   assert.equal(await E(page, () => window.__remnant.world.player.state), 'charge', 'a held STRIKE charges after its first swing');
   await page.keyboard.up('KeyJ');
   await page.waitForTimeout(500);
