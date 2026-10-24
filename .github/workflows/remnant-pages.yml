@@ -85,6 +85,10 @@ jobs:
         working-directory: remnant-phaser
       - run: node scripts/menu.mjs
         working-directory: remnant-phaser
+      - run: node scripts/combat-moves.mjs
+        working-directory: remnant-phaser
+      - run: node scripts/install-audio.mjs
+        working-directory: remnant-phaser
       - run: cp -r remnant-phaser/dist remnant/dist/phaser
         working-directory: .
       - uses: actions/upload-artifact@v4

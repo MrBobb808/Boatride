@@ -2,6 +2,8 @@ import type Phaser from 'phaser';
 import type { Controls } from './controls';
 import type { PhaserSave } from './save';
 import type { Derived } from '../../../remnant/src/game/state';
+import type { HitInfo } from '../../../remnant/src/game/entity';
+import type { SkillId } from './abilities';
 
 /** A blow aimed at Elior. `dir` is the way it travels (0: no side, e.g. a hazard). */
 export interface Blow {
@@ -22,7 +24,7 @@ export interface FoeLike {
   removed: boolean;
   box: Phaser.Geom.Rectangle;
   x: number;
-  hit(dmg: number, dir: number, force: number, crit?: boolean): boolean;
+  hit(dmg: number, dir: number, force: number, crit?: boolean, details?: Partial<HitInfo>): boolean;
   update(dt: number): void;
   remove(): void;
   /** Its physics body, so the world can collide it with the room (classic foes collide themselves). */
@@ -52,6 +54,9 @@ export interface WorldApi {
   tileAt(tx: number, ty: number): number;
   player: { x: number; y: number; feet: number; dead: boolean; hp: number; maxHp: number; hurt(h: Blow): boolean };
   foes(): FoeLike[];
+  castCovenant(id: SkillId): void;
+  lightWave(): void;
+  playEffect(name: string): void;
   /** Bring a new foe into the room (a boss's adds). */
   addFoe(f: FoeLike): void;
   /** Room width in pixels. */

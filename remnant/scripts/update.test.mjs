@@ -41,6 +41,15 @@ test('offline navigation retains a playable cached document',async()=>{
   const w=worker(new Error('offline'));
   assert.match(await (await w.get('')).text(),/saved game/);
 });
+test('updating the original game preserves the Phaser offline shell and soundtrack',async()=>{
+  const listeners={},deleted=[];
+  vm.runInNewContext(readFileSync(new URL('../public/sw.js',import.meta.url),'utf8'),{
+    self:{addEventListener:(k,fn)=>listeners[k]=fn,clients:{claim:async()=>{}}},
+    caches:{keys:async()=>['remnant-old','remnant-__BUILD__','remnant-music','remnant-phaser-shell-build','remnant-phaser-music'],delete:async(k)=>deleted.push(k)},
+  });
+  let done;listeners.activate({waitUntil:p=>done=p});await done;
+  assert.deepEqual(deleted,['remnant-old']);
+});
 test('HTML, service worker and version endpoint identify the same build, compatible with old clients',()=>{
   const html=readFileSync(new URL('../dist/index.html',import.meta.url),'utf8');
   const stamp=html.match(/<meta name="remnant-build" content="(\d+)"/)?.[1];

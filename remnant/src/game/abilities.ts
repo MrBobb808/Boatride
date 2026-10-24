@@ -87,7 +87,8 @@ export function castAbility(p: Player, id: AbilityId) {
       break;
     }
     case 'pillar_fire': {
-      const target = W.nearestEnemy(p.x + p.face * 70, p.y - 20, 220, p.face);
+      // Direction is measured from Elior; starting 70px ahead skips close foes.
+      const target = W.nearestEnemy(p.x, p.cy, 220, p.face);
       const x = target ? target.x : p.x + p.face * 80;
       W.add(new Proj('pillar', x, groundBelow(x, (target ? target.y : p.y) - 4), 'player', pow * 0.55, { life: 1.6, w: 36, h: 170, poise: 8 }));
       sfx('pillarFire');

@@ -32,6 +32,8 @@ function classicShims(): Plugin {
 
 export default defineConfig({
   base: './',
+  // Reuse the recorded soundtrack and install icons; no duplicate source assets.
+  publicDir: '../remnant/public',
   plugins: [classicShims()],
   build: { target: 'es2020', chunkSizeWarningLimit: 2000, reportCompressedSize: false },
   server: { host: true, port: 5174, fs: { allow: ['..'] } },

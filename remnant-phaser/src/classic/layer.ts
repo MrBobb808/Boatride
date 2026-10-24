@@ -16,13 +16,14 @@ import { fx } from '../../../remnant/src/render/fx';
 import { glow } from '../../../remnant/src/render/draw';
 import { drawPixelBody, bossPixelFrame } from '../../../remnant/src/render/bossPixel';
 import { Grid, T, TILE, isSolid } from '../../../remnant/src/game/tiles';
-import type { Entity, HitInfo } from '../../../remnant/src/game/entity';
+import { Entity, type HitInfo } from '../../../remnant/src/game/entity';
 import { Enemy } from '../../../remnant/src/game/enemies';
 import { makeEnemy } from '../../../remnant/src/game/foes';
 import { drawFoeSprite } from '../../../remnant/src/render/creatureSprites';
 import { chapterCurve } from '../../../remnant/src/game/curve';
 import type { Blow, FoeLike, WorldApi } from '../game/types';
 import type { EnemyKind } from '../shared';
+import type { Player } from '../game/player';
 
 /** Phaser blow force to the original's poise (a light strike is ~10, a full heavy ~34). */
 const POISE_PER_FORCE = 14;
@@ -33,7 +34,7 @@ const overlaps = (a: Rect, b: Rect) => a.x < b.x + b.w && b.x < a.x + a.w && a.y
 
 /** What the classic layer needs from the World scene beyond `WorldApi`. */
 export interface ClassicHost extends WorldApi {
-  player: WorldApi['player'] & {
+  player: Player & {
     face: number;
     state: string;
     shieldT: number;
@@ -64,7 +65,6 @@ class PlayerView {
   team = 'player';
   remove = false;
   dying = false;
-  veiled = 0;
   /** The foe Elior last struck (Echo orders and the swap read it). */
   lastFoe: Entity | null = null;
   readonly bodyView: { x: number; y: number; w: number; h: number; vx: number; vy: number; onGround: boolean };
@@ -95,9 +95,31 @@ class PlayerView {
   get face() { return this.p.face; }
   get state() { return this.p.dead ? 'dead' : this.p.state; }
   get hp() { return this.p.hp; }
+  set hp(v: number) { this.p.hp = v; }
   get maxHp() { return this.p.maxHp; }
   get shieldT() { return this.p.shieldT; }
   set shieldT(v: number) { this.p.shieldT = v; }
+  get veiled() { return this.p.veiled; }
+  set veiled(v: number) { this.p.veiled = v; }
+  get cds() { return this.p.cds; }
+  get lion() { return this.p.lion; }
+  set lion(v: number) { this.p.lion = v; }
+  get armorLight() { return this.p.armorLight; }
+  set armorLight(v: number) { this.p.armorLight = v; }
+  get mendT() { return this.p.mendT; }
+  set mendT(v: number) { this.p.mendT = v; }
+  get untouchable() { return this.p.untouchable; }
+  set untouchable(v: number) { this.p.untouchable = v; }
+  styleKey = '';
+  blinkSpot(t: Entity) { return t.canBeTargeted() ? this.p.blinkSpotAt(t.x, t.y, t.body.w / 2) : null; }
+  blinkToFoe(t: Entity) {
+    const spot = this.blinkSpot(t);
+    if (!spot) return false;
+    const x = this.x, y = this.cy;
+    this.p.placeAt(spot.x, spot.y, Math.sign(t.x - spot.x) || this.face);
+    fx.streak(x, y, this.x, this.cy, '#ad9aff', 0.3, 3);
+    return true;
+  }
   hurtbox(): Rect {
     const b = this.p.body;
     return { x: b.left, y: b.top, w: b.width, h: b.height };
@@ -152,13 +174,14 @@ class FoeView implements FoeLike {
     return true;
   }
   get x() { return this.e.x; }
-  hit(dmg: number, dir: number, force: number, crit = false) {
+  hit(dmg: number, dir: number, force: number, crit = false, details: Partial<HitInfo> = {}) {
     const landed = this.e.takeHit({
       dmg, dir, crit, kind: 'melee',
       poise: force * POISE_PER_FORCE,
       kx: dir * 90 * force, ky: -50 * force,
       stop: 0.04 + force * 0.02,
       src: this.L.playerView as unknown as Entity,
+      ...details,
     });
     if (landed) this.L.playerView.lastFoe = this.e;
     return landed;
@@ -167,6 +190,39 @@ class FoeView implements FoeLike {
   parried() { this.e.parried(this.L.playerView as unknown as Entity); }
   update() {}
   remove() { this.e.remove = true; }
+}
+
+/** A Phaser actor exposed to shared spells and Echo targeting. Phaser still
+ * owns its rendering and physics; this supplies no second simulation. */
+class NativeTarget extends Entity {
+  constructor(readonly native: FoeLike) {
+    super(native.x, native.box.bottom, native.box.width, native.box.height);
+    this.isFoe = true; this.team = 'enemy';
+    this.isBoss = 'phaseMarks' in native;
+    this.sync();
+  }
+  sync() {
+    const n = this.native, b = n.rect?.body as Phaser.Physics.Arcade.Body | undefined;
+    const box = b ? { x: b.left, y: b.top, w: b.width, h: b.height } : { x: n.box.x, y: n.box.y, w: n.box.width, h: n.box.height };
+    this.x = n.x; this.y = box.y + box.h; this.body.w = box.w; this.body.h = box.h;
+    this.hp = (n as FoeLike & { hp?: number }).hp ?? (n.alive ? 1 : 0);
+    this.maxHp = (n as FoeLike & { maxHp?: number }).maxHp ?? this.hp;
+    this.dying = !n.alive; this.remove = n.removed;
+    this.staggered = (n as FoeLike & { staggered?: number }).staggered ?? 0;
+  }
+  canBeTargeted() {
+    this.sync();
+    const n = this.native as FoeLike & { fighting?: boolean; ward?: boolean };
+    return n.alive && !n.removed && n.fighting !== false && !n.ward;
+  }
+  takeHit(h: HitInfo) {
+    if (!this.canBeTargeted()) return false;
+    const landed = this.native.hit(h.dmg, h.dir, h.poise / POISE_PER_FORCE, h.crit, h);
+    this.sync();
+    return landed;
+  }
+  update(dt: number) { this.chill = Math.max(0, this.chill - dt); this.sync(); }
+  draw() {}
 }
 
 export class ClassicLayer {
@@ -179,6 +235,8 @@ export class ClassicLayer {
   readonly squad: Squad;
   private views = new WeakMap<Entity, FoeView>();
   private foeViews: FoeView[] = [];
+  private targets: Entity[] = [];
+  private nativeViews = new WeakMap<FoeLike, NativeTarget>();
   private timers: { at: number; fn: () => void }[] = [];
   private slowT = 0;
   private slowScale = 1;
@@ -300,6 +358,12 @@ export class ClassicLayer {
     this.ents.push(e);
     return e;
   }
+  addNative(f: FoeLike) {
+    const e = new NativeTarget(f);
+    this.nativeViews.set(f, e);
+    this.add(e);
+  }
+  nativeScale(f: FoeLike) { return (this.nativeViews.get(f)?.chill ?? 0) > 0 ? 0.55 : 1; }
   spawnEnemy(kind: EnemyKind, x: number, y: number, elite: string | null = null) {
     const e = makeEnemy(kind, x, y, elite);
     e.aggro = true;
@@ -317,7 +381,16 @@ export class ClassicLayer {
   }
   addRally() {}
   echoBlocks() { return false; }
-  healAlliesIn() {}
+  healAlliesIn(x0: number, x1: number, y: number, frac: number, energy = false) {
+    const p = this.host.player;
+    if (!p.dead && p.x >= x0 && p.x <= x1 && Math.abs(p.feet - y) < 40) {
+      p.hp = Math.min(p.maxHp, p.hp + p.maxHp * frac);
+      if (energy) this.host.save.ce = Math.min(this.host.d.maxCe, this.host.save.ce + 5);
+    }
+    for (const e of this.squad.echoes) if (!e.remove && e.x >= x0 && e.x <= x1 && Math.abs(e.y - y) < 40) {
+      e.hp = Math.min(e.maxHp, e.hp + e.maxHp * frac); e.inst.hp = e.hp;
+    }
+  }
   breakWalls() { return false; }
   /** A foe's target: Elior or the nearest Echo (a defensive sentinel draws it), as in the original. */
   targetFor(en: Entity, range: number): Entity | null {
@@ -383,15 +456,25 @@ export class ClassicLayer {
   closeGate(on: boolean) { (this.host as unknown as { closeGate(on: boolean): void }).closeGate(on); }
 
   /** Classic foes, as targets for Elior's blows and skills. */
-  foes(): FoeLike[] {
+  playerFoes(): FoeLike[] {
     this.foeViews.length = 0;
     for (const e of this.ents) {
-      if (!e.isFoe || e.remove) continue;
+      if (!e.isFoe || e.remove || e instanceof NativeTarget) continue;
       let v = this.views.get(e);
       if (!v) this.views.set(e, (v = new FoeView(this, e)));
       this.foeViews.push(v);
     }
     return this.foeViews;
+  }
+
+  /** Shared modules need Entities; Elior uses playerFoes' Phaser hit boxes. */
+  foes(): Entity[] {
+    this.targets.length = 0;
+    for (const e of this.ents) if (e.isFoe && !e.remove) {
+      if (e instanceof NativeTarget) e.sync();
+      this.targets.push(e);
+    }
+    return this.targets;
   }
 
   /** Anything to run or draw: actors, or effects still fading after them. */

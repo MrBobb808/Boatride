@@ -22,6 +22,14 @@ import { G } from '../classic/shim/ctx';
 import { xpToNext, ECHO_SPECIES } from '../shared';
 import { hudBoxes, type Hud } from './Hud';
 import { menuInput } from '../ui/menu';
+import { castAbility } from '../../../remnant/src/game/abilities';
+import { Proj } from '../../../remnant/src/game/projectiles';
+import type { Player as OriginalPlayer } from '../../../remnant/src/game/player';
+import type { SkillId } from '../game/abilities';
+import { audio, sfx } from '../classic/shim/audio';
+import { music } from '../classic/shim/music';
+import { songs } from '../../../remnant/src/audio/songs';
+import { settings, shakeScale } from '../classic/shim/settings';
 
 const VIEW_H = 300;
 
@@ -95,13 +103,15 @@ export class World extends Phaser.Scene implements WorldApi {
     });
     this.scale.on('resize', this.fitCamera, this);
     this.events.once('shutdown', () => this.scale.off('resize', this.fitCamera, this));
-    document.addEventListener('visibilitychange', () => { if (document.hidden) this.persist(); });
+    const onHide = () => { if (document.hidden) this.persist(); };
+    document.addEventListener('visibilitychange', onHide);
+    this.events.once('shutdown', () => document.removeEventListener('visibilitychange', onHide));
     if (new URLSearchParams(location.search).has('debug')) {
       (window as unknown as { __remnant: unknown }).__remnant = {
         game: this.game, world: this, controls: this.controls, rooms: ROOMS, G,
         warp: (id: string, spawn = 'start') => this.goTo(id, spawn),
         give: (xp: number) => this.onFoeDied(xp, 0, this.player.x, this.player.y),
-        hud: hudBoxes,
+        hud: hudBoxes, audio, music, songs, settings,
       };
     }
   }
@@ -147,6 +157,7 @@ export class World extends Phaser.Scene implements WorldApi {
     this.clearRoom();
     this.refreshStats();
     const r = (this.room = ROOMS[id]);
+    if (r.music) music.play(r.music);
     this.entrySpawn = r.spawns[spawnName] ? spawnName : r.spawns.start ? 'start' : Object.keys(r.spawns)[0];
     this.save.room = id;
     this.save.spawn = this.entrySpawn;
@@ -376,10 +387,15 @@ export class World extends Phaser.Scene implements WorldApi {
     if (this.controls.pressed('switch') && !G.inCutscene && !this.player.dead) this.classic.squad.switchSupport();
     this.controls.locked = G.inCutscene;
     this.player.update(dt);
-    for (const f of this.foeList) if (!f.removed) f.update(dt);
+    for (const f of this.foeList) if (!f.removed) f.update(dt * this.classic.nativeScale(f));
     this.foeList = this.foeList.filter((f) => !f.removed);
     this.classic.update(dt);
     this.classic.render();
+    if (this.boss?.fighting) {
+      if (music.name !== this.boss.key) music.play(this.boss.key, 0.6);
+      music.bossPhase(Math.max(0, this.boss.phase - 1));
+    }
+    music.setIntensity(this.boss?.fighting || this.classic.bossActive ? 1 : this.foes().some((f) => f.alive && Math.abs(f.x - this.player.x) < 200) ? 0.7 : 0);
     if (this.cboss?.remove) this.cboss = null;
     this.updateBrood();
 
@@ -403,6 +419,7 @@ export class World extends Phaser.Scene implements WorldApi {
     if (this.player.feet > this.gh * TILE + 40 && !this.player.dead) { this.player.hurt({ dmg: 15, dir: 0, hazard: true }); this.respawn(true); }
 
     this.saveT += dt;
+    this.save.playtime += dt;
     if (this.saveT > 30) this.persist();
     this.hud.sync(this);
   }
@@ -530,16 +547,24 @@ export class World extends Phaser.Scene implements WorldApi {
     const all = this.allFoes;
     all.length = 0;
     for (const f of this.foeList) all.push(f);
-    for (const f of this.classic.foes()) all.push(f);
+    for (const f of this.classic.playerFoes()) all.push(f);
     return all;
   }
 
   addFoe(f: FoeLike) {
     this.foeList.push(f);
+    this.classic.addNative(f);
     if (f.rect) this.colliders.push(this.physics.add.collider(f.rect, this.layer));
   }
 
   roomW() { return this.gw * TILE; }
+  castCovenant(id: SkillId) { castAbility(this.classic.playerView as unknown as OriginalPlayer, id); }
+
+  lightWave() {
+    const p = this.player;
+    this.classic.add(new Proj('lightwave', p.x + p.face * 14, p.feet - 14, 'player', p.skillPower() * 0.8, { vx: p.face * 380, life: 0.55, w: 18, h: 30, poise: 10 }));
+  }
+  playEffect(name: string) { sfx(name); }
   banner(title: string, sub: string) { this.hud.banner(title, sub); }
   toast(text: string) { this.hud.toast(text); }
 
@@ -714,6 +739,7 @@ export class World extends Phaser.Scene implements WorldApi {
 
   /** A Crown broken: the chapter is done, the gate opens, and its experience is Elior's. */
   onBossDefeated(key: string) {
+    music.play('victory');
     const n = BOSS_CHAPTER[key as keyof typeof BOSS_CHAPTER];
     this.save.flags[`defeated_${key}`] = true;
     if (n) this.save.flags[`ch${n}_done`] = true;
@@ -732,7 +758,7 @@ export class World extends Phaser.Scene implements WorldApi {
     this.physics.pause();
   }
 
-  shake(intensity: number, ms: number) { this.cameras.main.shake(ms, intensity); }
+  shake(intensity: number, ms: number) { const amount = intensity * shakeScale(); if (amount) this.cameras.main.shake(ms, amount); }
 
   floatText(x: number, y: number, text: string, color: string) {
     const t = this.add.text(x, y, text, { fontFamily: 'Cinzel, Georgia, serif', fontSize: '9px', color, stroke: '#07050a', strokeThickness: 2, fontStyle: 'bold' })

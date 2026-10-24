@@ -274,7 +274,8 @@ export class Squad {
   nearestEnemy(x: number, y: number, range: number, dir: number): Entity | null {
     let best: Entity | null = null, bd = range;
     for (const e of this.L.ents) {
-      if (!e.isFoe || e.dying || e.remove) continue;
+      if (!e.isFoe || e.dying || e.remove || !e.canBeTargeted()) continue;
+      if (!this.L.host.player.lineOfSight(e.x, e.cy)) continue;
       if (e.isBoss && !e.canBeTargeted()) continue;
       if (dir && Math.sign(e.x - x) !== dir && Math.abs(e.x - x) > 20) continue;
       const d = Math.hypot(e.x - x, (e.y - y) * 0.7);
