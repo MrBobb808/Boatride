@@ -4,8 +4,8 @@
 
 import Phaser from 'phaser';
 
-export type Action = 'left' | 'right' | 'up' | 'down' | 'jump' | 'attack' | 'heavy' | 'dodge' | 'parry' | 'heal' | 'skill1' | 'skill2' | 'skill3' | 'interact' | 'menu';
-export const ACTIONS: Action[] = ['left', 'right', 'up', 'down', 'jump', 'attack', 'heavy', 'dodge', 'parry', 'heal', 'skill1', 'skill2', 'skill3', 'interact', 'menu'];
+export type Action = 'left' | 'right' | 'up' | 'down' | 'jump' | 'attack' | 'heavy' | 'dodge' | 'parry' | 'heal' | 'skill1' | 'skill2' | 'skill3' | 'interact' | 'menu' | 'echo' | 'switch';
+export const ACTIONS: Action[] = ['left', 'right', 'up', 'down', 'jump', 'attack', 'heavy', 'dodge', 'parry', 'heal', 'skill1', 'skill2', 'skill3', 'interact', 'menu', 'echo', 'switch'];
 
 const KEYS: Record<Action, string[]> = {
   left: ['A', 'LEFT'],
@@ -24,10 +24,12 @@ const KEYS: Record<Action, string[]> = {
   skill3: ['R'],
   interact: ['F'],
   menu: ['ESC', 'P'],
+  echo: ['C'],
+  switch: ['X'],
 };
 // The original's pad: ✕ jump, ○ dodge, □ attack, △ heavy, L1 parry, R1/L2/R2 skills,
-// D-pad ↑ interact and ↓ Balm, Options menu.
-const PAD: Partial<Record<Action, number[]>> = { jump: [0], dodge: [1], attack: [2], heavy: [3], parry: [4], skill1: [5], skill2: [6], skill3: [7], menu: [9], interact: [12], heal: [13] };
+// D-pad ↑ interact, ↓ Balm and ← Switch, L3 the Echo wheel, Options menu.
+const PAD: Partial<Record<Action, number[]>> = { jump: [0], dodge: [1], attack: [2], heavy: [3], parry: [4], skill1: [5], skill2: [6], skill3: [7], menu: [9], echo: [10], interact: [12], heal: [13], switch: [14] };
 
 export type Device = 'keyboard' | 'gamepad' | 'touch';
 

@@ -137,6 +137,7 @@ export class World extends Phaser.Scene implements WorldApi {
     this.classic?.clear();
     this.hud?.bossBar?.(null);
     this.hud?.cinematicBars?.(false);
+    this.hud?.closeWheel?.();
     this.hud?.caption?.(null);
     this.player?.destroy();
   }
@@ -163,6 +164,8 @@ export class World extends Phaser.Scene implements WorldApi {
     this.player = new Player(this, sp.x * TILE + 8, sp.y * TILE, sp.face ?? 1);
     this.colliders.push(this.physics.add.collider(this.player.rect, this.layer, undefined, (_o, t) => this.passable(t as Phaser.Tilemaps.Tile, this.player.dropT > 0), this));
     for (const e of r.ents) this.spawnEnt(e);
+    // The Echoes come along through every door, unless they were dismissed.
+    if (this.save.echoes.length && this.save.flags.army_out !== false) this.classic.summonEchoes(true);
     this.fitCamera();
     this.cameras.main.startFollow(this.player.rect, true, 0.14, 0.12, 0, 24);
     this.cameras.main.setDeadzone(24, 40);
@@ -363,8 +366,12 @@ export class World extends Phaser.Scene implements WorldApi {
     }
     this.controls.poll();
     if (this.transitioning) return;
+    // The Echo wheel holds the world while it is up.
+    if (this.hud.wheelOpen) { this.hud.wheelInput(dt); return; }
     if (this.controls.pressed('menu')) { this.hud.togglePause(); return; }
     if (this.hud.paused) return;
+    if (this.controls.pressed('echo') && !G.inCutscene && !this.player.dead) { this.hud.openWheel(); return; }
+    if (this.controls.pressed('switch') && !G.inCutscene && !this.player.dead) this.classic.squad.switchSupport();
     this.controls.locked = G.inCutscene;
     this.player.update(dt);
     for (const f of this.foeList) if (!f.removed) f.update(dt);

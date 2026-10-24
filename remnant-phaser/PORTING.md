@@ -11,6 +11,7 @@ the iPhone as it lands.
 
 - `npm install`, then `npm run dev` (port 5174) or `npm run build` (writes `dist/`).
 - `node scripts/smoke.mjs`, `node scripts/combat.mjs`, `node scripts/foes.mjs`,
+  `node scripts/echoes.mjs`,
   `node scripts/saves.mjs`, `node scripts/bosses.mjs` and
   `node scripts/classic-bosses.mjs` play the build in headless Chromium (after a build). CI runs them on every push
   (`.github/workflows/remnant-pages.yml`).
@@ -61,6 +62,7 @@ the iPhone as it lands.
 | `src/game/bosses.ts` | The boss framework (intro, phases, phase gates, poise and kneeling, wards) and the Fallen Crowns: Varkhos, Morvane and Azkar. |
 | `src/game/types.ts` | What actors may ask of the world (`WorldApi`), and the shape of a blow. |
 | `src/classic/layer.ts` | The classic layer: the original modules' world, camera, HUD and Elior, and the canvas they draw into. |
+| `src/classic/squad.ts` | The Echoes' side of the original world: summoning, presets, orders, Switch, recall, mark target, sync strike, an Echo's return. |
 | `src/classic/bosses.ts` | The original bosses from the Gilded Idol to the Prince of Grecia: the trigger that wakes each, its chapter, and what its defeat opens. |
 | `src/classic/shim/*` | Stand-ins for the original's engine services (sound and music calls are kept for the audio port). |
 | `src/game/tileset.ts` | Per-biome tilesets and backdrops, generated in code. |
@@ -197,13 +199,36 @@ port can follow it.
 - ⬜ Spending stat and skill points, equipping gear and the rest of the menus
   come with the menus port; until then a new journey's points wait unspent.
 
+### Part 7: the Echoes
+- ✅ The original's Echo units (`game/echoes.ts`, `echoRoles.ts`,
+  `squadOrders.ts`, `echoCombos.ts`) run through the classic layer: every
+  species' kit, roles, combos, levels and evolution, drawn from their sheets.
+  They come along through every door (unless dismissed), fight the room's
+  foes, draw foes onto themselves (a defensive Sentinel taunts), share in the
+  experience of a kill, and a fallen Echo returns after its time down.
+- ✅ The squad (`src/classic/squad.ts`, from the original's world.ts): summon
+  presets (one, two, squad, all), orders (Guard, Hunt, Flank, Hold, Focus,
+  Free), modes (Aggressive, Defensive, Follow), Mark target, Recall, Sync
+  strike, and Switch (a benched Echo steps in, or Elior trades places with the
+  one marked by the gold chevron, and his next blow lands half again harder).
+  The Marshal's duel keeps them out.
+- ✅ The command wheel: C, L3 or the ECHOES button opens it (the world waits);
+  the stick or arrows turn it, strike, jump or interact choose, the Echo button
+  or menu closes it; tap or click works too. Its Summon and Orders pages as in
+  the original. X, D-pad ← or SWITCH switches. The HUD shows the Echoes out and
+  the Switch's cooldown.
+- `core/input.ts` joins the shims: the Echo and swim modules read the Phaser
+  controls through it.
+- ⬜ The per-Echo orders panel, picking the squad, the lineup and formations
+  come with the Echo menus; the Crowns (Phaser-native bosses) are not yet a
+  target for Echoes.
+
 ### Still to port
 - ⬜ Combat, the rest: the fourth combo strike and other moves from the skill
   trees, Phantom Step and the other combos (`game/weapons.ts`), the other nine
   skills and choosing them (`game/abilities.ts`, `data.ts` `ABILITIES`),
   finishers (`game/finishers.ts`), power tiers and weapon elements
   (`game/power.ts`), the Shadow Mantle (`game/mantle.ts`), stats from gear.
-- ⬜ Echoes, the squad and command wheel (`game/echoes.ts`, `ui/ui.ts`).
 - ⬜ The boss difficulty setting (`game/difficulty.ts`, Hard for now), boss
   trophies, Tobiah's walk-on in the Idol fight.
 - ⬜ Story, dialogue, portraits, quests, the guide marker, cutscenes

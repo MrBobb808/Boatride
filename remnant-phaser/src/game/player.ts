@@ -71,6 +71,8 @@ export class Player {
   private parryCd = 0;
   private healDone = false;
   private castId: SkillId | null = null;
+  /** Arriving from a swap with an Echo: the next blow within this time lands half again harder. */
+  swapStrikeT = 0;
   /** While positive, one-way platforms let Elior drop through. */
   dropT = 0;
   private stride = 0;
@@ -107,6 +109,9 @@ export class Player {
   /** A Covenant skill's base: attack times the original's ability power. */
   skillPower() { const d = this.w.d; return d.atk * d.abil * sovereignDamage(this.w.save.level); }
 
+  /** A moment untouchable (an Echo exchange). */
+  grantInvuln(t: number) { this.invuln = Math.max(this.invuln, t); }
+
   placeAt(x: number, feet: number, face = this.face) {
     this.body.reset(x, feet - 17);
     this.face = face;
@@ -139,6 +144,7 @@ export class Player {
     this.dodgeCd = Math.max(0, this.dodgeCd - dt);
     this.parryT = Math.max(0, this.parryT - dt);
     this.parryCd = Math.max(0, this.parryCd - dt);
+    this.swapStrikeT = Math.max(0, this.swapStrikeT - dt);
     this.shieldT = Math.max(0, this.shieldT - dt);
     this.counterT = Math.max(0, this.counterT - dt);
     this.dropT = Math.max(0, this.dropT - dt);
@@ -367,9 +373,12 @@ export class Player {
       let dmg = this.power() * this.atk.dmg * this.atkMult * (this.atk.heavy ? d.heavyMult : 1) * Phaser.Math.FloatBetween(0.92, 1.08);
       if (crit) dmg *= d.critDmg;
       if (counter) dmg *= 1.5;
-      const force = this.atk.force * this.atkMult * (counter ? 1.5 : 1);
-      if (f.hit(Math.round(dmg), this.face, force, crit)) {
+      // Arriving from a swap: the first blow carries the momentum.
+      const swap = this.swapStrikeT > 0 ? 1.5 : 1;
+      const force = this.atk.force * this.atkMult * (counter ? 1.5 : 1) * swap;
+      if (f.hit(Math.round(dmg * swap), this.face, force, crit)) {
         this.counterT = 0;
+        this.swapStrikeT = 0;
         this.w.save.ce = Math.min(this.maxCe, this.w.save.ce + CE_HIT);
         this.w.hitstop(this.atk.heavy ? 0.08 : this.combo === 2 || crit ? 0.06 : 0.04);
       }
