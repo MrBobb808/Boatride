@@ -2,15 +2,10 @@
 // room layouts, the tile legend, items and the experience curve, and the PNG sheets.
 export { ROOMS } from '../../remnant/src/game/rooms';
 export { TILE, CHAR_TILE, T, isSolid, isHazard, type RoomDef, type EntDef, type Exit, type EnemyKind, type Biome } from '../../remnant/src/game/tiles';
-export { xpToNext } from '../../remnant/src/game/data';
+export { xpToNext, ECHO_SPECIES } from '../../remnant/src/game/data';
 export { chapterCurve } from '../../remnant/src/game/curve';
 export { FALLEN_CHAPTERS, chapterForRoom, fallenObjective, cleansingBeacon } from '../../remnant/src/game/fallenChapters';
-export { default as spriteManifest } from '../../remnant/src/assets/sprite-manifest.json';
 export { default as eliorUrl } from '../../remnant/src/assets/elior-v3.png';
-export { default as ashenUrl } from '../../remnant/src/assets/foes-ashen.png';
-export { default as beastsUrl } from '../../remnant/src/assets/foes-beasts.png';
-export { default as shinarUrl } from '../../remnant/src/assets/foes-shinar.png';
-export { default as veilUrl } from '../../remnant/src/assets/foes-veil.png';
 export { default as varkhosUrl } from '../../remnant/src/assets/varkhos-hunt-atlas.png';
 export { default as morvaneUrl } from '../../remnant/src/assets/morvane-plague-atlas.png';
 export { default as azkarUrl } from '../../remnant/src/assets/azkar-cinder-atlas.png';

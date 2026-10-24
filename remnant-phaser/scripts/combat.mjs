@@ -18,20 +18,24 @@ const watch = (page) => {
 };
 const ready = (page) => page.waitForFunction(() => window.__remnant?.world?.player && !window.__remnant.world.transitioning, null, { timeout: 20000 });
 const E = (page, fn, arg) => page.evaluate(fn, arg);
-/** A practice foe in front of Elior: a husk that cannot die, standing still unless asked. */
+/** A practice foe in front of Elior: the original's husk, unable to die, standing still unless asked to fight. */
 const dummy = (page, opts = {}) => E(page, (o) => {
   const w = window.__remnant.world, p = w.player;
-  for (const f of w.foes()) if (f.kind !== 'husk' || f !== w.foes().find((g) => g.kind === 'husk')) f.remove();
-  const f = w.foes().find((g) => g.kind === 'husk');
+  const foes = w.classic.ents.filter((e) => e.isFoe);
+  const f = foes.find((e) => e.kind === 'husk' && !e.dying);
+  for (const e of foes) if (e !== f) e.remove = true;
   f.hp = f.maxHp = 1e6;
-  f.state = o.state ?? 'idle';
-  f.cool = o.cool ?? 99;
-  p.placeAt(f.x - (o.gap ?? 22), f.body.bottom, 1);
+  f.staggered = 0;
+  f.hurtT = 0;
+  f.poise = f.maxPoise;
+  if (o.state === 'chase') { delete f.think; f.aggro = true; f.attackCd = 0; f.setState('chase', 'walk'); }
+  else { f.think = function () { this.body.vx = 0; }; f.setState('idle', 'idle'); }
+  p.placeAt(f.x - (o.gap ?? 22), f.y, 1);
   p.hp = p.maxHp;
   w.save.ce = o.ce ?? 0;
   return f.hp;
 }, opts);
-const foeHp = (page) => E(page, () => window.__remnant.world.foes().find((f) => f.kind === 'husk').hp);
+const foeHp = (page) => E(page, () => window.__remnant.world.classic.ents.find((e) => e.kind === 'husk' && !e.remove).hp);
 
 try {
   const page = await (await browser.newContext({ viewport: { width: 1280, height: 720 } })).newPage();
@@ -80,7 +84,7 @@ try {
   const parry = await E(page, () => {
     const w = window.__remnant.world, p = w.player, f = w.foes().find((g) => g.kind === 'husk');
     const hp = p.hp, landed = p.hurt({ dmg: 30, dir: -1, src: f });
-    return { landed, hp, after: p.hp, staggered: f.staggered, ce: w.save.ce, counter: p.counterT };
+    return { landed, hp, after: p.hp, staggered: f.e.staggered > 0 || f.e.hurtT > 0, ce: w.save.ce, counter: p.counterT };
   });
   assert.equal(parry.landed, false, 'parried');
   assert.equal(parry.after, parry.hp, 'no damage through a parry');
@@ -91,26 +95,27 @@ try {
   await page.keyboard.press('KeyJ');
   await page.waitForTimeout(400);
   const counter = beforeCounter - (await foeHp(page));
-  // A counter: critical (×1.6), ×1.5, on a reeling foe (×1.5).
-  assert.ok(counter > Math.min(...taps) * 2.5, `the counter (${counter}) is far heavier than a tap (${taps})`);
+  // A counter: critical (×1.6) and half again (×1.5).
+  assert.ok(counter > Math.min(...taps) * 2, `the counter (${counter}) is far heavier than a tap (${taps})`);
   console.log(`Parry: no damage, the husk reeled, +${Math.round(parry.ce)} energy, the counter hit for ${counter}`);
 
   // A real foe's swing, parried by a press of I as it winds up.
-  await dummy(page, { state: 'chase', cool: 0, gap: 20 });
-  await page.waitForFunction(() => window.__remnant.world.foes().find((f) => f.kind === 'husk').state === 'windup', null, { timeout: 5000 });
-  await page.waitForFunction(() => { const f = window.__remnant.world.foes().find((f) => f.kind === 'husk'); return f.state === 'windup' && f.st > 0.33; }, null, { timeout: 5000, polling: 'raf' });
+  // A real foe's swing (the original husk's: its blow lands 0.48 s in), parried by a press of I as it winds up.
+  await dummy(page, { state: 'chase', gap: 20 });
+  await page.waitForFunction(() => { const f = window.__remnant.world.classic.ents.find((e) => e.kind === 'husk' && !e.remove); return f.state === 'attack' && f.st > 0.33; }, null, { timeout: 5000, polling: 'raf' });
   const hpBefore = await E(page, () => window.__remnant.world.player.hp);
   await page.keyboard.press('KeyI');
   await page.waitForTimeout(500);
-  const live = await E(page, () => { const w = window.__remnant.world; return { hp: w.player.hp, st: w.foes().find((f) => f.kind === 'husk').state }; });
+  const live = await E(page, () => { const w = window.__remnant.world, f = w.classic.ents.find((e) => e.kind === 'husk' && !e.remove); return { hp: w.player.hp, st: f.state }; });
   assert.equal(live.hp, hpBefore, 'a timed parry of a live swing costs nothing');
-  assert.equal(live.st, 'stagger', 'and staggers the husk');
-  console.log('A live husk swing, parried on its wind-up with I: no damage, the husk reels');
+  assert.ok(['hurt', 'stagger'].includes(live.st), `and the husk reels (${live.st})`);
+  console.log(`A live husk swing, parried on its wind-up with I: no damage, the husk reels (${live.st})`);
 
   // ---- block: holding the guard past the window takes a quarter
   await dummy(page);
   await page.keyboard.down('KeyI');
-  await page.waitForTimeout(450);
+  // Game time, not wall time: past the parry window into the guard.
+  await page.waitForFunction(() => window.__remnant.world.player.state === 'block', null, { timeout: 5000 });
   const block = await E(page, () => { const p = window.__remnant.world.player, f = window.__remnant.world.foes()[0]; const hp = p.hp, st = p.state; p.hurt({ dmg: 40, dir: -1, src: f }); return { st, lost: hp - p.hp }; });
   await page.keyboard.up('KeyI');
   assert.equal(block.st, 'block');
@@ -150,11 +155,13 @@ try {
   before = await foeHp(page);
   await page.keyboard.press('KeyE');
   await page.waitForTimeout(300);
-  const horn = await E(page, () => { const f = window.__remnant.world.foes()[0]; return { st: f.state, ce: window.__remnant.world.save.ce }; });
+  const horn = await E(page, () => { const f = window.__remnant.world.foes()[0]; return { st: f.e.state, ce: window.__remnant.world.save.ce }; });
   assert.ok(before - (await foeHp(page)) > 0, 'the Trumpet strikes nearby foes');
   assert.equal(horn.st, 'stagger', 'and staggers them');
+  // Game time: the Trumpet's cast is over before the next skill.
+  await page.waitForFunction(() => window.__remnant.world.player.state === 'free', null, { timeout: 5000 });
   await page.keyboard.press('KeyR');
-  await page.waitForTimeout(200);
+  await page.waitForFunction(() => window.__remnant.world.player.shieldT > 0, null, { timeout: 5000 }).catch(() => {});
   const shield = await E(page, () => { const w = window.__remnant.world, p = w.player, hp = p.hp; const landed = p.hurt({ dmg: 50, dir: 1, src: w.foes()[0] }); return { landed, lost: hp - p.hp, t: p.shieldT }; });
   assert.ok(shield.t > 0 && !shield.landed && shield.lost === 0, `the Shield of Faith blocks everything: ${JSON.stringify(shield)}`);
   await page.screenshot({ path: 'qa/combat-skills.png' });

@@ -1,10 +1,8 @@
 import Phaser from 'phaser';
-import { eliorUrl, ashenUrl, beastsUrl, shinarUrl, veilUrl, varkhosUrl, morvaneUrl, azkarUrl, spriteManifest } from '../shared';
+import { eliorUrl, varkhosUrl, morvaneUrl, azkarUrl } from '../shared';
 import { cutBossFrames } from '../game/bosses';
-import { FOE_SHEETS } from '../game/foes';
 import { glowTexture } from '../game/tileset';
-
-const SHEET_URLS: Record<string, string> = { 'foes-ashen': ashenUrl, 'foes-beasts': beastsUrl, 'foes-shinar': shinarUrl, 'foes-veil': veilUrl };
+import { loadCreatureSprites } from '../../../remnant/src/render/creatureSprites';
 
 /** Loads the sprite sheets and makes the generated textures every scene shares. */
 export class Boot extends Phaser.Scene {
@@ -15,7 +13,6 @@ export class Boot extends Phaser.Scene {
     this.load.image('varkhos', varkhosUrl);
     this.load.image('morvane', morvaneUrl);
     this.load.image('azkar', azkarUrl);
-    for (const s of FOE_SHEETS) if (SHEET_URLS[s]) this.load.spritesheet(s, SHEET_URLS[s], { frameWidth: spriteManifest.cell, frameHeight: spriteManifest.cell });
     const bar = this.add.graphics();
     this.load.on('progress', (v: number) => {
       const { width, height } = this.scale;
@@ -28,7 +25,8 @@ export class Boot extends Phaser.Scene {
     cutBossFrames(this);
     this.makeSlash();
     const p = new URLSearchParams(location.search);
-    this.scene.start(p.has('autostart') ? 'world' : 'title', { fresh: p.has('fresh') });
+    // The foes' sheets (drawn by the original's render/creatureSprites.ts) are in before the first room.
+    void loadCreatureSprites().then(() => this.scene.start(p.has('autostart') ? 'world' : 'title', { fresh: p.has('fresh') }));
   }
 
   /** A crescent of light for Elior's blade. */

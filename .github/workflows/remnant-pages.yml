@@ -73,6 +73,8 @@ jobs:
         working-directory: remnant-phaser
       - run: node scripts/combat.mjs
         working-directory: remnant-phaser
+      - run: node scripts/foes.mjs
+        working-directory: remnant-phaser
       - run: node scripts/bosses.mjs
         working-directory: remnant-phaser
       - run: node scripts/classic-bosses.mjs
