@@ -2,12 +2,15 @@ import Phaser from 'phaser';
 import { loadSave, liveSlots, importLive } from '../game/save';
 import { ROOMS } from '../shared';
 import { dpr } from '../game/screen';
+import { music } from '../classic/shim/music';
+import { installedBuild } from '../game/update';
 
 /** The title: continue the Phaser save, begin again, or bring a journey over from the live game. */
 export class Title extends Phaser.Scene {
   constructor() { super('title'); }
 
   create() {
+    music.play('title');
     const { width: W, height: H } = this.scale;
     const k = dpr();
     this.cameras.main.setBackgroundColor('#07060a');
@@ -16,7 +19,8 @@ export class Title extends Phaser.Scene {
     const big = Math.max(26, Math.min(56, W / k / 16)) * k;
     this.add.text(W / 2, H * 0.34, 'REMNANT', { fontFamily: 'Cinzel, Georgia, serif', fontSize: `${big}px`, color: '#f6dea0', fontStyle: 'bold' }).setOrigin(0.5).setLetterSpacing(big * 0.3);
     this.add.text(W / 2, H * 0.34 + big * 0.95, 'ASCENSION', { fontFamily: 'Cinzel, Georgia, serif', fontSize: `${big * 0.42}px`, color: '#e2b85a' }).setOrigin(0.5).setLetterSpacing(big * 0.3);
-    this.add.text(W / 2, H * 0.34 + big * 1.6, 'Phaser rebuild · early port', { fontFamily: 'Georgia, serif', fontStyle: 'italic', fontSize: `${14 * k}px`, color: '#9b92a6' }).setOrigin(0.5);
+    this.add.text(W / 2, H * 0.34 + big * 1.6, 'Phaser · combat, Echoes & audio', { fontFamily: 'Georgia, serif', fontStyle: 'italic', fontSize: `${14 * k}px`, color: '#9b92a6' }).setOrigin(0.5);
+    this.add.text(W / 2, H - 8 * k, installedBuild(), { fontFamily: 'Georgia, serif', fontSize: `${9 * k}px`, color: '#776c83' }).setOrigin(0.5, 1);
     const save = loadSave();
     const opts: [string, () => void][] = [];
     if (save) opts.push([`Continue · level ${save.level}`, () => this.scene.start('world', { fresh: false })]);

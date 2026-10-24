@@ -2,15 +2,16 @@
 // sheet drawn over it. Movement numbers come from the original game
 // (remnant/src/game/player.ts): run 142, jump 430, gravity 1500, max fall 560,
 // coyote 0.1 s, jump buffer 0.16 s, shorter hops when jump is let go.
-// Combat follows it too: a three-hit chain, an air strike, a heavy blow
-// charged by holding attack (or heavy) through three levels, a parry with a
-// counter window, blocking, a dodge with invulnerability, Balm and skills.
+// Combat follows the shared weapon definitions: ground and air routes,
+// Phantom Step, charged blows, parries, buffs, Balm and the selected skills.
 
 import Phaser from 'phaser';
-import { T, TILE } from '../shared';
+import { T, TILE, isSolid } from '../shared';
 import { sovereignDamage } from '../../../remnant/src/game/balance';
-import { SKILLS, SLOTS, castSkill, type SkillId } from './abilities';
-import type { WorldApi, Blow } from './types';
+import { MOVESETS, extraFor, type AttackDef } from '../../../remnant/src/game/weapons';
+import { skillRank } from '../../../remnant/src/game/state';
+import { SKILLS, skillSlots, castSkill, type SkillId } from './abilities';
+import type { WorldApi, Blow, FoeLike } from './types';
 
 export const GRAV = 1500;
 const MAX_FALL = 560;
@@ -23,23 +24,16 @@ const DODGE_T = 0.32;
 /** Covenant Energy: the original's regeneration, gain per landed blow and per perfect parry. */
 const CE_REGEN = 2.6, CE_HIT = 2.4, CE_PARRY = 5;
 
-interface Swing { t: number; hit: readonly number[]; dmg: number; force: number; reach: number; heavy?: boolean }
-/** The three-hit chain: duration, when the blade lands (fraction), damage scale, knockback, reach. */
-const COMBO: Swing[] = [
-  { t: 0.3, hit: [0.42, 0.68], dmg: 1, force: 0.8, reach: 34 },
-  { t: 0.3, hit: [0.42, 0.68], dmg: 1.1, force: 0.9, reach: 34 },
-  { t: 0.42, hit: [0.48, 0.74], dmg: 1.6, force: 1.6, reach: 40 },
-];
-const AIR: Swing = { t: 0.3, hit: [0.3, 0.7], dmg: 0.9, force: 0.7, reach: 34 };
-const HEAVY: Swing = { t: 0.46, hit: [0.42, 0.7], dmg: 2.2, force: 2.4, reach: 44, heavy: true };
+type Swing = AttackDef & { t: number; force: number; reach: number; heavy: boolean };
+const swing = (a: AttackDef, speed = 1): Swing => ({ ...a, t: a.dur / speed, force: a.poise / 14, reach: a.box.w, heavy: !!a.finisher || a.id === 'heavy' });
 /** Charge levels: the hold needed, and the original's damage and poise scales. */
-const CHARGE_AT = [0, 0.35, 0.85];
-const CHARGE_MULT = [1, 1.35, 1.8];
+const CHARGE_AT = [0, 0.35, 0.85, 1.4];
+const CHARGE_MULT = [1, 1.35, 1.8, 2.5];
 
 /** Sheet frames (4×4, 128 px): idle 0–3, run 4–7, rise 8, fall 9, wind-up 10, strike 11, dodge 12–13, hurt 14, cast 15. */
 const FRAME = 128, FOOT = 120, DRAW = 56;
 
-type State = 'free' | 'attack' | 'charge' | 'parry' | 'block' | 'heal' | 'cast' | 'dodge' | 'hurt' | 'dead';
+type State = 'free' | 'attack' | 'charge' | 'parry' | 'block' | 'heal' | 'cast' | 'dodge' | 'airdash' | 'phantom' | 'plunge' | 'hurt' | 'dead';
 
 export class Player {
   rect: Phaser.GameObjects.Rectangle;
@@ -57,7 +51,31 @@ export class Player {
   /** After a perfect parry, the next blow is a counter: certain to be critical, and harder. */
   counterT = 0;
   /** Skill cooldowns, seconds left. */
-  cds: Record<SkillId, number> = { sword_word: 0, trumpet: 0, shield_faith: 0 };
+  cds: Record<SkillId, number> = Object.fromEntries(Object.keys(SKILLS).map((id) => [id, 0])) as Record<SkillId, number>;
+  lion = 0;
+  armorLight = 0;
+  mendT = 0;
+  veiled = 0;
+  untouchable = 0;
+  private unharmed = 0;
+  private airAttacks = 0;
+  private airDash = 1;
+  private airJumps = 0;
+  private sinceDodge = 99;
+  private recentHit = 0;
+  private linger = '';
+  private lingerT = 0;
+  private heavyQueued = false;
+  private hitSeg = -1;
+  private swung = false;
+  phantomN = 0;
+  private phantomT = 0;
+  private phantomLast: FoeLike | null = null;
+  private phantomStruck = new Set<FoeLike>();
+  private phantomTarget: FoeLike | null = null;
+  private phantomTo: { x: number; y: number } | null = null;
+  comboHits = 0;
+  private comboT = 0;
   chargeLvl = 0;
   private st = 0;
   private coyote = 0;
@@ -76,7 +94,7 @@ export class Player {
   /** While positive, one-way platforms let Elior drop through. */
   dropT = 0;
   private stride = 0;
-  private atk: Swing = COMBO[0];
+  private atk: Swing = swing(MOVESETS.blade.combo[0]);
   private atkMult = 1;
   /** Which button the charge is held on (released to swing). */
   private chargeKey: 'attack' | 'heavy' = 'attack';
@@ -102,10 +120,11 @@ export class Player {
   get y() { return this.body.center.y; }
   get dead() { return this.state === 'dead'; }
   get onGround() { return this.body.blocked.down || this.body.touching.down; }
-  get vulnerable() { return this.invuln <= 0 && this.state !== 'dead' && !(this.state === 'dodge' && this.st < DODGE_T - 0.04); }
+  get vulnerable() { return this.invuln <= 0 && this.untouchable <= 0 && this.state !== 'dead' && this.state !== 'phantom' && !(this.state === 'attack' && ['pstrike', 'cross'].includes(this.atk.id) && this.st < 0.12) && !(this.state === 'dodge' && this.st < DODGE_T - 0.04) && !(this.state === 'airdash' && this.st < 0.15); }
   get ce() { return this.w.save.ce; }
+  get moves() { return MOVESETS[this.w.d.family]; }
   /** A blow's base: the original's attack from stats and gear, its melee multiplier and the level's power tier. */
-  power() { const d = this.w.d; return d.atk * d.meleeMult * sovereignDamage(this.w.save.level); }
+  power() { const d = this.w.d; return d.atk * d.meleeMult * sovereignDamage(this.w.save.level) * (this.lion > 0 ? 1.35 : 1); }
   /** A Covenant skill's base: attack times the original's ability power. */
   skillPower() { const d = this.w.d; return d.atk * d.abil * sovereignDamage(this.w.save.level); }
 
@@ -116,6 +135,11 @@ export class Player {
     this.body.reset(x, feet - 17);
     this.face = face;
     this.state = 'free';
+    this.st = 0;
+    this.body.setVelocity(0, 0);
+    this.queued = this.heavyQueued = false;
+    this.linger = '';
+    this.slash.setVisible(false);
   }
 
   destroy() {
@@ -148,7 +172,26 @@ export class Player {
     this.shieldT = Math.max(0, this.shieldT - dt);
     this.counterT = Math.max(0, this.counterT - dt);
     this.dropT = Math.max(0, this.dropT - dt);
-    for (const k of SLOTS) this.cds[k] = Math.max(0, this.cds[k] - dt);
+    for (const k of Object.keys(SKILLS) as SkillId[]) this.cds[k] = Math.max(0, this.cds[k] - dt * this.w.d.skillRecharge);
+    this.lion = Math.max(0, this.lion - dt);
+    this.armorLight = Math.max(0, this.armorLight - dt);
+    this.veiled = Math.max(0, this.veiled - dt);
+    this.untouchable = Math.max(0, this.untouchable - dt);
+    this.unharmed += dt;
+    if (!this.dead) {
+      const mend = Math.min(dt, this.mendT);
+      this.mendT = Math.max(0, this.mendT - dt);
+      this.hp = Math.min(this.maxHp, this.hp + this.maxHp * (mend * 0.03 + (this.unharmed >= 4 ? this.w.d.hpRegen * dt : 0)));
+    }
+    this.sinceDodge += dt;
+    this.recentHit = Math.max(0, this.recentHit - dt);
+    this.lingerT = Math.max(0, this.lingerT - dt);
+    if (!this.lingerT) this.linger = '';
+    this.phantomT = Math.max(0, this.phantomT - dt);
+    if (!this.phantomT && this.state !== 'phantom') { this.phantomN = 0; this.phantomStruck.clear(); }
+    this.comboT = Math.max(0, this.comboT - dt);
+    if (!this.comboT) this.comboHits = 0;
+    if (this.onGround) { this.airAttacks = 0; this.airDash = 1; this.airJumps = s.keyItems.includes('eagle_wings') ? 1 : 0; }
     if (this.state !== 'dead') s.ce = Math.min(this.maxCe, s.ce + CE_REGEN * this.w.d.ceRegen * dt);
     this.coyote = this.onGround ? COYOTE : Math.max(0, this.coyote - dt);
     this.jumpBuf = c.pressed('jump') ? BUFFER : Math.max(0, this.jumpBuf - dt);
@@ -157,13 +200,13 @@ export class Player {
 
     // Short hops: letting go of jump on the way up pulls Elior down sooner.
     const airSwing = (this.state === 'attack' || this.state === 'charge') && !this.onGround;
-    b.setGravityY(airSwing ? GRAV * 0.35 : b.velocity.y < 0 && !c.down('jump') ? GRAV * 1.9 : GRAV);
+    b.setGravityY(this.state === 'phantom' || this.state === 'airdash' ? 0 : airSwing && this.atk.id !== 'rend' ? GRAV * 0.35 : b.velocity.y < 0 && !c.down('jump') ? GRAV * 1.9 : GRAV);
 
     switch (this.state) {
       case 'free': {
         const ax = c.axis;
         const accel = this.onGround ? 1400 : 900;
-        b.setVelocityX(Phaser.Math.Linear(b.velocity.x, ax * RUN, Math.min(1, (accel * dt) / RUN)));
+        b.setVelocityX(Phaser.Math.Linear(b.velocity.x, ax * RUN * this.w.d.speed, Math.min(1, (accel * dt) / RUN)));
         if (Math.abs(ax) > 0.2) this.face = Math.sign(ax);
         if (this.jumpBuf > 0 && c.down('down') && this.onGround && this.standingOnOneWay()) {
           this.dropT = 0.25;
@@ -172,33 +215,26 @@ export class Player {
           b.setVelocityY(-JUMP_V);
           this.jumpBuf = 0;
           this.coyote = 0;
+        } else if (this.jumpBuf > 0 && this.airJumps > 0) {
+          this.airJumps--; this.jumpBuf = 0; b.setVelocityY(-JUMP_V * 0.9);
         }
         if (this.defence()) break;
-        if (c.pressed('heavy') && this.onGround) this.startCharge('heavy');
-        else if (c.pressed('attack')) this.startAttack(0);
+        if (c.pressed('heavy')) {
+          if (this.onGround && [this.moves.combo[2].id, this.moves.extra.id].includes(this.linger)) this.startMove(this.moves.storm);
+          else if (!this.onGround) this.startPlunge();
+          else this.startCharge('heavy');
+        }
+        else if (c.pressed('attack')) this.chooseAttack();
         else if (c.pressed('heal')) this.startHeal();
         else this.trySkill();
         break;
       }
-      case 'attack': {
-        const u = this.st / this.atk.t;
-        // Planted on the ground; a small lunge into the blow.
-        if (this.onGround) b.setVelocityX(u < this.atk.hit[0] ? this.face * (this.atk.heavy ? 60 : 40) : b.velocity.x * 0.8);
-        if (c.pressed('attack')) this.queued = true;
-        if (u > this.atk.hit[1] && this.defence()) break;
-        if (u >= this.atk.hit[0] && u <= this.atk.hit[1]) this.strike();
-        if (u >= 1) {
-          // Still holding attack after the first swing: charge a heavy blow (touch-friendly).
-          if (this.atk === COMBO[0] && c.down('attack') && !this.queued && this.onGround) this.startCharge('attack');
-          else if (this.queued && !this.atk.heavy && this.atk !== AIR && this.combo < 2) this.startAttack(this.combo + 1);
-          else this.toFree();
-        }
-        break;
-      }
+      case 'attack': this.updateAttack(dt); break;
       case 'charge': {
         b.setVelocityX(b.velocity.x * 0.8);
         if (Math.abs(c.axis) > 0.3) this.face = Math.sign(c.axis);
-        const lvl = this.st >= CHARGE_AT[2] ? 2 : this.st >= CHARGE_AT[1] ? 1 : 0;
+        const charge = this.st * (skillRank(s, 'w_mastery') ? 1.35 : 1);
+        const lvl = charge >= CHARGE_AT[3] && skillRank(s, 'w_mastery') ? 3 : charge >= CHARGE_AT[2] ? 2 : charge >= CHARGE_AT[1] ? 1 : 0;
         if (lvl > this.chargeLvl) {
           this.chargeLvl = lvl;
           this.w.spark(this.x + this.face * 4, this.body.top - 4, lvl >= 2 ? 0xfff1c4 : 0xe8c27a, 6 + lvl * 4);
@@ -210,7 +246,7 @@ export class Player {
       case 'parry':
         b.setVelocityX(b.velocity.x * 0.7);
         // A perfect parry opens straight into the riposte.
-        if (this.counterT > 0 && c.pressed('attack')) { this.startAttack(0); break; }
+        if (this.counterT > 0 && c.pressed('attack')) { this.chooseAttack(); break; }
         if (this.counterT > 0 && c.pressed('heavy')) { this.startCharge('heavy'); break; }
         // Held past the window, the guard stays up as a block.
         if (this.st >= 0.3) this.state = c.down('parry') ? 'block' : 'free';
@@ -223,7 +259,7 @@ export class Player {
         b.setVelocityX(Phaser.Math.Linear(b.velocity.x, c.axis * 30, 0.2));
         if (!this.healDone && this.st >= 0.5) {
           this.healDone = true;
-          const amt = Math.round(this.maxHp * 0.42);
+          const amt = Math.round(this.maxHp * 0.42 * (skillRank(s, 'g_balm') ? 1.15 : 1));
           this.hp = Math.min(this.maxHp, this.hp + amt);
           this.w.floatText(this.x, this.body.top - 10, `+${amt}`, '#9fe39a');
           this.w.spark(this.x, this.y, 0x9fe39a, 12);
@@ -234,7 +270,7 @@ export class Player {
       case 'cast':
         b.setVelocityX(b.velocity.x * 0.7);
         if (this.castId && this.st >= 0.12) {
-          castSkill(this.w, this, this.castId);
+          castSkill(this.w, this.castId);
           this.castId = null;
         }
         // Once the skill is loosed, another can follow straight on.
@@ -243,7 +279,24 @@ export class Player {
         break;
       case 'dodge':
         b.setVelocityX(this.face * DODGE_V * (1 - (this.st / DODGE_T) * 0.5));
-        if (this.st >= DODGE_T) this.toFree();
+        if (c.pressed('attack') && this.st > 0.08) this.startMove(this.moves.dash);
+        else if (this.st >= DODGE_T) { this.sinceDodge = 0; this.toFree(); }
+        break;
+      case 'airdash':
+        b.setVelocity(this.face * 360, 0);
+        if (c.pressed('attack')) this.chooseAttack();
+        else if (this.st >= 0.2) this.toFree();
+        break;
+      case 'phantom':
+        b.setVelocity(0, 0);
+        if (this.st >= 0.075) this.finishPhantom();
+        break;
+      case 'plunge':
+        b.setVelocityX(b.velocity.x * 0.9);
+        b.setVelocityY(Math.max(520, b.velocity.y));
+        this.strike();
+        if (this.onGround && this.st > 0.05) this.landPlunge();
+        else if (this.st > 1.8) this.toFree();
         break;
       case 'hurt':
         b.setVelocityX(b.velocity.x * 0.88);
@@ -262,7 +315,11 @@ export class Player {
   /** Dodge or parry, from free or from the tail of a swing. */
   private defence() {
     const c = this.w.controls;
-    if (c.pressed('dodge') && this.dodgeCd <= 0) { this.startDodge(); return true; }
+    if (c.pressed('dodge')) {
+      if (this.canPhantom()) { this.startPhantom(); return true; }
+      if (!this.onGround && this.airDash > 0) { this.airDash--; this.state = 'airdash'; this.st = 0; return true; }
+      if (this.onGround && this.dodgeCd <= 0) { this.startDodge(); return true; }
+    }
     if (c.pressed('parry') && this.parryCd <= 0 && this.onGround) { this.startParry(); return true; }
     return false;
   }
@@ -271,8 +328,14 @@ export class Player {
     const c = this.w.controls, s = this.w.save;
     const n = c.pressed('skill1') ? 0 : c.pressed('skill2') ? 1 : c.pressed('skill3') ? 2 : -1;
     if (n < 0) return false;
-    const id = SLOTS[n], def = SKILLS[id];
+    const id = skillSlots(s)[n];
+    if (!id || !s.abilities.includes(id)) { this.w.toast('Choose an ability in Menu → Elior → Abilities.'); return false; }
+    const def = SKILLS[id];
     if (this.cds[id] > 0) return false;
+    if (id === 'blink_strike' || id === 'chain_snare') {
+      const t = this.target(260, true);
+      if (!t || !this.blinkSpot(t)) { this.w.toast('No reachable enemy ahead.'); return false; }
+    }
     if (s.ce < def.cost) { this.w.floatText(this.x, this.body.top - 8, 'Not enough Covenant Energy', '#9fc4ff'); return false; }
     s.ce -= def.cost;
     this.cds[id] = def.cd;
@@ -295,17 +358,103 @@ export class Player {
   }
 
   private startAttack(n: number) {
-    this.atk = this.onGround ? COMBO[n] : AIR;
+    this.startMove(this.onGround ? this.moves.combo[n] : this.moves.air[Math.min(n, 2)]);
+  }
+
+  private startMove(a: AttackDef) {
+    const speed = this.w.d.aspd * this.moves.speed * (this.lion > 0 ? 1.1 : 1);
+    this.atk = swing(a, speed);
     this.atkMult = 1;
-    this.combo = this.onGround ? n : 0;
+    this.combo = this.moves.combo.findIndex((v) => v.id === a.id);
+    this.hitSeg = -1;
+    this.swung = false;
+    this.linger = '';
     this.begin();
-    if (!this.onGround && this.body.velocity.y > 0) this.body.setVelocityY(this.body.velocity.y * 0.4);
+    this.w.playEffect(a.sfx);
+    if (a.rise && (this.w.controls.down('up') || a.forceRise)) this.body.setVelocityY(a.rise);
+    if (a.air && this.body.velocity.y > 0) this.body.setVelocityY(this.body.velocity.y * 0.2);
+  }
+
+  /** The same routes for every weapon family, including deliberate pauses. */
+  private chooseAttack() {
+    const m = this.moves, c = this.w.controls;
+    if (this.phantomN >= 3 && this.phantomT > 0 && this.ce >= 10) { this.startCross(); return; }
+    if (this.counterT > 0) { this.startMove({ ...m.counter, dmg: m.counter.dmg * (skillRank(this.w.save, 'g_counter') ? 1.7 : 1) }); return; }
+    if (!this.onGround) {
+      if (c.down('down')) this.startPlunge();
+      else if (this.linger === m.air[2].id || this.airAttacks >= 3) this.startMove(m.rend);
+      else { this.startMove(m.air[this.airAttacks]); this.airAttacks++; }
+    } else if (this.linger === m.combo[0].id) this.startMove(m.combo[1]);
+    else if (this.linger === m.combo[1].id) this.startMove(0.62 - this.lingerT < 0.12 ? m.combo[2] : m.flurry);
+    else if (this.linger === m.combo[2].id && skillRank(this.w.save, 'w_relentless')) this.startMove(extraFor(this.w.d.family));
+    else if (this.linger === m.dash.id) this.startMove(m.comet);
+    else if (c.down('up')) this.startMove(m.launch);
+    else if (this.sinceDodge < 0.18) this.startMove(m.dash);
+    else this.startAttack(0);
+  }
+
+  private updateAttack(dt: number) {
+    const a = this.atk, c = this.w.controls, b = this.body, m = this.moves, u = this.st / a.t;
+    if (c.pressed('attack')) this.queued = true;
+    if (c.pressed('heavy')) this.heavyQueued = true;
+    if (a.dive && u >= a.hit[0]) b.setVelocity(this.face * 230, Math.max(470, b.velocity.y));
+    else if (a.lunge && a.lungeT && u >= a.lungeT[0] && u <= a.lungeT[1] && (this.onGround || a.id === 'dash' || a.id === 'flurry')) {
+      const near = this.w.foes().some((f) => f.alive && Math.abs(f.x - this.x) < 24 && Math.abs(f.box.centerY - this.y) < 40);
+      b.setVelocityX(this.face * a.lunge * (near ? 0.25 : 1));
+    } else b.setVelocityX(Phaser.Math.Linear(b.velocity.x, a.air ? c.axis * 70 : 0, Math.min(1, dt * 14)));
+    // Intersect the window, rather than requiring a frame inside it at high attack speed.
+    if (u >= a.hit[0] && (this.st - dt) / a.t <= a.hit[1]) {
+      const last = Math.min((a.multi ?? 1) - 1, Math.floor(Math.max(0, Math.min(0.9999, (u - a.hit[0]) / (a.hit[1] - a.hit[0]))) * (a.multi ?? 1)));
+      if (last !== this.hitSeg) {
+        for (let seg = this.hitSeg + 1; seg <= last; seg++) {
+          this.hitDone.clear();
+          this.strike();
+        }
+        this.hitSeg = last;
+      } else this.strike();
+      if (!this.swung && this.armorLight > 0 && !a.air) this.w.lightWave();
+      this.swung = true;
+      if (a.pull) for (const f of this.w.foes()) if (f.alive && Math.abs(f.x - this.x) < a.pull) {
+        const e = (f as FoeLike & { e?: { isBoss: boolean; body: { vx: number } } }).e;
+        if (e && !e.isBoss) e.body.vx = Math.sign(this.x - f.x) * 90;
+      }
+    }
+    if (a.dive && this.onGround && this.st > 0.08) { this.landPlunge(); return; }
+    if (c.pressed('dodge') && this.recentHit > 0 && this.canPhantom()) { this.startPhantom(); return; }
+    if (u >= a.cancel && this.defence()) return;
+    if (u >= a.cancel) {
+      if (this.heavyQueued && this.onGround && [m.combo[2].id, m.extra.id].includes(a.id)) { this.startMove(m.storm); return; }
+      if (this.heavyQueued && a.air && a.id === m.air[2].id) { this.startMove(m.rend); return; }
+      if (a.id === m.combo[2].id && c.down('attack') && !this.queued && this.onGround) { this.startMove(m.storm); return; }
+      if (this.queued) {
+        if (a.id === 'pstrike' && this.phantomN >= 3 && this.ce >= 10) { this.startCross(); return; }
+        if (a.id === m.dash.id) { this.startMove(m.comet); return; }
+        if (a.air) {
+          if (this.airAttacks < 3) { this.startMove(m.air[this.airAttacks++]); return; }
+          if (a.id === m.air[2].id) { this.startMove(m.rend); return; }
+        } else if (this.onGround) {
+          const n = m.combo.findIndex((v) => v.id === a.id) + 1;
+          if (n > 0 && n < m.combo.length) { this.startMove(m.combo[n]); return; }
+          if (n === m.combo.length && skillRank(this.w.save, 'w_relentless')) { this.startMove(extraFor(this.w.d.family)); return; }
+          this.startMove(m.combo[0]); return;
+        }
+        this.queued = false;
+      }
+    }
+    if (u >= 1) {
+      if (a.auto) { const next = m[a.auto as keyof typeof m]; if (typeof next === 'object' && !Array.isArray(next)) { this.startMove(next); return; } }
+      if (a.id === m.combo[0].id && c.down('attack') && this.onGround) { this.startCharge('attack'); return; }
+      this.linger = a.id;
+      this.lingerT = a.id === m.combo[1].id ? 0.62 : 0.34;
+      this.toFree();
+    }
   }
 
   private begin() {
     this.state = 'attack';
     this.st = 0;
     this.queued = false;
+    this.heavyQueued = false;
     this.hitDone.clear();
     const ax = this.w.controls.axis;
     if (Math.abs(ax) > 0.2) this.face = Math.sign(ax);
@@ -321,10 +470,8 @@ export class Player {
 
   /** Let go of a charge: the heavy blow, stronger for every level reached. */
   private release() {
-    this.atk = HEAVY;
+    this.startMove({ ...this.moves.heavy, guardBreak: this.chargeLvl >= 2 || this.moves.heavy.guardBreak });
     this.atkMult = CHARGE_MULT[this.chargeLvl];
-    this.combo = 2;
-    this.begin();
     if (this.chargeLvl >= 2) this.w.shake(0.006, 120);
   }
 
@@ -348,6 +495,7 @@ export class Player {
   }
 
   private startDodge() {
+    this.w.playEffect('dash');
     this.state = 'dodge';
     this.st = 0;
     this.dodgeCd = 0.45;
@@ -356,11 +504,97 @@ export class Player {
     this.slash.setVisible(false);
   }
 
+  private startPlunge() { this.startMove(this.moves.plunge); this.state = 'plunge'; this.body.setVelocityY(260); }
+  private landPlunge() {
+    this.w.shake(0.008, 170);
+    this.w.spark(this.x, this.feet - 2, 0xffd27a, 20);
+    this.startMove({ ...this.moves.plunge, id: 'slam', dur: 0.3, hit: [0, 0.35], box: { x: -40, y: -28, w: 80, h: 32 }, dmg: 1.6, finisher: true });
+    this.strike();
+  }
+
+  /** Safe destinations and a clear line prevent every blink from crossing walls. */
+  canPlace(x: number, feet: number) {
+    if (x < 7 || x > this.w.roomW() - 7 || feet < 34) return false;
+    for (let ty = Math.floor((feet - 33) / TILE); ty <= Math.floor((feet - 1) / TILE); ty++)
+      for (let tx = Math.floor((x - 5) / TILE); tx <= Math.floor((x + 5) / TILE); tx++) {
+        const t = this.w.tileAt(tx, ty);
+        if (isSolid(t) || t === T.Spikes || t === T.Veil) return false;
+      }
+    const floor = this.w.tileAt(Math.floor(x / TILE), Math.floor(feet / TILE));
+    return floor !== T.Spikes && floor !== T.Veil;
+  }
+  lineOfSight(x: number, y: number) {
+    const dx = x - this.x, dy = y - this.y, n = Math.max(1, Math.ceil(Math.hypot(dx, dy) / 4));
+    for (let i = 1; i <= n; i++) if (isSolid(this.w.tileAt(Math.floor((this.x + dx * i / n) / TILE), Math.floor((this.y + dy * i / n) / TILE)))) return false;
+    return true;
+  }
+  blinkSpotAt(x: number, feet: number, halfWidth: number, side = Math.sign(x - this.x) || this.face) {
+    if (!this.lineOfSight(x, feet - 20)) return null;
+    for (const sign of [side, -side]) for (const lift of [0, -16, -32]) {
+      const tx = x + sign * (halfWidth + 20), ty = feet + lift;
+      if (this.canPlace(tx, ty) && this.lineOfSight(tx, ty - 20)) return { x: tx, y: ty };
+    }
+    return null;
+  }
+  private blinkSpot(f: FoeLike) { return f.alive ? this.blinkSpotAt(f.x, f.box.bottom, f.box.width / 2) : null; }
+  private target(range: number, ahead = false) {
+    let best: FoeLike | null = null, dist = range;
+    for (const f of this.w.foes()) {
+      const phase = f as FoeLike & { fighting?: boolean; ward?: boolean };
+      if (!f.alive || f.removed || phase.fighting === false || phase.ward || !this.lineOfSight(f.x, f.box.centerY)) continue;
+      if (ahead && Math.sign(f.x - this.x) !== this.face && Math.abs(f.x - this.x) > 20) continue;
+      const d = Math.hypot(f.x - this.x, (f.box.centerY - this.y) * 0.7);
+      if (d < dist) { dist = d; best = f; }
+    }
+    return best;
+  }
+  canPhantom() {
+    if (!this.w.save.flags.phantom || (this.recentHit <= 0 && this.phantomT <= 0) || (this.ce < 5 && this.w.save.level < 100)) return false;
+    const f = this.phantomTargetForStep();
+    return !!f && !!this.blinkSpot(f);
+  }
+  private phantomTargetForStep() {
+    let best: FoeLike | null = null, score = Infinity;
+    for (const f of this.w.foes()) {
+      const phase = f as FoeLike & { fighting?: boolean; ward?: boolean };
+      if (!f.alive || f.removed || phase.fighting === false || phase.ward || Math.abs(f.x - this.x) > 150 || Math.abs(f.box.bottom - this.feet) > 100 || !this.blinkSpot(f)) continue;
+      const d = Math.abs(f.x - this.x) + (this.phantomStruck.has(f) ? 250 : 0) + (f === this.phantomLast ? 100 : 0);
+      if (d < score) { score = d; best = f; }
+    }
+    return best;
+  }
+  startPhantom() {
+    const f = this.phantomTargetForStep();
+    const spot = f && this.blinkSpot(f);
+    if (!f || !spot) return;
+    if (this.w.save.level < 100) this.w.save.ce -= 5;
+    this.phantomTarget = f; this.phantomTo = spot; this.phantomLast = f;
+    this.phantomN++; this.phantomT = 1; this.phantomStruck.add(f);
+    this.state = 'phantom'; this.st = 0; this.body.setVelocity(0, 0);
+    this.slash.setVisible(false);
+    this.w.spark(this.x, this.y, 0xad9aff, 14);
+  }
+  private finishPhantom() {
+    const f = this.phantomTarget, spot = this.phantomTo;
+    if (!f || !f.alive || !spot || !this.canPlace(spot.x, spot.y)) { this.toFree(); return; }
+    this.placeAt(spot.x, spot.y, Math.sign(f.x - spot.x) || this.face);
+    this.w.spark(this.x, this.y, 0xffe6a8, 16);
+    this.startMove({ ...this.moves.pstrike, dmg: this.moves.pstrike.dmg * (1 + Math.min(5, this.phantomN - 1) * 0.15) });
+    if (this.phantomN === 3) this.w.toast('Judgment Cross ready · STRIKE');
+  }
+  private startCross() {
+    this.w.save.ce -= 10;
+    this.phantomN = 0; this.phantomT = 0; this.phantomStruck.clear();
+    this.startMove(this.moves.cross);
+    this.body.setVelocityY(-120);
+    this.w.shake(0.01, 200);
+  }
+
   /** The blade's reach this frame, in front of Elior. */
   private blade() {
-    const reach = this.atk.reach;
-    const x = this.face > 0 ? this.x : this.x - reach;
-    return new Phaser.Geom.Rectangle(x, this.body.top - 4, reach, 40);
+    const a = this.atk, reach = a.box.w * (this.w.d.family === 'spear' ? 1 : this.moves.reach) + (a.heavy ? 30 : 0);
+    const x = this.face > 0 ? this.x + a.box.x : this.x - a.box.x - reach;
+    return new Phaser.Geom.Rectangle(x, this.feet + a.box.y, reach, a.box.h);
   }
 
   private strike() {
@@ -372,14 +606,18 @@ export class Player {
       const d = this.w.d, crit = counter || Math.random() < d.crit;
       let dmg = this.power() * this.atk.dmg * this.atkMult * (this.atk.heavy ? d.heavyMult : 1) * Phaser.Math.FloatBetween(0.92, 1.08);
       if (crit) dmg *= d.critDmg;
-      if (counter) dmg *= 1.5;
       // Arriving from a swap: the first blow carries the momentum.
       const swap = this.swapStrikeT > 0 ? 1.5 : 1;
       const force = this.atk.force * this.atkMult * (counter ? 1.5 : 1) * swap;
-      if (f.hit(Math.round(dmg * swap), this.face, force, crit)) {
+      if (f.hit(Math.round(dmg * swap), this.face, force, crit, { poise: this.atk.poise * this.atkMult * this.w.d.heavyPoiseMult, kx: this.atk.kx * this.face, ky: this.atk.ky, launch: this.atk.launch, heavy: this.atk.heavy, guardBreak: this.atk.guardBreak })) {
         this.counterT = 0;
         this.swapStrikeT = 0;
-        this.w.save.ce = Math.min(this.maxCe, this.w.save.ce + CE_HIT);
+        this.recentHit = 0.65;
+        this.comboHits++; this.comboT = 1.7;
+        this.w.save.bestCombo = Math.max(this.w.save.bestCombo ?? 0, this.comboHits);
+        this.w.save.ce = Math.min(this.maxCe, this.w.save.ce + CE_HIT * (1 + skillRank(this.w.save, 'l_radiance') * 0.3));
+        if (this.atk.hang && !this.onGround) this.body.setVelocityY(Math.min(this.body.velocity.y, this.atk.hang));
+        if (this.w.d.lifesteal) this.hp = Math.min(this.maxHp, this.hp + dmg * swap * this.w.d.lifesteal);
         this.w.hitstop(this.atk.heavy ? 0.08 : this.combo === 2 || crit ? 0.06 : 0.04);
       }
     }
@@ -402,17 +640,18 @@ export class Player {
     if (!h.hazard && !h.unblockable && this.parryT > 0 && facing) {
       this.parryT = 0;
       this.counterT = 0.75;
-      this.w.save.ce = Math.min(this.maxCe, this.w.save.ce + CE_PARRY);
+      this.w.save.ce = Math.min(this.maxCe, this.w.save.ce + (skillRank(this.w.save, 'g_timing') ? 12 : CE_PARRY));
       h.src?.parried();
       this.w.spark(this.x + this.face * 10, this.y - 6, 0xfff6dc, 16);
       this.w.floatText(this.x, this.body.top - 10, 'PARRY', '#fff1c4');
+      this.w.playEffect('parryPerfect');
       this.w.hitstop(0.08);
       this.w.shake(0.004, 100);
       return false;
     }
     // The original's armour: damage reduction from Endurance and gear (half of it against hazards).
     const dr = this.w.d.dr * (h.hazard ? 0.5 : 1);
-    let dmg = h.dmg * (1 - dr);
+    let dmg = h.dmg * (1 - dr) * (this.armorLight > 0 ? 0.6 : 1);
     if (!h.hazard && !h.unblockable && (this.state === 'block' || this.state === 'parry') && facing) {
       dmg = Math.max(1, Math.round(dmg * 0.25));
       this.hp = Math.max(1, this.hp - dmg);
@@ -422,18 +661,22 @@ export class Player {
       return true;
     }
     dmg = Math.max(1, Math.round(dmg));
+    this.w.playEffect('hurt');
     this.hp = Math.max(0, this.hp - dmg);
+    this.unharmed = 0;
     this.w.floatText(this.x, this.body.top - 6, String(dmg), '#ff6a6a');
     this.w.shake(0.006, 140);
     this.invuln = 0.9;
     this.slash.setVisible(false);
     const dir = h.dir || -this.face;
     if (this.hp <= 0) {
+      this.w.playEffect('death');
       this.state = 'dead';
       this.st = 0;
       this.body.setVelocity(dir * 120, -200);
       return true;
     }
+    if (this.lion > 0) return true;
     this.state = 'hurt';
     this.st = 0;
     this.body.setVelocity(dir * 170, -170);
@@ -452,7 +695,9 @@ export class Player {
     let f = 0;
     const vx = Math.abs(b.velocity.x);
     if (this.state === 'dead' || this.state === 'hurt') f = 14;
-    else if (this.state === 'dodge') f = this.st < 0.13 ? 12 : 13;
+    else if (this.state === 'dodge' || this.state === 'airdash') f = this.st < 0.13 ? 12 : 13;
+    else if (this.state === 'phantom') f = 15;
+    else if (this.state === 'plunge') f = 11;
     else if (this.state === 'attack') f = this.st / this.atk.t < this.atk.hit[0] ? 10 : 11;
     else if (this.state === 'charge' || this.state === 'parry' || this.state === 'block') f = 10;
     else if (this.state === 'heal' || this.state === 'cast') f = 15;
@@ -489,6 +734,9 @@ export class Player {
     if (this.parryT > 0) g.lineStyle(2, 0xfff6dc, 0.9).strokeCircle(b.center.x + this.face * 8, b.center.y - 2, 9);
     else if (this.state === 'block') g.lineStyle(1.5, 0xffe6a8, 0.5).strokeCircle(b.center.x + this.face * 8, b.center.y - 2, 9);
     if (this.shieldT > 0) g.lineStyle(2, 0x9fd8ff, 0.4 + 0.3 * Math.sin(this.st * 20)).strokeCircle(b.center.x, b.center.y, 22);
+    if (this.lion > 0) g.lineStyle(1.5, 0xffb347, 0.6).strokeCircle(b.center.x, b.center.y, 20);
+    if (this.armorLight > 0) g.lineStyle(2, 0xffe6a8, 0.7).strokeRoundedRect(b.left - 5, b.top - 4, b.width + 10, b.height + 8, 6);
+    if (this.mendT > 0) g.fillStyle(0x9de6bb, 0.7).fillCircle(b.center.x + Math.sin(this.st * 5) * 13, b.center.y + Math.cos(this.st * 5) * 20, 2);
     if (this.counterT > 0) g.fillStyle(0xfff1c4, 0.7).fillCircle(b.center.x + this.face * 10, b.top - 2, 1.5);
   }
 }

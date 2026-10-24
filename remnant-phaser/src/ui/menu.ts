@@ -11,7 +11,7 @@ import {
   ECHO_SPECIES, ECHO_ROLES, ECHO_LEVEL_CAP, echoRole, FAMILY_NAMES, echoXpToNext, xpToNext,
   type ItemInst, type Slot, type ModKey, type EchoInst, type StatKey,
 } from '../../../remnant/src/game/data';
-import { derive, getItem, itemMods, canLearn, skillRank, echoMaxHp, echoAtk, unlockCombatSkills, allocateStat, learnRanks, learn, absorbEcho } from '../../../remnant/src/game/state';
+import { derive, getItem, itemMods, canLearn, skillRank, echoMaxHp, echoAtk, unlockCombatSkills, allocateStat, learnRanks, learn, absorbEcho, equipAbility, COMBAT_UNLOCKS } from '../../../remnant/src/game/state';
 import { h, btn, pushLayer, popLayer, clear, navigate } from '../../../remnant/src/ui/dom';
 import { img, iconUrl } from '../../../remnant/src/ui/icons';
 import { installTips, hideTip, MOD_TIPS, DERIVED_TIPS, derivedRows } from '../../../remnant/src/ui/statTips';
@@ -23,6 +23,9 @@ import { solve, newJoints } from '../../../remnant/src/render/skeleton';
 import { drawHumanoid } from '../../../remnant/src/render/actors';
 import { ROOMS } from '../shared';
 import type { World } from '../scenes/World';
+import { settings, saveSettings } from '../classic/shim/settings';
+import { songs } from '../../../remnant/src/audio/songs';
+import { installedBuild, checkForUpdates } from '../game/update';
 import '../../../remnant/src/ui/styles.css';
 
 const formatTime = (sec: number) => { const m = Math.floor(sec / 60); return `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, '0')}m`; };
@@ -33,6 +36,8 @@ const SECTIONS: { id: string; label: string; icon: string; tabs: { id: string; l
     { id: 'character', label: 'Character', icon: 'stats' },
     { id: 'equipment', label: 'Equipment', icon: 'armor' },
     { id: 'skills', label: 'Skills', icon: 'skills' },
+    { id: 'abilities', label: 'Abilities', icon: 'lamp' },
+    { id: 'moves', label: 'Moves', icon: 'sword' },
   ] },
   { id: 'echoes', label: 'Echoes', icon: 'echo', tabs: [{ id: 'echoes', label: 'Squad', icon: 'echo' }] },
   { id: 'settings', label: 'System', icon: 'gear', tabs: [{ id: 'system', label: 'Save & system', icon: 'save' }] },
@@ -165,6 +170,8 @@ function render() {
     case 'character': bodyEl.appendChild(characterTab()); break;
     case 'equipment': bodyEl.appendChild(equipmentTab()); break;
     case 'skills': bodyEl.appendChild(skillsTab()); break;
+    case 'abilities': bodyEl.appendChild(abilitiesTab()); break;
+    case 'moves': bodyEl.appendChild(movesTab()); break;
     case 'echoes': bodyEl.appendChild(echoesTab()); break;
     case 'journey': bodyEl.appendChild(journeyTab()); break;
     case 'system': bodyEl.appendChild(systemTab()); break;
@@ -386,8 +393,58 @@ function skillsTab() {
     btn(regenRank === 10 ? 'Regeneration mastered' : 'Train Regeneration · 1 point', () => { if (learn(s, 'g_regen')) refresh(); }, 'btn small', { disabled: !canLearn(s, 'g_regen'), 'data-k': 'learn_regen' }));
   return h('div', { class: 'col scroll', style: 'flex:1' },
     h('div', { class: 'eyebrow', 'data-k': 'skill_points' }, `${s.skillPoints} skill points available`),
-    h('p', { class: 'muted', style: 'font-size:0.85em;margin:2px 0 6px' }, 'Passive skills shape Elior\'s numbers now. Choosing which Covenant abilities to carry comes with the rest of the abilities.'),
+    h('p', { class: 'muted', style: 'font-size:0.85em;margin:2px 0 6px' }, 'Learn passives here. Choose your three Covenant skills in Abilities; Moves shows the combat routes.'),
     regeneration, detail, trees);
+}
+
+let abilitySlot = 0;
+function abilitiesTab() {
+  const s = save();
+  unlockCombatSkills(s);
+  const loadout = h('div', { class: 'slots ability-slots' }, [0, 1, 2].map((i) => {
+    const id = s.equippedSkills[i];
+    return btn([img(id ? ABILITIES[id].icon : 'shard', '#f6dea0'), h('span', null, `Slot ${i + 1}`, h('small', null, id ? ABILITIES[id].name : 'Empty'))], () => { abilitySlot = i; render(); }, 'slot' + (i === abilitySlot ? ' sel' : ''), { 'data-k': 'ls_' + i, 'aria-pressed': String(i === abilitySlot) });
+  }));
+  const catalog = h('div', { class: 'ability-catalog' }, Object.values(ABILITIES).map((def) => {
+    const owned = s.abilities.includes(def.id), where = s.equippedSkills.indexOf(def.id);
+    const node = SKILLS.find((n) => n.grants === def.id), lv = COMBAT_UNLOCKS[def.id];
+    const lock = lv ? `Relic required · level ${lv}` : node ? `Learn ${node.name} in Skills` : 'Unlocked in the temple story';
+    return h('div', { class: 'ability-card' + (where >= 0 ? ' equipped' : '') },
+      h('div', { class: 'row', style: 'align-items:center;gap:10px' }, img(def.icon, owned ? '#f6dea0' : '#746684'), h('div', null, h('h3', null, def.name), h('div', { class: 'eyebrow' }, `${def.cost} Energy · ${def.cd}s cooldown`))),
+      h('p', null, def.desc),
+      !owned ? h('p', { class: 'muted' }, lock) : null,
+      btn(!owned ? 'Locked' : where === abilitySlot ? `Equipped · Slot ${where + 1}` : `Equip in Slot ${abilitySlot + 1}`, () => {
+        if (equipAbility(s, def.id, abilitySlot)) refresh();
+      }, 'btn small' + (where === abilitySlot ? ' primary' : ''), { disabled: !owned, 'data-k': 'ab_' + def.id }));
+  }));
+  return h('div', { class: 'col scroll', style: 'flex:1' },
+    h('div', { class: 'box' }, h('h3', null, 'Ability loadout'), h('p', { class: 'muted' }, 'Select a slot, then an ability. Equipping one already carried swaps its two slots. Cooldowns stay with the ability.'), loadout,
+      btn('Clear selected slot', () => { equipAbility(s, null, abilitySlot); refresh(); }, 'btn small', { 'data-k': 'ability_clear' })), catalog);
+}
+
+function movesTab() {
+  const s = save(), touch = world().controls.device === 'touch', pad = world().controls.device === 'gamepad';
+  const hit = touch ? 'STRIKE' : pad ? '□ / X' : 'J';
+  const heavy = touch ? 'hold STRIKE' : pad ? '△ / Y' : 'K';
+  const dodge = touch ? 'DODGE' : pad ? '○ / B' : 'L / Shift';
+  const rows: [string, string, string, boolean][] = [
+    ['Ground combo', `${hit} ×3`, 'A weapon-specific three-strike chain.', true],
+    ['Rising Verdict', `${hit} ×4`, 'The Relentless skill adds a launching fourth strike.', !!skillRank(s, 'w_relentless')],
+    ['Seventy Times Seven', `${hit}, ${hit}, pause, ${hit}`, 'Rapid thrusts followed by a driving lunge.', true],
+    ['Storm of Edges', touch ? 'Hold STRIKE through the third strike' : `${heavy} during the third strike`, 'A multi-hit spin that draws nearby foes in.', true],
+    ['Rising Comet', `${dodge}, ${hit}, ${hit}`, 'Dash strike, then carry your foe skyward.', true],
+    ['Launcher', `Up + ${hit}`, 'Launch the foe; hold Up to rise with it.', true],
+    ['Air combo', `${hit} ×3 in the air`, 'Three airborne strikes keep a juggle alive.', true],
+    ["Heaven's Rend", `After the air combo, ${touch ? hit : heavy}`, 'Drill downward, then strike the ground.', true],
+    ['Plunge', `Down + ${hit} in the air`, 'Fall into an impact that hits on both sides.', true],
+    ['Air dash', `${dodge} in the air`, 'One invulnerable dash before landing.', true],
+    ['Phantom Step', `Land a hit, then ${dodge}`, 'Blink to a reachable foe and strike. Costs 5 Energy; free from level 100.', !!s.flags.phantom],
+    ['Judgment Cross', `After three Phantom Steps, ${hit}`, 'Two guard-breaking cuts. Costs 10 Energy.', !!s.flags.phantom],
+    ['Charged strike', heavy, 'Release at a charge level. Weapon Mastery adds the final level.', true],
+    ['Parry and counter', `${touch ? 'PARRY' : pad ? 'L1' : 'I'}, then ${hit}`, 'A perfect parry opens a critical counter.', true],
+  ];
+  return h('div', { class: 'col scroll', style: 'flex:1' }, rows.map(([name, input, desc, unlocked]) => h('div', { class: 'box' },
+    h('h3', null, name + (unlocked ? '' : ' · locked')), h('div', { class: 'eyebrow' }, input), h('p', { class: 'muted' }, desc))));
 }
 
 // ---------------------------------------------------------------- echoes
@@ -526,10 +583,30 @@ function journeyTab() {
 }
 
 function systemTab() {
+  const volume = (key: 'master' | 'music' | 'sfx', label: string) => {
+    const value = h('span', null, `${Math.round(settings[key] * 100)}%`);
+    const input = h('input', { type: 'range', min: '0', max: '100', value: String(Math.round(settings[key] * 100)), 'aria-label': label, 'data-k': 'audio_' + key });
+    input.addEventListener('input', () => { settings[key] = Number(input.value) / 100; value.textContent = `${input.value}%`; saveSettings(); });
+    return h('label', { class: 'row', style: 'display:flex;gap:12px;align-items:center;margin:10px 0' }, h('span', { style: 'min-width:5em' }, label), input, value);
+  };
+  const toggle = (key: 'vocals' | 'mixAudio' | 'respectSilent' | 'reduceFlashes', label: string) => btn(`${label}: ${settings[key] ? 'On' : 'Off'}`, () => { settings[key] = !settings[key]; saveSettings(); songs.refresh(); render(); }, 'btn small', { 'data-k': 'setting_' + key, 'aria-pressed': String(settings[key]), style: 'margin:4px' });
   return h('div', { class: 'col scroll', style: 'flex:1' },
     h('div', { class: 'box' }, h('h3', null, 'Save'),
       h('p', { class: 'muted' }, 'This build saves on every door, at altars and every half minute, under its own key: your live game is never touched.'),
       btn('Save now', () => { world().persist(); world().toast('Saved'); }, 'btn', { 'data-k': 'sys_save' }),
       btn('Save and quit to title', () => { closeMenu(); world().quitToTitle(); }, 'btn', { 'data-k': 'sys_title', style: 'margin-left:8px' })),
-    h('p', { class: 'muted', style: 'font-size:0.85em' }, 'Phaser rebuild · settings and controls arrive in a later part.'));
+    h('div', { class: 'box' }, h('h3', null, 'Audio'), volume('master', 'Master'), volume('music', 'Music'), volume('sfx', 'Effects'),
+      btn(settings.soundtrack === 'songs' ? 'Soundtrack: Songs' : 'Soundtrack: Score only', () => { settings.soundtrack = settings.soundtrack === 'songs' ? 'score' : 'songs'; saveSettings(); songs.refresh(); render(); }, 'btn small', { 'data-k': 'audio_soundtrack' }),
+      toggle('vocals', 'Sung songs'), toggle('mixAudio', 'Mix with other apps'), toggle('respectSilent', 'Respect silent switch'),
+      h('p', { class: 'muted' }, 'The generated score plays whenever a recorded song is unavailable.')),
+    h('div', { class: 'box' }, h('h3', null, 'Challenge'),
+      h('div', { class: 'modes' }, (['normal', 'hard', 'merciless'] as const).map((id) => btn(id.charAt(0).toUpperCase() + id.slice(1), () => { settings.bossDifficulty = id; saveSettings(); render(); }, 'btn small' + (settings.bossDifficulty === id ? ' primary' : ''), { 'data-k': 'difficulty_' + id, 'aria-pressed': String(settings.bossDifficulty === id) }))),
+      h('p', { class: 'muted' }, 'Boss health and damage change on entering the next boss room.')),
+    h('div', { class: 'box' }, h('h3', null, 'Display'), toggle('reduceFlashes', 'Reduce flashes'),
+      h('div', { class: 'modes' }, (['full', 'reduced', 'off'] as const).map((id) => btn(`Shake: ${id}`, () => { settings.shake = id; saveSettings(); render(); }, 'btn small' + (settings.shake === id ? ' primary' : ''), { 'data-k': 'shake_' + id })))),
+    h('div', { class: 'box' }, h('h3', null, 'App & updates'),
+      h('p', { class: 'muted', 'data-k': 'installed_build' }, installedBuild()),
+      h('p', { class: 'muted' }, 'On iPhone: Safari → Share → Add to Home Screen. After the first full online load, the game works offline. Songs are available offline after they have played.'),
+      btn('Check for updates', async () => { const message = await checkForUpdates(() => world().persist()); if (W) world().toast(message); }, 'btn', { 'data-k': 'sys_update' })),
+    h('p', { class: 'muted', style: 'font-size:0.85em' }, 'Phaser rebuild · additional display, controls and touch layout options are still being ported.'));
 }

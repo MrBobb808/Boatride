@@ -3,9 +3,46 @@
 The game is being rebuilt on **Phaser 4** (`phaser@4.2.1`) in this folder,
 one system at a time. The original engine-free build in `../remnant` stays the
 live game at https://mrbobb808.github.io/Boatride/ until this one reaches parity.
-Every push publishes the Phaser build beside it at
+Merging into the default branch publishes the Phaser build beside it at
 **https://mrbobb808.github.io/Boatride/phaser/**, so each part can be played on
 the iPhone as it lands.
+
+## Release checkpoint — 24 October 2026
+
+Parts 3–8 (PRs #39–#44) have been merged. This release adds **Part 9**
+(weapon combo routes, Phantom Step, all twelve Covenant abilities and the
+saved loadout), **Part 13** (the generated score, effects and recorded songs),
+the **boss difficulty setting** from Part 17, and **Part 19** (installation,
+offline shell, cached songs and a save-preserving update button).
+
+The original game remains at `/Boatride/`; the playable migration stays at
+`/Boatride/phaser/` until parity is verified. An existing Home Screen icon for
+the original still opens the original. Open the Phaser URL in Safari and add
+that page to the Home Screen to install the current Phaser edition. The title
+and System menu show its build identifier. The title's live-slot import
+copies progress; it does not overwrite the original save.
+
+### Remaining release batches
+
+| Part | Status | Work / completion check |
+|---|---|---|
+| 9 · Combat moves and Covenant loadout | Done for the listed routes | Shared blade/spear/greatsword definitions; Relentless fourth strike; delayed flurry, Storm, dash/Comet, launcher, air combo/Rend/plunge, Phantom Step/Cross; all 12 abilities, unlock rules and saved slot swaps. |
+| 10 · Finishers, elements, power visuals, Shadow Mantle | Next | Preserve stagger executions, elemental statuses/procs, tier effects and transformation including throw/blink. Sub-weapons and selectable supers also need parity; they are not implied by Part 9. |
+| 11 · Story I (I–V) | Pending | Real NPCs and portraits, dialogue, quest stages, pickups, story triggers, objective guide; walk each campaign without debug warps. |
+| 12 · Story II (VI–X) | Pending | Later story/cutscenes, chapter-end screens and resume recap; verify all transitions and persistent flags. |
+| 13 · Audio | Done | Shared Web Audio engine, score/phase layers, recorded-song decks, missing-song fallback, menu ducking, audio settings and gesture unlock. Actual iOS audio-session behaviour still needs a device check. |
+| 14 · Remaining menus and coaching | Partial | Ability picker, move list, audio and challenge settings are in. Quests, lore, bestiary, map, crafting, shops, remaining controls/settings and coaching remain. |
+| 15 · Swimming | Pending | Water preparation, currents, breath, dash-stroke and underwater rendering/audio; flooded Chapter X route must be completable. |
+| 16 · Modes and boards | Pending | Trial of the Remnant, Extreme Survival, daily seed, Gauntlet/Rush, rewards, death/results and leaderboard storage. |
+| 17 · Rest, Valor, NG+, difficulty | Partial | Normal/Hard/Merciless apply to both boss implementations. Settlement growth, trophies/Valor and NG+ remain. |
+| 18 · Phone polish | Pending | Island HUD, draggable/resizable layout, haptics and a device-performance pass. Existing touch controls are not this full polish pass. |
+| 19 · Install / offline / updates | Done | Distinct scoped manifest/icon, complete hashed shell precache, songs cached as heard, fresh version probe, save and resume on update. |
+| 20 · Switch-over | Pending | Side-by-side acceptance on real saves; complete campaigns and every mode; phone/controller checks; then make Phaser the default while preserving a rollback route. |
+| Visual parity | Pending | Original biome art, props, weather, lighting and NPC presentation. Shared actors still render through the documented Canvas texture adapter on Phaser. |
+
+Every later batch must update this table, pass the relevant browser checks,
+merge and verify the deployed build at `/phaser/`. Do not switch the main URL
+merely because the Phaser application boots.
 
 ## How it is built
 
@@ -15,6 +52,10 @@ the iPhone as it lands.
   `node scripts/saves.mjs`, `node scripts/bosses.mjs` and
   `node scripts/classic-bosses.mjs`, `node scripts/menu.mjs` play the build in headless Chromium (after a build). CI runs them on every push
   (`.github/workflows/remnant-pages.yml`).
+- `node scripts/combat-moves.mjs` checks the added combo routes, all twelve
+  abilities, loadout persistence, paused spell simulation and phone casting.
+- `node scripts/install-audio.mjs` checks the audio graph/song layer, settings,
+  difficulty, a complete offline reload and a save-preserving update.
 - `?debug` exposes `window.__remnant` (`world`, `controls`, `warp(room, spawn)`,
   `give(xp)`, `rooms`). Add `&autostart` to skip the title and `&fresh` for a new
   journey. `?boxes` draws the physics bodies.
@@ -44,8 +85,8 @@ the iPhone as it lands.
   own Canvas 2D art into one canvas the size of the camera's view at one pixel
   per world unit (the original's pixel-art resolution), shaded by
   `render/bossPixel.ts` as in the original, which Phaser shows hard-edged. A fix
-  to one of those modules is a fix in both builds. When a system is ported for
-  real (sound, story), its shim gives way to it.
+  to one of those modules is a fix in both builds. The audio shims now re-export
+  the real Web Audio engine and score; settings remain scoped to this build.
 
 ## Scenes and modules
 
@@ -58,8 +99,8 @@ the iPhone as it lands.
 | `src/scenes/Hud.ts` | Health, level, experience, silver, room name, hints, toasts, banners, pause, touch controls. |
 | `src/ui/menu.ts` | The pause menu: the original's sectioned DOM menu (`ui/dom.ts`, `icons.ts`, `statTips.ts`, `styles.css`) in `#ui` over the held world. |
 | `src/game/controls.ts` | One action layer for keyboard, gamepad and touch. |
-| `src/game/player.ts` | Elior: movement, three-hit combo, air strike, charged heavy blow, parry, block, counters, crits, dodge, Balm, skills, hazards. |
-| `src/game/abilities.ts` | Covenant skills: Sword of the Word, Trumpet of Victory, Shield of Faith. |
+| `src/game/player.ts` | Elior: shared weapon combo routes, Phantom Step, ground/air movement, charged blows, parry/counter, Balm, ability buffs and hazards. |
+| `src/game/abilities.ts` | All twelve Covenant skills: shared definitions and saved three-slot loadout. |
 | `src/game/bosses.ts` | The boss framework (intro, phases, phase gates, poise and kneeling, wards) and the Fallen Crowns: Varkhos, Morvane and Azkar. |
 | `src/game/types.ts` | What actors may ask of the world (`WorldApi`), and the shape of a blow. |
 | `src/classic/layer.ts` | The classic layer: the original modules' world, camera, HUD and Elior, and the canvas they draw into. |
@@ -197,8 +238,7 @@ port can follow it.
   reinforced or evolved, into the lineup if a slot is free.
 - ✅ The title brings a live slot over (a second tap when it would replace this
   build's journey).
-- ⬜ Spending stat and skill points, equipping gear and the rest of the menus
-  come with the menus port; until then a new journey's points wait unspent.
+- ✅ Spending stat and skill points and equipping gear arrived with Part 8.
 
 ### Part 7: the Echoes
 - ✅ The original's Echo units (`game/echoes.ts`, `echoRoles.ts`,
@@ -220,9 +260,9 @@ port can follow it.
   the Switch's cooldown.
 - `core/input.ts` joins the shims: the Echo and swim modules read the Phaser
   controls through it.
-- ⬜ The per-Echo orders panel comes with the rest of the Echo menus (the
-  lineup, squad pick and formations arrived in part 8); the Crowns (Phaser-native bosses) are not yet a
-  target for Echoes.
+- 🟡 The per-Echo orders panel remains. The lineup, squad pick and formations
+  arrived in Part 8; native Crowns now expose Entity targets to shared spells
+  and Echoes without running a second physics or draw loop.
 
 ### Part 8: the pause menu
 - ✅ Escape, P, Options or the ❚❚ button opens the original's sectioned menu,
@@ -243,28 +283,55 @@ port can follow it.
   jump or interact choose, dodge goes back, Q/E or L1/R1 change tabs. A tap
   presses the button under the finger even beside the canvas (touch
   adjustment would otherwise hand it to the game below).
-- ⬜ Quests, lore, the bestiary, the map, crafting, shops, settings, controls,
-  the move list, choosing Covenant abilities and coaching cards come with
-  their systems.
+- 🟡 Abilities, Moves, audio and difficulty settings are in this release.
+  Quests, lore, bestiary, map, crafting, shops, remaining controls/settings
+  and coaching cards still need their systems.
+
+### Part 9: combat routes and ability loadout
+- ✅ Shared attack timings, hitboxes, launch/guard-break/poise and multi-hit
+  definitions for blade, spear and greatsword. Relentless adds Rising Verdict.
+- ✅ Delayed Seventy Times Seven and its final lunge; Storm of Edges; dash
+  strike into Rising Comet; launcher; air combo into Heaven's Rend; plunge
+  and landing impact; air dash and the Eagle Plume's extra jump.
+- ✅ Phantom Step after a confirmed hit, reachable targets and safe landing
+  spots, three-step Judgment Cross and the original Energy costs.
+- ✅ All twelve Covenant skills, their unlock rules, costs/cooldowns, buffs,
+  damage/heal zones, shared projectiles and on-hit statuses. Effects advance
+  with the simulation and wait while the menu is open.
+- ✅ Abilities and Moves tabs. Swapping occupied slots exchanges the two;
+  clearing a slot persists. Cooldowns belong to skills, not buttons. HUD and
+  phone buttons show the selected skills.
+- ✅ Existing Phaser saves retain the three formerly implicit starter skills
+  once. Imported live saves keep earned abilities and intentional empty slots.
+- ✅ Shared Pillar of Fire targeting fix: measure ahead from Elior, so a foe
+  closer than 70px is not skipped.
+
+### Part 13: audio
+- ✅ Original Web Audio engine, generated score and effect library; room and
+  boss tracks with phase layers and combat intensity.
+- ✅ Original recorded-song layer with its two gesture-primed decks,
+  crossfades, vocal/instrumental choice and generated-score fallback.
+- ✅ Pause muffle/duck, independent Master/Music/Effects, mix-with-other-apps,
+  silent-switch policy and persisted settings under this build's own key.
+
+### Part 19: installation and updates
+- ✅ Scoped manifest, reused game icons, landscape Home Screen app.
+- ✅ Build-stamped service worker precaches all hashed code, CSS and sprite
+  assets atomically. Recorded songs cache on demand, not all at install time.
+- ✅ Separate cache names. Both workers preserve the other app's caches.
+- ✅ Build shown at title and in System; fresh version check saves and resumes
+  on update and removes a stale `fresh` flag. Normal document loading checks
+  the network, falling back to the fully cached game offline.
 
 ### Still to port
-- ⬜ Combat, the rest: the fourth combo strike and other moves from the skill
-  trees, Phantom Step and the other combos (`game/weapons.ts`), the other nine
-  skills and choosing them (`game/abilities.ts`, `data.ts` `ABILITIES`),
-  finishers (`game/finishers.ts`), power tiers and weapon elements
-  (`game/power.ts`), the Shadow Mantle (`game/mantle.ts`).
-- ⬜ The boss difficulty setting (`game/difficulty.ts`, Hard for now), boss
-  trophies, Tobiah's walk-on in the Idol fight.
-- ⬜ Story, dialogue, portraits, quests, the guide marker, cutscenes
-  (`game/story*.ts`, `fallenStory.ts`, `game/cinema.ts`, `game/guide.ts`,
-  `render/portraits.ts`).
-- ⬜ The rest of the pause menu (quests, lore, bestiary, map, crafting, shops,
-  settings, controls) and coaching (`ui/menus.ts`, `ui/coach.ts`).
-- ⬜ Audio: the generated score and effects, and the Suno song layer
-  (`audio/*.ts`).
-- ⬜ Swimming (`game/water.ts`, `game/swim.ts`).
-- ⬜ The Trial of the Remnant, Extreme Survival, the Boss Gauntlet and Rush, the
-  daily challenge, leaderboards (`game/rounds.ts`, `board.ts`, `daily.ts`).
-- ⬜ Remnant's Rest, Trials of Valor, New Game+.
-- ⬜ The Dynamic Island HUD, the touch layout editor, haptics, the map.
-- ⬜ Installable app: manifest, icons, offline service worker, self-update.
+- ⬜ Finishers, weapon elements/procs, power visuals and Shadow Mantle;
+  sub-weapons, selectable supers and their gauges.
+- ⬜ Boss trophies, Tobiah's walk-on and all Story I/II flows: dialogue,
+  portraits, quests, the objective guide, cutscenes, chapter ends and recap.
+- ⬜ Quests/lore/bestiary/map/crafting/shops/coaching and remaining settings.
+- ⬜ Swimming, currents, breath and underwater presentation in Chapter X.
+- ⬜ Trial, Extreme Survival, Gauntlet/Rush, daily challenges and boards.
+- ⬜ Remnant's Rest, Trials of Valor and New Game+.
+- ⬜ Dynamic Island HUD, touch layout editor, haptics and phone performance QA.
+- ⬜ Original environment art, weather, props, lighting and NPC presentation.
+- ⬜ Full parity acceptance and final main-game switch-over (Part 20).

@@ -11,6 +11,16 @@ import { ROOMS } from '../shared';
 export type PhaserSave = SaveData;
 
 const KEY = 'remnant-phaser.save.v2';
+const EARLY_SKILLS = ['sword_word', 'trumpet', 'shield_faith'] as const;
+/** Parts 1–8 always provided these three buttons, without recording a loadout. */
+function earlyLoadout(s: SaveData) {
+  if (!s.flags.phaser_loadout_v1) {
+    for (const id of EARLY_SKILLS) if (!s.abilities.includes(id)) s.abilities.push(id);
+    if (!s.equippedSkills.some(Boolean)) s.equippedSkills = [...EARLY_SKILLS];
+    s.flags.phaser_loadout_v1 = true;
+  }
+  return s;
+}
 /** The Phaser build's first save format (parts 1–5), converted on first load. */
 const KEY_V1 = 'remnant-phaser.save.v1';
 const LIVE_SLOTS = 3;
@@ -43,7 +53,7 @@ function parse(raw: string | null): SaveData | null {
   }
 }
 
-export const newSave = (): SaveData => settle(newGame());
+export const newSave = (): SaveData => earlyLoadout(settle(newGame()));
 
 /** A save from parts 1–5 of the port: its journey carried into the original's format. */
 function fromV1(raw: string): SaveData | null {
@@ -69,7 +79,7 @@ function fromV1(raw: string): SaveData | null {
 
 export function loadSave(): SaveData | null {
   const v2 = parse(read(KEY));
-  if (v2) return v2;
+  if (v2) return earlyLoadout(v2);
   const v1 = read(KEY_V1);
   return v1 ? fromV1(v1) : null;
 }
@@ -92,7 +102,8 @@ export function liveSlots(): { slot: number; save: SaveData }[] {
 /** Copy a live slot into the Phaser build's save. The live slot is left as it was. */
 export function importLive(slot: number): SaveData | null {
   const s = parse(read(liveKey(slot)));
-  if (s) writeSave(s);
+  // A live journey keeps its earned abilities and intentional empty slots.
+  if (s) { s.flags.phaser_loadout_v1 = true; writeSave(s); }
   return s;
 }
 

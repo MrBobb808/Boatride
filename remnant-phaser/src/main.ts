@@ -9,6 +9,10 @@ import { World } from './scenes/World';
 import { Hud } from './scenes/Hud';
 
 import { dpr } from './game/screen';
+import { audio } from './classic/shim/audio';
+import { music } from './classic/shim/music';
+import { songs } from '../../remnant/src/audio/songs';
+import { registerOffline } from './game/update';
 
 const size = () => ({ w: Math.round(innerWidth * dpr()), h: Math.round(innerHeight * dpr()) });
 
@@ -29,8 +33,14 @@ const game = new Phaser.Game({
   scene: [Boot, Title, World, Hud],
 });
 
+// iOS must unlock the score and both reusable song decks inside a gesture.
+const unlockAudio = () => { audio.unlock(); music.start(); };
+for (const ev of ['pointerdown', 'touchend', 'keydown', 'mousedown']) window.addEventListener(ev, unlockAudio, { capture: true, passive: true });
+void songs;
+void registerOffline();
+
 // The debug API starts with the game itself (the world scene adds the rest), so the title can be driven too.
-if (new URLSearchParams(location.search).has('debug')) (window as unknown as { __remnant: unknown }).__remnant = { game };
+if (new URLSearchParams(location.search).has('debug')) (window as unknown as { __remnant: unknown }).__remnant = { game, audio, music, songs };
 
 const fit = () => {
   const n = size();

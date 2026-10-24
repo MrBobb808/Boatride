@@ -14,11 +14,7 @@ import Phaser from 'phaser';
 import { chapterCurve, cleansingBeacon } from '../shared';
 import { GRAV } from './player';
 import type { WorldApi, FoeLike } from './types';
-
-/** Settings → Boss difficulty "Hard" (the default) from remnant/src/game/difficulty.ts. */
-export const HARD = { hp: 1.3, dmg: 1.25, tempo: 1.1 };
-/** Blows of Elior's at the arrival level a Crown can take, before difficulty. */
-/** A Crown's base blow as a share of Elior's health at the arrival level. */
+import { bossScale as challengeScale } from '../../../remnant/src/game/difficulty';
 
 export type BossKey = 'beast_monarch' | 'plague_monarch' | 'cinder_monarch';
 export const BOSS_CHAPTER: Record<BossKey, number> = { beast_monarch: 7, plague_monarch: 8, cinder_monarch: 9 };
@@ -68,8 +64,8 @@ export abstract class Boss implements FoeLike {
     this.chapter = BOSS_CHAPTER[key];
     // The original's health and blow for the chapter (game/curve.ts), on Hard.
     const cv = chapterCurve(this.chapter);
-    this.maxHp = this.hp = Math.round(cv.bossHp! * HARD.hp);
-    this.base = cv.bossDmg! * HARD.dmg;
+    this.maxHp = this.hp = Math.round(cv.bossHp! * challengeScale().hp);
+    this.base = cv.bossDmg! * challengeScale().dmg;
     this.floorY = feet;
     this.rect = sc.add.rectangle(x, feet - bh / 2, bw, bh, 0xffffff, 0);
     sc.physics.add.existing(this.rect);
@@ -103,7 +99,7 @@ export abstract class Boss implements FoeLike {
 
   update(dt: number) {
     // Hard makes the fight quicker, never the intro.
-    if (this.fighting && this.state !== 'kneel') dt *= HARD.tempo;
+    if (this.fighting && this.state !== 'kneel') dt *= challengeScale().tempo;
     this.st += dt;
     this.flash = Math.max(0, this.flash - dt);
     switch (this.state) {
@@ -297,7 +293,7 @@ export class CrownAdd implements FoeLike {
     const b = this.body;
     if (!this.pod) {
       const p = this.w.player;
-      dt *= HARD.tempo;
+      dt *= challengeScale().tempo;
       this.face = Math.sign(p.x - this.x) || this.face;
       if (this.windup > 0) {
         this.windup -= dt;

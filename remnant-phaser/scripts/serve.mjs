@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises';
 import { resolve, extname } from 'node:path';
 
 const dist = resolve('dist');
-const TYPES = { '.html': 'text/html', '.js': 'application/javascript', '.json': 'application/json', '.png': 'image/png', '.css': 'text/css' };
+const TYPES = { '.html': 'text/html', '.js': 'application/javascript', '.json': 'application/json', '.webmanifest': 'application/manifest+json', '.png': 'image/png', '.css': 'text/css', '.mp3': 'audio/mpeg', '.woff2': 'font/woff2' };
 export async function serve() {
   const server = createServer(async (req, res) => {
     let path = new URL(req.url, 'http://localhost').pathname.replace(/^\/Boatride\/phaser\//, '');

@@ -7,12 +7,14 @@
 
 import Phaser from 'phaser';
 import { xpToNext, type RoomDef } from '../shared';
-import { SKILLS, SLOTS } from '../game/abilities';
+import { SKILLS, SLOTS, skillSlots } from '../game/abilities';
 import { dpr } from '../game/screen';
 import { measureSafe, safe } from '../game/safe';
 import type { Action } from '../game/controls';
 import type { World } from './World';
 import { openMenu, closeMenu } from '../ui/menu';
+import { audio } from '../classic/shim/audio';
+import { songs } from '../../../remnant/src/audio/songs';
 
 const GOLD = '#e2b85a', BONE = '#ddd4c6';
 
@@ -189,8 +191,14 @@ export class Hud extends Phaser.Scene {
     const x0 = (W - total) / 2, y0 = H - (14 + safe.bottom) * k - size;
     const keys = w.controls.device === 'gamepad' ? ['R1', 'L2', 'R2'] : ['Q', 'E', 'R'];
     const g = this.skillG.clear();
-    SLOTS.forEach((id, i) => {
-      const def = SKILLS[id], x = x0 + i * (size + gap);
+    skillSlots(w.save).forEach((id, i) => {
+      const x = x0 + i * (size + gap);
+      if (!id) {
+        g.fillStyle(0x0c0910, 0.82).fillRect(x, y0, size, size);
+        this.skillTexts[i].setText(`EMPTY\n${keys[i]}`).setPosition(x + size / 2, y0 + size / 2).setAlpha(0.4);
+        return;
+      }
+      const def = SKILLS[id];
       const ready = p.cds[id] <= 0 && w.save.ce >= def.cost;
       g.fillStyle(0x0c0910, 0.82).fillRect(x, y0, size, size);
       g.lineStyle(1.2 * k, ready ? def.color : 0x5a5060, ready ? 0.9 : 0.6).strokeRect(x, y0, size, size);
@@ -207,15 +215,18 @@ export class Hud extends Phaser.Scene {
   private drawTouchCooldowns(w: World) {
     const g = this.cdG.clear(), p = w.player;
     for (const b of this.btns) {
-      const id = b.a === 'skill1' ? SLOTS[0] : b.a === 'skill2' ? SLOTS[1] : b.a === 'skill3' ? SLOTS[2] : null;
+      const slots = skillSlots(w.save);
+      const slot = b.a === 'skill1' ? 0 : b.a === 'skill2' ? 1 : b.a === 'skill3' ? 2 : -1;
+      const id = slot >= 0 ? slots[slot] : null;
       if (b.a === 'heal') {
         const label = `BALM ${w.save.balm}`;
         if (b.t.text !== label) b.t.setText(label);
         b.t.setAlpha(w.save.balm > 0 ? 0.85 : 0.35);
         continue;
       }
-      if (!id) continue;
+      if (!id) { if (slot >= 0) b.t.setText('EMPTY').setAlpha(0.35); continue; }
       const def = SKILLS[id], cd = p.cds[id] / def.cd;
+      if (b.t.text !== def.short) b.t.setText(def.short);
       b.t.setAlpha(w.save.ce >= def.cost ? 0.9 : 0.4);
       if (cd > 0) g.fillStyle(0x000000, 0.5).slice(b.x, b.y, b.r, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * cd, false).fillPath();
     }
@@ -309,10 +320,11 @@ export class Hud extends Phaser.Scene {
   /** Hints name actions as {attack}; show the button or key for the device in use. */
   private keyNames(text: string) {
     const dev = this.world.controls.device;
+    const namesOfSkills = skillSlots(this.world.save).map((id) => id ? SKILLS[id].short : 'EMPTY');
     const names: Record<string, [string, string, string]> = {
       attack: ['STRIKE', 'J', '□ / X'], jump: ['JUMP', 'Space', '✕ / A'], dodge: ['DODGE', 'L', '○ / B'], interact: ['the context button', 'F', 'D-pad ↑'],
       heavy: ['a held STRIKE', 'K', '△ / Y'], parry: ['PARRY', 'I', 'L1'], heal: ['BALM', 'H', 'D-pad ↓'],
-      skill1: [SKILLS[SLOTS[0]].short, 'Q', 'R1'], skill2: [SKILLS[SLOTS[1]].short, 'E', 'L2'], skill3: [SKILLS[SLOTS[2]].short, 'R', 'R2'],
+      skill1: [namesOfSkills[0], 'Q', 'R1'], skill2: [namesOfSkills[1], 'E', 'L2'], skill3: [namesOfSkills[2], 'R', 'R2'],
       left: ['the stick', 'A / ←', 'the stick'], right: ['the stick', 'D / →', 'the stick'], down: ['the stick down', 'S / ↓', 'down'], up: ['the stick up', 'W / ↑', 'up'],
     };
     const i = dev === 'touch' ? 0 : dev === 'keyboard' ? 1 : 2;
@@ -342,10 +354,12 @@ export class Hud extends Phaser.Scene {
     const w = this.world;
     if (this.paused) { closeMenu(); return; }
     this.paused = true;
+    audio.setMuffled(true); songs.duck(true);
     w.physics.pause();
     w.persist();
     openMenu(w, undefined, () => {
       this.paused = false;
+      audio.setMuffled(false); songs.duck(false);
       w.physics.resume();
       w.controls.flush();
     });
@@ -365,7 +379,7 @@ export class Hud extends Phaser.Scene {
     };
     this.btns = [
       mk('attack', 'STRIKE', 36), mk('jump', 'JUMP', 28), mk('dodge', 'DODGE', 24), mk('parry', 'PARRY', 24), mk('interact', '', 22),
-      mk('heal', 'BALM', 19), ...SLOTS.map((id, i) => mk(`skill${i + 1}` as Action, SKILLS[id].short, 19)),
+      mk('heal', 'BALM', 19), ...SLOTS.map((_, i) => mk(`skill${i + 1}` as Action, '', 19)),
       mk('echo', 'ECHOES', 18), mk('switch', 'SWITCH', 18),
     ];
     this.cdG = this.add.graphics();
