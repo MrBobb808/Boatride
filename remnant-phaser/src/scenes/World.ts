@@ -9,8 +9,12 @@ import { Player } from '../game/player';
 import { Foe, foeDrawable } from '../game/foes';
 import { makeBoss, bossPorted, BOSS_CHAPTER, type Boss } from '../game/bosses';
 import { biomeTileset, tileIndex, backdropTextures, TI } from '../game/tileset';
-import { newSave, loadSave, writeSave, gainXp, type PhaserSave } from '../game/save';
-import type { WorldApi, FoeLike } from '../game/types';
+import { newSave, loadSave, writeSave, gainXp, maxHpAt, powerAt, type PhaserSave } from '../game/save';
+import type { WorldApi, FoeLike, BossView } from '../game/types';
+import { ClassicLayer } from '../classic/layer';
+import { CLASSIC_BOSSES, isClassicBoss, type ClassicBoss, type ClassicBossKey } from '../classic/bosses';
+import { G } from '../classic/shim/ctx';
+import { xpToNext } from '../shared';
 import { hudBoxes, type Hud } from './Hud';
 
 const VIEW_H = 300;
@@ -31,7 +35,15 @@ export class World extends Phaser.Scene implements WorldApi {
   private triggers: { id: string; r: Phaser.Geom.Rectangle }[] = [];
   /** Arena gate cells (grid indices): open until a fight closes them. */
   private gates: number[] = [];
-  private gateClosed = false;
+  gateClosed = false;
+  /** The original game's bosses and foes, run on Phaser (src/classic). */
+  classic!: ClassicLayer;
+  /** The room's classic boss, while it stands. */
+  cboss: ClassicBoss | null = null;
+  private cbossKey: ClassicBossKey | null = null;
+  /** The brood's waves before the Locust King hatches: which wave, and its foes. */
+  private brood: { i: number; foes: { remove: boolean; dying: boolean }[] } | null = null;
+  private allFoes: FoeLike[] = [];
   private layer!: Phaser.Tilemaps.TilemapLayer;
   private map?: Phaser.Tilemaps.Tilemap;
   private roomObjs: Phaser.GameObjects.GameObject[] = [];
@@ -60,6 +72,8 @@ export class World extends Phaser.Scene implements WorldApi {
   create() {
     this.save = (!this.fresh && loadSave()) || newSave();
     this.controls = new Controls(this);
+    this.classic = new ClassicLayer(this);
+    this.events.once('shutdown', () => this.classic.destroy());
     // The HUD scene starts on the next step; the first room waits for it.
     this.ready = false;
     this.scene.launch('hud');
@@ -73,7 +87,7 @@ export class World extends Phaser.Scene implements WorldApi {
     document.addEventListener('visibilitychange', () => { if (document.hidden) this.persist(); });
     if (new URLSearchParams(location.search).has('debug')) {
       (window as unknown as { __remnant: unknown }).__remnant = {
-        game: this.game, world: this, controls: this.controls, rooms: ROOMS,
+        game: this.game, world: this, controls: this.controls, rooms: ROOMS, G,
         warp: (id: string, spawn = 'start') => this.goTo(id, spawn),
         give: (xp: number) => this.onFoeDied(xp, 0, this.player.x, this.player.y),
         hud: hudBoxes,
@@ -107,7 +121,13 @@ export class World extends Phaser.Scene implements WorldApi {
     this.gates = [];
     this.gateClosed = false;
     this.boss = null;
+    this.cboss = null;
+    this.cbossKey = null;
+    this.brood = null;
+    this.classic?.clear();
     this.hud?.bossBar?.(null);
+    this.hud?.cinematicBars?.(false);
+    this.hud?.caption?.(null);
     this.player?.destroy();
   }
 
@@ -124,6 +144,10 @@ export class World extends Phaser.Scene implements WorldApi {
     // The arena gate stands open until a fight closes it.
     for (let i = 0; i < this.grid.length; i++) if (this.grid[i] === T.Gate) { this.grid[i] = T.Empty; this.gates.push(i); }
 
+    this.classic.load();
+    // Original blows, scaled to the Phaser Elior's health (until stats and gear are ported).
+    const lv = this.save.level;
+    this.classic.dmgScale = maxHpAt(lv) / (140 + lv * 22);
     this.buildBackdrop(r);
     this.buildTiles(r);
     this.physics.world.setBounds(0, 0, r.w * TILE, r.h * TILE + 64);
@@ -189,6 +213,7 @@ export class World extends Phaser.Scene implements WorldApi {
         return;
       }
       case 'boss': {
+        if (isClassicBoss(e.k)) { this.spawnClassicBoss(e.k, e.x * TILE, e.y * TILE); return; }
         if (!bossPorted(e.k) || this.save.flags[`defeated_${e.k}`]) return;
         this.boss = makeBoss(this, e.k, x + 8, y);
         this.addFoe(this.boss);
@@ -332,9 +357,14 @@ export class World extends Phaser.Scene implements WorldApi {
     if (this.transitioning) return;
     if (this.controls.pressed('menu')) { this.hud.togglePause(); return; }
     if (this.hud.paused) return;
+    this.controls.locked = G.inCutscene;
     this.player.update(dt);
     for (const f of this.foeList) if (!f.removed) f.update(dt);
     this.foeList = this.foeList.filter((f) => !f.removed);
+    this.classic.update(dt);
+    this.classic.render();
+    if (this.cboss?.remove) this.cboss = null;
+    this.updateBrood();
 
     // Interact with the nearest thing in reach.
     const near = this.nearest();
@@ -374,6 +404,7 @@ export class World extends Phaser.Scene implements WorldApi {
     for (const t of this.triggers) {
       if (!t.r.contains(p.x, p.feet - 4)) continue;
       if (this.boss && t.id === `${this.boss.key}_start` && this.boss.state === 'dormant') { this.boss.awaken(); this.closeGate(true); }
+      if (this.cboss && this.cbossKey && t.id === CLASSIC_BOSSES[this.cbossKey].trigger && this.cboss.state === 'dormant' && !this.brood) this.wakeClassic();
       const gate = /^ch(\d+)_gate$/.exec(t.id);
       if (gate && !this.save.flags[`ch${gate[1]}_boundary_open`] && !this.save.flags[`toast_${t.id}`]) {
         const c = FALLEN_CHAPTERS.find((c) => c.n === Number(gate[1]));
@@ -386,7 +417,7 @@ export class World extends Phaser.Scene implements WorldApi {
   }
 
   /** The arena gate: solid while a boss fight is on. */
-  private closeGate(on: boolean) {
+  closeGate(on: boolean) {
     if (this.gateClosed === on || !this.gates.length) return;
     this.gateClosed = on;
     for (const i of this.gates) {
@@ -475,17 +506,115 @@ export class World extends Phaser.Scene implements WorldApi {
 
   // ---------------------------------------------------------------- WorldApi
 
-  foes() { return this.foeList; }
+  /** Everything Elior can strike: the Phaser foes and bosses, and the classic ones. */
+  foes() {
+    if (!this.classic.ents.length) return this.foeList;
+    const all = this.allFoes;
+    all.length = 0;
+    for (const f of this.foeList) all.push(f);
+    for (const f of this.classic.foes()) all.push(f);
+    return all;
+  }
 
   addFoe(f: FoeLike) {
     this.foeList.push(f);
-    this.colliders.push(this.physics.add.collider(f.rect, this.layer));
+    if (f.rect) this.colliders.push(this.physics.add.collider(f.rect, this.layer));
   }
 
   roomW() { return this.gw * TILE; }
   banner(title: string, sub: string) { this.hud.banner(title, sub); }
   toast(text: string) { this.hud.toast(text); }
   bossBar(name: string | null, sub = '') { this.hud.bossBar(name, sub); }
+
+  // ---------------------------------------------------------------- classic bosses
+
+  /** A classic boss on its mark, sized to the Phaser Elior at its chapter's level (until stats and gear are ported). */
+  private spawnClassicBoss(k: ClassicBossKey, x: number, y: number) {
+    if (this.save.defeated?.includes(k)) return;
+    const def = CLASSIC_BOSSES[k], b = def.make(x, y);
+    const lv = chapterCurve(def.chapter).level;
+    b.maxHp = b.hp = Math.round(powerAt(lv) * 110 * 1.3);
+    this.classic.add(b);
+    this.classic.boss = b;
+    this.cboss = b;
+    this.cbossKey = k;
+  }
+
+  /** Into the arena: the gate shuts and the boss rises (the Locust King's brood first). */
+  private wakeClassic() {
+    const k = this.cbossKey!, def = CLASSIC_BOSSES[k];
+    if (def.boundary && !this.save.flags[`ch${def.chapter}_boundary_open`]) return;
+    this.classic.bossActive = true;
+    this.closeGate(true);
+    this.player.body.setVelocityX(0);
+    if (def.waves && !this.save.flags.brood_cleared) {
+      this.brood = { i: -1, foes: [] };
+      this.banner('THE BROOD AWAKENS', 'Hold until the cocoon opens');
+      return;
+    }
+    this.raiseClassic();
+  }
+
+  private raiseClassic() {
+    const b = this.cboss;
+    if (!b || b.state !== 'dormant') return;
+    if (this.cbossKey === 'locust_king') this.save.flags.king_hatched = true;
+    // The boss's own intro runs as a short cutscene; its first blow ends it.
+    G.inCutscene = true;
+    this.hud.cinematicBars(true);
+    b.awaken();
+  }
+
+  /** The brood's waves, one after another, then the cocoon opens. */
+  private updateBrood() {
+    const br = this.brood, k = this.cbossKey;
+    if (!br || !k) return;
+    if (br.foes.some((f) => !f.remove && !f.dying)) return;
+    const waves = CLASSIC_BOSSES[k].waves!;
+    if (++br.i < waves.length) {
+      const y = this.cboss!.y;
+      br.foes = waves[br.i].map(([kind, tx]) => this.classic.spawnEnemy(kind, tx * TILE, y));
+      return;
+    }
+    this.brood = null;
+    this.save.flags.brood_cleared = true;
+    this.shake(0.012, 600);
+    this.time.delayedCall(600, () => this.raiseClassic());
+  }
+
+  /** What the boss bar shows: the Crown, or the classic boss. */
+  get bossView(): BossView | null {
+    if (this.boss) return this.boss;
+    const b = this.cboss;
+    if (!b) return null;
+    const v = this.cbView;
+    v.alive = !b.dying && !b.remove;
+    v.state = b.state;
+    v.hp = b.hp;
+    v.maxHp = b.maxHp;
+    v.ward = b.invuln > 0;
+    v.phaseMarks = b.phaseMarks ?? [];
+    v.poise = b.poise;
+    v.maxPoise = b.maxPoise;
+    return v;
+  }
+  private cbView: BossView = { alive: false, state: '', hp: 0, maxHp: 1, ward: false, phaseMarks: [], poise: 0, maxPoise: 1 };
+
+  /** A classic boss down: the flags its story scene would set, the gate, and its experience. */
+  onClassicBossDefeated(key: string) {
+    const k = key as ClassicBossKey, def = CLASSIC_BOSSES[k];
+    (this.save.defeated ??= []).includes(k) || this.save.defeated.push(k);
+    this.save.flags[`defeated_${k}`] = true;
+    for (const f of def?.flags ?? []) this.save.flags[f] = true;
+    G.inCutscene = false;
+    this.hud.cinematicBars(false);
+    this.hud.bossBar(null);
+    this.closeGate(false);
+    this.banner('VICTORY', 'The way ahead is open');
+    const lv = chapterCurve(def?.chapter ?? 1).level;
+    this.time.delayedCall(1800, () => this.onFoeDied(Math.round(xpToNext(lv) * 0.6), (def?.chapter ?? 1) * 150, this.player.x, this.player.y));
+    this.persist();
+  }
 
   /** A Crown broken: the chapter is done, the gate opens, and its experience is Elior's. */
   onBossDefeated(key: string) {

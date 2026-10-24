@@ -44,7 +44,8 @@ const RUN = 142;
 const JUMP_V = 430;
 const DJUMP_V = 400;
 
-export const DIMS = { torso: 12.5, head: 4.6, neck: 1.5, upperArm: 7, foreArm: 6.6, thigh: 8.2, shin: 8.2, shoulderSpread: 1.4, hipSpread: 1.5 };
+import { DIMS } from './playerDims';
+export { DIMS };
 
 /** How long the pause branch after the second strike stays open. */
 const LINGER_LONG = 0.62;
