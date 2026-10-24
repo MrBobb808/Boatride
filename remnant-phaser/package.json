@@ -1,0 +1,20 @@
+{
+  "name": "remnant-phaser",
+  "version": "0.1.0",
+  "description": "REMNANT: ASCENSION rebuilt on Phaser",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "phaser": "4.2.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.64.1",
+    "typescript": "^5.9.3",
+    "vite": "^6.4.4"
+  }
+}

@@ -22,6 +22,8 @@ self.addEventListener('fetch', (e) => {
   const req = e.request;
   const url = new URL(req.url);
   if (req.method !== 'GET' || url.origin !== location.origin) return;
+  // The Phaser rebuild lives under /phaser/: it must never be cached as this game's page.
+  if (url.pathname.includes('/phaser/')) return;
   // Update probes must never get trapped in an installed copy's offline cache.
   if (url.pathname.endsWith('/version.json') || (req.mode !== 'navigate' && url.searchParams.has('v'))) {
     e.respondWith(fetch(req, { cache: 'no-store' }));
