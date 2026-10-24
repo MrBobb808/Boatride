@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
-import { eliorUrl, ashenUrl, beastsUrl, shinarUrl, veilUrl, spriteManifest } from '../shared';
+import { eliorUrl, ashenUrl, beastsUrl, shinarUrl, veilUrl, varkhosUrl, morvaneUrl, azkarUrl, spriteManifest } from '../shared';
+import { cutBossFrames } from '../game/bosses';
 import { FOE_SHEETS } from '../game/foes';
 import { glowTexture } from '../game/tileset';
 
@@ -11,6 +12,9 @@ export class Boot extends Phaser.Scene {
 
   preload() {
     this.load.spritesheet('elior', eliorUrl, { frameWidth: 128, frameHeight: 128 });
+    this.load.image('varkhos', varkhosUrl);
+    this.load.image('morvane', morvaneUrl);
+    this.load.image('azkar', azkarUrl);
     for (const s of FOE_SHEETS) if (SHEET_URLS[s]) this.load.spritesheet(s, SHEET_URLS[s], { frameWidth: spriteManifest.cell, frameHeight: spriteManifest.cell });
     const bar = this.add.graphics();
     this.load.on('progress', (v: number) => {
@@ -21,6 +25,7 @@ export class Boot extends Phaser.Scene {
 
   create() {
     glowTexture(this);
+    cutBossFrames(this);
     this.makeSlash();
     const p = new URLSearchParams(location.search);
     this.scene.start(p.has('autostart') ? 'world' : 'title', { fresh: p.has('fresh') });

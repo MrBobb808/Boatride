@@ -9,7 +9,23 @@ export interface Blow {
   /** A melee attacker, staggered when the blow is parried or meets the Shield of Faith. */
   src?: { parried(): void };
   ranged?: boolean;
+  /** Ground hazards (spikes, eruptions, fire waves): no dodge, parry or guard turns them; jump or leave. */
   hazard?: boolean;
+  /** A blow too heavy to parry or block: dodge it. */
+  unblockable?: boolean;
+}
+
+/** Anything Elior can strike: foes, bosses and their adds. */
+export interface FoeLike {
+  alive: boolean;
+  removed: boolean;
+  box: Phaser.Geom.Rectangle;
+  x: number;
+  hit(dmg: number, dir: number, force: number, crit?: boolean): boolean;
+  update(dt: number): void;
+  remove(): void;
+  /** Its physics body, so the world can collide it with the room. */
+  rect: Phaser.GameObjects.Rectangle;
 }
 
 /** What actors need from the world scene (kept as an interface to avoid import cycles). */
@@ -19,12 +35,20 @@ export interface WorldApi {
   save: PhaserSave;
   /** Tile type at a tile coordinate (solid outside the room's sides). */
   tileAt(tx: number, ty: number): number;
-  player: { x: number; y: number; feet: number; dead: boolean; hurt(h: Blow): boolean };
-  foes(): { alive: boolean; hit(dmg: number, dir: number, force: number, crit?: boolean): boolean; box: Phaser.Geom.Rectangle }[];
+  player: { x: number; y: number; feet: number; dead: boolean; hp: number; maxHp: number; hurt(h: Blow): boolean };
+  foes(): FoeLike[];
+  /** Bring a new foe into the room (a boss's adds). */
+  addFoe(f: FoeLike): void;
+  /** Room width in pixels. */
+  roomW(): number;
+  banner(title: string, sub: string): void;
+  toast(text: string): void;
+  bossBar(name: string | null, sub?: string): void;
+  onBossDefeated(key: string): void;
   /** A short freeze on a heavy impact. */
   hitstop(sec: number): void;
   shake(intensity: number, ms: number): void;
   floatText(x: number, y: number, text: string, color: string): void;
   spark(x: number, y: number, color: number, n?: number): void;
-  onFoeDied(xp: number, silver: number, x: number, y: number): void;
+  onFoeDied(xp: number, silver: number, x: number, y: number, eliteId?: string): void;
 }

@@ -3,14 +3,15 @@
 // doorways. The camera shows 300 world pixels of height, as the original does.
 
 import Phaser from 'phaser';
-import { ROOMS, CHAR_TILE, T, TILE, isSolid, type RoomDef, type EntDef } from '../shared';
+import { ROOMS, CHAR_TILE, T, TILE, isSolid, FALLEN_CHAPTERS, fallenObjective, chapterCurve, type RoomDef, type EntDef } from '../shared';
 import { Controls } from '../game/controls';
 import { Player } from '../game/player';
 import { Foe, foeDrawable } from '../game/foes';
+import { makeBoss, bossPorted, BOSS_CHAPTER, type Boss } from '../game/bosses';
 import { biomeTileset, tileIndex, backdropTextures, TI } from '../game/tileset';
 import { newSave, loadSave, writeSave, gainXp, type PhaserSave } from '../game/save';
-import type { WorldApi } from '../game/types';
-import type { Hud } from './Hud';
+import type { WorldApi, FoeLike } from '../game/types';
+import { hudBoxes, type Hud } from './Hud';
 
 const VIEW_H = 300;
 
@@ -24,7 +25,13 @@ export class World extends Phaser.Scene implements WorldApi {
   private grid = new Uint8Array(0);
   private gw = 0;
   private gh = 0;
-  private foeList: Foe[] = [];
+  private foeList: FoeLike[] = [];
+  /** The room's boss, while it stands. */
+  boss: Boss | null = null;
+  private triggers: { id: string; r: Phaser.Geom.Rectangle }[] = [];
+  /** Arena gate cells (grid indices): open until a fight closes them. */
+  private gates: number[] = [];
+  private gateClosed = false;
   private layer!: Phaser.Tilemaps.TilemapLayer;
   private map?: Phaser.Tilemaps.Tilemap;
   private roomObjs: Phaser.GameObjects.GameObject[] = [];
@@ -69,6 +76,7 @@ export class World extends Phaser.Scene implements WorldApi {
         game: this.game, world: this, controls: this.controls, rooms: ROOMS,
         warp: (id: string, spawn = 'start') => this.goTo(id, spawn),
         give: (xp: number) => this.onFoeDied(xp, 0, this.player.x, this.player.y),
+        hud: hudBoxes,
       };
     }
   }
@@ -95,6 +103,11 @@ export class World extends Phaser.Scene implements WorldApi {
     this.map = undefined;
     this.interactables = [];
     this.hints = [];
+    this.triggers = [];
+    this.gates = [];
+    this.gateClosed = false;
+    this.boss = null;
+    this.hud?.bossBar?.(null);
     this.player?.destroy();
   }
 
@@ -109,7 +122,7 @@ export class World extends Phaser.Scene implements WorldApi {
     this.grid = new Uint8Array(r.w * r.h);
     for (let y = 0; y < r.h; y++) for (let x = 0; x < r.w; x++) this.grid[y * r.w + x] = CHAR_TILE[r.rows[y][x]] ?? T.Empty;
     // The arena gate stands open until a fight closes it.
-    for (let i = 0; i < this.grid.length; i++) if (this.grid[i] === T.Gate) this.grid[i] = T.Empty;
+    for (let i = 0; i < this.grid.length; i++) if (this.grid[i] === T.Gate) { this.grid[i] = T.Empty; this.gates.push(i); }
 
     this.buildBackdrop(r);
     this.buildTiles(r);
@@ -169,10 +182,42 @@ export class World extends Phaser.Scene implements WorldApi {
     switch (e.t) {
       case 'enemy': {
         if (!foeDrawable(e.k)) return;
-        if (e.elite && this.save.flags[`elite_${e.elite}`]) return;
-        const f = new Foe(this, e.k, x + 8, y, e.face ?? -1, !!e.elite);
-        this.foeList.push(f);
-        this.colliders.push(this.physics.add.collider(f.rect, this.layer));
+        // An objective commander, once fallen, stays fallen.
+        const obj = e.elite ? fallenObjective(e.elite) : undefined;
+        if (e.elite && (this.save.flags[`elite_${e.elite}`] || (obj && this.save.flags[obj.flag]))) return;
+        this.addFoe(new Foe(this, e.k, x + 8, y, e.face ?? -1, !!e.elite, e.elite));
+        return;
+      }
+      case 'boss': {
+        if (!bossPorted(e.k) || this.save.flags[`defeated_${e.k}`]) return;
+        this.boss = makeBoss(this, e.k, x + 8, y);
+        this.addFoe(this.boss);
+        return;
+      }
+      case 'trigger':
+        this.triggers.push({ id: e.id, r: new Phaser.Geom.Rectangle(e.x * TILE, e.y * TILE, e.w * TILE, e.h * TILE) });
+        return;
+      case 'shrine': {
+        const o = fallenObjective(e.grants);
+        if (!o || this.save.flags[o.flag]) return;
+        const col = e.grants.startsWith('cinder_') ? 0xffd090 : e.grants.startsWith('grecia_') ? 0xffb060 : 0xbadc8b;
+        const glow = this.add.image(x, y - 24, 'glow').setTint(col).setBlendMode(Phaser.BlendModes.ADD).setScale(1.2).setDepth(-2);
+        const mark = this.add.graphics().setDepth(2);
+        mark.lineStyle(2, col, 1).strokeCircle(x, y - 24, 9).lineBetween(x - 9, y - 24, x + 9, y - 24).lineBetween(x, y - 33, x, y - 15);
+        this.tweens.add({ targets: [glow], alpha: 0.5, yoyo: true, repeat: -1, duration: 700 });
+        this.roomObjs.push(glow, mark);
+        const label = e.grants.startsWith('cinder_') ? 'Release' : e.grants.startsWith('grecia_') ? 'Relight' : 'Cleanse';
+        const it: Interactable = {
+          x, y, label, use: () => {
+            // The original's rule: clear the guards near it first.
+            if (this.foeList.some((f) => f.alive && Math.abs(f.x - x) < 190 && f !== this.boss)) { this.hud.toast('Clear the nearby guards first.'); return; }
+            this.objective(o.id);
+            this.spark(x, y - 24, col, 16);
+            glow.destroy(); mark.destroy();
+            this.interactables = this.interactables.filter((i) => i !== it);
+          },
+        };
+        this.interactables.push(it);
         return;
       }
       case 'light': {
@@ -231,7 +276,7 @@ export class World extends Phaser.Scene implements WorldApi {
         this.hints.push({ x0: e.x * TILE, x1: (e.x + e.w) * TILE, text: e.text, id: e.id });
         return;
       default:
-        // Lore, shrines, pickups, triggers, decor, water currents and bosses come in later parts.
+        // Lore, pickups, decor, water currents and the older bosses come in later parts.
         return;
     }
   }
@@ -302,7 +347,10 @@ export class World extends Phaser.Scene implements WorldApi {
     if (this.player.dead) {
       this.deadT += dt;
       if (this.deadT > 1.4) this.respawn();
-    } else this.checkExits();
+    } else {
+      this.checkTriggers();
+      this.checkExits();
+    }
     // Below the room: back to the doorway.
     if (this.player.feet > this.gh * TILE + 40 && !this.player.dead) { this.player.hurt({ dmg: 15, dir: 0, hazard: true }); this.respawn(true); }
 
@@ -318,6 +366,50 @@ export class World extends Phaser.Scene implements WorldApi {
       if (d < bd && Math.abs(i.y - this.player.feet) < 28) { bd = d; best = i; }
     }
     return best;
+  }
+
+  /** Step into a boss's trigger: it wakes and the gate shuts behind Elior. A sealed boundary says what is left. */
+  private checkTriggers() {
+    const p = this.player;
+    for (const t of this.triggers) {
+      if (!t.r.contains(p.x, p.feet - 4)) continue;
+      if (this.boss && t.id === `${this.boss.key}_start` && this.boss.state === 'dormant') { this.boss.awaken(); this.closeGate(true); }
+      const gate = /^ch(\d+)_gate$/.exec(t.id);
+      if (gate && !this.save.flags[`ch${gate[1]}_boundary_open`] && !this.save.flags[`toast_${t.id}`]) {
+        const c = FALLEN_CHAPTERS.find((c) => c.n === Number(gate[1]));
+        const left = c?.objectives.filter((o) => !this.save.flags[o.flag]).map((o) => `the ${o.name} in ${ROOMS[o.room]?.name ?? o.room}`) ?? [];
+        this.toast(`The boundary is still sealed. Still to do: ${left.join(' and ')}.`);
+        this.save.flags[`toast_${t.id}`] = true;
+        this.time.delayedCall(6000, () => { delete this.save.flags[`toast_${t.id}`]; });
+      }
+    }
+  }
+
+  /** The arena gate: solid while a boss fight is on. */
+  private closeGate(on: boolean) {
+    if (this.gateClosed === on || !this.gates.length) return;
+    this.gateClosed = on;
+    for (const i of this.gates) {
+      const x = i % this.gw, y = Math.floor(i / this.gw);
+      this.grid[i] = on ? T.Gate : T.Empty;
+      if (on) this.layer.putTileAt(TI.gate, x, y).setCollision(true, true, true, true);
+      else this.layer.removeTileAt(x, y);
+    }
+    this.layer.calculateFacesWithin(0, 0, this.gw, this.gh);
+  }
+
+  /** A Fallen Crown objective done (a commander felled, a wheel released, a heart cleansed). */
+  private objective(id: string) {
+    const o = fallenObjective(id);
+    if (!o || this.save.flags[o.flag]) return;
+    this.save.flags[o.flag] = true;
+    const c = FALLEN_CHAPTERS.find((c) => c.objectives.some((x) => x.id === id));
+    if (!c) return;
+    const done = c.objectives.filter((x) => this.save.flags[x.flag]).length;
+    const open = done === c.objectives.length;
+    if (open) this.save.flags[`ch${c.n}_boundary_open`] = true;
+    this.banner(o.name.toUpperCase(), open ? 'The boundary is broken · the throne road is open' : `${done}/${c.objectives.length} objectives complete`);
+    this.persist();
   }
 
   private checkExits() {
@@ -385,6 +477,30 @@ export class World extends Phaser.Scene implements WorldApi {
 
   foes() { return this.foeList; }
 
+  addFoe(f: FoeLike) {
+    this.foeList.push(f);
+    this.colliders.push(this.physics.add.collider(f.rect, this.layer));
+  }
+
+  roomW() { return this.gw * TILE; }
+  banner(title: string, sub: string) { this.hud.banner(title, sub); }
+  toast(text: string) { this.hud.toast(text); }
+  bossBar(name: string | null, sub = '') { this.hud.bossBar(name, sub); }
+
+  /** A Crown broken: the chapter is done, the gate opens, and its experience is Elior's. */
+  onBossDefeated(key: string) {
+    const n = BOSS_CHAPTER[key as keyof typeof BOSS_CHAPTER];
+    this.save.flags[`defeated_${key}`] = true;
+    if (n) this.save.flags[`ch${n}_done`] = true;
+    this.closeGate(false);
+    this.boss = null;
+    const name = key === 'beast_monarch' ? 'Varkhos' : key === 'plague_monarch' ? 'Morvane' : 'Azkar';
+    this.banner('THE CROWN IS BROKEN', `${name} has fallen · the road belongs to the living again`);
+    const xp = n ? chapterCurve(n).clearXp ?? 10000 : 10000;
+    this.time.delayedCall(2200, () => this.onFoeDied(xp, (n ?? 7) * 300, this.player.x, this.player.y));
+    this.persist();
+  }
+
   hitstop(sec: number) {
     if (this.hitstopT > 0) return;
     this.hitstopT = sec;
@@ -407,7 +523,8 @@ export class World extends Phaser.Scene implements WorldApi {
     }
   }
 
-  onFoeDied(xp: number, silver: number, x: number, y: number) {
+  onFoeDied(xp: number, silver: number, x: number, y: number, eliteId?: string) {
+    if (eliteId) this.objective(eliteId);
     this.save.kills++;
     this.save.silver += silver;
     this.floatText(x, y - 10, `+${xp} XP`, '#9fc4ff');
