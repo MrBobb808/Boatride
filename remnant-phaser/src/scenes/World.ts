@@ -21,6 +21,7 @@ import { CLASSIC_BOSSES, isClassicBoss, type ClassicBoss, type ClassicBossKey } 
 import { G } from '../classic/shim/ctx';
 import { xpToNext, ECHO_SPECIES } from '../shared';
 import { hudBoxes, type Hud } from './Hud';
+import { menuInput } from '../ui/menu';
 
 const VIEW_H = 300;
 
@@ -368,8 +369,9 @@ export class World extends Phaser.Scene implements WorldApi {
     if (this.transitioning) return;
     // The Echo wheel holds the world while it is up.
     if (this.hud.wheelOpen) { this.hud.wheelInput(dt); return; }
+    // The pause menu holds the world and takes the keys and pad.
+    if (this.hud.paused) { menuInput(this.controls); return; }
     if (this.controls.pressed('menu')) { this.hud.togglePause(); return; }
-    if (this.hud.paused) return;
     if (this.controls.pressed('echo') && !G.inCutscene && !this.player.dead) { this.hud.openWheel(); return; }
     if (this.controls.pressed('switch') && !G.inCutscene && !this.player.dead) this.classic.squad.switchSupport();
     this.controls.locked = G.inCutscene;
@@ -540,6 +542,13 @@ export class World extends Phaser.Scene implements WorldApi {
   roomW() { return this.gw * TILE; }
   banner(title: string, sub: string) { this.hud.banner(title, sub); }
   toast(text: string) { this.hud.toast(text); }
+
+  /** Save and go back to the title. */
+  quitToTitle() {
+    this.persist();
+    this.scene.stop('hud');
+    this.scene.start('title');
+  }
   bossBar(name: string | null, sub = '') { this.hud.bossBar(name, sub); }
 
   // ---------------------------------------------------------------- stats and loot
@@ -565,7 +574,7 @@ export class World extends Phaser.Scene implements WorldApi {
       const it = makeItem(l.item, (l.rarity ?? base.rarity) as Rarity);
       it.isNew = true;
       s.inventory.push(it);
-      this.toast(`${base.name} · in your pack (equip it when the menus are ported)`);
+      this.toast(`${base.name} · in your pack (Menu → Elior → Equipment)`);
     }
   }
 
@@ -609,7 +618,7 @@ export class World extends Phaser.Scene implements WorldApi {
     this.time.delayedCall(1100, () => {
       const title = echo?.evolved ? 'ECHO EVOLVED' : echo?.created ? 'ECHO PURIFIED' : 'ECHO REINFORCED';
       this.banner(title, sp && echo ? `${sp.stages[echo.echo.stage].name} · ${sp.cls}` : 'An Echo stands with you');
-      this.toast('Not a soul: a memory of its courage, cleansed of the Veil. Your Echoes take the field when the squad is ported.');
+      this.toast('Not a soul: a memory of its courage, cleansed of the Veil. Lead it from Menu → Echoes.');
       this.giveXp(60, e.x, e.y - 30);
     });
     this.persist();

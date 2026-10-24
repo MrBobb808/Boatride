@@ -12,6 +12,7 @@ import { dpr } from '../game/screen';
 import { measureSafe, safe } from '../game/safe';
 import type { Action } from '../game/controls';
 import type { World } from './World';
+import { openMenu, closeMenu } from '../ui/menu';
 
 const GOLD = '#e2b85a', BONE = '#ddd4c6';
 
@@ -32,7 +33,6 @@ export class Hud extends Phaser.Scene {
   private hintText!: Phaser.GameObjects.Text;
   private bannerBox?: Phaser.GameObjects.Container;
   private toasts: Phaser.GameObjects.Text[] = [];
-  private pauseBox?: Phaser.GameObjects.Container;
   private hpGhost = 1;
   btns: Btn[] = [];
   private stick = { id: -1, ox: 0, oy: 0, base: null as Phaser.GameObjects.Arc | null, knob: null as Phaser.GameObjects.Arc | null };
@@ -337,33 +337,18 @@ export class Hud extends Phaser.Scene {
     this.tweens.add({ targets: box, alpha: 1, duration: 400, yoyo: true, hold: 2200, onComplete: () => box.destroy() });
   }
 
+  /** The pause menu: the original's sectioned menu (src/ui/menu.ts) over a held world. */
   togglePause() {
-    const w = this.world, k = this.k, { width: W, height: H } = this.scale;
-    this.paused = !this.paused;
-    this.pauseBox?.destroy();
-    this.pauseBox = undefined;
-    if (!this.paused) { w.physics.resume(); w.controls.flush(); return; }
+    const w = this.world;
+    if (this.paused) { closeMenu(); return; }
+    this.paused = true;
     w.physics.pause();
     w.persist();
-    const shade = this.add.rectangle(0, 0, W, H, 0x07060a, 0.72).setOrigin(0).setInteractive();
-    const title = this.add.text(W / 2, H * 0.28, 'PAUSED', { fontFamily: 'Cinzel, Georgia, serif', fontSize: `${28 * k}px`, color: '#f6dea0', fontStyle: 'bold' }).setOrigin(0.5).setLetterSpacing(8 * k);
-    const s = w.save;
-    const info = this.add.text(W / 2, H * 0.28 + 34 * k, `${w.room.name} · level ${s.level} · ${s.kills} foes fallen`, { fontFamily: 'Georgia, serif', fontStyle: 'italic', fontSize: `${13 * k}px`, color: BONE }).setOrigin(0.5);
-    const mk = (label: string, y: number, go: () => void, key: string) => {
-      const t = this.add.text(W / 2, y, label, { fontFamily: 'Cinzel, Georgia, serif', fontSize: `${17 * k}px`, color: BONE, backgroundColor: 'rgba(30,22,34,0.9)', padding: { x: 20 * k, y: 9 * k } }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-      t.setName(key);
-      t.on('pointerup', go);
-      return t;
-    };
-    const resume = mk('Resume', H * 0.52, () => this.togglePause(), 'pause_resume');
-    const title2 = mk('Save and quit to title', H * 0.52 + 52 * k, () => {
+    openMenu(w, undefined, () => {
       this.paused = false;
-      w.persist();
-      this.scene.stop('hud');
-      w.scene.start('title');
-    }, 'pause_title');
-    const note = this.add.text(W / 2, H * 0.88, 'Phaser rebuild · menus, gear, Echoes and story arrive in later parts', { fontFamily: 'Georgia, serif', fontStyle: 'italic', fontSize: `${11 * k}px`, color: '#9b92a6' }).setOrigin(0.5);
-    this.pauseBox = this.add.container(0, 0, [shade, title, info, resume, title2, note]).setDepth(100);
+      w.physics.resume();
+      w.controls.flush();
+    });
   }
 
   // ---------------------------------------------------------------- touch

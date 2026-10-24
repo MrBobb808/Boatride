@@ -146,27 +146,32 @@ export function installNav() {
     if (device !== 'touch' && top && !top.el.contains(document.activeElement)) focusFirst(top.el);
   });
   input.onAction((a) => {
-    const top = topLayer();
-    if (!top) return;
     if (input.lastDevice === 'touch') return;
-    if (top.onAction && top.onAction(a)) return true;
-    const cur = document.activeElement as HTMLInputElement | null;
-    if (cur && cur.tagName === 'INPUT' && cur.type === 'range' && (a === 'left' || a === 'right')) {
-      const step = parseFloat(cur.step || '0.05');
-      cur.value = String(Math.min(parseFloat(cur.max), Math.max(parseFloat(cur.min), parseFloat(cur.value) + (a === 'right' ? step : -step))));
-      cur.dispatchEvent(new Event('input'));
-      return true;
-    }
-    if (a === 'left' || a === 'right' || a === 'up' || a === 'down') { move(a); return true; }
-    else if (a === 'confirm') {
-      if (cur && top.el.contains(cur) && cur.hasAttribute('data-nav')) {
-        if (cur.tagName === 'INPUT') return;
-        cur.click();
-      }
-      return true;
-    } else if (a === 'back') {
-      top.onBack?.();
-      return true;
-    }
+    return navigate(a);
   });
+}
+
+/** One menu action on the top layer: move focus, confirm, go back, or the layer's own. */
+export function navigate(a: Action): true | undefined {
+  const top = topLayer();
+  if (!top) return;
+  if (top.onAction && top.onAction(a)) return true;
+  const cur = document.activeElement as HTMLInputElement | null;
+  if (cur && cur.tagName === 'INPUT' && cur.type === 'range' && (a === 'left' || a === 'right')) {
+    const step = parseFloat(cur.step || '0.05');
+    cur.value = String(Math.min(parseFloat(cur.max), Math.max(parseFloat(cur.min), parseFloat(cur.value) + (a === 'right' ? step : -step))));
+    cur.dispatchEvent(new Event('input'));
+    return true;
+  }
+  if (a === 'left' || a === 'right' || a === 'up' || a === 'down') { move(a); return true; }
+  else if (a === 'confirm') {
+    if (cur && top.el.contains(cur) && cur.hasAttribute('data-nav')) {
+      if (cur.tagName === 'INPUT') return;
+      cur.click();
+    }
+    return true;
+  } else if (a === 'back') {
+    top.onBack?.();
+    return true;
+  }
 }
