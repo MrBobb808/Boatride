@@ -34,7 +34,7 @@ import { showTitle, hideTitle, drawTitleScene, startIntro, drawIntro, updateIntr
 import { openMenu, applyTextSize, isMenuOpen } from './ui/menus';
 import { derive, makeItem, makeEcho } from './game/state';
 import { ITEMS } from './game/data';
-import { startTraining, startDaily } from './game/chapters';
+import { startTraining, startDaily, startExtreme } from './game/chapters';
 import { heroSpriteReady } from './render/heroSprites';
 import { flush as flushCloud, initCloud } from './game/cloud';
 import { maybeRecap, recapText } from './game/recap';
@@ -291,6 +291,7 @@ function setupDebug() {
     fallenArt: fallenArtReady,
     hero: () => ({ ready: heroSpriteReady(G.world.player.style, G.world.player.state, G.world.player.mantleT), skin: G.world.player.style.skin, hair: G.world.player.style.hair, beard: G.world.player.style.beard }),
     trial: (bossOnly = false, from = 1) => startTraining(from, bossOnly),
+    extreme: () => startExtreme(),
     spawn(kind: EnemyKind, x = G.world.player.x + 90, y = G.world.player.y) {
       return G.world.add(makeEnemy(kind, x, y, null));
     },

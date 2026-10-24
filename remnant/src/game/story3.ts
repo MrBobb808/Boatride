@@ -121,8 +121,8 @@ export class Chapter3 {
       const from = Math.max(1, Number(s.flags.trial_from ?? 1));
       delete s.flags.trial_from;
       const mode = s.flags.trial_mode;
-      this.rounds.start(from, mode === 'boss', mode === 'rush', mode === 'daily' ? (s.flags.trial_daily === 'ranked' ? 'ranked' : 'practice') : null);
-      if (!this.rounds.bossOnly && !this.rounds.daily && !s.quests.s_trial) this.st.quest('s_trial', 0);
+      this.rounds.start(from, mode === 'boss', mode === 'rush', mode === 'daily' ? (s.flags.trial_daily === 'ranked' ? 'ranked' : 'practice') : null, mode === 'extreme');
+      if (!this.rounds.bossOnly && !this.rounds.daily && !this.rounds.extreme && !s.quests.s_trial) this.st.quest('s_trial', 0);
     }
     return true;
   }

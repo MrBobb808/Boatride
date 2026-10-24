@@ -144,6 +144,18 @@ export function startBossRush() {
   G.world.transition('trial_arena', 'start');
 }
 
+// ---------------------------------------------------------------- Extreme Survival
+
+/** The Trial at its hardest, always from round 1, on its own board. */
+export function startExtreme() {
+  if (!trainingOpen()) return;
+  G.save.flags.trial_contract = '';
+  markReturn();
+  G.save.flags.trial_from = 1;
+  G.save.flags.trial_mode = 'extreme';
+  G.world.transition('trial_arena', 'start');
+}
+
 // ---------------------------------------------------------------- the daily challenge
 
 /** Today's seeded ten waves; a ranked run if today's attempt is unspent, else practice. */

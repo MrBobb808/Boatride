@@ -22,13 +22,13 @@ export interface RunEntry {
   done?: boolean;
 }
 
-/** Which board: survival (false), the Boss Gauntlet (true) or the Boss Rush. */
-export type BoardId = boolean | 'rush';
+/** Which board: survival (false), the Boss Gauntlet (true), the Boss Rush or Extreme Survival. */
+export type BoardId = boolean | 'rush' | 'extreme';
 
 const KEY = 'remnant.board.v1';
 const KEEP = 20;
 
-const keyOf = (b: BoardId) => b === 'rush' ? 'remnant.rush-board.v1' : b ? 'remnant.boss-board.v1' : KEY;
+const keyOf = (b: BoardId) => b === 'rush' ? 'remnant.rush-board.v1' : b === 'extreme' ? 'remnant.extreme-board.v1' : b ? 'remnant.boss-board.v1' : KEY;
 
 export function loadBoard(bossOnly: BoardId = false): RunEntry[] {
   try {
@@ -70,7 +70,7 @@ export function renameRun(id: number, name: string, bossOnly: BoardId = false) {
   if (!bossOnly) void pushBest({ name: e.name, rounds: e.rounds, kills: e.kills, time: Math.round(e.time), level: e.level, date: e.date });
 }
 
-export function bestRounds(bossOnly = false) {
+export function bestRounds(bossOnly: BoardId = false) {
   return loadBoard(bossOnly).reduce((m, e) => Math.max(m, e.rounds), 0);
 }
 
