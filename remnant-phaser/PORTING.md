@@ -10,9 +10,9 @@ the iPhone as it lands.
 ## How it is built
 
 - `npm install`, then `npm run dev` (port 5174) or `npm run build` (writes `dist/`).
-- `node scripts/smoke.mjs`, `node scripts/combat.mjs`, `node scripts/bosses.mjs`
-  and `node scripts/classic-bosses.mjs` play the build in headless Chromium
-  (after a build). CI runs them on every push
+- `node scripts/smoke.mjs`, `node scripts/combat.mjs`, `node scripts/foes.mjs`,
+  `node scripts/bosses.mjs` and `node scripts/classic-bosses.mjs` play the build
+  in headless Chromium (after a build). CI runs them on every push
   (`.github/workflows/remnant-pages.yml`).
 - `?debug` exposes `window.__remnant` (`world`, `controls`, `warp(room, spawn)`,
   `give(xp)`, `rooms`). Add `&autostart` to skip the title and `&fresh` for a new
@@ -55,7 +55,6 @@ the iPhone as it lands.
 | `src/game/controls.ts` | One action layer for keyboard, gamepad and touch. |
 | `src/game/player.ts` | Elior: movement, three-hit combo, air strike, charged heavy blow, parry, block, counters, crits, dodge, Balm, skills, hazards. |
 | `src/game/abilities.ts` | Covenant skills: Sword of the Word, Trumpet of Victory, Shield of Faith. |
-| `src/game/foes.ts` | Every foe with a PNG sheet, with melee, beast, archer or flier behaviour. |
 | `src/game/bosses.ts` | The boss framework (intro, phases, phase gates, poise and kneeling, wards) and the Fallen Crowns: Varkhos, Morvane and Azkar. |
 | `src/game/types.ts` | What actors may ask of the world (`WorldApi`), and the shape of a blow. |
 | `src/classic/layer.ts` | The classic layer: the original modules' world, camera, HUD and Elior, and the canvas they draw into. |
@@ -80,11 +79,7 @@ port can follow it.
 - ✅ Elior: run, jump (coyote time, buffer, short hops), a three-hit ground
   combo, an air strike, a dodge with invulnerability, getting hurt, death and
   rising at the room's doorway, with his PNG sheet.
-- 🟡 Foes: every kind with a sheet, using four shared behaviours, with stats
-  from the original (the bosses' summoned foes already run the original's code
-  through the classic layer). Still to come: each kind's own moves (`game/enemies.ts`,
-  `tanks.ts`, `locusts.ts`, `babylon.ts`, `feast.ts`, `princes.ts`,
-  `fallenFoes.ts`), purification into Echoes, and finishers.
+- ✅ Foes: since Part 5, the original's own (see Part 5).
 - ✅ HUD basics, toasts, banners, room names, hints with device-correct button
   names, pause.
 - ✅ Touch: a floating stick, STRIKE, JUMP, DODGE and a context button, with
@@ -163,6 +158,28 @@ port can follow it.
 - In the original: Elior's body proportions moved to `game/playerDims.ts` and
   the torch flame to `render/flame.ts`, so the NPC module no longer loads the
   player or the environment.
+
+### Part 5: the foes
+- ✅ Every room's foes are the original's classes (`game/enemies.ts`,
+  `tanks.ts`, `locusts.ts`, `babylon.ts`, `feast.ts`, `princes.ts`,
+  `fallenFoes.ts`, `eel.ts`, made by `game/foes.ts`), run through the classic
+  layer: each kind's own moves, telegraphs, guards, staggers and deaths, its PNG
+  sheet (`render/creatureSprites.ts`) or its vector art, and the health bars and
+  elite names over them. The Phaser build's stand-in foes are gone.
+- ✅ Elior's parry, block, dodge and Shield of Faith work on their blows; his
+  blows, heavy blows and skills reach them (a light strike is about 10 of the
+  original's poise, a full heavy about 34).
+- ✅ Kills pay the original's experience and silver for the chapter.
+- ✅ A beaten elite kneels in the Veil's grip; holding interact (or up) beside
+  it for 1.1 s purifies it, as in the original: the Veil burns away, it is
+  recorded in `defeated` and its species in `purified`, and it does not return.
+  The Echo itself takes the field with the Echo port. The Chapter VII
+  commanders still break the boundary when they fall.
+- Note: until stats and gear are ported, a foe's health grows with Elior's blow
+  at its chapter's arrival level (`sizeFoe`), so a husk takes as many blows in
+  Chapter VI as in Chapter I; the original grows it for a geared Elior.
+- ⬜ Finishers on staggered foes (`game/finishers.ts`) come with the rest of
+  combat.
 
 ### Still to port
 - ⬜ Combat, the rest: the fourth combo strike and other moves from the skill

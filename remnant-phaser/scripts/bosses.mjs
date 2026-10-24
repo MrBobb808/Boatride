@@ -148,7 +148,7 @@ try {
   // ---- Chapter VII: the commanders
   const fell = async (room, id) => {
     await warp(page, room);
-    await E(page, (id) => { const f = window.__remnant.world.foes().find((f) => f.eliteId === id); f.hit(1e8, 1, 1); }, id);
+    await E(page, (id) => { const f = window.__remnant.world.foes().find((f) => f.e?.elite === id); f.e.hp = 0; f.e.die(); }, id);
     await page.waitForTimeout(300);
   };
   await E(page, () => { const f = window.__remnant.world.save.flags; for (const k of Object.keys(f)) if (/^(hunt_|plague_source|cinder_valve|ch\d+_boundary)/.test(k)) delete f[k]; });
@@ -159,16 +159,17 @@ try {
   flags = await E(page, () => window.__remnant.world.save.flags);
   assert.ok(flags.hunt_redmaw_alpha && flags.ch7_boundary_open, 'both commanders fallen: the Chapter VII boundary opens');
   await warp(page, 'riftwood_trail');
-  assert.ok(await E(page, () => !window.__remnant.world.foes().some((f) => f.eliteId === 'fang_warden')), 'a fallen commander stays fallen');
+  assert.ok(await E(page, () => !window.__remnant.world.foes().some((f) => f.e?.elite === 'fang_warden')), 'a fallen commander stays fallen');
 
   // ---- Chapter IX: a pressure wheel, guarded until its guard falls
   await warp(page, 'slag_procession');
-  const wheel = await E(page, () => { const w = window.__remnant.world, it = w.interactables.find((i) => i.label === 'Release'); w.player.placeAt(it.x, it.y, 1); return it.x; });
+  // Its guard stands by (held still, so its blows cannot knock Elior through the doorway beside the wheel).
+  const wheel = await E(page, () => { const w = window.__remnant.world, it = w.interactables.find((i) => i.label === 'Release'); for (const f of w.foes()) if (f.e) f.e.think = () => {}; w.player.placeAt(it.x, it.y, 1); return it.x; });
   await page.waitForTimeout(150);
   await page.keyboard.press('KeyF');
   await page.waitForTimeout(250);
   assert.ok(!(await E(page, () => window.__remnant.world.save.flags.cinder_valve_a)), 'the wheel will not turn while its guard stands');
-  await E(page, (x) => { for (const f of window.__remnant.world.foes()) if (Math.abs(f.x - x) < 190) f.hit(1e8, 1, 1); }, wheel);
+  await E(page, (x) => { for (const f of window.__remnant.world.foes()) if (Math.abs(f.x - x) < 190) { if (f.e) { f.e.hp = 0; f.e.die(); } else f.hit(1e8, 1, 1); } }, wheel);
   await page.waitForTimeout(300);
   await E(page, (x) => { const w = window.__remnant.world; w.player.placeAt(x, w.player.feet, 1); }, wheel);
   await page.waitForTimeout(150);

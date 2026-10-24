@@ -17,8 +17,10 @@ export interface PhaserSave {
   ce: number;
   balm: number;
   balmMax: number;
-  /** Bosses beaten, by the original's keys (the classic bosses read it). */
+  /** Bosses beaten and elites purified, by the original's keys (the classic bosses and foes read it). */
   defeated?: string[];
+  /** Echo species purified from elites, waiting for the Echo port to raise them. */
+  purified?: string[];
 }
 
 const KEY = 'remnant-phaser.save.v1';

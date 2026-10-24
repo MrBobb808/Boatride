@@ -52,7 +52,7 @@ try {
   await W(page, () => window.__remnant.warp('ashen_road', 'left'));
   await page.waitForFunction(() => window.__remnant.world.room.id === 'ashen_road' && !window.__remnant.world.transitioning);
   await page.waitForTimeout(400);
-  const husk = await W(page, () => { const w = window.__remnant.world, f = w.foes().find((f) => f.kind === 'husk'); w.player.placeAt(f.x - 22, f.body.bottom, 1); return { hp: f.hp }; });
+  const husk = await W(page, () => { const w = window.__remnant.world, f = w.foes().find((f) => f.kind === 'husk'); w.player.placeAt(f.x - 22, f.e.y, 1); return { hp: f.hp }; });
   const before = await state(page);
   for (let i = 0; i < 40; i++) {
     await page.keyboard.press('KeyJ');
@@ -72,7 +72,7 @@ try {
   const hurt = await W(page, async () => {
     const w = window.__remnant.world, f = w.foes().find((f) => f.alive);
     if (!f) return null;
-    w.player.placeAt(f.x - 14, f.body.bottom, 1);
+    w.player.placeAt(f.x - 14, f.e.y, 1);
     const hp = w.player.hp;
     for (let i = 0; i < 60 && w.player.hp === hp; i++) await new Promise((r) => setTimeout(r, 100));
     return { kind: f.kind, before: hp, after: w.player.hp };

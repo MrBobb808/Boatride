@@ -6,15 +6,17 @@ import Phaser from 'phaser';
 import { ROOMS, CHAR_TILE, T, TILE, isSolid, FALLEN_CHAPTERS, fallenObjective, chapterCurve, type RoomDef, type EntDef } from '../shared';
 import { Controls } from '../game/controls';
 import { Player } from '../game/player';
-import { Foe, foeDrawable } from '../game/foes';
 import { makeBoss, bossPorted, BOSS_CHAPTER, type Boss } from '../game/bosses';
 import { biomeTileset, tileIndex, backdropTextures, TI } from '../game/tileset';
 import { newSave, loadSave, writeSave, gainXp, maxHpAt, powerAt, type PhaserSave } from '../game/save';
 import type { WorldApi, FoeLike, BossView } from '../game/types';
-import { ClassicLayer } from '../classic/layer';
+import { ClassicLayer, sizeFoe } from '../classic/layer';
+import { makeEnemy } from '../../../remnant/src/game/foes';
+import { Enemy } from '../../../remnant/src/game/enemies';
+import { fx, PK } from '../../../remnant/src/render/fx';
 import { CLASSIC_BOSSES, isClassicBoss, type ClassicBoss, type ClassicBossKey } from '../classic/bosses';
 import { G } from '../classic/shim/ctx';
-import { xpToNext } from '../shared';
+import { xpToNext, ECHO_SPECIES } from '../shared';
 import { hudBoxes, type Hud } from './Hud';
 
 const VIEW_H = 300;
@@ -44,6 +46,8 @@ export class World extends Phaser.Scene implements WorldApi {
   /** The brood's waves before the Locust King hatches: which wave, and its foes. */
   private brood: { i: number; foes: { remove: boolean; dying: boolean }[] } | null = null;
   private allFoes: FoeLike[] = [];
+  /** Seconds the interact button has been held beside a kneeling elite. */
+  private purifyHold = 0;
   private layer!: Phaser.Tilemaps.TilemapLayer;
   private map?: Phaser.Tilemaps.Tilemap;
   private roomObjs: Phaser.GameObjects.GameObject[] = [];
@@ -205,11 +209,13 @@ export class World extends Phaser.Scene implements WorldApi {
     const x = ('x' in e ? e.x : 0) * TILE, y = ('y' in e ? (e as { y: number }).y : 0) * TILE;
     switch (e.t) {
       case 'enemy': {
-        if (!foeDrawable(e.k)) return;
-        // An objective commander, once fallen, stays fallen.
+        // The original's foe, with its own moves and art. An elite once purified, or an
+        // objective commander once fallen, stays gone.
         const obj = e.elite ? fallenObjective(e.elite) : undefined;
-        if (e.elite && (this.save.flags[`elite_${e.elite}`] || (obj && this.save.flags[obj.flag]))) return;
-        this.addFoe(new Foe(this, e.k, x + 8, y, e.face ?? -1, !!e.elite, e.elite));
+        if (e.elite && (this.save.defeated?.includes(e.elite) || (obj && this.save.flags[obj.flag]))) return;
+        const en = sizeFoe(makeEnemy(e.k, x, y, e.elite ?? null));
+        if (e.face) en.face = e.face;
+        this.classic.add(en);
         return;
       }
       case 'boss': {
@@ -235,7 +241,7 @@ export class World extends Phaser.Scene implements WorldApi {
         const it: Interactable = {
           x, y, label, use: () => {
             // The original's rule: clear the guards near it first.
-            if (this.foeList.some((f) => f.alive && Math.abs(f.x - x) < 190 && f !== this.boss)) { this.hud.toast('Clear the nearby guards first.'); return; }
+            if (this.foes().some((f) => f.alive && Math.abs(f.x - x) < 190 && f !== this.boss)) { this.hud.toast('Clear the nearby guards first.'); return; }
             this.objective(o.id);
             this.spark(x, y - 24, col, 16);
             glow.destroy(); mark.destroy();
@@ -366,9 +372,10 @@ export class World extends Phaser.Scene implements WorldApi {
     if (this.cboss?.remove) this.cboss = null;
     this.updateBrood();
 
-    // Interact with the nearest thing in reach.
-    const near = this.nearest();
-    this.hud.setInteract(near?.label ?? null);
+    // Interact with the nearest thing in reach; beside a kneeling elite, hold to purify it.
+    const kneeling = this.updatePurify(dt);
+    const near = kneeling ? null : this.nearest();
+    this.hud.setInteract(kneeling ? 'Hold to purify' : near?.label ?? null);
     if (near && this.controls.pressed('interact') && !this.player.dead) near.use();
     // Hints show while Elior walks through their stretch of the room.
     const hint = this.hints.find((h) => this.player.x >= h.x0 && this.player.x <= h.x1);
@@ -526,6 +533,51 @@ export class World extends Phaser.Scene implements WorldApi {
   toast(text: string) { this.hud.toast(text); }
   bossBar(name: string | null, sub = '') { this.hud.bossBar(name, sub); }
 
+  // ---------------------------------------------------------------- purification
+
+  /** A beaten elite kneels in the Veil's grip; holding interact beside it cleanses it (the original's world.ts). */
+  private updatePurify(dt: number): Enemy | null {
+    const p = this.player;
+    let target: Enemy | null = null;
+    if (!p.dead && !G.inCutscene) {
+      for (const e of this.classic.ents) {
+        if (e instanceof Enemy && e.awaitingPurify && !e.remove && Math.abs(e.x - p.x) < 70 && Math.abs(e.y - p.feet) < 50) target = e;
+      }
+    }
+    if (!target) { this.purifyHold = 0; return null; }
+    if (this.controls.down('interact') || this.controls.down('up')) {
+      this.purifyHold += dt;
+      if (Math.random() < dt * 40) fx.spawn(PK.Mote, target.cx + Phaser.Math.FloatBetween(-14, 14), target.cy + Phaser.Math.FloatBetween(-14, 14), (p.x - target.x) * 0.8, -20, 0.5, 6, 1, '#ffe6a8');
+      if (this.purifyHold >= 1.1) { this.purifyHold = 0; this.purify(target); }
+    } else this.purifyHold = Math.max(0, this.purifyHold - dt * 2);
+    return target;
+  }
+
+  /** The Veil burns away: the elite's battle-imprint is cleansed into an Echo (raised when the Echo port lands). */
+  private purify(e: Enemy) {
+    const s = this.save;
+    const species = ({ archer: 'archer', brute: 'brute', bulwark: 'bulwark', knight: 'knight', lion: 'lion' } as Record<string, string>)[e.kind] ?? 'sentinel';
+    for (let i = 0; i < 6; i++) this.time.delayedCall(i * 160, () => { fx.veilBurst(e.cx, e.cy, 10, 1.2); fx.holyBurst(e.cx, e.cy, 8, 0.8); });
+    this.time.delayedCall(1000, () => {
+      fx.column(e.x, e.y, 70, 320, '#fff3c4', 2.0);
+      fx.flash('#ffffff', 0.7);
+      fx.ring(e.x, e.y - 2, 8, 120, '#ffe6a8', 0.8, 4, 0.3);
+      this.shake(0.008, 300);
+      e.remove = true;
+    });
+    if (e.elite) (s.defeated ??= []).includes(e.elite) || s.defeated.push(e.elite);
+    (s.purified ??= []).push(species);
+    // The first purification, in the Covenant Chamber, is what opens the way on.
+    if (e.elite === 'chamber_sentinel') { s.flags.chamber_done = true; s.flags.has_echo = true; }
+    const sp = ECHO_SPECIES[species];
+    this.time.delayedCall(1100, () => {
+      this.banner('ECHO PURIFIED', sp ? `${sp.stages[0].name} · ${sp.cls}` : 'An Echo stands with you');
+      this.toast('Not a soul: a memory of its courage, cleansed of the Veil. Your Echoes take the field when the squad is ported.');
+      this.giveXp(60, e.x, e.y - 30);
+    });
+    this.persist();
+  }
+
   // ---------------------------------------------------------------- classic bosses
 
   /** A classic boss on its mark, sized to the Phaser Elior at its chapter's level (until stats and gear are ported). */
@@ -656,6 +708,10 @@ export class World extends Phaser.Scene implements WorldApi {
     if (eliteId) this.objective(eliteId);
     this.save.kills++;
     this.save.silver += silver;
+    this.giveXp(xp, x, y);
+  }
+
+  private giveXp(xp: number, x: number, y: number) {
     this.floatText(x, y - 10, `+${xp} XP`, '#9fc4ff');
     const ups = gainXp(this.save, xp);
     if (ups) {

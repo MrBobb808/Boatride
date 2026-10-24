@@ -14,10 +14,25 @@ import { glow } from '../../../remnant/src/render/draw';
 import { drawPixelBody, bossPixelFrame } from '../../../remnant/src/render/bossPixel';
 import { Grid, T, TILE, isSolid } from '../../../remnant/src/game/tiles';
 import type { Entity, HitInfo } from '../../../remnant/src/game/entity';
-import type { Enemy } from '../../../remnant/src/game/enemies';
+import { Enemy } from '../../../remnant/src/game/enemies';
 import { makeEnemy } from '../../../remnant/src/game/foes';
+import { drawFoeSprite } from '../../../remnant/src/render/creatureSprites';
+import { chapterCurve } from '../../../remnant/src/game/curve';
+import { powerAt } from '../game/save';
 import type { Blow, FoeLike, WorldApi } from '../game/types';
 import type { EnemyKind } from '../shared';
+
+/**
+ * A classic foe's health for the Phaser Elior. The original grows foe health by
+ * chapter (game/curve.ts) to keep pace with a geared Elior; until stats and gear
+ * are ported, it grows with his blow at the chapter's arrival level instead, so
+ * a foe takes as many blows in Chapter VI as in Chapter I.
+ */
+export function sizeFoe(e: Enemy) {
+  const grow = powerAt(chapterCurve(e.tier).level) / powerAt(1);
+  e.maxHp = e.hp = Math.round(e.stats.hp * (e.elite ? 2 : 1) * grow);
+  return e;
+}
 
 /** Phaser blow force to the original's poise (a light strike is ~10, a full heavy ~34). */
 const POISE_PER_FORCE = 14;
@@ -116,6 +131,8 @@ class FoeView implements FoeLike {
   rect = undefined as unknown as Phaser.GameObjects.Rectangle;
   constructor(private L: ClassicLayer, readonly e: Entity) {}
   get removed() { return this.e.remove; }
+  get kind() { return (this.e as Enemy).kind; }
+  get hp() { return this.e.hp; }
   get alive() {
     const e = this.e;
     if (e.remove || e.dying || !e.canBeTargeted()) return false;
@@ -133,6 +150,8 @@ class FoeView implements FoeLike {
       src: this.L.playerView as unknown as Entity,
     });
   }
+  /** Its blow was turned aside (a parry, the Shield of Faith). */
+  parried() { this.e.parried(this.L.playerView as unknown as Entity); }
   update() {}
   remove() { this.e.remove = true; }
 }
@@ -237,7 +256,7 @@ export class ClassicLayer {
     return e;
   }
   spawnEnemy(kind: EnemyKind, x: number, y: number, elite: string | null = null) {
-    const e = makeEnemy(kind, x, y, elite);
+    const e = sizeFoe(makeEnemy(kind, x, y, elite));
     e.aggro = true;
     return this.add(e);
   }
@@ -278,8 +297,8 @@ export class ClassicLayer {
     return n;
   }
   onEnemyKilled(e: Enemy) {
-    const st = e.stats;
-    this.host.onFoeDied(Math.round(st.xp * (e.elite ? 4 : 1)), Phaser.Math.Between(st.silver[0], st.silver[1]), e.x, e.y - 20);
+    const st = e.stats, tier = chapterCurve(e.tier).xp, elite = e.elite ? 4 : 1;
+    this.host.onFoeDied(Math.round(st.xp * elite * tier), Math.round(Phaser.Math.Between(st.silver[0], st.silver[1]) * elite * tier), e.x, e.y - 20, e.elite ?? undefined);
   }
   onBossDefeated(b: Entity & { key?: string }) {
     this.bossActive = false;
@@ -372,6 +391,8 @@ export class ClassicLayer {
     for (const e of sorted) {
       try {
         e.lights?.();
+        // Foes with a sheet draw from it, as in the original's pixel style.
+        if (e instanceof Enemy && drawFoeSprite(c, e)) continue;
         if ((e as { pixelShade?: boolean }).pixelShade && drawPixelBody(c, e as Parameters<typeof drawPixelBody>[1])) continue;
         e.draw(c);
       } catch (err) { this.fault(e, err); }
