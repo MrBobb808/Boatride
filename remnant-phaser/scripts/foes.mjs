@@ -74,10 +74,10 @@ try {
   await E(page, (e) => window.__remnant.world.player.placeAt(e.x - 20, e.y, 1), elite);
   await page.waitForTimeout(300);
   await page.keyboard.down('KeyF');
-  await until(page, () => window.__remnant.world.save.purified?.length > 0, null, 10000);
+  await until(page, () => window.__remnant.world.save.echoes.length > 0, null, 10000);
   await page.keyboard.up('KeyF');
-  const pur = await E(page, () => ({ defeated: window.__remnant.world.save.defeated, purified: window.__remnant.world.save.purified }));
-  assert.ok(pur.defeated.includes('vault_archer') && pur.purified.includes('archer'), `purified into an Echo (${JSON.stringify(pur)})`);
+  const pur = await E(page, () => ({ defeated: window.__remnant.world.save.defeated, echoes: window.__remnant.world.save.echoes.map((e) => e.species), active: window.__remnant.world.save.active.length }));
+  assert.ok(pur.defeated.includes('vault_archer') && pur.echoes.includes('archer') && pur.active > 0, `purified into an archer Echo in the lineup (${JSON.stringify(pur)})`);
   await page.waitForTimeout(1500);
   await page.screenshot({ path: 'qa/foes-purified.png' });
   await E(page, (room) => window.__remnant.warp(room, 'start'), room);

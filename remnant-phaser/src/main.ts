@@ -29,6 +29,9 @@ const game = new Phaser.Game({
   scene: [Boot, Title, World, Hud],
 });
 
+// The debug API starts with the game itself (the world scene adds the rest), so the title can be driven too.
+if (new URLSearchParams(location.search).has('debug')) (window as unknown as { __remnant: unknown }).__remnant = { game };
+
 const fit = () => {
   const n = size();
   game.scale.resize(n.w, n.h);

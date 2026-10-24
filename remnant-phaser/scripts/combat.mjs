@@ -119,15 +119,15 @@ try {
   assert.ok(['hurt', 'stagger'].includes(live.st), `and the husk reels (${live.st})`);
   console.log(`A live husk swing, parried on its wind-up with I: no damage, the husk reels (${live.st})`);
 
-  // ---- block: holding the guard past the window takes a quarter
+  // ---- block: holding the guard past the window takes a quarter (of what armour lets through)
   await dummy(page);
   await page.keyboard.down('KeyI');
   // Game time, not wall time: past the parry window into the guard.
   await page.waitForFunction(() => window.__remnant.world.player.state === 'block', null, { timeout: 5000 });
-  const block = await E(page, () => { const p = window.__remnant.world.player, f = window.__remnant.world.foes()[0]; const hp = p.hp, st = p.state; p.hurt({ dmg: 40, dir: -1, src: f }); return { st, lost: hp - p.hp }; });
+  const block = await E(page, () => { const p = window.__remnant.world.player, f = window.__remnant.world.foes()[0]; const hp = p.hp, st = p.state; p.hurt({ dmg: 40, dir: -1, src: f }); return { st, lost: hp - p.hp, dr: window.__remnant.world.d.dr }; });
   await page.keyboard.up('KeyI');
   assert.equal(block.st, 'block');
-  assert.equal(block.lost, 10, 'a block takes a quarter');
+  assert.equal(block.lost, Math.max(1, Math.round(40 * (1 - block.dr) * 0.25)), 'a block takes a quarter (after armour)');
 
   // ---- Balm: heals 42%, then runs out
   const balm = await E(page, async () => {

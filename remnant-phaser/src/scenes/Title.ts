@@ -1,8 +1,9 @@
 import Phaser from 'phaser';
-import { loadSave } from '../game/save';
+import { loadSave, liveSlots, importLive } from '../game/save';
+import { ROOMS } from '../shared';
 import { dpr } from '../game/screen';
 
-/** The title: continue the Phaser save, or begin again. */
+/** The title: continue the Phaser save, begin again, or bring a journey over from the live game. */
 export class Title extends Phaser.Scene {
   constructor() { super('title'); }
 
@@ -20,13 +21,28 @@ export class Title extends Phaser.Scene {
     const opts: [string, () => void][] = [];
     if (save) opts.push([`Continue · level ${save.level}`, () => this.scene.start('world', { fresh: false })]);
     opts.push([save ? 'New journey' : 'Begin', () => this.scene.start('world', { fresh: true })]);
+    // The live game's slots share this origin's storage: copy one in (the live slot is untouched).
+    let armed = -1;
+    for (const { slot, save: live } of liveSlots()) {
+      const where = ROOMS[live.room]?.name ?? live.room;
+      const label = `Bring live slot ${slot + 1} · level ${live.level} · ${where}`;
+      const i = opts.length;
+      opts.push([label, () => {
+        // Replacing a Phaser journey takes a second tap.
+        if (save && armed !== slot) { armed = slot; texts[i].setText('Tap again: replaces this build\'s journey'); return; }
+        if (importLive(slot)) this.scene.start('world', { fresh: false });
+      }]);
+    }
+    const step = 44 * k, y0 = Math.min(H * 0.62, H - opts.length * step - 12 * k);
+    const texts: Phaser.GameObjects.Text[] = [];
     opts.forEach(([label, go], i) => {
-      const t = this.add.text(W / 2, H * 0.64 + i * 46 * k, label, { fontFamily: 'Cinzel, Georgia, serif', fontSize: `${18 * k}px`, color: i === 0 ? '#f6dea0' : '#ddd4c6', backgroundColor: 'rgba(20,14,24,0.7)', padding: { x: 18 * k, y: 8 * k } })
+      const t = this.add.text(W / 2, y0 + i * step, label, { fontFamily: 'Cinzel, Georgia, serif', fontSize: `${(i < 2 ? 18 : 13) * k}px`, color: i === 0 ? '#f6dea0' : '#ddd4c6', backgroundColor: 'rgba(20,14,24,0.7)', padding: { x: 18 * k, y: 8 * k } })
         .setOrigin(0.5).setInteractive({ useHandCursor: true });
       t.on('pointerover', () => t.setColor('#ffffff'));
       t.on('pointerout', () => t.setColor(i === 0 ? '#f6dea0' : '#ddd4c6'));
       t.on('pointerup', go);
-      t.setData('k', i === 0 ? 'title_first' : 'title_second');
+      t.setData('k', i === 0 ? 'title_first' : i === 1 ? 'title_second' : `title_live_${i - 2}`);
+      texts.push(t);
     });
     this.input.keyboard?.once('keydown-ENTER', opts[0][1]);
     this.input.keyboard?.once('keydown-SPACE', opts[0][1]);

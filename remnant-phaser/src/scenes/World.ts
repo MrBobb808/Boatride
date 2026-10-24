@@ -8,9 +8,12 @@ import { Controls } from '../game/controls';
 import { Player } from '../game/player';
 import { makeBoss, bossPorted, BOSS_CHAPTER, type Boss } from '../game/bosses';
 import { biomeTileset, tileIndex, backdropTextures, TI } from '../game/tileset';
-import { newSave, loadSave, writeSave, gainXp, maxHpAt, powerAt, type PhaserSave } from '../game/save';
+import { newSave, loadSave, writeSave, gainXp, stats, type PhaserSave } from '../game/save';
+import { absorbEcho, makeItem, addMaterial, type Derived } from '../../../remnant/src/game/state';
+import { ITEMS } from '../../../remnant/src/game/data';
+import type { Rarity } from '../../../remnant/src/game/data';
 import type { WorldApi, FoeLike, BossView } from '../game/types';
-import { ClassicLayer, sizeFoe } from '../classic/layer';
+import { ClassicLayer } from '../classic/layer';
 import { makeEnemy } from '../../../remnant/src/game/foes';
 import { Enemy } from '../../../remnant/src/game/enemies';
 import { fx, PK } from '../../../remnant/src/render/fx';
@@ -26,6 +29,8 @@ interface Interactable { x: number; y: number; label: string; use: () => void }
 export class World extends Phaser.Scene implements WorldApi {
   controls!: Controls;
   save!: PhaserSave;
+  /** Elior's stats from the save (refreshed on load, level-up and gear change). */
+  d!: Derived;
   room!: RoomDef;
   player!: Player;
   private grid = new Uint8Array(0);
@@ -75,6 +80,7 @@ export class World extends Phaser.Scene implements WorldApi {
 
   create() {
     this.save = (!this.fresh && loadSave()) || newSave();
+    this.refreshStats();
     this.controls = new Controls(this);
     this.classic = new ClassicLayer(this);
     this.events.once('shutdown', () => this.classic.destroy());
@@ -137,6 +143,7 @@ export class World extends Phaser.Scene implements WorldApi {
 
   loadRoom(id: string, spawnName: string) {
     this.clearRoom();
+    this.refreshStats();
     const r = (this.room = ROOMS[id]);
     this.entrySpawn = r.spawns[spawnName] ? spawnName : r.spawns.start ? 'start' : Object.keys(r.spawns)[0];
     this.save.room = id;
@@ -149,9 +156,6 @@ export class World extends Phaser.Scene implements WorldApi {
     for (let i = 0; i < this.grid.length; i++) if (this.grid[i] === T.Gate) { this.grid[i] = T.Empty; this.gates.push(i); }
 
     this.classic.load();
-    // Original blows, scaled to the Phaser Elior's health (until stats and gear are ported).
-    const lv = this.save.level;
-    this.classic.dmgScale = maxHpAt(lv) / (140 + lv * 22);
     this.buildBackdrop(r);
     this.buildTiles(r);
     this.physics.world.setBounds(0, 0, r.w * TILE, r.h * TILE + 64);
@@ -213,7 +217,7 @@ export class World extends Phaser.Scene implements WorldApi {
         // objective commander once fallen, stays gone.
         const obj = e.elite ? fallenObjective(e.elite) : undefined;
         if (e.elite && (this.save.defeated?.includes(e.elite) || (obj && this.save.flags[obj.flag]))) return;
-        const en = sizeFoe(makeEnemy(e.k, x, y, e.elite ?? null));
+        const en = makeEnemy(e.k, x, y, e.elite ?? null);
         if (e.face) en.face = e.face;
         this.classic.add(en);
         return;
@@ -275,16 +279,14 @@ export class World extends Phaser.Scene implements WorldApi {
         return;
       }
       case 'chest': {
-        if (this.save.flags[`chest_${e.id}`]) return;
+        if (this.save.opened.includes(e.id) || this.save.flags[`chest_${e.id}`]) return;
         const g = this.add.graphics().setDepth(1);
         g.fillStyle(0x5a3a22, 1).fillRect(x, y - 10, 16, 10).fillStyle(0x7a5232, 1).fillRect(x, y - 12, 16, 4).fillStyle(0xe2b85a, 1).fillRect(x + 7, y - 8, 2, 3);
         this.roomObjs.push(g);
         const it: Interactable = {
           x: x + 8, y, label: 'Open', use: () => {
-            this.save.flags[`chest_${e.id}`] = true;
-            const silver = e.loot.reduce((s, l) => s + (l.silver ?? 0), 0) || 50;
-            this.save.silver += silver;
-            this.hud.toast(`Chest · +${silver} silver (items arrive with the inventory port)`);
+            this.save.opened.push(e.id);
+            for (const l of e.loot) this.collect(l);
             g.destroy();
             this.interactables = this.interactables.filter((i) => i !== it);
             this.persist();
@@ -533,6 +535,33 @@ export class World extends Phaser.Scene implements WorldApi {
   toast(text: string) { this.hud.toast(text); }
   bossBar(name: string | null, sub = '') { this.hud.bossBar(name, sub); }
 
+  // ---------------------------------------------------------------- stats and loot
+
+  /** Elior's stats from the save, as the original derives them (level, stat points, skills, gear). */
+  refreshStats() {
+    this.d = stats(this.save);
+    G.d = this.d;
+  }
+
+  /** A chest's loot, as the original's world.collect gives it. */
+  private collect(l: { silver?: number; mat?: string; n?: number; item?: string; rarity?: number }) {
+    const s = this.save;
+    if (l.silver) {
+      s.silver += l.silver;
+      this.floatText(this.player.x + 10, this.player.feet - 40, `+${l.silver}`, '#e8e2d0');
+    } else if (l.mat) {
+      addMaterial(s, l.mat, l.n ?? 1);
+      this.toast(`${ITEMS[l.mat]?.name ?? l.mat}${(l.n ?? 1) > 1 ? ' ×' + l.n : ''}`);
+    } else if (l.item && ITEMS[l.item]) {
+      const base = ITEMS[l.item];
+      if (base.slot === 'key') { if (!s.keyItems.includes(l.item)) s.keyItems.push(l.item); this.toast(base.name); return; }
+      const it = makeItem(l.item, (l.rarity ?? base.rarity) as Rarity);
+      it.isNew = true;
+      s.inventory.push(it);
+      this.toast(`${base.name} · in your pack (equip it when the menus are ported)`);
+    }
+  }
+
   // ---------------------------------------------------------------- purification
 
   /** A beaten elite kneels in the Veil's grip; holding interact beside it cleanses it (the original's world.ts). */
@@ -566,12 +595,13 @@ export class World extends Phaser.Scene implements WorldApi {
       e.remove = true;
     });
     if (e.elite) (s.defeated ??= []).includes(e.elite) || s.defeated.push(e.elite);
-    (s.purified ??= []).push(species);
+    const echo = absorbEcho(s, species, this.d);
     // The first purification, in the Covenant Chamber, is what opens the way on.
     if (e.elite === 'chamber_sentinel') { s.flags.chamber_done = true; s.flags.has_echo = true; }
     const sp = ECHO_SPECIES[species];
     this.time.delayedCall(1100, () => {
-      this.banner('ECHO PURIFIED', sp ? `${sp.stages[0].name} · ${sp.cls}` : 'An Echo stands with you');
+      const title = echo?.evolved ? 'ECHO EVOLVED' : echo?.created ? 'ECHO PURIFIED' : 'ECHO REINFORCED';
+      this.banner(title, sp && echo ? `${sp.stages[echo.echo.stage].name} · ${sp.cls}` : 'An Echo stands with you');
       this.toast('Not a soul: a memory of its courage, cleansed of the Veil. Your Echoes take the field when the squad is ported.');
       this.giveXp(60, e.x, e.y - 30);
     });
@@ -580,12 +610,10 @@ export class World extends Phaser.Scene implements WorldApi {
 
   // ---------------------------------------------------------------- classic bosses
 
-  /** A classic boss on its mark, sized to the Phaser Elior at its chapter's level (until stats and gear are ported). */
+  /** A classic boss on its mark, with the original's own health on Hard. */
   private spawnClassicBoss(k: ClassicBossKey, x: number, y: number) {
     if (this.save.defeated?.includes(k)) return;
     const def = CLASSIC_BOSSES[k], b = def.make(x, y);
-    const lv = chapterCurve(def.chapter).level;
-    b.maxHp = b.hp = Math.round(powerAt(lv) * 110 * 1.3);
     this.classic.add(b);
     this.classic.boss = b;
     this.cboss = b;
@@ -715,8 +743,9 @@ export class World extends Phaser.Scene implements WorldApi {
     this.floatText(x, y - 10, `+${xp} XP`, '#9fc4ff');
     const ups = gainXp(this.save, xp);
     if (ups) {
+      this.refreshStats();
       this.player.heal();
-      this.hud.banner(`LEVEL ${this.save.level}`, 'Health restored · your blows grow stronger');
+      this.hud.banner(`LEVEL ${this.save.level}`, `Health restored · ${this.save.statPoints} stat and ${this.save.skillPoints} skill points to spend (the menus come in a later part)`);
     }
   }
 }

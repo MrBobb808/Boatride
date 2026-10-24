@@ -18,21 +18,8 @@ import { Enemy } from '../../../remnant/src/game/enemies';
 import { makeEnemy } from '../../../remnant/src/game/foes';
 import { drawFoeSprite } from '../../../remnant/src/render/creatureSprites';
 import { chapterCurve } from '../../../remnant/src/game/curve';
-import { powerAt } from '../game/save';
 import type { Blow, FoeLike, WorldApi } from '../game/types';
 import type { EnemyKind } from '../shared';
-
-/**
- * A classic foe's health for the Phaser Elior. The original grows foe health by
- * chapter (game/curve.ts) to keep pace with a geared Elior; until stats and gear
- * are ported, it grows with his blow at the chapter's arrival level instead, so
- * a foe takes as many blows in Chapter VI as in Chapter I.
- */
-export function sizeFoe(e: Enemy) {
-  const grow = powerAt(chapterCurve(e.tier).level) / powerAt(1);
-  e.maxHp = e.hp = Math.round(e.stats.hp * (e.elite ? 2 : 1) * grow);
-  return e;
-}
 
 /** Phaser blow force to the original's poise (a light strike is ~10, a full heavy ~34). */
 const POISE_PER_FORCE = 14;
@@ -111,7 +98,7 @@ class PlayerView {
     if (h.kind !== 'hazard' && this.isInvuln() && this.p.shieldT <= 0) return false;
     const src = h.src as (Entity & { parried?(by: unknown): void }) | null | undefined;
     const blow: Blow = {
-      dmg: Math.max(1, Math.round(h.dmg * this.L.dmgScale)),
+      dmg: Math.max(1, Math.round(h.dmg)),
       dir: h.dir,
       ranged: h.kind === 'proj',
       hazard: h.kind === 'hazard',
@@ -161,8 +148,6 @@ export class ClassicLayer {
   grid!: Grid;
   boss: (Entity & { key?: string; state: string; awaken(): void }) | null = null;
   bossActive = false;
-  /** Scales original blows to the Phaser Elior's health (until stats and gear are ported). */
-  dmgScale = 1;
   readonly playerView: PlayerView;
   private views = new WeakMap<Entity, FoeView>();
   private foeViews: FoeView[] = [];
@@ -256,7 +241,7 @@ export class ClassicLayer {
     return e;
   }
   spawnEnemy(kind: EnemyKind, x: number, y: number, elite: string | null = null) {
-    const e = sizeFoe(makeEnemy(kind, x, y, elite));
+    const e = makeEnemy(kind, x, y, elite);
     e.aggro = true;
     return this.add(e);
   }

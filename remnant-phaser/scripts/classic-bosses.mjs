@@ -89,9 +89,9 @@ try {
   const hurt = await E(page, () => {
     const w = window.__remnant.world, p = w.player, hp = p.hp;
     const took = w.classic.playerView.takeHit({ dmg: 30, poise: 20, kx: -120, ky: -80, dir: -1, kind: 'melee', src: w.cboss });
-    return { took, lost: hp - p.hp, scale: w.classic.dmgScale };
+    return { took, lost: hp - p.hp, dr: w.d.dr };
   });
-  assert.ok(hurt.took && hurt.lost === Math.round(30 * hurt.scale), `a classic blow hurts Elior, scaled to his health (${JSON.stringify(hurt)})`);
+  assert.ok(hurt.took && hurt.lost === Math.max(1, Math.round(30 * (1 - hurt.dr))), `a classic blow hurts Elior through his armour (${JSON.stringify(hurt)})`);
   await godMode(page, true);
   // Out of the hound's reach, and past the last bite's invulnerability, so only the parry decides.
   await E(page, () => { const w = window.__remnant.world; w.player.placeAt(Math.max(40, w.cboss.x - 260), w.cboss.y, 1); });

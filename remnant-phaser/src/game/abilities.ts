@@ -20,6 +20,7 @@ export interface Caster {
   x: number; y: number; face: number;
   shieldT: number;
   power(): number;
+  skillPower(): number;
 }
 
 /** Cast a skill's effect (cost and cooldown are the caller's). */
@@ -30,7 +31,7 @@ export function castSkill(w: WorldApi, p: Caster, id: SkillId) {
     const arc = sc.add.image(p.x + p.face * 12, p.y - 2, 'slash').setTint(0xffd27a).setBlendMode(Phaser.BlendModes.ADD)
       .setScale(1.3, 1.6).setFlipX(p.face < 0).setDepth(16);
     const hit = new Set<object>();
-    const dmg = Math.round(p.power() * 1.4);
+    const dmg = Math.round(p.skillPower() * 1.4);
     sc.tweens.add({
       targets: arc, x: arc.x + p.face * 260, duration: 900, ease: 'Linear',
       onUpdate: () => {
@@ -51,7 +52,7 @@ export function castSkill(w: WorldApi, p: Caster, id: SkillId) {
     const ring = sc.add.circle(p.x, p.y + 4, 8, 0xfff1c4, 0).setStrokeStyle(3, 0xfff1c4, 0.9).setDepth(16);
     sc.tweens.add({ targets: ring, radius: 72, alpha: 0, duration: 380, ease: 'Cubic.out', onComplete: () => ring.destroy() });
     w.shake(0.008, 180);
-    const dmg = Math.round(p.power() * 1.2);
+    const dmg = Math.round(p.skillPower() * 1.2);
     for (const f of w.foes()) {
       if (!f.alive) continue;
       const dx = f.box.centerX - p.x, dy = f.box.centerY - p.y;

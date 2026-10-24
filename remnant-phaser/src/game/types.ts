@@ -1,6 +1,7 @@
 import type Phaser from 'phaser';
 import type { Controls } from './controls';
 import type { PhaserSave } from './save';
+import type { Derived } from '../../../remnant/src/game/state';
 
 /** A blow aimed at Elior. `dir` is the way it travels (0: no side, e.g. a hazard). */
 export interface Blow {
@@ -45,6 +46,8 @@ export interface WorldApi {
   sc: Phaser.Scene;
   controls: Controls;
   save: PhaserSave;
+  /** Elior's stats, derived from the save as the original does (game/state.ts derive). */
+  d: Derived;
   /** Tile type at a tile coordinate (solid outside the room's sides). */
   tileAt(tx: number, ty: number): number;
   player: { x: number; y: number; feet: number; dead: boolean; hp: number; maxHp: number; hurt(h: Blow): boolean };

@@ -8,7 +8,7 @@
 
 import Phaser from 'phaser';
 import { T, TILE } from '../shared';
-import { maxHpAt, maxCeAt, powerAt, PARRY_WIN } from './save';
+import { sovereignDamage } from '../../../remnant/src/game/balance';
 import { SKILLS, SLOTS, castSkill, type SkillId } from './abilities';
 import type { WorldApi, Blow } from './types';
 
@@ -22,7 +22,6 @@ const DODGE_V = 300;
 const DODGE_T = 0.32;
 /** Covenant Energy: the original's regeneration, gain per landed blow and per perfect parry. */
 const CE_REGEN = 2.6, CE_HIT = 2.4, CE_PARRY = 5;
-const CRIT_CHANCE = 0.05, CRIT_MULT = 1.6;
 
 interface Swing { t: number; hit: readonly number[]; dmg: number; force: number; reach: number; heavy?: boolean }
 /** The three-hit chain: duration, when the blade lands (fraction), damage scale, knockback, reach. */
@@ -90,8 +89,8 @@ export class Player {
     this.sprite = sc.add.sprite(x, feet, 'elior', 0).setOrigin(0.5, FOOT / FRAME).setScale(DRAW / FRAME).setDepth(10);
     this.slash = sc.add.image(x, feet, 'slash').setDepth(11).setBlendMode(Phaser.BlendModes.ADD).setVisible(false);
     this.aura = sc.add.graphics().setDepth(12).setBlendMode(Phaser.BlendModes.ADD);
-    this.maxHp = maxHpAt(w.save.level);
-    this.maxCe = maxCeAt(w.save.level);
+    this.maxHp = w.d.maxHp;
+    this.maxCe = w.d.maxCe;
     this.hp = w.save.hp > 0 ? Math.min(w.save.hp, this.maxHp) : this.maxHp;
     this.face = face;
   }
@@ -103,7 +102,10 @@ export class Player {
   get onGround() { return this.body.blocked.down || this.body.touching.down; }
   get vulnerable() { return this.invuln <= 0 && this.state !== 'dead' && !(this.state === 'dodge' && this.st < DODGE_T - 0.04); }
   get ce() { return this.w.save.ce; }
-  power() { return powerAt(this.w.save.level); }
+  /** A blow's base: the original's attack from stats and gear, its melee multiplier and the level's power tier. */
+  power() { const d = this.w.d; return d.atk * d.meleeMult * sovereignDamage(this.w.save.level); }
+  /** A Covenant skill's base: attack times the original's ability power. */
+  skillPower() { const d = this.w.d; return d.atk * d.abil * sovereignDamage(this.w.save.level); }
 
   placeAt(x: number, feet: number, face = this.face) {
     this.body.reset(x, feet - 17);
@@ -141,7 +143,7 @@ export class Player {
     this.counterT = Math.max(0, this.counterT - dt);
     this.dropT = Math.max(0, this.dropT - dt);
     for (const k of SLOTS) this.cds[k] = Math.max(0, this.cds[k] - dt);
-    if (this.state !== 'dead') s.ce = Math.min(this.maxCe, s.ce + CE_REGEN * dt);
+    if (this.state !== 'dead') s.ce = Math.min(this.maxCe, s.ce + CE_REGEN * this.w.d.ceRegen * dt);
     this.coyote = this.onGround ? COYOTE : Math.max(0, this.coyote - dt);
     this.jumpBuf = c.pressed('jump') ? BUFFER : Math.max(0, this.jumpBuf - dt);
 
@@ -323,7 +325,7 @@ export class Player {
   private startParry() {
     this.state = 'parry';
     this.st = 0;
-    this.parryT = PARRY_WIN;
+    this.parryT = this.w.d.parryWin;
     this.parryCd = 0.32;
     this.slash.setVisible(false);
   }
@@ -361,9 +363,9 @@ export class Player {
       if (!f.alive || this.hitDone.has(f) || !Phaser.Geom.Rectangle.Overlaps(box, f.box)) continue;
       this.hitDone.add(f);
       const counter = this.counterT > 0;
-      const crit = counter || Math.random() < CRIT_CHANCE;
-      let dmg = this.power() * this.atk.dmg * this.atkMult * Phaser.Math.FloatBetween(0.92, 1.08);
-      if (crit) dmg *= CRIT_MULT;
+      const d = this.w.d, crit = counter || Math.random() < d.crit;
+      let dmg = this.power() * this.atk.dmg * this.atkMult * (this.atk.heavy ? d.heavyMult : 1) * Phaser.Math.FloatBetween(0.92, 1.08);
+      if (crit) dmg *= d.critDmg;
       if (counter) dmg *= 1.5;
       const force = this.atk.force * this.atkMult * (counter ? 1.5 : 1);
       if (f.hit(Math.round(dmg), this.face, force, crit)) {
@@ -399,7 +401,9 @@ export class Player {
       this.w.shake(0.004, 100);
       return false;
     }
-    let dmg = h.dmg;
+    // The original's armour: damage reduction from Endurance and gear (half of it against hazards).
+    const dr = this.w.d.dr * (h.hazard ? 0.5 : 1);
+    let dmg = h.dmg * (1 - dr);
     if (!h.hazard && !h.unblockable && (this.state === 'block' || this.state === 'parry') && facing) {
       dmg = Math.max(1, Math.round(dmg * 0.25));
       this.hp = Math.max(1, this.hp - dmg);
@@ -408,6 +412,7 @@ export class Player {
       this.body.setVelocityX(-this.face * 80);
       return true;
     }
+    dmg = Math.max(1, Math.round(dmg));
     this.hp = Math.max(0, this.hp - dmg);
     this.w.floatText(this.x, this.body.top - 6, String(dmg), '#ff6a6a');
     this.w.shake(0.006, 140);
@@ -427,7 +432,8 @@ export class Player {
   }
 
   heal() {
-    this.maxHp = maxHpAt(this.w.save.level);
+    this.maxHp = this.w.d.maxHp;
+    this.maxCe = this.w.d.maxCe;
     this.hp = this.maxHp;
   }
 
