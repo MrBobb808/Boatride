@@ -17,6 +17,8 @@ export interface PhaserSave {
   ce: number;
   balm: number;
   balmMax: number;
+  /** Bosses beaten, by the original's keys (the classic bosses read it). */
+  defeated?: string[];
 }
 
 const KEY = 'remnant-phaser.save.v1';

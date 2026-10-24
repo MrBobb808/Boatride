@@ -24,8 +24,20 @@ export interface FoeLike {
   hit(dmg: number, dir: number, force: number, crit?: boolean): boolean;
   update(dt: number): void;
   remove(): void;
-  /** Its physics body, so the world can collide it with the room. */
-  rect: Phaser.GameObjects.Rectangle;
+  /** Its physics body, so the world can collide it with the room (classic foes collide themselves). */
+  rect?: Phaser.GameObjects.Rectangle;
+}
+
+/** What the boss bar reads, from a Crown or a classic boss. */
+export interface BossView {
+  alive: boolean;
+  state: string;
+  hp: number;
+  maxHp: number;
+  ward: boolean;
+  phaseMarks: number[];
+  poise: number;
+  maxPoise: number;
 }
 
 /** What actors need from the world scene (kept as an interface to avoid import cycles). */

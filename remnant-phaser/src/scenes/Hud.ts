@@ -52,6 +52,11 @@ export class Hud extends Phaser.Scene {
   private bossG!: Phaser.GameObjects.Graphics;
   private bossTitle!: Phaser.GameObjects.Text;
   private bossSubText!: Phaser.GameObjects.Text;
+  /** A boss's spoken line, along the bottom, and the letterbox of its entrance. */
+  private captionText!: Phaser.GameObjects.Text;
+  private barsG!: Phaser.GameObjects.Graphics;
+  private barsAmt = 0;
+  private barsOn = false;
 
   constructor() { super('hud'); }
 
@@ -76,6 +81,8 @@ export class Hud extends Phaser.Scene {
     this.bossG = this.add.graphics();
     this.bossTitle = this.add.text(0, 0, '', font(11, '#f6dea0', true)).setOrigin(0.5);
     this.bossSubText = this.add.text(0, 0, '', { ...font(9.5, '#9b92a6'), fontFamily: 'Georgia, serif', fontStyle: 'italic' }).setOrigin(0.5);
+    this.barsG = this.add.graphics().setDepth(40);
+    this.captionText = this.add.text(0, 0, '', { ...font(11), fontFamily: 'Georgia, serif', fontStyle: 'italic', align: 'center', wordWrap: { width: 520 * k } }).setOrigin(0.5, 1).setDepth(41).setAlpha(0);
     this.skillG = this.add.graphics();
     this.skillBar = this.add.container(0, 0, [this.skillG]);
     SLOTS.forEach((id) => {
@@ -101,6 +108,7 @@ export class Hud extends Phaser.Scene {
     this.roomText.setPosition(W - (12 + safe.right + 44) * k, y0 + 4 * k);
     this.menuBtn.setPosition(W - (6 + safe.right) * k, y0 - 6 * k);
     this.hintText.setPosition(W / 2, H * 0.16).setWordWrapWidth(Math.min(W * 0.5, 320 * k));
+    this.captionText.setPosition(W / 2, H - (Math.max(safe.bottom, 6) + 46) * k).setWordWrapWidth(Math.min(W * 0.7, 520 * k));
     this.placeTouch();
   }
 
@@ -208,7 +216,8 @@ export class Hud extends Phaser.Scene {
    * (as in the original's ui/hud.ts); on keyboard and pad it sits at the bottom.
    */
   private drawBoss(w: World, touch: boolean, colRight: number) {
-    const g = this.bossG.clear(), b = w.boss, k = this.k, { width: W, height: H } = this.scale;
+    this.drawBars();
+    const g = this.bossG.clear(), b = w.bossView, k = this.k, { width: W, height: H } = this.scale;
     const show = !!(this.bossName && b && b.alive && b.state !== 'dormant' && b.state !== 'intro');
     this.bossTitle.setVisible(show);
     this.bossSubText.setVisible(show && !touch);
@@ -243,6 +252,24 @@ export class Hud extends Phaser.Scene {
     if (this.bossSubText.text !== this.bossSub) this.bossSubText.setText(this.bossSub);
     this.bossSubText.setPosition(bx + bw / 2, by + bh + 14 * k);
     box(hudBoxes.boss, bx, by - 15 * k, bw, bh + 21 * k);
+  }
+
+  /** A boss speaks (null to clear). */
+  caption(text: string | null) {
+    this.tweens.killTweensOf(this.captionText);
+    if (text) this.captionText.setText(text).setAlpha(1);
+    else this.tweens.add({ targets: this.captionText, alpha: 0, duration: 300 });
+  }
+
+  /** The letterbox bars of a boss's entrance. */
+  cinematicBars(on: boolean) { this.barsOn = on; }
+
+  private drawBars() {
+    this.barsAmt = Phaser.Math.Clamp(this.barsAmt + (this.barsOn ? 0.08 : -0.08), 0, 1);
+    const g = this.barsG.clear();
+    if (this.barsAmt <= 0) return;
+    const { width: W, height: H } = this.scale, h = H * 0.09 * this.barsAmt;
+    g.fillStyle(0x000000, 1).fillRect(0, 0, W, h).fillRect(0, H - h, W, h);
   }
 
   roomEntered(r: RoomDef) {

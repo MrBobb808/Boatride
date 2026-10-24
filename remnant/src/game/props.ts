@@ -11,11 +11,11 @@ import { fx, PK } from '../render/fx';
 import { sfx } from '../audio/audio';
 import { G } from './ctx';
 import { approach, rand, clamp, easeOutCubic } from '../core/math';
-import { DIMS as PDIMS } from './player';
+import { DIMS as PDIMS } from './playerDims';
 import type { NpcKind, Loot } from './tiles';
 import { lighting } from '../render/lighting';
 import { ITEMS, RARITY_COLORS } from './data';
-import { flame } from '../render/environment';
+import { flame } from '../render/flame';
 
 export interface Interactable {
   prompt(): string;

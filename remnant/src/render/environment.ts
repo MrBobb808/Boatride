@@ -3,6 +3,8 @@
 // banners, torches) drawn live each frame.
 
 import { makeCanvas, releaseCanvas, glow, rgba, shade, mix, poly, circle, ellipse, limb, type Ctx } from './draw';
+import { flame } from './flame';
+export { flame };
 import { RNG, hash2, fbm1, clamp } from '../core/math';
 import { TILE, T, isSolid, type Grid, type Biome, type EntDef } from '../game/tiles';
 import { buildParallaxCh2, drawDuskSky, drawPropCh2, drawPitch } from './env2';
@@ -1491,14 +1493,6 @@ export function drawLiveProps(ctx: Ctx, ents: EntDef[], t: number, view: { x: nu
   }
 }
 
-export function flame(ctx: Ctx, x: number, y: number, s: number, t: number) {
-  ctx.globalCompositeOperation = 'lighter';
-  glow(ctx, x, y - s * 0.4, s * 2.2, '#ff8a2a', 0.55);
-  const w = Math.sin(t * 17) * s * 0.15;
-  poly(ctx, [x - s * 0.45, y, x - s * 0.2 + w, y - s * 0.9, x + w * 1.5, y - s * 1.5, x + s * 0.25 + w, y - s * 0.8, x + s * 0.45, y], 'rgba(255,140,50,0.85)');
-  poly(ctx, [x - s * 0.22, y, x + w * 0.8, y - s * 0.9, x + s * 0.22, y], 'rgba(255,240,190,0.95)');
-  ctx.globalCompositeOperation = 'source-over';
-}
 
 /** Water and veil pools, animated. */
 export function drawLiquids(ctx: Ctx, g: Grid, t: number, view: { x: number; y: number; w: number; h: number }, biome: Biome = 'village') {

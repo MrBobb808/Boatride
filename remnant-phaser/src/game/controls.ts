@@ -43,6 +43,8 @@ export class Controls {
   axis = 0;
   private touchAxis = 0;
   private skip = false;
+  /** While true (a boss's entrance), nothing reaches Elior. */
+  locked = false;
   /** Presses seen since the last poll: a tap shorter than a frame still counts. */
   private latch = new Set<Action>();
 
@@ -87,6 +89,7 @@ export class Controls {
       if (sy < -0.6) this.held.add('up');
       if (sy > 0.6) this.held.add('down');
     }
+    if (this.locked) { this.held.clear(); ax = 0; }
     if (!ax) ax = (this.held.has('right') ? 1 : 0) - (this.held.has('left') ? 1 : 0);
     this.axis = Phaser.Math.Clamp(ax, -1, 1);
     // After a flush, whatever is still held counts as old, not as a fresh press.
