@@ -19,10 +19,18 @@ const watch = (page) => {
 const ready = (page) => page.waitForFunction(() => window.__remnant?.world?.player && !window.__remnant.world.transitioning, null, { timeout: 20000 });
 const E = (page, fn, arg) => page.evaluate(fn, arg);
 /** A practice foe in front of Elior: the original's husk, unable to die, standing still unless asked to fight. */
-const dummy = (page, opts = {}) => E(page, (o) => {
+const dummy = async (page, opts = {}) => {
+  const hp = await place(page, opts);
+  // Settled on the floor and free, so the next press is not lost to the frame after placement.
+  await page.waitForFunction(() => { const p = window.__remnant.world.player; return p.onGround && p.state === 'free'; }, null, { timeout: 5000 });
+  return hp;
+};
+const place = (page, opts) => E(page, (o) => {
   const w = window.__remnant.world, p = w.player;
   const foes = w.classic.ents.filter((e) => e.isFoe);
-  const f = foes.find((e) => e.kind === 'husk' && !e.dying);
+  // A husk with open floor where Elior will stand (the Ashen Road has raised blocks).
+  const gap = o.gap ?? 22, open = (x, y) => w.tileAt(Math.floor(x / 16), Math.floor(y / 16)) === 0;
+  const f = foes.find((e) => e.kind === 'husk' && !e.dying && open(e.x - gap, e.y - 2) && open(e.x - gap, e.y - 24) && !open(e.x - gap, e.y + 2));
   for (const e of foes) if (e !== f) e.remove = true;
   f.hp = f.maxHp = 1e6;
   f.staggered = 0;
@@ -30,7 +38,7 @@ const dummy = (page, opts = {}) => E(page, (o) => {
   f.poise = f.maxPoise;
   if (o.state === 'chase') { delete f.think; f.aggro = true; f.attackCd = 0; f.setState('chase', 'walk'); }
   else { f.think = function () { this.body.vx = 0; }; f.setState('idle', 'idle'); }
-  p.placeAt(f.x - (o.gap ?? 22), f.y, 1);
+  p.placeAt(f.x - gap, f.y, 1);
   p.hp = p.maxHp;
   w.save.ce = o.ce ?? 0;
   return f.hp;
@@ -147,7 +155,8 @@ try {
   await dummy(page, { gap: 110, ce: 100 });
   let before = await foeHp(page);
   await page.keyboard.press('KeyQ');
-  await page.waitForTimeout(900);
+  // Game time: the arc flies until it meets the husk.
+  await page.waitForFunction((b) => window.__remnant.world.classic.ents.find((e) => e.kind === 'husk' && !e.remove).hp < b, before, { timeout: 5000 }).catch(() => {});
   s = await E(page, () => ({ ce: window.__remnant.world.save.ce }));
   assert.ok(before - (await foeHp(page)) > 0, 'the Sword of the Word reaches a foe 110 px away');
   assert.ok(s.ce < 100 - 22 + 4, `it cost 22 energy (${s.ce})`);
