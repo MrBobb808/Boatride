@@ -77,6 +77,8 @@ jobs:
         working-directory: remnant-phaser
       - run: node scripts/saves.mjs
         working-directory: remnant-phaser
+      - run: node scripts/echoes.mjs
+        working-directory: remnant-phaser
       - run: node scripts/bosses.mjs
         working-directory: remnant-phaser
       - run: node scripts/classic-bosses.mjs

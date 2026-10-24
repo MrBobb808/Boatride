@@ -54,6 +54,14 @@ export class Hud extends Phaser.Scene {
   private bossSubText!: Phaser.GameObjects.Text;
   /** A boss's spoken line, along the bottom, and the letterbox of its entrance. */
   private captionText!: Phaser.GameObjects.Text;
+  /** How many Echoes are out, under the silver. */
+  private echoText!: Phaser.GameObjects.Text;
+  /** The Echo command wheel (the original's ui/ui.ts openWheel): open while it is shown, and the world waits. */
+  wheelOpen = false;
+  private wheelBox?: Phaser.GameObjects.Container;
+  private wheelItems: { label: string; on?: boolean; page?: boolean; run: () => void; t: Phaser.GameObjects.Text }[] = [];
+  private wheelSel = 0;
+  private wheelNavT = 0;
   private barsG!: Phaser.GameObjects.Graphics;
   private barsAmt = 0;
   private barsOn = false;
@@ -78,6 +86,7 @@ export class Hud extends Phaser.Scene {
     this.menuBtn = this.add.text(0, 0, '❚❚', font(14, BONE)).setOrigin(1, 0).setInteractive({ useHandCursor: true }).setPadding(10 * k, 6 * k, 10 * k, 6 * k);
     this.menuBtn.on('pointerup', () => this.togglePause());
     this.balmText = this.add.text(0, 0, '', font(8.5)).setOrigin(0, 0.5);
+    this.echoText = this.add.text(0, 0, '', font(8, '#e2d6b8')).setOrigin(0, 0.5);
     this.bossG = this.add.graphics();
     this.bossTitle = this.add.text(0, 0, '', font(11, '#f6dea0', true)).setOrigin(0.5);
     this.bossSubText = this.add.text(0, 0, '', { ...font(9.5, '#9b92a6'), fontFamily: 'Georgia, serif', fontStyle: 'italic' }).setOrigin(0.5);
@@ -155,6 +164,15 @@ export class Hud extends Phaser.Scene {
     const silver = `${s.silver} silver`;
     if (this.silverText.text !== silver) this.silverText.setText(silver);
     this.silverText.setPosition(hx + s.balmMax * 12 * k + 8 * k, cy + 1 * k);
+    // The Echoes out, of the lineup (and the Switch's cooldown).
+    const sq = w.classic.squad, total = s.echoes.length;
+    if (total) {
+      cy += 12 * k;
+      const echo = `Echoes ${sq.echoes.length}/${Math.min(total, w.d.echoSlots)}${sq.switchCd > 0 ? ` · switch ${Math.ceil(sq.switchCd)}s` : ''}`;
+      if (this.echoText.text !== echo) this.echoText.setText(echo);
+      this.echoText.setPosition(hx, cy + 1 * k);
+    }
+    this.echoText.setVisible(total > 0);
     const touch = w.controls.device === 'touch';
     box(hudBoxes.column, x0, y0, hx + hw - x0, cy - y0 + 8 * k);
     this.drawBoss(w, touch, hx + hw);
@@ -363,6 +381,7 @@ export class Hud extends Phaser.Scene {
     this.btns = [
       mk('attack', 'STRIKE', 36), mk('jump', 'JUMP', 28), mk('dodge', 'DODGE', 24), mk('parry', 'PARRY', 24), mk('interact', '', 22),
       mk('heal', 'BALM', 19), ...SLOTS.map((id, i) => mk(`skill${i + 1}` as Action, SKILLS[id].short, 19)),
+      mk('echo', 'ECHOES', 18), mk('switch', 'SWITCH', 18),
     ];
     this.cdG = this.add.graphics();
     this.touchUi.add(this.cdG);
@@ -389,6 +408,8 @@ export class Hud extends Phaser.Scene {
       skill1: [rx - 140 * k, by - 162 * k],
       skill2: [rx - 86 * k, by - 172 * k],
       skill3: [rx - 32 * k, by - 182 * k],
+      echo: [rx - 196 * k, by - 160 * k],
+      switch: [rx - 236 * k, by - 106 * k],
     };
     for (const b of this.btns) {
       [b.x, b.y] = pos[b.a];
@@ -402,6 +423,119 @@ export class Hud extends Phaser.Scene {
     const on = !!this.interactLabel;
     b.g.setVisible(on);
     b.t.setVisible(on).setText((this.interactLabel ?? '').toUpperCase());
+    // The Echo buttons appear once there is an Echo to command.
+    const echoes = this.world.save.echoes.length > 0;
+    for (const x of this.btns) if (x.a === 'echo' || x.a === 'switch') { x.g.setVisible(echoes); x.t.setVisible(echoes); }
+  }
+
+  // ---------------------------------------------------------------- the Echo wheel
+
+  /** Open the Echo command wheel at a page; the world waits while it is up. */
+  openWheel(page: 'main' | 'squad' | 'orders' = 'main') {
+    const w = this.world, s = w.save, sq = w.classic.squad;
+    if (!s.echoes.length) { this.toast('You have no Echoes yet.'); return; }
+    this.closeWheel(false);
+    this.wheelOpen = true;
+    w.physics.pause();
+    const cmd = (c: Parameters<typeof sq.echoCommand>[0]) => () => sq.echoCommand(c);
+    type Item = { label: string; on?: boolean; page?: boolean; run: () => void };
+    let title: string, sub: string, items: Item[];
+    if (page === 'squad') {
+      const pre = s.summonPreset ?? 'all';
+      title = 'Summon'; sub = `${sq.echoes.length} of ${Math.min(s.echoes.length, w.d.echoSlots)} out`;
+      items = [
+        { label: 'One', on: pre === 'one', run: () => sq.setSummon('one') },
+        { label: 'Two', on: pre === 'two', run: () => sq.setSummon('two') },
+        { label: 'Squad', on: pre === 'squad', run: () => sq.setSummon('squad') },
+        { label: 'All', on: pre === 'all', run: () => sq.setSummon('all') },
+        { label: sq.echoes.length ? 'Dismiss' : 'Summon', run: cmd('toggle') },
+        { label: 'Back', page: true, run: () => this.openWheel('main') },
+      ];
+    } else if (page === 'orders') {
+      const all = sq.echoes.map((e) => e.order), same = all.length && all.every((o) => o === all[0]) ? all[0] ?? 'free' : null;
+      const o = (order: Parameters<typeof sq.orderEchoes>[0], name: string) => () => { sq.orderEchoes(order); this.toast(`All Echoes: ${name}`); };
+      title = 'Orders'; sub = 'for every Echo out';
+      items = [
+        { label: 'Guard', on: same === 'guard', run: o('guard', 'Guard Elior') },
+        { label: 'Hunt', on: same === 'hunt', run: o('hunt', 'Hunt the nearest foe') },
+        { label: 'Flank', on: same === 'flank', run: o('flank', 'Flank: strike from behind') },
+        { label: 'Hold here', on: same === 'hold', run: o('hold', 'Hold this ground') },
+        { label: 'Focus', on: same === 'focus', run: o('focus', 'Focus one foe') },
+        { label: 'Free', on: same === 'free', run: o(undefined, 'free to follow the army\'s mode') },
+        { label: 'Back', page: true, run: () => this.openWheel('main') },
+      ];
+    } else {
+      title = 'Command the Remnant'; sub = `${sq.echoes.length} of ${s.echoes.length} present`;
+      items = [
+        { label: 'Summon…', page: true, run: () => this.openWheel('squad') },
+        { label: 'Orders…', page: true, run: () => this.openWheel('orders') },
+        { label: 'Aggressive', on: s.echoMode === 'aggressive', run: cmd('aggressive') },
+        { label: 'Defensive', on: s.echoMode === 'defensive', run: cmd('defensive') },
+        { label: 'Follow', on: s.echoMode === 'follow', run: cmd('follow') },
+        { label: 'Mark target', run: cmd('target') },
+        { label: 'Recall', run: cmd('recall') },
+        { label: sq.syncCd > 0 ? `Sync ${Math.ceil(sq.syncCd)}s` : 'Sync strike', run: cmd('sync') },
+        { label: sq.switchCd > 0 ? `Switch ${Math.ceil(sq.switchCd)}s` : sq.benchReady() ? 'Switch in' : 'Swap', run: cmd('switch') },
+      ];
+    }
+    const k = this.k, { width: W, height: H } = this.scale, cx = W / 2, cy = H / 2;
+    const rad = Math.min(W, H) * 0.34;
+    const shade = this.add.rectangle(0, 0, W, H, 0x07060a, 0.6).setOrigin(0).setInteractive();
+    shade.on('pointerup', () => this.closeWheel());
+    const head = this.add.text(cx, cy - 10 * k, title, { fontFamily: 'Cinzel, Georgia, serif', fontSize: `${16 * k}px`, color: '#f6dea0', fontStyle: 'bold' }).setOrigin(0.5);
+    const foot = this.add.text(cx, cy + 12 * k, sub, { fontFamily: 'Georgia, serif', fontStyle: 'italic', fontSize: `${11 * k}px`, color: '#9b92a6' }).setOrigin(0.5);
+    const box = (this.wheelBox = this.add.container(0, 0, [shade, head, foot]).setDepth(90));
+    this.wheelItems = items.map((it, i) => {
+      const a = -Math.PI / 2 + (i / items.length) * Math.PI * 2;
+      const t = this.add.text(cx + Math.cos(a) * rad * 1.25, cy + Math.sin(a) * rad, it.label, { fontFamily: 'Cinzel, Georgia, serif', fontSize: `${12 * k}px`, color: it.on ? '#ffe6a8' : '#ddd4c6', backgroundColor: it.on ? 'rgba(90,64,24,0.92)' : 'rgba(26,20,32,0.92)', padding: { x: 10 * k, y: 6 * k } })
+        .setOrigin(0.5).setInteractive({ useHandCursor: true });
+      t.setName(`wheel_${it.label}`);
+      t.on('pointerup', () => this.pickWheel(i));
+      box.add(t);
+      return { ...it, t };
+    });
+    this.wheelSel = 0;
+    this.markWheel();
+  }
+
+  private markWheel() {
+    // The keyboard and pad selection: a gold plate; a setting in force: amber.
+    this.wheelItems.forEach((it, i) => {
+      const sel = i === this.wheelSel;
+      it.t.setBackgroundColor(sel ? 'rgba(226,184,90,0.95)' : it.on ? 'rgba(90,64,24,0.92)' : 'rgba(26,20,32,0.92)').setColor(sel ? '#1a1420' : it.on ? '#ffe6a8' : '#ddd4c6');
+    });
+  }
+
+  private pickWheel(i: number) {
+    const it = this.wheelItems[i];
+    if (!it) return;
+    // Pages swap in place; commands close the wheel.
+    if (it.page) { it.run(); return; }
+    this.closeWheel();
+    it.run();
+  }
+
+  closeWheel(resume = true) {
+    this.wheelBox?.destroy();
+    this.wheelBox = undefined;
+    this.wheelItems = [];
+    if (!this.wheelOpen) return;
+    this.wheelOpen = false;
+    if (resume) { this.world.physics.resume(); this.world.controls.flush(); }
+  }
+
+  /** Keyboard and pad: the stick or arrows turn the selection; strike, jump or interact choose; the Echo button or menu closes. */
+  wheelInput(dt: number) {
+    const c = this.world.controls;
+    this.wheelNavT -= dt;
+    const turn = c.axis > 0.5 || c.down('down') ? 1 : c.axis < -0.5 || c.down('up') ? -1 : 0;
+    if (turn && this.wheelNavT <= 0) {
+      this.wheelSel = (this.wheelSel + turn + this.wheelItems.length) % this.wheelItems.length;
+      this.wheelNavT = 0.18;
+      this.markWheel();
+    } else if (!turn) this.wheelNavT = 0;
+    if (c.pressed('attack') || c.pressed('jump') || c.pressed('interact')) this.pickWheel(this.wheelSel);
+    else if (c.pressed('echo') || c.pressed('menu') || c.pressed('dodge')) this.closeWheel();
   }
 
   private btnAt(x: number, y: number) {

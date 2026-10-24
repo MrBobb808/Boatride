@@ -9,6 +9,9 @@
 import Phaser from 'phaser';
 import { G } from './shim/ctx';
 import { lighting } from './shim/lighting';
+import { inputHook } from './shim/input';
+import { Squad } from './squad';
+import { bodyFits } from '../../../remnant/src/game/physics';
 import { fx } from '../../../remnant/src/render/fx';
 import { glow } from '../../../remnant/src/render/draw';
 import { drawPixelBody, bossPixelFrame } from '../../../remnant/src/render/bossPixel';
@@ -37,7 +40,12 @@ export interface ClassicHost extends WorldApi {
     vulnerable: boolean;
     body: Phaser.Physics.Arcade.Body;
     rect: Phaser.GameObjects.Rectangle;
+    swapStrikeT: number;
+    grantInvuln(t: number): void;
+    placeAt(x: number, feet: number, face?: number): void;
   };
+  controls: WorldApi['controls'];
+  persist(): void;
   gateClosed: boolean;
   room: { id: string; w: number; h: number; rows: string[] };
   hud: {
@@ -57,6 +65,8 @@ class PlayerView {
   remove = false;
   dying = false;
   veiled = 0;
+  /** The foe Elior last struck (Echo orders and the swap read it). */
+  lastFoe: Entity | null = null;
   readonly bodyView: { x: number; y: number; w: number; h: number; vx: number; vy: number; onGround: boolean };
   constructor(private L: ClassicLayer) {
     const p = () => L.host.player;
@@ -87,11 +97,25 @@ class PlayerView {
   get hp() { return this.p.hp; }
   get maxHp() { return this.p.maxHp; }
   get shieldT() { return this.p.shieldT; }
+  set shieldT(v: number) { this.p.shieldT = v; }
   hurtbox(): Rect {
     const b = this.p.body;
     return { x: b.left, y: b.top, w: b.width, h: b.height };
   }
   isInvuln() { return !this.p.vulnerable; }
+  /** Room for Elior's body at (x, feet y), on safe ground, in sight (the original's Player.canPlace). */
+  canPlace(x: number, y: number) {
+    const W = this.L, b = this.p.body;
+    if (x < b.width / 2 || x > W.grid.w * TILE - b.width / 2 || y < b.height || y > W.grid.h * TILE) return false;
+    if (!bodyFits({ w: b.width, h: b.height }, W.grid, W.solid, x, y)) return false;
+    const floor = W.grid.get(Math.floor(x / TILE), Math.floor(y / TILE));
+    return floor !== T.Spikes && floor !== T.Veil;
+  }
+  moveTo(x: number, y: number) { this.p.placeAt(x, y, this.p.face); }
+  faceTo(f: number) { this.p.face = f; }
+  grantInvuln(t: number) { this.p.grantInvuln(t); }
+  /** Arriving from a swap: Elior's next blow lands half again harder. */
+  swapStrike() { this.p.swapStrikeT = 0.9; }
   canBeTargeted() { return !this.p.dead && !G.inCutscene; }
   /** An original blow, as the Phaser Elior takes it. */
   takeHit(h: HitInfo) {
@@ -129,13 +153,15 @@ class FoeView implements FoeLike {
   }
   get x() { return this.e.x; }
   hit(dmg: number, dir: number, force: number, crit = false) {
-    return this.e.takeHit({
+    const landed = this.e.takeHit({
       dmg, dir, crit, kind: 'melee',
       poise: force * POISE_PER_FORCE,
       kx: dir * 90 * force, ky: -50 * force,
       stop: 0.04 + force * 0.02,
       src: this.L.playerView as unknown as Entity,
     });
+    if (landed) this.L.playerView.lastFoe = this.e;
+    return landed;
   }
   /** Its blow was turned aside (a parry, the Shield of Faith). */
   parried() { this.e.parried(this.L.playerView as unknown as Entity); }
@@ -149,6 +175,8 @@ export class ClassicLayer {
   boss: (Entity & { key?: string; state: string; awaken(): void }) | null = null;
   bossActive = false;
   readonly playerView: PlayerView;
+  /** Elior's Echoes (src/classic/squad.ts). */
+  readonly squad: Squad;
   private views = new WeakMap<Entity, FoeView>();
   private foeViews: FoeView[] = [];
   private timers: { at: number; fn: () => void }[] = [];
@@ -165,6 +193,7 @@ export class ClassicLayer {
   constructor(readonly host: ClassicHost) {
     const sc = host.sc;
     this.playerView = new PlayerView(this);
+    this.squad = new Squad(this);
     const key = `classic-${ClassicLayer.n++}`;
     this.tex = sc.textures.createCanvas(key, 64, 64)!;
     this.canvas = this.tex.getSourceImage() as HTMLCanvasElement;
@@ -181,6 +210,7 @@ export class ClassicLayer {
     const h = this.host, L = this;
     G.world = this;
     G.save = h.save;
+    inputHook.controls = h.controls;
     h.save.defeated ??= [];
     G.renderer = { tier: 2, pixel: true, effects: 0, bw: 0, bh: 0 };
     G.camera = {
@@ -224,6 +254,7 @@ export class ClassicLayer {
     this.bossActive = false;
     this.slowT = 0;
     this.slowScale = 1;
+    this.squad.clear();
     G.inCutscene = false;
     fx.clear();
     this.img.setVisible(false);
@@ -231,7 +262,36 @@ export class ClassicLayer {
 
   get player() { return this.playerView; }
   get room() { return this.host.room; }
-  get echoes() { return []; }
+  // The squad's side of the original world, which the Echo modules call on G.world.
+  get echoes() { return this.squad.echoes; }
+  set echoes(v) { this.squad.echoes = v; }
+  get echoCombinations() { return this.squad.combos; }
+  get priorityTarget() { return this.squad.priorityTarget; }
+  set priorityTarget(v) { this.squad.priorityTarget = v; }
+  get swapPick() { return this.squad.swapPick; }
+  get switchCd() { return this.squad.switchCd; }
+  get syncCd() { return this.squad.syncCd; }
+  get duel() { return this.squad.duel; }
+  readonly rushing = false;
+  readonly transitioning = false;
+  summonEchoes(silent = false) { this.squad.summonEchoes(silent); }
+  dismissEchoes() { this.squad.dismissEchoes(); }
+  summonList() { return this.squad.summonList(); }
+  setSummon(pre: 'one' | 'two' | 'squad' | 'all') { this.squad.setSummon(pre); }
+  orderEchoes(...a: Parameters<Squad['orderEchoes']>) { this.squad.orderEchoes(...a); }
+  benchReady() { return this.squad.benchReady(); }
+  pickSwap() { return this.squad.pickSwap(); }
+  onEchoFallen(e: Parameters<Squad['onEchoFallen']>[0]) { this.squad.onEchoFallen(e); }
+  echoAssist(t: Entity) { this.squad.echoAssist(t); }
+  switchSupport() { this.squad.switchSupport(); }
+  echoCommand(c: Parameters<Squad['echoCommand']>[0]) { this.squad.echoCommand(c); }
+  nearestEnemy(x: number, y: number, r: number, dir: number) { return this.squad.nearestEnemy(x, y, r, dir); }
+  commanderAura(x: number, y: number, self?: Entity) { return this.squad.commanderAura(x, y, self); }
+  guardianAura(x: number, y: number) { return this.squad.guardianAura(x, y); }
+  groundY(x: number, fromY: number) { return this.squad.groundY(x, fromY); }
+  autosave() { this.host.persist(); }
+  nearInteractable() { return null; }
+  tryInteract() {}
   get gateClosed() { return this.host.gateClosed; }
   solid = (t: T) => (t === T.Gate ? this.host.gateClosed : isSolid(t));
   solidAt(x: number, y: number) { return this.solid(this.grid.get(Math.floor(x / TILE), Math.floor(y / TILE))); }
@@ -259,16 +319,36 @@ export class ClassicLayer {
   echoBlocks() { return false; }
   healAlliesIn() {}
   breakWalls() { return false; }
-  targetFor(en: Entity, range: number) {
+  /** A foe's target: Elior or the nearest Echo (a defensive sentinel draws it), as in the original. */
+  targetFor(en: Entity, range: number): Entity | null {
+    let best: Entity | null = null, bd = range;
     const p = this.playerView;
-    if (!p.canBeTargeted()) return null;
-    return Math.abs(p.x - en.x) + Math.abs(p.y - en.y) * 0.5 < range ? p : null;
+    if (p.canBeTargeted()) {
+      const d = Math.abs(p.x - en.x) + Math.abs(p.y - en.y) * 0.5;
+      if (d < bd) { bd = d; best = p as unknown as Entity; }
+    }
+    for (const e of this.squad.echoes) {
+      if (e.recallT > 0 || e.summonT > 0.3 || e.despawn > 0) continue;
+      const taunt = e.sentinel && G.save.echoMode === 'defensive' ? 0.6 : 1.25;
+      const d = (Math.abs(e.x - en.x) + Math.abs(e.y - en.y) * 0.5) * taunt;
+      if (d < bd) { bd = d; best = e; }
+    }
+    return best;
   }
+  /** A foe's blow lands on Elior and any Echo in its box. */
   hitPlayerSide(box: Rect, h: HitInfo, set: Set<number>) {
+    let any = false;
     const p = this.playerView;
-    if (set.has(p.id) || p.state === 'dead' || !overlaps(box, p.hurtbox())) return false;
-    set.add(p.id);
-    return p.takeHit(h);
+    if (!set.has(p.id) && p.state !== 'dead' && overlaps(box, p.hurtbox())) {
+      set.add(p.id);
+      if (p.takeHit(h)) any = true;
+    }
+    for (const e of this.squad.echoes) {
+      if (set.has(e.id) || e.remove || !overlaps(box, e.hurtbox())) continue;
+      set.add(e.id);
+      if (e.takeHit(h)) any = true;
+    }
+    return any;
   }
   /** Blows from Elior's side (rare in a boss room): any classic foe in the box. */
   hitEnemies(box: Rect, h: HitInfo, set: Set<number>, onHit?: (e: Entity, d: number) => void) {
@@ -283,7 +363,12 @@ export class ClassicLayer {
   }
   onEnemyKilled(e: Enemy) {
     const st = e.stats, tier = chapterCurve(e.tier).xp, elite = e.elite ? 4 : 1;
-    this.host.onFoeDied(Math.round(st.xp * elite * tier), Math.round(Phaser.Math.Between(st.silver[0], st.silver[1]) * elite * tier), e.x, e.y - 20, e.elite ?? undefined);
+    const xp = Math.round(st.xp * elite * tier);
+    this.host.onFoeDied(xp, Math.round(Phaser.Math.Between(st.silver[0], st.silver[1]) * elite * tier), e.x, e.y - 20, e.elite ?? undefined);
+    // The Echoes out share in it, as in the original.
+    const echoXp = Math.min(160, Math.max(4, Math.round(Math.sqrt(Math.max(1, xp)) * 1.5)));
+    for (const ec of this.squad.echoes) if (!ec.remove && ec.hp > 0 && ec.despawn <= 0 && ec.tempT <= 0) ec.gainXp(echoXp);
+    if (this.squad.priorityTarget === e) this.squad.priorityTarget = null;
   }
   onBossDefeated(b: Entity & { key?: string }) {
     this.bossActive = false;
@@ -310,7 +395,7 @@ export class ClassicLayer {
   }
 
   /** Anything to run or draw: actors, or effects still fading after them. */
-  get active() { return this.ents.length > 0 || fx.ps.length > 0 || fx.rings.length > 0 || fx.arcs.length > 0 || fx.streaks.length > 0 || fx.cols.length > 0 || fx.flashA > 0; }
+  get active() { return this.ents.length > 0 || this.squad.echoes.length > 0 || fx.ps.length > 0 || fx.rings.length > 0 || fx.arcs.length > 0 || fx.streaks.length > 0 || fx.cols.length > 0 || fx.flashA > 0; }
 
   update(dtRaw: number) {
     if (!this.active && !this.timers.length) return;
@@ -335,6 +420,7 @@ export class ClassicLayer {
     }
     for (let i = this.ents.length - 1; i >= 0; i--) if (this.ents[i].remove) this.ents.splice(i, 1);
     if (this.boss?.remove) this.boss = null;
+    this.squad.update(dt);
     fx.update(dt);
     this.followFocus();
   }
@@ -372,6 +458,7 @@ export class ClassicLayer {
     const sorted = this.sorted;
     sorted.length = 0;
     for (const e of this.ents) sorted.push(e);
+    for (const e of this.squad.echoes) sorted.push(e);
     sorted.sort((a, b) => a.layer - b.layer);
     for (const e of sorted) {
       try {
@@ -383,6 +470,7 @@ export class ClassicLayer {
       } catch (err) { this.fault(e, err); }
     }
     for (const e of sorted) try { e.drawOverlay?.(c); } catch (err) { this.fault(e, err); }
+    this.squad.drawSwapMark(c);
     c.globalCompositeOperation = 'lighter';
     for (const l of lighting.lights) if (l.bloom > 0) glow(c, l.x, l.y, l.r * 0.8, l.c, Math.min(1, l.a * l.bloom * 0.5));
     c.globalCompositeOperation = 'source-over';
@@ -401,7 +489,7 @@ export class ClassicLayer {
 
   /** One actor's fault is reported once and never stops the frame (or the rest of the room). */
   private faults = new Set<string>();
-  private fault(e: Entity, err: unknown) {
+  fault(e: Entity, err: unknown) {
     const msg = `${e.constructor.name}: ${(err as Error)?.message ?? err}`;
     if (this.faults.has(msg)) return;
     this.faults.add(msg);

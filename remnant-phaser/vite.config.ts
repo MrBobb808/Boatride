@@ -13,6 +13,7 @@ const SHIMS: Record<string, string> = {
   'audio/music.ts': 'src/classic/shim/music.ts',
   'core/settings.ts': 'src/classic/shim/settings.ts',
   'render/lighting.ts': 'src/classic/shim/lighting.ts',
+  'core/input.ts': 'src/classic/shim/input.ts',
 };
 
 function classicShims(): Plugin {
