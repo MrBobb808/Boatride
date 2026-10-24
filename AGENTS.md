@@ -174,6 +174,10 @@ up next starts from the latest version.
   `r.px` and CSS pixels; `r.cw`/`r.ch` is the screen canvas.
 - **UI:** `ui/` holds the HUD, menus, touch controls, dialogue and title
   screen.
+  - In a boss (or elite) fight on a phone, `ui/hud.ts` puts the boss bar in
+    its own lane between Elior's column and the minimap and hides the room
+    name and objective; `hudBoxes` records the boxes for
+    `scripts/hud-layout.mjs`.
   - `ui/island.ts` draws game status around the Dynamic Island in landscape
     (add `?island=left`, or `?island=compact` / `?island=classic`, to the URL
     to preview it on a desktop). Settings → Island size fits it to the iPhone
