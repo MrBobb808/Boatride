@@ -23,6 +23,9 @@ self.addEventListener('fetch', (e) => {
     e.respondWith(caches.open(MUSIC).then(async (c) => {
       const cached = await c.match(req);
       if (cached) return cached;
+      // The installed main app keeps recordings already heard in the old edition.
+      const legacy = await caches.match(req, { cacheName: 'remnant-music' });
+      if (legacy?.status === 200) { await c.put(req, legacy.clone()); return legacy; }
       const res = await fetch(req);
       if (res.status === 200) await c.put(req, res.clone());
       return res;

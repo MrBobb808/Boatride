@@ -34,7 +34,7 @@ try {
   console.log('Weapon elements: real strikes apply burning, slowing frost and bleeding');
   assert.ok(await page.evaluate(() => Object.values(window.__remnant.world.save.weaponMastery ?? {}).some(x => x > 0)), 'landed native strikes earn persistent weapon mastery');
   for (const id of ['dagger', 'axe', 'holy_water', 'cross', 'sling']) {
-    await setup(); await page.evaluate(id => { const w = window.__remnant.world; w.save.sub = id; w.save.hearts = 99; window.spawned = []; const add = w.classic.add.bind(w.classic); w.classic.add = e => { window.spawned.push(e.kind); return add(e); }; const f = w.classic.ents.find(e => e.kind === 'husk'); w.player.placeAt(f.x - 110, f.y, 1); }, id);
+    await setup(); await page.evaluate(id => { const w = window.__remnant.world; w.save.sub = id; w.save.hearts = 99; window.spawned = []; const add = w.classic.add.bind(w.classic); w.classic.add = e => { window.spawned.push(e.kind); return add(e); }; }, id);
     await page.keyboard.press('KeyU'); await until(() => window.__remnant.world.save.hearts < 99);
     assert.ok(await page.evaluate(id => window.spawned.includes(id), id), `${id} launches`);
   }
@@ -56,5 +56,14 @@ try {
   await page.keyboard.press('KeyU'); await until(x => window.__remnant.world.player.x > x + 40, x0);
   assert.ok(await page.evaluate(() => window.__remnant.world.player.mantleT > 0), 'chain throw hits, blinks and retains the form');
   console.log('Shadow Mantle: level 25 awakening, gauge spent, transformation, live chain throw → impact → teleport attack');
+  await setup(25);
+  const terrain = await page.evaluate(() => {
+    const w = window.__remnant.world, p = w.player;
+    const hit = (hazard, protectedForm) => { p.releaseState(); p.hp = p.maxHp; p.invuln = 0; p.parryT = 0; p.shieldT = 0; p.armorLight = protectedForm ? 10 : 0; p.mantleT = protectedForm ? 10 : 0; const before = p.hp; p.hurt({ dmg: 40, dir: 0, hazard }); return before - p.hp; };
+    return { bareHazard: hit(true, false), protectedHazard: hit(true, true), bareBlow: hit(false, false), protectedBlow: hit(false, true) };
+  });
+  assert.equal(terrain.protectedHazard, terrain.bareHazard, 'temporary combat protection never weakens terrain hazards');
+  assert.ok(terrain.protectedBlow < terrain.bareBlow, 'the same protections still reduce ordinary blows');
+  console.log('Hazard parity: terrain bypasses combat protections while ordinary blows still respect them');
   assert.deepEqual(errors, []); console.log('phaser powers: all checks passed');
 } finally { await browser.close(); close(); }
