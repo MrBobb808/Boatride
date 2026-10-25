@@ -46,6 +46,7 @@ import { songs } from '../../../remnant/src/audio/songs';
 import { settings, shakeScale } from '../classic/shim/settings';
 import { offlineReady, updatePending, checkForUpdates } from '../game/update';
 import { placeLamps, strikeLamps } from '../../../remnant/src/game/lamps';
+import { Visuals } from '../game/visuals';
 
 const VIEW_H = 300;
 
@@ -71,6 +72,7 @@ export class World extends Phaser.Scene implements WorldApi {
   /** The original game's bosses and foes, run on Phaser (src/classic). */
   classic!: ClassicLayer;
   art!: RoomArt;
+  visuals!: Visuals;
   /** The room's classic boss, while it stands. */
   cboss: ClassicBoss | null = null;
   private cbossKey: ClassicBossKey | null = null;
@@ -82,7 +84,6 @@ export class World extends Phaser.Scene implements WorldApi {
   private layer!: Phaser.Tilemaps.TilemapLayer;
   private map?: Phaser.Tilemaps.Tilemap;
   private roomObjs: Phaser.GameObjects.GameObject[] = [];
-  private weather?: Phaser.GameObjects.Particles.ParticleEmitter;
   private bg: { far?: Phaser.GameObjects.TileSprite; near?: Phaser.GameObjects.TileSprite; sky?: Phaser.GameObjects.Image } = {};
   private colliders: Phaser.Physics.Arcade.Collider[] = [];
   private interactables: Interactable[] = [];
@@ -113,7 +114,8 @@ export class World extends Phaser.Scene implements WorldApi {
     this.controls = new Controls(this);
     this.classic = new ClassicLayer(this);
     this.art = new RoomArt(this);
-    this.events.once('shutdown', () => { this.art.destroy(); this.classic.destroy(); });
+    this.visuals = new Visuals(this);
+    this.events.once('shutdown', () => { this.visuals.destroy(); this.art.destroy(); this.classic.destroy(); });
     // The HUD scene starts on the next step; the first room waits for it.
     this.ready = false;
     this.scene.launch('hud');
@@ -164,12 +166,13 @@ export class World extends Phaser.Scene implements WorldApi {
     this.sector = trialSector(wave); this.room = trialArena(ROOMS.trial_arena, wave);
     const next = new Grid(this.room.rows);
     for (let y = 0; y < next.h; y++) for (let x = 0; x < next.w; x++) this.classic.grid.set(x, y, next.get(x, y));
-    this.art.load(); this.hud.roomEntered(this.room); return true;
+    this.art.load(); this.visuals.clear(); this.visuals.load(); this.hud.roomEntered(this.room); return true;
   }
 
   private flag(c?: string) { return !c || (c.startsWith('!') ? !this.save.flags[c.slice(1)] : !!this.save.flags[c]); }
 
   private clearRoom() {
+    this.visuals.clear();
     for (const c of this.colliders) c.destroy();
     this.colliders = [];
     for (const f of this.foeList) if (!f.removed) f.remove();
@@ -227,15 +230,11 @@ export class World extends Phaser.Scene implements WorldApi {
     this.colliders.push(this.physics.add.collider(this.player.rect, this.layer, undefined, (_o, t) => this.passable(t as Phaser.Tilemaps.Tile, this.player.dropT > 0), this));
     for (const e of r.ents) this.spawnEnt(e);
     if (this.classic.storyEnabled && id === 'covenant_chamber' && !this.save.flags.relic_taken) this.classic.addRelic();
-    if (r.weather) {
-      const rain = r.weather === 'rain', ember = r.weather === 'embers';
-      this.weather = this.add.particles(0, 0, 'glow', { x: { min: -350, max: 350 }, y: { min: -20, max: 260 }, lifespan: rain ? 1100 : 4000, frequency: settings.quality === 'low' ? 350 : rain ? 60 : 180, maxParticles: 60, speedY: rain ? 240 : { min: -7, max: 20 }, speedX: rain ? -30 : { min: -12, max: 8 }, scaleX: rain ? 0.018 : 0.025, scaleY: rain ? 0.16 : 0.025, alpha: { start: ember ? 0.7 : 0.25, end: 0 }, tint: rain ? 0x9fc4ff : ember ? 0xff9b65 : 0xc8c0ac }).setDepth(17);
-      this.roomObjs.push(this.weather);
-    } else this.weather = undefined;
     placeLamps(r);
     // The Echoes come along through every door, unless they were dismissed.
     if (this.save.echoes.length && this.save.flags.army_out !== false) this.classic.summonEchoes(true);
     this.fitCamera();
+    this.visuals.load();
     this.cameras.main.startFollow(this.player.rect, true, 0.14, 0.12, 0, 24);
     this.cameras.main.setDeadzone(24, 40);
     this.hud.roomEntered?.(r);
@@ -435,7 +434,6 @@ export class World extends Phaser.Scene implements WorldApi {
     const rawDt = Math.min(delta / 1000, 1 / 30);
     const dt = rawDt * this.classic.simulationScale;
     this.physics.world.timeScale = 1 / this.classic.simulationScale;
-    if (this.weather) { const v = this.cameras.main.worldView; this.weather.setPosition(v.centerX, v.y); }
     this.parallax();
     this.art.render();
     // Hit-stop freezes the moment; input waits (latched) so a press made in it still lands after.
@@ -650,7 +648,7 @@ export class World extends Phaser.Scene implements WorldApi {
     this.classic.add(new Proj('lightwave', p.x + p.face * 14, p.feet - 14, 'player', p.skillPower() * 0.8, { vx: p.face * 380, life: 0.55, w: 18, h: 30, poise: 10 }));
   }
   playEffect(name: string) { sfx(name); }
-  heroHit(f: FoeLike, damage: number, heavy: boolean, crit = false) { const e = this.classic.entityFor(f); if (e) this.classic.hero?.onHit(e, damage, heavy, crit); }
+  heroHit(f: FoeLike, damage: number, heavy: boolean, crit = false) { const e = this.classic.entityFor(f); if (e) this.classic.hero?.onHit(e, damage, heavy, crit); this.visuals.impact(f.x, f.box.centerY, heavy, crit); }
   strikeLamps(box: { x: number; y: number; w: number; h: number }) { strikeLamps(box); }
   banner(title: string, sub: string) { this.hud.banner(title, sub); }
   toast(text: string) { this.hud.toast(text); }

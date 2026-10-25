@@ -14,7 +14,7 @@ const browser = await chromium.launch({ headless: true, ...(process.env.PLAYWRIG
 await mkdir('qa', { recursive: true });
 const errors = [];
 const E = (page, fn, arg) => page.evaluate(fn, arg);
-const until = (page, fn, arg, timeout = 15000) => page.waitForFunction(fn, arg, { timeout });
+const until = (page, fn, arg, timeout = 15000) => page.waitForFunction(fn, arg, { timeout }).catch(e => { throw Error(e.message + '\n' + errors.join('\n')); });
 
 /** A level 8 journey with points to spend, a second sword in the pack and two Echoes. */
 const start = async (ctx) => {
