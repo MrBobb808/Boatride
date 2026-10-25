@@ -7,9 +7,11 @@
 // the original's pixel-art resolution, which Phaser shows hard-edged.
 
 import Phaser from 'phaser';
-import { G } from './shim/ctx';
+import { activeSlot, selectSlot } from '../game/save';
+import { G, flag } from './shim/ctx';
+import { settings } from './shim/settings';
 import { lighting } from './shim/lighting';
-import { inputHook } from './shim/input';
+import { input } from './shim/input';
 import { Squad } from './squad';
 import { bodyFits } from '../../../remnant/src/game/physics';
 import { fx } from '../../../remnant/src/render/fx';
@@ -27,6 +29,27 @@ import type { Player } from '../game/player';
 import { HeroPowers } from './hero';
 import { tickStatus } from '../../../remnant/src/game/power';
 import { Proj } from '../../../remnant/src/game/projectiles';
+import { Story } from '../../../remnant/src/game/story';
+import { initUI, hooks } from '../../../remnant/src/ui/ui';
+import { closeMenu } from '../../../remnant/src/ui/menus';
+import { h as el, btn } from '../../../remnant/src/ui/dom';
+import { installNav } from '../../../remnant/src/ui/dom';
+import { mantleStyle } from '../../../remnant/src/game/mantle';
+import { ELEMENTS } from '../../../remnant/src/game/power';
+import { ITEMS, RARITY_COLORS } from '../../../remnant/src/game/data';
+import type { HumanStyle } from '../../../remnant/src/render/actors';
+import { rollGear } from '../../../remnant/src/game/loot';
+import { WeaponPractice } from '../../../remnant/src/game/progression';
+import { sfx } from './shim/audio';
+import { migrateSave, getItem, makeItem, absorbEcho } from '../../../remnant/src/game/state';
+import { Chest, LoreStone, Shrine, Altar, Drop, Pickup, Npc, RelicVisual } from '../../../remnant/src/game/props';
+import { syncRest } from '../../../remnant/src/game/settlement';
+import { runBlessings } from '../../../remnant/src/game/blessings';
+import { valorTrack } from '../../../remnant/src/game/valor';
+import { muffleWater } from '../../../remnant/src/game/swim';
+import { updateWater, drawWaterFront } from '../../../remnant/src/render/underwater';
+import { prepareWater } from '../../../remnant/src/game/water';
+import type { Loot, EntDef } from '../../../remnant/src/game/tiles';
 import { BASE_POSE } from '../../../remnant/src/render/skeleton';
 
 /** Phaser blow force to the original's poise (a light strike is ~10, a full heavy ~34). */
@@ -61,6 +84,13 @@ export interface ClassicHost extends WorldApi {
     cinematicBars(on: boolean): void;
   };
   onClassicBossDefeated(key: string): void;
+  loadRoom(id: string, spawn: string): void;
+  goTo(id: string, spawn: string): void;
+  setTile(x: number, y: number, tile: T): void;
+  collect(l: Loot): void;
+  giveXp(xp: number, x?: number, y?: number): void;
+  refreshStats(): void;
+  rest(id?: string): void;
 }
 
 /** Elior as the original modules see him: feet at `y`, a hurtbox, `takeHit`. */
@@ -99,6 +129,17 @@ class PlayerView {
   get face() { return this.p.face; }
   set face(v: number) { this.p.face = v; }
   get state() { return this.p.dead ? 'dead' : this.p.state; }
+  get scriptX() { return this.p.scriptX; }
+  set scriptX(v: number | null) { this.p.scriptX = v; }
+  get scriptSpeed() { return this.p.scriptSpeed; }
+  set scriptSpeed(v: number) { this.p.scriptSpeed = v; }
+  setState(v: string) { this.p.state = v as Player['state']; if (v === 'free') this.p.releaseState(); }
+  revive() { this.p.releaseState(); this.p.hp = this.p.maxHp; }
+  get water() { return this.p.water; }
+  get counterT() { return this.p.counterT; }
+  get comboHits() { return this.p.comboHits; }
+  get hasDouble() { return () => G.save.keyItems.includes('eagle_wings'); }
+  die() { this.p.die(); }
   get hp() { return this.p.hp; }
   set hp(v: number) { this.p.hp = v; }
   get maxHp() { return this.p.maxHp; }
@@ -118,9 +159,79 @@ class PlayerView {
   styleKey = '';
   pose = { ...BASE_POSE };
   j = { haFX: 8, haFY: -24 };
-  get style() { return { weaponColor: '#dce0e8' }; }
+  private heroStyle: HumanStyle | null = null;
+  get style(): HumanStyle { this.refreshLook(); return this.heroStyle!; }
+  refreshLook() {
+    const s = G.save;
+    const helm = getItem(s, s.equipment.helm);
+    const armor = getItem(s, s.equipment.armor);
+    const gl = getItem(s, s.equipment.gauntlets);
+    const bt = getItem(s, s.equipment.boots);
+    const wp = getItem(s, s.equipment.weapon);
+    const key = [helm?.id, armor?.id, gl?.id, bt?.id, wp?.id, wp?.plus, wp?.rarity, s.level, flag('relic_taken'), this.armorLight > 0, this.mantleT > 0].join('|');
+    if (key === this.styleKey && this.heroStyle) return;
+    this.styleKey = key;
+    const hl = helm ? ITEMS[helm.id].look ?? 0 : -1;
+    const al = armor ? ITEMS[armor.id].look ?? 0 : 0;
+    const gLook = gl ? ITEMS[gl.id].look ?? 0 : 0;
+    const bLook = bt ? ITEMS[bt.id].look ?? 0 : 0;
+    const helmKind: HumanStyle['helm'] = hl === 3 ? 'crown' : hl === 2 ? 'visor' : hl === 1 ? 'cap' : 'none';
+    const plate = al >= 2 ? { c: '#1e1c22', dark: '#121016', hi: '#e2b85a', tier: 2 } : al === 1 ? { c: '#6c6a70', dark: '#46444a', hi: '#b8b8c0', tier: 1 } : null;
+    const lv = s.level;
+    const relic = flag('relic_taken');
+    const wb = wp ? ITEMS[wp.id] : ITEMS.militia_sword;
+    const plus = wp?.plus ?? 0;
+    const rar = wp?.rarity ?? 0;
+    let wGlow: string | null = null;
+    let wAmt = 0;
+    if (plus >= 3 || rar >= 3 || wb.id === 'covenant_blade') {
+      wGlow = rar >= 4 ? RARITY_COLORS[rar] : '#ffd27a';
+      wAmt = Math.min(1, 0.4 + plus * 0.12 + Math.max(0, rar - 2) * 0.15);
+    }
+    // Elemental weapons glow their element's colour.
+    const el = wb.element;
+    if (el) {
+      wGlow = ELEMENTS[el].c;
+      wAmt = Math.max(wAmt, 0.65);
+    }
+    // The Sovereign: black and gold, eyes burning violet.
+    const sov = lv >= 100;
+    this.heroStyle = {
+      skin: '#70452f',
+      hair: '#f1f3ed',
+      beard: '#e9ede7',
+      hairKind: 'spiky',
+      coat: sov ? '#16131e' : lv >= 7 ? '#1f2a48' : '#26304e',
+      coatDark: sov ? '#0c0a12' : '#19203a',
+      skirt: 9,
+      trim: lv >= 3 ? (lv >= 6 ? '#e2b85a' : '#9a7a4a') : null,
+      pants: '#38302e',
+      boots: bLook === 1 ? '#6a6a72' : bLook === 2 ? '#7a5a3a' : '#3d2c22',
+      glove: gLook === 1 ? '#a07038' : gLook === 2 ? '#2c2a32' : '#4a3426',
+      belt: '#3a2a1a',
+      plate,
+      helm: helmKind,
+      helmColor: hl === 2 ? '#2a2830' : '#6d6a66',
+      helmTrim: hl === 2 ? '#e2b85a' : undefined,
+      eye: sov ? '#c9a8ff' : '#ffe08a',
+      eyeGlow: sov ? 1 : lv >= 50 ? 0.5 : 0,
+      outline: '#0a070c',
+      weapon: wb.family === 'spear' ? 'spear' : wb.family === 'greatsword' ? 'greatsword' : 'blade',
+      weaponColor: wb.id === 'judgment_greatsword' ? '#e8d8a8' : wb.id === 'covenant_blade' ? '#e8e4dc' : '#c9ced6',
+      weaponGlow: wGlow,
+      weaponGlowAmt: wAmt,
+      weaponFlame: plus >= 5 || el === 'fire' || sov,
+      offhand: 'none',
+      runes: relic && lv >= 4 ? '#ffd27a' : null,
+      crack: null,
+      bulk: 1,
+      scarf: '#8f2a2a',
+    };
+    if (this.mantleT > 0) this.heroStyle = mantleStyle(this.heroStyle);
+  }
   get family() { return this.L.host.d.family; }
   get grounded() { return this.p.onGround; }
+  get mantleMax() { return this.p.powers?.mantleMax ?? 1; }
   get mantleT() { return this.p.mantleT; }
   set mantleT(v: number) { this.p.mantleT = v; }
   get ghosts() { return this.p.powers!.ghosts; }
@@ -132,7 +243,10 @@ class PlayerView {
   anim = { play: (id: string, ..._args: unknown[]) => { if (this.p.powers) this.p.powers.clip = id; } };
   throwPose() { this.p.castPose(); }
   weaponImpact(t: Entity) { this.p.powers?.weaponImpact(t); }
-  practiceHit(_e: Entity, _damage: number) {}
+  private practice = new WeaponPractice();
+  practiceHit(e: Entity, damage: number, finisher = false) { if (this.practice.hit(G.save, this.family, e, damage, finisher)) { this.L.host.refreshStats(); G.ui.toast(`${this.family} mastery ${G.d.masteryRank} · see Mastery`); sfx('chargeFull', { vol: 0.45 }); } }
+  get sinceHurt() { return this.p.sinceHurt; }
+  set sinceHurt(v: number) { this.p.sinceHurt = v; }
   leechHeal(damage: number, rate: number) { this.p.hp = Math.min(this.p.maxHp, this.p.hp + damage * rate); }
   blinkSpot(t: Entity) { return t.canBeTargeted() ? this.p.blinkSpotAt(t.x, t.y, t.body.w / 2) : null; }
   blinkToFoe(t: Entity) {
@@ -224,9 +338,15 @@ class NativeTarget extends Entity {
     this.isBoss = 'phaseMarks' in native;
     this.sync();
   }
+  get key() { return (this.native as any).key; }
+  get state() { return (this.native as any).state; }
+  get phase() { return (this.native as any).phase; }
+  awaken() { (this.native as any).awaken(); }
+  executable() { return this.native.alive && ((this.native as any).staggered ?? 0) > 0; }
   sync() {
     const n = this.native, b = n.rect?.body as Phaser.Physics.Arcade.Body | undefined;
     const box = b ? { x: b.left, y: b.top, w: b.width, h: b.height } : { x: n.box.x, y: n.box.y, w: n.box.width, h: n.box.height };
+    this.name = (n as any).name ?? '';
     this.x = n.x; this.y = box.y + box.h; this.body.w = box.w; this.body.h = box.h;
     this.hp = (n as FoeLike & { hp?: number }).hp ?? (n.alive ? 1 : 0);
     this.maxHp = (n as FoeLike & { maxHp?: number }).maxHp ?? this.hp;
@@ -248,7 +368,40 @@ class NativeTarget extends Entity {
   draw() {}
 }
 
+let uiStarted = false;
+
 export class ClassicLayer {
+  readonly story = new Story();
+  readonly storyEnabled = !new URLSearchParams(location.search).has("nostory");
+  private near: (Entity & { prompt(): string; interact(): void; range: number }) | null = null;
+  private fired = new Set<string>();
+  deathHandled = false;
+  get rallyT() { return (this.hero as any)?.superT ?? -1; }
+  recoveryMenu(): HTMLElement | null {
+    const rows: HTMLElement[] = [];
+    for (let slot = 0; slot < 3; slot++) {
+      try {
+        const raw = localStorage.getItem(`remnant-phaser.before-cutover.slot${slot}`); if (!raw) continue;
+        const save = JSON.parse(raw); if (save.version !== 1) continue;
+        rows.push(btn(`Restore preview slot ${slot + 1} · level ${save.level}`, () => {
+          void G.ui.choice('Restore the earlier Phaser journey?', `Slot ${slot + 1} will load its preview progress. Its current Phaser progress is backed up first. Original-edition saves stay separate.`, [{ label: 'Keep current journey' }, { label: 'Restore preview journey' }]).then((choice: number) => {
+            if (choice !== 1) return;
+            this.host.persist(); const key = slot === 0 ? 'remnant-phaser.save.v2' : `remnant-phaser.save.slot${slot}`;
+            try { const old = localStorage.getItem(key); if (old) localStorage.setItem(`remnant-phaser.before-preview-restore.slot${slot}`, old); localStorage.setItem(key, raw); } catch { G.ui.toast('Storage is unavailable. Your current journey is kept.'); return; }
+            closeMenu(); selectSlot(slot); G.slot = slot; migrateSave(save); this.host.save = save; G.save = save; this.host.refreshStats(); this.host.loadRoom(save.room, save.spawn);
+          });
+        }, 'btn small', { 'data-k': `recover_preview_${slot}` }));
+      } catch {}
+    }
+    return rows.length ? el('div', { class: 'box' }, el('h3', null, 'Earlier Phaser journeys'), el('p', { class: 'muted' }, 'Backups made when the main app switched over.'), rows) : null;
+  }
+  configureTrial(wave: number) { return (this.host as any).configureTrial(wave); }
+  async afterRun(choice: "again" | "leave") {
+    await G.ui.fade(1, 0.3); this.story.ch3.rounds.clearArena(); this.rest();
+    if (choice === "again") this.load("trial_arena", "start");
+    else { const back = String(G.save.flags.trial_return ?? "sanctuary|start").split("|"); delete G.save.flags.trial_return; this.load(back[0], back[1]); }
+    this.autosave(); await G.ui.fade(0, 0.5);
+  }
   hero: HeroPowers | null = null;
   ents: Entity[] = [];
   grid!: Grid;
@@ -291,44 +444,57 @@ export class ClassicLayer {
   bind() {
     const h = this.host, L = this;
     G.world = this;
-    G.save = h.save;
-    inputHook.controls = h.controls;
+    G.save = h.save; G.slot = activeSlot();
+    Object.defineProperty(G, 'd', { configurable: true, enumerable: true, get: () => h.d, set: (d) => { h.d = d; if (h.player) { h.player.maxHp = d.maxHp; h.player.maxCe = d.maxCe; } } });
+    G.debug = new URLSearchParams(location.search).has("debug");
     h.save.defeated ??= [];
-    G.renderer = { tier: 2, pixel: true, effects: 0, bw: 0, bh: 0 };
+    G.renderer = { tier: settings.quality === 'low' ? 0 : settings.quality === 'medium' ? 1 : 2, pixel: settings.artStyle === 'pixel', effects: 0, bw: 0, bh: 0, generation: 0, scale: 1,
+      resize() { this.generation++; this.pixel = settings.artStyle === 'pixel'; this.tier = settings.quality === 'low' ? 0 : settings.quality === 'medium' ? 1 : 2; (h as any).fitCamera(); (h as any).art?.load(); },
+    };
     G.camera = {
+      get x() { return h.sc.cameras.main.worldView.centerX; },
+      get y() { return h.sc.cameras.main.worldView.centerY; },
+      s: 1, focusRate: 8,
+      apply(ctx: CanvasRenderingContext2D) { const v = h.sc.cameras.main.worldView; ctx.setTransform(1, 0, 0, 1, -Math.floor(v.x), -Math.floor(v.y)); },
       focus: null as { x: number; y: number } | null,
       punch: 0, zoomTarget: 1, viewMultTarget: 1,
       bounds: { x: 0, y: 0, w: 0, h: 0 },
       addTrauma(n: number) { if (n > 0) h.shake(Math.min(0.02, n * 0.012), 120 + n * 380); },
       view() { const v = h.sc.cameras.main.worldView; return { x: v.x, y: v.y, w: v.width, h: v.height }; },
-      snapTo() {},
+      snapTo(x: number, y: number) { h.sc.cameras.main.centerOn(x, y); },
     };
-    G.ui = {
-      toast: (t: string) => h.hud.toast(t),
-      banner: (t: string, s = '') => h.hud.banner(t, s),
+    if (!uiStarted) { initUI(); installNav(); uiStarted = true; }
+    G.ui = { ...hooks,
       bossBar: (n: string | null, s = '') => h.hud.bossBar(n, s),
-      caption: (t: string | null) => h.hud.caption(t),
-      cinematicBars: (on: boolean) => h.hud.cinematicBars(on),
-      hint: (t: string | null) => { if (t) h.hud.toast(t); },
-      prompt() {}, refreshHud() {}, clearAreaBanner() {},
-      isBlocking: () => false,
-      fade: () => Promise.resolve(),
-      dialogue: () => Promise.resolve(0),
-      itemGet() {}, levelUp() {},
+      cinematicBars: (on: boolean) => { hooks.cinematicBars(on); h.hud.cinematicBars(on); },
+      refreshHud: () => h.refreshStats(),
+      echoWheel: (on: boolean) => { if (on) (h.hud as any).openWheel(); else (h.hud as any).closeWheel(); },
     };
     void L;
   }
 
   /** A new room: the grid the original physics walks on (gate cells kept as gates). */
-  load() {
+  load(id?: string, spawn = 'start') {
+    if (id) { this.host.loadRoom(id, spawn); return; }
+    this.story.ch3.rounds.cancelBlessing();
+    runBlessings.reset();
     this.clear();
     const r = this.host.room;
     this.grid = new Grid(r.rows);
+    if (r.id === 'temple_steps' && G.save.flags.collapsed) for (let y = 0; y < r.h; y++) for (let x = 0; x < r.w; x++) if (this.grid.get(x, y) === T.Collapse) this.grid.set(x, y, T.Empty);
+    for (const pair of String(G.save.flags['broken:' + r.id] ?? '').split(';')) { const [x, y] = pair.split(',').map(Number); if (Number.isFinite(x) && Number.isFinite(y)) this.grid.set(x, y, T.Empty); }
+    const set = this.grid.set.bind(this.grid);
+    this.grid.set = (x, y, t) => { set(x, y, t); this.host.setTile(x, y, t); };
+    prepareWater((r as any).ents, this.grid);
+    syncRest(r.id);
+    this.fired.clear();
+    this.deathHandled = false;
     G.camera.bounds = { x: 0, y: 0, w: r.w * TILE, h: r.h * TILE };
     G.camera.focus = null;
   }
 
   clear() {
+    muffleWater(false);
     this.hero?.destroy(); this.hero = null;
     this.ents = [];
     this.foeViews = [];
@@ -356,8 +522,19 @@ export class ClassicLayer {
   get switchCd() { return this.squad.switchCd; }
   get syncCd() { return this.squad.syncCd; }
   get duel() { return this.squad.duel; }
-  readonly rushing = false;
-  readonly transitioning = false;
+  get rushing() { return this.room.id === 'trial_arena' && this.story.ch3.rounds.isolated; }
+  get transitioning() { return (this.host as any).transitioning; }
+  transition(id: string, spawn: string) { this.host.goTo(id, spawn); }
+  enter(first: boolean) { if (this.storyEnabled) this.story.onEnter(this.room.id, first); }
+  trigger(id: string) { if (this.fired.has(id)) return; this.fired.add(id); this.story.onTrigger(id); }
+  giveXp(xp: number) { if (!this.rushing) this.host.giveXp(xp); }
+  collect(l: Loot) { if (!this.rushing) this.host.collect(l); }
+  spawnLoot(x: number, y: number, loot: Loot[], _burst = true) { if (!this.rushing) for (const l of loot) this.add(new Drop(x, y, l)); }
+  absorb(id: string, _manual = false) { const e = absorbEcho(G.save, id, G.d); this.host.refreshStats(); return e; }
+  rest() { this.host.rest(); }
+  restAtAltar(a: Altar) { if (!G.save.altarsLit.includes(a.idKey)) G.save.altarsLit.push(a.idKey); G.save.altar = { room: this.room.id, spawn: 'altar' }; this.rest(); G.ui.openAltar(a.idKey); }
+  get cache() { return { invalidate: () => { this.syncTiles(); (this.host as any).art?.cache?.invalidate(); } }; }
+  private syncTiles() { for (let y = 0; y < this.grid.h; y++) for (let x = 0; x < this.grid.w; x++) this.host.setTile(x, y, this.grid.get(x, y)); }
   summonEchoes(silent = false) { this.squad.summonEchoes(silent); }
   dismissEchoes() { this.squad.dismissEchoes(); }
   summonList() { return this.squad.summonList(); }
@@ -373,9 +550,27 @@ export class ClassicLayer {
   commanderAura(x: number, y: number, self?: Entity) { return this.squad.commanderAura(x, y, self); }
   guardianAura(x: number, y: number) { return this.squad.guardianAura(x, y); }
   groundY(x: number, fromY: number) { return this.squad.groundY(x, fromY); }
-  autosave() { this.host.persist(); }
-  nearInteractable() { return null; }
-  tryInteract() {}
+  autosave(_silent = false) { this.host.refreshStats(); this.host.persist(); }
+  nearInteractable() { return !!this.near; }
+  tryInteract() { this.near?.interact(); }
+  updateInteract() {
+    this.near = null; let best = Infinity;
+    for (const e of this.ents) { const it = e as Entity & { prompt?(): string; interact?(): void; range?: number }; if (it.remove || !it.interact || !it.prompt) continue;
+      const d = Math.abs(it.x - this.player.x); if (d < (it.range ?? 30) && d < best && Math.abs(it.y - this.player.y) < 36) { best = d; this.near = it as Entity & { prompt(): string; interact(): void; range: number }; } }
+    return (this.near as (Entity & { prompt(): string }) | null)?.prompt() ?? null;
+  }
+  addRelic() { this.add(new RelicVisual(34.5 * TILE, 20 * TILE)); }
+  spawnProp(e: EntDef): boolean {
+    const x = ('x' in e ? e.x : 0) * TILE, y = ('y' in e ? e.y : 0) * TILE;
+    switch (e.t) {
+      case 'npc': this.add(new Npc(e.k, x, y, e.face)); return true;
+      case 'altar': this.add(new Altar(x, y, e.id)); return true;
+      case 'chest': this.add(new Chest(x, y, e.id, e.loot, e.secret)); return true;
+      case 'lore': this.add(new LoreStone(x, y, e.id)); return true;
+      case 'shrine': this.add(new Shrine(x, y, e.id, e.grants)); return true;
+      case 'pickup': if (!G.save.opened.includes(e.id)) this.add(new Pickup(x, y, e.id, e.loot)); return true;
+    } return false;
+  }
   get gateClosed() { return this.host.gateClosed; }
   solid = (t: T) => (t === T.Gate ? this.host.gateClosed : isSolid(t));
   solidAt(x: number, y: number) { return this.solid(this.grid.get(Math.floor(x / TILE), Math.floor(y / TILE))); }
@@ -388,6 +583,7 @@ export class ClassicLayer {
   addNative(f: FoeLike) {
     const e = new NativeTarget(f);
     this.nativeViews.set(f, e);
+    if (e.isBoss) this.boss = e;
     this.add(e);
   }
   nativeScale(f: FoeLike) { return (this.nativeViews.get(f)?.chill ?? 0) > 0 ? 0.55 : 1; }
@@ -407,7 +603,11 @@ export class ClassicLayer {
     return Phaser.Math.Clamp((x - v.centerX) / (v.width * 0.6), -1, 1);
   }
   addRally(n = 1) { this.hero?.gain(n); }
-  echoBlocks() { return false; }
+  echoBlocks(pr: Proj) {
+    if (G.save.echoMode !== 'defensive') return false;
+    for (const e of this.echoes) if (e.sentinel && e.recallT <= 0 && e.despawn <= 0 && overlaps(pr.rect(), e.hurtbox())) { pr.remove = true; sfx('block', { pan: this.pan(e.x), vol: 0.6 }); fx.hitSparks(pr.x, pr.y, -Math.sign(pr.vx), '#fff1c4', 6); e.gainXp(1); return true; }
+    return false;
+  }
   healAlliesIn(x0: number, x1: number, y: number, frac: number, energy = false) {
     const p = this.host.player;
     if (!p.dead && p.x >= x0 && p.x <= x1 && Math.abs(p.feet - y) < 40) {
@@ -418,7 +618,16 @@ export class ClassicLayer {
       e.hp = Math.min(e.maxHp, e.hp + e.maxHp * frac); e.inst.hp = e.hp;
     }
   }
-  breakWalls() { return false; }
+  breakWalls(box: Rect, seal = false) {
+    const tiles: [number, number][] = [], g = this.grid;
+    for (let y = Math.floor(box.y / TILE); y <= Math.floor((box.y + box.h) / TILE); y++) for (let x = Math.floor(box.x / TILE); x <= Math.floor((box.x + box.w) / TILE); x++) {
+      const t = g.get(x, y); if (t !== T.Cracked && !(seal && t === T.Seal)) continue;
+      const stack = [[x, y]]; while (stack.length) { const [a, b] = stack.pop()!, t = g.get(a, b); if (t !== T.Cracked && !(seal && t === T.Seal)) continue; g.set(a, b, T.Empty); tiles.push([a, b]); stack.push([a - 1, b], [a + 1, b], [a, b - 1], [a, b + 1]); }
+    }
+    if (!tiles.length) return false;
+    const key = 'broken:' + this.room.id, before = String(G.save.flags[key] ?? ''); G.save.flags[key] = (before ? before + ';' : '') + tiles.map(t => t.join(',')).join(';');
+    this.story.onWallBroken(this.room.id, tiles); this.autosave(); return true;
+  }
   spawnShockwave(x: number, y: number, dir: number, damage: number, team: 'player' | 'enemy') {
     this.add(new Proj('wave', x, y, team, damage, { vx: dir * 260, life: 1.2, w: 14, h: 24 }));
   }
@@ -426,10 +635,11 @@ export class ClassicLayer {
     this.add(new Proj('lightwave', x, y, 'player', this.host.d.atk * this.host.d.abil * 0.55 * mult, { vx: dir * 380, life: 0.5, w: 18, h: 36, poise: 10 }));
   }
   execute(p: PlayerView, e: Entity, mult: number) {
+    valorTrack.finisher();
     const d = this.host.d;
     const tank = e instanceof Enemy && e.tank;
     const damage = e.isBoss ? Math.max(d.atk * 9, e.maxHp * 0.07) * mult : tank ? Math.max(d.atk * 8, e.maxHp * ((e as Enemy).elite ? 0.22 : 0.35)) * mult : e instanceof Enemy && e.elite ? d.atk * 8 * mult : e.hp + 5;
-    if (tank) { (e as Enemy).execUsed = true; e.staggered = Math.min(e.staggered, 1.4); } else e.staggered = e.isBoss ? 0.6 : 0;
+    if (tank) { (e as Enemy).execUsed = true; e.staggered = Math.min(e.staggered, 1.4); } else { e.staggered = e.isBoss ? 0.6 : 0; if (e instanceof NativeTarget && e.isBoss) (e.native as any).staggered = Math.min((e.native as any).staggered, 0.6); }
     e.takeHit({ dmg: damage, poise: 0, kx: p.face * 300, ky: -260, dir: p.face, kind: 'melee', src: p as unknown as Entity, heavy: true, crit: true, stop: 0.12 });
     this.host.save.ce = Math.min(d.maxCe, this.host.save.ce + 10);
     this.addRally(12); this.host.shake(0.01, 220); fx.holyBurst(e.cx, e.cy, 26, 1.4);
@@ -478,17 +688,36 @@ export class ClassicLayer {
     return n;
   }
   onEnemyKilled(e: Enemy) {
+    if (this.rushing) return;
+    (G.save.bestiary ??= {})[e.kind] = (G.save.bestiary[e.kind] ?? 0) + 1;
+    if (this.storyEnabled) this.story.onKill(e);
     const st = e.stats, tier = chapterCurve(e.tier).xp, elite = e.elite ? 4 : 1;
-    const xp = Math.round(st.xp * elite * tier);
+    const xp = e.xpOverride ?? Math.round(st.xp * elite * tier * this.host.d.xpMult * (1 + G.save.ng * 0.5));
+    this.addRally(6); G.save.ce = Math.min(G.d.maxCe, G.save.ce + (G.save.flags.relic_taken ? 5 : 0));
     this.host.onFoeDied(xp, Math.round(Phaser.Math.Between(st.silver[0], st.silver[1]) * elite * tier), e.x, e.y - 20, e.elite ?? undefined);
+    if (this.storyEnabled) { const loot: Loot[] = []; if (Math.random() < 0.28) loot.push({ mat: 'veil_shard', n: 1 }); if (Math.random() < 0.22) loot.push({ mat: 'iron_scrap', n: 1 }); if (e.kind === 'sentinel') loot.push({ mat: 'sentinel_steel', n: e.elite ? 3 : 1 }); if (e.elite) loot.push({ mat: 'covenant_fragment', n: 1 }); if (Math.random() < (e.elite ? 1 : 0.06)) loot.push(rollGear(e.elite ? 2 : 0)); this.spawnLoot(e.x, e.cy, loot); }
     // The Echoes out share in it, as in the original.
     const echoXp = Math.min(160, Math.max(4, Math.round(Math.sqrt(Math.max(1, xp)) * 1.5)));
-    for (const ec of this.squad.echoes) if (!ec.remove && ec.hp > 0 && ec.despawn <= 0 && ec.tempT <= 0) ec.gainXp(echoXp);
+    for (const ec of this.squad.echoes) if (!ec.remove && ec.hp > 0 && ec.despawn <= 0 && ec.tempT <= 0) { ec.gainXp(echoXp); if (G.d.sets.legion >= 3) ec.hp = ec.inst.hp = Math.min(ec.maxHp, ec.hp + ec.maxHp * 0.03); }
     if (this.squad.priorityTarget === e) this.squad.priorityTarget = null;
   }
   onBossDefeated(b: Entity & { key?: string }) {
     this.bossActive = false;
-    this.host.onClassicBossDefeated(b.key ?? 'idol');
+    if (!this.storyEnabled) { this.host.onClassicBossDefeated(b.key ?? 'idol'); return; }
+    valorTrack.bossDown(b);
+    const R = this.story.ch3.rounds;
+    if (this.room.id === 'trial_arena' && R.bossOnly) { R.bossDefeated(b as any); return; }
+    const key = b.key ?? 'idol'; if (!G.save.defeated.includes(key)) G.save.defeated.push(key);
+    const k = b as any;
+    if (key === 'gatekeeper') { this.closeGate(false); void this.story.gatekeeperDefeated(k); }
+    else if (key === 'marshal') void this.story.marshalDefeated(k);
+    else if (key === 'locust_king') void this.story.kingDefeated(k);
+    else if (key === 'golden_image') void this.story.ch4.imageDefeated(k);
+    else if (key === 'weigher') void this.story.ch5.weigherDefeated(k);
+    else if (key === 'storm_prince') void this.story.ch6.stormDefeated(k);
+    else if (key === 'persia_prince') void this.story.ch6.princeDefeated(k);
+    else if (key === 'idol') { this.closeGate(false); void this.story.bossDefeated(k); }
+    else void this.story.fallen.bossDefeated(k);
   }
   /** Tobiah's lamp oil in the Idol fight: the Idol kneels (his walk-on comes with the NPC port). */
   tobiahAssist(idol: Entity & { kneel(): void }) {
@@ -539,7 +768,10 @@ export class ClassicLayer {
         t.fn();
       }
     }
+    if (this.storyEnabled && this.room.id === "trial_arena") this.story.ch3.rounds.update(dt);
     lighting.begin();
+    for (const e of (this.room as any).ents) if (e.t === 'light' && (!e.cond || flag(e.cond))) lighting.add(e.x * TILE, e.y * TILE - 10, e.r ?? (e.k === 'window' ? 130 : 100), e.c ?? (e.k === 'window' ? '#9fb4e8' : '#ffcf6b'), 0.9, 0.5);
+    lighting.add(this.player.x, this.player.cy, G.save.flags.relic_taken ? 90 : 45, '#ffe6a8', 0.65, 0.2);
     for (let i = 0; i < this.ents.length; i++) {
       const e = this.ents[i];
       try { e.update(dt); } catch (err) { this.fault(e, err); }
@@ -548,12 +780,15 @@ export class ClassicLayer {
     if (this.boss?.remove) this.boss = null;
     this.squad.update(dt);
     fx.update(dt);
+    updateWater(dt);
     this.followFocus();
   }
 
   /** A boss's intro points the camera at it; Elior's follow resumes after. */
   private followFocus() {
     const cam = this.host.sc.cameras.main, f = G.camera.focus as { x: number; y: number } | null;
+    const base = (this.host as any).baseZoom ?? cam.zoom;
+    cam.setZoom(Phaser.Math.Linear(cam.zoom, base * G.camera.zoomTarget / G.camera.viewMultTarget, 0.08));
     if (f) {
       if (!this.focusing) { cam.stopFollow(); this.focusing = true; }
       const v = cam.worldView;
@@ -601,6 +836,7 @@ export class ClassicLayer {
     for (const l of lighting.lights) if (l.bloom > 0) glow(c, l.x, l.y, l.r * 0.8, l.c, Math.min(1, l.a * l.bloom * 0.5));
     c.globalCompositeOperation = 'source-over';
     fx.drawAdd(c);
+
     // The screen flash the original lays over everything (parries, big impacts).
     if (fx.flashA > 0.01) {
       c.setTransform(1, 0, 0, 1, 0, 0);

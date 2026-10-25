@@ -2,7 +2,12 @@
 // at CSS size, so text and pixel art stay sharp on an iPhone's Retina screen;
 // scenes read `dpr()` to size their UI.
 
+import './game/migration';
 import Phaser from 'phaser';
+import '../../remnant/src/ui/styles.css';
+import { measureSafe } from '../../remnant/src/ui/safe';
+import { initHaptics } from '../../remnant/src/core/haptics';
+measureSafe(); initHaptics();
 import { Boot } from './scenes/Boot';
 import { Title } from './scenes/Title';
 import { World } from './scenes/World';
@@ -12,7 +17,7 @@ import { dpr } from './game/screen';
 import { audio } from './classic/shim/audio';
 import { music } from './classic/shim/music';
 import { songs } from '../../remnant/src/audio/songs';
-import { registerOffline } from './game/update';
+import { registerOffline, checkForUpdates } from './game/update';
 
 const size = () => ({ w: Math.round(innerWidth * dpr()), h: Math.round(innerHeight * dpr()) });
 
@@ -38,6 +43,7 @@ const unlockAudio = () => { audio.unlock(); music.start(); };
 for (const ev of ['pointerdown', 'touchend', 'keydown', 'mousedown']) window.addEventListener(ev, unlockAudio, { capture: true, passive: true });
 void songs;
 void registerOffline();
+window.addEventListener('remnant-update-ready', () => { if (game.scene.isActive('title')) void checkForUpdates(() => {}); });
 
 // The debug API starts with the game itself (the world scene adds the rest), so the title can be driven too.
 if (new URLSearchParams(location.search).has('debug')) (window as unknown as { __remnant: unknown }).__remnant = { game, audio, music, songs };

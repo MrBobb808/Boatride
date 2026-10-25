@@ -1,0 +1,53 @@
+import { chromium } from '@playwright/test';
+import assert from 'node:assert/strict';
+import { mkdir } from 'node:fs/promises';
+import { serve } from './serve.mjs';
+const { base, close } = await serve();
+const browser = await chromium.launch({ headless: true, ...(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH } : {}) });
+const context = await browser.newContext({ viewport: { width: 956, height: 440 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
+await context.addInitScript(() => { window.vibes = []; Object.defineProperty(navigator, 'vibrate', { configurable: true, writable: true, value: pattern => { window.vibes.push(pattern); return true; } }); });
+const p = await context.newPage(); const errors = [];
+p.on('pageerror', e => errors.push(e.stack)); p.on('console', m => { if (m.type() === 'error' && !m.text().includes('404')) errors.push(m.text()); });
+const until = (fn, arg) => p.waitForFunction(fn, arg, { timeout: 15000 }).catch(e => { throw Error(e.message+'\n'+errors.join('\n')); });
+try {
+  await p.goto(base + '?debug&nostory&island=compact&autostart&fresh'); await until(() => window.__remnant?.world?.player);
+  await until(() => !!window.__remnant.game.scene.getScene('hud').islandTex);
+  assert.ok(await p.evaluate(() => window.__remnant.game.scene.getScene('hud').islandImg.visible));
+  await p.evaluate(() => window.__remnant.G.ui.openMenu('settings'));
+  await p.click('[data-k="tc_edit"]'); await p.waitForSelector('[data-ctl="attack"]');
+  const before = await p.locator('[data-ctl="attack"]').boundingBox();
+  await p.mouse.move(before.x + before.width / 2, before.y + before.height / 2); await p.mouse.down(); await p.mouse.move(before.x + before.width / 2 - 55, before.y + before.height / 2 - 18); await p.mouse.up();
+  await p.locator('[data-k="ed_size"]').evaluate(el => { el.value = '1.3'; el.dispatchEvent(new Event('input')); });
+  const chosen = await p.locator('[data-ctl="attack"]').boundingBox();
+  await p.click('[data-k="ed_done"]');
+  const actual = await p.evaluate(() => { const b = window.__remnant.game.scene.getScene('hud').btns.find(b=>b.a==='attack'); return { x:b.x/2, y:b.y/2, r:b.r/2, saved:window.__remnant.settings.touchLayout.attack }; });
+  assert.ok(actual.saved && Math.abs(actual.x - (chosen.x + chosen.width / 2)) < 2 && Math.abs(actual.r - chosen.width / 2) < 2, 'saved editor position and size match the real Phaser hit target');
+  await p.click('[data-k="menu_resume"]'); await p.reload(); await until(() => window.__remnant?.world?.player);
+  assert.ok(await p.evaluate(() => window.__remnant.settings.touchLayout.attack.s === 1.3));
+  console.log('Phone: Island HUD visible; a dragged/resized control matches its Phaser hit target and survives reload');
+  await p.evaluate(() => { const w = window.__remnant.world; w.controls.setTouch('attack', true); w.controls.setTouch('attack', false); w.player.hurt({ dmg:20,dir:1,hazard:true }); });
+  await until(() => window.vibes.length > 0);
+  console.log('Haptics: a native hero wound triggers the shared phone pattern');
+  // The full save menu can copy and resume an independent Phaser slot.
+  await p.evaluate(() => { const w = window.__remnant.world; w.save.level = 37; w.save.flags.intro_done = true; w.save.flags.ending_done = true; w.save.flags.ch1_done = true; w.persist(); window.__remnant.G.ui.openMenu('system'); });
+  await p.click('[data-k="sv2"]'); await p.click('[data-k="ld2"]'); await until(() => window.__remnant.G.slot === 2);
+  await p.evaluate(() => { window.__remnant.world.save.silver = 7654; window.__remnant.world.persist(); });
+  await p.goto(base + '?debug&nostory&island=compact&autostart'); await until(() => window.__remnant?.world?.player);
+  assert.equal(await p.evaluate(() => window.__remnant.G.slot),2); assert.equal(await p.evaluate(() => window.__remnant.world.save.silver),7654);
+  assert.notEqual(await p.evaluate(() => JSON.parse(localStorage.getItem('remnant-phaser.save.v2')).silver),7654,'slot 0 stayed independent');
+  await p.evaluate(() => window.__remnant.G.ui.openMenu('system')); await p.click('[data-k="ngp"]'); await until(() => window.__remnant.world.save.ng === 1);
+  assert.equal(await p.evaluate(() => window.__remnant.world.save.level),37); assert.equal(await p.evaluate(() => window.__remnant.world.save.silver),7654);
+  console.log('Progress: independent slot copy/load survives reload; New Game+ carries level, silver, skills and gear into a fresh journey');
+  const scaling = await p.evaluate(() => {
+    const w = window.__remnant.world;
+    w.save.ng = 0; w.loadRoom('hunt_throne', 'left'); const base = w.boss.maxHp, damage = w.boss.base;
+    w.save.ng = 1; w.loadRoom('hunt_throne', 'left');
+    return { base, damage, ngHp: w.boss.maxHp, ngDamage: w.boss.base };
+  });
+  assert.equal(scaling.ngHp, Math.round(scaling.base * 1.6)); assert.equal(scaling.ngDamage, scaling.damage * 1.6);
+  const xp = await p.evaluate(() => { const w = window.__remnant.world; w.save.level = 1; w.save.xp = 0; w.giveXp(10); return w.save.xp; });
+  assert.equal(xp, 30, 'a low-level player receives the same chapter catch-up XP');
+  console.log('Progression parity: New Game+ scales native boss health and damage; chapter catch-up XP reaches the native save');
+  await mkdir('qa',{recursive:true}); await p.screenshot({path:'qa/phone-phaser.png'});
+  assert.deepEqual(errors,[]); console.log('phaser phone/progress: all checks passed');
+} finally { await browser.close(); close(); }

@@ -24,7 +24,7 @@ try {
   // ---- keyboard
   const page = await (await browser.newContext({ viewport: { width: 1280, height: 720 } })).newPage();
   watch(page);
-  await page.goto(base + '?debug&autostart&fresh');
+  await page.goto(base + '?debug&nostory&autostart&fresh');
   await ready(page);
   await page.waitForTimeout(600);
   let s = await state(page);
@@ -92,7 +92,7 @@ try {
   // The save survives a reload.
   await W(page, () => window.__remnant.world.persist());
   const saved = await state(page);
-  await page.goto(base + '?debug&autostart');
+  await page.goto(base + '?debug&nostory&autostart');
   await ready(page);
   s = await state(page);
   assert.equal(s.room, saved.room, 'continued in the same room');
@@ -115,7 +115,7 @@ try {
   const ctx = await browser.newContext({ viewport: { width: 844, height: 390 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
   const phone = await ctx.newPage();
   watch(phone);
-  await phone.goto(base + '?debug&autostart&fresh');
+  await phone.goto(base + '?debug&nostory&autostart&fresh');
   await ready(phone);
   await phone.waitForTimeout(500);
   assert.equal(await W(phone, () => window.__remnant.controls.device), 'touch', 'phones start on touch controls');

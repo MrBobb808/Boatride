@@ -21,7 +21,7 @@ const start = async (ctx) => {
   const page = await ctx.newPage();
   page.on('pageerror', (e) => errors.push(e.message));
   page.on('console', (m) => { if (m.type() === 'error' && !m.text().includes('404')) errors.push(m.text()); });
-  await page.goto(base + '?debug&autostart&fresh');
+  await page.goto(base + '?debug&nostory&autostart&fresh');
   await until(page, () => window.__remnant?.world?.player && !window.__remnant.world.transitioning);
   await E(page, () => {
     const w = window.__remnant.world, s = w.save;

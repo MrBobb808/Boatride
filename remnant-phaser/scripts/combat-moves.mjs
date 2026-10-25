@@ -15,7 +15,7 @@ const start = async (options = {}) => {
   const p = await (await browser.newContext({ viewport: { width: 1280, height: 720 }, ...options })).newPage();
   p.on('pageerror', (e) => errors.push(e.message));
   p.on('console', (m) => { if (m.type() === 'error' && !m.text().includes('404')) errors.push(m.text()); });
-  await p.goto(base + '?debug&autostart&fresh');
+  await p.goto(base + '?debug&nostory&autostart&fresh');
   await until(p, () => window.__remnant?.world?.player);
   return p;
 };
@@ -167,14 +167,14 @@ try {
 
   // The menu swaps an occupied skill, clears a slot, and persists both.
   await p.click('[data-k="sec_elior"]');
-  await p.click('[data-k="tab_abilities"]');
+  await p.click('[data-k="tab_skills"]');
   await p.click('[data-k="ls_1"]');
   await p.click('[data-k="ab_pillar_fire"]');
   assert.deepEqual(await E(p, () => window.__remnant.world.save.equippedSkills), ['trumpet', 'pillar_fire', 'shield_faith']);
   await p.click('[data-k="ls_2"]');
   await p.click('[data-k="ability_clear"]');
   await p.click('[data-k="menu_resume"]');
-  await p.goto(base + '?debug&autostart');
+  await p.goto(base + '?debug&nostory&autostart');
   await until(p, () => window.__remnant?.world?.player);
   assert.deepEqual(await E(p, () => window.__remnant.world.save.equippedSkills), ['trumpet', 'pillar_fire', null]);
   console.log('Loadout: an occupied ability swapped, clearing persisted through reload, and spells waited during pause');

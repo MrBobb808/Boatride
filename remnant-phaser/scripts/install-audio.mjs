@@ -16,7 +16,7 @@ try {
   const p = await ctx.newPage();
   p.on('pageerror', (e) => errors.push(e.message));
   p.on('console', (m) => { if (m.type() === 'error' && !m.text().includes('404') && !m.text().includes('ERR_INTERNET_DISCONNECTED')) errors.push(m.text()); });
-  await p.goto(base + '?debug&autostart&fresh');
+  await p.goto(base + '?debug&nostory&autostart&fresh');
   await until(p, () => window.__remnant?.world?.player);
   // The first real gesture unlocks audio and primes both song decks.
   await p.touchscreen.tap(350, 360);
@@ -31,15 +31,16 @@ try {
   await p.keyboard.press('Escape');
   await until(p, () => !!document.querySelector('#ui .menu'));
   await p.tap('[data-k="sec_settings"]');
-  await p.locator('[data-k="audio_master"]').evaluate((el) => { el.value = '35'; el.dispatchEvent(new Event('input', { bubbles: true })); });
-  await p.tap('[data-k="audio_soundtrack"]');
-  await p.tap('[data-k="difficulty_normal"]');
+  await p.tap('[data-k="tab_settings"]');
+  await p.locator('[data-k="vm"]').evaluate((el) => { el.value = '0.35'; el.dispatchEvent(new Event('input', { bubbles: true })); });
+  await p.tap('[data-k="soundtrackscore"]');
+  await p.tap('[data-k="bdnormal"]');
   await until(p, () => !window.__remnant.music.holding);
   assert.equal(await E(p, () => window.__remnant.settings.master), 0.35);
   await p.screenshot({ path: 'qa/audio-phone-settings.png' });
   await p.tap('[data-k="menu_resume"]');
   await E(p, () => window.__remnant.world.persist());
-  await p.goto(base + '?debug&autostart');
+  await p.goto(base + '?debug&nostory&autostart');
   await until(p, () => window.__remnant?.world?.player);
   const prefs = await E(p, () => ({ master: window.__remnant.settings.master, soundtrack: window.__remnant.settings.soundtrack, difficulty: window.__remnant.settings.bossDifficulty }));
   assert.deepEqual(prefs, { master: 0.35, soundtrack: 'score', difficulty: 'normal' });
@@ -87,8 +88,9 @@ try {
   await p.keyboard.press('Escape');
   await until(p, () => !!document.querySelector('#ui .menu'));
   await p.tap('[data-k="sec_settings"]');
-  await p.locator('[data-k="sys_update"]').scrollIntoViewIfNeeded();
-  await p.tap('[data-k="sys_update"]');
+  await p.tap('[data-k="tab_settings"]');
+  await p.locator('[data-k="check_updates"]').scrollIntoViewIfNeeded();
+  await p.tap('[data-k="check_updates"]');
   await p.waitForURL((url) => url.searchParams.get('v') === 'phaser-test-update', { timeout: 15000 });
   await until(p, () => window.__remnant?.world?.player);
   assert.equal(await E(p, () => window.__remnant.world.save.kills), 37);

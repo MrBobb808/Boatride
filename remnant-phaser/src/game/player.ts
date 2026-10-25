@@ -12,6 +12,13 @@ import { MOVESETS, extraFor, type AttackDef } from '../../../remnant/src/game/we
 import { skillRank } from '../../../remnant/src/game/state';
 import { SKILLS, skillSlots, castSkill, type SkillId } from './abilities';
 import type { WorldApi, Blow, FoeLike } from './types';
+import { makeSwim, DASH_T, DASH_V } from '../../../remnant/src/game/swim';
+import { SWIM_SPEED, SWIM_ACCEL, FLOAT_DEPTH } from '../../../remnant/src/game/water';
+import { input } from '../../../remnant/src/core/input';
+import { G } from '../classic/shim/ctx';
+import { haptic } from '../../../remnant/src/core/haptics';
+import { valorTrack } from '../../../remnant/src/game/valor';
+import { runBlessings } from '../../../remnant/src/game/blessings';
 import type { HeroPowers } from '../classic/hero';
 
 export const GRAV = 1500;
@@ -46,6 +53,9 @@ export class Player {
   face = 1;
   powers?: HeroPowers;
   mantleT = 0;
+  scriptX: number | null = null;
+  scriptSpeed = 70;
+  water = makeSwim();
   get hp() { return this.w.save.hp; }
   set hp(v: number) { this.w.save.hp = v; }
   maxHp: number;
@@ -61,7 +71,8 @@ export class Player {
   mendT = 0;
   veiled = 0;
   untouchable = 0;
-  private unharmed = 0;
+  sinceHurt = 0;
+  private vigilParryCd = 0;
   private airAttacks = 0;
   private airDash = 1;
   private airJumps = 0;
@@ -119,12 +130,14 @@ export class Player {
     this.face = face;
   }
 
+  die() { if (this.dead) return; this.hp = 0; this.state = 'dead'; this.st = 0; this.body.setVelocity(0, -120); }
+
   get x() { return this.body.center.x; }
   get feet() { return this.body.bottom; }
   get y() { return this.body.center.y; }
   get dead() { return this.state === 'dead'; }
   get onGround() { return this.body.blocked.down || this.body.touching.down; }
-  get vulnerable() { return this.invuln <= 0 && this.untouchable <= 0 && !['dead', 'phantom', 'execute', 'transform'].includes(this.state) && !(this.state === 'attack' && ['pstrike', 'cross'].includes(this.atk.id) && this.st < 0.12) && !(this.state === 'dodge' && this.st < DODGE_T - 0.04) && !(this.state === 'airdash' && this.st < 0.15); }
+  get vulnerable() { return !(this.water.swimming && this.water.dashT > 0.06 && this.water.dashT < 0.28) && this.invuln <= 0 && this.untouchable <= 0 && !['dead', 'phantom', 'execute', 'transform'].includes(this.state) && !(this.state === 'attack' && ['pstrike', 'cross'].includes(this.atk.id) && this.st < 0.12) && !(this.state === 'dodge' && this.st < DODGE_T - 0.04) && !(this.state === 'airdash' && this.st < 0.15); }
   get ce() { return this.w.save.ce; }
   get moves() { return MOVESETS[this.w.d.family]; }
   /** A blow's base: the original's attack from stats and gear, its melee multiplier and the level's power tier. */
@@ -138,7 +151,7 @@ export class Player {
   placeAt(x: number, feet: number, face = this.face) {
     this.body.reset(x, feet - 17);
     this.face = face;
-    this.state = 'free';
+    this.state = this.water.swimming ? 'swim' : 'free';
     this.st = 0;
     this.body.setVelocity(0, 0);
     this.queued = this.heavyQueued = false;
@@ -168,6 +181,7 @@ export class Player {
   update(dt: number) {
     const c = this.w.controls, b = this.body, s = this.w.save;
     this.st += dt;
+    this.vigilParryCd = Math.max(0, this.vigilParryCd - dt);
     this.invuln = Math.max(0, this.invuln - dt);
     this.dodgeCd = Math.max(0, this.dodgeCd - dt);
     this.parryT = Math.max(0, this.parryT - dt);
@@ -176,16 +190,16 @@ export class Player {
     this.shieldT = Math.max(0, this.shieldT - dt);
     this.counterT = Math.max(0, this.counterT - dt);
     this.dropT = Math.max(0, this.dropT - dt);
-    for (const k of Object.keys(SKILLS) as SkillId[]) this.cds[k] = Math.max(0, this.cds[k] - dt * this.w.d.skillRecharge);
+    for (const k of Object.keys(SKILLS) as SkillId[]) this.cds[k] = Math.max(0, this.cds[k] - dt * this.w.d.skillRecharge * runBlessings.recharge);
     this.lion = Math.max(0, this.lion - dt);
     this.armorLight = Math.max(0, this.armorLight - dt);
     this.veiled = Math.max(0, this.veiled - dt);
     this.untouchable = Math.max(0, this.untouchable - dt);
-    this.unharmed += dt;
+    this.sinceHurt += dt;
     if (!this.dead) {
       const mend = Math.min(dt, this.mendT);
       this.mendT = Math.max(0, this.mendT - dt);
-      this.hp = Math.min(this.maxHp, this.hp + this.maxHp * (mend * 0.03 + (this.unharmed >= 4 ? this.w.d.hpRegen * dt : 0)));
+      this.hp = Math.min(this.maxHp, this.hp + this.maxHp * (mend * 0.03 + (this.sinceHurt >= 4 ? this.w.d.hpRegen * dt : 0)));
     }
     this.sinceDodge += dt;
     this.recentHit = Math.max(0, this.recentHit - dt);
@@ -196,16 +210,21 @@ export class Player {
     this.comboT = Math.max(0, this.comboT - dt);
     if (!this.comboT) this.comboHits = 0;
     if (this.onGround) { this.airAttacks = 0; this.airDash = 1; this.airJumps = s.keyItems.includes('eagle_wings') ? 1 : 0; }
-    if (this.state !== 'dead') s.ce = Math.min(this.maxCe, s.ce + CE_REGEN * this.w.d.ceRegen * dt);
+    if (this.state !== 'dead' && (s.flags.relic_taken || !this.powers?.L.storyEnabled)) s.ce = Math.min(this.maxCe, s.ce + CE_REGEN * this.w.d.ceRegen * dt);
     this.coyote = this.onGround ? COYOTE : Math.max(0, this.coyote - dt);
     this.jumpBuf = c.pressed('jump') ? BUFFER : Math.max(0, this.jumpBuf - dt);
 
     if (this.state === 'dead') { b.setVelocityX(b.velocity.x * 0.9); this.draw(); return; }
+    this.powers?.senseWater(dt);
     if (this.powers?.update(dt)) { this.draw(dt); return; }
 
+    if (this.scriptX !== null) { const dx = this.scriptX - this.x; if (Math.abs(dx) < 3) { this.scriptX = null; b.setVelocityX(0); } else { this.face = Math.sign(dx); b.setVelocityX(this.face * this.scriptSpeed); } this.draw(dt); return; }
+    if (G.inCutscene && this.state === 'free') { b.setVelocityX(0); this.draw(dt); return; }
+    if (!G.inCutscene && this.powers) this.powers.clip = '';
+    if (this.state === 'swim') { this.swim(dt); this.draw(dt); return; }
     // Short hops: letting go of jump on the way up pulls Elior down sooner.
     const airSwing = (this.state === 'attack' || this.state === 'charge') && !this.onGround;
-    b.setGravityY(this.state === 'phantom' || this.state === 'airdash' ? 0 : airSwing && this.atk.id !== 'rend' ? GRAV * 0.35 : b.velocity.y < 0 && !c.down('jump') ? GRAV * 1.9 : GRAV);
+    b.setGravityY(this.water.swimming ? 0 : this.state === 'phantom' || this.state === 'airdash' ? 0 : airSwing && this.atk.id !== 'rend' ? GRAV * 0.35 : b.velocity.y < 0 && !c.down('jump') ? GRAV * 1.9 : GRAV);
 
     switch (this.state) {
       case 'free': {
@@ -331,6 +350,7 @@ export class Player {
 
   private trySkill() {
     const c = this.w.controls, s = this.w.save;
+    if (this.powers?.L.storyEnabled && !s.flags.relic_taken) return false;
     const n = c.pressed('skill1') ? 0 : c.pressed('skill2') ? 1 : c.pressed('skill3') ? 2 : -1;
     if (n < 0) return false;
     const id = skillSlots(s)[n];
@@ -357,7 +377,7 @@ export class Player {
   }
 
   private toFree() {
-    this.state = 'free';
+    this.state = this.water.swimming ? 'swim' : 'free';
     this.st = 0;
     this.slash.setVisible(false);
   }
@@ -402,6 +422,13 @@ export class Player {
 
   private updateAttack(dt: number) {
     const a = this.atk, c = this.w.controls, b = this.body, m = this.moves, u = this.st / a.t;
+    if (this.water.swimming) {
+      b.setVelocityX(b.velocity.x * Math.exp(-3 * dt));
+      if (u >= a.hit[0] && (this.st - dt) / a.t <= a.hit[1]) this.strike();
+      if (c.pressed('dodge')) { this.swimDash(); return; }
+      if (u >= 1) this.toFree();
+      return;
+    }
     if (c.pressed('attack')) this.queued = true;
     if (c.pressed('heavy')) this.heavyQueued = true;
     if (a.dive && u >= a.hit[0]) b.setVelocity(this.face * 230, Math.max(470, b.velocity.y));
@@ -497,6 +524,7 @@ export class Player {
   private startHeal() {
     const s = this.w.save;
     if (!this.onGround) return;
+    if (this.powers?.L.story.ch3.rounds.balmSealed) { this.w.toast('Balm is sealed by this run’s rules.'); return; }
     if (s.balm <= 0) { this.w.floatText(this.x, this.body.top - 8, 'No Balm left: rest at an altar', '#ff9a9a'); return; }
     if (this.hp >= this.maxHp) return;
     s.balm--;
@@ -602,6 +630,31 @@ export class Player {
   }
 
   /** The blade's reach this frame, in front of Elior. */
+  private swimDash() {
+    const w = this.water, dx = input.axisX, dy = input.axisY, len = Math.hypot(dx, dy);
+    if (w.dashCd > 0) return;
+    w.dirX = len < 0.2 ? this.face : dx / len; w.dirY = len < 0.2 ? 0 : dy / len;
+    w.dashT = DASH_T; w.dashCd = 0.5; this.state = 'swim'; this.w.playEffect('dash');
+  }
+  private swim(dt: number) {
+    const w = this.water, b = this.body, c = this.w.controls;
+    b.setGravityY(0); let mx = input.axisX, my = input.axisY, len = Math.hypot(mx, my);
+    if (len < 0.2) mx = my = 0; else if (len > 1) { mx /= len; my /= len; }
+    if (mx) this.face = Math.sign(mx);
+    if (w.dashT > 0) { w.dashT = Math.max(0, w.dashT - dt); const k = 0.45 + 0.55 * w.dashT / DASH_T; b.setVelocity(w.dirX * DASH_V * k + w.flowX, w.dirY * DASH_V * k + w.flowY); }
+    else { const speed = SWIM_SPEED * this.w.d.speed, rest = w.surface + FLOAT_DEPTH;
+      const vy = (Math.abs(my) > 0.25 ? my * speed : w.air ? Phaser.Math.Clamp((rest - this.feet) * 3, -26, 80) : -26) + w.flowY;
+      const approach = (n: number, target: number) => n + Phaser.Math.Clamp(target - n, -SWIM_ACCEL * dt, SWIM_ACCEL * dt);
+      b.setVelocity(approach(b.velocity.x, mx * speed + w.flowX), approach(b.velocity.y, w.air && vy < 0 ? Math.max(vy, (rest - this.feet) * 4) : vy)); }
+    if (my > 0.5) this.dropT = 0.1;
+    if (c.pressed('jump')) { if (w.air && this.feet - (w.surface + FLOAT_DEPTH) < 12) { w.breachT = 0.4; w.swimming = false; this.state = 'free'; b.setVelocityY(-440); b.setGravityY(GRAV); this.airJumps = this.w.save.keyItems.includes('eagle_wings') ? 1 : 0; this.airDash = 1; this.w.playEffect('splash'); }
+      else if (w.strokeCd <= 0) { b.setVelocityY(-210); w.strokeCd = 0.28; this.w.playEffect('swimStroke'); } }
+    if (c.pressed('dodge')) this.swimDash();
+    else if (c.pressed('parry')) this.startParry();
+    else if (c.pressed('attack')) this.startMove({ ...this.moves.combo[0], dur: this.moves.combo[0].dur / 0.72, lunge: 0, ky: 0, launch: false });
+    else if (['heavy', 'sub', 'heal', 'ultimate', 'transform', 'skill1', 'skill2', 'skill3'].some(a => c.pressed(a as import('./controls').Action)) && w.deniedT <= 0) { w.deniedT = 1.2; this.w.toast('Not under water. Swim, thrust, parry or dash-stroke.'); }
+  }
+
   private blade() {
     const a = this.atk, reach = a.box.w * (this.w.d.family === 'spear' ? 1 : this.moves.reach) + (a.heavy ? 30 : 0);
     const x = this.face > 0 ? this.x + a.box.x : this.x - a.box.x - reach;
@@ -621,14 +674,17 @@ export class Player {
       // Arriving from a swap: the first blow carries the momentum.
       const swap = this.swapStrikeT > 0 ? 1.5 : 1;
       const force = this.atk.force * this.atkMult * (counter ? 1.5 : 1) * swap;
+      const beforeHp = f.hp;
       if (f.hit(Math.round(dmg * swap), this.face, force, crit, { poise: this.atk.poise * this.atkMult * this.w.d.heavyPoiseMult, kx: this.atk.kx * this.face, ky: this.atk.ky, launch: this.atk.launch, heavy: this.atk.heavy, guardBreak: this.atk.guardBreak })) {
-        this.w.heroHit(f, Math.round(dmg * swap), this.atk.heavy);
+        haptic('hit');
+        const dealt = beforeHp !== undefined && f.hp !== undefined ? Math.max(0, beforeHp - f.hp) : Math.round(dmg * swap);
+        this.w.heroHit(f, dealt, this.atk.heavy, crit);
         this.counterT = 0;
         this.swapStrikeT = 0;
         this.recentHit = 0.65;
         this.comboHits++; this.comboT = 1.7;
         this.w.save.bestCombo = Math.max(this.w.save.bestCombo ?? 0, this.comboHits);
-        this.w.save.ce = Math.min(this.maxCe, this.w.save.ce + CE_HIT * (1 + skillRank(this.w.save, 'l_radiance') * 0.3));
+        if (this.w.save.flags.relic_taken || !this.powers?.L.storyEnabled) this.w.save.ce = Math.min(this.maxCe, this.w.save.ce + CE_HIT * (1 + skillRank(this.w.save, 'l_radiance') * 0.3));
         if (this.atk.hang && !this.onGround) this.body.setVelocityY(Math.min(this.body.velocity.y, this.atk.hang));
         if (this.w.d.lifesteal) this.hp = Math.min(this.maxHp, this.hp + dmg * swap * this.w.d.lifesteal);
         this.w.hitstop(this.atk.heavy ? 0.08 : this.combo === 2 || crit ? 0.06 : 0.04);
@@ -657,6 +713,9 @@ export class Player {
       h.src?.parried();
       this.w.spark(this.x + this.face * 10, this.y - 6, 0xfff6dc, 16);
       this.w.floatText(this.x, this.body.top - 10, 'PARRY', '#fff1c4');
+      this.powers?.onParry();
+      if (this.w.d.sets.vigil >= 3 && this.vigilParryCd <= 0) { this.vigilParryCd = 3; this.hp = Math.min(this.maxHp, this.hp + this.maxHp * 0.05); this.w.save.ce = Math.min(this.maxCe, this.w.save.ce + 8); }
+      valorTrack.parry(); haptic('parry'); input.rumble(0.7, 0.5, 150);
       this.w.playEffect('parryPerfect');
       this.w.hitstop(0.08);
       this.w.shake(0.004, 100);
@@ -664,19 +723,20 @@ export class Player {
     }
     // The original's armour: damage reduction from Endurance and gear (half of it against hazards).
     const dr = this.w.d.dr * (h.hazard ? 0.5 : 1);
-    let dmg = h.dmg * (1 - dr) * (this.armorLight > 0 ? 0.6 : 1) * (this.mantleT > 0 ? 0.5 : 1);
+    let dmg = h.dmg * runBlessings.incoming * (1 - dr) * (this.armorLight > 0 ? 0.6 : 1) * (this.mantleT > 0 ? 0.5 : 1) * (this.powers?.guardAura ?? 1);
     if (!h.hazard && !h.unblockable && (this.state === 'block' || this.state === 'parry') && facing) {
       dmg = Math.max(1, Math.round(dmg * 0.25));
-      this.hp = Math.max(1, this.hp - dmg);
+      this.hp = Math.max(0, this.hp - dmg); this.sinceHurt = 0; if (this.hp <= 0) this.die();
       this.w.floatText(this.x, this.body.top - 6, String(dmg), '#e8c8a0');
       this.w.spark(this.x + this.face * 8, this.y - 4, 0xffe6a8, 6);
       this.body.setVelocityX(-this.face * 80);
       return true;
     }
     dmg = Math.max(1, Math.round(dmg));
+    valorTrack.hurt(); haptic('hurt'); input.rumble(0.5, 0.2, 120);
     this.w.playEffect('hurt');
     this.hp = Math.max(0, this.hp - dmg);
-    this.unharmed = 0;
+    this.sinceHurt = 0;
     this.w.floatText(this.x, this.body.top - 6, String(dmg), '#ff6a6a');
     this.w.shake(0.006, 140);
     this.invuln = 0.9;
@@ -724,7 +784,7 @@ export class Player {
     // Blink while invulnerable after a blow.
     this.sprite.setAlpha(this.invuln > 0 && this.state !== 'dead' && Math.floor(this.invuln * 20) % 2 === 0 ? 0.35 : 1);
     if (this.state === 'dead') this.sprite.setAngle(this.face * -Math.min(80, this.st * 300));
-    else this.sprite.setAngle(0);
+    else this.sprite.setAngle(this.water.swimming && vx > 25 ? this.face * Math.min(65, vx * 0.45) : 0);
     // The blade's arc shows from the moment it lands until the swing ends.
     const u = this.state === 'attack' ? this.st / this.atk.t : 0;
     const show = this.state === 'attack' && u >= this.atk.hit[0] && u <= this.atk.hit[1] + 0.15;
@@ -741,6 +801,7 @@ export class Player {
     }
     // Charge glow, the parry flash, the shield bubble.
     const g = this.aura.clear();
+    if (this.water.showT > 0) { const f = this.water.breath / 20; g.lineStyle(1.8, f < 0.3 ? 0xff6a6a : 0x8fdcff, this.water.showT).beginPath().arc(this.x + this.face * 16, this.feet - 43, 6, -Math.PI / 2, -Math.PI / 2 + Math.max(0.001, f) * Math.PI * 2).strokePath(); }
     if (this.state === 'charge') {
       const r = 10 + this.chargeLvl * 6 + Math.sin(this.st * 30) * 1.5;
       g.lineStyle(1.5, this.chargeLvl >= 2 ? 0xfff1c4 : 0xe8c27a, 0.8).strokeCircle(b.center.x, b.center.y, r);

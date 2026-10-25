@@ -27,7 +27,7 @@ const until = (page, fn, arg, timeout = 15000) => page.waitForFunction(fn, arg, 
 const open = async (ctx) => {
   const page = await ctx.newPage();
   watch(page);
-  await page.goto(base + '?debug&autostart&fresh');
+  await page.goto(base + '?debug&nostory&autostart&fresh');
   await until(page, () => window.__remnant?.world?.player && !window.__remnant.world.transitioning);
   // Elior is kept alive: these checks are about the bosses, not about surviving them.
   await E(page, () => { const w = window.__remnant.world; w.save.level = 40; setInterval(() => { const p = window.__remnant.world.player; if (!p.dead) p.hp = p.maxHp; }, 30); });

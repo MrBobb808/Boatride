@@ -83,6 +83,7 @@ function keyFace(l: Lesson) {
 }
 
 function light(on: boolean) {
+  document.dispatchEvent(new CustomEvent('remnant-coach', { detail: on && cur ? cur.act : null }));
   lit?.classList.remove('coach-hl');
   lit = on && cur && input.lastDevice === 'touch' ? document.querySelector(`#touch .tc[aria-label="${cur.touch}"]`) : null;
   lit?.classList.add('coach-hl');

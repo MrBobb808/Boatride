@@ -3,12 +3,14 @@
 import Phaser from 'phaser';
 import { G } from './shim/ctx';
 import { sfx } from './shim/audio';
+import { runBlessings } from '../../../remnant/src/game/blessings';
+import { senseWater } from '../../../remnant/src/game/swim';
 import { Enemy } from '../../../remnant/src/game/enemies';
 import type { Entity } from '../../../remnant/src/game/entity';
 import type { Player as OriginalPlayer } from '../../../remnant/src/game/player';
 import { beginFinisher, updateFinisher, killBlow, riseAsShadow, type FinState } from '../../../remnant/src/game/finishers';
 import { powerTier, weaponElement, ELEMENTS, elementHit } from '../../../remnant/src/game/power';
-import { mantleDuration, mantleTier } from '../../../remnant/src/game/mantle';
+import { mantleDuration, mantleTier, mantleGain } from '../../../remnant/src/game/mantle';
 import { throwSub } from '../../../remnant/src/game/subweapons';
 import { ChainBlade } from '../../../remnant/src/game/chain';
 import { alternateSuper, selectedSuper, superTarget } from '../../../remnant/src/game/supers';
@@ -21,6 +23,7 @@ const ELEMENT_COLORS = Object.fromEntries(Object.entries(ELEMENTS).map(([id, e])
 
 export class HeroPowers {
   fin: FinState | null = null;
+  mantleMax = 1;
   subCd = 0;
   weaponFlight: ChainBlade | null = null;
   private throwCd = 0;
@@ -46,15 +49,17 @@ export class HeroPowers {
     if (!this.clip) return null;
     return /Leap|launch/.test(this.clip) ? 8 : /invoke|cast|charge/.test(this.clip) ? 15 : /dash/.test(this.clip) ? 12 : 11;
   }
+  senseWater(dt: number) { senseWater(this.actor, dt); }
   gain(n: number) {
+    if (this.L.storyEnabled && !this.L.host.save.flags.relic_taken) return;
     const s = this.L.host.save;
     s.rally = Math.min(100, s.rally + n * this.L.host.d.rallyMult);
-    if (s.level >= 25 && this.p.mantleT <= 0) s.mantle = Math.min(100, (s.mantle ?? 0) + n * (s.level >= 100 ? 1.5 : s.level >= 50 ? 1.25 : 1));
+
   }
   /** Called once before the hero's ordinary state machine. */
   update(dt: number) {
     const p = this.p, w = this.L.host, c = w.controls, s = w.save;
-    this.subCd = Math.max(0, this.subCd - dt); this.throwCd = Math.max(0, this.throwCd - dt); this.pursuitCd = Math.max(0, this.pursuitCd - dt);
+    this.subCd = Math.max(0, this.subCd - dt); const recharge = dt * runBlessings.recharge * w.d.pursuitRecharge; this.throwCd = Math.max(0, this.throwCd - recharge); this.pursuitCd = Math.max(0, this.pursuitCd - recharge);
     if (s.level >= 25 && !s.flags.mantle_known) { s.flags.mantle_known = true; s.mantle = 100; w.toast('Shadow Mantle awakened · G / the MANTLE button'); }
     if (p.mantleT > 0 && p.state !== 'transform' && !G.inCutscene) {
       p.mantleT = Math.max(0, p.mantleT - dt);
@@ -75,7 +80,7 @@ export class HeroPowers {
     if (p.state === 'transform') {
       this.transformT += dt; p.body.setGravityY(0).setVelocity(0, this.transformT < 0.72 ? -12 : 0);
       if (this.transformT >= 0.72 && !this.transformed) {
-        this.transformed = true; p.mantleT = mantleDuration();
+        this.transformed = true; p.mantleT = this.mantleMax = mantleDuration();
         fx.veilBurst(p.x, p.y, 35, 1.8); fx.column(p.x, p.feet, 44, 440, '#6f7bff', 1); fx.ring(p.x, p.y, 6, 150, '#a9b4ff', 0.7, 5);
         this.L.hitEnemies({ x: p.x - 140, y: p.feet - 100, w: 280, h: 120 }, { dmg: w.d.atk * 2.2 * this.multiplier, poise: 90, kx: p.face * 340, ky: -240, dir: p.face, kind: 'ability', src: this.actor, guardBreak: true }, new Set());
         w.shake(0.012, 400); this.L.slowmo(0.4, 0.4); w.banner('SHADOW MANTLE', `${Math.round(p.mantleT)} seconds · pursuit, throw and free Phantom Steps`);
@@ -97,7 +102,7 @@ export class HeroPowers {
       if (this.superT >= 2.7) { this.superT = -1; this.superFoe = null; this.clip = ''; G.inCutscene = false; w.hud.cinematicBars(false); p.releaseState(); }
       this.render(); return true;
     }
-    if (!G.inCutscene && !['hurt', 'heal', 'plunge', 'phantom', 'swim'].includes(p.state)) {
+    if (!p.water.swimming && !G.inCutscene && !['hurt', 'heal', 'plunge', 'phantom', 'swim'].includes(p.state)) {
       if (c.pressed('transform') && this.tryTransform()) { this.render(); return true; }
       if (c.pressed('ultimate') && this.trySuper()) { this.render(); return true; }
       if (c.pressed('sub') || c.pressed('heavy') && c.down('up')) {
@@ -126,15 +131,20 @@ export class HeroPowers {
     if (!e) return false;
     p.state = 'execute'; this.fin = beginFinisher(this.actor, e); return true;
   }
-  onHit(e: Entity, damage: number, heavy: boolean) {
+  get guardAura() { return this.L.guardianAura(this.p.x, this.p.feet); }
+  onParry() { this.gain(10); mantleGain(8); }
+  onHit(e: Entity, damage: number, heavy: boolean, crit = false) {
+    this.L.playerView.practiceHit(e, damage, heavy);
+    mantleGain(crit ? 1.7 : 1.1);
     const el = weaponElement();
     if (el) elementHit(e, el, damage, this.p.face, heavy, damage);
     if (this.p.mantleT > 0 && el !== 'shadow') elementHit(e, 'shadow', damage * 0.6, this.p.face, heavy, damage);
     this.gain(1.4);
     if (heavy) this.L.echoAssist(e);
-    if (e.dying) { killBlow(this.actor, e, -1.2, 0.8); this.gain(5); if (this.p.mantleT > 0 && Math.random() < 0.4) this.L.after(0.6, () => riseAsShadow(e)); }
+    if (e.dying) { killBlow(this.actor, e, -1.2, 0.8); mantleGain(4); if (this.p.mantleT > 0 && Math.random() < 0.4) this.L.after(0.6, () => riseAsShadow(e)); }
   }
   onSwing(heavy: boolean, air: boolean) {
+    if (this.p.water.swimming) return;
     this.waveN++;
     const tier = powerTier(), p = this.p;
     if (p.mantleT > 0 && this.pursuitCd <= 0) {

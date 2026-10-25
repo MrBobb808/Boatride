@@ -22,7 +22,7 @@ const E = (page, fn, arg) => page.evaluate(fn, arg);
 const dummy = async (page, opts = {}) => {
   const hp = await place(page, opts);
   // Settled on the floor and free, so the next press is not lost to the frame after placement.
-  await page.waitForFunction(() => { const p = window.__remnant.world.player; return p.onGround && p.state === 'free'; }, null, { timeout: 5000 });
+  await page.waitForFunction(() => { const p = window.__remnant.world.player; return p.onGround && p.state === 'free' && p.parryCd <= 0; }, null, { timeout: 5000 });
   return hp;
 };
 const place = (page, opts) => E(page, (o) => {
@@ -49,7 +49,7 @@ const foeHp = (page) => E(page, () => window.__remnant.world.classic.ents.find((
 try {
   const page = await (await browser.newContext({ viewport: { width: 1280, height: 720 } })).newPage();
   watch(page);
-  await page.goto(base + '?debug&autostart&fresh');
+  await page.goto(base + '?debug&nostory&autostart&fresh');
   await ready(page);
   await E(page, () => window.__remnant.warp('ashen_road', 'left'));
   await page.waitForFunction(() => window.__remnant.world.room.id === 'ashen_road' && !window.__remnant.world.transitioning);
@@ -59,9 +59,11 @@ try {
   let hp0 = await dummy(page);
   const taps = [];
   for (let i = 0; i < 3; i++) {
+    await dummy(page);
     const before = await foeHp(page);
     await page.keyboard.press('KeyJ');
-    await page.waitForTimeout(420);
+    await page.waitForFunction(b => window.__remnant.world.classic.ents.find(e => e.kind === 'husk' && !e.remove).hp < b, before, { timeout: 5000 });
+    await page.waitForFunction(() => window.__remnant.world.player.state === 'free', null, { timeout: 5000 });
     taps.push(before - (await foeHp(page)));
   }
   await dummy(page);
@@ -72,7 +74,7 @@ try {
   const charge = await E(page, () => ({ st: window.__remnant.world.player.state, lvl: window.__remnant.world.player.chargeLvl }));
   await page.screenshot({ path: 'qa/combat-charge.png' });
   await page.keyboard.up('KeyK');
-  await page.waitForTimeout(600);
+  await page.waitForFunction(b => window.__remnant.world.classic.ents.find(e => e.kind === 'husk' && !e.remove).hp < b, beforeHeavy, { timeout: 8000 });
   const heavy = beforeHeavy - (await foeHp(page));
   assert.equal(charge.st, 'charge');
   assert.equal(charge.lvl, 2, 'held a second: full charge');
@@ -102,7 +104,7 @@ try {
   assert.ok(parry.counter > 0, 'a counter window opens');
   const beforeCounter = await foeHp(page);
   await page.keyboard.press('KeyJ');
-  await page.waitForTimeout(400);
+  await page.waitForFunction(b => window.__remnant.world.classic.ents.find(e => e.kind === 'husk' && !e.remove).hp < b, beforeCounter, { timeout: 8000 });
   const counter = beforeCounter - (await foeHp(page));
   // A counter: critical (×1.6) and half again (×1.5).
   assert.ok(counter > Math.min(...taps) * 2, `the counter (${counter}) is far heavier than a tap (${taps})`);
@@ -139,7 +141,7 @@ try {
   });
   await page.waitForTimeout(100);
   await page.keyboard.press('KeyH');
-  await page.waitForTimeout(1000);
+  await page.waitForFunction(hp => window.__remnant.world.player.hp > hp, balm.hp, { timeout: 8000 });
   let s = await E(page, () => ({ hp: window.__remnant.world.player.hp, balm: window.__remnant.world.save.balm }));
   assert.equal(s.balm, balm.balm - 1, 'one flask spent');
   assert.equal(s.hp, balm.hp + Math.round(balm.max * 0.42), 'healed 42%');
@@ -164,7 +166,7 @@ try {
   await dummy(page, { gap: 40, ce: 100 });
   before = await foeHp(page);
   await page.keyboard.press('KeyE');
-  await page.waitForTimeout(300);
+  await page.waitForFunction(b => window.__remnant.world.classic.ents.find(e => e.kind === 'husk' && !e.remove).hp < b, before, { timeout: 8000 });
   const horn = await E(page, () => { const f = window.__remnant.world.foes()[0]; return { st: f.e.state, ce: window.__remnant.world.save.ce }; });
   assert.ok(before - (await foeHp(page)) > 0, 'the Trumpet strikes nearby foes');
   assert.equal(horn.st, 'stagger', 'and staggers them');
@@ -186,7 +188,7 @@ try {
   const ctx = await browser.newContext({ viewport: { width: 844, height: 390 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
   const phone = await ctx.newPage();
   watch(phone);
-  await phone.goto(base + '?debug&autostart&fresh');
+  await phone.goto(base + '?debug&nostory&autostart&fresh');
   await ready(phone);
   await phone.waitForTimeout(400);
   const btn = (a) => E(phone, (a) => { const b = window.__remnant.game.scene.getScene('hud').btns.find((b) => b.a === a); return [b.x / 2, b.y / 2]; }, a);

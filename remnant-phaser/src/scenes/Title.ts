@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { loadSave, liveSlots, importLive } from '../game/save';
+import { loadSave, liveSlots, importLive, activeSlot, selectSlot } from '../game/save';
 import { ROOMS } from '../shared';
 import { dpr } from '../game/screen';
 import { music } from '../classic/shim/music';
@@ -13,21 +13,26 @@ export class Title extends Phaser.Scene {
     music.play('title');
     const { width: W, height: H } = this.scale;
     const k = dpr();
+    const save = loadSave(), liveList = liveSlots(), count = (save ? 2 : 1) + liveList.length, ty = count > 3 ? H * 0.15 : H * 0.27;
     this.cameras.main.setBackgroundColor('#07060a');
     const glow = this.add.image(W / 2, H * 0.38, 'glow').setTint(0xe2b85a).setScale(10 * k, 4 * k).setAlpha(0.25).setBlendMode(Phaser.BlendModes.ADD);
     this.tweens.add({ targets: glow, alpha: 0.4, yoyo: true, repeat: -1, duration: 2400, ease: 'Sine.inOut' });
     const big = Math.max(26, Math.min(56, W / k / 16)) * k;
-    this.add.text(W / 2, H * 0.34, 'REMNANT', { fontFamily: 'Cinzel, Georgia, serif', fontSize: `${big}px`, color: '#f6dea0', fontStyle: 'bold' }).setOrigin(0.5).setLetterSpacing(big * 0.3);
-    this.add.text(W / 2, H * 0.34 + big * 0.95, 'ASCENSION', { fontFamily: 'Cinzel, Georgia, serif', fontSize: `${big * 0.42}px`, color: '#e2b85a' }).setOrigin(0.5).setLetterSpacing(big * 0.3);
-    this.add.text(W / 2, H * 0.34 + big * 1.6, 'Phaser · combat, Echoes & audio', { fontFamily: 'Georgia, serif', fontStyle: 'italic', fontSize: `${14 * k}px`, color: '#9b92a6' }).setOrigin(0.5);
+    this.add.text(W / 2, ty, 'REMNANT', { fontFamily: 'Cinzel, Georgia, serif', fontSize: `${big}px`, color: '#f6dea0', fontStyle: 'bold' }).setOrigin(0.5).setLetterSpacing(big * 0.3);
+    this.add.text(W / 2, ty + big * 0.95, 'ASCENSION', { fontFamily: 'Cinzel, Georgia, serif', fontSize: `${big * 0.42}px`, color: '#e2b85a' }).setOrigin(0.5).setLetterSpacing(big * 0.3);
+    this.add.text(W / 2, ty + big * 1.6, 'Ten chapters · One covenant', { fontFamily: 'Georgia, serif', fontStyle: 'italic', fontSize: `${14 * k}px`, color: '#9b92a6' }).setOrigin(0.5);
     this.add.text(W / 2, H - 8 * k, installedBuild(), { fontFamily: 'Georgia, serif', fontSize: `${9 * k}px`, color: '#776c83' }).setOrigin(0.5, 1);
-    const save = loadSave();
     const opts: [string, () => void][] = [];
     if (save) opts.push([`Continue · level ${save.level}`, () => this.scene.start('world', { fresh: false })]);
-    opts.push([save ? 'New journey' : 'Begin', () => this.scene.start('world', { fresh: true })]);
+    let newArmed = false;
+    opts.push([save ? 'New journey' : 'Begin', () => {
+      const empty = [0, 1, 2].find(slot => !localStorage.getItem(slot === 0 ? 'remnant-phaser.save.v2' : `remnant-phaser.save.slot${slot}`));
+      if (save && empty === undefined && !newArmed) { newArmed = true; texts[save ? 1 : 0].setText(`Tap again: replace slot ${activeSlot() + 1}`); return; }
+      if (empty !== undefined) selectSlot(empty); this.scene.start('world', { fresh: true });
+    }]);
     // The live game's slots share this origin's storage: copy one in (the live slot is untouched).
     let armed = -1;
-    for (const { slot, save: live } of liveSlots()) {
+    for (const { slot, save: live } of liveList) {
       const where = ROOMS[live.room]?.name ?? live.room;
       const label = `Bring live slot ${slot + 1} · level ${live.level} · ${where}`;
       const i = opts.length;
@@ -37,7 +42,7 @@ export class Title extends Phaser.Scene {
         if (importLive(slot)) this.scene.start('world', { fresh: false });
       }]);
     }
-    const step = 44 * k, y0 = Math.min(H * 0.62, H - opts.length * step - 12 * k);
+    const step = (count > 4 ? 38 : 44) * k, y0 = Math.min(H * (count > 3 ? 0.48 : 0.62), H - opts.length * step - 12 * k);
     const texts: Phaser.GameObjects.Text[] = [];
     opts.forEach(([label, go], i) => {
       const t = this.add.text(W / 2, y0 + i * step, label, { fontFamily: 'Cinzel, Georgia, serif', fontSize: `${(i < 2 ? 18 : 13) * k}px`, color: i === 0 ? '#f6dea0' : '#ddd4c6', backgroundColor: 'rgba(20,14,24,0.7)', padding: { x: 18 * k, y: 8 * k } })

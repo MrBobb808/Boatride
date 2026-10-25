@@ -125,7 +125,7 @@ export function openMenu(t?: string, settingsOnly = false) {
   tabsEl = h('div', { class: 'tabs', role: 'tablist' });
   railEl = h('div', { class: 'menu-rail', role: 'tablist', 'aria-label': 'Menu sections' });
   bodyEl = h('div', { class: 'menu-body' });
-  const close = btn(only ? 'Done' : 'Resume', () => closeMenu(), 'btn small menu-close');
+  const close = btn(only ? 'Done' : 'Resume', () => closeMenu(), 'btn small menu-close', { 'data-k': 'menu_resume' });
   menuEl = h('div', { class: 'menu sectioned' + (only ? ' only' : '') }, railEl, h('div', { class: 'menu-main' }, h('div', { class: 'menu-top' }, tabsEl, close), bodyEl));
   document.getElementById('ui')!.appendChild(menuEl);
   installTips(menuEl);
@@ -627,6 +627,7 @@ function echoesTab() {
         else if (s.active.length < d.echoSlots) s.active.push(sel.uid);
         syncArmy();
       }, 'btn', { disabled: !canActivate, 'data-k': 'ec_act' }),
+      btn((s.squadPick ?? []).includes(sel.uid) ? 'Remove from squad pick' : 'Add to squad pick', () => { const pick = s.squadPick ?? []; s.squadPick = pick.includes(sel.uid) ? pick.filter(u => u !== sel.uid) : [...pick, sel.uid]; G.world.autosave(true); render(); }, 'btn', { 'data-k': 'ec_squad' }),
       skillRank(s, 'c_warden') ? btn(sel.commander ? 'Relieve command' : 'Promote to Commander', () => {
         const was = sel.commander;
         for (const e of s.echoes) e.commander = false;
@@ -1038,6 +1039,7 @@ let confirmQuit = false;
 function systemTab() {
   const s = G.save;
   const slots = listSlots();
+  const recovery = (G.world as unknown as { recoveryMenu?(): HTMLElement | null }).recoveryMenu?.();
   return h('div', { class: 'col scroll', style: 'flex:1' },
     h('div', { class: 'box' }, h('h3', null, 'Game'),
       h('div', { style: 'display:flex;gap:8px;flex-wrap:wrap' },
@@ -1063,6 +1065,8 @@ function systemTab() {
           sl.data && sl.slot !== G.slot ? btn('Delete', () => { deleteSlot(sl.slot); renderAny(); }, 'btn small', { 'data-k': 'dl' + sl.slot }) : null,
         )))),
     ),
+    recovery,
+    currentBuild().startsWith('phaser-') ? h('div', { class: 'box' }, h('h3', null, 'Original edition'), h('p', { class: 'muted' }, 'Your original saves remain separate and available.'), h('a', { class: 'btn small', href: new URL(location.pathname.includes('/phaser/') ? '../classic/' : './classic/', document.baseURI).href }, 'Open original edition')) : null,
     flag('ch1_done') ? h('div', { class: 'box' }, h('h3', null, 'New Game+'),
       h('p', { class: 'muted', style: 'margin:0 0 6px' }, 'Begin Chapter I again with your level, gear, skills and Echoes. Foes grow stronger and give more experience.'),
       btn('Begin New Game+', () => { closeMenu(); startNewGamePlus(); }, 'btn primary', { 'data-k': 'ngp' })) : null,

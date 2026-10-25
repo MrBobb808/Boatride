@@ -11,10 +11,10 @@ up next starts from the latest version.
    It holds everything that has been merged.
 2. Work on a new branch and open a pull request into the default branch. The
    owner merges it.
-3. Merging deploys automatically. GitHub Actions builds `remnant/` and
-   publishes it to GitHub Pages: https://mrbobb808.github.io/Boatride/.
+3. Merging deploys automatically. GitHub Actions verifies both builds, assembles `remnant/dist-pages`, and
+   publishes the Phaser main game to GitHub Pages: https://mrbobb808.github.io/Boatride/.
    Installed copies on the owner's iPhone pick up the new build by themselves
-   (see `remnant/src/core/update.ts`). Settings shows the installed build and
+   (see `remnant-phaser/src/game/update.ts`). Settings shows the installed build and
    provides Check for updates, which saves and resumes the current slot.
    Explicit update navigations wait for the fresh document on slow connections;
    failed refreshes retry after a cooldown.
@@ -23,9 +23,9 @@ up next starts from the latest version.
 
 | Path | What it is |
 |---|---|
-| `remnant/` | The game: a 2D side-scrolling biblical dark-fantasy action RPG for iPhone (installable web app). |
+| `remnant/` | Shared gameplay, story, art and original engine; the original edition is preserved at `/Boatride/classic/`. |
 | `index.html`, `README.md` (root) | **Gangway**, a separate single-file boat-ride check-in app. Leave these alone unless asked. |
-| `remnant-phaser/` | The game being rebuilt on Phaser 4, part by part. Published beside the live game at https://mrbobb808.github.io/Boatride/phaser/. Read `remnant-phaser/PORTING.md` (status checklist and conventions) before working on it. It runs the original's boss and foe modules from `remnant/src` through its classic layer, so a change to those modules (or to the engine services they import) changes both builds: run `npm run build` and the scripts in `remnant-phaser/scripts` too. |
+| `remnant-phaser/` | The Phaser 4 main game at https://mrbobb808.github.io/Boatride/ (also `/phaser/`). Read `remnant-phaser/PORTING.md` (status checklist and conventions) before working on it. It runs the original's boss and foe modules from `remnant/src` through its classic layer, so a change to those modules (or to the engine services they import) changes both builds: run `npm run build` and the scripts in `remnant-phaser/scripts` too. |
 | `.github/workflows/remnant-pages.yml` | Builds both on every push. It deploys to Pages from the default branch only. |
 
 ## The game at a glance (`remnant/`)

@@ -20,7 +20,7 @@ const setup = async (level = 1) => {
   await until(() => window.__remnant.world.player.onGround && window.__remnant.world.player.state === 'free');
 };
 try {
-  await page.goto(base + '?debug&autostart&fresh'); await until(() => window.__remnant?.world?.player);
+  await page.goto(base + '?debug&nostory&autostart&fresh'); await until(() => window.__remnant?.world?.player);
   await setup();
   await page.evaluate(() => { const f = window.__remnant.world.classic.ents.find(e => e.kind === 'husk'); f.staggered = 10; f.hp = 100; });
   await page.keyboard.press('KeyJ'); await until(() => window.__remnant.world.player.state === 'execute');
@@ -32,6 +32,7 @@ try {
     await page.keyboard.press('KeyJ'); await until(field => window.__remnant.world.classic.ents.find(e => e.kind === 'husk')[field] > 0, field);
   }
   console.log('Weapon elements: real strikes apply burning, slowing frost and bleeding');
+  assert.ok(await page.evaluate(() => Object.values(window.__remnant.world.save.weaponMastery ?? {}).some(x => x > 0)), 'landed native strikes earn persistent weapon mastery');
   for (const id of ['dagger', 'axe', 'holy_water', 'cross', 'sling']) {
     await setup(); await page.evaluate(id => { const w = window.__remnant.world; w.save.sub = id; w.save.hearts = 99; window.spawned = []; const add = w.classic.add.bind(w.classic); w.classic.add = e => { window.spawned.push(e.kind); return add(e); }; const f = w.classic.ents.find(e => e.kind === 'husk'); w.player.placeAt(f.x - 110, f.y, 1); }, id);
     await page.keyboard.press('KeyU'); await until(() => window.__remnant.world.save.hearts < 99);

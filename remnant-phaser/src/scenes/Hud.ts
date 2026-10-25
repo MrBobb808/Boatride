@@ -12,7 +12,16 @@ import { dpr } from '../game/screen';
 import { measureSafe, safe } from '../game/safe';
 import type { Action } from '../game/controls';
 import type { World } from './World';
-import { openMenu, closeMenu } from '../ui/menu';
+import { openMenu, closeMenu, isMenuOpen } from '../../../remnant/src/ui/menus';
+import { settings, onSettingsChange } from '../classic/shim/settings';
+import { controlSpot } from '../../../remnant/src/ui/touch';
+import { drawIsland, islandSide } from '../../../remnant/src/ui/island';
+import { measureSafe as measureSharedSafe } from '../../../remnant/src/ui/safe';
+import { haptic } from '../../../remnant/src/core/haptics';
+import { icon } from '../../../remnant/src/ui/icons';
+import { ABILITIES } from '../../../remnant/src/game/data';
+import { guidePoint } from '../../../remnant/src/game/guide';
+import { G } from '../classic/shim/ctx';
 import { audio } from '../classic/shim/audio';
 import { songs } from '../../../remnant/src/audio/songs';
 
@@ -22,10 +31,10 @@ const GOLD = '#e2b85a', BONE = '#ddd4c6';
 export const hudBoxes = { column: [0, 0, 0, 0], boss: [0, 0, 0, 0] };
 const box = (b: number[], x: number, y: number, w: number, h: number) => { b[0] = x; b[1] = y; b[2] = w; b[3] = h; };
 
-interface Btn { a: Action; x: number; y: number; r: number; label: string; g: Phaser.GameObjects.Arc; t: Phaser.GameObjects.Text; down: boolean }
+interface Btn { a: Action; x: number; y: number; r: number; label: string; i: Phaser.GameObjects.Image; g: Phaser.GameObjects.Arc; t: Phaser.GameObjects.Text; down: boolean }
 
 export class Hud extends Phaser.Scene {
-  paused = false;
+  get paused() { return isMenuOpen(); }
   private k = 1;
   private bars!: Phaser.GameObjects.Graphics;
   private levelText!: Phaser.GameObjects.Text;
@@ -58,6 +67,10 @@ export class Hud extends Phaser.Scene {
   private captionText!: Phaser.GameObjects.Text;
   /** How many Echoes are out, under the silver. */
   private echoText!: Phaser.GameObjects.Text;
+  private coachAction: string | null = null;
+  private islandTex?: Phaser.Textures.CanvasTexture;
+  private islandImg?: Phaser.GameObjects.Image;
+  private guideText?: Phaser.GameObjects.Text;
   private powerText!: Phaser.GameObjects.Text;
   /** The Echo command wheel (the original's ui/ui.ts openWheel): open while it is shown, and the world waits. */
   wheelOpen = false;
@@ -77,7 +90,10 @@ export class Hud extends Phaser.Scene {
     // Device pixels, times the original's HUD scale for the screen size.
     const cw = this.scale.width / dpr(), ch = this.scale.height / dpr();
     this.k = dpr() * Phaser.Math.Clamp(Math.min(ch / 430, cw / 900), 0.85, 1.6);
-    measureSafe();
+    measureSafe(); measureSharedSafe();
+    const coach = (event: Event) => { this.coachAction = (event as CustomEvent).detail; };
+    document.addEventListener('remnant-coach', coach);
+    this.events.once('shutdown', () => { document.removeEventListener('remnant-coach', coach); if (this.islandTex) this.textures.remove(this.islandTex.key); this.islandTex = undefined; this.islandImg = undefined; });
     const k = this.k;
     const font = (px: number, color = BONE, bold = false) => ({ fontFamily: 'Cinzel, Georgia, serif', fontSize: `${px * k}px`, color, fontStyle: bold ? 'bold' : '', stroke: '#07050a', strokeThickness: 3 * k });
     this.bars = this.add.graphics();
@@ -113,7 +129,7 @@ export class Hud extends Phaser.Scene {
 
   /** Re-place everything for the current screen and safe areas. */
   private layout() {
-    measureSafe();
+    measureSafe(); measureSharedSafe();
     const k = this.k, { width: W, height: H } = this.scale;
     this.cameras.main.setSize(W, H);
     const x0 = (12 + safe.left) * k, y0 = (10 + safe.top) * k;
@@ -129,6 +145,19 @@ export class Hud extends Phaser.Scene {
 
   sync(w: World) {
     const k = this.k, s = w.save, p = w.player;
+    const px = dpr(), cw = this.scale.width / px, ch = this.scale.height / px;
+    const side = islandSide();
+    if (side) {
+      if (!this.islandTex) { const key = 'island-' + Date.now(); this.islandTex = this.textures.createCanvas(key, 180, Math.ceil(ch))!; this.islandImg = this.add.image(0, 0, key).setOrigin(0).setDepth(40); }
+      if (this.islandTex.height !== Math.ceil(ch)) this.islandTex.setSize(180, Math.ceil(ch));
+      const x = side === 'left' ? 0 : cw - 180, c = this.islandTex.getContext(); c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, 180, ch); c.save(); c.translate(-x, 0); drawIsland(c, cw, ch, Math.min(this.game.loop.delta / 1000, 1 / 30)); c.restore(); this.islandTex.refresh(); this.islandImg!.setPosition(x * px, 0).setScale(px).setVisible(true);
+    } else this.islandImg?.setVisible(false);
+    if (!this.guideText) this.guideText = this.add.text(0, 0, '', { fontFamily: 'Georgia,serif', fontSize: `${10 * k}px`, color: GOLD, stroke: '#07060a', strokeThickness: 2 }).setDepth(5);
+    const guide = settings.guide && !G.inCutscene && !w.classic.bossActive ? guidePoint() : null;
+    const rounds = w.classic.story.ch3.rounds;
+    if (rounds.active) this.guideText.setText(`${rounds.daily ? 'WAVE' : 'ROUND'} ${rounds.round || 1} · ${rounds.left} remaining${rounds.breakT > 0 ? ' · ' + Math.ceil(rounds.breakT) + 's' : ''}`).setPosition(12 * k, this.scale.height * 0.36);
+    else if (guide) this.guideText.setText((guide.point.x > p.x ? '→ ' : '← ') + guide.target.label).setPosition((12 + safe.left) * k, 115 * k);
+    else this.guideText.setText('');
     const x0 = (12 + safe.left) * k, y0 = (10 + safe.top) * k;
     const g = this.bars.clear();
     // The level badge: a gold-edged diamond.
@@ -187,6 +216,12 @@ export class Hud extends Phaser.Scene {
     this.skillBar.setVisible(!touch);
     if (touch) this.drawTouchCooldowns(w); else this.drawSkillBar(w);
     this.updateInteractBtn();
+    for (const b of this.btns) {
+      b.i.setVisible(b.g.visible); b.t.setVisible(b.g.visible && settings.buttonLabels);
+      b.g.setStrokeStyle(1.5 * k, 0xe2b85a, 0.55);
+    }
+    const coached = this.btns.find(b => b.a === this.coachAction);
+    if (coached && !G.paused && !G.inCutscene) coached.g.setStrokeStyle(3 * k, 0xffe6a8, 0.55 + Math.sin(this.time.now / 140) * 0.4);
   }
 
   /** Keyboard and pad: the three skills along the bottom, with their key, cost and cooldown. */
@@ -235,6 +270,7 @@ export class Hud extends Phaser.Scene {
       }
       if (b.a === 'sub') { b.t.setText(p.mantleT > 0 ? 'THROW' : 'SUB'); continue; }
       if (!id) { if (slot >= 0) b.t.setText('EMPTY').setAlpha(0.35); continue; }
+      b.i.setTexture(this.iconKey(ABILITIES[id].icon));
       const def = SKILLS[id], cd = p.cds[id] / def.cd;
       if (b.t.text !== def.short) b.t.setText(def.short);
       b.t.setAlpha(w.save.ce >= def.cost ? 0.9 : 0.4);
@@ -247,6 +283,7 @@ export class Hud extends Phaser.Scene {
     this.bossName = name;
     this.bossSub = sub;
     if (name) this.bossGhost = 1;
+
   }
 
   /**
@@ -363,20 +400,17 @@ export class Hud extends Phaser.Scene {
   togglePause() {
     const w = this.world;
     if (this.paused) { closeMenu(); return; }
-    this.paused = true;
-    audio.setMuffled(true); songs.duck(true);
-    w.physics.pause();
     w.persist();
-    openMenu(w, undefined, () => {
-      this.paused = false;
-      audio.setMuffled(false); songs.duck(false);
-      w.physics.resume();
-      w.controls.flush();
-    });
+    openMenu();
   }
 
   // ---------------------------------------------------------------- touch
 
+  private iconKey(name: string) {
+    const key = 'phaser-touch-' + name;
+    if (!this.textures.exists(key)) this.textures.addCanvas(key, icon(name, '#f6dea0', 64));
+    return key;
+  }
   private buildTouch() {
     const k = this.k;
     this.input.addPointer(4);
@@ -384,8 +418,10 @@ export class Hud extends Phaser.Scene {
     const mk = (a: Action, label: string, r: number): Btn => {
       const g = this.add.circle(0, 0, r * k, 0x1a1420, 0.35).setStrokeStyle(1.5 * k, 0xe2b85a, 0.55);
       const t = this.add.text(0, 0, label, { fontFamily: 'Cinzel, Georgia, serif', fontSize: `${(r > 30 ? 13 : r < 20 ? 8 : 10) * k}px`, color: '#f6dea0' }).setOrigin(0.5).setAlpha(0.85);
-      this.touchUi.add([g, t]);
-      return { a, x: 0, y: 0, r: r * k, label, g, t, down: false };
+      const name = a === 'transform' ? 'mantle' : a === 'ultimate' ? 'rally' : a.startsWith('skill') ? 'arc' : a;
+      const i = this.add.image(0, 0, this.iconKey(name));
+      this.touchUi.add([g, i, t]);
+      return { a, i, x: 0, y: 0, r: r * k, label, g, t, down: false };
     };
     this.btns = [
       mk('attack', 'STRIKE', 36), mk('jump', 'JUMP', 28), mk('dodge', 'DODGE', 24), mk('parry', 'PARRY', 24), mk('interact', '', 22),
@@ -398,6 +434,7 @@ export class Hud extends Phaser.Scene {
     this.stick.base = this.add.circle(0, 0, 54 * k, 0x1a1420, 0.25).setStrokeStyle(1.5 * k, 0xe2b85a, 0.3).setVisible(false);
     this.stick.knob = this.add.circle(0, 0, 22 * k, 0xe2b85a, 0.35).setVisible(false);
     this.touchUi.add([this.stick.base, this.stick.knob]);
+    onSettingsChange(() => { if (this.scene.isActive()) this.placeTouch(); });
     this.input.on('pointerdown', this.onDown, this);
     this.input.on('pointermove', this.onMove, this);
     this.input.on('pointerup', this.onUp, this);
@@ -405,27 +442,15 @@ export class Hud extends Phaser.Scene {
   }
 
   private placeTouch() {
-    const k = this.k, { width: W, height: H } = this.scale;
-    const rx = W - (24 + safe.right) * k, by = H - (24 + Math.max(safe.bottom, 6)) * k;
-    // Thumb reach: STRIKE in the corner, JUMP beside it, DODGE and PARRY above; skills in an arc over them.
-    const pos: Record<string, [number, number]> = {
-      attack: [rx - 42 * k, by - 40 * k],
-      jump: [rx - 120 * k, by - 22 * k],
-      dodge: [rx - 26 * k, by - 120 * k],
-      parry: [rx - 100 * k, by - 98 * k],
-      interact: [rx - 186 * k, by - 50 * k],
-      heal: [rx - 174 * k, by - 112 * k],
-      skill1: [rx - 140 * k, by - 162 * k],
-      skill2: [rx - 86 * k, by - 172 * k],
-      skill3: [rx - 32 * k, by - 182 * k],
-      echo: [rx - 196 * k, by - 160 * k],
-      switch: [rx - 236 * k, by - 106 * k],
-      transform: [rx - 290 * k, by - 168 * k], ultimate: [rx - 300 * k, by - 48 * k], sub: [rx - 248 * k, by - 48 * k],
-    };
+    const px = dpr(), W = this.scale.width / px, H = this.scale.height / px;
+    measureSharedSafe();
     for (const b of this.btns) {
-      [b.x, b.y] = pos[b.a];
-      b.g.setPosition(b.x, b.y);
-      b.t.setPosition(b.x, b.y);
+      const id = b.a === 'ultimate' ? 'rally' : b.a === 'transform' ? 'mantle' : b.a;
+      const p = controlSpot(id, W, H, settings.touchScale, settings.touchLayout ?? {}, settings.leftHanded);
+      b.x = p.cx * px; b.y = p.cy * px; b.r = p.r * px;
+      b.g.setPosition(b.x, b.y).setRadius(b.r).setAlpha(settings.touchOpacity);
+      b.i.setPosition(b.x, b.y).setDisplaySize(b.r * 1.15, b.r * 1.15);
+      b.t.setPosition(b.x, b.y + b.r + 7 * px);
     }
   }
 
@@ -571,16 +596,17 @@ export class Hud extends Phaser.Scene {
       b.down = true;
       b.g.setFillStyle(0xe2b85a, 0.35);
       b.g.setData('pid', p.id);
-      c.setTouch(b.a, true);
+      haptic('light'); c.setTouch(b.a, true);
       return;
     }
-    // Anywhere else on the left half starts the stick where the thumb lands.
-    if (p.x < this.scale.width * 0.5 && this.stick.id < 0) {
+    // The stick follows the saved centre; a touch on its half can float it.
+    const home = controlSpot("stick", this.scale.width / dpr(), this.scale.height / dpr(), settings.touchScale, settings.touchLayout ?? {}, settings.leftHanded);
+    if ((settings.leftHanded ? p.x > this.scale.width * 0.5 : p.x < this.scale.width * 0.5) && this.stick.id < 0) {
       this.stick.id = p.id;
-      this.stick.ox = p.x;
-      this.stick.oy = p.y;
-      this.stick.base!.setPosition(p.x, p.y).setVisible(true);
-      this.stick.knob!.setPosition(p.x, p.y).setVisible(true);
+      this.stick.ox = settings.touchLayout?.stick ? home.cx * dpr() : p.x;
+      this.stick.oy = settings.touchLayout?.stick ? home.cy * dpr() : p.y;
+      this.stick.base!.setPosition(this.stick.ox, this.stick.oy).setVisible(true);
+      this.stick.knob!.setPosition(this.stick.ox, this.stick.oy).setVisible(true);
       c.setTouchAxis(0);
     }
   }
@@ -593,7 +619,7 @@ export class Hud extends Phaser.Scene {
     this.stick.knob!.setPosition(this.stick.ox + dx * m, this.stick.oy + dy * m);
     // A small dead zone, then full speed quickly: thumbs are imprecise.
     const ax = Math.abs(dx) < 8 * k ? 0 : Phaser.Math.Clamp(dx / (max * 0.7), -1, 1);
-    c.setTouchAxis(ax);
+    c.setTouchAxis(ax, Math.abs(dy) < 8 * k ? 0 : Phaser.Math.Clamp(dy / (max * 0.7), -1, 1));
     c.setTouch('down', dy > max * 0.6);
     c.setTouch('up', dy < -max * 0.6);
   }

@@ -27,7 +27,7 @@ try {
     localStorage.clear();
     localStorage.setItem('remnant-phaser.save.v1', JSON.stringify({ v: 1, room: 'ashen_road', spawn: 'left', level: 5, xp: 40, hp: 80, silver: 321, flags: { ch1_done: true }, kills: 9, ce: 20, balm: 2, balmMax: 3, defeated: ['idol'], purified: ['knight'] }));
   });
-  await page.goto(base + '?debug&autostart');
+  await page.goto(base + '?debug&nostory&autostart');
   await inWorld(page);
   const v1 = await E(page, () => { const s = window.__remnant.world.save; return { room: s.room, level: s.level, pts: s.statPoints, skill: s.skillPoints, silver: s.silver, flag: s.flags.ch1_done, def: s.defeated, echoes: s.echoes.map((e) => e.species), weapon: !!s.equipment.weapon }; });
   assert.deepEqual([v1.room, v1.level, v1.pts, v1.skill, v1.silver, v1.flag], ['ashen_road', 5, 12, 4, 321, true], `the old journey carries over (${JSON.stringify(v1)})`);
