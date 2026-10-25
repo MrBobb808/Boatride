@@ -33,10 +33,12 @@ try {
   await page.screenshot({ path: 'qa/phaser-sanctuary.png' });
 
   // Jump: up, then down onto the floor again.
-  await page.keyboard.down('Space'); await page.waitForTimeout(120);
+  await page.keyboard.down('Space');
+  await page.waitForFunction(() => { const p = window.__remnant.world.player; return p.body.velocity.y < 0 && !p.onGround; }, null, { timeout: 8000 });
   s = await state(page);
   assert.ok(s.vy < 0 && !s.ground, `jumping (vy ${s.vy})`);
-  await page.keyboard.up('Space'); await page.waitForTimeout(900);
+  await page.keyboard.up('Space');
+  await page.waitForFunction(() => window.__remnant.world.player.onGround, null, { timeout: 8000 });
   assert.ok((await state(page)).ground, 'landed');
 
   // Walk out through the nearest doorway on the right.
