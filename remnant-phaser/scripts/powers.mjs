@@ -65,5 +65,25 @@ try {
   assert.equal(terrain.protectedHazard, terrain.bareHazard, 'temporary combat protection never weakens terrain hazards');
   assert.ok(terrain.protectedBlow < terrain.bareBlow, 'the same protections still reduce ordinary blows');
   console.log('Hazard parity: terrain bypasses combat protections while ordinary blows still respect them');
+  for (const [char, tile, x, feet] of [['C', 6, 21 * 16 + 8, 10 * 16], ['S', 10, 5 * 16 + 8, 24 * 16]]) {
+    const cells = await page.evaluate(({ char, tile, x, feet }) => {
+      const w = window.__remnant.world; w.loadRoom('temple_hall', 'start');
+      for (const e of w.classic.ents) if (e.isFoe) e.remove = true;
+      w.save.flags.relic_taken = w.save.flags.horn = true; if (!w.save.keyItems.includes('ram_horn')) w.save.keyItems.push('ram_horn');
+      if (!w.save.abilities.includes('trumpet')) w.save.abilities.push('trumpet'); w.save.equippedSkills[1] = 'trumpet'; w.save.ce = w.d.maxCe;
+      w.player.cds.trumpet = 0; w.player.placeAt(x, feet, -1);
+      const cells = w.room.rows.flatMap((row, y) => Array.from(row, (t, x) => ({ t, x, y }))).filter(q => q.t === char);
+      if (!cells.length || !cells.every(q => w.tileAt(q.x, q.y) === tile)) throw Error('Missing authored wall fixture');
+      if (w.classic.breakWalls(x, feet - 18, 88, false)) throw Error('An ordinary impact broke a Trumpet wall');
+      return cells;
+    }, { char, tile, x, feet });
+    await until(() => window.__remnant.world.player.onGround && window.__remnant.world.player.state === 'free');
+    await page.keyboard.press('KeyE');
+    await until(cells => cells.every(q => window.__remnant.world.tileAt(q.x, q.y) === 0), cells);
+    assert.ok(await page.evaluate(cells => cells.every(q => !window.__remnant.world.layer.getTileAt(q.x, q.y)), cells), 'the opening clears native collision tiles');
+    await page.evaluate(() => { const w = window.__remnant.world; w.persist(); w.loadRoom('temple_hall', 'start'); });
+    assert.ok(await page.evaluate(cells => cells.every(q => window.__remnant.world.tileAt(q.x, q.y) === 0 && window.__remnant.world.classic.grid.get(q.x, q.y) === 0), cells), 'the full wall stays open on reload in both grids');
+  }
+  console.log('Trumpet: real casts open both authored cracked walls and seals; collision and persisted openings match');
   assert.deepEqual(errors, []); console.log('phaser powers: all checks passed');
 } finally { await browser.close(); close(); }

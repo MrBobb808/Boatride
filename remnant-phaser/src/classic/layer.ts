@@ -8,8 +8,9 @@
 
 import Phaser from 'phaser';
 import { activeSlot, selectSlot } from '../game/save';
+import { offlineStatusText } from '../game/update';
 import { G, flag } from './shim/ctx';
-import { settings } from './shim/settings';
+import { settings, shakeScale } from './shim/settings';
 import { lighting } from './shim/lighting';
 import { input } from './shim/input';
 import { Squad } from './squad';
@@ -377,6 +378,7 @@ export class ClassicLayer {
   private fired = new Set<string>();
   deathHandled = false;
   get rallyT() { return (this.hero as any)?.superT ?? -1; }
+  offlineMenu() { return el('div', { class: 'box' }, el('h3', null, 'Offline play'), el('p', { class: 'muted', 'data-phaser-offline': '' }, offlineStatusText())); }
   recoveryMenu(): HTMLElement | null {
     const rows: HTMLElement[] = [];
     for (let slot = 0; slot < 3; slot++) {
@@ -618,16 +620,43 @@ export class ClassicLayer {
       e.hp = Math.min(e.maxHp, e.hp + e.maxHp * frac); e.inst.hp = e.hp;
     }
   }
-  breakWalls(box: Rect, seal = false) {
-    const tiles: [number, number][] = [], g = this.grid;
-    for (let y = Math.floor(box.y / TILE); y <= Math.floor((box.y + box.h) / TILE); y++) for (let x = Math.floor(box.x / TILE); x <= Math.floor((box.x + box.w) / TILE); x++) {
-      const t = g.get(x, y); if (t !== T.Cracked && !(seal && t === T.Seal)) continue;
-      const stack = [[x, y]]; while (stack.length) { const [a, b] = stack.pop()!, t = g.get(a, b); if (t !== T.Cracked && !(seal && t === T.Seal)) continue; g.set(a, b, T.Empty); tiles.push([a, b]); stack.push([a - 1, b], [a + 1, b], [a, b - 1], [a, b + 1]); }
-    }
+  breakWalls(x: number, y: number, r: number, trumpet: boolean): boolean {
+    if (!trumpet) return false;
+    const g = this.grid;
+    const tiles: [number, number][] = [];
+    const tx0 = Math.floor((x - r) / TILE), tx1 = Math.floor((x + r) / TILE);
+    const ty0 = Math.floor((y - r) / TILE), ty1 = Math.floor((y + r) / TILE);
+    for (let ty = ty0; ty <= ty1; ty++)
+      for (let tx = tx0; tx <= tx1; tx++) {
+        const t = g.get(tx, ty);
+        if (t !== T.Cracked && t !== T.Seal) continue;
+        // flood-fill the whole wall
+        const stack: [number, number][] = [[tx, ty]];
+        while (stack.length) {
+          const [cx, cy] = stack.pop()!;
+          const ct = g.get(cx, cy);
+          if (ct !== T.Cracked && ct !== T.Seal) continue;
+          g.set(cx, cy, T.Empty);
+          tiles.push([cx, cy]);
+          stack.push([cx + 1, cy], [cx - 1, cy], [cx, cy + 1], [cx, cy - 1]);
+        }
+      }
     if (!tiles.length) return false;
-    const key = 'broken:' + this.room.id, before = String(G.save.flags[key] ?? ''); G.save.flags[key] = (before ? before + ';' : '') + tiles.map(t => t.join(',')).join(';');
-    this.story.onWallBroken(this.room.id, tiles); this.autosave(); return true;
+    const key = 'broken:' + this.room.id;
+    const prev = String(G.save.flags[key] ?? '');
+    G.save.flags[key] = (prev ? prev + ';' : '') + tiles.map(([a, b]) => a + ',' + b).join(';');
+    sfx('wallBreak');
+    G.camera.addTrauma(0.6 * shakeScale());
+    for (const [a, b] of tiles) {
+      fx.shards(a * TILE + 8, b * TILE + 8, 4, '#6a6070', 1.2);
+      fx.dust(a * TILE + 8, b * TILE + 14, 3, 1.2);
+    }
+    fx.flash('#ffe6a8', 0.2);
+    this.story.onWallBroken(this.room.id, tiles);
+    this.autosave();
+    return true;
   }
+
   spawnShockwave(x: number, y: number, dir: number, damage: number, team: 'player' | 'enemy') {
     this.add(new Proj('wave', x, y, team, damage, { vx: dir * 260, life: 1.2, w: 14, h: 24 }));
   }

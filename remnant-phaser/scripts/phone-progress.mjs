@@ -14,6 +14,9 @@ try {
   await until(() => !!window.__remnant.game.scene.getScene('hud').islandTex);
   assert.ok(await p.evaluate(() => window.__remnant.game.scene.getScene('hud').islandImg.visible));
   await p.evaluate(() => window.__remnant.G.ui.openMenu('settings'));
+  await p.tap('[data-k="fpsauto"]'); await until(() => window.__remnant.game.loop.fpsLimit === 0 && !window.__remnant.game.loop.hasFpsLimit);
+  await p.tap('[data-k="fps60"]'); await until(() => window.__remnant.game.loop.fpsLimit === 60 && window.__remnant.game.loop.hasFpsLimit);
+  console.log('Frame pacing: visible Auto/60 FPS controls reconfigure the running Phaser loop');
   await p.click('[data-k="tc_edit"]'); await p.waitForSelector('[data-ctl="attack"]');
   const before = await p.locator('[data-ctl="attack"]').boundingBox();
   await p.mouse.move(before.x + before.width / 2, before.y + before.height / 2); await p.mouse.down(); await p.mouse.move(before.x + before.width / 2 - 55, before.y + before.height / 2 - 18); await p.mouse.up();
@@ -24,6 +27,7 @@ try {
   assert.ok(actual.saved && Math.abs(actual.x - (chosen.x + chosen.width / 2)) < 2 && Math.abs(actual.r - chosen.width / 2) < 2, 'saved editor position and size match the real Phaser hit target');
   await p.click('[data-k="menu_resume"]'); await p.reload(); await until(() => window.__remnant?.world?.player);
   assert.ok(await p.evaluate(() => window.__remnant.settings.touchLayout.attack.s === 1.3));
+  assert.equal(await p.evaluate(() => window.__remnant.game.loop.fpsLimit),60,'the saved phone frame limit applies on startup');
   console.log('Phone: Island HUD visible; a dragged/resized control matches its Phaser hit target and survives reload');
   await p.evaluate(() => { const w = window.__remnant.world; w.controls.setTouch('attack', true); w.controls.setTouch('attack', false); w.player.hurt({ dmg:20,dir:1,hazard:true }); });
   await until(() => window.vibes.length > 0);

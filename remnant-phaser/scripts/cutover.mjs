@@ -17,7 +17,7 @@ const server=createServer(async(req,res)=>{
 await new Promise(r=>server.listen(0,'127.0.0.1',r));const base=`http://localhost:${server.address().port}/Boatride/`;
 const browser=await chromium.launch({headless:true,...(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH?{executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH}:{})});
 const context=await browser.newContext({viewport:{width:956,height:440}});const page=await context.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.stack));
-const until=(fn,arg)=>page.waitForFunction(fn,arg,{timeout:30000}).catch(async e=>{const state=await page.evaluate(async()=>({url:location.href,keys:await caches.keys(),regs:(await navigator.serviceWorker.getRegistrations()).map(r=>({scope:r.scope,active:r.active?.state,installing:r.installing?.state,waiting:r.waiting?.state})),ui:document.getElementById('ui')?.innerText.slice(-150)}));throw Error(e.message+' '+fn.toString()+' '+JSON.stringify(state));});
+const until=(fn,arg)=>page.waitForFunction(fn,arg,{timeout:30000}).catch(async e=>{const state=await page.evaluate(async()=>({url:location.href,keys:await caches.keys(),regs:(await navigator.serviceWorker.getRegistrations()).map(r=>({scope:r.scope,active:r.active?.state,installing:r.installing?.state,waiting:r.waiting?.state})),ui:document.getElementById('ui')?.innerText.slice(-150),debug:Object.keys(window.__remnant??{}),docs:await Promise.all((await caches.keys()).map(async key=>{const r=await(await caches.open(key)).match(new URL('index.html',location.href));if(!r)return{key};const t=await r.text();return{key,phaser:t.includes('remnant-phaser-build'),original:t.includes('remnant-build'),length:t.length};}))}));throw Error(e.message+' '+fn.toString()+' '+JSON.stringify(state));});
 try{
   await page.goto(base+'phaser/?debug&nostory&autostart&fresh');await until(()=>window.__remnant?.world?.player);
   const prior=await page.evaluate(()=>localStorage.getItem('remnant-phaser.save.v2'));
@@ -39,7 +39,11 @@ try{
   const original=await page.evaluate(()=>[0,1,2].map(i=>localStorage.getItem('remnant-save-'+i)));
   assert.deepEqual(await page.evaluate(()=>[0,1,2].map(i=>JSON.parse(localStorage.getItem(i===0?'remnant-phaser.save.v2':'remnant-phaser.save.slot'+i)).level)),[20,30,40]);
   console.log('Switch-over: all three real slots copied; original keys retained; preview backed up; legacy resume slot, gear, exact stats and audio/challenge preferences carried over');
-  await until(async()=>{const r=await navigator.serviceWorker.getRegistration();return r&&!r.installing&&!r.waiting&&(await caches.keys()).some(k=>k.startsWith('remnant-phaser-shell-%2FBoatride%2F-'));});
+  await until(() => window.__remnant.offlineReady());
+  await page.evaluate(() => window.__remnant.G.ui.openMenu('system'));
+  assert.equal(await page.locator('[data-phaser-offline]').innerText(), 'Ready for offline play.');
+  await page.click('[data-k="menu_resume"]');
+  console.log('Offline readiness: the controlling worker confirms this exact Phaser build and scope');
   await page.evaluate(()=>{window.__remnant.world.save.silver=9876;window.__remnant.world.persist();});
   await context.setOffline(true);await page.reload();await until(()=>window.__remnant?.world?.player);assert.equal(await page.evaluate(()=>window.__remnant.world.save.silver),9876);
   assert.equal(await page.evaluate(() => fetch('./music/legacy-upgrade-probe.mp3').then(r => r.text())), 'previously-heard-song', 'previously cached original songs remain available offline after the upgrade');

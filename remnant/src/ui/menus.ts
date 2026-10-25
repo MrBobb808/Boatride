@@ -1040,6 +1040,7 @@ function systemTab() {
   const s = G.save;
   const slots = listSlots();
   const recovery = (G.world as unknown as { recoveryMenu?(): HTMLElement | null }).recoveryMenu?.();
+  const offline = (G.world as unknown as { offlineMenu?(): HTMLElement | null }).offlineMenu?.();
   return h('div', { class: 'col scroll', style: 'flex:1' },
     h('div', { class: 'box' }, h('h3', null, 'Game'),
       h('div', { style: 'display:flex;gap:8px;flex-wrap:wrap' },
@@ -1066,6 +1067,7 @@ function systemTab() {
         )))),
     ),
     recovery,
+    offline,
     currentBuild().startsWith('phaser-') ? h('div', { class: 'box' }, h('h3', null, 'Original edition'), h('p', { class: 'muted' }, 'Your original saves remain separate and available.'), h('a', { class: 'btn small', href: new URL(location.pathname.includes('/phaser/') ? '../classic/' : './classic/', document.baseURI).href }, 'Open original edition')) : null,
     flag('ch1_done') ? h('div', { class: 'box' }, h('h3', null, 'New Game+'),
       h('p', { class: 'muted', style: 'margin:0 0 6px' }, 'Begin Chapter I again with your level, gear, skills and Echoes. Foes grow stronger and give more experience.'),
