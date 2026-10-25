@@ -131,6 +131,13 @@ try {
   }
   await until(page, () => window.__remnant.world.save.flags.king_hatched && window.__remnant.world.cboss.state !== 'dormant');
   console.log('Brood: both waves down, the Locust King hatched');
+  // Force the short hatch delay to overlap a room change: the old callback
+  // must never awaken the replacement room's boss without closing its gate.
+  await E(page, () => { const w = window.__remnant.world; w.brood = { i: 1, foes: [] }; w.updateBrood(); w.loadRoom('idol_sanctum', 'right'); window.hatchDelayEnds = w.time.now + 750; });
+  await until(page, () => window.__remnant.world.time.now >= window.hatchDelayEnds);
+  assert.equal(await E(page, () => window.__remnant.world.cboss.state), 'dormant', 'a previous room’s delayed hatch cannot awaken this room’s boss');
+  console.log('Brood: delayed hatch stays bound to its original boss after a room change');
+
 
   // ---- every boss: three phases, then the fall opens the way
   for (const [k, room] of Object.entries(ROOMS)) {
