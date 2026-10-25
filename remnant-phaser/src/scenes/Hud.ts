@@ -50,6 +50,7 @@ export class Hud extends Phaser.Scene {
   private touchUi!: Phaser.GameObjects.Container;
   private interactLabel: string | null = null;
   private menuBtn!: Phaser.GameObjects.Text;
+  private pausePointer = -1;
   /** The keyboard and pad skill bar along the bottom (touch has its buttons). */
   private skillBar!: Phaser.GameObjects.Container;
   private skillG!: Phaser.GameObjects.Graphics;
@@ -103,7 +104,15 @@ export class Hud extends Phaser.Scene {
     this.roomText = this.add.text(0, 0, '', font(9, GOLD)).setOrigin(1, 0).setAlpha(0);
     this.hintText = this.add.text(0, 0, '', { ...font(10), fontFamily: 'Georgia, serif', fontStyle: 'italic', wordWrap: { width: 260 * k }, align: 'center' }).setOrigin(0.5, 0).setAlpha(0);
     this.menuBtn = this.add.text(0, 0, '❚❚', font(14, BONE)).setOrigin(1, 0).setInteractive({ useHandCursor: true }).setPadding(10 * k, 6 * k, 10 * k, 6 * k);
-    this.menuBtn.on('pointerup', () => this.togglePause());
+    // DOM Resume can close its overlay before Phaser processes the release.
+    // Only a press that began on this canvas button may activate it.
+    this.menuBtn.on('pointerdown', (p: Phaser.Input.Pointer) => { if (!this.paused) this.pausePointer = p.id; });
+    this.menuBtn.on('pointerout', () => { this.pausePointer = -1; });
+    this.menuBtn.on('pointerup', (p: Phaser.Input.Pointer) => {
+      const pressedHere = this.pausePointer === p.id;
+      this.pausePointer = -1;
+      if (pressedHere) this.togglePause();
+    });
     this.balmText = this.add.text(0, 0, '', font(8.5)).setOrigin(0, 0.5);
     this.echoText = this.add.text(0, 0, '', font(8, '#e2d6b8')).setOrigin(0, 0.5);
     this.bossG = this.add.graphics();

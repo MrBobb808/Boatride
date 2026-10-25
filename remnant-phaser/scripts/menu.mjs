@@ -140,6 +140,9 @@ try {
   assert.equal(await E(phone, () => window.__remnant.world.save.statPoints), pts - 1, 'a tap spends one point');
   await phone.tap('[data-k="menu_resume"]');
   await until(phone, () => !document.querySelector('#ui .menu') && !window.__remnant.game.scene.getScene('hud').paused);
+  // A release queued beneath the DOM Resume button must not reopen pause.
+  await E(phone, () => window.__remnant.game.scene.getScene('hud').menuBtn.emit('pointerup', { id: 1 }));
+  assert.ok(!(await open(phone)), 'a release without a new canvas press cannot reopen the menu');
   console.log('Touch: the pause button opened the menu, it fits, a tap spent one point, and Resume closed it');
 
   assert.deepEqual(errors, [], 'no page errors');
