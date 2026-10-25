@@ -83,7 +83,7 @@ Each name above is `node scripts/NAME.mjs`; install Playwright Chromium first.
 After both builds, run `node remnant-phaser/scripts/assemble-pages.mjs` from the
 repository root. It creates `remnant/dist-pages` without mutating either source
 build; then run `cutover` from `remnant-phaser`. CI runs both editions' checks
-and deploys that assembled artifact from the default branch only.
+in parallel, then verifies the assembled upgrade and deploys that artifact from the default branch only.
 
 Keep the original SaveData shape, KJV quotations, authored story and performance
 rules in `../AGENTS.md`. Avoid per-frame allocations and `shadowBlur`. Shared

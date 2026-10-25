@@ -19,7 +19,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build:
+  original:
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -30,13 +30,11 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: |
-            remnant/package-lock.json
-            remnant-phaser/package-lock.json
+          cache-dependency-path: remnant/package-lock.json
       - run: npm ci
       - run: npm run build
-      - run: node --test scripts/update.test.mjs scripts/frame-budget.test.mjs scripts/hero-motion.test.mjs scripts/combat-feedback.test.mjs scripts/squad-systems.test.mjs scripts/progression.test.mjs scripts/audio.test.mjs scripts/power-walls.test.mjs scripts/fallen-chapters.test.mjs scripts/soundtrack.test.mjs
       - run: npx playwright install --with-deps chromium
+      - run: node --test scripts/update.test.mjs scripts/frame-budget.test.mjs scripts/hero-motion.test.mjs scripts/combat-feedback.test.mjs scripts/squad-systems.test.mjs scripts/progression.test.mjs scripts/audio.test.mjs scripts/power-walls.test.mjs scripts/fallen-chapters.test.mjs scripts/soundtrack.test.mjs
       - run: node scripts/hero-visuals.mjs
       - run: node scripts/smoke.mjs
       - run: node scripts/combat-input.mjs
@@ -64,52 +62,89 @@ jobs:
       - run: node scripts/curve-onboarding.mjs
       - run: node scripts/audio-cinema.mjs
       - run: node scripts/soundtrack.mjs
-      # The Phaser main app and preserved original fallback are both verified.
-      - run: npm ci
-        working-directory: remnant-phaser
-      - run: npm run build
-        working-directory: remnant-phaser
-      - run: node scripts/smoke.mjs
-        working-directory: remnant-phaser
-      - run: node scripts/combat.mjs
-        working-directory: remnant-phaser
-      - run: node scripts/foes.mjs
-        working-directory: remnant-phaser
-      - run: node scripts/saves.mjs
-        working-directory: remnant-phaser
-      - run: node scripts/echoes.mjs
-        working-directory: remnant-phaser
-      - run: node scripts/bosses.mjs
-        working-directory: remnant-phaser
-      - run: node scripts/classic-bosses.mjs
-        working-directory: remnant-phaser
-      - run: node scripts/menu.mjs
-        working-directory: remnant-phaser
-      - run: node scripts/combat-moves.mjs
-        working-directory: remnant-phaser
-      - run: node scripts/install-audio.mjs
-        working-directory: remnant-phaser
-      - run: node scripts/powers.mjs
-        working-directory: remnant-phaser
-      - run: node scripts/journey.mjs
-        working-directory: remnant-phaser
-      - run: node scripts/story-flow.mjs
-        working-directory: remnant-phaser
-      - run: node scripts/modes-water.mjs
-        working-directory: remnant-phaser
-      - run: node scripts/phone-progress.mjs
-        working-directory: remnant-phaser
-      - run: node remnant-phaser/scripts/assemble-pages.mjs
-        working-directory: .
-      - run: node scripts/cutover.mjs
-        working-directory: remnant-phaser
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: remnant-browser-checks
-          path: |
-            remnant/qa
-            remnant-phaser/qa
+          name: original-browser-checks
+          path: remnant/qa
+      - uses: actions/upload-artifact@v4
+        with:
+          name: original-dist
+          path: remnant/dist
+          retention-days: 1
+
+  phaser:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: remnant-phaser
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: remnant-phaser/package-lock.json
+      - run: npm ci
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - run: node scripts/smoke.mjs
+      - run: node scripts/menu.mjs
+      - run: node scripts/journey.mjs
+      - run: node scripts/story-flow.mjs
+      - run: node scripts/modes-water.mjs
+      - run: node scripts/phone-progress.mjs
+      - run: node scripts/combat.mjs
+      - run: node scripts/combat-moves.mjs
+      - run: node scripts/powers.mjs
+      - run: node scripts/foes.mjs
+      - run: node scripts/saves.mjs
+      - run: node scripts/echoes.mjs
+      - run: node scripts/bosses.mjs
+      - run: node scripts/classic-bosses.mjs
+      - run: node scripts/install-audio.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: phaser-browser-checks
+          path: remnant-phaser/qa
+      - uses: actions/upload-artifact@v4
+        with:
+          name: phaser-dist
+          path: remnant-phaser/dist
+          retention-days: 1
+
+  build:
+    needs: [original, phaser]
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: remnant-phaser
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: remnant-phaser/package-lock.json
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - uses: actions/download-artifact@v4
+        with:
+          name: original-dist
+          path: remnant/dist
+      - uses: actions/download-artifact@v4
+        with:
+          name: phaser-dist
+          path: remnant-phaser/dist
+      - run: node remnant-phaser/scripts/assemble-pages.mjs
+        working-directory: .
+      - run: node scripts/cutover.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cutover-browser-checks
+          path: remnant-phaser/qa
       - uses: actions/upload-pages-artifact@v3
         if: github.ref_name == github.event.repository.default_branch
         with:
