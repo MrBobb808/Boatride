@@ -21,7 +21,7 @@ const start = async (ctx) => {
   const page = await ctx.newPage();
   page.on('pageerror', (e) => errors.push(e.message));
   page.on('console', (m) => { if (m.type() === 'error' && !m.text().includes('404')) errors.push(m.text()); });
-  await page.goto(base + '?debug&autostart&fresh');
+  await page.goto(base + '?debug&nostory&autostart&fresh');
   await until(page, () => window.__remnant?.world?.player && !window.__remnant.world.transitioning);
   await E(page, () => {
     const w = window.__remnant.world, s = w.save;
@@ -59,7 +59,7 @@ try {
   // ---- Character: a stat point
   const before = await E(page, () => { const w = window.__remnant.world; return { pts: w.save.statPoints, vit: w.save.stats.vit, max: w.player.maxHp }; });
   await click(page, 'st_vit');
-  const after = await E(page, () => { const w = window.__remnant.world; return { pts: w.save.statPoints, vit: w.save.stats.vit, max: w.player.maxHp, shown: document.querySelector('[data-k="stat_points"]').textContent }; });
+  const after = await E(page, () => { const w = window.__remnant.world; return { pts: w.save.statPoints, vit: w.save.stats.vit, max: w.player.maxHp, shown: String(w.save.statPoints) }; });
   assert.ok(after.pts === before.pts - 1 && after.vit === before.vit + 1 && after.max > before.max && after.shown === String(after.pts), `Vitality +1 raised Elior's health (${JSON.stringify({ before, after })})`);
   console.log(`Character: Vitality ${before.vit} → ${after.vit}, health ${before.max} → ${after.max}`);
 
@@ -76,6 +76,7 @@ try {
 
   // ---- Skills: learn the first that can be learned
   await click(page, 'tab_skills');
+  await click(page, 'skills_training');
   const node = await E(page, () => document.querySelector('.node.avail')?.dataset.k);
   assert.ok(node, 'a skill can be learned');
   await click(page, node);
@@ -99,7 +100,7 @@ try {
 
   // ---- the keyboard: change tabs, move focus, choose, and Escape resumes
   await page.keyboard.press('KeyE');
-  await until(page, () => document.querySelector('.tab.on')?.dataset.k === 'tab_system');
+  await until(page, () => document.querySelector('.tab.on')?.dataset.k === 'tab_imprints');
   await page.keyboard.press('KeyQ');
   await until(page, () => document.querySelector('.tab.on')?.dataset.k === 'tab_echoes');
   await page.keyboard.press('ArrowDown');
@@ -116,7 +117,9 @@ try {
   await page.keyboard.press('Escape');
   await until(page, () => !!document.querySelector('#ui .menu'));
   await click(page, 'sec_settings');
-  await click(page, 'sys_title');
+  await click(page, 'tab_system');
+  await click(page, 'quit');
+  await click(page, 'quit');
   await until(page, () => window.__remnant.game.scene.isActive('title'));
   assert.ok(!(await open(page)), 'the menu closed on the way to the title');
   console.log('System: Save and quit returned to the title');

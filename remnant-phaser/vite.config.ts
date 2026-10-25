@@ -8,6 +8,11 @@ import { resolve, relative, sep } from 'node:path';
 // stand-in from src/classic/shim instead.
 const ORIGINAL = resolve(__dirname, '../remnant/src');
 const SHIMS: Record<string, string> = {
+  'game/world.ts': 'src/classic/shim/world.ts',
+  'app.ts': 'src/classic/shim/app.ts',
+  'game/save.ts': 'src/classic/shim/save.ts',
+  'core/update.ts': 'src/classic/shim/update.ts',
+  'ui/hud.ts': 'src/classic/shim/hud.ts',
   'game/ctx.ts': 'src/classic/shim/ctx.ts',
   'audio/audio.ts': 'src/classic/shim/audio.ts',
   'audio/music.ts': 'src/classic/shim/music.ts',

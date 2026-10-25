@@ -21,6 +21,7 @@ export interface Blow {
 /** Anything Elior can strike: foes, bosses and their adds. */
 export interface FoeLike {
   alive: boolean;
+  hp?: number;
   removed: boolean;
   box: Phaser.Geom.Rectangle;
   x: number;
@@ -57,7 +58,7 @@ export interface WorldApi {
   castCovenant(id: SkillId): void;
   lightWave(): void;
   playEffect(name: string): void;
-  heroHit(f: FoeLike, damage: number, heavy: boolean): void;
+  heroHit(f: FoeLike, damage: number, heavy: boolean, crit?: boolean): void;
   strikeLamps(box: { x: number; y: number; w: number; h: number }): void;
   /** Bring a new foe into the room (a boss's adds). */
   addFoe(f: FoeLike): void;

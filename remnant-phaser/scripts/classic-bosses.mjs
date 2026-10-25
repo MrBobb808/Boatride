@@ -30,7 +30,7 @@ const FLAGS = { idol: 'idol_defeated', gatekeeper: 'gate_open', marshal: 'marsha
 const open = async (ctx) => {
   const page = await ctx.newPage();
   watch(page);
-  await page.goto(base + '?debug&autostart&fresh');
+  await page.goto(base + '?debug&nostory&autostart&fresh');
   await until(page, () => window.__remnant?.world?.player && !window.__remnant.world.transitioning);
   return page;
 };
@@ -160,7 +160,7 @@ try {
   // ---- a beaten boss stays beaten
   await E(page, () => { window.__remnant.world.save.defeated = ['idol']; window.__remnant.warp('idol_sanctum', 'start'); });
   await until(page, () => window.__remnant.world.room.id === 'idol_sanctum' && !window.__remnant.world.transitioning);
-  assert.ok(await E(page, () => !window.__remnant.world.cboss && !window.__remnant.world.classic.ents.length), 'a beaten boss does not return');
+  assert.ok(await E(page, () => !window.__remnant.world.cboss && !window.__remnant.world.classic.ents.some(e => e.isBoss)), 'a beaten boss does not return');
 
   assert.deepEqual(errors, [], 'no page errors');
   console.log('Classic bosses: all checks passed');

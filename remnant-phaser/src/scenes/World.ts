@@ -9,10 +9,17 @@ import { Player } from '../game/player';
 import { makeBoss, bossPorted, BOSS_CHAPTER, type Boss } from '../game/bosses';
 import { biomeTileset, tileIndex, backdropTextures, TI } from '../game/tileset';
 import { newSave, loadSave, writeSave, gainXp, stats, type PhaserSave } from '../game/save';
-import { absorbEcho, makeItem, addMaterial, type Derived } from '../../../remnant/src/game/state';
+import { absorbEcho, makeItem, addMaterial, echoMaxHp, type Derived } from '../../../remnant/src/game/state';
 import { ITEMS } from '../../../remnant/src/game/data';
 import type { Rarity } from '../../../remnant/src/game/data';
 import type { WorldApi, FoeLike, BossView } from '../game/types';
+import { chapterOf } from '../../../remnant/src/game/rooms';
+import { catchUpXp } from '../../../remnant/src/game/curve';
+import { FINISHERS } from '../../../remnant/src/game/finishers';
+import { powerTier, SOVEREIGN_LV } from '../../../remnant/src/game/power';
+import { MANTLE_LV, announceMantle, mantleTier, mantlePerks } from '../../../remnant/src/game/mantle';
+import { islandNotify, islandRipple } from '../../../remnant/src/ui/island';
+import { RoomArt } from '../classic/art';
 import { ClassicLayer } from '../classic/layer';
 import { makeEnemy } from '../../../remnant/src/game/foes';
 import { Enemy } from '../../../remnant/src/game/enemies';
@@ -21,7 +28,14 @@ import { CLASSIC_BOSSES, isClassicBoss, type ClassicBoss, type ClassicBossKey } 
 import { G } from '../classic/shim/ctx';
 import { xpToNext, ECHO_SPECIES } from '../shared';
 import { hudBoxes, type Hud } from './Hud';
-import { menuInput } from '../ui/menu';
+import { hooks, blockingUI } from '../../../remnant/src/ui/ui';
+import { topLayer } from '../../../remnant/src/ui/dom';
+import { maybeRecap } from '../../../remnant/src/game/recap';
+import { tickCoach } from '../../../remnant/src/ui/coach';
+import { valorTick } from '../../../remnant/src/game/valor';
+import { runBlessings } from '../../../remnant/src/game/blessings';
+import { Grid } from '../../../remnant/src/game/tiles';
+import { trialArena, trialSector } from '../../../remnant/src/game/trialArena';
 import { castAbility } from '../../../remnant/src/game/abilities';
 import { Proj } from '../../../remnant/src/game/projectiles';
 import type { Player as OriginalPlayer } from '../../../remnant/src/game/player';
@@ -30,6 +44,7 @@ import { audio, sfx } from '../classic/shim/audio';
 import { music } from '../classic/shim/music';
 import { songs } from '../../../remnant/src/audio/songs';
 import { settings, shakeScale } from '../classic/shim/settings';
+import { updatePending, checkForUpdates } from '../game/update';
 import { placeLamps, strikeLamps } from '../../../remnant/src/game/lamps';
 
 const VIEW_H = 300;
@@ -55,6 +70,7 @@ export class World extends Phaser.Scene implements WorldApi {
   gateClosed = false;
   /** The original game's bosses and foes, run on Phaser (src/classic). */
   classic!: ClassicLayer;
+  art!: RoomArt;
   /** The room's classic boss, while it stands. */
   cboss: ClassicBoss | null = null;
   private cbossKey: ClassicBossKey | null = null;
@@ -66,6 +82,7 @@ export class World extends Phaser.Scene implements WorldApi {
   private layer!: Phaser.Tilemaps.TilemapLayer;
   private map?: Phaser.Tilemaps.Tilemap;
   private roomObjs: Phaser.GameObjects.GameObject[] = [];
+  private weather?: Phaser.GameObjects.Particles.ParticleEmitter;
   private bg: { far?: Phaser.GameObjects.TileSprite; near?: Phaser.GameObjects.TileSprite; sky?: Phaser.GameObjects.Image } = {};
   private colliders: Phaser.Physics.Arcade.Collider[] = [];
   private interactables: Interactable[] = [];
@@ -75,6 +92,7 @@ export class World extends Phaser.Scene implements WorldApi {
   private hitstopT = 0;
   private saveT = 0;
   private deadT = 0;
+  private deathCounted = false;
   private fresh = false;
   private ready = false;
 
@@ -89,11 +107,13 @@ export class World extends Phaser.Scene implements WorldApi {
   get hud() { return this.scene.get('hud') as Hud; }
 
   create() {
-    this.save = (!this.fresh && loadSave()) || newSave();
+    this.save = (!this.fresh && loadSave()) || newSave(!new URLSearchParams(location.search).has("nostory"));
+    const away = Date.now() - this.save.updated;
     this.refreshStats();
     this.controls = new Controls(this);
     this.classic = new ClassicLayer(this);
-    this.events.once('shutdown', () => this.classic.destroy());
+    this.art = new RoomArt(this);
+    this.events.once('shutdown', () => { this.art.destroy(); this.classic.destroy(); });
     // The HUD scene starts on the next step; the first room waits for it.
     this.ready = false;
     this.scene.launch('hud');
@@ -101,10 +121,12 @@ export class World extends Phaser.Scene implements WorldApi {
       this.loadRoom(ROOMS[this.save.room] ? this.save.room : 'sanctuary', this.save.spawn);
       this.cameras.main.fadeIn(400, 7, 6, 10);
       this.ready = true;
+      if (!this.fresh && this.classic.storyEnabled) maybeRecap(away);
     });
     this.scale.on('resize', this.fitCamera, this);
     this.events.once('shutdown', () => this.scale.off('resize', this.fitCamera, this));
-    const onHide = () => { if (document.hidden) this.persist(); };
+    let hiddenAt = 0;
+    const onHide = () => { if (document.hidden) { hiddenAt = Date.now(); this.persist(); } else if (hiddenAt) { if (this.classic.storyEnabled) maybeRecap(Date.now() - hiddenAt); hiddenAt = 0; } };
     document.addEventListener('visibilitychange', onHide);
     this.events.once('shutdown', () => document.removeEventListener('visibilitychange', onHide));
     if (new URLSearchParams(location.search).has('debug')) {
@@ -126,7 +148,26 @@ export class World extends Phaser.Scene implements WorldApi {
     return this.grid[ty * this.gw + tx];
   }
 
-  private flag(c?: string) { return !c || !!this.save.flags[c]; }
+  setTile(x: number, y: number, t: T) {
+    if (x < 0 || y < 0 || x >= this.gw || y >= this.gh) return;
+    this.grid[y * this.gw + x] = t === T.Gate && !this.gateClosed ? T.Empty : t;
+    if (!this.layer?.active) return;
+    const idx = tileIndex(t, !isSolid(this.tileAt(x, y - 1) as T));
+    if (idx < 0 || t === T.Empty) this.layer.removeTileAt(x, y);
+    else { const tile = this.layer.putTileAt(idx, x, y); if (t === T.OneWay) tile.setCollision(false, false, true, false); else if (isSolid(t)) tile.setCollision(true, true, true, true); }
+    this.layer.calculateFacesWithin(Math.max(0, x - 1), Math.max(0, y - 1), 3, 3);
+  }
+
+  private sector = -1;
+  configureTrial(wave: number) {
+    if (this.room.id !== 'trial_arena' || this.sector === trialSector(wave)) return false;
+    this.sector = trialSector(wave); this.room = trialArena(ROOMS.trial_arena, wave);
+    const next = new Grid(this.room.rows);
+    for (let y = 0; y < next.h; y++) for (let x = 0; x < next.w; x++) this.classic.grid.set(x, y, next.get(x, y));
+    this.art.load(); this.hud.roomEntered(this.room); return true;
+  }
+
+  private flag(c?: string) { return !c || (c.startsWith('!') ? !this.save.flags[c.slice(1)] : !!this.save.flags[c]); }
 
   private clearRoom() {
     for (const c of this.colliders) c.destroy();
@@ -137,6 +178,7 @@ export class World extends Phaser.Scene implements WorldApi {
     this.roomObjs = [];
     this.map?.destroy();
     this.map = undefined;
+    this.layer = undefined as unknown as Phaser.Tilemaps.TilemapLayer;
     this.interactables = [];
     this.hints = [];
     this.triggers = [];
@@ -152,6 +194,9 @@ export class World extends Phaser.Scene implements WorldApi {
     this.hud?.closeWheel?.();
     this.hud?.caption?.(null);
     this.player?.destroy();
+    this.deadT = 0;
+    this.deathCounted = false;
+    this.sector = -1;
   }
 
   loadRoom(id: string, spawnName: string) {
@@ -170,14 +215,23 @@ export class World extends Phaser.Scene implements WorldApi {
     for (let i = 0; i < this.grid.length; i++) if (this.grid[i] === T.Gate) { this.grid[i] = T.Empty; this.gates.push(i); }
 
     this.classic.load();
+    for (let y = 0; y < r.h; y++) for (let x = 0; x < r.w; x++) this.grid[y * r.w + x] = this.classic.grid.get(x, y) === T.Gate ? T.Empty : this.classic.grid.get(x, y);
     this.buildBackdrop(r);
     this.buildTiles(r);
+    this.layer.setVisible(false);
+    this.art.load();
     this.physics.world.setBounds(0, 0, r.w * TILE, r.h * TILE + 64);
     const sp = r.spawns[this.entrySpawn];
     this.player = new Player(this, sp.x * TILE + 8, sp.y * TILE, sp.face ?? 1);
     this.classic.attachPlayer();
     this.colliders.push(this.physics.add.collider(this.player.rect, this.layer, undefined, (_o, t) => this.passable(t as Phaser.Tilemaps.Tile, this.player.dropT > 0), this));
     for (const e of r.ents) this.spawnEnt(e);
+    if (this.classic.storyEnabled && id === 'covenant_chamber' && !this.save.flags.relic_taken) this.classic.addRelic();
+    if (r.weather) {
+      const rain = r.weather === 'rain', ember = r.weather === 'embers';
+      this.weather = this.add.particles(0, 0, 'glow', { x: { min: -350, max: 350 }, y: { min: -20, max: 260 }, lifespan: rain ? 1100 : 4000, frequency: settings.quality === 'low' ? 350 : rain ? 60 : 180, maxParticles: 60, speedY: rain ? 240 : { min: -7, max: 20 }, speedX: rain ? -30 : { min: -12, max: 8 }, scaleX: rain ? 0.018 : 0.025, scaleY: rain ? 0.16 : 0.025, alpha: { start: ember ? 0.7 : 0.25, end: 0 }, tint: rain ? 0x9fc4ff : ember ? 0xff9b65 : 0xc8c0ac }).setDepth(17);
+      this.roomObjs.push(this.weather);
+    } else this.weather = undefined;
     placeLamps(r);
     // The Echoes come along through every door, unless they were dismissed.
     if (this.save.echoes.length && this.save.flags.army_out !== false) this.classic.summonEchoes(true);
@@ -185,6 +239,8 @@ export class World extends Phaser.Scene implements WorldApi {
     this.cameras.main.startFollow(this.player.rect, true, 0.14, 0.12, 0, 24);
     this.cameras.main.setDeadzone(24, 40);
     this.hud.roomEntered?.(r);
+    const first = !this.save.visited.includes(id); if (first) this.save.visited.push(id);
+    this.classic.enter(first);
     this.persist();
   }
 
@@ -222,12 +278,14 @@ export class World extends Phaser.Scene implements WorldApi {
     }
     // Only exposed faces collide, so bodies slide along floors without snagging on seams.
     this.layer.calculateFacesWithin(0, 0, r.w, r.h);
+    fluid.setVisible(false);
     this.roomObjs.push(this.layer, fluid);
   }
 
   private spawnEnt(e: EntDef) {
     if ('cond' in e && !this.flag(e.cond)) return;
     if ('ncond' in e && e.ncond && this.flag(e.ncond)) return;
+    if (this.classic.storyEnabled && this.classic.spawnProp(e)) return;
     const x = ('x' in e ? e.x : 0) * TILE, y = ('y' in e ? (e as { y: number }).y : 0) * TILE;
     switch (e.t) {
       case 'enemy': {
@@ -334,6 +392,7 @@ export class World extends Phaser.Scene implements WorldApi {
 
   // ---------------------------------------------------------------- camera
 
+  baseZoom = 1;
   fitCamera() {
     if (!this.room) return;
     const cam = this.cameras.main;
@@ -341,8 +400,10 @@ export class World extends Phaser.Scene implements WorldApi {
     cam.setSize(W, H);
     const r = this.room;
     // 300 world px tall, but never wider than the room (small rooms fill the screen).
-    let zoom = H / VIEW_H;
+    const height = VIEW_H * (settings.zoom === 'close' ? 0.82 : settings.zoom === 'wide' ? 1.2 : 1);
+    let zoom = H / height;
     zoom = Math.max(zoom, W / (r.w * TILE), H / (r.h * TILE));
+    this.baseZoom = zoom;
     cam.setZoom(zoom);
     cam.setBounds(0, 0, r.w * TILE, r.h * TILE);
     const { sky, far, near } = this.bg;
@@ -374,20 +435,26 @@ export class World extends Phaser.Scene implements WorldApi {
     const rawDt = Math.min(delta / 1000, 1 / 30);
     const dt = rawDt * this.classic.simulationScale;
     this.physics.world.timeScale = 1 / this.classic.simulationScale;
+    if (this.weather) { const v = this.cameras.main.worldView; this.weather.setPosition(v.centerX, v.y); }
     this.parallax();
+    this.art.render();
     // Hit-stop freezes the moment; input waits (latched) so a press made in it still lands after.
     if (this.hitstopT > 0) {
       this.hitstopT -= dt;
       if (this.hitstopT <= 0) this.physics.resume();
       return;
     }
+    this.controls.locked = false;
     this.controls.poll();
     if (this.transitioning) return;
+    if (this.classic.storyEnabled) tickCoach(rawDt);
     // The Echo wheel holds the world while it is up.
     if (this.hud.wheelOpen) { this.hud.wheelInput(dt); return; }
     // The pause menu holds the world and takes the keys and pad.
-    if (this.hud.paused) { menuInput(this.controls); return; }
-    if (this.controls.pressed('menu')) { this.hud.togglePause(); return; }
+    if (this.hud.paused || G.paused || blockingUI() || topLayer()) { this.physics.pause(); this.hud.sync(this); return; }
+    if (this.physics.world.isPaused) this.physics.resume();
+    if (this.controls.pressed('map') && !G.inCutscene) { G.ui.openMenu('map'); return; }
+    if (this.controls.pressed('menu') && !G.inCutscene) { this.hud.togglePause(); return; }
     if (this.controls.pressed('echo') && !G.inCutscene && !this.player.dead) { this.hud.openWheel(); return; }
     if (this.controls.pressed('switch') && !G.inCutscene && !this.player.dead) this.classic.squad.switchSupport();
     this.controls.locked = G.inCutscene;
@@ -407,15 +474,23 @@ export class World extends Phaser.Scene implements WorldApi {
     // Interact with the nearest thing in reach; beside a kneeling elite, hold to purify it.
     const kneeling = this.updatePurify(dt);
     const near = kneeling ? null : this.nearest();
-    this.hud.setInteract(kneeling ? 'Hold to purify' : near?.label ?? null);
-    if (near && this.controls.pressed('interact') && !this.player.dead) near.use();
+    const original = this.classic.storyEnabled ? this.classic.updateInteract() : null;
+    this.hud.setInteract(kneeling ? 'Hold to purify' : original ?? near?.label ?? null);
+    if (!this.player.dead && !G.inCutscene && this.controls.pressed('interact')) { if (original) this.classic.tryInteract(); else near?.use(); }
     // Hints show while Elior walks through their stretch of the room.
     const hint = this.hints.find((h) => this.player.x >= h.x0 && this.player.x <= h.x1);
     this.hud.setHint(hint?.text ?? null);
 
+    if (this.classic.storyEnabled) valorTick(dt);
     if (this.player.dead) {
       this.deadT += dt;
-      if (this.deadT > 1.4) this.respawn();
+      if (!this.deathCounted) { this.deathCounted = true; this.save.deaths++; }
+      const R = this.classic.story.ch3.rounds;
+      if (this.room.id === 'trial_arena' && R.active && !this.classic.deathHandled) { this.classic.deathHandled = true; this.classic.after(1.8, async () => this.classic.afterRun(await R.onDeath())); }
+      if (this.deadT > 1.4 && !this.classic.deathHandled) {
+        if (this.classic.storyEnabled) { this.classic.deathHandled = true; void G.ui.death().then(() => this.respawn()); }
+        else this.respawn();
+      }
     } else {
       this.checkTriggers();
       this.checkExits();
@@ -443,6 +518,7 @@ export class World extends Phaser.Scene implements WorldApi {
     const p = this.player;
     for (const t of this.triggers) {
       if (!t.r.contains(p.x, p.feet - 4)) continue;
+      if (this.classic.storyEnabled) { if (!G.inCutscene) this.classic.trigger(t.id); continue; }
       if (this.boss && t.id === `${this.boss.key}_start` && this.boss.state === 'dormant') { this.boss.awaken(); this.closeGate(true); }
       if (this.cboss && this.cbossKey && t.id === CLASSIC_BOSSES[this.cbossKey].trigger && this.cboss.state === 'dormant' && !this.brood) this.wakeClassic();
       const gate = /^ch(\d+)_gate$/.exec(t.id);
@@ -507,6 +583,7 @@ export class World extends Phaser.Scene implements WorldApi {
       this.loadRoom(id, spawn);
       cam.fadeIn(220, 7, 6, 10);
       this.transitioning = false;
+      if (updatePending() && !G.inCutscene && !this.classic.story.ch3.rounds.active) void checkForUpdates(() => this.persist());
     });
   }
 
@@ -527,8 +604,11 @@ export class World extends Phaser.Scene implements WorldApi {
     });
   }
 
-  private rest(id: string) {
+  rest(id = 'sanctuary') {
     this.player.heal();
+    this.player.hp = this.d.maxHp; this.save.ce = this.save.flags.relic_taken ? this.d.maxCe : 0;
+    for (const e of this.save.echoes) { e.hp = echoMaxHp(this.save, e, this.d); e.downFor = 0; }
+    for (const e of this.classic.echoes) { e.hp = e.maxHp; e.inst.hp = e.hp; }
     this.save.balm = this.save.balmMax;
     this.save.hp = this.player.hp;
     this.save.flags[`altar_${id}`] = true;
@@ -570,7 +650,7 @@ export class World extends Phaser.Scene implements WorldApi {
     this.classic.add(new Proj('lightwave', p.x + p.face * 14, p.feet - 14, 'player', p.skillPower() * 0.8, { vx: p.face * 380, life: 0.55, w: 18, h: 30, poise: 10 }));
   }
   playEffect(name: string) { sfx(name); }
-  heroHit(f: FoeLike, damage: number, heavy: boolean) { const e = this.classic.entityFor(f); if (e) this.classic.hero?.onHit(e, damage, heavy); }
+  heroHit(f: FoeLike, damage: number, heavy: boolean, crit = false) { const e = this.classic.entityFor(f); if (e) this.classic.hero?.onHit(e, damage, heavy, crit); }
   strikeLamps(box: { x: number; y: number; w: number; h: number }) { strikeLamps(box); }
   banner(title: string, sub: string) { this.hud.banner(title, sub); }
   toast(text: string) { this.hud.toast(text); }
@@ -589,10 +669,11 @@ export class World extends Phaser.Scene implements WorldApi {
   refreshStats() {
     this.d = stats(this.save);
     G.d = this.d;
+    if (this.player) { this.player.maxHp = this.d.maxHp; this.player.maxCe = this.d.maxCe; }
   }
 
   /** A chest's loot, as the original's world.collect gives it. */
-  private collect(l: { silver?: number; mat?: string; n?: number; item?: string; rarity?: number }) {
+  collect(l: { silver?: number; mat?: string; n?: number; item?: string; rarity?: number }) {
     const s = this.save;
     if (l.silver) {
       s.silver += l.silver;
@@ -632,6 +713,7 @@ export class World extends Phaser.Scene implements WorldApi {
 
   /** The Veil burns away: the elite's battle-imprint is cleansed into an Echo (raised when the Echo port lands). */
   private purify(e: Enemy) {
+    if (this.classic.storyEnabled) { void this.classic.story.purify(e); return; }
     const s = this.save;
     const species = ({ archer: 'archer', brute: 'brute', bulwark: 'bulwark', knight: 'knight', lion: 'lion' } as Record<string, string>)[e.kind] ?? 'sentinel';
     for (let i = 0; i < 6; i++) this.time.delayedCall(i * 160, () => { fx.veilBurst(e.cx, e.cy, 10, 1.2); fx.holyBurst(e.cx, e.cy, 8, 0.8); });
@@ -660,7 +742,8 @@ export class World extends Phaser.Scene implements WorldApi {
 
   /** A classic boss on its mark, with the original's own health on Hard. */
   private spawnClassicBoss(k: ClassicBossKey, x: number, y: number) {
-    if (this.save.defeated?.includes(k)) return;
+    const finishing = this.classic.storyEnabled && ({ golden_image: 'ch4_image_done', weigher: 'ch5_weigher_done', storm_prince: 'ch6_storm_done', persia_prince: 'ch6_prince_done' } as Record<string, string>)[k];
+    if (this.save.defeated?.includes(k) && (!finishing || this.save.flags[finishing])) return;
     const def = CLASSIC_BOSSES[k], b = def.make(x, y);
     this.classic.add(b);
     this.classic.boss = b;
@@ -713,7 +796,7 @@ export class World extends Phaser.Scene implements WorldApi {
   /** What the boss bar shows: the Crown, or the classic boss. */
   get bossView(): BossView | null {
     if (this.boss) return this.boss;
-    const b = this.cboss;
+    const b = this.cboss ?? this.classic.boss as ClassicBoss | null;
     if (!b) return null;
     const v = this.cbView;
     v.alive = !b.dying && !b.remove;
@@ -746,6 +829,7 @@ export class World extends Phaser.Scene implements WorldApi {
 
   /** A Crown broken: the chapter is done, the gate opens, and its experience is Elior's. */
   onBossDefeated(key: string) {
+    if (this.classic.storyEnabled && this.boss) { const e = this.classic.entityFor(this.boss); if (e) this.classic.onBossDefeated(e as any); this.boss = null; return; }
     music.play('victory');
     const n = BOSS_CHAPTER[key as keyof typeof BOSS_CHAPTER];
     this.save.flags[`defeated_${key}`] = true;
@@ -788,13 +872,51 @@ export class World extends Phaser.Scene implements WorldApi {
     this.giveXp(xp, x, y);
   }
 
-  private giveXp(xp: number, x: number, y: number) {
-    this.floatText(x, y - 10, `+${xp} XP`, '#9fc4ff');
-    const ups = gainXp(this.save, xp);
-    if (ups) {
+  giveXp(xp: number, x = this.player.x, y = this.player.y) {
+    const s = this.save;
+    const lvBefore = s.level;
+    // Story XP catches a player up to the chapter's arrival level; the Trial pays by its own rules.
+    if (this.room.id !== 'trial_arena') xp = Math.round(xp * catchUpXp(s.level, chapterOf(this.room.id)));
+    const levels = gainXp(s, xp);
+    fx.number(this.player.x, this.player.y - 56, `+${xp} XP`, false, '#cfe6ff');
+    if (levels > 0) {
+      const slotsBefore = G.d.echoSlots;
       this.refreshStats();
-      this.player.heal();
-      this.hud.banner(`LEVEL ${this.save.level}`, `Health restored · ${this.save.statPoints} stat and ${this.save.skillPoints} skill points to spend (the menus come in a later part)`);
+      s.hp = G.d.maxHp;
+      this.classic.playerView.styleKey = '';
+      G.ui.levelUp(levels);
+      islandNotify(`LEVEL ${s.level}`, '#f6dea0', 'stats', 2.8);
+      islandRipple('#ffd27a');
+      for (const ec of this.classic.echoes) ec.refreshStats();
+      // New finishers and power tiers announce themselves.
+      const fins = FINISHERS.filter((f) => f.level > lvBefore && f.level <= s.level && f.level > 1);
+      fins.forEach((f, i) => this.classic.after(2.2 + i * 1.2, () => G.ui.toast(`New finisher: ${f.name} — ${f.desc}`, 'good')));
+      if (lvBefore < SOVEREIGN_LV && s.level >= SOVEREIGN_LV) {
+        this.classic.after(3.4, () => {
+          G.ui.banner('SOVEREIGN OF THE REMNANT', 'Every swing looses a crescent · Phantom Step costs nothing · ordinary blows cannot stagger you · the fallen rise to serve', 'ability');
+          sfx('arise');
+          fx.column(this.player.x, this.player.y, 60, 420, '#9a6aff', 2);
+          fx.flash('#c9a8ff', 0.5);
+        });
+      } else if (powerTier(s.level) > powerTier(lvBefore)) {
+        this.classic.after(2.6, () => G.ui.toast('Your strikes grow heavier and brighter.', 'good'));
+      }
+      // The Shadow Mantle wakes at 25 and deepens at 50, 75 and 100.
+      if (lvBefore < MANTLE_LV && s.level >= MANTLE_LV) announceMantle(3.6);
+      else if (lvBefore >= MANTLE_LV && mantleTier(s.level) > mantleTier(lvBefore)) {
+        this.classic.after(3, () => G.ui.toast(`Your Shadow Mantle deepens: ${mantlePerks()}.`, 'good'));
+      }
+      if (G.d.echoSlots > slotsBefore) {
+        // A wider covenant: bring benched Echoes into the line automatically.
+        for (const e of s.echoes) {
+          if (s.active.length >= G.d.echoSlots) break;
+          if (!s.active.includes(e.uid)) s.active.push(e.uid);
+        }
+        this.classic.after(1.4, () => {
+          G.ui.toast(`Your covenant widens: ${G.d.echoSlots} Echoes may now fight beside you.`, 'good');
+          if (s.flags.army_out !== false) this.classic.summonEchoes();
+        });
+      }
     }
   }
 }

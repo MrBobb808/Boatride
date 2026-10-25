@@ -1,18 +1,21 @@
 // Only this Phaser app's files and caches belong to this worker.
-const CACHE = 'remnant-phaser-shell-__BUILD__';
+const root = new URL('./', self.registration.scope);
+const PREFIX = 'remnant-phaser-shell-' + encodeURIComponent(root.pathname) + '-';
+const CACHE = PREFIX + '__BUILD__';
 const MUSIC = 'remnant-phaser-music';
 const CORE = __CORE__;
-const root = new URL('./', self.registration.scope);
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(CORE.map((p) => new Request(new URL(p, root), { cache: 'reload' })))).then(() => self.skipWaiting()));
 });
 self.addEventListener('activate', (e) => {
-  e.waitUntil(caches.keys().then((keys) => Promise.all(keys.filter((k) => k.startsWith('remnant-phaser-shell-') && k !== CACHE).map((k) => caches.delete(k)))).then(() => self.clients.claim()));
+  e.waitUntil(caches.keys().then((keys) => Promise.all(keys.filter((k) => k.startsWith(PREFIX) && k !== CACHE).map((k) => caches.delete(k)))).then(() => self.clients.claim()));
 });
 self.addEventListener('message', (e) => { if (e.data?.type === 'SKIP_WAITING') self.skipWaiting(); });
 self.addEventListener('fetch', (e) => {
   const req = e.request, url = new URL(req.url);
   if (req.method !== 'GET' || url.origin !== root.origin || !url.pathname.startsWith(root.pathname)) return;
+  const relative = url.pathname.slice(root.pathname.length);
+  if (relative.startsWith('phaser/') || relative.startsWith('classic/')) return;
   // Version probes and worker updates always reach the server.
   if (url.pathname.endsWith('/version.json') || url.pathname.endsWith('/sw.js')) return;
   if (url.pathname.includes('/music/')) {
@@ -32,7 +35,7 @@ self.addEventListener('fetch', (e) => {
       const c = await caches.open(CACHE);
       await c.put(new URL('index.html', root), res.clone());
       return res;
-    }).catch(() => caches.match(new URL('index.html', root))));
+    }).catch(() => caches.open(CACHE).then((c) => c.match(new URL('index.html', root)))));
     return;
   }
   e.respondWith(caches.open(CACHE).then(async (c) => {

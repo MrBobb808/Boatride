@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { selectSlot } from '../game/save';
 import { eliorUrl, varkhosUrl, morvaneUrl, azkarUrl } from '../shared';
 import { cutBossFrames } from '../game/bosses';
 import { glowTexture } from '../game/tileset';
@@ -25,8 +26,13 @@ export class Boot extends Phaser.Scene {
     cutBossFrames(this);
     this.makeSlash();
     const p = new URLSearchParams(location.search);
+    let resume = false;
+    if (!/\/(phaser|classic)\/?$/.test(location.pathname.replace(/index\.html$/, ''))) {
+      try { const slot = sessionStorage.getItem('remnant-resume-slot'); if (slot !== null && [0, 1, 2].includes(Number(slot))) { selectSlot(Number(slot)); sessionStorage.removeItem('remnant-resume-slot'); resume = true; } } catch {}
+    }
+    if (resume) { const url = new URL(location.href); url.searchParams.delete('fresh'); url.searchParams.set('autostart', ''); history.replaceState(null, '', url); }
     // The foes' sheets (drawn by the original's render/creatureSprites.ts) are in before the first room.
-    void loadCreatureSprites().then(() => this.scene.start(p.has('autostart') ? 'world' : 'title', { fresh: p.has('fresh') }));
+    void loadCreatureSprites().then(() => this.scene.start(p.has('autostart') || resume ? 'world' : 'title', { fresh: !resume && p.has('fresh') }));
   }
 
   /** A crescent of light for Elior's blade. */

@@ -11,6 +11,7 @@
 // original's default Hard difficulty.
 
 import Phaser from 'phaser';
+import { G } from '../classic/shim/ctx';
 import { chapterCurve, cleansingBeacon } from '../shared';
 import { GRAV } from './player';
 import type { WorldApi, FoeLike } from './types';
@@ -64,8 +65,9 @@ export abstract class Boss implements FoeLike {
     this.chapter = BOSS_CHAPTER[key];
     // The original's health and blow for the chapter (game/curve.ts), on Hard.
     const cv = chapterCurve(this.chapter);
-    this.maxHp = this.hp = Math.round(cv.bossHp! * challengeScale().hp);
-    this.base = cv.bossDmg! * challengeScale().dmg;
+    const ng = 1 + w.save.ng * 0.6;
+    this.maxHp = this.hp = Math.round(cv.bossHp! * ng * challengeScale().hp);
+    this.base = cv.bossDmg! * ng * challengeScale().dmg;
     this.floorY = feet;
     this.rect = sc.add.rectangle(x, feet - bh / 2, bw, bh, 0xffffff, 0);
     sc.physics.add.existing(this.rect);
@@ -90,6 +92,7 @@ export abstract class Boss implements FoeLike {
   }
 
   protected beginFight() {
+    G.inCutscene = false; G.ui.cinematicBars(false);
     this.state = 'idle';
     this.st = 0;
     this.phase = 1;

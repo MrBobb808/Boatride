@@ -20,7 +20,7 @@ try {
   const page = await (await browser.newContext({ viewport: { width: 1280, height: 720 } })).newPage();
   page.on('pageerror', (e) => errors.push(e.message));
   page.on('console', (m) => { if (m.type() === 'error' && !m.text().includes('404')) errors.push(m.text()); });
-  await page.goto(base + '?debug&autostart&fresh');
+  await page.goto(base + '?debug&nostory&autostart&fresh');
   await until(page, () => window.__remnant?.world?.player && !window.__remnant.world.transitioning);
   await E(page, () => setInterval(() => { const p = window.__remnant.world.player; if (p && !p.dead) p.hp = p.maxHp; }, 30));
 

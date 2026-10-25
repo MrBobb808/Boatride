@@ -6,7 +6,7 @@
 // return after it falls.
 
 import { G } from './shim/ctx';
-import { inputHook } from './shim/input';
+import { input } from './shim/input';
 import { EchoUnit } from '../../../remnant/src/game/echoes';
 import { EchoCombinations } from '../../../remnant/src/game/echoCombos';
 import { echoMaxHp, skillRank } from '../../../remnant/src/game/state';
@@ -144,7 +144,7 @@ export class Squad {
 
   /** The Echo a swap trades places with: the nearest in the aimed direction, else the farthest. */
   pickSwap(): EchoUnit | null {
-    const p = this.p, axis = inputHook.controls?.axis ?? 0;
+    const p = this.p, axis = input.axisX;
     const ax = Math.abs(axis) > 0.35 ? Math.sign(axis) : p.face;
     let best: EchoUnit | null = null, bestD = Infinity, far: EchoUnit | null = null, farD = 0;
     for (const e of this.echoes) {

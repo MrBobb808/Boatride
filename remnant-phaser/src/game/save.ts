@@ -11,6 +11,9 @@ import { ROOMS } from '../shared';
 export type PhaserSave = SaveData;
 
 const KEY = 'remnant-phaser.save.v2';
+export const activeSlot = () => { const n = Number(read('remnant-phaser.active-slot') ?? 0); return [0, 1, 2].includes(n) ? n : 0; };
+export const selectSlot = (slot: number) => { try { localStorage.setItem('remnant-phaser.active-slot', String(slot)); } catch {} };
+const activeKey = () => activeSlot() === 0 ? KEY : `remnant-phaser.save.slot${activeSlot()}`;
 const EARLY_SKILLS = ['sword_word', 'trumpet', 'shield_faith'] as const;
 /** Parts 1–8 always provided these three buttons, without recording a loadout. */
 function earlyLoadout(s: SaveData) {
@@ -53,7 +56,11 @@ function parse(raw: string | null): SaveData | null {
   }
 }
 
-export const newSave = (): SaveData => earlyLoadout(settle(newGame()));
+export function newSave(story = false): SaveData {
+  const s = settle(newGame());
+  if (story) { s.flags.phaser_loadout_v1 = true; return s; }
+  return earlyLoadout(s);
+}
 
 /** A save from parts 1–5 of the port: its journey carried into the original's format. */
 function fromV1(raw: string): SaveData | null {
@@ -78,7 +85,7 @@ function fromV1(raw: string): SaveData | null {
 }
 
 export function loadSave(): SaveData | null {
-  const v2 = parse(read(KEY));
+  const v2 = parse(read(activeKey()));
   if (v2) return earlyLoadout(v2);
   const v1 = read(KEY_V1);
   return v1 ? fromV1(v1) : null;
@@ -86,7 +93,7 @@ export function loadSave(): SaveData | null {
 
 export function writeSave(s: SaveData) {
   s.updated = Date.now();
-  try { localStorage.setItem(KEY, JSON.stringify(s)); } catch { /* private mode: this session only */ }
+  try { localStorage.setItem(activeKey(), JSON.stringify(s)); } catch { /* private mode: this session only */ }
 }
 
 /** The live game's slots, for the title's import (read-only). */
