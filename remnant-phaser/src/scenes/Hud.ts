@@ -88,6 +88,13 @@ export class Hud extends Phaser.Scene {
   private get world() { return this.scene.get('world') as World; }
 
   create() {
+    this.world.controls.flush();
+    // Phaser reuses this scene after Continue and rotation, but destroys its objects.
+    this.skillTexts = []; this.toasts = []; this.bannerBox = this.guideText = this.wheelBox = undefined;
+    this.wheelItems = []; this.wheelOpen = false; this.wheelSel = this.wheelNavT = 0;
+    this.bossName = this.interactLabel = this.coachAction = null; this.bossSub = '';
+    this.hpGhost = this.bossGhost = 1; this.barsAmt = 0; this.barsOn = false; this.pausePointer = -1;
+    this.stick.id = -1; this.stick.base = this.stick.knob = null;
     // Device pixels, times the original's HUD scale for the screen size.
     const cw = this.scale.width / dpr(), ch = this.scale.height / dpr();
     this.k = dpr() * Phaser.Math.Clamp(Math.min(ch / 430, cw / 900), 0.85, 1.6);

@@ -52,6 +52,7 @@ import { updateWater, drawWaterFront } from '../../../remnant/src/render/underwa
 import { prepareWater } from '../../../remnant/src/game/water';
 import type { Loot, EntDef } from '../../../remnant/src/game/tiles';
 import { BASE_POSE } from '../../../remnant/src/render/skeleton';
+import type { Visuals } from '../game/visuals';
 
 /** Phaser blow force to the original's poise (a light strike is ~10, a full heavy ~34). */
 const POISE_PER_FORCE = 14;
@@ -62,6 +63,7 @@ const overlaps = (a: Rect, b: Rect) => a.x < b.x + b.w && b.x < a.x + a.w && a.y
 
 /** What the classic layer needs from the World scene beyond `WorldApi`. */
 export interface ClassicHost extends WorldApi {
+  visuals: Visuals;
   player: Player & {
     face: number;
     state: string;
@@ -810,19 +812,21 @@ export class ClassicLayer {
     this.squad.update(dt);
     fx.update(dt);
     updateWater(dt);
-    this.followFocus();
+    this.followFocus(dtRaw);
   }
 
   /** A boss's intro points the camera at it; Elior's follow resumes after. */
-  private followFocus() {
-    const cam = this.host.sc.cameras.main, f = G.camera.focus as { x: number; y: number } | null;
+  private followFocus(dt: number) {
+    const shot = this.host.visuals.bossCamera.frame(dt);
+    const cam = this.host.sc.cameras.main, f = (G.camera.focus as { x: number; y: number } | null) ?? shot;
     const base = (this.host as any).baseZoom ?? cam.zoom;
-    cam.setZoom(Phaser.Math.Linear(cam.zoom, base * G.camera.zoomTarget / G.camera.viewMultTarget, 0.08));
+    cam.setZoom(Phaser.Math.Linear(cam.zoom, base * G.camera.zoomTarget / G.camera.viewMultTarget * (shot?.zoom ?? 1), 1 - Math.exp(-5 * dt)));
     if (f) {
       if (!this.focusing) { cam.stopFollow(); this.focusing = true; }
       const v = cam.worldView;
-      cam.scrollX += (f.x - v.centerX) * 0.06;
-      cam.scrollY += (f.y - v.centerY) * 0.06;
+      const a = 1 - Math.exp(-Math.min(40, G.camera.focusRate || 8) * dt);
+      cam.scrollX += (f.x - v.centerX) * a;
+      cam.scrollY += (f.y - v.centerY) * a;
     } else if (this.focusing) {
       this.focusing = false;
       cam.startFollow(this.host.player.rect, true, 0.14, 0.12, 0, 24);

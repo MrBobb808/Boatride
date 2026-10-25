@@ -28,6 +28,24 @@ loads, ten chapter openings/end cards, representative scripted sequences,
 boss phases, menus, modes, swimming and the installed-app upgrade. An uninterrupted
 human playthrough and sustained 120 Hz on a real iPhone remain acceptance work.
 
+## Visual polish
+
+Phaser's world camera has a small animated displacement map that distorts only
+water cells or air just above volcanic hazards. The HUD has its own camera and
+stays sharp. Elemental weapons tint their blade arcs, add a soft weapon light
+and emit matching impact sparks. Shadow Mantle adds a purple sprite glow,
+backlight and rising wisps. Authored rain, embers, ash and motes use depth layers.
+
+Boss introductions and phase changes receive gentle framing; combat framing
+keeps Elior visible and responsive. Shared story pans, finishers and supers take
+priority. Screen shake Off disables the extra framing; Reduced softens it.
+
+Low quality removes GPU distortion and sprite filters and reduces particles.
+Auto sheds these effects on sustained missed frames. Reduce flashes disables
+distortion and softens glows. Canvas fallback retains light sprites and particles
+without using GPU filters. Room changes, Trial sectors and returning to the title
+dispose their effects and reset boss framing.
+
 ## Architecture
 
 Phaser owns application scenes, timing, input integration, camera, native player,
@@ -82,6 +100,7 @@ include TypeScript checks. Run Phaser browser scripts from `remnant-phaser`:
 | `saves`, `menu` | Compatible saves, gear/stats, imports, complete menu actions and phone input. |
 | `journey`, `story-flow` | Ten chapter openings, menu pages, collapse, relic, purification, end cards, Crown rewards, Rest and recap. |
 | `modes-water`, `phone-progress` | Flooded rooms, mode entry/results/boards, contract restrictions, Island/editor/haptics, slots, NG+ and scaling. |
+| `visuals` | Six elemental weapons, Mantle glow, animated water/heat distortion, quality/accessibility controls, weather layers, camera hand-off, Trial/room cleanup, title/Continue and Canvas fallback. |
 | `install-audio` | Audio decks, settings, offline shell and update recovery; run alone because it temporarily changes the served version probe. |
 | `cutover` | Original installed worker upgrade, three slots and exact derived stats, cache isolation, offline persistence and preview recovery. Requires assembled Pages artifact. |
 

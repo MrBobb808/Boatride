@@ -4,6 +4,7 @@ import { ROOMS } from '../shared';
 import { dpr } from '../game/screen';
 import { music } from '../classic/shim/music';
 import { installedBuild } from '../game/update';
+import { input } from '../../../remnant/src/core/input';
 
 /** The title: continue the Phaser save, begin again, or bring a journey over from the live game. */
 export class Title extends Phaser.Scene {
@@ -53,8 +54,16 @@ export class Title extends Phaser.Scene {
       t.setData('k', i === 0 ? 'title_first' : i === 1 ? 'title_second' : `title_live_${i - 2}`);
       texts.push(t);
     });
-    this.input.keyboard?.once('keydown-ENTER', opts[0][1]);
-    this.input.keyboard?.once('keydown-SPACE', opts[0][1]);
-    this.scale.once('resize', () => this.scene.restart());
+    // The shared input service already consumes Enter/Space before Phaser's keys.
+    let starting = false;
+    const off = input.onAction((action, repeat) => {
+      if (repeat || starting || action !== 'confirm' && action !== 'jump') return;
+      starting = true; input.releaseAll(); opts[0][1](); return true;
+    });
+    const refit = () => this.scene.restart();
+    this.scale.once('resize', refit);
+    this.events.once('shutdown', () => { off(); this.scale.off('resize', refit); });
   }
+
+  update() { input.poll(); input.flush(); }
 }
