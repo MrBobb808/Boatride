@@ -10,7 +10,7 @@ The repository root's Gangway app is unrelated and is not changed.
 | Part | Implemented behavior |
 |---|---|
 | 9 · Combat and loadout | Blade, spear and greatsword routes; fourth combo strike, delayed flurry, Storm, Comet, air routes, Phantom Step/Cross; all twelve Covenant abilities and persisted skill selection. |
-| 10 · Powers | Shared executions, six weapon elements, power tiers, all five sub-weapons and four supers, Shadow Mantle transformation, pursuit and chain-impact teleport. Native strikes earn mastery and equipment-set effects apply. |
+| 10 · Powers | Shared executions, six weapon elements, power tiers, all five sub-weapons and four supers, Shadow Mantle transformation, pursuit and chain-impact teleport. Trumpet casts open authored cracked walls and seals in both terrain grids and preserve the opening. Native strikes earn mastery and equipment-set effects apply. |
 | 11 · Story I | Original Chapters I–V scripts, illustrated dialogue, choices, NPCs, quests, relic and Echo tutorials, objective guide and persistent room changes. |
 | 12 · Story II | Chapters VI–X, original cutscenes and boss callbacks, all ten chapter-end screens and the resume recap. |
 | 13 · Audio | Shared generated score, effects, phase layers and recorded Suno songs; gesture unlock, settings, pause ducking and underwater muffle. |
@@ -18,8 +18,8 @@ The repository root's Gangway app is unrelated and is not changed.
 | 15 · Swimming | Both flooded Chapter X rooms: directional swimming, currents, breath/drowning, air pockets, stroke, dash, thrust/parry and underwater presentation. |
 | 16 · Modes | Shared Trial, Extreme Survival, seeded daily challenge, Gauntlet/Rush, contracts, blessings, rewards and results. Boards are local to the browser/device, as in the original. |
 | 17 · Progression | Remnant's Rest, Trials of Valor, New Game+, boss difficulty; native Crowns use the same chapter curve, NG+ scaling and chapter XP catch-up. |
-| 18 · Phone | Dynamic Island presentation, movable/resizable touch controls, handedness/opacity settings and shared haptics. Physical iPhone performance and iOS audio-session behavior still need device validation. |
-| 19 · Installed app | Existing main-app identity retained, hashed offline shell, on-demand song cache, build display, update checks on foreground/interval and save/resume at safe transitions. |
+| 18 · Phone | Dynamic Island presentation, movable/resizable touch controls, handedness/opacity settings, live Auto/60 FPS pacing and shared haptics. DOM dialogue touches stay outside Phaser's pointer state. Physical iPhone performance and iOS audio-session behavior still need device validation. |
+| 19 · Installed app | Existing main-app identity retained, hashed offline shell, on-demand song cache, build display, update checks on foreground/interval and save/resume at safe transitions. System reports offline readiness only after the controlling worker confirms the current build and scope. |
 | 20 · Switch-over | Main Phaser artifact plus preview and isolated original fallback. Three-slot save migration, exact-stat comparison, original-worker upgrade, offline reload and cache-scope isolation are browser tested. |
 
 These are implemented systems, not a claim that every possible campaign branch
@@ -61,6 +61,11 @@ Shared `G.d` assignments update the native hero's stat limits immediately.
 - Main, preview and fallback workers have separate shell scopes/cache prefixes.
   Offline navigation reads only its own shell. Visiting one edition cannot
   evict or substitute another edition's cached document.
+- Phaser shell installation and navigation caching reject a document without
+  the Phaser build marker. Cached-file presence alone does not establish
+  offline readiness; System waits for the controlling worker's acknowledgment.
+  Startup explicitly checks the worker for updates, including immediately
+  after the original edition's worker was registered.
 - Previously cached main-app recordings are reused on upgrade. Recorded songs
   cache as heard; an unheard song needs network access and falls
   back to the generated score when unavailable. This is not an all-song download.

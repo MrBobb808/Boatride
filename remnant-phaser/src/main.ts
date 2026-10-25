@@ -18,6 +18,7 @@ import { audio } from './classic/shim/audio';
 import { music } from './classic/shim/music';
 import { songs } from '../../remnant/src/audio/songs';
 import { registerOffline, checkForUpdates } from './game/update';
+import { settings, onSettingsChange } from './classic/shim/settings';
 
 const size = () => ({ w: Math.round(innerWidth * dpr()), h: Math.round(innerHeight * dpr()) });
 
@@ -36,8 +37,14 @@ const game = new Phaser.Game({
   input: { activePointers: 5, gamepad: true, windowEvents: false },
   physics: { default: 'arcade', arcade: { gravity: { x: 0, y: 0 }, fps: 120, debug: new URLSearchParams(location.search).has('boxes') } },
   // Real frame times: a target here clamps each step, and slow frames would play in slow motion.
-  fps: { smoothStep: false },
+  fps: { smoothStep: false, limit: settings.fps === '60' ? 60 : 0 },
   scene: [Boot, Title, World, Hud],
+});
+
+// Apply the phone's frame-pacing preference without restarting its journey.
+onSettingsChange(() => {
+  const limit = settings.fps === '60' ? 60 : 0;
+  if (game.loop.fpsLimit !== limit) game.loop.setFPSLimit(limit);
 });
 
 // iOS must unlock the score and both reusable song decks inside a gesture.

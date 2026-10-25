@@ -1,16 +1,26 @@
 // Only this Phaser app's files and caches belong to this worker.
 const root = new URL('./', self.registration.scope);
 const PREFIX = 'remnant-phaser-shell-' + encodeURIComponent(root.pathname) + '-';
-const CACHE = PREFIX + '__BUILD__';
+const BUILD = '__BUILD__';
+const CACHE = PREFIX + BUILD;
 const MUSIC = 'remnant-phaser-music';
 const CORE = __CORE__;
+const isGameDocument = (text) => /<meta\b[^>]*name=["']remnant-phaser-build["']/i.test(text);
 self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(CORE.map((p) => new Request(new URL(p, root), { cache: 'reload' })))).then(() => self.skipWaiting()));
+  e.waitUntil(caches.open(CACHE).then(async (c) => {
+    await c.addAll(CORE.map((p) => new Request(new URL(p, root), { cache: 'reload' })));
+    const doc = await c.match(new URL('index.html', root));
+    if (!doc || !isGameDocument(await doc.text())) throw Error('Phaser shell unavailable');
+    await self.skipWaiting();
+  }).catch(async (err) => { await caches.delete(CACHE); throw err; }));
 });
 self.addEventListener('activate', (e) => {
   e.waitUntil(caches.keys().then((keys) => Promise.all(keys.filter((k) => k.startsWith(PREFIX) && k !== CACHE).map((k) => caches.delete(k)))).then(() => self.clients.claim()));
 });
-self.addEventListener('message', (e) => { if (e.data?.type === 'SKIP_WAITING') self.skipWaiting(); });
+self.addEventListener('message', (e) => {
+  if (e.data?.type === 'SKIP_WAITING') self.skipWaiting();
+  if (e.data?.type === 'REMNANT_STATE') e.ports[0]?.postMessage({ build: BUILD, scope: root.href });
+});
 self.addEventListener('fetch', (e) => {
   const req = e.request, url = new URL(req.url);
   if (req.method !== 'GET' || url.origin !== root.origin || !url.pathname.startsWith(root.pathname)) return;
@@ -35,6 +45,7 @@ self.addEventListener('fetch', (e) => {
   if (req.mode === 'navigate') {
     e.respondWith(fetch(req, { cache: 'no-store' }).then(async (res) => {
       if (!res.ok || !res.headers.get('content-type')?.includes('text/html')) throw Error('Unavailable');
+      if (!isGameDocument(await res.clone().text())) throw Error('Wrong game document');
       const c = await caches.open(CACHE);
       await c.put(new URL('index.html', root), res.clone());
       return res;

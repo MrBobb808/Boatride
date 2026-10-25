@@ -44,7 +44,7 @@ import { audio, sfx } from '../classic/shim/audio';
 import { music } from '../classic/shim/music';
 import { songs } from '../../../remnant/src/audio/songs';
 import { settings, shakeScale } from '../classic/shim/settings';
-import { updatePending, checkForUpdates } from '../game/update';
+import { offlineReady, updatePending, checkForUpdates } from '../game/update';
 import { placeLamps, strikeLamps } from '../../../remnant/src/game/lamps';
 
 const VIEW_H = 300;
@@ -134,7 +134,7 @@ export class World extends Phaser.Scene implements WorldApi {
         game: this.game, world: this, controls: this.controls, rooms: ROOMS, G,
         warp: (id: string, spawn = 'start') => this.goTo(id, spawn),
         give: (xp: number) => this.onFoeDied(xp, 0, this.player.x, this.player.y),
-        hud: hudBoxes, audio, music, songs, settings,
+        hud: hudBoxes, audio, music, songs, settings, offlineReady,
       };
     }
   }
