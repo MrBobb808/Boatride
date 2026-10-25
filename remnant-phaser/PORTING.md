@@ -61,7 +61,8 @@ Shared `G.d` assignments update the native hero's stat limits immediately.
 - Main, preview and fallback workers have separate shell scopes/cache prefixes.
   Offline navigation reads only its own shell. Visiting one edition cannot
   evict or substitute another edition's cached document.
-- Recorded songs cache as heard; an unheard song needs network access and falls
+- Previously cached main-app recordings are reused on upgrade. Recorded songs
+  cache as heard; an unheard song needs network access and falls
   back to the generated score when unavailable. This is not an all-song download.
 
 ## Build and verification

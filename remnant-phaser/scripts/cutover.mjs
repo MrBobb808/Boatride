@@ -30,6 +30,7 @@ try{
   await page.goto(base+'?debug');await until(()=>!!window.__remnant?.load);await page.evaluate(()=>window.__remnant.load(2));await until(()=>!!window.__remnant.G.save);
   const before=await page.evaluate(()=>({level:window.__remnant.G.save.level,silver:window.__remnant.G.save.silver,equipment:window.__remnant.G.save.equipment,d:window.__remnant.G.d}));
   await page.evaluate(async()=>{await navigator.serviceWorker.ready;sessionStorage.setItem('remnant-resume-slot','2');});
+  await page.evaluate(async () => { const cache = await caches.open('remnant-music'); await cache.put(new URL('music/legacy-upgrade-probe.mp3', location.href), new Response('previously-heard-song', { headers: { 'content-type': 'audio/mpeg' } })); });
   legacy=false;await page.goto(base+'?debug&v=cutover');await until(()=>window.__remnant?.world?.player);
   const after=await page.evaluate(()=>({slot:window.__remnant.G.slot,level:window.__remnant.world.save.level,silver:window.__remnant.world.save.silver,equipment:window.__remnant.world.save.equipment,d:window.__remnant.world.d,settings:window.__remnant.settings}));
   assert.equal(after.slot,2);assert.equal(after.level,before.level);assert.equal(after.silver,before.silver);assert.deepEqual(after.equipment,before.equipment);assert.deepEqual(after.d,before.d,'the same real save derives exactly the same combat stats');
@@ -41,6 +42,8 @@ try{
   await until(async()=>{const r=await navigator.serviceWorker.getRegistration();return r&&!r.installing&&!r.waiting&&(await caches.keys()).some(k=>k.startsWith('remnant-phaser-shell-%2FBoatride%2F-'));});
   await page.evaluate(()=>{window.__remnant.world.save.silver=9876;window.__remnant.world.persist();});
   await context.setOffline(true);await page.reload();await until(()=>window.__remnant?.world?.player);assert.equal(await page.evaluate(()=>window.__remnant.world.save.silver),9876);
+  assert.equal(await page.evaluate(() => fetch('./music/legacy-upgrade-probe.mp3').then(r => r.text())), 'previously-heard-song', 'previously cached original songs remain available offline after the upgrade');
+  console.log('Offline audio: an original-edition recording is reused without a network download');
   await context.setOffline(false);
   await page.goto(base+'phaser/?debug&nostory&autostart');await until(()=>window.__remnant?.world?.player);
   await until(async()=>!!(await navigator.serviceWorker.getRegistration(new URL('./',location.href)))?.active);

@@ -723,7 +723,9 @@ export class Player {
     }
     // The original's armour: damage reduction from Endurance and gear (half of it against hazards).
     const dr = this.w.d.dr * (h.hazard ? 0.5 : 1);
-    let dmg = h.dmg * runBlessings.incoming * (1 - dr) * (this.armorLight > 0 ? 0.6 : 1) * (this.mantleT > 0 ? 0.5 : 1) * (this.powers?.guardAura ?? 1);
+    const protection = h.hazard ? 1 : (this.armorLight > 0 ? 0.6 : 1) * (this.mantleT > 0 ? 0.5 : 1) * (this.powers?.guardAura ?? 1);
+    const dmgBeforeGuard = h.dmg * runBlessings.incoming * (1 - dr) * protection;
+    let dmg = dmgBeforeGuard;
     if (!h.hazard && !h.unblockable && (this.state === 'block' || this.state === 'parry') && facing) {
       dmg = Math.max(1, Math.round(dmg * 0.25));
       this.hp = Math.max(0, this.hp - dmg); this.sinceHurt = 0; if (this.hp <= 0) this.die();
