@@ -790,7 +790,9 @@ export class World extends Phaser.Scene implements WorldApi {
     this.brood = null;
     this.save.flags.brood_cleared = true;
     this.shake(0.012, 600);
-    this.time.delayedCall(600, () => this.raiseClassic());
+    // A fast doorway/respawn must not let this room’s hatch awaken a new boss.
+    const boss = this.cboss;
+    this.time.delayedCall(600, () => { if (this.cboss === boss) this.raiseClassic(); });
   }
 
   /** What the boss bar shows: the Crown, or the classic boss. */
