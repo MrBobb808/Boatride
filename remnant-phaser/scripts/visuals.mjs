@@ -84,6 +84,10 @@ try {
   await until(() => window.__remnant.world.boss.phase === 1 && window.__remnant.world.visuals.bossCamera.mode === 'combat');
   const x = await page.evaluate(() => window.__remnant.world.player.x); await page.keyboard.down('KeyD'); await until(x => window.__remnant.world.player.x > x + 8, x); await page.keyboard.up('KeyD');
   assert.ok(await page.evaluate(() => { const w = window.__remnant.world; return w.cameras.main.worldView.contains(w.player.x, w.player.y) && !window.__remnant.G.inCutscene; }), 'fight framing keeps the player visible and controls live');
+  await page.evaluate(() => { window.oldBossTitle = window.__remnant.world.hud.bossTitle; window.bossNameBeforeResize = window.__remnant.world.hud.bossName; });
+  await page.setViewportSize({ width: 900, height: 410 });
+  await until(() => window.__remnant.world.hud.bossTitle !== window.oldBossTitle && window.__remnant.hud.boss[2] > 0);
+  assert.equal(await page.evaluate(() => window.__remnant.world.hud.bossName), await page.evaluate(() => window.bossNameBeforeResize), 'rotation preserves the active boss bar');
   await page.evaluate(() => { window.__remnant.G.camera.focus = { x: 180, y: 180 }; });
   await until(() => window.__remnant.world.visuals.bossCamera.mode === 'none');
   await page.evaluate(() => { window.__remnant.G.camera.focus = null; window.__remnant.world.boss.phase = 2; });
@@ -110,7 +114,7 @@ try {
   await page.keyboard.press('KeyD'); await page.waitForTimeout(150);
   assert.equal(await page.evaluate(() => window.__remnant.game.textures.exists(window.oldVisuals.key)), false, 'the previous scene releases its displacement texture');
   assert.equal(await page.evaluate(() => window.__remnant.world.cameras.main.filters.internal.list.length), 1);
-  await page.setViewportSize({ width: 900, height: 410 }); await page.waitForTimeout(200); await page.keyboard.press('KeyA'); await page.waitForTimeout(150);
+  await page.setViewportSize({ width: 956, height: 440 }); await page.waitForTimeout(200); await page.keyboard.press('KeyA'); await page.waitForTimeout(150);
   assert.ok(await page.evaluate(() => window.__remnant.game.scene.isActive('world') && !window.__remnant.game.scene.isActive('title')), 'resizing after Continue cannot restart the old title scene');
   console.log('Lifecycle: Save and quit, title and Continue recreate one effects system and release the old GPU texture');
   assert.deepEqual(errors, []);
