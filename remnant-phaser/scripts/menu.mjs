@@ -140,6 +140,13 @@ try {
   assert.equal(await E(phone, () => window.__remnant.world.save.statPoints), pts - 1, 'a tap spends one point');
   await phone.tap('[data-k="menu_resume"]');
   await until(phone, () => !document.querySelector('#ui .menu') && !window.__remnant.game.scene.getScene('hud').paused);
+  // HTML dialogue taps must never occupy Phaser's canvas touch pointers.
+  await E(phone, () => { window.dialogueDone = false; window.__remnant.G.ui.dialogue([{ who: 'elior', text: 'The first line.' }, { who: 'elior', text: 'The second line.' }, { who: 'elior', text: 'The third line.' }]).then(() => window.dialogueDone = true); });
+  for (let n = 0; n < 12 && !(await E(phone, () => window.dialogueDone)); n++) { await phone.touchscreen.tap(400, 100); await phone.waitForTimeout(180); }
+  await until(phone, () => window.dialogueDone);
+  assert.equal(await E(phone, () => window.__remnant.game.input.pointers.filter(p => p.wasTouch && p.isDown).length), 0, 'dialogue leaves no stuck Phaser touches');
+  await phone.touchscreen.tap(mb.x, mb.y); await until(phone, () => !!document.querySelector('#ui .menu'));
+  await phone.tap('[data-k="menu_resume"]'); await until(phone, () => !document.querySelector('#ui .menu'));
   // A release queued beneath the DOM Resume button must not reopen pause.
   await E(phone, () => window.__remnant.game.scene.getScene('hud').menuBtn.emit('pointerup', { id: 1 }));
   assert.ok(!(await open(phone)), 'a release without a new canvas press cannot reopen the menu');

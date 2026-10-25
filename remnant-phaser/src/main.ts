@@ -31,7 +31,9 @@ const game = new Phaser.Game({
   pixelArt: true,
   roundPixels: true,
   scale: { mode: Phaser.Scale.NONE, zoom: 1 / dpr() },
-  input: { activePointers: 5, gamepad: true },
+  // HTML dialogue and menu gestures belong to their DOM controls.
+  // Watching those touches in Phaser can strand a pointer when the DOM cancels its release.
+  input: { activePointers: 5, gamepad: true, windowEvents: false },
   physics: { default: 'arcade', arcade: { gravity: { x: 0, y: 0 }, fps: 120, debug: new URLSearchParams(location.search).has('boxes') } },
   // Real frame times: a target here clamps each step, and slow frames would play in slow motion.
   fps: { smoothStep: false },
