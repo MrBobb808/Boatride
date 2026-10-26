@@ -146,22 +146,26 @@ try {
     await fighting(page);
     await E(page, () => { const w = window.__remnant.world, b = w.cboss; w.player.placeAt(Math.max(40, b.x - 160), b.y, 1); });
     const phases = new Set();
-    const t0 = Date.now();
-    while (Date.now() - t0 < 120000) {
+    const t0 = Date.now(), gameT0 = await E(page, () => window.__remnant.G.time);
+    let gameElapsed = 0;
+    // Pace and loaded renderers change wall time. Bound both clocks, while
+    // still requiring every phase, the ending flags and an open arena gate.
+    while (Date.now() - t0 < 180000 && gameElapsed < 120) {
       const r = await E(page, (k) => {
         const w = window.__remnant.world, b = w.cboss;
-        if (w.save.flags[`defeated_${k}`]) return { done: true };
+        if (w.save.flags[`defeated_${k}`]) return { done: true, time: window.__remnant.G.time };
         if (['idle', 'attack', 'kneel'].includes(b.state) && b.invuln <= 0 && !b.dying) b.takeHit({ dmg: b.maxHp * 0.2, poise: 0, kx: 0, ky: 0, dir: 1, kind: 'melee' });
-        return { ph: b.phase };
+        return { ph: b.phase, time: window.__remnant.G.time };
       }, k);
+      gameElapsed = r.time - gameT0;
       if (r.done) break;
       phases.add(r.ph);
       await page.waitForTimeout(400);
     }
     const res = await E(page, ([k, f]) => { const w = window.__remnant.world; return { def: !!w.save.flags[`defeated_${k}`], flag: !!w.save.flags[f], gate: w.gateClosed, cut: window.__remnant.G.inCutscene, inSave: w.save.defeated.includes(k) }; }, [k, FLAGS[k]]);
     assert.ok(phases.has(1) && phases.has(2) && phases.has(3), `${k}: three phases (${[...phases]})`);
-    assert.ok(res.def && res.flag && res.inSave && !res.gate && !res.cut, `${k}: its fall opens the way (${JSON.stringify(res)})`);
-    console.log(`${k}: phases ${[...phases].join('')}, fell in ${Math.round((Date.now() - t0) / 1000)} s, ${FLAGS[k]} set, gate open`);
+    assert.ok(res.def && res.flag && res.inSave && !res.gate && !res.cut, `${k}: its fall opens the way after ${gameElapsed.toFixed(1)} game seconds (${JSON.stringify(res)})`);
+    console.log(`${k}: phases ${[...phases].join('')}, fell in ${Math.round((Date.now() - t0) / 1000)} s (${Math.round(gameElapsed)} game seconds), ${FLAGS[k]} set, gate open`);
   }
 
   // ---- a beaten boss stays beaten
