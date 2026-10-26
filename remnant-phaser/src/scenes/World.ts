@@ -106,6 +106,7 @@ export class World extends Phaser.Scene implements WorldApi {
   }
 
   get hud() { return this.scene.get('hud') as Hud; }
+  get canUseKit() { return this.ready && !this.transitioning && !this.hud.paused && !this.hud.wheelOpen && !G.paused && !G.inCutscene && !blockingUI() && !topLayer(); }
 
   create() {
     this.save = (!this.fresh && loadSave()) || newSave(!new URLSearchParams(location.search).has("nostory"));
@@ -127,6 +128,13 @@ export class World extends Phaser.Scene implements WorldApi {
     });
     this.scale.on('resize', this.fitCamera, this);
     this.events.once('shutdown', () => this.scale.off('resize', this.fitCamera, this));
+    const kitKey = (e:KeyboardEvent) => {
+      if(e.repeat||!this.canUseKit)return;
+      if(e.code==='KeyN'){e.preventDefault();if(this.player.switchHero())this.persist();}
+      if(e.code==='KeyB'){e.preventDefault();if(this.player.cycleStyle())this.persist();}
+    };
+    window.addEventListener('keydown',kitKey);
+    this.events.once('shutdown',()=>window.removeEventListener('keydown',kitKey));
     let hiddenAt = 0;
     const onHide = () => { if (document.hidden) { hiddenAt = Date.now(); this.persist(); } else if (hiddenAt) { if (this.classic.storyEnabled) maybeRecap(Date.now() - hiddenAt); hiddenAt = 0; } };
     document.addEventListener('visibilitychange', onHide);
@@ -438,7 +446,7 @@ export class World extends Phaser.Scene implements WorldApi {
     this.art.render();
     // Hit-stop freezes the moment; input waits (latched) so a press made in it still lands after.
     if (this.hitstopT > 0) {
-      this.hitstopT -= dt;
+      this.hitstopT -= rawDt;
       if (this.hitstopT <= 0) this.physics.resume();
       return;
     }

@@ -30,10 +30,41 @@ human playthrough and sustained 120 Hz on a real iPhone remain acceptance work.
 
 ## Visual polish
 
-Gameplay runs at 80% of the original tempo through one shared simulation clock.
-Walking, swimming, native physics, shared foes/Echoes, projectiles and combat
-timers slow together. Jump arcs, dodge travel and instantaneous teleports retain
-their distances. Menus, audio, update checks and active playtime use real time.
+Exploration, swimming, foes and projectiles retain the calmer 80% simulation clock.
+Player attack, charge, cast and Phantom choreography advances 1.25 times faster,
+restoring brisk combat while walking stays controlled. Attack lunges compensate
+for the faster choreography; jump arcs and teleport destinations are retained.
+Hit-stop is shorter on light blows and uses real time. Menus, audio, update checks
+and active playtime use real time.
+
+### Playable fighters and action styles
+
+Elior has three selectable styles: Vanguard permits a jump-cancel after a confirmed
+hit (including renewed air routes); Wraith accelerates the dodge and its velocity
+together, preserving travel and cooldown; Sentinel improves guarding and extends
+the perfect-parry counter window. D–SSS style ranks reward varied landed moves and
+parries, decay after idling and drop on damage. The meter grants no damage bonus.
+
+Tirzah is a second playable bow wielder with her own hooded teal/braided silhouette
+and drawn-bow poses. Tap Strike for a quick arrow, hold Strike or Heavy for a
+charged piercing shot (6 CE), or Up + Strike for a three-arrow spread (10 CE,
+2.5 game-second cooldown). Aim assists toward visible foes ahead. Arrows use a
+bounded pool and swept collisions against terrain and foes; they work underwater
+at a reduced flight speed. Firing recovery accepts a buffered follow-up.
+
+Use the bottom character button (or N) to tag between them, and KIT (or B to
+cycle) for styles. Controller users can select Heroes & styles through the Echo
+wheel; the wheel opens directly to the kit when there are no Echoes yet. Tags are
+blocked during moves, hurt, death and story cinematics. Both fighters share health,
+Energy, equipment, progression and story: changing character never heals or resets
+cooldowns. Optional `playableHero`, `combatStyle` and `bestStyle` save fields keep
+older journeys compatible and persist per slot.
+
+Combat poses bake the existing original skeleton choreography into reusable Phaser
+atlases: wind-up, cuts, launchers, spins and air moves. Four pooled silhouettes
+accent aerial/heavy moves and Wraith dodges; Low quality and Reduce flashes remove
+them. Atlas frames and resource pools survive room transitions without growing;
+individual fighter/projectile/trail objects dispose on room exit.
 Routine damage and parries do not shake the camera. Major impacts use a small,
 160 ms maximum shake with at least 900 ms between starts; Reduced/Off still apply.
 
@@ -107,6 +138,7 @@ include TypeScript checks. Run Phaser browser scripts from `remnant-phaser`:
 | `saves`, `menu` | Compatible saves, gear/stats, imports, complete menu actions and phone input. |
 | `journey`, `story-flow` | Ten chapter openings, menu pages, collapse, relic, purification, end cards, Crown rewards, Rest and recap. |
 | `modes-water`, `phone-progress` | Flooded rooms, mode entry/results/boards, contract restrictions, Island/editor/haptics, slots, NG+ and scaling. |
+| `pacing`, `action-kit` | 60/120 Hz movement and shared timing, steady ordinary-hit camera, animated melee/jump-cancel, real ranged damage, shot costs, wall blocking, saved fighter/styles, phone tag and rotation. |
 | `visuals` | Six elemental weapons, Mantle glow, animated water/heat distortion, quality/accessibility controls, weather layers, camera hand-off, Trial/room cleanup, title/Continue and Canvas fallback. |
 | `install-audio` | Audio decks, settings, offline shell and update recovery; run alone because it temporarily changes the served version probe. |
 | `cutover` | Original installed worker upgrade, three slots and exact derived stats, cache isolation, offline persistence and preview recovery. Requires assembled Pages artifact. |

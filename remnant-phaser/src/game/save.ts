@@ -8,7 +8,7 @@
 import { newGame, migrateSave, derive, gainXp as stateGainXp, absorbEcho, type SaveData, type Derived } from '../../../remnant/src/game/state';
 import { ROOMS } from '../shared';
 
-export type PhaserSave = SaveData;
+export type PhaserSave = SaveData & { playableHero?: import('./style').PlayableHero; combatStyle?: import('./style').CombatStyle; bestStyle?: number };
 
 const KEY = 'remnant-phaser.save.v2';
 export const activeSlot = () => { const n = Number(read('remnant-phaser.active-slot') ?? 0); return [0, 1, 2].includes(n) ? n : 0; };
@@ -42,6 +42,10 @@ function settle(d: SaveData): SaveData {
   d.choices ??= {};
   d.equippedSkills ??= [null, null, null];
   migrateSave(d);
+  const kit=d as PhaserSave;
+  if(kit.playableHero!==undefined&&kit.playableHero!=='tirzah'&&kit.playableHero!=='elior')delete kit.playableHero;
+  if(kit.combatStyle!==undefined&&!['vanguard','wraith','sentinel'].includes(kit.combatStyle))delete kit.combatStyle;
+  if(kit.bestStyle!==undefined)kit.bestStyle=Number.isFinite(kit.bestStyle)?Math.max(0,Math.min(6,Math.floor(kit.bestStyle))):0;
   if (!ROOMS[d.room]) { d.room = 'sanctuary'; d.spawn = 'start'; }
   return d;
 }

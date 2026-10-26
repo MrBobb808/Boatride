@@ -6,6 +6,7 @@
 // rest or open. Everything stays inside the iPhone's safe areas.
 
 import Phaser from 'phaser';
+import { STYLE_NAMES, STYLE_HELP, RANKS } from '../game/style';
 import { xpToNext, type RoomDef } from '../shared';
 import { SKILLS, SLOTS, skillSlots } from '../game/abilities';
 import { dpr } from '../game/screen';
@@ -23,6 +24,7 @@ import { ABILITIES } from '../../../remnant/src/game/data';
 import { guidePoint } from '../../../remnant/src/game/guide';
 import { G } from '../classic/shim/ctx';
 import { audio } from '../classic/shim/audio';
+import { input } from '../classic/shim/input';
 import { songs } from '../../../remnant/src/audio/songs';
 
 const GOLD = '#e2b85a', BONE = '#ddd4c6';
@@ -51,6 +53,9 @@ export class Hud extends Phaser.Scene {
   private interactLabel: string | null = null;
   private menuBtn!: Phaser.GameObjects.Text;
   private pausePointer = -1;
+  private heroBtn!: Phaser.GameObjects.Text;
+  private styleBtn!: Phaser.GameObjects.Text;
+  private styleRank!: Phaser.GameObjects.Text;
   /** The keyboard and pad skill bar along the bottom (touch has its buttons). */
   private skillBar!: Phaser.GameObjects.Container;
   private skillG!: Phaser.GameObjects.Graphics;
@@ -120,6 +125,14 @@ export class Hud extends Phaser.Scene {
       this.pausePointer = -1;
       if (pressedHere) this.togglePause();
     });
+    this.heroBtn = this.add.text(0,0,'',font(9,'#a6efdc',true)).setOrigin(0.5).setPadding(10*k,9*k).setBackgroundColor('#102329').setInteractive({useHandCursor:true}).setName('hero_swap');
+    this.styleBtn = this.add.text(0,0,'',font(9,'#f6dea0',true)).setOrigin(0.5).setPadding(10*k,9*k).setBackgroundColor('#272030').setInteractive({useHandCursor:true}).setName('style_cycle');
+    this.styleRank = this.add.text(0,0,'',font(16,'#e7c979',true)).setOrigin(1,0).setName('style_rank');
+    for (const [button,run] of [[this.heroBtn,()=>{if(this.world.player.switchHero())this.world.persist();}], [this.styleBtn,()=>this.openWheel('heroes')]] as const) {
+      button.on('pointerdown',(p:Phaser.Input.Pointer)=>{if(p.wasTouch)input.setDevice('touch');button.setData('pid',p.id);});
+      button.on('pointerout',()=>button.setData('pid',-1));
+      button.on('pointerup',(p:Phaser.Input.Pointer)=>{const ok=button.getData('pid')===p.id;button.setData('pid',-1);if(ok&&this.world.canUseKit)run();});
+    }
     this.balmText = this.add.text(0, 0, '', font(8.5)).setOrigin(0, 0.5);
     this.echoText = this.add.text(0, 0, '', font(8, '#e2d6b8')).setOrigin(0, 0.5);
     this.bossG = this.add.graphics();
@@ -154,6 +167,9 @@ export class Hud extends Phaser.Scene {
     this.menuBtn.setPosition(W - (6 + safe.right) * k, y0 - 6 * k);
     this.hintText.setPosition(W / 2, H * 0.16).setWordWrapWidth(Math.min(W * 0.5, 320 * k));
     this.captionText.setPosition(W / 2, H - (Math.max(safe.bottom, 6) + 46) * k).setWordWrapWidth(Math.min(W * 0.7, 520 * k));
+    this.heroBtn.setPosition(W/2-65*k,H-(24+safe.bottom)*k);
+    this.styleBtn.setPosition(W/2+66*k,H-(24+safe.bottom)*k);
+    this.styleRank.setPosition(W-(14+safe.right)*k,(78+safe.top)*k);
     this.placeTouch();
   }
 
@@ -161,6 +177,11 @@ export class Hud extends Phaser.Scene {
 
   sync(w: World) {
     const k = this.k, s = w.save, p = w.player;
+    this.heroBtn.setText(`${p.hero === 'elior' ? 'ELIOR → TIRZAH' : 'TIRZAH → ELIOR'}`);
+    this.styleBtn.setText(STYLE_NAMES[p.combatStyle] + ' · KIT');
+    const kitOn = w.canUseKit && !p.dead;
+    this.heroBtn.setVisible(kitOn); this.styleBtn.setVisible(kitOn);
+    this.styleRank.setText(p.styleMeter.score > 1 ? `${RANKS[p.styleMeter.rank]}  ·  ${p.comboHits} HITS` : '').setVisible(!G.inCutscene && !this.paused);
     const px = dpr(), cw = this.scale.width / px, ch = this.scale.height / px;
     const side = islandSide();
     if (side) {
@@ -230,6 +251,7 @@ export class Hud extends Phaser.Scene {
     this.drawBoss(w, touch, hx + hw);
     this.touchUi.setVisible(touch);
     this.skillBar.setVisible(!touch);
+    for(const b of this.btns) { if(b.a==='attack')b.t.setText(p.hero==='tirzah'?'SHOOT':'STRIKE');if(b.a==='heavy')b.t.setText(p.hero==='tirzah'?'DRAW':'HEAVY'); }
     if (touch) this.drawTouchCooldowns(w); else this.drawSkillBar(w);
     this.updateInteractBtn();
     for (const b of this.btns) {
@@ -244,7 +266,7 @@ export class Hud extends Phaser.Scene {
   private drawSkillBar(w: World) {
     const k = this.k, { width: W, height: H } = this.scale, p = w.player;
     const size = 34 * k, gap = 8 * k, total = SLOTS.length * size + (SLOTS.length - 1) * gap;
-    const x0 = (W - total) / 2, y0 = H - (14 + safe.bottom) * k - size;
+    const x0 = (W - total) / 2, y0 = H - (49 + safe.bottom) * k - size;
     const keys = w.controls.device === 'gamepad' ? ['R1', 'L2', 'R2'] : ['Q', 'E', 'R'];
     const g = this.skillG.clear();
     skillSlots(w.save).forEach((id, i) => {
@@ -488,16 +510,24 @@ export class Hud extends Phaser.Scene {
   // ---------------------------------------------------------------- the Echo wheel
 
   /** Open the Echo command wheel at a page; the world waits while it is up. */
-  openWheel(page: 'main' | 'squad' | 'orders' = 'main') {
+  openWheel(page: 'main' | 'squad' | 'orders' | 'heroes' = 'main') {
     const w = this.world, s = w.save, sq = w.classic.squad;
-    if (!s.echoes.length) { this.toast('You have no Echoes yet.'); return; }
+    if (!s.echoes.length && page !== 'heroes') page = 'heroes';
     this.closeWheel(false);
     this.wheelOpen = true;
     w.physics.pause();
     const cmd = (c: Parameters<typeof sq.echoCommand>[0]) => () => sq.echoCommand(c);
     type Item = { label: string; on?: boolean; page?: boolean; run: () => void };
     let title: string, sub: string, items: Item[];
-    if (page === 'squad') {
+    if (page === 'heroes') {
+      title = 'Remnant fighters'; sub = 'Shared journey, health and equipment · N: tag · B: style';
+      items = [
+        {label:w.player.hero==='elior'?'Switch to Tirzah · bow':'Switch to Elior · blade',run:()=>{if(w.player.switchHero())w.persist();}},
+        ...(['vanguard','wraith','sentinel'] as const).map(style=>({label:STYLE_NAMES[style],on:w.player.combatStyle===style,run:()=>{if(!['free','swim'].includes(w.player.state)){this.toast('Change style after the current move.');return;}s.combatStyle=style;this.toast(STYLE_HELP[style]);w.persist();}})),
+        {label:'Bow: tap / hold Strike / Up + Strike',run:()=>this.toast('Quick arrow · hold Strike for piercing shot (6 CE) · spread (10 CE). Aim at visible foes ahead.')},
+        {label:'Close',run:()=>{}},
+      ];
+    } else if (page === 'squad') {
       const pre = s.summonPreset ?? 'all';
       title = 'Summon'; sub = `${sq.echoes.length} of ${Math.min(s.echoes.length, w.d.echoSlots)} out`;
       items = [
@@ -524,6 +554,7 @@ export class Hud extends Phaser.Scene {
     } else {
       title = 'Command the Remnant'; sub = `${sq.echoes.length} of ${s.echoes.length} present`;
       items = [
+        { label: 'Heroes & styles…', page:true, run:()=>this.openWheel('heroes') },
         { label: 'Summon…', page: true, run: () => this.openWheel('squad') },
         { label: 'Orders…', page: true, run: () => this.openWheel('orders') },
         { label: 'Aggressive', on: s.echoMode === 'aggressive', run: cmd('aggressive') },
@@ -606,6 +637,7 @@ export class Hud extends Phaser.Scene {
 
   private onDown(p: Phaser.Input.Pointer) {
     if (this.paused || (!p.wasTouch && !this.touchUi.visible)) return;
+    if(this.heroBtn.getBounds().contains(p.x,p.y)||this.styleBtn.getBounds().contains(p.x,p.y))return;
     const c = this.world.controls;
     const b = this.btnAt(p.x, p.y);
     if (b) {

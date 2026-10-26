@@ -172,7 +172,7 @@ export class HeroPowers {
     if (tier >= 2 || p.mantleT > 0 || p.state === 'transform') g.lineStyle(1 + tier * 0.2, color, 0.35 + Math.sin(G.time * 5) * 0.12).strokeEllipse(p.x, p.y, 28 + tier * 4, 46 + tier * 2);
     for (let i = 0; i < this.ghostSprites.length; i++) {
       const s = this.ghostSprites[i], v = this.ghosts[i]; s.setVisible(!!v);
-      if (v) s.setPosition(v.x, v.y).setFrame(p.sprite.frame.name).setFlipX(v.face < 0).setAlpha(v.a * 0.55).setTint(color);
+      if (v) s.setPosition(v.x, v.y).setTexture(p.sprite.texture.key,p.sprite.frame.name).setOrigin(p.sprite.originX,p.sprite.originY).setScale(p.sprite.scaleX,p.sprite.scaleY).setFlipX(v.face < 0).setAlpha(v.a * 0.55).setTint(color);
     }
     p.sprite.setVisible(!this.fin?.hidden);
   }
