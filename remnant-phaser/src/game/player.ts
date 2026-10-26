@@ -718,7 +718,6 @@ export class Player {
       valorTrack.parry(); haptic('parry'); input.rumble(0.7, 0.5, 150);
       this.w.playEffect('parryPerfect');
       this.w.hitstop(0.08);
-      this.w.shake(0.004, 100);
       return false;
     }
     // The original's armour: damage reduction from Endurance and gear (half of it against hazards).
@@ -740,7 +739,6 @@ export class Player {
     this.hp = Math.max(0, this.hp - dmg);
     this.sinceHurt = 0;
     this.w.floatText(this.x, this.body.top - 6, String(dmg), '#ff6a6a');
-    this.w.shake(0.006, 140);
     this.invuln = 0.9;
     this.slash.setVisible(false);
     const dir = h.dir || -this.face;

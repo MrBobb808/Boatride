@@ -30,6 +30,13 @@ human playthrough and sustained 120 Hz on a real iPhone remain acceptance work.
 
 ## Visual polish
 
+Gameplay runs at 80% of the original tempo through one shared simulation clock.
+Walking, swimming, native physics, shared foes/Echoes, projectiles and combat
+timers slow together. Jump arcs, dodge travel and instantaneous teleports retain
+their distances. Menus, audio, update checks and active playtime use real time.
+Routine damage and parries do not shake the camera. Major impacts use a small,
+160 ms maximum shake with at least 900 ms between starts; Reduced/Off still apply.
+
 Phaser's world camera has a small animated displacement map that distorts only
 water cells or air just above volcanic hazards. The HUD has its own camera and
 stays sharp. Elemental weapons tint their blade arcs, add a soft weapon light

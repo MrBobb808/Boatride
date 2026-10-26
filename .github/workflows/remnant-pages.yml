@@ -94,6 +94,7 @@ jobs:
       - run: node scripts/story-flow.mjs
       - run: node scripts/modes-water.mjs
       - run: node scripts/phone-progress.mjs
+      - run: node scripts/pacing.mjs
       - run: node scripts/visuals.mjs
       - run: node scripts/combat.mjs
       - run: node scripts/combat-moves.mjs

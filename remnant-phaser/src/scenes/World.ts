@@ -496,8 +496,9 @@ export class World extends Phaser.Scene implements WorldApi {
     // Below the room: back to the doorway.
     if (this.player.feet > this.gh * TILE + 40 && !this.player.dead) { this.player.hurt({ dmg: 15, dir: 0, hazard: true }); this.respawn(true); }
 
-    this.saveT += dt;
-    this.save.playtime += dt;
+    // Autosave and time played measure real active time, independent of pacing.
+    this.saveT += rawDt;
+    this.save.playtime += rawDt;
     if (this.saveT > 30) this.persist();
     this.hud.sync(this);
   }
@@ -849,7 +850,16 @@ export class World extends Phaser.Scene implements WorldApi {
     this.physics.pause();
   }
 
-  shake(intensity: number, ms: number) { const amount = intensity * shakeScale(); if (amount) this.cameras.main.shake(ms, amount); }
+  private nextShakeAt = 0;
+  shake(intensity: number, ms: number) {
+    // Ordinary impacts stay steady. Even major impacts cannot chain into
+    // continuous shaking or move the camera by a large fraction of the phone.
+    if (intensity < 0.007 || this.time.now < this.nextShakeAt) return;
+    const amount = Math.min(0.002, intensity * 0.2) * shakeScale();
+    if (!amount) return;
+    this.nextShakeAt = this.time.now + 900;
+    this.cameras.main.shake(Math.min(ms, 160), amount);
+  }
 
   floatText(x: number, y: number, text: string, color: string) {
     const t = this.add.text(x, y, text, { fontFamily: 'Cinzel, Georgia, serif', fontSize: '9px', color, stroke: '#07050a', strokeThickness: 2, fontStyle: 'bold' })
