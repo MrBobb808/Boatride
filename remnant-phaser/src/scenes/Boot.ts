@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { actionAtlas } from '../game/actionArt';
 import { selectSlot } from '../game/save';
 import { eliorUrl, varkhosUrl, morvaneUrl, azkarUrl } from '../shared';
 import { cutBossFrames } from '../game/bosses';
@@ -25,6 +26,8 @@ export class Boot extends Phaser.Scene {
     glowTexture(this);
     cutBossFrames(this);
     this.makeSlash();
+    actionAtlas(this,'elior','blade');
+    actionAtlas(this,'tirzah','blade');
     const p = new URLSearchParams(location.search);
     let resume = false;
     if (!/\/(phaser|classic)\/?$/.test(location.pathname.replace(/index\.html$/, ''))) {

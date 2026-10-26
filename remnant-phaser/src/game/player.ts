@@ -6,6 +6,11 @@
 // Phantom Step, charged blows, parries, buffs, Balm and the selected skills.
 
 import Phaser from 'phaser';
+import { Bow } from './bow';
+import { StyleMeter, STYLE_NAMES, RANKS, type CombatStyle, type PlayableHero } from './style';
+import { actionAtlas, actionFrame } from './actionArt';
+import { ACTION_RATE } from './pace';
+import { settings } from '../classic/shim/settings';
 import { T, TILE, isSolid } from '../shared';
 import { sovereignDamage } from '../../../remnant/src/game/balance';
 import { MOVESETS, extraFor, type AttackDef } from '../../../remnant/src/game/weapons';
@@ -41,7 +46,7 @@ const CHARGE_MULT = [1, 1.35, 1.8, 2.5];
 /** Sheet frames (4×4, 128 px): idle 0–3, run 4–7, rise 8, fall 9, wind-up 10, strike 11, dodge 12–13, hurt 14, cast 15. */
 const FRAME = 128, FOOT = 120, DRAW = 56;
 
-type State = 'free' | 'attack' | 'charge' | 'parry' | 'block' | 'heal' | 'cast' | 'dodge' | 'airdash' | 'phantom' | 'plunge' | 'execute' | 'transform' | 'scripted' | 'swim' | 'hurt' | 'dead';
+type State = 'free' | 'attack' | 'charge' | 'parry' | 'block' | 'heal' | 'cast' | 'dodge' | 'airdash' | 'phantom' | 'plunge' | 'execute' | 'transform' | 'scripted' | 'swim' | 'bow' | 'hurt' | 'dead';
 
 export class Player {
   rect: Phaser.GameObjects.Rectangle;
@@ -49,6 +54,11 @@ export class Player {
   sprite: Phaser.GameObjects.Sprite;
   slash: Phaser.GameObjects.Image;
   aura: Phaser.GameObjects.Graphics;
+  readonly styleMeter = new StyleMeter();
+  readonly bow: Bow;
+  private switchCd = 0;
+  private trail: { sprite:Phaser.GameObjects.Sprite; life:number }[] = [];
+  private trailT = 0;
   state: State = 'free';
   face = 1;
   powers?: HeroPowers;
@@ -128,6 +138,30 @@ export class Player {
     this.maxCe = w.d.maxCe;
     this.hp = w.save.hp > 0 ? Math.min(w.save.hp, this.maxHp) : this.maxHp;
     this.face = face;
+    this.bow = new Bow(w, this);
+    this.trail = Array.from({length:4},()=>({sprite:sc.add.sprite(x,feet,'elior',0).setDepth(9).setVisible(false).setTint(0xa99ad7),life:0}));
+  }
+
+  get hero(): PlayableHero { return this.w.save.playableHero === 'tirzah' ? 'tirzah' : 'elior'; }
+  get combatStyle(): CombatStyle { const s = this.w.save.combatStyle; return s === 'wraith' || s === 'sentinel' ? s : 'vanguard'; }
+  switchHero() {
+    if (this.switchCd > 0 || G.paused || G.inCutscene || this.dead || !['free', 'swim'].includes(this.state)) { this.w.toast('Switch after the current move.'); return false; }
+    this.w.save.playableHero = this.hero === 'elior' ? 'tirzah' : 'elior';
+    this.switchCd = 0.8; this.bow.cancel(); this.w.controls.flush();
+    this.w.spark(this.x,this.y,this.hero === 'tirzah' ? 0xa6efdc : 0xffd27a,12);
+    this.w.toast(this.hero === 'tirzah' ? 'Tirzah · bow and arrow · hold Strike to charge; Up + Strike for spread' : 'Elior · ' + STYLE_NAMES[this.combatStyle]);
+    return true;
+  }
+  noteStyle(move:string,air=!this.onGround) {
+    const rank=this.styleMeter.rank;this.styleMeter.hit(move,air);this.comboT=1.7;
+    this.w.save.bestStyle=Math.max(this.w.save.bestStyle??0,this.styleMeter.rank);
+    if(this.styleMeter.rank>rank)this.w.floatText(this.x,this.body.top-14,RANKS[this.styleMeter.rank]+' STYLE','#f6dea0');
+  }
+  cycleStyle() {
+    if (G.paused || G.inCutscene || this.dead || !['free', 'swim'].includes(this.state)) return false;
+    const styles: CombatStyle[] = ['vanguard','wraith','sentinel'];
+    this.w.save.combatStyle = styles[(styles.indexOf(this.combatStyle)+1)%3];
+    this.w.toast(STYLE_NAMES[this.combatStyle]); return true;
   }
 
   die() { if (this.dead) return; this.hp = 0; this.state = 'dead'; this.st = 0; this.body.setVelocity(0, -120); }
@@ -160,6 +194,8 @@ export class Player {
   }
 
   destroy() {
+    this.bow.destroy();
+    for(const g of this.trail)g.sprite.destroy();
     this.sprite.destroy();
     this.slash.destroy();
     this.aura.destroy();
@@ -180,7 +216,11 @@ export class Player {
 
   update(dt: number) {
     const c = this.w.controls, b = this.body, s = this.w.save;
-    this.st += dt;
+    const actionDt = dt * ((this.state==='attack'||this.state==='charge'||this.state==='cast'||this.state==='phantom'||this.state==='bow') ? ACTION_RATE : this.state === 'dodge' && this.combatStyle === 'wraith' ? 1.2 : 1);
+    this.st += actionDt;
+    this.switchCd = Math.max(0,this.switchCd-dt);
+    this.styleMeter.update(dt);
+    this.bow.update(dt);
     this.vigilParryCd = Math.max(0, this.vigilParryCd - dt);
     this.invuln = Math.max(0, this.invuln - dt);
     this.dodgeCd = Math.max(0, this.dodgeCd - dt);
@@ -214,13 +254,19 @@ export class Player {
     this.coyote = this.onGround ? COYOTE : Math.max(0, this.coyote - dt);
     this.jumpBuf = c.pressed('jump') ? BUFFER : Math.max(0, this.jumpBuf - dt);
 
-    if (this.state === 'dead') { b.setVelocityX(b.velocity.x * 0.9); this.draw(); return; }
+    if (this.state === 'dead') { b.setVelocityX(b.velocity.x * 0.9); this.draw(dt); return; }
     this.powers?.senseWater(dt);
     if (this.powers?.update(dt)) { this.draw(dt); return; }
 
     if (this.scriptX !== null) { const dx = this.scriptX - this.x; if (Math.abs(dx) < 3) { this.scriptX = null; b.setVelocityX(0); } else { this.face = Math.sign(dx); b.setVelocityX(this.face * this.scriptSpeed); } this.draw(dt); return; }
     if (G.inCutscene && this.state === 'free') { b.setVelocityX(0); this.draw(dt); return; }
     if (!G.inCutscene && this.powers) this.powers.clip = '';
+    if (this.hero === 'tirzah' && !G.inCutscene && this.bow.control(dt * ACTION_RATE)) {
+      if (c.pressed('dodge') || c.pressed('parry')) { this.bow.cancel(); this.releaseState(); this.defence(); }
+      b.setGravityY(this.water.swimming ? 0 : GRAV);
+      const hz=this.hazard();if(hz&&this.vulnerable)this.hurt({dmg:hz===T.Spikes?18:10,dir:0,hazard:true});
+      this.draw(dt); return;
+    }
     if (this.state === 'swim') { this.swim(dt); this.draw(dt); return; }
     // Short hops: letting go of jump on the way up pulls Elior down sooner.
     const airSwing = (this.state === 'attack' || this.state === 'charge') && !this.onGround;
@@ -253,7 +299,7 @@ export class Player {
         else this.trySkill();
         break;
       }
-      case 'attack': this.updateAttack(dt); break;
+      case 'attack': this.updateAttack(actionDt); break;
       case 'charge': {
         b.setVelocityX(b.velocity.x * 0.8);
         if (Math.abs(c.axis) > 0.3) this.face = Math.sign(c.axis);
@@ -302,7 +348,7 @@ export class Player {
         if (this.st >= 0.3) this.toFree();
         break;
       case 'dodge':
-        b.setVelocityX(this.face * DODGE_V * (1 - (this.st / DODGE_T) * 0.5));
+        b.setVelocityX(this.face * DODGE_V * (this.combatStyle === 'wraith' ? 1.2 : 1) * (1 - (this.st / DODGE_T) * 0.5));
         if (c.pressed('attack') && this.st > 0.08) this.startMove(this.moves.dash);
         else if (this.st >= DODGE_T) { this.sinceDodge = 0; this.toFree(); }
         break;
@@ -434,7 +480,7 @@ export class Player {
     if (a.dive && u >= a.hit[0]) b.setVelocity(this.face * 230, Math.max(470, b.velocity.y));
     else if (a.lunge && a.lungeT && u >= a.lungeT[0] && u <= a.lungeT[1] && (this.onGround || a.id === 'dash' || a.id === 'flurry')) {
       const near = this.w.foes().some((f) => f.alive && Math.abs(f.x - this.x) < 24 && Math.abs(f.box.centerY - this.y) < 40);
-      b.setVelocityX(this.face * a.lunge * (near ? 0.25 : 1));
+      b.setVelocityX(this.face * a.lunge * ACTION_RATE * (near ? 0.25 : 1));
     } else b.setVelocityX(Phaser.Math.Linear(b.velocity.x, a.air ? c.axis * 70 : 0, Math.min(1, dt * 14)));
     // Intersect the window, rather than requiring a frame inside it at high attack speed.
     if (u >= a.hit[0] && (this.st - dt) / a.t <= a.hit[1]) {
@@ -454,6 +500,10 @@ export class Player {
       }
     }
     if (a.dive && this.onGround && this.st > 0.08) { this.landPlunge(); return; }
+    if (this.combatStyle === 'vanguard' && this.recentHit > 0 && this.jumpBuf > 0 && !this.water.swimming) {
+      this.jumpBuf = 0; this.recentHit = 0; this.airAttacks = 0; this.airDash = 1;
+      this.toFree(); this.body.setVelocityY(-JUMP_V * 0.78); this.noteStyle('jump_cancel',true); return;
+    }
     if (c.pressed('dodge') && this.recentHit > 0 && this.canPhantom()) { this.startPhantom(); return; }
     if (u >= a.cancel && this.defence()) return;
     if (u >= a.cancel) {
@@ -682,12 +732,13 @@ export class Player {
         this.counterT = 0;
         this.swapStrikeT = 0;
         this.recentHit = 0.65;
+        this.noteStyle(this.atk.id);
         this.comboHits++; this.comboT = 1.7;
         this.w.save.bestCombo = Math.max(this.w.save.bestCombo ?? 0, this.comboHits);
         if (this.w.save.flags.relic_taken || !this.powers?.L.storyEnabled) this.w.save.ce = Math.min(this.maxCe, this.w.save.ce + CE_HIT * (1 + skillRank(this.w.save, 'l_radiance') * 0.3));
         if (this.atk.hang && !this.onGround) this.body.setVelocityY(Math.min(this.body.velocity.y, this.atk.hang));
         if (this.w.d.lifesteal) this.hp = Math.min(this.maxHp, this.hp + dmg * swap * this.w.d.lifesteal);
-        this.w.hitstop(this.atk.heavy ? 0.08 : this.combo === 2 || crit ? 0.06 : 0.04);
+        this.w.hitstop(this.atk.heavy ? 0.05 : this.combo === 2 || crit ? 0.028 : 0.012);
       }
     }
   }
@@ -708,7 +759,8 @@ export class Player {
     }
     if (!h.hazard && !h.unblockable && this.parryT > 0 && facing) {
       this.parryT = 0;
-      this.counterT = 0.75;
+      this.counterT = this.combatStyle === 'sentinel' ? 1.05 : 0.75;
+      this.noteStyle('perfect_parry');
       this.w.save.ce = Math.min(this.maxCe, this.w.save.ce + (skillRank(this.w.save, 'g_timing') ? 12 : CE_PARRY));
       h.src?.parried();
       this.w.spark(this.x + this.face * 10, this.y - 6, 0xfff6dc, 16);
@@ -726,7 +778,7 @@ export class Player {
     const dmgBeforeGuard = h.dmg * runBlessings.incoming * (1 - dr) * protection;
     let dmg = dmgBeforeGuard;
     if (!h.hazard && !h.unblockable && (this.state === 'block' || this.state === 'parry') && facing) {
-      dmg = Math.max(1, Math.round(dmg * 0.25));
+      dmg = Math.max(1, Math.round(dmg * (this.combatStyle === 'sentinel' ? 0.2 : 0.25)));
       this.hp = Math.max(0, this.hp - dmg); this.sinceHurt = 0; if (this.hp <= 0) this.die();
       this.w.floatText(this.x, this.body.top - 6, String(dmg), '#e8c8a0');
       this.w.spark(this.x + this.face * 8, this.y - 4, 0xffe6a8, 6);
@@ -735,6 +787,8 @@ export class Player {
     }
     dmg = Math.max(1, Math.round(dmg));
     valorTrack.hurt(); haptic('hurt'); input.rumble(0.5, 0.2, 120);
+    this.styleMeter.hurt();
+    this.bow.cancel();
     this.w.playEffect('hurt');
     this.hp = Math.max(0, this.hp - dmg);
     this.sinceHurt = 0;
@@ -778,13 +832,22 @@ export class Player {
     else if (vx > 24) { this.stride += dt * (vx / RUN) * 11; f = 4 + (Math.floor(this.stride) % 4); }
     else f = Math.floor(this.w.sc.time.now / 1000 * 3.8) % 4;
     if (['execute', 'transform', 'scripted'].includes(this.state)) f = this.powers?.frame ?? f;
-    this.sprite.setFrame(f);
+    const clip = this.hero === 'tirzah' ? this.state === 'bow' ? 'bowDraw' : this.state === 'dodge' ? 'dodge' : !this.onGround ? b.velocity.y < 0 ? 'jump' : 'fall' : vx > 24 ? 'run' : 'idle' : this.state === 'attack' || this.state === 'plunge' ? this.atk.clip : '';
+    const uArt = this.state === 'bow' ? this.bow.drawing ? this.bow.charge / 1.2 : Math.max(0, this.bow.recovery / 0.28) : this.state === 'attack' || this.state === 'plunge' ? this.st / this.atk.t : this.state === 'dodge' ? this.st / DODGE_T : clip === 'run' ? (this.stride / 4) % 1 : (G.time * 0.6) % 1;
+    const key = clip ? actionAtlas(this.w.sc,this.hero,this.w.d.family) : 'elior';
+    const frame = clip ? actionFrame(this.w.sc,key,clip,Phaser.Math.Clamp(uArt,0,0.999)) : null;
+    if (frame) { this.sprite.setTexture(key,frame).setOrigin(0.5,80/96).setScale(1); }
+    else this.sprite.setTexture('elior',f).setOrigin(0.5,FOOT/FRAME).setScale(DRAW/FRAME);
     this.sprite.setFlipX(this.face < 0);
     this.sprite.setPosition(Math.round(b.center.x), Math.round(b.bottom));
     // Blink while invulnerable after a blow.
     this.sprite.setAlpha(this.invuln > 0 && this.state !== 'dead' && Math.floor(this.invuln * 20) % 2 === 0 ? 0.35 : 1);
     if (this.state === 'dead') this.sprite.setAngle(this.face * -Math.min(80, this.st * 300));
     else this.sprite.setAngle(this.water.swimming && vx > 25 ? this.face * Math.min(65, vx * 0.45) : 0);
+    this.trailT-=dt;
+    const streak=!settings.reduceFlashes&&settings.quality!=='low'&&this.hero==='elior'&&((this.state==='attack'&&(this.atk.air||this.atk.heavy))||(this.state==='dodge'&&this.combatStyle==='wraith'));
+    for(const ghost of this.trail){ghost.life=this.dead||settings.reduceFlashes?0:Math.max(0,ghost.life-dt);ghost.sprite.setVisible(ghost.life>0).setAlpha(ghost.life*1.6);}
+    if(streak&&this.trailT<=0){const ghost=this.trail.find(g=>g.life<=0);if(ghost){ghost.life=0.18;ghost.sprite.setTexture(this.sprite.texture.key,this.sprite.frame.name).setPosition(this.sprite.x,this.sprite.y).setOrigin(this.sprite.originX,this.sprite.originY).setScale(this.sprite.scaleX,this.sprite.scaleY).setFlipX(this.sprite.flipX).setAngle(this.sprite.angle);}this.trailT=0.055;}
     // The blade's arc shows from the moment it lands until the swing ends.
     const u = this.state === 'attack' ? this.st / this.atk.t : 0;
     const show = this.state === 'attack' && u >= this.atk.hit[0] && u <= this.atk.hit[1] + 0.15;
