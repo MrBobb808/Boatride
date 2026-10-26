@@ -16,8 +16,12 @@ export function actionAtlas(sc: Phaser.Scene, hero: PlayableHero, family: Weapon
   if (sc.textures.exists(key)) return key;
   const clips = clipsFor(family);
   if (hero === 'tirzah') {
-    const draw: Clip = { dur:1, base:BASE_POSE, fn:u=>({ lean:0.1, fUA:-1.45, fFA:0.08, bUA:-0.8 - u * 0.5, bFA:1.4 + u * 0.7, fTh:0.25, bTh:-0.3, wpn:0 }) };
+    // The back hand holds the bow forward; the front hand pulls its string.
+    const base={...BASE_POSE,bUA:0.9,bFA:0.3,off:0.4,fUA:0.3,fFA:0.5,bTh:-0.2,fTh:0.25};
+    const draw: Clip = { dur:1, base, fn:u=>({ lean:-0.05*u, bUA:1.5, bFA:0.05, off:0.02, fUA:1.3-0.15*u, fFA:0.5+1.45*u, fTh:0.4, fSh:-0.3, bTh:-0.4 }) };
+    clips.idle={...clips.idle,base};clips.run={...clips.run,base};
     clips.bowDraw = draw;
+    clips.bowRelease={dur:0.28,base,fn:u=>({lean:-0.12*(1-u),bUA:1.5,bFA:0.05,off:0.02,fUA:0.6,fFA:0.6,fTh:0.4,bTh:-0.4})};
   }
   const names = Object.keys(clips), total = names.length * STEPS;
   const tex = sc.textures.createCanvas(key, COLS * CELL, Math.ceil(total / COLS) * CELL)!;
