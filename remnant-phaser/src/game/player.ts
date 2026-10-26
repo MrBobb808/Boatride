@@ -832,8 +832,8 @@ export class Player {
     else if (vx > 24) { this.stride += dt * (vx / RUN) * 11; f = 4 + (Math.floor(this.stride) % 4); }
     else f = Math.floor(this.w.sc.time.now / 1000 * 3.8) % 4;
     if (['execute', 'transform', 'scripted'].includes(this.state)) f = this.powers?.frame ?? f;
-    const clip = this.hero === 'tirzah' ? this.state === 'bow' ? 'bowDraw' : this.state === 'dodge' ? 'dodge' : !this.onGround ? b.velocity.y < 0 ? 'jump' : 'fall' : vx > 24 ? 'run' : 'idle' : this.state === 'attack' || this.state === 'plunge' ? this.atk.clip : '';
-    const uArt = this.state === 'bow' ? this.bow.drawing ? this.bow.charge / 1.2 : Math.max(0, this.bow.recovery / 0.28) : this.state === 'attack' || this.state === 'plunge' ? this.st / this.atk.t : this.state === 'dodge' ? this.st / DODGE_T : clip === 'run' ? (this.stride / 4) % 1 : (G.time * 0.6) % 1;
+    const clip = this.hero === 'tirzah' ? this.state === 'bow' ? this.bow.drawing ? 'bowDraw' : 'bowRelease' : this.state === 'dodge' ? 'dodge' : !this.onGround ? b.velocity.y < 0 ? 'jump' : 'fall' : vx > 24 ? 'run' : 'idle' : this.state === 'attack' || this.state === 'plunge' ? this.atk.clip : '';
+    const uArt = this.state === 'bow' ? this.bow.drawing ? this.bow.charge / 1.2 : Math.max(0, 1 - this.bow.recovery / 0.28) : this.state === 'attack' || this.state === 'plunge' ? this.st / this.atk.t : this.state === 'dodge' ? this.st / DODGE_T : clip === 'run' ? (this.stride / 4) % 1 : (G.time * 0.6) % 1;
     const key = clip ? actionAtlas(this.w.sc,this.hero,this.w.d.family) : 'elior';
     const frame = clip ? actionFrame(this.w.sc,key,clip,Phaser.Math.Clamp(uArt,0,0.999)) : null;
     if (frame) { this.sprite.setTexture(key,frame).setOrigin(0.5,80/96).setScale(1); }

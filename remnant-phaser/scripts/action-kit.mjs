@@ -32,6 +32,7 @@ try{
  const hp=await E(()=>window.target.hp);
  await page.keyboard.press('KeyJ');await until(hp=>window.target.hp<hp,hp);
  assert.ok(await E(()=>window.__remnant.world.player.sprite.texture.key.startsWith('action-tirzah')),'archer has her own sprite');
+ assert.ok(await E(()=>{const t=window.__remnant.game.textures.get('action-tirzah-bow'),f=t.get('bowDraw:7'),data=t.getSourceImage().getContext('2d').getImageData(f.cutX+60,f.cutY+25,12,55).data;let n=0;for(let i=3;i<data.length;i+=4)if(data[i])n++;return n>8;}),'charged bow is held forward in the projectile direction');
  await page.waitForTimeout(500);
  const energy=await E(()=>window.__remnant.world.save.ce);
  await page.keyboard.down('KeyK');await until(()=>window.__remnant.world.player.bow.charge>=0.65);

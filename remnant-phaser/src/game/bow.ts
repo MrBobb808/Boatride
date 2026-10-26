@@ -71,16 +71,16 @@ export class Bow {
         this.recovery-=dt;
         if(this.recovery<=0){
           p.releaseState();
-          if(this.queued){this.chargeKey=this.queued;this.drawing=true;this.charge=0;this.queued=null;p.state='bow';}
+          if(this.queued){this.w.playEffect('bowDraw');this.chargeKey=this.queued;this.drawing=true;this.charge=0;this.queued=null;p.state='bow';}
         }
       }
       return true;
     }
     if(p.state!=='free'&&p.state!=='swim') return false;
-    if(c.pressed('heavy')||c.down('heavy')) {this.chargeKey='heavy';this.drawing=true;this.charge=0;this.recovery=0;p.state='bow';return true;}
+    if(c.pressed('heavy')||c.down('heavy')) {this.w.playEffect('bowDraw');this.chargeKey='heavy';this.drawing=true;this.charge=0;this.recovery=0;p.state='bow';return true;}
     if(c.pressed('attack')) {
       if(c.down('up')){this.fire('volley');this.recovery=0.28;this.drawing=false;}
-      else {this.chargeKey='attack';this.drawing=true;this.charge=0;this.recovery=0;}
+      else {this.w.playEffect('bowDraw');this.chargeKey='attack';this.drawing=true;this.charge=0;this.recovery=0;}
       p.state='bow';return true;
     }
     return false;
@@ -100,7 +100,7 @@ export class Bow {
       a.x=p.x+p.face*13;a.y=p.y-4;a.vx=Math.cos(angle)*speed*p.face;a.vy=Math.sin(angle)*speed;
       a.life=1.2;a.damage=p.power()*(kind==='pierce'?2.1:kind==='volley'?0.48:0.7);a.pierce=kind==='pierce'?3:1;a.hits.clear();a.move=`bow_${kind}`;
     }
-    this.w.playEffect(kind==='pierce'?'swingHeavy':'swing');
+    this.w.playEffect('bowRelease');
     this.w.spark(p.x+p.face*14,p.y-4,0xa6efdc,kind==='pierce'?8:3);
   }
   destroy(){this.graphics.destroy();}
