@@ -7,6 +7,7 @@
 // the original's pixel-art resolution, which Phaser shows hard-edged.
 
 import Phaser from 'phaser';
+import { GAME_PACE } from '../game/pace';
 import { activeSlot, selectSlot } from '../game/save';
 import { offlineStatusText } from '../game/update';
 import { G, flag } from './shim/ctx';
@@ -783,9 +784,9 @@ export class ClassicLayer {
   /** Anything to run or draw: actors, or effects still fading after them. */
   get active() { return this.ents.length > 0 || this.squad.echoes.length > 0 || fx.ps.length > 0 || fx.rings.length > 0 || fx.arcs.length > 0 || fx.streaks.length > 0 || fx.cols.length > 0 || fx.flashA > 0; }
 
-  get simulationScale() { return this.slowT > 0 ? this.slowScale : 1; }
+  get simulationScale() { return GAME_PACE * (this.slowT > 0 ? this.slowScale : 1); }
   update(dtRaw: number) {
-    let dt = dtRaw;
+    let dt = dtRaw * GAME_PACE;
     if (this.slowT > 0) {
       this.slowT -= dtRaw;
       dt *= this.slowScale;
