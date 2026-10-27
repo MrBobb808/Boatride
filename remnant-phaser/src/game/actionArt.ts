@@ -1,39 +1,37 @@
 // Bake the original skeletal choreography into reusable Phaser frame atlases.
 // No skeleton solving or canvas upload is needed during combat.
 import type Phaser from 'phaser';
-import { Animator, BASE_POSE, solve, type Clip } from '../../../remnant/src/render/skeleton';
+import { Animator, solve } from '../../../remnant/src/render/skeleton';
 import { drawHumanoid } from '../../../remnant/src/render/actors';
 import type { HumanStyle } from '../../../remnant/src/render/actors';
 import { DIMS } from '../../../remnant/src/game/playerDims';
-import { clipsFor } from '../../../remnant/src/game/weapons';
+import { clipsFor, MOVESETS, type AttackDef } from '../../../remnant/src/game/weapons';
+import { mantleStyle } from '../../../remnant/src/game/mantle';
 import type { WeaponFamily } from '../../../remnant/src/game/data';
 import type { PlayableHero } from './style';
-const CELL = 96, STEPS = 8, COLS = 16;
+import { rangerAtlas } from './rangerArt';
+// Polearms need room beyond the hands, including the fully extended thrust.
+export const ACTION_CELL = 128, ACTION_FOOT = 96;
+const CELL = ACTION_CELL, STEPS = 8, COLS = 16;
 const ELIOR: HumanStyle = { skin:'#754c38', hair:'#f3f0e7', hairKind:'spiky', beard:'#e7e3da', coat:'#24202d', coatDark:'#110f19', skirt:9, trim:'#d5af60', pants:'#171520', boots:'#39313b', glove:'#48404c', belt:'#a98549', plate:null, helm:'none', eye:'#ebd28d', eyeGlow:0, outline:'#09080d', weapon:'blade', weaponColor:'#e3dfdb', offhand:'none', bulk:1, scarf:'#bc4c45' };
-const TIRZAH: HumanStyle = { ...ELIOR, hair:'#241a21', hairKind:'braid', beard:null, coat:'#337f79', coatDark:'#153a40', trim:'#e1bd70', helm:'archer', helmColor:'#296a69', weapon:'none', offhand:'bow', offColor:'#c49b58', offTrim:'#f0db9a', scarf:'#91c7bf', skirt:6, bulk:0.9 };
-export function actionAtlas(sc: Phaser.Scene, hero: PlayableHero, family: WeaponFamily) {
-  const key = `action-${hero}-${hero === 'tirzah' ? 'bow' : family}`;
+export function actionAtlas(sc: Phaser.Scene, hero: PlayableHero, family: WeaponFamily, mantle = false) {
+  if(hero==='tirzah')return rangerAtlas(sc,mantle);
+  const key = `action-${hero}-${family}${mantle ? '-mantle' : ''}`;
   if (sc.textures.exists(key)) return key;
   const clips = clipsFor(family);
-  if (hero === 'tirzah') {
-    // The back hand holds the bow forward; the front hand pulls its string.
-    const base={...BASE_POSE,bUA:0.9,bFA:0.3,off:0.4,fUA:0.3,fFA:0.5,bTh:-0.2,fTh:0.25};
-    const draw: Clip = { dur:1, base, fn:u=>({ lean:-0.05*u, bUA:1.5, bFA:0.05, off:0.02, fUA:1.3-0.15*u, fFA:0.5+1.45*u, fTh:0.4, fSh:-0.3, bTh:-0.4 }) };
-    clips.idle={...clips.idle,base};clips.run={...clips.run,base};
-    clips.bowDraw = draw;
-    clips.bowRelease={dur:0.28,base,fn:u=>({lean:-0.12*(1-u),bUA:1.5,bFA:0.05,off:0.02,fUA:0.6,fFA:0.6,fTh:0.4,bTh:-0.4})};
-  }
-  const names = Object.keys(clips), total = names.length * STEPS;
+  // Only bake poses this native fighter uses; larger weapon margins stay cheap.
+  const moves = Object.values(MOVESETS[family]).flatMap(v => Array.isArray(v) ? v : typeof v === 'object' ? [v as AttackDef] : []);
+  const names = [...new Set(moves.map(m => m.clip))], total = names.length * STEPS;
   const tex = sc.textures.createCanvas(key, COLS * CELL, Math.ceil(total / COLS) * CELL)!;
-  const c = tex.getContext(), anim = new Animator(clips), style = { ...(hero === 'tirzah' ? TIRZAH : ELIOR), weapon: hero === 'tirzah' ? 'none' as const : family };
+  const base = { ...ELIOR, weapon: family };
+  const c = tex.getContext(), anim = new Animator(clips), style = mantle ? mantleStyle(base) : base;
   names.forEach((name, n) => {
     anim.play(name, 0, true);
     for (let i = 0; i < STEPS; i++) {
       const index = n * STEPS + i, x = index % COLS * CELL, y = Math.floor(index / COLS) * CELL;
       anim.time = clips[name].dur * i / (STEPS - 1);
       const p = anim.sample(), j = solve(p, DIMS, !/air|leap|fall|comet|rend/i.test(name));
-      c.save(); c.beginPath(); c.rect(x,y,CELL,CELL); c.clip(); c.translate(x + 48, y + 80);
-      style.bowDraw = name === 'bowDraw' ? i / (STEPS - 1) : 0;
+      c.save(); c.beginPath(); c.rect(x,y,CELL,CELL); c.clip(); c.translate(x + CELL / 2, y + ACTION_FOOT);
       drawHumanoid(c,j,style,anim.time,p.rot,0,0);
       c.restore(); tex.add(`${name}:${i}`,0,x,y,CELL,CELL);
     }

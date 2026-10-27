@@ -5,6 +5,7 @@ import { eliorUrl, varkhosUrl, morvaneUrl, azkarUrl } from '../shared';
 import { cutBossFrames } from '../game/bosses';
 import { glowTexture } from '../game/tileset';
 import { loadCreatureSprites } from '../../../remnant/src/render/creatureSprites';
+import tirzahUrl from '../assets/tirzah-v2.png';
 
 /** Loads the sprite sheets and makes the generated textures every scene shares. */
 export class Boot extends Phaser.Scene {
@@ -12,6 +13,7 @@ export class Boot extends Phaser.Scene {
 
   preload() {
     this.load.spritesheet('elior', eliorUrl, { frameWidth: 128, frameHeight: 128 });
+    this.load.image('tirzah-source',tirzahUrl);
     this.load.image('varkhos', varkhosUrl);
     this.load.image('morvane', morvaneUrl);
     this.load.image('azkar', azkarUrl);
