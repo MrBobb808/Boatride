@@ -31,6 +31,10 @@ export class Visuals {
   private weather: Phaser.GameObjects.Particles.ParticleEmitter[] = [];
   private sparks: Phaser.GameObjects.Particles.ParticleEmitter;
   private wisps: Phaser.GameObjects.Particles.ParticleEmitter;
+  private smoke: Phaser.GameObjects.Particles.ParticleEmitter;
+  private smokeFront: Phaser.GameObjects.Particles.ParticleEmitter;
+  private crown: Phaser.GameObjects.Graphics;
+  private mantled = false;
   private bubbles: Phaser.GameObjects.Particles.ParticleEmitter;
   private appliedTier = -1;
   private flashes = false;
@@ -45,10 +49,13 @@ export class Visuals {
     this.gpu = w.game.renderer.type === Phaser.WEBGL;
     this.bossCamera = new BossCamera(w);
     this.textures();
-    this.light = w.add.image(0, 0, 'glow').setDepth(8).setTint(0x7654ff).setDisplaySize(72, 90).setBlendMode(Phaser.BlendModes.ADD).setVisible(false);
+    this.light = w.add.image(0, 0, 'glow').setDepth(8).setTint(0xa04bf5).setDisplaySize(96, 116).setBlendMode(Phaser.BlendModes.ADD).setVisible(false);
     this.weaponLight = w.add.image(0, 0, 'glow').setDepth(11).setDisplaySize(25, 38).setBlendMode(Phaser.BlendModes.ADD).setVisible(false);
     this.sparks = w.add.particles(0, 0, 'vfx-spark', { emitting: false, maxParticles: 80, lifespan: { min: 180, max: 420 }, speedX: { min: -95, max: 95 }, speedY: { min: -110, max: 30 }, gravityY: 190, scale: { start: 0.65, end: 0 }, alpha: { start: 0.85, end: 0 }, blendMode: 'ADD' }).setDepth(16);
-    this.wisps = w.add.particles(0, 0, 'glow', { emitting: false, maxParticles: 36, lifespan: 650, speedX: { min: -12, max: 12 }, speedY: { min: -36, max: -16 }, scale: { start: 0.09, end: 0 }, alpha: { start: 0.4, end: 0 }, tint: [0x7850ff, 0xb3a4ff], blendMode: 'ADD' }).setDepth(9);
+    this.wisps = w.add.particles(0, 0, 'glow', { emitting: false, maxParticles: 36, lifespan: 800, speedX: { min: -14, max: 14 }, speedY: { min: -42, max: -18 }, scale: { start: 0.1, end: 0 }, alpha: { start: 0.42, end: 0 }, tint: [0xa64dff, 0xe2b5ff], blendMode: 'ADD' }).setDepth(9);
+    this.smoke = w.add.particles(0,0,'vfx-smoke',{emitting:false,maxParticles:48,lifespan:1100,speedX:{min:-18,max:18},speedY:{min:-38,max:-16},scale:{start:0.2,end:0.7},alpha:{start:0.65,end:0},rotate:{min:-80,max:80},tint:[0x281035,0x4d156d,0x8134a8]}).setDepth(9);
+    this.smokeFront = w.add.particles(0,0,'vfx-smoke',{emitting:false,maxParticles:24,lifespan:850,speedX:{min:-12,max:12},speedY:{min:-32,max:-14},scale:{start:0.14,end:0.48},alpha:{start:0.27,end:0},tint:[0x9346c5,0xbf6ee8]}).setDepth(10.5);
+    this.crown = w.add.graphics().setDepth(9.5).setBlendMode(Phaser.BlendModes.ADD);
     this.bubbles = w.add.particles(0, 0, 'vfx-bubble', { emitting: false, maxParticles: 20, lifespan: 650, speedX: { min: -7, max: 7 }, speedY: { min: -42, max: -25 }, scale: { start: 0.5, end: 0.2 }, alpha: { start: 0.45, end: 0 } }).setDepth(17);
     if (this.gpu) {
       this.map = w.textures.createCanvas(this.key, MAP_SIZE, MAP_SIZE)!;
@@ -72,6 +79,13 @@ export class Visuals {
     const grad = d.createLinearGradient(0, 0, 0, 24); grad.addColorStop(0, '#c5e7ff00'); grad.addColorStop(1, '#c5e7ff'); d.fillStyle = grad; d.fillRect(1, 0, 1, 24); drop.refresh();
     const bubble = make('vfx-bubble', 8, 8), c = bubble.getContext();
     c.strokeStyle = '#bdeeff'; c.lineWidth = 1; c.beginPath(); c.arc(4, 4, 2.5, 0, Math.PI * 2); c.stroke(); bubble.refresh();
+    // Bake a soft uneven puff once; no blur or per-frame canvas uploads.
+    const smoke=make('vfx-smoke',64,64),p=smoke.getContext();
+    for(let i=0;i<5;i++) {
+      const x=32+Math.sin(i*2.4)*11,y=32+Math.cos(i*2.4)*9,r=16+i%3*3;
+      const g=p.createRadialGradient(x,y,0,x,y,r);g.addColorStop(0,'#ffffffbb');g.addColorStop(0.45,'#ffffff66');g.addColorStop(1,'#ffffff00');p.fillStyle=g;p.fillRect(x-r,y-r,r*2,r*2);
+    }
+    smoke.refresh();
   }
 
   clear() {
@@ -79,7 +93,8 @@ export class Visuals {
     if (this.heroGlow && p?.sprite.active) p.sprite.filters?.internal.remove(this.heroGlow);
     if (this.bladeGlow && p?.slash.active) p.slash.filters?.internal.remove(this.bladeGlow);
     for (const e of this.weather) e.destroy(); this.weather.length = 0;
-    for (const e of [this.sparks, this.wisps, this.bubbles]) { e.killAll(); e.resume(); }
+    for (const e of [this.sparks, this.wisps, this.smoke, this.smokeFront, this.bubbles]) { e.killAll(); e.resume(); }
+    this.crown.clear();this.mantled=false;
     this.paused = false;
     this.light.setVisible(false); this.weaponLight.setVisible(false);
     if (this.displacement) this.displacement.active = false;
@@ -94,7 +109,7 @@ export class Visuals {
     this.wet = this.w.classic.grid.t.includes(T.Water);
     if (this.gpu) {
       p.sprite.enableFilters(); p.slash.enableFilters();
-      this.heroGlow = p.sprite.filters!.internal.addGlow(0x8050ff, 2, 0, 1, false, 0.08, 6);
+      this.heroGlow = p.sprite.filters!.internal.addGlow(0xa34bdf, 2, 0, 1, false, 0.08, 6);
       this.bladeGlow = p.slash.filters!.internal.addGlow(0xffffff, 2, 0, 1, false, 0.08, 5);
       this.heroGlow.setPaddingOverride(null); this.bladeGlow.setPaddingOverride(null);
       this.heroGlow.active = this.bladeGlow.active = false;
@@ -145,7 +160,7 @@ export class Visuals {
     const held = w.hud.paused || G.paused || w.hud.wheelOpen || blockingUI() || !!topLayer();
     if (held !== this.paused) {
       this.paused = held;
-      for (const e of [this.sparks, this.wisps, this.bubbles, ...this.weather]) held ? e.pause() : e.resume();
+      for (const e of [this.sparks, this.wisps, this.smoke, this.smokeFront, this.bubbles, ...this.weather]) held ? e.pause() : e.resume();
     }
     if (held) { this.budget.reset(); return; }
     const dt = Math.min(delta / 1000, 0.05);
@@ -156,8 +171,18 @@ export class Visuals {
     for (const e of this.weather) e.setPosition(v.centerX, v.y);
     this.element = weaponElement();
     const mantle = !p.dead && (p.mantleT > 0 || p.state === 'transform');
+    const visible=mantle&&p.sprite.visible;
+    this.smoke.setVisible(visible);this.smokeFront.setVisible(visible);
+    if(mantle&&!this.mantled) {this.smoke.emitParticleAt(p.x,p.feet-12,this.tier===0||settings.reduceFlashes?3:12);this.tick=0;}
+    else if(!mantle&&this.mantled) {this.smoke.killAll();this.smokeFront.killAll();this.wisps.killAll();}
+    this.mantled=mantle;
+    const crown=this.crown.clear();
+    if(visible) {
+      const y=p.feet-54;crown.lineStyle(1,0xcd8bff,settings.reduceFlashes?0.35:0.6).strokeEllipse(p.x,y,23,7);
+      for(let i=-1;i<=1;i++)crown.lineBetween(p.x+i*7,y-3,p.x+i*8,y-7-(i===0?3:0));
+    }
     const color = this.element ? COLORS[this.element] : 0xffffff;
-    const pulse = settings.reduceFlashes ? 0.18 : 0.21 + Math.sin(G.time * 3) * 0.04;
+    const pulse = settings.reduceFlashes ? 0.2 : 0.26 + Math.sin(G.time * 3) * 0.035;
     this.light.setVisible(mantle && p.sprite.visible).setPosition(p.x, p.y).setAlpha(pulse);
     this.weaponLight.setVisible(!!this.element && !p.dead && p.sprite.visible).setTint(color).setPosition(p.x + p.face * 12, p.feet - 24).setAlpha(settings.reduceFlashes ? 0.12 : 0.2);
     if (this.element && p.slash.visible) p.slash.setTint(color);
@@ -166,7 +191,11 @@ export class Visuals {
     this.tick -= dt;
     if (this.tick <= 0) {
       this.tick = this.tier === 0 ? 0.25 : 0.09;
-      if (mantle && p.sprite.visible) this.wisps.emitParticleAt(p.x + Math.sin(G.time * 7) * 11, p.feet - 12, this.tier === 0 ? 1 : 2);
+      if(visible) {
+        const x=p.x+Math.sin(G.time*4)*10;this.smoke.emitParticleAt(x,p.feet-8,this.tier===0?1:2);
+        if(this.tier>0&&!settings.reduceFlashes)this.smokeFront.emitParticleAt(2*p.x-x,p.feet-12,1);
+        this.wisps.emitParticleAt(x,p.feet-18,this.tier===0?1:2);
+      }
       if (p.water.submerged) this.bubbles.emitParticleAt(p.x + p.face * 4, p.feet - 32, 1);
     }
     this.mapT -= dt;
@@ -205,7 +234,7 @@ export class Visuals {
     // Phaser may already have disposed the camera before this shutdown hook.
     const cam = this.w.cameras.main;
     if (this.displacement && cam) cam.filters.internal.remove(this.displacement);
-    for (const o of [this.light, this.weaponLight, this.sparks, this.wisps, this.bubbles]) o.destroy();
+    for (const o of [this.light, this.weaponLight, this.sparks, this.wisps, this.smoke, this.smokeFront, this.crown, this.bubbles]) o.destroy();
     if (this.map) this.w.textures.remove(this.key);
   }
 }
