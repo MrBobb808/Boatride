@@ -9,7 +9,6 @@ import Phaser from 'phaser';
 import { Bow } from './bow';
 import { StyleMeter, STYLE_NAMES, RANKS, type CombatStyle, type PlayableHero } from './style';
 import { actionAtlas, actionFrame, ACTION_CELL, ACTION_FOOT } from './actionArt';
-import { equipmentAtlas, EQUIP_CELL, EQUIP_FOOT } from './equipmentArt';
 import { ACTION_RATE } from './pace';
 import { settings } from '../classic/shim/settings';
 import { T, TILE, isSolid } from '../shared';
@@ -120,6 +119,12 @@ export class Player {
   /** While positive, one-way platforms let Elior drop through. */
   dropT = 0;
   private stride = 0;
+  private visualClip = '';
+  private visualTime = 0;
+  private wasGrounded = true;
+  private lastVy = 0;
+  private landT = 0;
+  private visualX = NaN;
   private atk: Swing = swing(MOVESETS.blade.combo[0]);
   private atkMult = 1;
   /** Which button the charge is held on (released to swing). */
@@ -191,6 +196,9 @@ export class Player {
     this.body.setVelocity(0, 0);
     this.queued = this.heavyQueued = false;
     this.linger = '';
+    this.visualClip = ''; this.visualTime = this.stride = this.landT = 0;
+    this.wasGrounded = true; this.lastVy = 0;
+    this.visualX=x;
     this.slash.setVisible(false);
   }
 
@@ -820,32 +828,44 @@ export class Player {
   /** Pick the sheet frame and place the sprite, blade arc and auras on the body. */
   private draw(dt = 0) {
     const b = this.body;
-    let f = 0;
     const vx = Math.abs(b.velocity.x);
-    if (this.state === 'dead' || this.state === 'hurt') f = 14;
-    else if (this.state === 'dodge' || this.state === 'airdash') f = this.st < 0.13 ? 12 : 13;
-    else if (this.state === 'phantom') f = 15;
-    else if (this.state === 'plunge') f = 11;
-    else if (this.state === 'attack') f = this.st / this.atk.t < this.atk.hit[0] ? 10 : 11;
-    else if (this.state === 'charge' || this.state === 'parry' || this.state === 'block') f = 10;
-    else if (this.state === 'heal' || this.state === 'cast') f = 15;
-    else if (!this.onGround) f = b.velocity.y < 0 ? 8 : 9;
-    else if (vx > 24) { this.stride += dt * (vx / RUN) * 11; f = 4 + (Math.floor(this.stride) % 4); }
-    else f = Math.floor(this.w.sc.time.now / 1000 * 3.8) % 4;
-    if (['execute', 'transform', 'scripted'].includes(this.state)) f = this.powers?.frame ?? f;
+    const ground=this.onGround;
+    const travel=Math.abs(this.x-this.visualX),moving=travel>.02&&travel<24;
+    this.visualX=this.x;
+    if(ground&&!this.wasGrounded&&this.lastVy>80&&!this.water.swimming)this.landT=.14;
+    else this.landT=Math.max(0,this.landT-dt);
+    this.wasGrounded=ground;this.lastVy=b.velocity.y;
+    if(ground&&moving&&this.state==='free')this.stride=(this.stride+travel/64)%1;
     const mantle = !this.dead && (this.mantleT > 0 || this.state === 'transform');
-    const clip = this.hero === 'tirzah' ? this.state === 'bow' ? this.bow.drawing ? 'bowDraw' : 'bowRelease' : this.state === 'dodge' ? 'roll' : this.state === 'airdash' ? 'airdash' : this.state === 'hurt' || this.dead ? 'hurt' : ['cast','heal','transform','scripted','execute'].includes(this.state) ? 'cast' : !this.onGround ? b.velocity.y < 0 ? 'jump' : 'fall' : vx > 24 ? 'run' : 'idle' : this.state === 'attack' || this.state === 'plunge' ? this.atk.clip : '';
-    const uArt = this.state === 'bow' ? this.bow.drawing ? this.bow.charge / 1.2 : Math.max(0, 1 - this.bow.recovery / 0.28) : this.state === 'attack' || this.state === 'plunge' ? this.st / this.atk.t : this.state === 'dodge' ? this.st / DODGE_T : clip === 'run' ? (this.stride / 4) % 1 : (G.time * 0.6) % 1;
-    const key = clip ? actionAtlas(this.w.sc,this.hero,this.w.d.family,mantle) : equipmentAtlas(this.w.sc,this.w.d.family,mantle,!this.powers?.weaponFlight);
-    const frame = clip ? actionFrame(this.w.sc,key,clip,Phaser.Math.Clamp(uArt,0,0.999)) : null;
-    if (frame) { this.sprite.setTexture(key,frame).setOrigin(0.5,ACTION_FOOT/ACTION_CELL).setScale(1); }
-    else this.sprite.setTexture(key,f).setOrigin(0.5,EQUIP_FOOT/EQUIP_CELL).setScale(1);
+    let clip='idle',uArt=0;
+    if(this.dead){clip='death';uArt=this.st/1.2;}
+    else if(this.state==='hurt'){clip='hurt';uArt=this.st/.3;}
+    else if(this.state==='bow'){clip=this.bow.drawing?'bowDraw':'bowRelease';uArt=this.bow.drawing?this.bow.charge/.55:1-this.bow.recovery/.28;}
+    else if(this.state==='attack'||this.state==='plunge'){clip=this.hero==='tirzah'?'cast':this.atk.clip;uArt=this.st/this.atk.t;}
+    else if(this.state==='dodge'){clip='roll';uArt=this.st/DODGE_T;}
+    else if(this.state==='airdash'||this.state==='phantom'){clip='airdash';uArt=this.st/.2;}
+    else if(this.state==='charge'){clip='charge';uArt=Math.min(1,this.st/.22);}
+    else if(this.state==='parry'||this.state==='block'){clip=this.state;uArt=this.state==='block'?1:this.st/.3;}
+    else if(this.state==='heal'||this.state==='cast'){clip=this.state;uArt=this.st/(clip==='heal'?.9:.3);}
+    else if(this.state==='transform'||this.state==='execute'||this.state==='scripted')clip=this.state==='transform'?'invoke':this.powers?.clip||'invoke';
+    else if(this.water.swimming)clip=vx>20||Math.abs(b.velocity.y)>20?'swim':'idle';
+    else if(!ground||b.velocity.y<0)clip=b.velocity.y<0?'jump':'fall';
+    else if(this.landT>0){clip='land';uArt=1-this.landT/.14;}
+    else if(moving){clip='run';uArt=this.stride;}
+    if(clip!==this.visualClip){this.visualClip=clip;this.visualTime=0;}
+    else this.visualTime+=dt;
+    if(clip==='idle')uArt=(this.visualTime/3)%1;
+    else if(clip==='swim')uArt=(this.visualTime/1.1)%1;
+    else if(clip==='jump'||clip==='fall')uArt=this.visualTime/(clip==='jump'?.25:.35);
+    else if(this.state==='transform'||this.state==='execute'||this.state==='scripted')uArt=this.state==='transform'?this.visualTime/1.15:this.powers?.clipProgress??0;
+    const key=actionAtlas(this.w.sc,this.hero,this.w.d.family,mantle,this.hero==='tirzah'||!this.powers?.weaponFlight);
+    const frame=actionFrame(this.w.sc,key,clip,Phaser.Math.Clamp(uArt,0,.999));
+    this.sprite.setTexture(key,frame).setOrigin(.5,ACTION_FOOT/ACTION_CELL).setScale(1);
     this.sprite.setFlipX(this.face < 0);
     this.sprite.setPosition(Math.round(b.center.x), Math.round(b.bottom));
     // Blink while invulnerable after a blow.
     this.sprite.setAlpha(this.invuln > 0 && this.state !== 'dead' && Math.floor(this.invuln * 20) % 2 === 0 ? 0.35 : 1);
-    if (this.state === 'dead') this.sprite.setAngle(this.face * -Math.min(80, this.st * 300));
-    else this.sprite.setAngle(this.water.swimming && vx > 25 ? this.face * Math.min(65, vx * 0.45) : 0);
+    this.sprite.setAngle(!this.dead&&this.water.swimming&&vx>25?this.face*Math.min(65,vx*.45):0);
     this.trailT-=dt;
     const streak=!settings.reduceFlashes&&settings.quality!=='low'&&this.hero==='elior'&&((this.state==='attack'&&(this.atk.air||this.atk.heavy))||(this.state==='dodge'&&this.combatStyle==='wraith'));
     for(const ghost of this.trail){ghost.life=this.dead||settings.reduceFlashes?0:Math.max(0,ghost.life-dt);ghost.sprite.setVisible(ghost.life>0).setAlpha(ghost.life*1.6);}

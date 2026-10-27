@@ -14,26 +14,32 @@ try {
  await E(()=>{const w=window.__remnant.world;w.loadRoom('sanctuary','start');for(const e of w.classic.ents)if(e.isFoe)e.remove=true;w.save.flags.relic_taken=true;w.player.grantInvuln(100);});await until(()=>window.__remnant.world.player.onGround);
  for(const[id,family]of[['ember_brand','blade'],['frostwake_spear','spear'],['stormcaller','greatsword']]) {
   await E(id=>{const w=window.__remnant.world;w.save.inventory.find(i=>i.uid===w.save.equipment.weapon).id=id;w.refreshStats();},id);
-  await until(f=>window.__remnant.world.player.sprite.texture.key===`hero-equipped-${f}`,family);
+  await until(f=>window.__remnant.world.player.sprite.texture.key===`action-elior-${f}`,family);
+  await E(()=>window.__remnant.world.player.powers.weaponFlight={});
+  await until(()=>window.__remnant.world.player.sprite.texture.key.endsWith('-unarmed'));
+  await E(()=>window.__remnant.world.player.powers.weaponFlight=null);
+  await until(f=>window.__remnant.world.player.sprite.texture.key===`action-elior-${f}`,family);
   const pixels=await E(family=>{
-   const game=window.__remnant.game,t=game.textures.get(`hero-equipped-${family}`),c=t.getSourceImage().getContext('2d');
-   const ref=document.createElement('canvas');ref.width=ref.height=128;const r=ref.getContext('2d'),source=game.textures.get('elior').getSourceImage();
-   return Array.from({length:16},(_,i)=>{const f=t.get(i);r.clearRect(0,0,128,128);r.imageSmoothingEnabled=false;r.drawImage(source,i%4*128,Math.floor(i/4)*128,128,128,36,43.5,56,56);
-    const a=c.getImageData(f.cutX,f.cutY,128,128).data,b=r.getImageData(0,0,128,128).data;let extra=0,edge=0;
-    for(let y=0;y<128;y++)for(let x=0;x<128;x++){const at=(y*128+x)*4;if(a[at+3]>100&&b[at+3]<50)extra++;if((x===0||y===0||x===127||y===127)&&a[at+3]>100)edge++;}return{frame:i,extra,edge};});
+   const tm=window.__remnant.game.textures,t=tm.get(`action-elior-${family}`),bare=tm.get(`action-elior-${family}-unarmed`);
+   const canvas=document.createElement('canvas');canvas.width=canvas.height=192;const c=canvas.getContext('2d');
+   const sample=(tex,name)=>{const f=tex.get(name);c.clearRect(0,0,192,192);c.drawImage(tex.getSourceImage(),f.cutX,f.cutY,f.cutWidth,f.cutHeight,f.x,f.y,f.cutWidth,f.cutHeight);return c.getImageData(0,0,192,192).data;};
+   return ['idle','run','jump','fall','charge','parry','b1'].flatMap(clip=>Array.from({length:16},(_,i)=>{
+    const name=clip+':'+i,a=sample(t,name),b=sample(bare,name);let extra=0,edge=0;
+    for(let y=0;y<192;y++)for(let x=0;x<192;x++){const at=(y*192+x)*4;if(a[at+3]>100&&b[at+3]<50)extra++;if((x===0||y===0||x===191||y===191)&&a[at+3]>100)edge++;}return{frame:name,extra,edge};
+   }));
   },family);
-  assert.ok(pixels.every(p=>p.extra>5),`${family}: visible weapon pixels in every illustrated pose: ${JSON.stringify(pixels)}`);
-  assert.ok(pixels.every(p=>p.edge===0),`${family}: no clipped equipment at cell boundaries`);
-  await page.keyboard.down('KeyD');await until(()=>{const p=window.__remnant.world.player;return p.body.velocity.x>40&&Number(p.sprite.frame.name)>=4&&Number(p.sprite.frame.name)<=7;});await page.keyboard.up('KeyD');
+  assert.ok(pixels.every(p=>p.extra>5),`${family}: visible weapon pixels: ${JSON.stringify(pixels.filter(p=>p.extra<=5))}`);
+  assert.ok(pixels.every(p=>p.edge===0),`${family}: no clipped equipment`);
+  await page.keyboard.down('KeyD');await until(()=>{const p=window.__remnant.world.player;return p.body.velocity.x>40&&String(p.sprite.frame.name).startsWith('run:');});await page.keyboard.up('KeyD');
   await page.keyboard.down('Space');await until(()=>window.__remnant.world.player.body.velocity.y<0);await page.keyboard.up('Space');
-  assert.ok(await E(f=>window.__remnant.world.player.sprite.texture.key===`hero-equipped-${f}`,family),'jump retains the current weapon');
+  assert.ok(await E(f=>window.__remnant.world.player.sprite.texture.key===`action-elior-${f}`,family),'jump retains the same illustrated rig and weapon');
   await until(()=>window.__remnant.world.player.onGround);await page.keyboard.down('KeyA');await until(()=>window.__remnant.world.player.sprite.flipX);await page.keyboard.up('KeyA');
-  await page.keyboard.press('KeyJ');await until(f=>window.__remnant.world.player.sprite.texture.key===`action-elior-${f}`,family);
-  assert.equal(await E(()=>window.__remnant.world.player.sprite.frame.width),128,'extended combat weapons have a larger margin');await until(()=>window.__remnant.world.player.state==='free');
+  await page.keyboard.press('KeyJ');await until(()=>window.__remnant.world.player.state==='attack');
+  assert.equal(await E(()=>window.__remnant.world.player.sprite.frame.realWidth),192,'trimmed combat frames retain full weapon margin');await until(()=>window.__remnant.world.player.state==='free');
  }
- console.log('Equipment: visible, unclipped weapons in all 16 body poses, running, jumping, facing and attacks');
+ console.log('Equipment: visible, unclipped weapons in all 112 tested poses per family, running, jumping, facing and attacks');
  await E(()=>{const w=window.__remnant.world;w.save.level=25;w.save.mantle=100;w.refreshStats();});await page.keyboard.press('KeyG');await until(()=>window.__remnant.world.player.state==='transform');
- await until(()=>{const w=window.__remnant.world;return w.player.mantleT>0&&w.player.state==='free'&&w.player.sprite.texture.key==='hero-equipped-greatsword-mantle'&&w.visuals.smoke.getAliveParticleCount()>0;});
+ await until(()=>{const w=window.__remnant.world;return w.player.mantleT>0&&w.player.state==='free'&&w.player.sprite.texture.key==='action-elior-greatsword-mantle'&&w.visuals.smoke.getAliveParticleCount()>0;});
  await page.waitForTimeout(450);await page.screenshot({path:'qa/equipment-mantle.png'});
  assert.ok(await E(()=>window.__remnant.world.visuals.crown.commandBuffer.length>0),'form has its violet crown');
  await page.keyboard.press('KeyJ');await until(()=>window.__remnant.world.player.sprite.texture.key==='action-elior-greatsword-mantle');await until(()=>window.__remnant.world.player.state==='free');await page.keyboard.press('KeyN');

@@ -16,6 +16,7 @@ import { throwSub } from '../../../remnant/src/game/subweapons';
 import { ChainBlade } from '../../../remnant/src/game/chain';
 import { alternateSuper, selectedSuper, superTarget } from '../../../remnant/src/game/supers';
 import { SUPER_MOVES } from '../../../remnant/src/game/data';
+import { clipsFor } from '../../../remnant/src/game/weapons';
 import { fx, PK } from '../../../remnant/src/render/fx';
 import type { ClassicLayer } from './layer';
 import type { Player } from '../game/player';
@@ -37,6 +38,14 @@ export class HeroPowers {
   private waveN = 0;
   private shadeT = 0;
   clip = '';
+  private clipTime = 0;
+  private clipDuration = 1;
+  private clipSpeed = 1;
+  get clipProgress() { return this.clipTime / this.clipDuration; }
+  playClip(id:string,speed=1) {
+    this.clip=id;this.clipTime=0;this.clipSpeed=speed;
+    this.clipDuration=clipsFor(this.L.host.d.family)[id]?.dur??.5;
+  }
   ghosts: { x: number; y: number; face: number; a: number; pose?: unknown; rot?: number }[] = [];
   private ghostSprites: Phaser.GameObjects.Sprite[];
   private g: Phaser.GameObjects.Graphics;
@@ -60,6 +69,7 @@ export class HeroPowers {
   /** Called once before the hero's ordinary state machine. */
   update(dt: number) {
     const p = this.p, w = this.L.host, c = w.controls, s = w.save;
+    this.clipTime+=dt*this.clipSpeed;
     this.subCd = Math.max(0, this.subCd - dt); const recharge = dt * runBlessings.recharge * w.d.pursuitRecharge; this.throwCd = Math.max(0, this.throwCd - recharge); this.pursuitCd = Math.max(0, this.pursuitCd - recharge);
     if (s.level >= 25 && !s.flags.mantle_known) { s.flags.mantle_known = true; s.mantle = 100; w.toast('Shadow Mantle awakened · G / the MANTLE button'); }
     if (p.mantleT > 0 && p.state !== 'transform' && !G.inCutscene) {
@@ -123,7 +133,7 @@ export class HeroPowers {
     if (!s.flags.relic_taken || s.rally < 100 || this.L.duel) { this.L.host.toast('Your super charges through battle after the relic awakens.'); return false; }
     this.superId = selectedSuper(); this.superFoe = this.superId === 'tempest' ? superTarget() : null;
     if (this.superId === 'tempest' && !this.superFoe) { this.L.host.toast('Umbral Tempest needs a reachable foe.'); return false; }
-    s.rally = 0; this.superT = 0; this.p.untouchable = 3; this.p.state = 'scripted'; this.clip = 'invoke';
+    s.rally = 0; this.superT = 0; this.p.untouchable = 3; this.p.state = 'scripted'; this.playClip('invoke');
     G.inCutscene = true; this.L.host.hud.cinematicBars(true); this.L.host.banner(SUPER_MOVES[this.superId].name.toUpperCase(), ''); sfx('rally'); return true;
   }
   tryExecution() {
