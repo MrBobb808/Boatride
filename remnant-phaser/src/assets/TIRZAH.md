@@ -1,5 +1,8 @@
 # Tirzah ranger sprite v2
 
+This full-body sheet is preserved as the design reference. The live fighters
+now use the articulated parts and animation pipeline in `FIGHTER_ANIMATION.md`.
+
 Created with the built-in ImageGen tool, transparent background. `tirzah-v2.png`
 is the unmodified generated source (1254 × 1254 RGBA). `game/rangerArt.ts`
 normalizes the uneven source cells to the game's feet/body scale. Teal cloth is

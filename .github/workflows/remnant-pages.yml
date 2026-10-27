@@ -96,6 +96,7 @@ jobs:
       - run: node scripts/phone-progress.mjs
       - run: node scripts/pacing.mjs
       - run: node scripts/action-kit.mjs
+      - run: node scripts/animation-motion.mjs
       - run: node scripts/equipment-visuals.mjs
       - run: node scripts/visuals.mjs
       - run: node scripts/combat.mjs

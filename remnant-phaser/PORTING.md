@@ -47,8 +47,10 @@ parries, decay after idling and drop on damage. The meter grants no damage bonus
 
 Tirzah is a second playable bow wielder with an image-generated teal-and-gold
 ranger sprite, dark braid, large ivory/gold recurve bow and dedicated idle, run,
-jump, dodge, hurt, draw and release poses. The transparent source and prompt live
-in `src/assets/`; poses normalize once into cached frames at Elior's body scale.
+jump, dodge, hurt, draw and release poses. Both fighters now use an ImageGen
+parts sheet bound to the same 2D rig for movement and combat, with sixteen
+distinct samples per clip. Sources, pivots and the exact prompt are documented
+in `src/assets/FIGHTER_ANIMATION.md`.
 Tap Strike for a quick arrow, hold Strike or Heavy for a
 charged piercing shot (6 CE), or Up + Strike for a three-arrow spread (10 CE,
 2.5 game-second cooldown). Aim assists toward visible foes ahead. Arrows use a
@@ -63,15 +65,20 @@ Energy, equipment, progression and story: changing character never heals or rese
 cooldowns. Optional `playableHero`, `combatStyle` and `bestStyle` save fields keep
 older journeys compatible and persist per slot.
 
-Combat poses bake the existing original skeleton choreography into reusable Phaser
-atlases: wind-up, cuts, launchers, spins and air moves. Four pooled silhouettes
+Movement and combat bake the existing skeleton choreography into illustrated
+Phaser atlases: breathing, alternating strides, jump/landing, guards, rolls,
+swimming, wind-ups, cuts, launchers, spins and air moves. Footsteps follow actual
+distance travelled; one-shot poses use local action clocks and repeatable
+finisher timing. Bow drawing reaches full extension at the actual charged-shot
+threshold; release relaxes the string and arrows start at its grip. Four pooled silhouettes
 accent aerial/heavy moves and Wraith dodges; Low quality and Reduce flashes remove
 them. Atlas frames and resource pools survive room transitions without growing;
 individual fighter/projectile/trail objects dispose on room exit.
-The illustrated locomotion sheet is composited with hand-aligned blades, spears
-and greatswords, keeping gear visible outside attacks. Locomotion and combat
-frames have room for extended weapons. Only used combat clips are baked;
-equipment and form atlases are cached once.
+The same illustrated body and hand-aligned blade, spear or greatsword stay
+visible across locomotion and combat. Logical 192-pixel frames leave room for
+rotating polearms; tight packing with transparent gutters and Phaser trim
+metadata avoids uploading empty space. Parts, atlases and form variants are
+cached once, with no skeleton solving or canvas uploads in the game loop.
 Routine damage and parries do not shake the camera. Major impacts use a small,
 160 ms maximum shake with at least 900 ms between starts; Reduced/Off still apply.
 
@@ -151,7 +158,8 @@ include TypeScript checks. Run Phaser browser scripts from `remnant-phaser`:
 | `modes-water`, `phone-progress` | Flooded rooms, mode entry/results/boards, contract restrictions, Island/editor/haptics, slots, NG+ and scaling. |
 | `pacing`, `action-kit` | 60/120 Hz movement and shared timing, steady ordinary-hit camera, animated melee/jump-cancel, real ranged damage, shot costs, wall blocking, saved fighter/styles, phone tag and rotation. |
 | `visuals` | Six elemental weapons, Mantle glow, animated water/heat distortion, quality/accessibility controls, weather layers, camera hand-off, Trial/room cleanup, title/Continue and Canvas fallback. |
-| `equipment-visuals` | Actual weapon pixels in all sixteen illustrated poses for each family; movement/facing, combat margin, real purple transformation, smoke/crown, tagged archer, pause/quality/reduced flashes, death/room cleanup and Canvas fallback. |
+| `animation-motion` | Actual 60/120 Hz playback for both heroes, distinct stride poses, stable foot origins, idle, jump/landing, full dodge, guard, bow charge/release, local clocks, repeated finishers and paused animation. |
+| `equipment-visuals` | Actual weapon pixels across 112 poses per family; movement/facing, combat margin, real purple transformation, smoke/crown, tagged archer, pause/quality/reduced flashes, death/room cleanup and Canvas fallback. |
 | `install-audio` | Audio decks, settings, offline shell and update recovery; run alone because it temporarily changes the served version probe. |
 | `cutover` | Original installed worker upgrade, three slots and exact derived stats, cache isolation, offline persistence and preview recovery. Requires assembled Pages artifact. |
 
