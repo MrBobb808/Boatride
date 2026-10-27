@@ -32,7 +32,7 @@ try{
  const hp=await E(()=>window.target.hp);
  await page.keyboard.press('KeyJ');await until(hp=>window.target.hp<hp,hp);
  assert.ok(await E(()=>window.__remnant.world.player.sprite.texture.key.startsWith('action-tirzah')),'archer has her own sprite');
- assert.ok(await E(()=>{const t=window.__remnant.game.textures.get('action-tirzah-bow'),f=t.get('bowDraw:7'),data=t.getSourceImage().getContext('2d').getImageData(f.cutX+f.width/2+12,f.cutY+41,12,55).data;let n=0;for(let i=3;i<data.length;i+=4)if(data[i])n++;return n>8;}),'charged bow is held forward in the projectile direction');
+ assert.ok(await E(()=>{const t=window.__remnant.game.textures.get('action-tirzah-bow'),f=t.get('bowDraw:15'),canvas=document.createElement('canvas');canvas.width=canvas.height=192;const c=canvas.getContext('2d');c.drawImage(t.getSourceImage(),f.cutX,f.cutY,f.cutWidth,f.cutHeight,f.x,f.y,f.cutWidth,f.cutHeight);const data=c.getImageData(108,67,20,48).data;let n=0;for(let i=3;i<data.length;i+=4)if(data[i])n++;return n>30;}),'charged bow is held forward in the projectile direction');
  await page.waitForTimeout(500);
  const energy=await E(()=>window.__remnant.world.save.ce);
  await page.keyboard.down('KeyK');await until(()=>window.__remnant.world.player.bow.charge>=0.65);

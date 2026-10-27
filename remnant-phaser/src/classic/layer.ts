@@ -244,7 +244,7 @@ class PlayerView {
   set subCd(v: number) { if (this.p.powers) this.p.powers.subCd = v; }
   get weaponFlight() { return this.p.powers?.weaponFlight ?? null; }
   set weaponFlight(v: import('../../../remnant/src/game/chain').ChainBlade | null) { if (this.p.powers) this.p.powers.weaponFlight = v; }
-  anim = { play: (id: string, ..._args: unknown[]) => { if (this.p.powers) this.p.powers.clip = id; } };
+  anim = { play: (id: string, _blend=0.08, _restart=false, speed=1) => { this.p.powers?.playClip(id,speed); } };
   throwPose() { this.p.castPose(); }
   weaponImpact(t: Entity) { this.p.powers?.weaponImpact(t); }
   private practice = new WeaponPractice();

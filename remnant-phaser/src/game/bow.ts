@@ -91,17 +91,18 @@ export class Bow {
     if(kind==='pierce'&&s.ce<6){this.w.toast('Piercing shot needs 6 Energy.');kind='quick';}
     if(kind==='volley'){s.ce-=10;this.volleyCd=2.5;}
     if(kind==='pierce')s.ce-=6;
+    const muzzleX=p.x+p.face*15,muzzleY=p.feet-31;
     let target:FoeLike|null=null,distance=320;
-    for(const f of this.w.foes()) {const dx=f.x-p.x,dy=f.box.centerY-p.y,d=Math.hypot(dx,dy);if(f.alive&&dx*p.face>0&&Math.abs(dy)<110&&d<distance&&p.lineOfSight(f.x,f.box.centerY)){target=f;distance=d;}}
-    const aim=target?Phaser.Math.Clamp(Math.atan2(target.box.centerY-p.y,Math.abs(target.x-p.x)),-0.45,0.45):cAim(this.w);
+    for(const f of this.w.foes()) {const dx=f.x-p.x,dy=f.box.centerY-muzzleY,d=Math.hypot(dx,dy);if(f.alive&&dx*p.face>0&&Math.abs(dy)<110&&d<distance&&p.lineOfSight(f.x,f.box.centerY)){target=f;distance=d;}}
+    const aim=target?Phaser.Math.Clamp(Math.atan2(target.box.centerY-muzzleY,Math.abs(target.x-muzzleX)),-0.45,0.45):cAim(this.w);
     for(let i=0;i<(kind==='volley'?3:1);i++) {
       const a=this.arrows.find(a=>a.life<=0);if(!a)break;
       const angle=aim+(kind==='volley'?(i-1)*0.14:0),speed=(kind==='pierce'?590:440)*(p.water.swimming?0.65:1);
-      a.x=p.x+p.face*13;a.y=p.y-4;a.vx=Math.cos(angle)*speed*p.face;a.vy=Math.sin(angle)*speed;
+      a.x=muzzleX;a.y=muzzleY;a.vx=Math.cos(angle)*speed*p.face;a.vy=Math.sin(angle)*speed;
       a.life=1.2;a.damage=p.power()*(kind==='pierce'?2.1:kind==='volley'?0.48:0.7);a.pierce=kind==='pierce'?3:1;a.hits.clear();a.move=`bow_${kind}`;
     }
     this.w.playEffect('bowRelease');
-    this.w.spark(p.x+p.face*14,p.y-4,0xa6efdc,kind==='pierce'?8:3);
+    this.w.spark(muzzleX,muzzleY,0xa6efdc,kind==='pierce'?8:3);
   }
   destroy(){this.graphics.destroy();}
 }
