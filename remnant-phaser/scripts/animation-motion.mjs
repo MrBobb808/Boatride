@@ -28,7 +28,14 @@ try{
    assert.ok(new Set(run.filter(f=>f.frame.startsWith('run:')).map(f=>f.frame)).size>=12,`${hero} ${fps}Hz: articulated stride advances`);
    assert.ok(run.every(f=>Math.abs(f.y-f.feet)<=.51),`the sprite foot origin follows the physical body: ${JSON.stringify(run.filter(f=>Math.abs(f.y-f.feet)>.51).slice(0,3))}`);
    assert.equal(new Set(run.map(f=>f.key)).size,1,'movement retains the same illustrated rig');
-   await page.evaluate(fps=>window.stepFrames(fps/2),fps);
+   // Braking is real movement. Begin the idle measurement only after it ends.
+   await page.evaluate(fps=>{
+    for(let i=0;i<fps*2;i++){
+     const f=window.stepFrames(1)[0];
+     if(f.frame.startsWith('idle:')&&Math.abs(window.__remnant.world.player.body.velocity.x)<.5)return;
+    }
+    throw Error('The fighter did not stop and enter idle');
+   },fps);
    const still=await page.evaluate(fps=>window.stepFrames(fps/2),fps);
    assert.ok(still.slice(-10).every(f=>f.frame.startsWith('idle:')),'stopping returns to idle');
    assert.ok(Math.abs(still.at(-1).stride-still[0].stride)<.001,'idle never advances the footsteps');
