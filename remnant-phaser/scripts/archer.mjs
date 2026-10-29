@@ -147,12 +147,14 @@ try {
   await until(page, () => window.target.hp <= 0 || window.target.dying, undefined, 4000);
   const fell = await E(page, () => { const w = window.__remnant.world, p = w.player, f = window.target; w.d.crit = 0; return { behind: Math.sign(p.x - f.x), dead: f.hp <= 0 || f.dying, jabs: p.dawn.jabs }; });
   assert.ok(fell.dead && fell.behind === 1 && fell.jabs >= 1, `a critical arrow sent her behind the foe and her jab felled it (${JSON.stringify({ finisher, fell })})`);
-  console.log('Finisher: a critical arrow under the Wings carried her behind the foe, and she jabbed it down with a light arrow');
+  console.log('Finisher: a critical arrow under the Wings carried her behind the foe, and her dagger in its back felled it');
 
   // ---- Elior keeps his Shadow Mantle
   const elior = await E(page, async () => {
     const w = window.__remnant.world, p = w.player;
-    p.mantleT = 0; w.save.mantle = 100; p.switchHero();
+    // The stab ends in an arrow loosed on through the foe: switch once that move is done.
+    for (let i = 0; i < 600 && p.state !== 'free'; i++) await new Promise((r) => requestAnimationFrame(r));
+    p.mantleT = 0; w.save.mantle = 100; p.switchCd = 0; p.switchHero();
     await new Promise((r) => setTimeout(r, 1000));
     window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyG' }));
     await new Promise((r) => setTimeout(r, 50));

@@ -93,6 +93,8 @@ export interface SaveData extends ProgressionData, ValorSave, DailySave, ElixirS
   store?: StoreSave;
   /** Tirzah's own progression in the Phaser build (remnant-phaser/src/game/archer.ts). */
   archer?: ArcherSave;
+  /** Things bought or brewed to use later, by id (game/economy.ts PACK). */
+  pack?: Record<string, number>;
 }
 
 /** Tirzah's level, points, stats, skill tree ranks and gear (item uids in the shared inventory). */
@@ -332,6 +334,7 @@ export function migrateSave(s: SaveData) {
   s.settlement ??= { seen: -1, quests: {}, titles: [] };
   s.coached ??= {};
   s.locked ??= [];
+  s.pack ??= {};
   for (const e of s.echoes) {
     e.absorptions ??= e.stage + 1;
     if (e.role && !ECHO_ROLES[e.role]) e.role = undefined;

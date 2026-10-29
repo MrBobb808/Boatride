@@ -5,7 +5,7 @@ import type Phaser from 'phaser';
 import type { AnySkillId } from './abilities';
 
 /** '.' is clear and 'o' the dark outline; every other letter is a colour of that icon's palette. */
-const ART: Record<AnySkillId, { pal: Record<string, string>; rows: string[] }> = {
+const ART: Record<AnySkillId, PixelArt> = {
   sword_word: { pal: { a: '#ffd27a', b: '#fff6dc', c: '#8a5a2a', g: '#ffe6a8' }, rows: [
     '............obo.',
     '...........obbo.',
@@ -317,26 +317,28 @@ const OUTLINE = '#1a1420', PX = 3, SIZE = 64;
 
 export const abilityIconKey = (id: AnySkillId) => 'ability-' + id;
 
-/** Paint every ability icon once, centred on its own drawn pixels. */
+/** Paint every ability icon once. */
 export function bakeAbilityIcons(sc: Phaser.Scene) {
-  for (const id of Object.keys(ART) as AnySkillId[]) {
-    const key = abilityIconKey(id);
-    if (sc.textures.exists(key)) continue;
-    const { pal, rows } = ART[id];
-    let x0 = 16, x1 = -1, y0 = 16, y1 = -1;
-    rows.forEach((r, y) => { for (let x = 0; x < r.length; x++) if (r[x] !== '.') { x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); } });
-    const ox = Math.round((SIZE - (x1 - x0 + 1) * PX) / 2) - x0 * PX, oy = Math.round((SIZE - (y1 - y0 + 1) * PX) / 2) - y0 * PX;
-    const t = sc.textures.createCanvas(key, SIZE, SIZE)!, c = t.getContext();
-    rows.forEach((r, y) => {
-      for (let x = 0; x < r.length; x++) {
-        const ch = r[x];
-        if (ch === '.') continue;
-        c.fillStyle = ch === 'o' ? OUTLINE : pal[ch] ?? '#ff00ff';
-        c.fillRect(ox + x * PX, oy + y * PX, PX, PX);
-      }
-    });
-    t.refresh();
-  }
+  for (const id of Object.keys(ART) as AnySkillId[]) paintIcon(sc, abilityIconKey(id), ART[id]);
+}
+
+export interface PixelArt { pal: Record<string, string>; rows: string[] }
+/** One 16x16 picture into a canvas texture at 3x, hard-edged and centred on its own drawn pixels. */
+export function paintIcon(sc: Phaser.Scene, key: string, { pal, rows }: PixelArt) {
+  if (sc.textures.exists(key)) return;
+  let x0 = 16, x1 = -1, y0 = 16, y1 = -1;
+  rows.forEach((r, y) => { for (let x = 0; x < r.length; x++) if (r[x] !== '.') { x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); } });
+  const ox = Math.round((SIZE - (x1 - x0 + 1) * PX) / 2) - x0 * PX, oy = Math.round((SIZE - (y1 - y0 + 1) * PX) / 2) - y0 * PX;
+  const t = sc.textures.createCanvas(key, SIZE, SIZE)!, c = t.getContext();
+  rows.forEach((r, y) => {
+    for (let x = 0; x < r.length; x++) {
+      const ch = r[x];
+      if (ch === '.') continue;
+      c.fillStyle = ch === 'o' ? OUTLINE : pal[ch] ?? '#ff00ff';
+      c.fillRect(ox + x * PX, oy + y * PX, PX, PX);
+    }
+  });
+  t.refresh();
 }
 
 /** For the checks: every icon is a 16x16 picture using only its own palette. */

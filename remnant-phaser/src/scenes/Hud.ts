@@ -11,11 +11,12 @@ import { xpToNext, type RoomDef } from '../shared';
 import { SKILLS, SLOTS, skillSlots, ARCHER, ARCHER_IDS } from '../game/abilities';
 import { heroLevel, archerLevel } from '../game/archer';
 import { bakeAbilityIcons, abilityIconKey } from '../game/abilityIcons';
+import { bakeActionIcons, actionIconKey } from '../game/actionIcons';
 import { dpr } from '../game/screen';
 import { measureSafe, safe } from '../game/safe';
 import type { Action } from '../game/controls';
 import type { World } from './World';
-import { openMenu, closeMenu, isMenuOpen } from '../../../remnant/src/ui/menus';
+import { openMenu, closeMenu, isMenuOpen, menuTab } from '../../../remnant/src/ui/menus';
 import { settings, onSettingsChange } from '../classic/shim/settings';
 import { controlSpot } from '../../../remnant/src/ui/touch';
 import { drawIsland, islandSide } from '../../../remnant/src/ui/island';
@@ -35,6 +36,9 @@ export const hudBoxes = { column: [0, 0, 0, 0], boss: [0, 0, 0, 0] };
 const box = (b: number[], x: number, y: number, w: number, h: number) => { b[0] = x; b[1] = y; b[2] = w; b[3] = h; };
 
 interface Btn { a: Action; x: number; y: number; r: number; label: string; i: Phaser.GameObjects.Image; g: Phaser.GameObjects.Arc; t: Phaser.GameObjects.Text; down: boolean }
+
+const HER_PAGES: Record<string, string> = { character: 'tz_character', equipment: 'tz_equipment', skills: 'tz_skills' };
+const HIS_PAGES: Record<string, string> = Object.fromEntries(Object.entries(HER_PAGES).map(([a, b]) => [b, a]));
 
 export class Hud extends Phaser.Scene {
   get paused() { return isMenuOpen(); }
@@ -149,6 +153,7 @@ export class Hud extends Phaser.Scene {
     this.skillG = this.add.graphics();
     this.skillBar = this.add.container(0, 0, [this.skillG]);
     bakeAbilityIcons(this);
+    bakeActionIcons(this);
     SLOTS.forEach(() => { const i = this.add.image(0, 0, abilityIconKey('sword_word')).setVisible(false); this.skillIcons.push(i); this.skillBar.add(i); });
     this.skillCdG = this.add.graphics();
     this.skillBar.add(this.skillCdG);
@@ -311,8 +316,15 @@ export class Hud extends Phaser.Scene {
   }
 
   /** Touch: each skill button darkens from the top while it recharges, and dims without the energy. */
+  /** The hero the action icons were last drawn for. */
+  private iconHero = '';
   private drawTouchCooldowns(w: World) {
     const g = this.cdG.clear(), p = w.player;
+    // Strike and the transformation show the hero in play: his sword or her bow, the Mantle or the Wings.
+    if (p.hero !== this.iconHero) {
+      this.iconHero = p.hero;
+      for (const b of this.btns) if (b.a === 'attack' || b.a === 'transform') { const key = actionIconKey(b.a, p.hero); if (key) b.i.setTexture(key); }
+    }
     for (const b of this.btns) {
       const slots = skillSlots(w.save);
       const slot = b.a === 'skill1' ? 0 : b.a === 'skill2' ? 1 : b.a === 'skill3' ? 2 : -1;
@@ -462,7 +474,9 @@ export class Hud extends Phaser.Scene {
     const w = this.world;
     if (this.paused) { closeMenu(); return; }
     w.persist();
-    openMenu();
+    // The hero's own pages: while Tirzah fights, Elior's character, equipment and skills open as hers, and back.
+    const t = menuTab(), mine = w.player.hero === 'tirzah' ? HER_PAGES[t] : HIS_PAGES[t];
+    openMenu(mine);
   }
 
   // ---------------------------------------------------------------- touch
@@ -480,7 +494,8 @@ export class Hud extends Phaser.Scene {
       const g = this.add.circle(0, 0, r * k, 0x1a1420, 0.35).setStrokeStyle(1.5 * k, 0xe2b85a, 0.55);
       const t = this.add.text(0, 0, label, { fontFamily: 'Cinzel, Georgia, serif', fontSize: `${(r > 30 ? 13 : r < 20 ? 8 : 10) * k}px`, color: '#f6dea0' }).setOrigin(0.5).setAlpha(0.85);
       const name = a === 'transform' ? 'mantle' : a === 'ultimate' ? 'rally' : a.startsWith('skill') ? 'arc' : a;
-      const i = this.add.image(0, 0, this.iconKey(name));
+      // Each move's own pixel picture where there is one; the line icon otherwise.
+      const i = this.add.image(0, 0, actionIconKey(a, this.world.player?.hero ?? 'elior') ?? this.iconKey(name));
       this.touchUi.add([g, i, t]);
       return { a, i, x: 0, y: 0, r: r * k, label, g, t, down: false };
     };

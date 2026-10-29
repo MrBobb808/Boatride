@@ -27,6 +27,12 @@ const PERFECT = [0.62, 0.8] as const, PERFECT_WIDE = [0.58, 0.85] as const;
 type Body = { isBoss?: boolean; maxHp?: number; state?: string; st?: number; staggered?: number; stagger?: () => void; glintAt?: number; anim?: { u: number }; body?: { vx: number } };
 const bodyOf = (f: FoeLike) => (f as FoeLike & { e?: Body }).e;
 /** True Aim: the range where her shots land hardest. */
+/** The dagger's three blows: length, where in it the blow lands, the step in, damage, stagger, push and V01 row. */
+const DAGGER = [
+  { t: 0.24, at: 0.42, step: 80, mul: 0.55, stagger: 0.5, kx: 60, ky: 0, poise: 12, row: 0 },
+  { t: 0.24, at: 0.42, step: 80, mul: 0.65, stagger: 0.6, kx: 80, ky: 0, poise: 16, row: 1 },
+  { t: 0.32, at: 0.45, step: 40, mul: 0.9, stagger: 1.8, kx: 420, ky: -120, poise: 40, row: 0 },
+] as const;
 const SWEET = [110, 230, 1.25] as const, SWEET_LONG = [90, 270, 1.45] as const;
 /** The arrows of her abilities (Covenant Archer strengthens them). */
 const ABILITY_MOVES = new Set(['deliverance', 'jonathan', 'rain']);
@@ -60,8 +66,17 @@ export class Bow {
   readonly embedded: { foe: FoeLike | null; img: Phaser.GameObjects.Image; dx: number; dy: number; rot: number; t: number }[];
   /** The True Aim tick on the sweet spot while she draws. */
   private tick: Phaser.GameObjects.Image;
-  /** After a bow-bash, the next shot lands point-blank and harder. */
+  /** After the dagger's kick, the next shot lands point-blank and harder. */
   bashT = 0;
+  /** Up close, Strike draws the dagger: two cuts and a kick (`dagger` 1–3, 0 while it is sheathed). */
+  dagger = 0;
+  daggerT = 0;
+  private daggerNext = false;
+  private daggerDone = false;
+  /** The dagger's cut across the foe (V01 slash art). */
+  private cut: Phaser.GameObjects.Image;
+  /** Under the Wings, the stab into a foe's back plays on her dagger (`stabT` counts down). */
+  stabT = 0;
   /** Strike pressed during a dodge: the backflip shot when it ends. */
   private flipT = 0;
   /** The next creak of the string while she draws. */
@@ -69,7 +84,7 @@ export class Bow {
   /** Under the Wings her arrows find crits more often, and each crit carries her behind the foe for the jab. */
   wingsCrit = 0.2;
   /** Counts for the archer checks: True Aim, precision, shot down, interrupted, pinned. */
-  readonly tally = { trueAim: 0, precise: 0, shotDown: 0, interrupted: 0, pinned: 0, recalled: 0, perfect: 0 };
+  readonly tally = { trueAim: 0, precise: 0, shotDown: 0, interrupted: 0, pinned: 0, recalled: 0, perfect: 0, dagger: 0 };
   /** A light streak behind each flying arrow, and the sparks it sheds. */
   private streaks: Phaser.GameObjects.Image[];
   private trail: Phaser.GameObjects.Particles.ParticleEmitter;
@@ -92,6 +107,7 @@ export class Bow {
     this.stuck=Array.from({length:6},()=>({img:w.sc.add.image(0,0,'arrows',8).setOrigin(0.86,0.6).setDepth(12.9).setVisible(false),t:-1,rot:0}));
     this.embedded=Array.from({length:EMBED_MAX},()=>({foe:null,img:w.sc.add.image(0,0,'arrows',0).setOrigin(0.93,61/128).setScale(0.24).setDepth(9.4).setVisible(false),dx:0,dy:0,rot:0,t:0}));
     this.tick=w.sc.add.image(0,0,'vfx-impacts',0).setScale(0.12).setBlendMode(Phaser.BlendModes.ADD).setDepth(13).setVisible(false);
+    this.cut=w.sc.add.image(0,0,'vfx-slashes',0).setBlendMode(Phaser.BlendModes.ADD).setDepth(11).setVisible(false);
     this.kit=new ArcherKit(w,p,this);
   }
   /** Loose an arrow from the pool with the given flight; everything unnamed starts fresh. */
@@ -158,10 +174,11 @@ export class Bow {
     this.w.spark(a.x,a.y,GLOW[frame],4);
     this.w.playEffect('arrowThunk',{x:a.x,pitch:0.9+Math.random()*0.2});
   }
-  cancel() { this.charge=0; this.recovery=0; this.drawing=false;this.queued=null; }
+  cancel() { this.charge=0; this.recovery=0; this.drawing=false;this.queued=null;this.dagger=0;this.cut.setVisible(false); }
   update(dt:number) {
     this.volleyCd=Math.max(0,this.volleyCd-dt);
     this.bashT=Math.max(0,this.bashT-dt);
+    this.stabT=Math.max(0,this.stabT-dt);
     this.flipT=Math.max(0,this.flipT-dt);
     for (const o of this.embedded) {
       const f=o.foe; if(!f)continue;
@@ -267,6 +284,7 @@ export class Bow {
   }
   control(dt:number) {
     const p=this.p,c=this.w.controls;
+    if(p.state==='bow'&&this.dagger){this.stepDagger(dt);return true;}
     if(p.state==='bow') {
       p.body.setVelocityX(p.body.velocity.x*Math.exp(-16*dt));
       if(this.drawing) {
@@ -313,8 +331,8 @@ export class Bow {
       this.fire('dive');p.body.setVelocityY(Math.min(p.body.velocity.y,-170));this.recovery=0.25;this.drawing=false;p.state='bow';return true;
     }
     if(c.pressed('heavy')||c.pressed('attack')||c.down('heavy'))p.face=p.swingFacing();
-    // A foe right in front: bow-bash and kick it back first.
-    if(c.pressed('attack')&&!c.down('up')&&p.onGround&&this.bash()){this.recovery=0.22;this.drawing=false;p.state='bow';return true;}
+    // A foe at arm's length: the dagger, then the kick back into bow range.
+    if(c.pressed('attack')&&!c.down('up')&&p.onGround&&this.reach()){this.dagger=1;this.daggerT=0;this.daggerNext=false;this.daggerDone=false;this.drawing=false;this.recovery=0;p.state='bow';this.w.playEffect('swing',{x:p.x,pitch:1.45});return true;}
     if(c.pressed('heavy')||c.down('heavy')) {this.w.playEffect('bowDraw');this.chargeKey='heavy';this.drawing=true;this.charge=0;this.creakT=0.17;this.recovery=0;p.state='bow';return true;}
     if(c.pressed('attack')) {
       if(c.down('up')){this.fire('volley');this.recovery=0.28;this.drawing=false;}
@@ -323,21 +341,58 @@ export class Bow {
     }
     return false;
   }
-  /** The close-range answer: a bash and kick that knock an adjacent foe back, and make her next shot point-blank. */
-  private bash() {
+  /** How far through the current dagger blow she is (0–1). */
+  get daggerU() { return this.dagger?Math.min(1,this.daggerT/DAGGER[this.dagger-1].t):0; }
+  /** The foe at arm's length in front of her, if any. */
+  private reach(): FoeLike|null {
     const p=this.p;
-    let foe:FoeLike|null=null;
-    for(const f of this.w.foes()){const dx=f.x-p.x;if(f.alive&&dx*p.face>-4&&Math.abs(dx)<36&&Math.abs(f.box.centerY-(p.feet-24))<34){foe=f;break;}}
-    if(!foe)return false;
-    const hp=foe.hp;
-    if(foe.hit(Math.round(p.power()*0.6*(1+this.r('t_blade')*0.1)),p.face,1.8,false,{kind:'melee',kx:p.face*300,ky:-90,poise:30})){
-      this.w.heroHit(foe,hp!==undefined&&foe.hp!==undefined?Math.max(0,hp-foe.hp):0,false);
-      this.w.burst(p.x+p.face*16,p.feet-26,2);
-      this.p.noteStyle('bow_bash');
+    for(const f of this.w.foes()){const dx=f.x-p.x;if(f.alive&&dx*p.face>-f.box.width/2&&Math.abs(dx)-f.box.width/2<26&&Math.abs(f.box.centerY-(p.feet-24))<34)return f;}
+    return null;
+  }
+  /** The dagger: each cut steps in and lands partway through; Strike again before it ends for the next. The kick
+   * knocks the foe back into bow range and makes her next shot point-blank; Strike during it nocks that shot. */
+  private stepDagger(dt:number) {
+    const p=this.p,c=this.w.controls,h=DAGGER[this.dagger-1];
+    this.daggerT+=dt;
+    if(c.pressed('attack'))this.daggerNext=true;
+    const u=this.daggerT/h.t,f=this.reach();
+    // She steps in until she's close, never through the foe, however long the frame.
+    const room=f?Math.max(0,Math.abs(f.x-p.x)-f.box.width/2-8):h.step;
+    p.body.setVelocityX(u<h.at?p.face*Math.min(h.step,room/Math.max(dt,1/120)):p.body.velocity.x*Math.exp(-18*dt));
+    if(!this.daggerDone&&u>=h.at){this.daggerDone=true;this.daggerStrike(h);}
+    // The cut's arc sweeps with the blade, then fades.
+    if(this.dagger<3&&u>=h.at-0.05&&u<=h.at+0.35){const k=(u-h.at+0.05)/0.4;this.cut.setFrame(h.row*6+Math.min(5,Math.floor(k*6))).setPosition(p.x+p.face*18,p.feet-27).setFlipX(p.face<0).setScale(0.3).setAlpha(settings.reduceFlashes?0.45:0.9).setVisible(true);}
+    else this.cut.setVisible(false);
+    if(u<1)return;
+    this.cut.setVisible(false);
+    const next=this.daggerNext,kick=this.dagger===3;
+    if(next&&!kick&&f){this.dagger++;this.daggerT=0;this.daggerNext=false;this.daggerDone=false;this.w.playEffect('swing',{x:p.x,pitch:1.3+this.dagger*0.1});return;}
+    this.dagger=0;p.releaseState();
+    // Kicked into range: Strike during the kick goes straight into a draw.
+    if(next&&kick){this.w.playEffect('bowDraw');this.chargeKey='attack';this.drawing=true;this.charge=0;this.creakT=0.17;p.state='bow';}
+  }
+  private daggerStrike(h:(typeof DAGGER)[number]) {
+    const p=this.p,d=this.w.d,kick=this.dagger===3;
+    let struck=false;
+    for(const f of this.w.foes()){
+      const dx=f.x-p.x;
+      // In front, or close enough to touch.
+      if(!f.alive||dx*p.face<-f.box.width/2||Math.abs(dx)-f.box.width/2>30||Math.abs(f.box.centerY-(p.feet-24))>36)continue;
+      const crit=Math.random()<d.crit,hp=f.hp;
+      // Her tree's Keen Dagger sharpens every cut and the kick.
+      const dmg=p.power()*h.mul*(1+this.r('t_blade')*0.1)*(crit?d.critDmg:1);
+      if(f.hit(Math.round(dmg),p.face,h.stagger,crit,{kind:'melee',kx:p.face*h.kx,ky:h.ky,poise:h.poise})){
+        this.w.heroHit(f,hp!==undefined&&f.hp!==undefined?Math.max(0,hp-f.hp):0,kick,crit);
+        this.p.noteStyle(kick?'dagger_kick':'dagger');
+        this.p.comboHits++;this.w.save.bestCombo=Math.max(this.w.save.bestCombo??0,this.p.comboHits);
+        this.w.save.ce=Math.min(this.p.maxCe,this.w.save.ce+2);
+        this.w.spark(f.x-p.face*4,f.box.centerY,crit?0xfff1c4:0xdfe3ea,crit?8:4);
+        this.tally.dagger++;
+        struck=true;
+      }
     }
-    this.bashT=0.9;
-    this.w.playEffect('dash');
-    return true;
+    if(kick){this.bashT=0.9;this.w.burst(p.x+p.face*16,p.feet-26,2);this.w.playEffect('shieldBash',{x:p.x});}
+    else if(struck)this.w.playEffect('slice',{x:p.x+p.face*16,pitch:1.1+Math.random()*0.15});
   }
   /** A charged arrow that drives a foe into a wall pins it there a moment. */
   private pin(f:FoeLike,dir:number) {

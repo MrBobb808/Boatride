@@ -26,7 +26,7 @@ import { haptic } from '../../../remnant/src/core/haptics';
 import { valorTrack } from '../../../remnant/src/game/valor';
 import { runBlessings } from '../../../remnant/src/game/blessings';
 import type { HeroPowers } from '../classic/hero';
-import { Dawn } from './dawn';
+import { Dawn, STAB_T } from './dawn';
 
 export const GRAV = 1500;
 const MAX_FALL = 560;
@@ -132,6 +132,10 @@ export class Player {
   private lastVy = 0;
   private landT = 0;
   private visualX = NaN;
+  /** Squash and stretch on a spring (`sq` > 0 stretches tall), and a lean into speed, in degrees. */
+  private sq = 0;
+  private sqV = 0;
+  private leanA = 0;
   private atk: Swing = swing(MOVESETS.blade.combo[0]);
   private atkMult = 1;
   /** Which button the charge is held on (released to swing). */
@@ -210,7 +214,7 @@ export class Player {
     this.queued = this.heavyQueued = false;
     this.linger = '';
     this.visualClip = ''; this.visualTime = this.stride = this.landT = 0;
-    this.wasGrounded = true; this.lastVy = 0;
+    this.wasGrounded = true; this.lastVy = 0; this.sq = this.sqV = this.leanA = 0;
     this.visualX=x;
     this.slash.setVisible(false);
   }
@@ -912,14 +916,19 @@ export class Player {
     // Coasting out of a lunge is not a stride: run only on real speed or a held direction.
     const travel=Math.abs(this.x-this.visualX),moving=travel>.02&&travel<24&&(vx>18||Math.abs(this.w.controls.axis)>.2);
     this.visualX=this.x;
-    if(ground&&!this.wasGrounded&&this.lastVy>80&&!this.water.swimming)this.landT=.14;
+    if(ground&&!this.wasGrounded&&this.lastVy>80&&!this.water.swimming){this.landT=.14;this.sqV-=Math.min(5,this.lastVy/110);}
     else this.landT=Math.max(0,this.landT-dt);
+    // Leaving the ground stretches; a dodge or dash stretches long and low.
+    if(!ground&&this.wasGrounded&&b.velocity.y<-120)this.sqV+=3.2;
+    if((this.state==='dodge'||this.state==='airdash')&&this.st<dt*1.5)this.sqV-=2.4;
     this.wasGrounded=ground;this.lastVy=b.velocity.y;
     if(ground&&moving&&this.state==='free')this.stride=(this.stride+travel/64)%1;
     const mantle = !this.dead && (this.mantleT > 0 || this.state === 'transform');
     let clip='idle',uArt=0;
     if(this.dead){clip='death';uArt=this.st/1.2;}
     else if(this.state==='hurt'){clip='hurt';uArt=this.st/.3;}
+    else if(this.hero==='tirzah'&&this.bow.stabT>0){clip='dagger2';uArt=.3+(1-this.bow.stabT/STAB_T)*.7;}
+    else if(this.state==='bow'&&this.bow.dagger){clip=`dagger${this.bow.dagger}`;uArt=this.bow.daggerU;}
     else if(this.state==='bow'){clip=this.bow.drawing?'bowDraw':'bowRelease';uArt=this.bow.drawing?this.bow.charge/.55:1-this.bow.recovery/.28;}
     else if(this.state==='attack'||this.state==='plunge'){clip=this.hero==='tirzah'?'cast':this.atk.clip;uArt=this.st/this.atk.t;}
     else if(this.state==='dodge'){clip='roll';uArt=this.st/DODGE_T;}
@@ -940,12 +949,16 @@ export class Player {
     else if(this.state==='transform'||this.state==='execute'||this.state==='scripted')uArt=this.state==='transform'?this.visualTime/1.15:this.powers?.clipProgress??0;
     const key=actionAtlas(this.w.sc,this.hero,this.w.d.family,mantle,this.hero==='tirzah'||!this.powers?.weaponFlight,this.hero==='elior'?this.w.save.valor?.cape??null:null);
     const frame=actionFrame(this.w.sc,key,clip,Phaser.Math.Clamp(uArt,0,.999));
-    this.sprite.setTexture(key,frame).setOrigin(.5,ACTION_FOOT/ACTION_CELL).setScale(1);
+    // The spring settles the squash; the lean follows ground speed, and a rise or fall tips her a little.
+    if(dt>0){this.sqV+=(-420*this.sq-20*this.sqV)*dt;this.sq=Phaser.Math.Clamp(this.sq+this.sqV*dt,-.16,.16);}
+    const run=ground&&(clip==='run'||clip==='land')?Phaser.Math.Clamp(b.velocity.x/200,-1,1)*4.5:0,air=!ground&&!this.water.swimming?Phaser.Math.Clamp(b.velocity.y/600,-1,1)*-2*this.face:0;
+    this.leanA+=(run+air-this.leanA)*Math.min(1,dt*12);
+    this.sprite.setTexture(key,frame).setOrigin(.5,ACTION_FOOT/ACTION_CELL).setScale(1-this.sq*.55,1+this.sq);
     this.sprite.setFlipX(this.face < 0);
     this.sprite.setPosition(Math.round(b.center.x), Math.round(b.bottom));
     // Blink while invulnerable after a blow.
     this.sprite.setAlpha(this.invuln > 0 && this.state !== 'dead' && Math.floor(this.invuln * 20) % 2 === 0 ? 0.35 : 1);
-    this.sprite.setAngle(!this.dead&&this.water.swimming&&vx>25?this.face*Math.min(65,vx*.45):0);
+    this.sprite.setAngle(!this.dead&&this.water.swimming&&vx>25?this.face*Math.min(65,vx*.45):this.dead?0:this.leanA);
     this.trailT-=dt;
     const streak=!settings.reduceFlashes&&settings.quality!=='low'&&this.hero==='elior'&&((this.state==='attack'&&(this.atk.air||this.atk.heavy))||(this.state==='dodge'&&this.combatStyle==='wraith'));
     for(const ghost of this.trail){ghost.life=this.dead||settings.reduceFlashes?0:Math.max(0,ghost.life-dt);ghost.sprite.setVisible(ghost.life>0).setAlpha(ghost.life*1.6);}

@@ -100,18 +100,31 @@ try {
   await click(page, 'kind_elixir');
   const m0 = await E(page, () => window.__remnant.world.d.meleeMult);
   await click(page, 'buy_elixir_might');
-  const m1 = await E(page, () => window.__remnant.world.d.meleeMult);
-  assert.ok(Math.abs(m1 / m0 - 1.2) < 1e-6 && (await has(page, 'elixir_on')), `Elixir of Might: ×1.2 (${m0} → ${m1})`);
-  // ---- tomes once per chapter, Balm vials up to six
+  assert.ok(Math.abs((await E(page, () => window.__remnant.world.d.meleeMult)) - m0) < 1e-6 && (await E(page, () => window.__remnant.world.save.pack.elixir_might)) === 1, 'the elixir waits in the pack');
+  // ---- tomes once per chapter, Balm vials up to six: bought into the pack
   await click(page, 'kind_tome');
   await click(page, 'buy_tome_insight');
-  assert.equal(await E(page, () => window.__remnant.world.save.skillPoints), 1, 'the Tome of Insight gave a skill point');
+  assert.equal(await E(page, () => window.__remnant.world.save.skillPoints), 0, 'the tome waits in the pack');
   assert.ok(await disabled(page, 'buy_tome_insight'), 'one Tome of Insight per chapter');
   await click(page, 'kind_supply');
   const p1 = await E(page, () => +document.querySelector('[data-offer="balm"] .price').textContent);
   await click(page, 'buy_balm');
   const p2 = await E(page, () => +document.querySelector('[data-offer="balm"] .price').textContent);
-  assert.ok((await E(page, () => window.__remnant.world.save.balmMax)) === 4 && p2 === p1 * 2, `a fourth Balm charge; the next costs double (${p1} → ${p2})`);
+  assert.ok(p2 === p1 * 2, `a vial in the pack; the next costs double (${p1} → ${p2})`);
+  // ---- Pack → Items: drink, read and use them
+  await click(page, 'sec_pack');
+  await click(page, 'tab_items');
+  await click(page, 'use_elixir_might');
+  const m1 = await E(page, () => window.__remnant.world.d.meleeMult);
+  assert.ok(Math.abs(m1 / m0 - 1.2) < 1e-6 && (await has(page, 'pack_elixir')), `Elixir of Might: ×1.2 once drunk (${m0} → ${m1})`);
+  await click(page, 'use_tome_insight_tirzah');
+  assert.deepEqual(await E(page, () => { const s = window.__remnant.world.save; return [s.skillPoints, s.archer.skillPoints > 0]; }), [0, true], 'Tirzah read the Tome of Insight');
+  await click(page, 'use_balm_vial');
+  assert.equal(await E(page, () => window.__remnant.world.save.balmMax), 4, 'a fourth Balm charge');
+  assert.deepEqual(await E(page, () => window.__remnant.world.save.pack), {}, 'the pack is empty again');
+  await page.screenshot({ path: 'qa/pack-items.png' });
+  await click(page, 'sec_elior');
+  await click(page, 'tab_store');
   // ---- a cape: bought, worn, and baked into Elior's sheet
   await click(page, 'kind_cape');
   await click(page, 'buy_cape_saffron');
@@ -148,7 +161,10 @@ try {
   await until(page, () => !!document.querySelector('#ui .menu'));
   await click(page, 'tab_crafting');
   await click(page, 'cr_brew_focus');
-  assert.equal(await E(page, () => window.__remnant.world.save.elixir?.id), 'focus', 'a brewed Elixir of Focus');
+  await click(page, 'sec_pack');
+  await click(page, 'tab_items');
+  await click(page, 'use_elixir_focus');
+  assert.equal(await E(page, () => window.__remnant.world.save.elixir?.id), 'focus', 'a brewed Elixir of Focus, drunk from the pack');
   await page.keyboard.press('Escape');
   await until(page, () => !document.querySelector('#ui .menu'));
 
@@ -163,6 +179,7 @@ try {
   await E(page, () => { const w = window.__remnant.world, f = w.classic.ents.find((e) => e.isFoe && !e.dying); f.aggro = true; f.x = w.player.x + 60; f.think = function () { this.body.vx = 0; }; });
   await page.keyboard.press('Escape');
   await until(page, () => !!document.querySelector('#ui .menu'));
+  await click(page, 'sec_elior');
   await click(page, 'tab_store');
   assert.ok(await E(page, () => document.querySelector('.menu-body').textContent.includes('Not while foes are on you.')) && !(await has(page, 'buy_feat_0')), 'the store closes mid-fight');
   console.log('Blocked: the pause-menu store waits until the fight is over');

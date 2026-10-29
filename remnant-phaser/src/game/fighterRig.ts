@@ -114,7 +114,18 @@ export class FighterRig {
     if(!archer)this.bone(c,8,j.neckX,j.neckY,j.neckX-1,j.neckY+4,11);
     this.bone(c,0,j.neckX,j.neckY,j.neckX+Math.sin(j.headA)*12.8,j.neckY-Math.cos(j.headA)*12.8,archer?11:10.8);
     if(this.mantle){c.fillStyle=archer?'#fff6dc':'#edc7ff';c.fillRect(j.headX+2.8,j.headY-1.8,1.6,.65);}
-    if(armed){
+    const dagger=archer&&clip.startsWith('dagger');
+    if(armed&&dagger){
+      // The bow rides slung across her back while the dagger works.
+      this.bone(c,9,j.neckX-6,j.neckY+14,j.neckX+3,j.neckY-4,6.5);
+      // The dagger runs on from the forearm: a short bright blade over a dark grip and guard.
+      const ex=j.elFX,ey=j.elFY,hx=j.haFX,hy=j.haFY,d=Math.max(.1,Math.hypot(hx-ex,hy-ey)),ux=(hx-ex)/d,uy=(hy-ey)/d;
+      c.lineCap='round';
+      c.strokeStyle='#09080d';c.lineWidth=2.6;c.beginPath();c.moveTo(hx-ux*1.5,hy-uy*1.5);c.lineTo(hx+ux*10.5,hy+uy*10.5);c.stroke();
+      c.strokeStyle=this.mantle?'#fff1c4':'#dfe3ea';c.lineWidth=1.4;c.beginPath();c.moveTo(hx+ux*1.5,hy+uy*1.5);c.lineTo(hx+ux*10,hy+uy*10);c.stroke();
+      c.strokeStyle='#b08a4a';c.lineWidth=1.2;c.beginPath();c.moveTo(hx+ux*1.2-uy*2,hy+uy*1.2+ux*2);c.lineTo(hx+ux*1.2+uy*2,hy+uy*1.2-ux*2);c.stroke();
+      c.lineCap='butt';
+    }else if(armed){
       if(archer){
         const x=j.haFX,y=j.haFY,top=y-17,bottom=y+17;
         this.bone(c,9,x,y,x,top,8.5);

@@ -212,8 +212,8 @@ try {
   {
     const page = await boot(await browser.newContext(PHONE));
     await page.evaluate(() => window.__remnant.G.ui.openMenu('character'));
-    const sections = { journey: ['quests', 'map', 'chapters', 'valor'], elior: ['character', 'equipment', 'skills', 'progression', 'moves', 'crafting', 'store'], echoes: ['echoes', 'imprints'], collection: ['lore', 'bestiary'], settings: ['settings', 'system'] };
-    assert.equal(await page.locator('.menu-rail .sec').count(), 5);
+    const sections = { journey: ['quests', 'map', 'chapters', 'valor'], elior: ['character', 'equipment', 'skills', 'progression', 'moves', 'crafting', 'store'], pack: ['items', 'gear'], echoes: ['echoes', 'imprints'], collection: ['lore', 'bestiary'], settings: ['settings', 'system'] };
+    assert.equal(await page.locator('.menu-rail .sec').count(), 6);
     for (const [sec, tabs] of Object.entries(sections)) {
       await page.locator(`[data-k=sec_${sec}]`).tap();
       const box = await page.locator(`[data-k=sec_${sec}]`).boundingBox();
@@ -237,7 +237,7 @@ try {
     await page.screenshot({ path: 'qa/menu-sections-phone.png' });
     await page.evaluate(() => window.__remnant.G.ui.openMenu('moves'));
     assert.match(await page.locator('.menu-body').innerText(), /techniques/i);
-    console.log('Five sections with sub-tabs at 956×440, large targets, remembered sub-tabs and old page names');
+    console.log('Six sections with sub-tabs at 956×440, large targets, remembered sub-tabs and old page names');
 
     // ---------------------------------------------------------------- stat tips: hover, tap, long-press, current vs new
     await page.evaluate(() => { const a = window.__remnant; a.give('twentyfirst_day'); a.G.ui.openMenu('equipment'); });

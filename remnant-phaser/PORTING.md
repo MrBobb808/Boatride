@@ -208,7 +208,7 @@ Her own way to fight (POLISH_PLAN §5c), all in `src/game/bow.ts`:
   - releases flash in the arrow's colour, and impacts spark in it too.
 - **Struck arrows:** arrows stuck in foes or walls quiver a moment before they settle.
 - **Ability icons:** every ability, Elior's twelve and Tirzah's six, has its own 16x16 pixel icon (`src/game/abilityIcons.ts`), shown on the touch buttons and on the keyboard and pad skill bar.
-- **The Wings jab:** under the Wings, her arrows crit 20% more often (`Bow.wingsCrit`). A critical arrow carries her behind the foe, where she drives a light arrow into its back by hand (`Dawn.stepJab`). The jab:
+- **The Wings jab:** under the Wings, her arrows crit 20% more often (`Bow.wingsCrit`). A critical arrow carries her behind the foe, where she drives her dagger into its back (`Dawn.stepJab`). The stab:
   - is a guard-breaking critical hit;
   - fells non-boss foes below 40% health;
   - comes with the finisher's shake, slow motion and push in.
@@ -234,6 +234,35 @@ Tirzah levels, spends points and wears gear of her own (`src/game/archer.ts`, sa
 - **The pause menu** gains a Tirzah section (Character, Equipment, Skill tree, Abilities), added through the shared menu's `addMenuSection` hook (`src/game/tirzahMenu.ts`); the original edition adds none.
 
 Verified by `scripts/tirzah-progression.mjs`.
+
+## Tirzah's dagger, the back-stab, motion and the button art
+
+- **The dagger** (`Bow.stepDagger`): Strike with a foe at arm's length draws her dagger instead of the bow. Strike again before each blow ends for the next:
+  - two quick cuts (`dagger1`, `dagger2`), each stepping in without passing through the foe;
+  - a kick (`dagger3`) that knocks it back into bow range and makes the next shot point-blank (×1.4).
+  - Strike during the kick goes straight into a draw. From range, Strike still shoots.
+  - Her tree's Keen Dagger strengthens all three. The bow rides on her back while the dagger works (`FighterRig.draw`).
+- **The Wings' back-stab** (`Dawn.stepJab`): a critical arrow under the Wings carries her behind the foe. Her dagger goes into its back (the guard-breaking, finishing blow described above, now with her dagger pose and a V01 cut), then she looses an arrow on through it (`Bow.backShot`) and carries on.
+- **Motion, both heroes** (`Player.draw`): a spring of squash and stretch (stretch on take-off, squash on landing scaled by the fall, a stretch into a dodge or dash), a lean into ground speed, and a slight tip with the rise and fall. All of it is per-frame arithmetic, with no allocation.
+- **Button art** (`src/game/actionIcons.ts`): every touch action button wears a 16x16 pixel picture, painted like the ability icons:
+  - Strike is his sword or her drawn bow, by who fights;
+  - Jump is a winged boot, Dodge a dash, Parry a shield turning a blade, Balm the flask;
+  - Echoes is a cleansed imprint, Switch two heroes turning about;
+  - the transformation is the Mantle's hood or the Wings of the Morning;
+  - Super is a burst of light, and the sub-weapon a thrown axe.
+
+Verified by `scripts/tirzah-dagger.mjs`.
+
+## The pack
+
+Whatever Ilan's store sells to be used later now waits in the pack (`SaveData.pack`, the shared `game/economy.ts` `PACK`, `stow` and `usePack`). That covers elixirs, Balm vials, tomes and the Sealed Satchel. Brewed elixirs go there too.
+
+- **Pack → Items** drinks, uses, reads or opens them. A tome can be read as Elior or as Tirzah. Materials and keepsakes are listed below.
+- **Pack → Gear** lists every piece for Elior or Tirzah, with Equip; it opens on the hero in play.
+- **Opening the menu while Tirzah fights** turns Elior's Character, Equipment and Skills into hers (`Hud.togglePause`, `menuTab`).
+- **The Balm cap** counts vials waiting in the pack, and so does the next vial's price.
+
+Verified by `scripts/economy.mjs` and `scripts/tirzah-progression.mjs`.
 
 ## The archer's sounds
 

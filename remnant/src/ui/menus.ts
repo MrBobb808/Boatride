@@ -13,7 +13,7 @@ import { sfx, audio } from '../audio/audio';
 import { songs } from '../audio/songs';
 import { music } from '../audio/music';
 import {
-  ITEMS, SLOTS, SLOT_NAMES, STAT_KEYS, STAT_INFO, MOD_LABEL, RARITY_COLORS, RARITY_NAMES, TREES, SKILLS, ABILITIES,
+  ITEMS, SLOTS, ARCHER_SLOTS, SLOT_NAMES, STAT_KEYS, STAT_INFO, MOD_LABEL, RARITY_COLORS, RARITY_NAMES, TREES, SKILLS, ABILITIES,
   ECHO_SPECIES, ECHO_CLASS_INFO, ECHO_ROLES, SUPER_MOVES, ECHO_LEVEL_CAP, echoRole, LORE, FAMILY_NAMES, echoXpToNext, xpToNext,
   type ItemInst, type Slot, type ModKey, type AbilityId, type EchoInst, type StatKey,
 } from '../game/data';
@@ -33,9 +33,9 @@ import { altarName, travelGroups, travelBlocked, travelTo } from '../game/travel
 import { restStock, restRecipes } from '../game/settlement';
 import {
   storeOffers, buyOffer, storeBlocked, OFFER_KINDS, SHARD, keepReason, isLocked, toggleLock, needsConfirm, sellPrice, salvageOf,
-  sellItem, dismantleItem, junk, sellJunk, buyback, canBuyBack, buyBack, type OfferKind,
+  sellItem, dismantleItem, junk, sellJunk, buyback, canBuyBack, buyBack, PACK, packCount, usePack, stow, BALM_CAP, type OfferKind,
 } from '../game/economy';
-import { ELIXIRS, elixirOn, elixirLeft, drinkElixir, type ElixirId } from '../game/elixirs';
+import { ELIXIRS, elixirOn, elixirLeft, type ElixirId } from '../game/elixirs';
 import { chaptersTab, gameModes } from './chapters';
 import { progressionTab } from './progression';
 import { valorTab } from './valor';
@@ -68,6 +68,8 @@ function pointBatchPicker() {
 }
 
 export const isMenuOpen = () => !!menuEl || !!shopEl;
+/** The page the menu opens on (or last showed). */
+export const menuTab = () => tab;
 
 // Five sections on a rail, each with its own sub-tabs. Sub-tab ids are what
 // openMenu() takes, so callers and tests keep naming a page directly.
@@ -86,6 +88,10 @@ const SECTIONS: { id: string; label: string; icon: string; tabs: { id: string; l
     { id: 'moves', label: 'Move list', icon: 'sword' },
     { id: 'crafting', label: 'Crafting', icon: 'craft' },
     { id: 'store', label: 'Store', icon: 'sigil' },
+  ] },
+  { id: 'pack', label: 'Pack', icon: 'craft', tabs: [
+    { id: 'items', label: 'Items', icon: 'flask' },
+    { id: 'gear', label: 'Gear', icon: 'armor' },
   ] },
   { id: 'echoes', label: 'Echoes', icon: 'echo', tabs: [
     { id: 'echoes', label: 'Squad', icon: 'echo' },
@@ -249,6 +255,8 @@ function render() {
     case 'imprints': bodyEl.appendChild(h('div', { class: 'col scroll', style: 'flex:1' }, echoImprintPanel())); break;
     case 'crafting': bodyEl.appendChild(craftingTab()); break;
     case 'store': bodyEl.appendChild(storeTab()); break;
+    case 'items': bodyEl.appendChild(itemsTab()); break;
+    case 'gear': bodyEl.appendChild(gearTab()); break;
     case 'settings': bodyEl.appendChild(settingsTab()); break;
     case 'system': bodyEl.appendChild(systemTab()); break;
     default: if (EXTRA_PAGES[tab]) bodyEl.appendChild(EXTRA_PAGES[tab](pageKit()));
@@ -545,6 +553,70 @@ function skillsTab() {
         btn('Clear selected slot', () => { equipAbility(s, null, loadoutSlot); G.world.autosave(true); render(); }, 'btn small', { 'data-k': 'ability_clear', style: 'margin-top:8px' })), catalog, regeneration) :
     skillsPage === 'supers' ? h('div', { class: 'col' }, h('div', { class: 'box' }, h('h3', null, 'Choose your super move'), h('p', { class: 'muted' }, 'All four options use the same full Super gauge, charged through battle. The Shadow Mantle remains your separate transformation.'), !s.flags.relic_taken ? h('p', { class: 'muted' }, 'Recover the relic in the temple to unlock supers.') : null), supers) :
     h('div', { class: 'col' }, h('div', { class: 'eyebrow' }, `${s.skillPoints} skill points available`), regeneration, detail, trees));
+}
+
+// ---------------------------------------------------------------- the pack
+
+/** The hero in play in the Phaser build (the original edition has only Elior). */
+const heroInPlay = () => ((G.save as { playableHero?: string }).playableHero === 'tirzah' && G.save.archer ? 'tirzah' : 'elior');
+
+/** Pack → Items: what was bought or brewed, used when you choose; materials and keepsakes below. */
+function itemsTab() {
+  const s = G.save, ids = Object.keys(PACK).filter((id) => packCount(s, id) > 0);
+  const use = (id: string, hero?: 'elior' | 'tirzah') => {
+    const said = usePack(s, id, hero);
+    if (!said) { G.ui.toast(id === 'balm_vial' ? `You already carry ${BALM_CAP} Balm charges.` : 'Not now.'); return; }
+    sfx('uiConfirm'); G.ui.toast(said, 'good');
+    G.d = derive(s);
+    G.world.autosave(true);
+    render();
+  };
+  const ex = elixirOn(s);
+  const cards = ids.map((id) => {
+    const def = PACK[id], n = packCount(s, id);
+    const actions = def.hero && s.archer
+      ? [btn(`${def.verb} as Elior`, () => use(id, 'elior'), 'btn small primary', { 'data-k': `use_${id}_elior` }), btn(`${def.verb} as Tirzah`, () => use(id, 'tirzah'), 'btn small primary', { 'data-k': `use_${id}_tirzah` })]
+      : [btn(def.verb, () => use(id), 'btn small primary', { 'data-k': 'use_' + id, disabled: id === 'balm_vial' && s.balmMax >= BALM_CAP })];
+    return h('div', { class: 'ability-card', 'data-pack': id },
+      h('div', { class: 'row', style: 'align-items:center;gap:10px' }, img(def.icon, def.color ?? '#f6dea0'), h('div', null, h('h3', null, def.name), h('div', { class: 'eyebrow' }, `× ${n}`))),
+      h('p', null, def.desc), h('div', { class: 'row', style: 'gap:6px;flex-wrap:wrap' }, actions));
+  });
+  const mats = Object.entries(s.materials).filter(([, n]) => n > 0);
+  return h('div', { class: 'col scroll', style: 'flex:1' },
+    h('div', { class: 'box' }, h('h3', null, 'Items'),
+      h('p', { class: 'muted' }, 'What you buy at Ilan\'s store or brew waits here until you use it.'),
+      ex ? h('p', { class: 'up', 'data-k': 'pack_elixir' }, `${ELIXIRS[ex].name}: ${Math.ceil(elixirLeft(s) / 60)} min left`) : null,
+      h('div', { class: 'row', style: 'gap:6px;flex-wrap:wrap' }, btn('Visit the store', () => setTab('store'), 'btn small', { 'data-k': 'pack_store' }))),
+    ids.length ? h('div', { class: 'ability-catalog' }, cards) : h('div', { class: 'box muted' }, 'Nothing to use yet. Elixirs, Balm vials, tomes and satchels from the store land here.'),
+    h('div', { class: 'box' }, h('h3', null, 'Materials'), h('div', { class: 'mats' }, mats.length ? mats.map(([k, n]) => h('span', null, h('b', null, `${n}× `), ITEMS[k]?.name ?? k)) : h('span', null, 'None yet.'))),
+    s.keyItems.length ? h('div', { class: 'box' }, h('h3', null, 'Keepsakes'), h('div', { class: 'mats' }, s.keyItems.map((k) => h('span', { style: 'color:var(--gold-hi)' }, ITEMS[k]?.name ?? k)))) : null);
+}
+
+let gearWho: 'elior' | 'tirzah' | null = null;
+/** Pack → Gear: every piece carried, for the hero in play by default, equipped from here. */
+function gearTab() {
+  const s = G.save, two = !!s.archer, who = two ? gearWho ?? heroInPlay() : 'elior';
+  const slots: readonly Slot[] = who === 'tirzah' ? ARCHER_SLOTS : SLOTS;
+  const worn = who === 'tirzah' ? s.archer!.equipment : s.equipment;
+  const gear = s.inventory.filter((it) => slots.includes(ITEMS[it.id]?.slot as Slot))
+    .sort((a, b) => Number(!!b.isNew) - Number(!!a.isNew) || slots.indexOf(ITEMS[a.id].slot as Slot) - slots.indexOf(ITEMS[b.id].slot as Slot) || b.rarity - a.rarity);
+  const rows = gear.map((it) => {
+    const slot = ITEMS[it.id].slot as Slot, on = worn[slot] === it.uid;
+    return h('div', { class: 'row-item' + (it.isNew ? ' new' : ''), 'data-k': 'gear_' + it.uid },
+      itemIcon(it), h('div', { style: 'flex:1' }, h('div', { class: 'nm', style: rarityStyle(it.rarity) }, itemName(it)), h('div', { class: 'sub' }, `${RARITY_NAMES[it.rarity]} ${SLOT_NAMES[slot]} · ${modLines(itemMods(it)).map((e) => e.textContent).slice(0, 2).join(' · ')}`)),
+      on ? h('span', { class: 'tag' }, 'EQUIPPED') : btn('Equip', () => {
+        worn[slot] = it.uid; it.isNew = false; sfx('uiConfirm');
+        G.d = derive(s);
+        s.hp = Math.min(s.hp, G.d.maxHp);
+        G.world.player.styleKey = '';
+        G.world.autosave(true);
+        render();
+      }, 'btn small primary', { 'data-k': 'gear_equip_' + it.uid }));
+  });
+  return h('div', { class: 'col scroll', style: 'flex:1' },
+    two ? h('div', { class: 'modes' }, (['elior', 'tirzah'] as const).map((x) => btn(x === 'elior' ? 'Elior\'s gear' : 'Tirzah\'s gear', () => { gearWho = x; render(); }, 'btn small' + (who === x ? ' primary' : ''), { 'data-k': 'gear_who_' + x, 'aria-pressed': String(who === x) }))) : null,
+    h('p', { class: 'muted', style: 'margin:4px 0' }, `${who === 'tirzah' ? 'Tirzah' : 'Elior'}: equip from here, or compare piece by piece in ${who === 'tirzah' ? 'Tirzah' : 'Elior'} → Equipment.`),
+    rows.length ? h('div', { class: 'list' }, rows) : h('div', { class: 'box muted' }, 'No gear for this hero yet.'));
 }
 
 /** Move list: every combo route, with inputs shown for the device in use. */
@@ -904,8 +976,8 @@ function recipes(): Recipe[] {
     { id: 'blade', name: 'Covenant Blade', desc: 'Reforge a blade around light from the relic. Epic sword with crit and ability power.', cost: { covenant_fragment: 4, iron_scrap: 4, silver: 120 }, forge: true, icon: 'sword', max: () => !flag('relic_taken'), make: give('covenant_blade') },
     // Salvage put to work: Relic Shards for Ilan's curios, and elixirs brewed in the field.
     { id: 'shard', name: 'Fuse a Relic Shard', desc: 'Three Covenant Fragments and Sentinel steel, fused into the shard Ilan asks for his featured curios.', cost: { covenant_fragment: 3, sentinel_steel: 2 }, forge: true, icon: 'fragment', make: () => { addMaterial(s, SHARD, 1); G.ui.toast('Relic Shard', 'loot'); } },
-    ...BREWS.map((b) => ({ id: 'brew_' + b.id, name: 'Brew: ' + ELIXIRS[b.id].name, desc: ELIXIRS[b.id].desc + ' Drunk at once; five minutes.', cost: b.cost, forge: false, icon: 'flask', max: () => !!storeBlocked(),
-      make: () => { drinkElixir(s, b.id); G.d = derive(s); G.ui.toast(ELIXIRS[b.id].name + ' · 5:00', 'good'); } })),
+    ...BREWS.map((b) => ({ id: 'brew_' + b.id, name: 'Brew: ' + ELIXIRS[b.id].name, desc: ELIXIRS[b.id].desc + ' Kept in your pack; five minutes once drunk.', cost: b.cost, forge: false, icon: 'flask',
+      make: () => { G.ui.toast(stow(s, 'elixir_' + b.id), 'good'); } })),
     // The settlement's forge adds its own work (empty anywhere else).
     ...restRecipes(),
   ];
