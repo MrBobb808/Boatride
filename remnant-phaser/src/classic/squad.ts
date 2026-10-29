@@ -9,7 +9,7 @@ import { G } from './shim/ctx';
 import { input } from './shim/input';
 import { EchoUnit } from '../../../remnant/src/game/echoes';
 import { EchoCombinations } from '../../../remnant/src/game/echoCombos';
-import { echoMaxHp, skillRank } from '../../../remnant/src/game/state';
+import { echoMaxHp, skillRank, leadEcho, echoName } from '../../../remnant/src/game/state';
 import { ECHO_SPECIES, type EchoOrder } from '../../../remnant/src/game/data';
 import { Marshal } from '../../../remnant/src/game/bosses2';
 import { fx } from '../../../remnant/src/render/fx';
@@ -110,8 +110,19 @@ export class Squad {
     s.summonPreset = pre;
     if (!s.active.length) s.active = s.echoes.slice(0, G.d.echoSlots).map((e: { uid: string }) => e.uid);
     this.summonEchoes();
+    // The bond follows how many are called: fewer Echoes, each stronger.
+    for (const e of this.echoes) e.refreshStats();
     const n = this.summonList().length;
     this.toast(pre === 'one' ? 'Summon: the lead Echo' : pre === 'two' ? 'Summon: the lead two' : pre === 'squad' ? `Summon: your squad (${n})` : `Summon: the whole lineup (${n})`);
+  }
+
+  /** One Echo, chosen, fights beside the hero alone with the whole bond. */
+  choose(uid: string) {
+    const s = G.save;
+    if (!leadEcho(s, uid, G.d.echoSlots)) return;
+    this.summonEchoes();
+    for (const e of this.echoes) e.refreshStats();
+    this.toast(`${echoName(s, uid)} fights beside you, with the whole bond`);
   }
 
   /** Give every summoned Echo an order (or one, by uid). */

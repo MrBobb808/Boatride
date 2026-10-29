@@ -469,6 +469,21 @@ export function unlockCombatSkills(s: SaveData) {
   }
 }
 
+/** An Echo's name as shown: its nickname, else its stage's name. */
+export function echoName(s: SaveData, uid: string | undefined) {
+  const e = s.echoes.find((x) => x.uid === uid);
+  return e ? e.nickname ?? ECHO_SPECIES[e.species]?.stages[e.stage]?.name ?? 'Echo' : 'the lead Echo';
+}
+
+/** Choose one Echo to fight beside you: it heads the lineup (making room if the lineup is full), so the
+ * "One" summon calls it, with the covenant's whole bond behind it. */
+export function leadEcho(s: SaveData, uid: string, slots: number) {
+  if (!s.echoes.some((e) => e.uid === uid)) return false;
+  s.active = [uid, ...s.active.filter((u) => u !== uid)].slice(0, Math.max(1, slots));
+  s.summonPreset = 'one';
+  return true;
+}
+
 /** Swapping an equipped ability exchanges slots, so a skill appears only once. */
 export function equipAbility(s: SaveData, id: AbilityId | null, slot: number) {
   if (slot < 0 || slot > 2 || (id && !s.abilities.includes(id))) return false;
@@ -541,15 +556,21 @@ export function absorbEcho(s: SaveData, species: string, d: Derived) {
   return { echo: e, created: !owned, evolved };
 }
 
+/** The covenant's bond: called out alone, an Echo fights with all of it (1); as one of two, with half; in a
+ * larger line, with none. Read by the Echo's health and attack below. */
+export function echoBond(s: SaveData) {
+  const p = s.summonPreset ?? 'all';
+  return p === 'one' ? 1 : p === 'two' ? 0.5 : 0;
+}
 export function echoMaxHp(s: SaveData, e: EchoInst, d: Derived) {
   const sp = ECHO_SPECIES[e.species];
   const level = e.level + Math.max(0, Math.floor(s.level * 0.65) - 1);
-  return Math.round(sp.baseHp * (1 + (level - 1) * 0.12) * (1 + e.stage * 0.45) * d.echoHp * 1.2);
+  return Math.round(sp.baseHp * (1 + (level - 1) * 0.14) * (1 + e.stage * 0.5) * d.echoHp * 1.5 * (1 + echoBond(s) * 0.5));
 }
 export function echoAtk(s: SaveData, e: EchoInst, d: Derived) {
   const sp = ECHO_SPECIES[e.species];
   const level = e.level + Math.max(0, Math.floor(s.level * 0.65) - 1);
-  return (sp.baseAtk * (1 + softGrowth(level - 1, 99, 0.35) * 0.1) + d.atk * 0.12) * (1 + e.stage * 0.45) * d.echoDmg * 1.2;
+  return (sp.baseAtk * (1 + softGrowth(level - 1, 99, 0.35) * 0.13) + d.atk * 0.16) * (1 + e.stage * 0.5) * d.echoDmg * 1.35 * (1 + echoBond(s) * 0.8);
 }
 
 export function canLearn(s: SaveData, id: string) {

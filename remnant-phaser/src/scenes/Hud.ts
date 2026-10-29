@@ -10,6 +10,7 @@ import { STYLE_NAMES, STYLE_HELP, RANKS } from '../game/style';
 import { xpToNext, type RoomDef } from '../shared';
 import { SKILLS, SLOTS, skillSlots, ARCHER, ARCHER_IDS } from '../game/abilities';
 import { heroLevel, archerLevel } from '../game/archer';
+import { echoName } from '../../../remnant/src/game/state';
 import { bakeAbilityIcons, abilityIconKey } from '../game/abilityIcons';
 import { bakeActionIcons, actionIconKey } from '../game/actionIcons';
 import { dpr } from '../game/screen';
@@ -37,6 +38,7 @@ const box = (b: number[], x: number, y: number, w: number, h: number) => { b[0] 
 
 interface Btn { a: Action; x: number; y: number; r: number; label: string; i: Phaser.GameObjects.Image; g: Phaser.GameObjects.Arc; t: Phaser.GameObjects.Text; down: boolean }
 
+const pre1 = (s: { summonPreset?: string }) => (s.summonPreset ?? 'all') === 'one';
 const HER_PAGES: Record<string, string> = { character: 'tz_character', equipment: 'tz_equipment', skills: 'tz_skills' };
 const HIS_PAGES: Record<string, string> = Object.fromEntries(Object.entries(HER_PAGES).map(([a, b]) => [b, a]));
 
@@ -91,6 +93,8 @@ export class Hud extends Phaser.Scene {
   private wheelBox?: Phaser.GameObjects.Container;
   private wheelItems: { label: string; on?: boolean; page?: boolean; run: () => void; t: Phaser.GameObjects.Text }[] = [];
   private wheelSel = 0;
+  /** Which eight Echoes the Choose page shows. */
+  private choosePage = 0;
   private wheelNavT = 0;
   private barsG!: Phaser.GameObjects.Graphics;
   private barsAmt = 0;
@@ -548,7 +552,7 @@ export class Hud extends Phaser.Scene {
   // ---------------------------------------------------------------- the Echo wheel
 
   /** Open the Echo command wheel at a page; the world waits while it is up. */
-  openWheel(page: 'main' | 'squad' | 'orders' | 'heroes' | 'archer' = 'main') {
+  openWheel(page: 'main' | 'squad' | 'orders' | 'heroes' | 'archer' | 'choose' = 'main') {
     const w = this.world, s = w.save, sq = w.classic.squad;
     if (!s.echoes.length && page !== 'heroes' && page !== 'archer') page = 'heroes';
     this.closeWheel(false);
@@ -588,12 +592,26 @@ export class Hud extends Phaser.Scene {
       const pre = s.summonPreset ?? 'all';
       title = 'Summon'; sub = `${sq.echoes.length} of ${Math.min(s.echoes.length, w.d.echoSlots)} out`;
       items = [
+        { label: 'Choose one…', page: true, run: () => { this.choosePage = 0; this.openWheel('choose'); } },
         { label: 'One', on: pre === 'one', run: () => sq.setSummon('one') },
         { label: 'Two', on: pre === 'two', run: () => sq.setSummon('two') },
         { label: 'Squad', on: pre === 'squad', run: () => sq.setSummon('squad') },
         { label: 'All', on: pre === 'all', run: () => sq.setSummon('all') },
         { label: sq.echoes.length ? 'Dismiss' : 'Summon', run: cmd('toggle') },
         { label: 'Back', page: true, run: () => this.openWheel('main') },
+      ];
+    } else if (page === 'choose') {
+      // Every Echo you have, strongest first; the one tapped fights beside you alone, with the whole bond.
+      const all = [...s.echoes].sort((a, b) => b.stage - a.stage || b.level - a.level), per = 8, from = this.choosePage * per;
+      const lead = pre1(s) ? s.active[0] : null;
+      title = 'Who fights beside you?'; sub = 'Alone, an Echo has the whole bond: +80% attack, +50% health';
+      items = [
+        ...all.slice(from, from + per).map((e) => ({ label: `${echoName(s, e.uid)} · Lv ${e.level}${e.stage ? ' ' + '★'.repeat(e.stage) : ''}${(e.downFor ?? 0) > 0 ? ' · resting' : ''}`, on: e.uid === lead, run: () => {
+          if ((e.downFor ?? 0) > 0) { this.toast(`${echoName(s, e.uid)} is still recovering.`); return; }
+          sq.choose(e.uid); w.persist();
+        } })),
+        ...(all.length > per ? [{ label: 'More…', page: true, run: () => { this.choosePage = (this.choosePage + 1) % Math.ceil(all.length / per); this.openWheel('choose'); } }] : []),
+        { label: 'Back', page: true, run: () => this.openWheel('squad') },
       ];
     } else if (page === 'orders') {
       const all = sq.echoes.map((e) => e.order), same = all.length && all.every((o) => o === all[0]) ? all[0] ?? 'free' : null;

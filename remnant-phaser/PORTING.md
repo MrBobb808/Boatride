@@ -264,6 +264,14 @@ Whatever Ilan's store sells to be used later now waits in the pack (`SaveData.pa
 
 Verified by `scripts/economy.mjs` and `scripts/tirzah-progression.mjs`.
 
+## Choosing an Echo, and the bond
+
+- **Choosing:** the command wheel's Summon page has Choose one… (`Hud.openWheel('choose')`): every Echo, strongest first, eight to a page. The Echoes page has Fight beside me. Either one calls `leadEcho` (shared `game/state.ts`): the chosen Echo heads the lineup and the "One" summon calls it out alone (`Squad.choose`).
+- **The bond** (`echoBond`): one Echo alone fights with the covenant's whole bond, +80% attack and +50% health. As one of two it has half that; in a larger line, none. The Echo page shows it.
+- **Stronger Echoes overall** (`echoAtk`, `echoMaxHp`, shared): more of the hero's attack carries over, they grow more per level and per stage, and their base health and damage are higher. `scripts/power-walls.test.mjs` still holds.
+
+Verified by `scripts/echo-bond.mjs`.
+
 ## The archer's sounds
 
 All generated in code, in the shared `remnant/src/audio/audio.ts` (new effects only; existing ones are unchanged). `WorldApi.playEffect(name, { x, vol, pitch })` pans each by where it happens on screen.

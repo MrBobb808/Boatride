@@ -53,7 +53,7 @@ import { updatePending, applyUpdate } from '../core/update';
 import { FINISHERS } from './finishers';
 import { ITEMS, ECHO_SPECIES, SUPER_MOVES, type SuperId, type Rarity, type EchoOrder } from './data';
 import { selectedSuper, superTarget, alternateSuper, drawAlternateSuper } from './supers';
-import { gainXp, makeItem, addMaterial, derive, makeEcho, absorbEcho, echoMaxHp, skillRank, type SaveData } from './state';
+import { gainXp, makeItem, addMaterial, derive, makeEcho, absorbEcho, echoMaxHp, skillRank, echoName, type SaveData } from './state';
 import { saveSlot } from './save';
 import { noteSaved } from '../ui/hud';
 import { solve, newJoints, BASE_POSE } from '../render/skeleton';
@@ -1085,8 +1085,10 @@ export class World {
     s.summonPreset = pre;
     if (!s.active.length) s.active = s.echoes.slice(0, G.d.echoSlots).map((e) => e.uid);
     this.summonEchoes();
+    // The bond follows how many are called: fewer Echoes, each stronger.
+    for (const e of this.echoes) e.refreshStats();
     const n = this.summonList().length;
-    G.ui.toast(pre === 'one' ? 'Summon: the lead Echo' : pre === 'two' ? 'Summon: the lead two' : pre === 'squad' ? `Summon: your squad (${n})` : `Summon: the whole lineup (${n})`, 'info');
+    G.ui.toast(pre === 'one' ? `Summon: ${echoName(s, s.active[0])} alone, with the whole bond` : pre === 'two' ? 'Summon: the lead two' : pre === 'squad' ? `Summon: your squad (${n})` : `Summon: the whole lineup (${n})`, 'info');
   }
 
   /** Give one Echo (by uid) or every summoned Echo an order. */
