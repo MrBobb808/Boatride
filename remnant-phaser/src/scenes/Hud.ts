@@ -125,8 +125,9 @@ export class Hud extends Phaser.Scene {
       this.pausePointer = -1;
       if (pressedHere) this.togglePause();
     });
-    this.heroBtn = this.add.text(0,0,'',font(9,'#a6efdc',true)).setOrigin(0.5).setPadding(10*k,9*k).setBackgroundColor('#102329').setInteractive({useHandCursor:true}).setName('hero_swap');
-    this.styleBtn = this.add.text(0,0,'',font(9,'#f6dea0',true)).setOrigin(0.5).setPadding(10*k,9*k).setBackgroundColor('#272030').setInteractive({useHandCursor:true}).setName('style_cycle');
+    // Small chips under Elior's column: they stay reachable without covering the fight.
+    this.heroBtn = this.add.text(0,0,'',font(8,'#a6efdc',true)).setOrigin(0,0.5).setPadding(7*k,5*k).setBackgroundColor('rgba(16,35,41,0.82)').setInteractive({useHandCursor:true}).setName('hero_swap');
+    this.styleBtn = this.add.text(0,0,'',font(8,'#f6dea0',true)).setOrigin(0,0.5).setPadding(7*k,5*k).setBackgroundColor('rgba(39,32,48,0.82)').setInteractive({useHandCursor:true}).setName('style_cycle');
     this.styleRank = this.add.text(0,0,'',font(16,'#e7c979',true)).setOrigin(1,0).setName('style_rank');
     for (const [button,run] of [[this.heroBtn,()=>{if(this.world.player.switchHero())this.world.persist();}], [this.styleBtn,()=>this.openWheel('heroes')]] as const) {
       button.on('pointerdown',(p:Phaser.Input.Pointer)=>{if(p.wasTouch)input.setDevice('touch');button.setData('pid',p.id);});
@@ -167,8 +168,6 @@ export class Hud extends Phaser.Scene {
     this.menuBtn.setPosition(W - (6 + safe.right) * k, y0 - 6 * k);
     this.hintText.setPosition(W / 2, H * 0.16).setWordWrapWidth(Math.min(W * 0.5, 320 * k));
     this.captionText.setPosition(W / 2, H - (Math.max(safe.bottom, 6) + 46) * k).setWordWrapWidth(Math.min(W * 0.7, 520 * k));
-    this.heroBtn.setPosition(W/2-65*k,H-(24+safe.bottom)*k);
-    this.styleBtn.setPosition(W/2+66*k,H-(24+safe.bottom)*k);
     this.styleRank.setPosition(W-(14+safe.right)*k,(78+safe.top)*k);
     this.placeTouch();
   }
@@ -177,8 +176,10 @@ export class Hud extends Phaser.Scene {
 
   sync(w: World) {
     const k = this.k, s = w.save, p = w.player;
-    this.heroBtn.setText(`${p.hero === 'elior' ? 'ELIOR → TIRZAH' : 'TIRZAH → ELIOR'}`);
-    this.styleBtn.setText(STYLE_NAMES[p.combatStyle] + ' · KIT');
+    const keys = w.controls.device === 'keyboard';
+    const heroLabel = `${keys ? 'N  ' : ''}⇄ ${p.hero === 'elior' ? 'TIRZAH' : 'ELIOR'}`, styleLabel = `${keys ? 'B  ' : ''}${STYLE_NAMES[p.combatStyle].toUpperCase()}`;
+    if (this.heroBtn.text !== heroLabel) this.heroBtn.setText(heroLabel);
+    if (this.styleBtn.text !== styleLabel) this.styleBtn.setText(styleLabel);
     const kitOn = w.canUseKit && !p.dead;
     this.heroBtn.setVisible(kitOn); this.styleBtn.setVisible(kitOn);
     this.styleRank.setText(p.styleMeter.score > 1 ? `${RANKS[p.styleMeter.rank]}  ·  ${p.comboHits} HITS` : '').setVisible(!G.inCutscene && !this.paused);
@@ -248,9 +249,16 @@ export class Hud extends Phaser.Scene {
     this.powerText.setText(power).setPosition(hx, cy);
     const touch = w.controls.device === 'touch';
     box(hudBoxes.column, x0, y0, hx + hw - x0, cy - y0 + 8 * k);
+    const chipY = cy + 22 * k;
+    this.heroBtn.setPosition(hx, chipY);
+    this.styleBtn.setPosition(hx + this.heroBtn.displayWidth + 6 * k, chipY);
+    // Toasts stack below the column (and the chips), never over the stats.
+    const toastY = chipY + (this.heroBtn.visible ? 18 : 0) * k;
+    this.toasts.forEach((t, i) => t.setPosition(hx - 20 * k, toastY + i * 30 * k));
     this.drawBoss(w, touch, hx + hw);
     this.touchUi.setVisible(touch);
-    this.skillBar.setVisible(!touch);
+    // Hidden in story scenes, and until an ability is carried.
+    this.skillBar.setVisible(!touch && !G.inCutscene && skillSlots(s).some(Boolean));
     for(const b of this.btns) { if(b.a==='attack')b.t.setText(p.hero==='tirzah'?'SHOOT':'STRIKE');if(b.a==='heavy')b.t.setText(p.hero==='tirzah'?'DRAW':'HEAVY'); }
     if (touch) this.drawTouchCooldowns(w); else this.drawSkillBar(w);
     this.updateInteractBtn();
@@ -266,7 +274,8 @@ export class Hud extends Phaser.Scene {
   private drawSkillBar(w: World) {
     const k = this.k, { width: W, height: H } = this.scale, p = w.player;
     const size = 34 * k, gap = 8 * k, total = SLOTS.length * size + (SLOTS.length - 1) * gap;
-    const x0 = (W - total) / 2, y0 = H - (49 + safe.bottom) * k - size;
+    // The bottom-right corner: Elior stands near the bottom middle of the view.
+    const x0 = W - (16 + safe.right) * k - total, y0 = H - (14 + safe.bottom) * k - size;
     const keys = w.controls.device === 'gamepad' ? ['R1', 'L2', 'R2'] : ['Q', 'E', 'R'];
     const g = this.skillG.clear();
     skillSlots(w.save).forEach((id, i) => {
@@ -338,7 +347,8 @@ export class Hud extends Phaser.Scene {
     box(hudBoxes.boss, 0, 0, 0, 0);
     if (!show || !b) return;
     let bw = Math.min(W * 0.46, 460 * k), bx = (W - bw) / 2, by = H - (Math.max(safe.bottom, 6) + 84) * k;
-    if (touch) {
+    {
+      // Its own lane along the top, between Elior's column and the pause button, on every device.
       const left = colRight + 18 * k, right = W - (safe.right + 12 + 52) * k;
       bw = Math.min(right - left, 460 * k);
       bx = left + (right - left - bw) / 2;
@@ -407,6 +417,7 @@ export class Hud extends Phaser.Scene {
     const dev = this.world.controls.device;
     const namesOfSkills = skillSlots(this.world.save).map((id) => id ? SKILLS[id].short : 'EMPTY');
     const names: Record<string, [string, string, string]> = {
+      move: ['the left stick', 'A / D or the arrows', 'the left stick'],
       attack: ['STRIKE', 'J', '□ / X'], jump: ['JUMP', 'Space', '✕ / A'], dodge: ['DODGE', 'L', '○ / B'], interact: ['the context button', 'F', 'D-pad ↑'],
       heavy: ['a held STRIKE', 'K', '△ / Y'], parry: ['PARRY', 'I', 'L1'], heal: ['BALM', 'H', 'D-pad ↓'],
       skill1: [namesOfSkills[0], 'Q', 'R1'], skill2: [namesOfSkills[1], 'E', 'L2'], skill3: [namesOfSkills[2], 'R', 'R2'],

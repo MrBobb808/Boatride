@@ -7,6 +7,8 @@ import type { WeaponFamily } from '../../../remnant/src/game/data';
 import type { PlayableHero } from './style';
 import { FighterRig, FIGHTER_DIMS } from './fighterRig';
 export const ACTION_CELL=192,ACTION_FOOT=120,ACTION_STEPS=16;
+/** Clips baked as loops (sampled at i/STEPS); the rest are one-shots sampled at i/(STEPS-1). */
+const LOOPS=new Set<string>();
 const COMMON=['idle','run','jump','fall','land','roll','airdash','hurt','death','parry','block','heal','cast','invoke','charge','executeLeap','executeStrike','swim'];
 
 function fighterClips(family:WeaponFamily,hero:PlayableHero){
@@ -34,6 +36,7 @@ export function actionAtlas(sc:Phaser.Scene,hero:PlayableHero,family:WeaponFamil
   let px=2,py=2,row=0;
   for(const name of names){
     const clip:Clip=clips[name];if(!clip)continue;
+    if(clip.loop)LOOPS.add(name);
     anim.play(name,0,true);
     for(let i=0;i<ACTION_STEPS;i++){
       const u=i/(clip.loop?ACTION_STEPS:ACTION_STEPS-1);anim.time=clip.dur*u;
@@ -62,6 +65,8 @@ export function actionAtlas(sc:Phaser.Scene,hero:PlayableHero,family:WeaponFamil
   tex.refresh();return key;
 }
 export function actionFrame(sc:Phaser.Scene,key:string,clip:string,u:number){
-  const frame=`${clip}:${Math.min(ACTION_STEPS-1,Math.max(0,Math.floor(u*ACTION_STEPS)))}`;
+  // Pick the frame baked nearest this moment: loops wrap, one-shots end on their last pose.
+  const i=LOOPS.has(clip)?Math.floor(u*ACTION_STEPS)%ACTION_STEPS:Math.round(Math.min(1,Math.max(0,u))*(ACTION_STEPS-1));
+  const frame=`${clip}:${i}`;
   return sc.textures.get(key).has(frame)?frame:'idle:0';
 }
