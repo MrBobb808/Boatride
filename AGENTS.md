@@ -19,6 +19,15 @@ up next starts from the latest version.
    Explicit update navigations wait for the fresh document on slow connections;
    failed refreshes retry after a cooldown.
 
+## Current polish work and art
+
+Claude Code does the game changes, following `remnant-phaser/POLISH_PLAN.md`.
+That plan covers combat, sound, abilities, the archer's kit and
+transformation, and selling, salvage, the store and crafting. ChatGPT
+generates art into `remnant-phaser/art/`. `art/REQUESTS.md` says what to make,
+and `art/README.md` how to store it and record it in `art/manifest.json`.
+Never ship files from `art/incoming/` directly.
+
 ## What is in the repository
 
 | Path | What it is |
