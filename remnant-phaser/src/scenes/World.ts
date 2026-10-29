@@ -48,6 +48,7 @@ import { settings, shakeScale } from '../classic/shim/settings';
 import { offlineReady, updatePending, checkForUpdates } from '../game/update';
 import { placeLamps, strikeLamps } from '../../../remnant/src/game/lamps';
 import { Visuals } from '../game/visuals';
+import { Feedback } from '../game/feedback';
 
 const VIEW_H = 300;
 
@@ -74,6 +75,7 @@ export class World extends Phaser.Scene implements WorldApi {
   classic!: ClassicLayer;
   art!: RoomArt;
   visuals!: Visuals;
+  feedback!: Feedback;
   /** The room's classic boss, while it stands. */
   cboss: ClassicBoss | null = null;
   private cbossKey: ClassicBossKey | null = null;
@@ -117,7 +119,8 @@ export class World extends Phaser.Scene implements WorldApi {
     this.classic = new ClassicLayer(this);
     this.art = new RoomArt(this);
     this.visuals = new Visuals(this);
-    this.events.once('shutdown', () => { this.visuals.destroy(); this.art.destroy(); this.classic.destroy(); });
+    this.feedback = new Feedback(this);
+    this.events.once('shutdown', () => { this.feedback.destroy(); this.visuals.destroy(); this.art.destroy(); this.classic.destroy(); });
     // The HUD scene starts on the next step; the first room waits for it.
     this.ready = false;
     this.scene.launch('hud');
@@ -175,13 +178,14 @@ export class World extends Phaser.Scene implements WorldApi {
     this.sector = trialSector(wave); this.room = trialArena(ROOMS.trial_arena, wave);
     const next = new Grid(this.room.rows);
     for (let y = 0; y < next.h; y++) for (let x = 0; x < next.w; x++) this.classic.grid.set(x, y, next.get(x, y));
-    this.art.load(); this.visuals.clear(); this.visuals.load(); this.hud.roomEntered(this.room); return true;
+    this.art.load(); this.visuals.clear(); this.feedback.clear(); this.visuals.load(); this.hud.roomEntered(this.room); return true;
   }
 
   private flag(c?: string) { return !c || (c.startsWith('!') ? !this.save.flags[c.slice(1)] : !!this.save.flags[c]); }
 
   private clearRoom() {
     this.visuals.clear();
+    this.feedback.clear();
     for (const c of this.colliders) c.destroy();
     this.colliders = [];
     for (const f of this.foeList) if (!f.removed) f.remove();
@@ -459,6 +463,7 @@ export class World extends Phaser.Scene implements WorldApi {
     if (this.hud.wheelOpen) { this.hud.wheelInput(dt); return; }
     // The pause menu holds the world and takes the keys and pad.
     if (this.hud.paused || G.paused || blockingUI() || topLayer()) { this.physics.pause(); this.hud.sync(this); return; }
+    this.feedback.update(dt);
     if (this.physics.world.isPaused) this.physics.resume();
     if (this.controls.pressed('map') && !G.inCutscene) { G.ui.openMenu('map'); return; }
     if (this.controls.pressed('menu') && !G.inCutscene) { this.hud.togglePause(); return; }
@@ -855,7 +860,8 @@ export class World extends Phaser.Scene implements WorldApi {
   }
 
   hitstop(sec: number) {
-    if (this.hitstopT > 0) return;
+    // A heavier blow landing inside a light freeze extends it; a lighter one never shortens it.
+    if (sec <= this.hitstopT) return;
     this.hitstopT = sec;
     this.physics.pause();
   }
@@ -871,18 +877,12 @@ export class World extends Phaser.Scene implements WorldApi {
     this.cameras.main.shake(Math.min(ms, 160), amount);
   }
 
-  floatText(x: number, y: number, text: string, color: string) {
-    const t = this.add.text(x, y, text, { fontFamily: 'Cinzel, Georgia, serif', fontSize: '9px', color, stroke: '#07050a', strokeThickness: 2, fontStyle: 'bold' })
-      .setOrigin(0.5).setResolution(4).setDepth(20);
-    this.tweens.add({ targets: t, y: y - 18, alpha: 0, duration: 700, ease: 'Cubic.out', onComplete: () => t.destroy() });
+  floatText(x: number, y: number, text: string, color: string, crit = false) {
+    this.feedback.number(x, y, text, color, crit);
   }
 
   spark(x: number, y: number, color: number, n = 6) {
-    for (let i = 0; i < n; i++) {
-      const p = this.add.rectangle(x, y, 2, 2, color).setDepth(15).setBlendMode(Phaser.BlendModes.ADD);
-      const a = Math.random() * Math.PI * 2, d = 10 + Math.random() * 18;
-      this.tweens.add({ targets: p, x: x + Math.cos(a) * d, y: y + Math.sin(a) * d, alpha: 0, duration: 260 + Math.random() * 200, ease: 'Quad.out', onComplete: () => p.destroy() });
-    }
+    this.feedback.spark(x, y, color, n);
   }
 
   onFoeDied(xp: number, silver: number, x: number, y: number, eliteId?: string) {

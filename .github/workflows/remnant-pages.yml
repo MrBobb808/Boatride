@@ -101,6 +101,7 @@ jobs:
       - run: node scripts/visuals.mjs
       - run: node scripts/combat.mjs
       - run: node scripts/combat-moves.mjs
+      - run: node scripts/combat-feel.mjs
       - run: node scripts/powers.mjs
       - run: node scripts/foes.mjs
       - run: node scripts/saves.mjs
