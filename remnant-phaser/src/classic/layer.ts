@@ -65,6 +65,7 @@ const overlaps = (a: Rect, b: Rect) => a.x < b.x + b.w && b.x < a.x + a.w && a.y
 /** What the classic layer needs from the World scene beyond `WorldApi`. */
 export interface ClassicHost extends WorldApi {
   visuals: Visuals;
+  feedback: import('../game/feedback').Feedback;
   player: Player & {
     face: number;
     state: string;
@@ -441,7 +442,7 @@ export class ClassicLayer {
     this.img = sc.add.image(0, 0, key).setOrigin(0).setDepth(DEPTH).setVisible(false);
     // Damage numbers read best in the Phaser build's own float text.
     fx.number = (x: number, y: number, v: number | string, crit = false, color?: string) =>
-      host.floatText(x, y, typeof v === 'number' ? String(Math.round(v)) : v, color ?? (crit ? '#ffd23a' : '#ffe6a8'));
+      host.floatText(x, y, typeof v === 'number' ? String(Math.round(v)) : v, color ?? (crit ? '#ffd23a' : '#ffe6a8'), crit);
     this.bind();
   }
 
@@ -725,6 +726,10 @@ export class ClassicLayer {
     if (this.storyEnabled) this.story.onKill(e);
     const st = e.stats, tier = chapterCurve(e.tier).xp, elite = e.elite ? 4 : 1;
     const xp = e.xpOverride ?? Math.round(st.xp * elite * tier * this.host.d.xpMult * (1 + G.save.ng * 0.5));
+    // Purification: the body lifts away as gold light; an elite's fall gets a beat of slow motion.
+    const hb = e.hurtbox();
+    this.host.feedback.dissolve(e.x, e.y, hb.w, hb.h, !!e.elite);
+    if (e.elite) this.slowmo(0.32, 0.35);
     this.addRally(6); G.save.ce = Math.min(G.d.maxCe, G.save.ce + (G.save.flags.relic_taken ? 5 : 0));
     this.host.onFoeDied(xp, Math.round(Phaser.Math.Between(st.silver[0], st.silver[1]) * elite * tier), e.x, e.y - 20, e.elite ?? undefined);
     if (this.storyEnabled) { const loot: Loot[] = []; if (Math.random() < 0.28) loot.push({ mat: 'veil_shard', n: 1 }); if (Math.random() < 0.22) loot.push({ mat: 'iron_scrap', n: 1 }); if (e.kind === 'sentinel') loot.push({ mat: 'sentinel_steel', n: e.elite ? 3 : 1 }); if (e.elite) loot.push({ mat: 'covenant_fragment', n: 1 }); if (Math.random() < (e.elite ? 1 : 0.06)) loot.push(rollGear(e.elite ? 2 : 0)); this.spawnLoot(e.x, e.cy, loot); }

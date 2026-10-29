@@ -317,7 +317,10 @@ around them stays the same.
 
 ## 9. Order of work (one draft PR each)
 
-- [ ] 1. Combat feel: reactions, deaths, telegraphs, hit-stop, numbers (§2)
+- [ ] 1. Combat feel (§2), in parts:
+  - [ ] 1a. Numbers, sparks, purification dissolve, elite slow motion, hit-stop by weight (§2.2, §2.4, §2.5)
+  - [ ] 1b. Foe hit reactions: flinch, knockback arcs, launch poses, guard-break, knockdown (§2.1)
+  - [ ] 1c. Telegraphs, defence feel and enemy spacing (§2.3, §2.6, §2.7); boss death sequences; style meter
 - [ ] 2. Sound pass (§3)
 - [ ] 3. Ability effects and animation, procedural first (§4)
 - [ ] 4. The archer's mechanics: True Aim, Recall, precision zones, shooting projectiles down, evasive shots, close-range answer, arrow types, pinning (§5c)
