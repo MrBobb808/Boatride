@@ -110,7 +110,7 @@ try {
     const low = R.archer.archerDrop(s, 1, 'foe', () => 0.01), boss = R.archer.archerDrop(s, 9, 'boss', () => 0.01);
     s.archer.level = 50;
     const late = R.archer.archerDrop(s, 9, 'boss', () => 0.01);
-    const n = s.inventory.length; w.bossSpoils();
+    const n = s.inventory.length; w.bossSpoils('idol'); w.bossSpoils('idol');
     return { mine, kinds: slots.size, low, boss, late, got: s.inventory.length - n, tag: s.inventory.at(-1).lootPower };
   });
   assert.ok(drops.mine > 100 && drops.mine < 230 && drops.kinds >= 5, `about half of a foe's gear is hers while she fights (${JSON.stringify(drops)})`);

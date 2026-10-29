@@ -967,7 +967,11 @@ export class World extends Phaser.Scene implements WorldApi {
     const share = this.player.hero === 'tirzah' ? 0.55 : 0.3;
     return Math.random() < share ? archerDrop(this.save, chapterOf(this.room.id), elite ? 'elite' : 'foe') : rollGear(elite ? 2 : 0);
   }
-  bossSpoils(key?: string) {
+  bossSpoils(key = this.room.id) {
+    // Once a boss, like its other rewards.
+    const flag = `tz_spoils_${key}`;
+    if (this.save.flags[flag]) return;
+    this.save.flags[flag] = true;
     this.collect(archerDrop(this.save, chapterOf(this.room.id), 'boss'));
     // Two of her keepsakes are won, once, from particular foes.
     const keep = key && ARCHER_KEEPSAKES[key];
