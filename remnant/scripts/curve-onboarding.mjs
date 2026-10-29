@@ -212,7 +212,7 @@ try {
   {
     const page = await boot(await browser.newContext(PHONE));
     await page.evaluate(() => window.__remnant.G.ui.openMenu('character'));
-    const sections = { journey: ['quests', 'map', 'chapters', 'valor'], elior: ['character', 'equipment', 'skills', 'progression', 'moves', 'crafting'], echoes: ['echoes', 'imprints'], collection: ['lore', 'bestiary'], settings: ['settings', 'system'] };
+    const sections = { journey: ['quests', 'map', 'chapters', 'valor'], elior: ['character', 'equipment', 'skills', 'progression', 'moves', 'crafting', 'store'], echoes: ['echoes', 'imprints'], collection: ['lore', 'bestiary'], settings: ['settings', 'system'] };
     assert.equal(await page.locator('.menu-rail .sec').count(), 5);
     for (const [sec, tabs] of Object.entries(sections)) {
       await page.locator(`[data-k=sec_${sec}]`).tap();
@@ -229,7 +229,7 @@ try {
     }
     // A section remembers its sub-tab; old page names still work.
     await page.locator('[data-k=sec_elior]').tap();
-    assert.equal(await page.locator('[data-k=tab_crafting]').getAttribute('aria-selected'), 'true');
+    assert.equal(await page.locator('[data-k=tab_store]').getAttribute('aria-selected'), 'true');
     await page.evaluate(() => window.__remnant.G.ui.openMenu('journal'));
     assert.equal(await page.locator('[data-k=tab_quests]').getAttribute('aria-selected'), 'true');
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, 'no sideways scroll');
