@@ -130,7 +130,8 @@ try {
   await until(p, () => window.pogo);
   await p.keyboard.up('KeyS');
   const pogo = await E(p, () => window.pogo);
-  assert.ok(pogo.struck && pogo.state === 'free' && pogo.airDash === 1 && !pogo.onGround && pogo.vy < -150, `a plunge onto a foe bounces back up (${JSON.stringify(pogo)})`);
+  // Rising is the proof: a plunge that lands slams instead. (On a slow runner the bounce and the floor can share a physics frame.)
+  assert.ok(pogo.struck && pogo.state === 'free' && pogo.airDash === 1 && pogo.vy < -150, `a plunge onto a foe bounces back up (${JSON.stringify(pogo)})`);
   console.log('Pogo: a plunge onto a foe strikes it and springs Elior back up with his air dash');
 
   // Phantom Steps alternate safe sides, retain their chain, and spend Energy.

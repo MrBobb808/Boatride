@@ -9,6 +9,7 @@ import Phaser from 'phaser';
 import { STYLE_NAMES, STYLE_HELP, RANKS } from '../game/style';
 import { xpToNext, type RoomDef } from '../shared';
 import { SKILLS, SLOTS, skillSlots, ARCHER, ARCHER_IDS } from '../game/abilities';
+import { bakeAbilityIcons, abilityIconKey } from '../game/abilityIcons';
 import { dpr } from '../game/screen';
 import { measureSafe, safe } from '../game/safe';
 import type { Action } from '../game/controls';
@@ -59,6 +60,9 @@ export class Hud extends Phaser.Scene {
   private skillBar!: Phaser.GameObjects.Container;
   private skillG!: Phaser.GameObjects.Graphics;
   private skillTexts: Phaser.GameObjects.Text[] = [];
+  /** The skill bar's ability icons, and the recharge shade drawn over them. */
+  private skillIcons: Phaser.GameObjects.Image[] = [];
+  private skillCdG!: Phaser.GameObjects.Graphics;
   /** Cooldown shading over the touch buttons. */
   private cdG!: Phaser.GameObjects.Graphics;
   private balmText!: Phaser.GameObjects.Text;
@@ -94,7 +98,7 @@ export class Hud extends Phaser.Scene {
   create() {
     this.world.controls.flush();
     // Phaser reuses this scene after Continue and rotation, but destroys its objects.
-    this.skillTexts = []; this.toasts = []; this.bannerBox = this.guideText = this.wheelBox = undefined;
+    this.skillTexts = []; this.skillIcons = []; this.toasts = []; this.bannerBox = this.guideText = this.wheelBox = undefined;
     this.wheelItems = []; this.wheelOpen = false; this.wheelSel = this.wheelNavT = 0;
     this.interactLabel = this.coachAction = null;
     this.hpGhost = this.bossGhost = 1; this.barsAmt = 0; this.pausePointer = -1;
@@ -143,6 +147,10 @@ export class Hud extends Phaser.Scene {
     this.powerText = this.add.text(0, 0, '', font(8.5, '#b8bdff'));
     this.skillG = this.add.graphics();
     this.skillBar = this.add.container(0, 0, [this.skillG]);
+    bakeAbilityIcons(this);
+    SLOTS.forEach(() => { const i = this.add.image(0, 0, abilityIconKey('sword_word')).setVisible(false); this.skillIcons.push(i); this.skillBar.add(i); });
+    this.skillCdG = this.add.graphics();
+    this.skillBar.add(this.skillCdG);
     SLOTS.forEach((id) => {
       const t = this.add.text(0, 0, '', { ...font(8, '#f6dea0'), align: 'center' }).setOrigin(0.5);
       this.skillTexts.push(t);
@@ -273,28 +281,30 @@ export class Hud extends Phaser.Scene {
   /** Keyboard and pad: the three skills along the bottom, with their key, cost and cooldown. */
   private drawSkillBar(w: World) {
     const k = this.k, { width: W, height: H } = this.scale, p = w.player;
-    const size = 34 * k, gap = 8 * k, total = SLOTS.length * size + (SLOTS.length - 1) * gap;
+    const size = 40 * k, gap = 8 * k, total = SLOTS.length * size + (SLOTS.length - 1) * gap;
     // The bottom-right corner: Elior stands near the bottom middle of the view.
     const x0 = W - (16 + safe.right) * k - total, y0 = H - (14 + safe.bottom) * k - size;
     const keys = w.controls.device === 'gamepad' ? ['R1', 'L2', 'R2'] : ['Q', 'E', 'R'];
-    const g = this.skillG.clear();
+    const g = this.skillG.clear(), cdG = this.skillCdG.clear();
     skillSlots(w.save).forEach((id, i) => {
-      const x = x0 + i * (size + gap);
+      const x = x0 + i * (size + gap), icon = this.skillIcons[i], t = this.skillTexts[i];
       if (!id) {
         g.fillStyle(0x0c0910, 0.82).fillRect(x, y0, size, size);
-        this.skillTexts[i].setText(`EMPTY\n${keys[i]}`).setPosition(x + size / 2, y0 + size / 2).setAlpha(0.4);
+        icon.setVisible(false);
+        t.setText(`EMPTY\n${keys[i]}`).setPosition(x + size / 2, y0 + size / 2).setAlpha(0.4);
         return;
       }
       const def = SKILLS[id];
       const ready = p.cds[id] <= 0 && w.save.ce >= def.cost;
       g.fillStyle(0x0c0910, 0.82).fillRect(x, y0, size, size);
       g.lineStyle(1.2 * k, ready ? def.color : 0x5a5060, ready ? 0.9 : 0.6).strokeRect(x, y0, size, size);
+      // The ability's own picture above its key and cost; the recharge darkens it from the top.
+      icon.setTexture(abilityIconKey(id)).setPosition(x + size / 2, y0 + size * 0.4).setDisplaySize(size * 0.68, size * 0.68).setAlpha(ready ? 1 : 0.55).setVisible(true);
       const cd = p.cds[id] / def.cd;
-      if (cd > 0) g.fillStyle(0x000000, 0.55).fillRect(x, y0 + size * (1 - cd), size, size * cd);
-      const label = `${def.short}\n${keys[i]} · ${def.cost}`;
-      const t = this.skillTexts[i];
+      if (cd > 0) cdG.fillStyle(0x000000, 0.55).fillRect(x, y0 + size * (1 - cd), size, size * cd);
+      const label = `${keys[i]} · ${def.cost}`;
       if (t.text !== label) t.setText(label);
-      t.setPosition(x + size / 2, y0 + size / 2).setAlpha(ready ? 1 : 0.5);
+      t.setPosition(x + size / 2, y0 + size * 0.84).setAlpha(ready ? 1 : 0.5);
     });
   }
 
@@ -317,7 +327,7 @@ export class Hud extends Phaser.Scene {
       }
       if (b.a === 'sub') { b.t.setText(p.mantleT > 0 ? 'THROW' : 'SUB'); continue; }
       if (!id) { if (slot >= 0) b.t.setText('EMPTY').setAlpha(0.35); continue; }
-      b.i.setTexture(this.iconKey(SKILLS[id].icon));
+      b.i.setTexture(abilityIconKey(id));
       const def = SKILLS[id], cd = p.cds[id] / def.cd;
       if (b.t.text !== def.short) b.t.setText(def.short);
       b.t.setAlpha(w.save.ce >= def.cost ? 0.9 : 0.4);
@@ -538,7 +548,7 @@ export class Hud extends Phaser.Scene {
 
         {label:"Tirzah's abilities…",page:true,run:()=>this.openWheel('archer')},
         {label:`Arrows: ${(s.arrowType??'standard')[0].toUpperCase()+(s.arrowType??'standard').slice(1)}`,run:()=>{w.player.bow.cycleArrows();w.persist();}},
-        {label:'Bow help',run:()=>this.toast('Tap Strike: arrow · hold: piercing shot (6 CE) · Up + Strike: spread (10 CE) · Down + Heavy: recall · Strike at arm\'s length: bash · Dodge then Strike: backflip · Down + Strike in the air: dive · hold Up: aim at the head · Down + Sub: arrow type')},
+        {label:'Bow help',run:()=>this.toast('Tap Strike: arrow · hold: piercing shot (6 CE), released at the gold glint: perfect shot · Up + Strike: spread (10 CE) · Down + Heavy: recall · Strike at arm\'s length: bash · Dodge then Strike: backflip · Down + Strike in the air: dive · hold Up: aim at the head · Down + Sub: arrow type')},
         {label:'Close',run:()=>{}},
       ];
     } else if (page === 'archer') {

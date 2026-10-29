@@ -46,6 +46,17 @@ try {
   assert.deepEqual(slots.slots, ['deliverance', 'jonathan', 'mark'], `her three slots filled in order as she levelled (${JSON.stringify(slots)})`);
   assert.deepEqual(slots.quiver, ['standard', 'fire', 'frost', 'storm', 'holy'], 'level 30 opened every arrow type');
   console.log(`Loadout: ${slots.slots.join(', ')} on her buttons; quiver ${slots.quiver.join(', ')}`);
+  // Every ability has its own pixel icon, and the skill bar shows hers.
+  const icons = await E(page, async () => {
+    await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+    const R = window.__remnant, tex = R.game.textures, ids = ['sword_word', 'trumpet', 'shield_faith', 'lion', 'still_waters', 'pillar_fire', 'chains', 'armor_light', 'chain_snare', 'blink_strike', 'mending_light', 'frost_ring', 'deliverance', 'jonathan', 'mark', 'rain', 'watchman', 'quiver'];
+    const sig = (id) => { const c = tex.get('ability-' + id).getSourceImage(), d = c.getContext('2d').getImageData(0, 0, 64, 64).data; let h = 0; for (let i = 0; i < d.length; i += 4) h = (h * 31 + d[i] * 3 + d[i + 1] * 5 + d[i + 2] * 7 + (d[i + 3] ? 1 : 0)) >>> 0; return h; };
+    const sigs = ids.map((id) => tex.exists('ability-' + id) ? sig(id) : 0);
+    const bar = R.world.hud.skillIcons.map((i) => i.texture.key);
+    return { missing: ids.filter((_, i) => !sigs[i]), distinct: new Set(sigs).size, bar };
+  });
+  assert.ok(!icons.missing.length && icons.distinct === 18 && icons.bar[0] === 'ability-deliverance', `18 distinct ability icons, hers on the bar (${JSON.stringify(icons)})`);
+  console.log(`Icons: 18 distinct ability icons; the bar shows ${icons.bar.join(', ')}`);
   await ready(page);
 
   // ---- Arrow of Deliverance pierces the whole line and breaks guards
