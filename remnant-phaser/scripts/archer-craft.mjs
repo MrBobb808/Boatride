@@ -68,8 +68,13 @@ try {
   // ---- precision: Up while drawing aims at the head; a head shot from range always crits
   await until(page, () => window.__remnant.world.player.state === 'free');
   await E(page, () => window.place(-100));
-  await page.keyboard.down('KeyK'); await page.waitForTimeout(80); await page.keyboard.down('KeyW'); await page.waitForTimeout(60);
-  await page.keyboard.up('KeyK'); await page.keyboard.up('KeyW');
+  // Up held through the whole draw and until the arrow is away, so a slow frame can't loose it level.
+  await page.keyboard.down('KeyW'); await page.keyboard.down('KeyK');
+  await until(page, () => window.__remnant.world.player.bow.drawing);
+  await page.waitForTimeout(80);
+  await page.keyboard.up('KeyK');
+  await until(page, () => !window.__remnant.world.player.bow.drawing);
+  await page.waitForTimeout(100); await page.keyboard.up('KeyW');
   await until(page, () => window.__remnant.world.player.bow.tally.precise >= 1);
   console.log('Precision: Up aimed the shot at the head, and it landed as a precision crit');
 
