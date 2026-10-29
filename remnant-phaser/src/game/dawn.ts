@@ -28,11 +28,17 @@ export class Dawn {
   private autoCd = 0;
   /** Foes struck during the form, for the closing volley. */
   readonly marked = new Set<FoeLike>();
+  /** The Wings' jab: after a critical arrow she drives a light arrow into the foe's back by hand. */
+  private spear: Phaser.GameObjects.Image;
+  private jabFoe: FoeLike | null = null;
+  private jabT = -1;
+  jabs = 0;
   private wings: Phaser.GameObjects.Image;
   private fx: { img: Phaser.GameObjects.Image; t: number; row: number; dur: number; follow: FoeLike | null }[];
 
   constructor(private w: WorldApi, private p: Player, private bow: Bow) {
     this.wings = w.sc.add.image(0, 0, 'vfx-transform', 27).setBlendMode(Phaser.BlendModes.ADD).setDepth(9.6).setVisible(false);
+    this.spear = w.sc.add.image(0, 0, 'arrows', 7).setOrigin(0.93, 61 / 128).setScale(0.36).setDepth(11.5).setVisible(false);
     this.fx = Array.from({ length: 6 }, () => ({ img: w.sc.add.image(0, 0, 'vfx-archer', 0).setBlendMode(Phaser.BlendModes.ADD).setDepth(15.3).setVisible(false), t: -1, row: 0, dur: 0.4, follow: null }));
   }
 
@@ -50,7 +56,7 @@ export class Dawn {
   ready() { return this.active && !!this.armed && this.armed.alive && this.armT > 0 && this.icd <= 0; }
 
   /** Blink behind the armed foe and loose the back arrow. Refuses unsafe or unseen ground behind it. */
-  step(finisher = false) {
+  step(finisher = false, jab = false) {
     const p = this.p, f = this.armed!;
     this.armed = null; this.armT = 0;
     const side = Math.sign(f.x - p.x) || p.face;
@@ -63,7 +69,7 @@ export class Dawn {
     this.play(FX.in, p.x, p.feet - 28, 0.3, 0.5);
     this.chain = this.chainT > 0 ? this.chain + 1 : 1;
     this.chainT = CHAIN_T; this.icd = ICD;
-    this.bow.backShot(this.chain, finisher);
+    if (jab) { this.jabFoe = f; this.jabT = 0; } else this.bow.backShot(this.chain, finisher);
     this.play(FX.back, p.x + p.face * 22, p.feet - 31, 0.28, 0.42, p.face < 0);
     this.w.playEffect('dash');
     if (this.chain >= 3) this.morningStar();
@@ -116,7 +122,7 @@ export class Dawn {
     if (f && f.alive && this.active && this.icd <= 0 && (this.p.state === 'free' || this.p.state === 'bow')) {
       this.bow.cancel(); if (this.p.state === 'bow') this.p.releaseState();
       this.armed = f; this.armT = ARM_T;
-      if (this.step(true)) this.autoCd = 1.2;
+      if (this.step(true, true)) this.autoCd = 1.2;
     }
     this.chainT = Math.max(0, this.chainT - dt);
     if (!this.chainT) this.chain = 0;
@@ -132,6 +138,7 @@ export class Dawn {
       this.wings.setFrame(pulse > 0.3 ? 28 : 27).setPosition(p.x - p.face * 3, p.feet - 36 + pulse).setScale(0.42 + pulse * 0.015)
         .setAlpha((settings.reduceFlashes ? 0.3 : 0.55) + pulse * 0.05).setFlipX(p.face < 0);
     }
+    this.stepJab(dt);
     for (const o of this.fx) {
       if (o.t < 0) continue;
       o.t += dt;
@@ -141,11 +148,36 @@ export class Dawn {
     }
   }
 
+  /** The jab: the light arrow thrusts from her hand into the foe's back, lands at 0.07 s, and fades. */
+  private stepJab(dt: number) {
+    if (this.jabT < 0) return;
+    const p = this.p, f = this.jabFoe, before = this.jabT;
+    this.jabT += dt;
+    const reach = Math.min(1, this.jabT / 0.07);
+    this.spear.setVisible(true).setFlipX(p.face < 0).setPosition(p.x + p.face * (6 + reach * 16), p.feet - 30).setAlpha(this.jabT < 0.16 ? 1 : Math.max(0, 1 - (this.jabT - 0.16) / 0.1));
+    if (before < 0.07 && this.jabT >= 0.07 && f && f.alive) {
+      const hp = f.hp, e = (f as FoeLike & { e?: { isBoss?: boolean; maxHp?: number } }).e;
+      let dmg = this.p.power() * 3.2 * this.w.d.critDmg;
+      // A foe already low falls to it outright (bosses only take the damage).
+      if (hp !== undefined && e && !e.isBoss && e.maxHp && hp < e.maxHp * 0.4) dmg = Math.max(dmg, hp + 1);
+      if (f.hit(Math.round(dmg), p.face, 3, true, { kind: 'melee', kx: p.face * 160, ky: -90, poise: 70, guardBreak: true })) {
+        this.w.heroHit(f, hp !== undefined && f.hp !== undefined ? Math.max(0, hp - f.hp) : 0, true, true);
+        this.w.burst(f.x - p.face * 4, f.box.centerY, 1);
+        this.w.spark(f.x, f.box.centerY, 0xfff1c4, 14);
+        this.w.finale(f.x, f.box.centerY, 1.2);
+        this.p.noteStyle('dawn_jab');
+        this.jabs++;
+      }
+    }
+    if (this.jabT >= 0.26) { this.jabT = -1; this.jabFoe = null; this.spear.setVisible(false); }
+  }
+
   clear() {
     this.armed = null; this.armT = this.chain = this.chainT = 0; this.marked.clear(); this.was = false;
     this.wings.setVisible(false);
+    this.jabT = -1; this.jabFoe = null; this.spear.setVisible(false);
     for (const o of this.fx) { o.t = -1; o.follow = null; o.img.setVisible(false); }
   }
 
-  destroy() { this.wings.destroy(); for (const o of this.fx) o.img.destroy(); }
+  destroy() { this.spear.destroy(); this.wings.destroy(); for (const o of this.fx) o.img.destroy(); }
 }

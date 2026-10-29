@@ -141,6 +141,17 @@ try {
   assert.ok(fall.frames > 3 && fall.fastest <= 111, `drawing in the air held her fall to 110 px/s (${JSON.stringify(fall)})`);
   console.log(`Aloft: drawing in the air held her fall to ${fall.fastest.toFixed(0)} px/s`);
 
+  // ---- Perfect Draw: released inside the gold window, the shot is free, faster and a sure crit
+  await until(page, () => { const p = window.__remnant.world.player; return p.onGround && p.state === 'free'; });
+  const ce0 = await E(page, () => { window.place(-150); const w = window.__remnant.world; w.save.ce = 50; w.player.bow.tally.perfect = 0; return w.save.ce; });
+  await page.keyboard.down('KeyK');
+  await until(page, () => window.__remnant.world.player.bow.charge >= 0.64);
+  await page.keyboard.up('KeyK');
+  await until(page, () => window.__remnant.world.player.bow.tally.perfect >= 1);
+  const perfect = await E(page, (ce) => { const w = window.__remnant.world, a = w.player.bow.arrows.find((a) => a.move === 'bow_perfect'); return { free: w.save.ce >= ce, perfect: !!a?.perfect }; }, ce0);
+  assert.ok(perfect.free && perfect.perfect, `a perfect draw loosed a free perfect shot (${JSON.stringify(perfect)})`);
+  console.log('Perfect Draw: released in the gold window, the charged shot was free and perfect');
+
   // ---- the bow-bash: a foe at arm's length is knocked back, and the next shot is point-blank
   await until(page, () => { const p = window.__remnant.world.player; return p.onGround && p.state === 'free'; });
   const hp0 = await E(page, () => { window.place(-22); return window.target.hp; });

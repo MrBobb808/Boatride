@@ -32,7 +32,7 @@ try {
     Object.assign(s, { level: 30, mantle: 100, playableHero: 'tirzah' }); s.flags.mantle_known = true; s.flags.relic_taken = true;
     w.refreshStats();
     // No random crits while the Dawnstep chain is checked by hand (a crit under the Wings steps on its own).
-    w.d.crit = 0;
+    w.d.crit = 0; w.player.bow.wingsCrit = 0;
     const f = w.classic.ents.find((e) => e.isFoe && !e.dying && !e.flying);
     for (const e of w.classic.ents) if (e !== f && e.isFoe) e.remove = true;
     // A stretch of flat ground: 120 px clear before the foe and 70 px behind it.
@@ -114,8 +114,8 @@ try {
   assert.ok(glide.air > 10 && glide.fastest <= 71, `holding Jump glides (${JSON.stringify(glide)})`);
   await until(page, () => window.__remnant.world.player.onGround && window.__remnant.world.player.state === 'free');
   await E(page, () => { window.__remnant.world.save.ce = 0; });
-  // Hold until the draw is a charged one (game time, not wall time: the page can drop frames).
-  await page.keyboard.down('KeyK'); await until(page, () => window.__remnant.world.player.bow.charge >= 0.7, undefined, 5000); await page.keyboard.up('KeyK');
+  // Hold until the draw is a charged one, past the Perfect Draw window (game time, not wall time: the page can drop frames).
+  await page.keyboard.down('KeyK'); await until(page, () => window.__remnant.world.player.bow.charge >= 0.86, undefined, 5000); await page.keyboard.up('KeyK');
   await page.waitForTimeout(60);
   const free = await E(page, () => window.__remnant.world.player.bow.arrows.some((a) => a.life > 0 && a.move === 'bow_pierce' && a.dawn));
   assert.ok(free, 'a charged, piercing dawn shot with no Energy');
@@ -145,9 +145,9 @@ try {
   });
   await page.keyboard.press('KeyJ');
   await until(page, () => window.target.hp <= 0 || window.target.dying, undefined, 4000);
-  const fell = await E(page, () => { const w = window.__remnant.world, p = w.player, f = window.target; w.d.crit = 0; return { behind: Math.sign(p.x - f.x), dead: f.hp <= 0 || f.dying }; });
-  assert.ok(fell.dead && fell.behind === 1, `a critical arrow sent her behind the foe and the finishing arrow felled it (${JSON.stringify({ finisher, fell })})`);
-  console.log('Finisher: a critical arrow under the Wings carried her behind the foe, and the finishing arrow felled it');
+  const fell = await E(page, () => { const w = window.__remnant.world, p = w.player, f = window.target; w.d.crit = 0; return { behind: Math.sign(p.x - f.x), dead: f.hp <= 0 || f.dying, jabs: p.dawn.jabs }; });
+  assert.ok(fell.dead && fell.behind === 1 && fell.jabs >= 1, `a critical arrow sent her behind the foe and her jab felled it (${JSON.stringify({ finisher, fell })})`);
+  console.log('Finisher: a critical arrow under the Wings carried her behind the foe, and she jabbed it down with a light arrow');
 
   // ---- Elior keeps his Shadow Mantle
   const elior = await E(page, async () => {

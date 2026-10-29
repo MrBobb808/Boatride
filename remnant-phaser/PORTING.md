@@ -199,6 +199,21 @@ Her own way to fight (POLISH_PLAN §5c), all in `src/game/bow.ts`:
 - **Save fields:** `archerSkills`, `archerKnown`, `quiver` and `arrowType` are all optional and are checked on load.
 - Verified by `scripts/archer-kit.mjs`.
 
+## Arrows, icons, the Wings jab and the Perfect Draw
+
+- **Arrows in flight** (`Bow.drawArrow`):
+  - each flexes as it leaves the string;
+  - charged, perfect and ability arrows pulse;
+  - a streak of the arrow's colour trails it, and sparks shed from the fletching (embers rise from fire, frost drifts);
+  - releases flash in the arrow's colour, and impacts spark in it too.
+- **Struck arrows:** arrows stuck in foes or walls quiver a moment before they settle.
+- **Ability icons:** every ability, Elior's twelve and Tirzah's six, has its own 16x16 pixel icon (`src/game/abilityIcons.ts`), shown on the touch buttons and on the keyboard and pad skill bar.
+- **The Wings jab:** under the Wings, her arrows crit 20% more often (`Bow.wingsCrit`). A critical arrow carries her behind the foe, where she drives a light arrow into its back by hand (`Dawn.stepJab`). The jab:
+  - is a guard-breaking critical hit;
+  - fells non-boss foes below 40% health;
+  - comes with the finisher's shake, slow motion and push in.
+- **Perfect Draw:** releasing a held draw between 0.62 and 0.8 s (a gold glint marks the window) looses a perfect shot. It is free, 25% faster and always a crit, so under the Wings it also brings the jab.
+
 ## Store and economy
 
 The store is the original's own shop, rebuilt in shared code (`remnant/src/game/economy.ts`, `game/elixirs.ts` and the shop screens in `ui/menus.ts`), so both editions have it.

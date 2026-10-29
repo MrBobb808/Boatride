@@ -35,7 +35,8 @@ try{
  assert.ok(await E(()=>{const t=window.__remnant.game.textures.get('action-tirzah-bow'),f=t.get('bowDraw:15'),canvas=document.createElement('canvas');canvas.width=canvas.height=192;const c=canvas.getContext('2d');c.drawImage(t.getSourceImage(),f.cutX,f.cutY,f.cutWidth,f.cutHeight,f.x,f.y,f.cutWidth,f.cutHeight);const data=c.getImageData(108,67,20,48).data;let n=0;for(let i=3;i<data.length;i+=4)if(data[i])n++;return n>30;}),'charged bow is held forward in the projectile direction');
  await page.waitForTimeout(500);
  const energy=await E(()=>window.__remnant.world.save.ce);
- await page.keyboard.down('KeyK');await until(()=>window.__remnant.world.player.bow.charge>=0.65);
+ // Past the Perfect Draw window: an ordinary charged shot, which costs Energy.
+ await page.keyboard.down('KeyK');await until(()=>window.__remnant.world.player.bow.charge>=0.86);
  await page.screenshot({path:'qa/action-tirzah.png'});
  await page.keyboard.up('KeyK');
  await until(()=>window.__remnant.world.player.bow.arrows.some(a=>a.move==='bow_pierce'));
