@@ -113,13 +113,24 @@ try {
 
   // After Hollow Knight: a plunge that strikes a foe springs back up with the air dash restored.
   await setup(p);
-  await E(p, () => { const w = window.__remnant.world, f = w.classic.ents.find((e) => e.isFoe && !e.remove); w.player.placeAt(f.x, f.y - 70, 1); w.player.body.setVelocity(0, 0); window.pogoHp = f.hp; });
+  // Spend the air dash first, and note the frame the plunge turns into a rise, so a slow runner can't land before the check.
+  await E(p, () => {
+    const w = window.__remnant.world, a = w.player, f = w.classic.ents.find((e) => e.isFoe && !e.remove);
+    a.placeAt(f.x, f.y - 70, 1); a.body.setVelocity(0, 0); a.airDash = 0; window.pogoHp = f.hp; window.pogo = null;
+    let plunged = false;
+    const watch = () => {
+      if (a.state === 'plunge') plunged = true;
+      if (plunged && a.state !== 'plunge') { window.pogo = { state: a.state, airDash: a.airDash, onGround: a.onGround, vy: a.body.velocity.y, struck: f.hp < window.pogoHp }; return; }
+      requestAnimationFrame(watch);
+    };
+    watch();
+  });
   await p.keyboard.down('KeyS');
   await attack(p);
-  await until(p, () => window.__remnant.world.player.body.velocity.y < -150);
+  await until(p, () => window.pogo);
   await p.keyboard.up('KeyS');
-  const pogo = await E(p, () => { const a = window.__remnant.world.player, f = window.__remnant.world.classic.ents.find((e) => e.isFoe && !e.remove); return { state: a.state, airDash: a.airDash, onGround: a.onGround, struck: f.hp < window.pogoHp }; });
-  assert.ok(pogo.struck && pogo.state === 'free' && pogo.airDash === 1 && !pogo.onGround, `a plunge onto a foe bounces back up (${JSON.stringify(pogo)})`);
+  const pogo = await E(p, () => window.pogo);
+  assert.ok(pogo.struck && pogo.state === 'free' && pogo.airDash === 1 && !pogo.onGround && pogo.vy < -150, `a plunge onto a foe bounces back up (${JSON.stringify(pogo)})`);
   console.log('Pogo: a plunge onto a foe strikes it and springs Elior back up with his air dash');
 
   // Phantom Steps alternate safe sides, retain their chain, and spend Energy.
