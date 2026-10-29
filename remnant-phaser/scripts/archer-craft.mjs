@@ -152,13 +152,13 @@ try {
   assert.ok(perfect.free && perfect.perfect, `a perfect draw loosed a free perfect shot (${JSON.stringify(perfect)})`);
   console.log('Perfect Draw: released in the gold window, the charged shot was free and perfect');
 
-  // ---- the bow-bash: a foe at arm's length is knocked back, and the next shot is point-blank
+  // ---- the dagger: a foe at arm's length takes two cuts and a kick, and the next shot is point-blank
   await until(page, () => { const p = window.__remnant.world.player; return p.onGround && p.state === 'free'; });
   const hp0 = await E(page, () => { window.place(-22); return window.target.hp; });
-  await hold(page, 'KeyJ', 60);
+  for (let i = 1; i <= 3; i++) { await hold(page, 'KeyJ', 40); await until(page, (n) => window.__remnant.world.player.bow.tally.dagger >= n, i); }
   await until(page, () => window.__remnant.world.player.bow.bashT > 0);
-  assert.ok(await E(page, (hp) => window.target.hp < hp, hp0), 'the bow-bash struck the foe');
-  console.log('Bow-bash: a foe at arm\'s length was bashed back, readying a point-blank shot');
+  assert.ok(await E(page, (hp) => window.target.hp < hp, hp0), 'the dagger struck the foe');
+  console.log('Dagger: a foe at arm\'s length took two cuts and the kick, readying a point-blank shot');
 
   assert.deepEqual(errors, [], 'no page errors');
   console.log('phaser archer craft: all checks passed');

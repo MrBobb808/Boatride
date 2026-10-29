@@ -6,6 +6,7 @@ import { clipsFor, MOVESETS, type AttackDef } from '../../../remnant/src/game/we
 import type { WeaponFamily } from '../../../remnant/src/game/data';
 import type { PlayableHero } from './style';
 import { FighterRig, FIGHTER_DIMS } from './fighterRig';
+import { easeOutCubic, easeInQuad } from '../../../remnant/src/core/math';
 export const ACTION_CELL=192,ACTION_FOOT=120,ACTION_STEPS=16;
 /** Clips baked as loops (sampled at i/STEPS); the rest are one-shots sampled at i/(STEPS-1). */
 const LOOPS=new Set<string>();
@@ -21,6 +22,26 @@ function fighterClips(family:WeaponFamily,hero:PlayableHero){
     const bowBase={...base,lean:.03,head:0,fTh:.35,fSh:-.35,bTh:-.35,bSh:-.2};
     clips.bowDraw={dur:.55,base:bowBase,keys:[{t:0,p:{lean:.12}},{t:1,p:{lean:-.08,head:.04}}]};
     clips.bowRelease={dur:.28,base:bowBase,fn:u=>({x:-Math.sin(u*Math.PI)*1.4,lean:-.08*(1-u)})};
+    // Up close: two quick dagger cuts and a kick that sends the foe back into bow range.
+    const k=(t:number,p:Record<string,number>,ease?:(x:number)=>number)=>({t,p,ease});
+    clips.dagger1={dur:.26,base,keys:[
+      k(0,{fUA:2.6,fFA:1.1,lean:-.04,fTh:.35,fSh:-.35,bTh:-.3,bSh:-.2,bUA:-.5,bFA:.7}),
+      k(.3,{fUA:2.8,fFA:1.2,lean:-.08,sq:.97},easeOutCubic),
+      k(.45,{fUA:.7,fFA:.1,lean:.32,fTh:.7,fSh:-.55,bTh:-.55,bSh:-.2,bUA:-1.1,x:2},easeInQuad),
+      k(.75,{fUA:.45,fFA:.35,lean:.26,fTh:.65,fSh:-.5,bTh:-.5,x:2}),
+      k(1,{},easeOutCubic)]};
+    clips.dagger2={dur:.26,base,keys:[
+      k(0,{fUA:-.2,fFA:.6,lean:.2,fTh:.5,fSh:-.6,bTh:-.4,bSh:-.3,bUA:.6}),
+      k(.3,{fUA:-.45,fFA:.7,lean:.24,sq:.96},easeOutCubic),
+      k(.45,{fUA:2.3,fFA:.1,lean:.1,fTh:.45,bTh:-.45,bUA:-1.2,x:2,sq:1.03},easeInQuad),
+      k(.75,{fUA:2.1,fFA:.5,lean:.08,x:2}),
+      k(1,{},easeOutCubic)]};
+    clips.dagger3={dur:.34,base,keys:[
+      k(0,{lean:.12,fTh:.3,fSh:-.45,bTh:-.3,bSh:-.3,sq:.95,fUA:.9,fFA:.9}),
+      k(.3,{lean:-.15,fTh:1.35,fSh:-1.7,bTh:-.2,bSh:-.25,fUA:1.2,fFA:1,bUA:-.9},easeOutCubic),
+      k(.45,{lean:-.38,fTh:1.55,fSh:-.05,bTh:-.12,bSh:-.1,fUA:.6,fFA:.6,bUA:-1.4,sq:1.03},easeInQuad),
+      k(.75,{lean:-.3,fTh:1.4,fSh:-.25,bTh:-.12,bSh:-.1,fUA:.6,bUA:-1.3}),
+      k(1,{},easeOutCubic)]};
   }
   return clips;
 }
@@ -31,7 +52,7 @@ export function actionAtlas(sc:Phaser.Scene,hero:PlayableHero,family:WeaponFamil
   const clips=fighterClips(hero==='tirzah'?'blade':family,hero),anim=new Animator(clips),rig=new FighterRig(sc,hero,family,mantle,cape);
   const moves=Object.values(MOVESETS[family]).flatMap(v=>Array.isArray(v)?v:typeof v==='object'?[v as AttackDef]:[]);
   const attacks=new Set(moves.map(m=>m.clip));
-  const names=hero==='tirzah'?[...COMMON,'bowDraw','bowRelease']:[...new Set([...COMMON,...attacks,'b1','b2','b4','heavy','dash','launch','storm','plunge'])];
+  const names=hero==='tirzah'?[...COMMON,'bowDraw','bowRelease','dagger1','dagger2','dagger3']:[...new Set([...COMMON,...attacks,'b1','b2','b4','heavy','dash','launch','storm','plunge'])];
   const canvas=document.createElement('canvas');canvas.width=canvas.height=ACTION_CELL;const c=canvas.getContext('2d')!;
   const packed:{name:string;canvas:HTMLCanvasElement;left:number;top:number;x:number;y:number;ground:boolean;clip:string;phase:number}[]=[];
   let px=2,py=2,row=0;

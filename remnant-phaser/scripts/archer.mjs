@@ -147,7 +147,7 @@ try {
   await until(page, () => window.target.hp <= 0 || window.target.dying, undefined, 4000);
   const fell = await E(page, () => { const w = window.__remnant.world, p = w.player, f = window.target; w.d.crit = 0; return { behind: Math.sign(p.x - f.x), dead: f.hp <= 0 || f.dying, jabs: p.dawn.jabs }; });
   assert.ok(fell.dead && fell.behind === 1 && fell.jabs >= 1, `a critical arrow sent her behind the foe and her jab felled it (${JSON.stringify({ finisher, fell })})`);
-  console.log('Finisher: a critical arrow under the Wings carried her behind the foe, and she jabbed it down with a light arrow');
+  console.log('Finisher: a critical arrow under the Wings carried her behind the foe, and her dagger in its back felled it');
 
   // ---- Elior keeps his Shadow Mantle
   const elior = await E(page, async () => {
