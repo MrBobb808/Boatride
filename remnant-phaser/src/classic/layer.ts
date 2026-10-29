@@ -24,6 +24,10 @@ import { Grid, T, TILE, isSolid } from '../../../remnant/src/game/tiles';
 import { Entity, type HitInfo } from '../../../remnant/src/game/entity';
 import { Enemy } from '../../../remnant/src/game/enemies';
 import { makeEnemy } from '../../../remnant/src/game/foes';
+
+// Tirzah's arrows interrupt a wind-up: note when a drawn foe last flashed its telegraph glint.
+const glint = Enemy.prototype.glint;
+Enemy.prototype.glint = function (this: Enemy & { glintAt?: number }, ...args: Parameters<typeof glint>) { this.glintAt = G.time; return glint.apply(this, args); };
 import { drawFoeSprite } from '../../../remnant/src/render/creatureSprites';
 import { chapterCurve } from '../../../remnant/src/game/curve';
 import type { Blow, FoeLike, WorldApi } from '../game/types';

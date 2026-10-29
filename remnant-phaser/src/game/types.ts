@@ -55,6 +55,8 @@ export interface WorldApi {
   tileAt(tx: number, ty: number): number;
   player: { x: number; y: number; feet: number; dead: boolean; hp: number; maxHp: number; hurt(h: Blow): boolean };
   foes(): FoeLike[];
+  /** Hostile projectiles in flight (classic `Proj`s): centre x/y, size, and `remove` to destroy one. */
+  enemyShots(): readonly { x: number; y: number; w: number; h: number; remove: boolean }[];
   castCovenant(id: SkillId): void;
   lightWave(): void;
   playEffect(name: string): void;
@@ -73,6 +75,10 @@ export interface WorldApi {
   /** A finishing moment: shake, slow motion and a push in (never for ordinary hits). */
   finale(x: number, y: number, power?: number): void;
   shake(intensity: number, ms: number): void;
+  /** Slow the fight (foes, projectiles, effects) but not the hero, for `sec` seconds. */
+  slowTime(sec: number, scale: number): void;
+  /** Turn the summoned Echoes onto a foe, as a swap hands one over. */
+  echoesFocus(f: FoeLike): void;
   floatText(x: number, y: number, text: string, color: string, crit?: boolean): void;
   spark(x: number, y: number, color: number, n?: number): void;
   /** An impact burst from the V02 sheet: 0 hit, 1 crit, 2 heavy, 3 parry. */

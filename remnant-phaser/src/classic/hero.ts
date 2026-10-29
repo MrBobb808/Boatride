@@ -128,7 +128,9 @@ export class HeroPowers {
       if (c.pressed('transform') && this.tryTransform()) { this.render(); return true; }
       if (c.pressed('ultimate') && this.trySuper()) { this.render(); return true; }
       if (c.pressed('sub') || c.pressed('heavy') && c.down('up')) {
-        if (p.mantleT > 0 && p.hero !== 'tirzah') this.throwWeapon(); else throwSub(this.actor);
+        // Down + Sub nocks Tirzah's next arrow type.
+        if (p.hero === 'tirzah' && c.pressed('sub') && c.down('down')) p.bow.cycleArrows();
+        else if (p.mantleT > 0 && p.hero !== 'tirzah') this.throwWeapon(); else throwSub(this.actor);
       }
     }
     this.render(); return false;
@@ -159,7 +161,8 @@ export class HeroPowers {
   onHit(e: Entity, damage: number, heavy: boolean, crit = false) {
     this.L.playerView.practiceHit(e, damage, heavy);
     mantleGain(crit ? 1.7 : 1.1);
-    const el = weaponElement();
+    // Her nocked arrow type carries its own element.
+    const el = this.p.hero === 'tirzah' ? this.p.bow.element() : weaponElement();
     if (el) elementHit(e, el, damage, this.p.face, heavy, damage);
     // The forms add their own element: shadow under the Mantle, light under the Wings.
     const formEl = this.p.hero === 'tirzah' ? 'holy' : 'shadow';

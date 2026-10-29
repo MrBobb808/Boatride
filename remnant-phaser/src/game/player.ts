@@ -15,7 +15,7 @@ import { T, TILE, isSolid } from '../shared';
 import { sovereignDamage } from '../../../remnant/src/game/balance';
 import { MOVESETS, extraFor, type AttackDef } from '../../../remnant/src/game/weapons';
 import { skillRank } from '../../../remnant/src/game/state';
-import { SKILLS, skillSlots, castSkill, type SkillId } from './abilities';
+import { SKILLS, skillSlots, castSkill, isArcherSkill, archerUnlocked, ARCHER, type AnySkillId } from './abilities';
 import type { WorldApi, Blow, FoeLike } from './types';
 import { makeSwim, DASH_T, DASH_V } from '../../../remnant/src/game/swim';
 import { SWIM_SPEED, SWIM_ACCEL, FLOAT_DEPTH } from '../../../remnant/src/game/water';
@@ -81,7 +81,7 @@ export class Player {
   /** After a perfect parry, the next blow is a counter: certain to be critical, and harder. */
   counterT = 0;
   /** Skill cooldowns, seconds left. */
-  cds: Record<SkillId, number> = Object.fromEntries(Object.keys(SKILLS).map((id) => [id, 0])) as Record<SkillId, number>;
+  cds: Record<AnySkillId, number> = Object.fromEntries(Object.keys(SKILLS).map((id) => [id, 0])) as Record<AnySkillId, number>;
   lion = 0;
   armorLight = 0;
   mendT = 0;
@@ -92,7 +92,7 @@ export class Player {
   private airAttacks = 0;
   private airDash = 1;
   private airJumps = 0;
-  private sinceDodge = 99;
+  sinceDodge = 99;
   private recentHit = 0;
   private linger = '';
   private lingerT = 0;
@@ -119,7 +119,7 @@ export class Player {
   private parryT = 0;
   private parryCd = 0;
   private healDone = false;
-  private castId: SkillId | null = null;
+  private castId: AnySkillId | null = null;
   /** Arriving from a swap with an Echo: the next blow within this time lands half again harder. */
   swapStrikeT = 0;
   /** While positive, one-way platforms let Elior drop through. */
@@ -252,7 +252,7 @@ export class Player {
     this.shieldT = Math.max(0, this.shieldT - dt);
     this.counterT = Math.max(0, this.counterT - dt);
     this.dropT = Math.max(0, this.dropT - dt);
-    for (const k of Object.keys(SKILLS) as SkillId[]) this.cds[k] = Math.max(0, this.cds[k] - dt * this.w.d.skillRecharge * runBlessings.recharge);
+    for (const k of Object.keys(SKILLS) as AnySkillId[]) this.cds[k] = Math.max(0, this.cds[k] - dt * this.w.d.skillRecharge * runBlessings.recharge);
     this.lion = Math.max(0, this.lion - dt);
     this.armorLight = Math.max(0, this.armorLight - dt);
     this.veiled = Math.max(0, this.veiled - dt);
@@ -290,7 +290,10 @@ export class Player {
     }
     if (this.hero === 'tirzah' && !G.inCutscene && this.bow.control(dt * ACTION_RATE)) {
       if (c.pressed('dodge') || c.pressed('parry')) { this.bow.cancel(); this.releaseState(); this.defence(); }
-      b.setGravityY(this.water.swimming ? 0 : this.glide() ? GRAV * 0.12 : GRAV);
+      // Holding a draw in the air slows her fall.
+      const aloftDraw = this.state === 'bow' && this.bow.drawing && !this.onGround;
+      if (aloftDraw && b.velocity.y > 110) b.setVelocityY(110);
+      b.setGravityY(this.water.swimming ? 0 : this.glide() ? GRAV * 0.12 : aloftDraw ? GRAV * 0.3 : GRAV);
       const hz=this.hazard();if(hz&&this.vulnerable)this.hurt({dmg:hz===T.Spikes?18:10,dir:0,hazard:true});
       this.draw(dt); return;
     }
@@ -367,7 +370,7 @@ export class Player {
       case 'cast':
         b.setVelocityX(b.velocity.x * 0.7);
         if (this.castId && this.st >= 0.12) {
-          castSkill(this.w, this.castId);
+          if (isArcherSkill(this.castId)) this.bow.kit.cast(this.castId); else castSkill(this.w, this.castId);
           this.castId = null;
         }
         // Once the skill is loosed, another can follow straight on.
@@ -427,9 +430,11 @@ export class Player {
     const n = c.pressed('skill1') ? 0 : c.pressed('skill2') ? 1 : c.pressed('skill3') ? 2 : -1;
     if (n < 0) return false;
     const id = skillSlots(s)[n];
-    if (!id || !s.abilities.includes(id)) { this.w.toast('Choose an ability in Menu → Elior → Abilities.'); return false; }
+    if (isArcherSkill(id)) { if (!archerUnlocked(s, id)) { this.w.toast(`${ARCHER[id].name} comes at level ${ARCHER[id].level}.`); return false; } }
+    else if (!id || !s.abilities.includes(id)) { this.w.toast(this.hero === 'tirzah' ? "Choose Tirzah's abilities in the Echo wheel → Heroes." : 'Choose an ability in Menu → Elior → Abilities.'); return false; }
     const def = SKILLS[id];
     if (this.cds[id] > 0) return false;
+    if (isArcherSkill(id) && !this.bow.kit.canCast(id)) return false;
     if (id === 'blink_strike' || id === 'chain_snare') {
       const t = this.target(260, true);
       if (!t || !this.blinkSpot(t)) { this.w.toast('No reachable enemy ahead.'); return false; }
