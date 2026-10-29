@@ -323,6 +323,7 @@ around them stays the same.
   - [ ] 1c. Telegraphs, defence feel and enemy spacing (§2.3, §2.6, §2.7); boss death sequences; style meter
 - [ ] 2. Sound pass (§3)
 - [ ] 3. Ability effects and animation, procedural first (§4)
+  - [x] Eleven Covenant abilities play the generated V03/V04 art (Chain Snare waits on its retry row)
 - [ ] 4. The archer's mechanics: True Aim, Recall, precision zones, shooting projectiles down, evasive shots, close-range answer, arrow types, pinning (§5c)
 - [ ] 5. The archer's six abilities and her separate loadout (§5a)
 - [ ] 6. Wings of the Morning and Dawnstep (§5b)

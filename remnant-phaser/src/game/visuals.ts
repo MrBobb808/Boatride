@@ -9,6 +9,29 @@ import { blockingUI } from '../../../remnant/src/ui/ui';
 import { topLayer } from '../../../remnant/src/ui/dom';
 import { BossCamera } from './bossCamera';
 import type { World } from '../scenes/World';
+import type { SkillId } from './abilities';
+
+/** A projectile an ability spawned, as far as its art needs to know. */
+interface Carrier { x: number; y: number; life: number; maxLife: number; remove: boolean }
+/**
+ * Each Covenant ability's row in the art drop (V03 → sheet 1, V04 → sheet 2), where it
+ * plays and how long. `on` follows a projectile; `hold` loops the middle frames while a
+ * state lasts. Chain Snare keeps its drawn chain: its generated row lashes the wrong way.
+ */
+const ABILITY_ART: Partial<Record<SkillId, { sheet: 1 | 2; row: number; dur: number; scale: number; at: 'body' | 'feet' | 'carrier'; hold?: 'shieldT'; alpha?: number }>> = {
+  sword_word: { sheet: 1, row: 0, dur: 0.75, scale: 0.55, at: 'carrier' },
+  trumpet: { sheet: 1, row: 1, dur: 0.5, scale: 1, at: 'body', alpha: 0.85 },
+  shield_faith: { sheet: 1, row: 2, dur: 0.5, scale: 0.6, at: 'feet', hold: 'shieldT' },
+  lion: { sheet: 1, row: 3, dur: 0.8, scale: 0.62, at: 'feet' },
+  // Long or bright effects stay below full strength, so stacked casts don't blow out to white.
+  still_waters: { sheet: 1, row: 4, dur: 6, scale: 0.85, at: 'carrier', alpha: 0.6 },
+  pillar_fire: { sheet: 1, row: 5, dur: 1.6, scale: 1.2, at: 'carrier' },
+  chains: { sheet: 2, row: 0, dur: 0.6, scale: 0.75, at: 'body' },
+  armor_light: { sheet: 2, row: 1, dur: 0.85, scale: 0.6, at: 'feet', alpha: 0.75 },
+  blink_strike: { sheet: 2, row: 3, dur: 0.45, scale: 0.6, at: 'body' },
+  mending_light: { sheet: 2, row: 4, dur: 1.1, scale: 0.55, at: 'feet' },
+  frost_ring: { sheet: 2, row: 5, dur: 0.7, scale: 1.25, at: 'feet', alpha: 0.85 },
+};
 
 const COLORS = Object.fromEntries(Object.entries(ELEMENTS).map(([id, e]) => [id, parseInt(e.c.slice(1), 16)])) as Record<Element, number>;
 const MAP_SIZE = 64;
@@ -36,6 +59,8 @@ export class Visuals {
   private crown: Phaser.GameObjects.Graphics;
   /** Impact bursts (V02 sheet), pooled and stepped here so they freeze with the fight. */
   private bursts: { img: Phaser.GameObjects.Image; t: number; row: number }[];
+  /** Ability effects in flight (V03/V04 sheets). */
+  private casts: { img: Phaser.GameObjects.Image; t: number; id: SkillId; carrier: Carrier | null; face: number; end: number }[];
   private mantled = false;
   private bubbles: Phaser.GameObjects.Particles.ParticleEmitter;
   private appliedTier = -1;
@@ -58,6 +83,7 @@ export class Visuals {
     this.smoke = w.add.particles(0,0,'vfx-smoke',{emitting:false,maxParticles:48,lifespan:1100,speedX:{min:-18,max:18},speedY:{min:-38,max:-16},scale:{start:0.2,end:0.7},alpha:{start:0.65,end:0},rotate:{min:-80,max:80},tint:[0x281035,0x4d156d,0x8134a8]}).setDepth(9);
     this.smokeFront = w.add.particles(0,0,'vfx-smoke',{emitting:false,maxParticles:24,lifespan:850,speedX:{min:-12,max:12},speedY:{min:-32,max:-14},scale:{start:0.14,end:0.48},alpha:{start:0.27,end:0},tint:[0x9346c5,0xbf6ee8]}).setDepth(10.5);
     this.crown = w.add.graphics().setDepth(9.5).setBlendMode(Phaser.BlendModes.ADD);
+    this.casts = Array.from({ length: 4 }, () => ({ img: w.add.image(0, 0, 'vfx-abilities-1', 0).setDepth(15.4).setBlendMode(Phaser.BlendModes.ADD).setVisible(false), t: -1, id: 'trumpet' as SkillId, carrier: null, face: 1, end: -1 }));
     this.bursts = Array.from({ length: 8 }, () => ({ img: w.add.image(0, 0, 'vfx-impacts', 0).setDepth(15.5).setBlendMode(Phaser.BlendModes.ADD).setVisible(false), t: -1, row: 0 }));
     this.bubbles = w.add.particles(0, 0, 'vfx-bubble', { emitting: false, maxParticles: 20, lifespan: 650, speedX: { min: -7, max: 7 }, speedY: { min: -42, max: -25 }, scale: { start: 0.5, end: 0.2 }, alpha: { start: 0.45, end: 0 } }).setDepth(17);
     if (this.gpu) {
@@ -99,6 +125,7 @@ export class Visuals {
     for (const e of [this.sparks, this.wisps, this.smoke, this.smokeFront, this.bubbles]) { e.killAll(); e.resume(); }
     this.crown.clear();this.mantled=false;
     for (const b of this.bursts) { b.t = -1; b.img.setVisible(false); }
+    for (const c of this.casts) { c.t = -1; c.carrier = null; c.img.setVisible(false); }
     this.paused = false;
     this.light.setVisible(false); this.weaponLight.setVisible(false);
     if (this.displacement) this.displacement.active = false;
@@ -168,6 +195,43 @@ export class Visuals {
       .setTint(this.element && row === 0 ? COLORS[this.element] : 0xffffff).setVisible(true);
   }
 
+  /** Play an ability's art: at Elior, at his feet, or riding the projectile it made. */
+  ability(id: SkillId, carrier: Carrier | null) {
+    const a = ABILITY_ART[id];
+    if (!a || (a.at === 'carrier' && !carrier)) return;
+    const c = this.casts.find((o) => o.t < 0) ?? this.casts.reduce((x, o) => (o.t > x.t ? o : x));
+    c.t = 0; c.id = id; c.end = -1; c.face = this.w.player.face;
+    c.carrier = a.at === 'carrier' ? carrier : null;
+    c.img.setTexture('vfx-abilities-' + a.sheet, a.row * 8).setScale(a.scale).setAlpha((a.alpha ?? 1) * (settings.reduceFlashes ? 0.6 : 1))
+      .setOrigin(0.5, a.at === 'body' ? 0.5 : 0.82).setFlipX(c.face < 0).setVisible(true);
+    this.placeCast(c);
+  }
+
+  private placeCast(c: Visuals['casts'][number]) {
+    const p = this.w.player, a = ABILITY_ART[c.id]!;
+    if (c.carrier) c.img.setPosition(c.carrier.x, a.row === 0 ? c.carrier.y : c.carrier.y + 4);
+    else c.img.setPosition(p.x, a.at === 'body' ? p.feet - 26 : p.feet + 4);
+  }
+
+  /** Frames follow the carrier's life, or the effect's own length; Shield of Faith shimmers while it holds, then breaks. */
+  private stepCasts(dt: number) {
+    const shield = this.w.player.shieldT > 0;
+    for (const c of this.casts) {
+      if (c.t < 0) continue;
+      const a = ABILITY_ART[c.id]!;
+      c.t += dt;
+      let u = c.carrier ? 1 - c.carrier.life / Math.max(0.01, c.carrier.maxLife) : c.t / a.dur;
+      if (a.hold) {
+        if (c.t < 0.18) u = (c.t / 0.18) * 0.375;
+        else if (shield && c.end < 0) u = 0.375 + (Math.floor(c.t * 10) % 2) * 0.125;
+        else { if (c.end < 0) c.end = c.t; u = 0.625 + ((c.t - c.end) / 0.22) * 0.375; }
+      }
+      if (u >= 1 || c.carrier?.remove) { c.t = -1; c.carrier = null; c.img.setVisible(false); continue; }
+      c.img.setFrame(a.row * 8 + Math.min(7, Math.floor(u * 8)));
+      this.placeCast(c);
+    }
+  }
+
   private stepBursts(dt: number) {
     for (const b of this.bursts) {
       if (b.t < 0) continue;
@@ -189,6 +253,7 @@ export class Visuals {
     if (held) { this.budget.reset(); return; }
     const dt = Math.min(delta / 1000, 0.05);
     this.stepBursts(dt);
+    this.stepCasts(dt);
     if (delta > 200) this.budget.reset();
     else if (settings.quality === 'auto' && !G.inCutscene) this.budget.sample(delta / 1000, 0, settings.fps === '60');
     this.applyQuality();
@@ -261,6 +326,7 @@ export class Visuals {
     if (this.displacement && cam) cam.filters.internal.remove(this.displacement);
     for (const o of [this.light, this.weaponLight, this.sparks, this.wisps, this.smoke, this.smokeFront, this.crown, this.bubbles]) o.destroy();
     for (const b of this.bursts) b.img.destroy();
+    for (const c of this.casts) c.img.destroy();
     if (this.map) this.w.textures.remove(this.key);
   }
 }

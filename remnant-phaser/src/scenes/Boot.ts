@@ -8,6 +8,8 @@ import { loadCreatureSprites } from '../../../remnant/src/render/creatureSprites
 import fighterPartsUrl from '../assets/fighter-parts-v1.png';
 import slashesUrl from '../assets/vfx-slashes.png';
 import impactsUrl from '../assets/vfx-impacts.png';
+import abilities1Url from '../assets/vfx-abilities-1.png';
+import abilities2Url from '../assets/vfx-abilities-2.png';
 
 /** Loads the sprite sheets and makes the generated textures every scene shares. */
 export class Boot extends Phaser.Scene {
@@ -19,6 +21,9 @@ export class Boot extends Phaser.Scene {
     // Art drop V01/V02: rows of six frames (art/manifest.json).
     this.load.spritesheet('vfx-slashes', slashesUrl, { frameWidth: 128, frameHeight: 128 });
     this.load.spritesheet('vfx-impacts', impactsUrl, { frameWidth: 128, frameHeight: 128 });
+    // Art drop V03/V04: the Covenant abilities, eight frames per row.
+    this.load.spritesheet('vfx-abilities-1', abilities1Url, { frameWidth: 128, frameHeight: 128 });
+    this.load.spritesheet('vfx-abilities-2', abilities2Url, { frameWidth: 128, frameHeight: 128 });
     this.load.image('varkhos', varkhosUrl);
     this.load.image('morvane', morvaneUrl);
     this.load.image('azkar', azkarUrl);
