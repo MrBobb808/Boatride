@@ -12,6 +12,8 @@ import abilities1Url from '../assets/vfx-abilities-1.png';
 import abilities2Url from '../assets/vfx-abilities-2.png';
 import transformUrl from '../assets/vfx-transform.png';
 import archerUrl from '../assets/vfx-archer.png';
+import arrowsUrl from '../assets/arrows.png';
+import statusUrl from '../assets/vfx-status.png';
 
 /** Loads the sprite sheets and makes the generated textures every scene shares. */
 export class Boot extends Phaser.Scene {
@@ -29,6 +31,8 @@ export class Boot extends Phaser.Scene {
     // V06 (Mantle and Wings forming) and V05 (Tirzah's dawn effects).
     this.load.spritesheet('vfx-transform', transformUrl, { frameWidth: 128, frameHeight: 128 });
     this.load.spritesheet('vfx-archer', archerUrl, { frameWidth: 128, frameHeight: 128 });
+    this.load.spritesheet('arrows', arrowsUrl, { frameWidth: 96, frameHeight: 128 });
+    this.load.spritesheet('vfx-status', statusUrl, { frameWidth: 128, frameHeight: 128 });
     this.load.image('varkhos', varkhosUrl);
     this.load.image('morvane', morvaneUrl);
     this.load.image('azkar', azkarUrl);

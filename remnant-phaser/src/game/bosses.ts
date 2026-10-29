@@ -31,6 +31,9 @@ export abstract class Boss implements FoeLike {
   body: Phaser.Physics.Arcade.Body;
   sprite: Phaser.GameObjects.Sprite;
   fx: Phaser.GameObjects.Graphics;
+  /** Telegraph art (glints, floor rings, pillars), reused each frame from a small pool. */
+  private marks: Phaser.GameObjects.Image[] = [];
+  private markN = 0;
   box = new Phaser.Geom.Rectangle();
   abstract name: string;
   sub = '';
@@ -121,7 +124,22 @@ export abstract class Boss implements FoeLike {
       default: this.think(dt);
     }
     this.move(dt);
-    if (!this.removed) this.draw();
+    if (this.removed) return;
+    this.markN = 0;
+    this.draw();
+    for (let i = this.markN; i < this.marks.length; i++) if (this.marks[i].visible) this.marks[i].setVisible(false);
+  }
+
+  /** One piece of telegraph art this frame. */
+  protected telegraph(key: string, frame: number, x: number, y: number, sx: number, sy: number, tint: number, alpha: number, oy = 0.5, rot = 0) {
+    let m = this.marks[this.markN++];
+    if (!m) { m = this.w.sc.add.image(0, 0, key, frame).setDepth(13).setBlendMode(Phaser.BlendModes.ADD); this.marks.push(m); }
+    m.setTexture(key, frame).setPosition(x, y).setScale(sx, sy).setOrigin(0.5, oy).setRotation(rot).setTint(tint).setAlpha(alpha).setVisible(true);
+  }
+
+  /** A rising column of light or miasma over a stretch of floor (V03's pillar), looping while it holds. */
+  protected pillar(x: number, w: number, h: number, color: number, alpha: number) {
+    this.telegraph('vfx-abilities-1', 42 + (Math.floor(this.w.sc.time.now / 90) % 4), x, this.floorY + 6, w / 50, h / 110, color, alpha, 0.92);
   }
 
   protected recover() {
@@ -218,16 +236,18 @@ export abstract class Boss implements FoeLike {
 
   /** The telegraph flare before a blow. */
   protected glint(x: number, y: number, color = 0xffffff) {
-    const g = this.fx, a = 0.6 + Math.sin(this.st * 30) * 0.3;
-    g.fillStyle(color, 0.35 * a).fillCircle(x, y, 7);
-    g.lineStyle(1, 0xffffff, a).lineBetween(x - 10, y, x + 10, y).lineBetween(x, y - 7, x, y + 7);
+    const a = 0.6 + Math.sin(this.st * 30) * 0.3;
+    // V02's star burst, turning as it pulses.
+    this.telegraph('vfx-impacts', 1, x, y, 0.2 + a * 0.05, 0.2 + a * 0.05, color | 0x303030, a, 0.5, this.st * 4);
   }
 
   /** A floor ring that shrinks to the moment of impact. */
   protected floorMark(x: number, r: number, u: number, color: number) {
-    const g = this.fx, a = 0.5 + Math.sin(this.w.sc.time.now / 1000 * 18) * 0.3;
-    g.fillStyle(color, a * 0.3).fillEllipse(x, this.floorY - 1, r * 2, 7);
-    g.lineStyle(1.5, color, a).strokeEllipse(x, this.floorY - 1, Math.max(2, r * 2 * (1 - Phaser.Math.Clamp(u, 0, 1))), 7);
+    const a = 0.5 + Math.sin(this.w.sc.time.now / 1000 * 18) * 0.3, k = r / 44;
+    // V02's ring of light laid flat: the full reach faintly, and a ring closing in on the moment of impact.
+    this.telegraph('vfx-impacts', 20, x, this.floorY - 1, k, k * 0.09, color, a * 0.45);
+    const s = Math.max(0.03, k * (1 - Phaser.Math.Clamp(u, 0, 1)));
+    this.telegraph('vfx-impacts', 21, x, this.floorY - 1, s, Math.max(0.03, s * 0.12), color | 0x202020, a);
   }
 
   remove() {
@@ -235,6 +255,7 @@ export abstract class Boss implements FoeLike {
     this.cleanUp();
     this.sprite.destroy();
     this.fx.destroy();
+    for (const m of this.marks) m.destroy();
     this.rect.destroy();
   }
 
@@ -588,8 +609,7 @@ export class FallenMonarch extends Boss {
     this.box.setTo(b.left, b.top, b.width, b.height);
     const g = this.fx.clear();
     for (const s of this.spores) {
-      g.fillStyle(this.color, s.t < 1.05 ? 0.1 : 0.25).fillRect(s.x - 38, this.floorY - 65, 76, 65);
-      g.lineStyle(1, this.color, 0.9).strokeRect(s.x - 38, this.floorY - 65, 76, 65);
+      this.pillar(s.x, 76, 65, this.color, s.t < 1.05 ? 0.3 : 0.8);
       if (s.t < 1.05) this.floorMark(s.x, 38, s.t / 1.05, this.color);
     }
     if (this.state !== 'attack') return;
@@ -612,7 +632,7 @@ export class FallenMonarch extends Boss {
 
 type CinderAttack = 'hammer' | 'fault' | 'sweep' | 'bellows';
 interface Fault { x: number; t: number; fired: boolean; id: number }
-interface Wave { g: Phaser.GameObjects.Graphics; x: number; dir: number; life: number; id: number }
+interface Wave { img: Phaser.GameObjects.Image; x: number; dir: number; life: number; id: number }
 
 /** Atlas frames: 0 stand, 1 wind-up, 2 strike, 3 kneel or fall. */
 export class CinderMonarch extends Boss {
@@ -714,11 +734,10 @@ export class CinderMonarch extends Boss {
       const wv = this.waves[i];
       wv.life -= dt;
       wv.x += wv.dir * 210 * dt;
-      if (wv.life <= 0 || wv.x < 70 || wv.x > this.w.roomW() - 50) { wv.g.destroy(); this.waves.splice(i, 1); continue; }
+      if (wv.life <= 0 || wv.x < 70 || wv.x > this.w.roomW() - 50) { wv.img.destroy(); this.waves.splice(i, 1); continue; }
       this.strike(`wave${wv.id}`, { x: wv.x - 15, y: this.floorY - 24, w: 30, h: 24 }, 0.8, { hazard: true, dir: wv.dir });
-      const g = wv.g.clear(), x = wv.x, y = this.floorY;
-      g.fillStyle(0xec793e, 1).lineStyle(1, 0xffdc9e, 1);
-      g.beginPath().moveTo(x - 18, y).lineTo(x - 11, y - 12).lineTo(x - 3, y - 28).lineTo(x + 3, y - 12).lineTo(x + 15, y - 20).lineTo(x + 18, y).closePath().fillPath().strokePath();
+      // V07's burning row, the tall middle frames flickering as it runs.
+      wv.img.setFrame(2 + ((Math.floor(wv.life * 14) + wv.id) % 4)).setPosition(wv.x, this.floorY + 3).setFlipX(wv.dir < 0);
     }
   }
 
@@ -748,7 +767,7 @@ export class CinderMonarch extends Boss {
     } else if (this.attack === 'sweep') {
       if (t >= 1.2 && !this.released) {
         this.released = true;
-        for (const dir of [-1, 1]) this.waves.push({ g: this.w.sc.add.graphics().setDepth(9), x: this.x + dir * 44, dir, life: 5, id: this.nextId++ });
+        for (const dir of [-1, 1]) this.waves.push({ img: this.w.sc.add.image(this.x + dir * 44, this.floorY, 'vfx-status', 3).setOrigin(0.5, 0.95).setScale(0.36).setDepth(9).setBlendMode(Phaser.BlendModes.ADD), x: this.x + dir * 44, dir, life: 5, id: this.nextId++ });
       }
       if (t > 2.45) this.finish(1.2);
     } else {
@@ -765,7 +784,7 @@ export class CinderMonarch extends Boss {
 
   protected cleanUp() {
     this.faults = [];
-    for (const wv of this.waves) wv.g.destroy();
+    for (const wv of this.waves) wv.img.destroy();
     this.waves = [];
     this.ward = false;
   }
@@ -778,16 +797,17 @@ export class CinderMonarch extends Boss {
     if (this.flash > 0) this.sprite.setTint(0xfff6e5).setTintMode(Phaser.TintModes.FILL);
     else this.sprite.clearTint().setTintMode(Phaser.TintModes.MULTIPLY);
     this.box.setTo(b.left, b.top, b.width, b.height);
-    const g = this.fx.clear();
-    if (this.armor) g.lineStyle(2, 0xffe5b1, 0.8).beginPath().arc(this.x, b.bottom - 52, 34, -2.7, -0.4).strokePath();
+    this.fx.clear();
+    // Tempered armor shimmers as a ring of light about his shoulders.
+    if (this.armor) this.telegraph('vfx-impacts', 21, this.x, b.bottom - 52, 0.72, 0.6, 0xffe5b1, 0.35 + Math.sin(this.st * 6) * 0.08);
     for (const f of this.faults) {
       const active = f.t >= 1.7;
-      g.fillStyle(this.color, active ? 0.6 : 0.12).fillRect(f.x - 38, this.floorY - (active ? 180 : 8), 76, active ? 180 : 8);
-      g.lineStyle(active ? 2 : 1, active ? 0xfff0c9 : this.color, 1).strokeRect(f.x - 38, this.floorY - 10, 76, 10);
-      if (!active) this.floorMark(f.x, 38, f.t / 1.7, this.color);
+      if (active) this.pillar(f.x, 76, 180, this.color, 0.9);
+      else { this.telegraph('vfx-impacts', 16 + (Math.floor(f.t * 10) % 2), f.x, this.floorY - 2, 0.35, 0.18, this.color, 0.5); this.floorMark(f.x, 38, f.t / 1.7, this.color); }
     }
     if (this.state === 'attack' && this.attack === 'hammer' && this.st < 0.95) this.glint(this.x + this.face * 40, b.bottom - 92, 0xffd89a);
-    if (this.state === 'attack' && this.attack === 'sweep' && this.st < 1.2) g.lineStyle(2, 0xffca83, 1).lineBetween(this.x - 80, this.floorY - 20, this.x + 80, this.floorY - 20);
+    // The sweep's reach: V01's flat ring of a blade spun around him.
+    if (this.state === 'attack' && this.attack === 'sweep' && this.st < 1.2) this.telegraph('vfx-slashes', 18 + (Math.floor(this.st * 12) % 6), this.x, this.floorY - 20, 1.6, 0.6, 0xffca83, 0.7);
   }
 }
 

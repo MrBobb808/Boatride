@@ -17,6 +17,7 @@ import { input } from './shim/input';
 import { Squad } from './squad';
 import { bodyFits } from '../../../remnant/src/game/physics';
 import { fx } from '../../../remnant/src/render/fx';
+import { ArtFx } from '../game/artFx';
 import { glow } from '../../../remnant/src/render/draw';
 import { drawPixelBody, bossPixelFrame } from '../../../remnant/src/render/bossPixel';
 import { Grid, T, TILE, isSolid } from '../../../remnant/src/game/tiles';
@@ -430,6 +431,8 @@ export class ClassicLayer {
   private focusing = false;
   private sorted: Entity[] = [];
   private static n = 0;
+  /** Rings, pillars, streaks and arcs as animated art instead of canvas shapes. */
+  readonly art: ArtFx;
 
   constructor(readonly host: ClassicHost) {
     const sc = host.sc;
@@ -443,6 +446,7 @@ export class ClassicLayer {
     // Damage numbers read best in the Phaser build's own float text.
     fx.number = (x: number, y: number, v: number | string, crit = false, color?: string) =>
       host.floatText(x, y, typeof v === 'number' ? String(Math.round(v)) : v, color ?? (crit ? '#ffd23a' : '#ffe6a8'), crit);
+    this.art = new ArtFx(sc);
     this.bind();
   }
 
@@ -512,6 +516,7 @@ export class ClassicLayer {
     this.squad.clear();
     G.inCutscene = false;
     fx.clear();
+    this.art.clear();
     this.img.setVisible(false);
   }
 
@@ -821,6 +826,8 @@ export class ClassicLayer {
     if (this.boss?.remove) this.boss = null;
     this.squad.update(dt);
     fx.update(dt);
+    this.art.update(dt);
+    this.art.statuses(this.ents, G.time);
     updateWater(dt);
     this.followFocus(dtRaw);
   }

@@ -3,8 +3,12 @@ import { TILE, isSolid, T } from '../shared';
 import type { WorldApi, FoeLike } from './types';
 import type { Player } from './player';
 import type { Dawn } from './dawn';
+import { weaponElement, type Element } from '../../../remnant/src/game/power';
 /** `back`: a Dawnstep's point-blank arrow (breaks guard). `dawn`: shot under the Wings, drawn with a trail of light. */
 interface Arrow { x:number; y:number; vx:number; vy:number; life:number; damage:number; pierce:number; hits:Set<FoeLike>; move:string; back:boolean; dawn:boolean; finisher:boolean }
+/** Columns of the arrow sheet (C06): plain, charged, then one per element, then light. Row 2 holds the same arrows stuck in the ground. */
+const ARROW_FRAME: Record<Element, number> = { fire: 2, frost: 3, storm: 4, holy: 5, shadow: 6, blood: 2 };
+const LIGHT = 7, CHARGED = 1;
 // Entry time along a swept segment. This catches fast arrows between frames.
 function entry(x:number,y:number,dx:number,dy:number,b:Phaser.Geom.Rectangle) {
   let lo = 0, hi = 1;
@@ -19,25 +23,43 @@ export class Bow {
   readonly arrows: Arrow[] = Array.from({length:24},()=>({x:0,y:0,vx:0,vy:0,life:0,damage:0,pierce:0,hits:new Set(),move:'',back:false,dawn:false,finisher:false}));
   dawn: Dawn | null = null;
   private lampBox={x:0,y:0,w:0,h:0};
-  readonly graphics: Phaser.GameObjects.Graphics;
+  /** One sprite per pooled arrow, and a few that stay a moment where an arrow struck a wall. */
+  private sprites: Phaser.GameObjects.Image[];
+  private stuck: { img: Phaser.GameObjects.Image; t: number }[];
   charge = 0;
   recovery = 0;
   volleyCd = 0;
   drawing = false;
   private queued: 'attack' | 'heavy' | null = null;
   private chargeKey: 'attack' | 'heavy' = 'heavy';
-  constructor(private w:WorldApi, private p:Player) { this.graphics=w.sc.add.graphics().setDepth(13); }
+  constructor(private w:WorldApi, private p:Player) {
+    this.sprites=this.arrows.map(()=>w.sc.add.image(0,0,'arrows',0).setOrigin(0.93,61/128).setDepth(13).setVisible(false));
+    this.stuck=Array.from({length:6},()=>({img:w.sc.add.image(0,0,'arrows',8).setOrigin(0.86,0.6).setDepth(12.9).setVisible(false),t:-1}));
+  }
+  /** Which arrow the sheet draws: light under the Wings, charged for a piercing shot, else the weapon's element. */
+  private frameOf(a:Arrow) { if(a.dawn)return LIGHT; if(a.pierce>1)return CHARGED; const el=weaponElement(); return el?ARROW_FRAME[el]:0; }
+  private stick(a:Arrow,frame:number) {
+    const o=this.stuck.find(o=>o.t<0)??this.stuck.reduce((x,o)=>(o.t>x.t?o:x));
+    // The stuck art leans about 38° from the shaft's line; turn it to match the flight.
+    o.t=0;o.img.setFrame(8+frame).setPosition(a.x,a.y).setRotation(Math.atan2(a.vy,a.vx)-0.67).setScale(0.26).setAlpha(1).setVisible(true);
+  }
   cancel() { this.charge=0; this.recovery=0; this.drawing=false;this.queued=null; }
   update(dt:number) {
     this.volleyCd=Math.max(0,this.volleyCd-dt);
-    const g=this.graphics.clear();
-    for (const a of this.arrows) {
-      if (a.life <= 0) continue;
+    for (const o of this.stuck) {
+      if (o.t<0) continue;
+      o.t+=dt;
+      if (o.t>=1.2) { o.t=-1; o.img.setVisible(false); } else if (o.t>0.8) o.img.setAlpha((1.2-o.t)/0.4);
+    }
+    for (let i=0;i<this.arrows.length;i++) {
+      const a=this.arrows[i],img=this.sprites[i];
+      if (a.life <= 0) { if(img.visible)img.setVisible(false); continue; }
       a.life-=dt;
       const dx=a.vx*dt,dy=a.vy*dt;
       let wall=1;
       const steps=Math.max(1,Math.ceil(Math.hypot(dx,dy)/4));
-      for(let i=1;i<=steps;i++) { const u=i/steps,t=this.w.tileAt(Math.floor((a.x+dx*u)/TILE),Math.floor((a.y+dy*u)/TILE)); if(isSolid(t as T)) {wall=(i-1)/steps;a.life=0;break;} }
+      let struck=false;
+      for(let i=1;i<=steps;i++) { const u=i/steps,t=this.w.tileAt(Math.floor((a.x+dx*u)/TILE),Math.floor((a.y+dy*u)/TILE)); if(isSolid(t as T)) {wall=(i-1)/steps;a.life=0;struck=true;break;} }
       for(let n=0;n<3 && a.pierce>0;n++) {
         let nearest:FoeLike|null=null, time=2;
         for(const f of this.w.foes()) if(f.alive&&!a.hits.has(f)) { const t=entry(a.x,a.y,dx,dy,f.box);if(t<time&&t<=wall){time=t;nearest=f;} }
@@ -63,10 +85,10 @@ export class Bow {
       }
       const box=this.lampBox;box.x=Math.min(a.x,a.x+dx*wall)-2;box.y=Math.min(a.y,a.y+dy*wall)-2;box.w=Math.abs(dx*wall)+4;box.h=Math.abs(dy*wall)+4;this.w.strikeLamps(box);
       a.x+=dx*wall;a.y+=dy*wall;
-      const angle=Math.atan2(a.vy,a.vx),cos=Math.cos(angle),sin=Math.sin(angle);
-      if(a.dawn)g.lineStyle(2.2,0xffe6a8,0.35).lineBetween(a.x-cos*30,a.y-sin*30,a.x-cos*6,a.y-sin*6);
-      g.lineStyle(1.3,0xe8d4a1,1).lineBetween(a.x-cos*13,a.y-sin*13,a.x,a.y);
-      g.lineStyle(1.2,0xa6efdc,0.9).lineBetween(a.x,a.y,a.x-cos*4-sin*3,a.y-sin*4+cos*3).lineBetween(a.x,a.y,a.x-cos*4+sin*3,a.y-sin*4-cos*3);
+      const frame=this.frameOf(a);
+      if(struck&&!a.dawn){this.stick(a,frame);img.setVisible(false);continue;}
+      if(a.life<=0){img.setVisible(false);continue;}
+      img.setFrame(frame).setPosition(a.x,a.y).setRotation(Math.atan2(a.vy,a.vx)).setScale(a.dawn||a.pierce>1?0.32:0.27).setVisible(true);
     }
   }
   control(dt:number) {
@@ -136,6 +158,6 @@ export class Bow {
       const angle=i/n*Math.PI*2;a.x=p.x;a.y=p.feet-28;a.vx=Math.cos(angle)*520;a.vy=Math.sin(angle)*520;a.life=0.6;a.damage=p.power()*0.9;a.pierce=2;a.hits.clear();a.move='morning_star';a.back=false;a.dawn=true;a.finisher=false;
     }
   }
-  destroy(){this.graphics.destroy();}
+  destroy(){for(const s of this.sprites)s.destroy();for(const o of this.stuck)o.img.destroy();}
 }
 function cAim(w:WorldApi){return w.controls.down('up')?-0.4:w.controls.down('down')?0.35:0;}

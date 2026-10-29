@@ -144,6 +144,15 @@ dispose their effects and reset boss framing.
   - Under the Wings, a critical arrow carries her behind the foe on her own (a 1.2 s cooldown). Her finishing arrow there fells any non-boss foe below 40% health.
   - Verified by `scripts/combat-feel.mjs` and `scripts/archer.mjs`.
 
+## Effects as art
+
+The classic effects' shapes are drawn from the art drop instead of lines and circles:
+- **Classic primitives** (`src/game/artFx.ts`, installed by the classic layer): every `fx.ring` is V02's ring of light, `fx.column` V03's pillar, `fx.slash` V01's arc, and `fx.streak` a baked trail of light. Each is tinted to the colour asked for (dark colours draw normally, bright ones add light), from a pool of 40.
+- **Status overlays:** burning, frozen and bleeding foes wear V07's looping overlays (`ArtFx.statuses`; off on Low quality).
+- **Arrows:** Tirzah's arrows are C06 sprites, by kind and weapon element, and stay a moment where they strike a wall.
+- **Elior's glows:** charge, guard, parry, armour, Lion and mending glows use V02 frames (`Player.glow`). The Shield of Faith's own art holds while it lasts.
+- **Fallen Crown telegraphs:** glints, closing floor rings, eruption and spore pillars and Azkar's sweep and armour are art (`Boss.telegraph`, `Boss.pillar`). His fire waves are V07's flames.
+
 ## Tirzah's Wings of the Morning
 
 When Tirzah is the active hero, the transformation gauge and button give her **Wings of the Morning** (Psalm 139:9) instead of the Shadow Mantle. It's the same gauge, button and timer (`Player.mantleT`).
