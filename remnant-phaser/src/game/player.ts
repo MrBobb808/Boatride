@@ -775,6 +775,7 @@ export class Player {
       this.w.spark(this.x + this.face * 10, this.y - 6, 0xfff6dc, 16);
       this.w.floatText(this.x, this.body.top - 10, 'PARRY', '#fff1c4');
       this.powers?.onParry();
+      if (this.w.d.parryHeal) this.hp = Math.min(this.maxHp, this.hp + this.maxHp * this.w.d.parryHeal);
       if (this.w.d.sets.vigil >= 3 && this.vigilParryCd <= 0) { this.vigilParryCd = 3; this.hp = Math.min(this.maxHp, this.hp + this.maxHp * 0.05); this.w.save.ce = Math.min(this.maxCe, this.w.save.ce + 8); }
       valorTrack.parry(); haptic('parry'); input.rumble(0.7, 0.5, 150);
       this.w.playEffect('parryPerfect');
@@ -859,7 +860,7 @@ export class Player {
     else if(clip==='swim')uArt=(this.visualTime/1.1)%1;
     else if(clip==='jump'||clip==='fall')uArt=this.visualTime/(clip==='jump'?.25:.35);
     else if(this.state==='transform'||this.state==='execute'||this.state==='scripted')uArt=this.state==='transform'?this.visualTime/1.15:this.powers?.clipProgress??0;
-    const key=actionAtlas(this.w.sc,this.hero,this.w.d.family,mantle,this.hero==='tirzah'||!this.powers?.weaponFlight);
+    const key=actionAtlas(this.w.sc,this.hero,this.w.d.family,mantle,this.hero==='tirzah'||!this.powers?.weaponFlight,this.hero==='elior'?this.w.save.valor?.cape??null:null);
     const frame=actionFrame(this.w.sc,key,clip,Phaser.Math.Clamp(uArt,0,.999));
     this.sprite.setTexture(key,frame).setOrigin(.5,ACTION_FOOT/ACTION_CELL).setScale(1);
     this.sprite.setFlipX(this.face < 0);

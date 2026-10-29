@@ -67,7 +67,7 @@ export function mantleGain(n: number) {
   if (!mantleUnlocked() || mantleOn()) return;
   const before = s.mantle ?? 0;
   if (before >= 100) return;
-  const rate = (isSovereign() ? 1.5 : 1) * (mantleTier() >= 2 ? 1.25 : 1);
+  const rate = (isSovereign() ? 1.5 : 1) * (mantleTier() >= 2 ? 1.25 : 1) * (1 + (G.d?.mantleGain ?? 0));
   s.mantle = Math.min(100, before + n * rate);
   if (s.mantle < 100) return;
   const p = G.world.player;

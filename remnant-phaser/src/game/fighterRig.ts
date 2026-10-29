@@ -5,6 +5,7 @@ import type { Joints, Pose } from '../../../remnant/src/render/skeleton';
 import { drawWeapon, type HumanStyle } from '../../../remnant/src/render/actors';
 import type { WeaponFamily } from '../../../remnant/src/game/data';
 import type { PlayableHero } from './style';
+import { CAPES, type CapeLook } from '../../../remnant/src/game/valor';
 
 // Source rectangle; proximal/distal joint in source pixels; transverse width.
 type Part = readonly [number,number,number,number,number,number,number,number,number];
@@ -34,14 +35,31 @@ const PARTS: readonly Part[] = [
 export const FIGHTER_DIMS = {torso:14.5,head:5.8,neck:1.4,upperArm:8,foreArm:7.2,thigh:10,shin:10,shoulderSpread:1.5,hipSpread:1.4};
 const WEAPON = {weaponColor:'#e3dfdb',outline:'#09080d',weaponGlow:null,weaponGlowAmt:0} as HumanStyle;
 
+/** A Valor cape colour: the cloth takes the dye by its shading; the gold fittings take the trim. */
+function dyeCape(g:CanvasRenderingContext2D,w:number,h:number,look:CapeLook){
+  const hex=(c:string)=>[1,3,5].map(i=>parseInt(c.slice(i,i+2),16)),cloth=hex(look.c),trim=hex(look.trim);
+  const image=g.getImageData(0,0,w,h),d=image.data;
+  // Shade around the cloth's own average, so the cape reads as the swatch's colour.
+  let sum=0,count=0;
+  for(let n=0;n<d.length;n+=4)if(d[n+3]){sum+=d[n]*.3+d[n+1]*.59+d[n+2]*.11;count++;}
+  const mean=Math.max(1,sum/Math.max(1,count));
+  for(let n=0;n<d.length;n+=4)if(d[n+3]){
+    const r=d[n],gr=d[n+1],b=d[n+2],l=Math.min(1.6,Math.max(.35,(r*.3+gr*.59+b*.11)/mean));
+    const to=r>gr*1.12&&gr>b*1.25&&gr>65?trim:cloth;
+    d[n]=Math.min(255,to[0]*l);d[n+1]=Math.min(255,to[1]*l);d[n+2]=Math.min(255,to[2]*l);
+  }
+  g.putImageData(image,0,0);
+}
+
 export class FighterRig {
   private parts: HTMLCanvasElement[];
   private offset: number;
   private weapon: HumanStyle;
-  constructor(sc: Phaser.Scene, readonly hero: PlayableHero, family: WeaponFamily, readonly mantle: boolean) {
+  constructor(sc: Phaser.Scene, readonly hero: PlayableHero, family: WeaponFamily, readonly mantle: boolean, cape: string | null = null) {
     this.offset = hero === 'tirzah' ? 10 : 0;
     this.weapon = {...WEAPON,weapon:family,weaponColor:mantle?'#d5a1ff':'#e3dfdb',weaponGlow:mantle?'#b45cff':null,weaponGlowAmt:mantle?0.65:0};
-    const key=`fighter-parts-${hero}${mantle?'-mantle':''}`;
+    const look=cape&&!mantle?CAPES[cape]:null;
+    const key=`fighter-parts-${hero}${mantle?'-mantle':''}${look?'-cape-'+cape:''}`;
     // The source crops are small and shared across every weapon/clip bake.
     const cached=sc.registry.get(key) as HTMLCanvasElement[] | undefined;
     if(cached){this.parts=cached;return;}
@@ -59,6 +77,7 @@ export class FighterRig {
         }
         g.putImageData(image,0,0);
       }
+      if(look&&i===7)dyeCape(g,w,h,look);
       return c;
     });sc.registry.set(key,this.parts);
   }

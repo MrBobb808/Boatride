@@ -117,6 +117,28 @@ distortion and softens glows. Canvas fallback retains light sprites and particle
 without using GPU filters. Room changes, Trial sectors and returning to the title
 dispose their effects and reset boss framing.
 
+## Store and economy
+
+The store is the original's own shop, rebuilt in shared code (`remnant/src/game/economy.ts`, `game/elixirs.ts` and the shop screens in `ui/menus.ts`), so both editions have it.
+
+- **Where:** Ilan's stall, plus a Store tab under Elior in the pause menu. The tab works anywhere except mid-fight, during a boss, a cutscene or the Trial.
+- **What's for sale:** the stock turns over at local midnight.
+  - Three featured curios, bought with silver plus Relic Shards and scaled to the chapter.
+  - Supplies and Balm vials (up to six).
+  - Five elixirs, each lasting five minutes of play.
+  - The classic gear, and the Rest's caravans when you're at the Rest.
+  - The Tome of Insight and the Codex of Discipline, once per chapter each.
+  - Five dyed capes.
+  - The Sealed Satchel.
+- **Selling:**
+  - Every sale pays silver and salvage. Rare gear and up needs a second press, and Epic gear and up also yields Relic Shards.
+  - Locked items, equipped gear and keepsakes are never offered for sale.
+  - Sell all junk and buyback of the last ten sales are on the Sell page.
+- **Dov:** dismantles gear for double salvage and no silver. He also fuses Relic Shards and brews elixirs from salvage.
+- **Capes:** the cape colour worn from Valor is dyed into Elior's sprite sheet when it is baked, once per colour (`fighterRig.ts`, `dyeCape`).
+- **Saves:** the new fields `locked`, `store` and `elixir` are optional.
+- **Verified by** `scripts/economy.mjs`.
+
 ## Architecture
 
 Phaser owns application scenes, timing, input integration, camera, native player,

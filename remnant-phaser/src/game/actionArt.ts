@@ -24,10 +24,11 @@ function fighterClips(family:WeaponFamily,hero:PlayableHero){
   }
   return clips;
 }
-export function actionAtlas(sc:Phaser.Scene,hero:PlayableHero,family:WeaponFamily,mantle=false,armed=true){
-  const key=`action-${hero}-${hero==='tirzah'?'bow':family}${mantle?'-mantle':''}${armed?'':'-unarmed'}`;
+/** `cape` is a Valor cape key (game/valor.ts CAPES); each worn colour bakes its own atlas once. */
+export function actionAtlas(sc:Phaser.Scene,hero:PlayableHero,family:WeaponFamily,mantle=false,armed=true,cape:string|null=null){
+  const key=`action-${hero}-${hero==='tirzah'?'bow':family}${mantle?'-mantle':''}${armed?'':'-unarmed'}${cape?'-cape-'+cape:''}`;
   if(sc.textures.exists(key))return key;
-  const clips=fighterClips(hero==='tirzah'?'blade':family,hero),anim=new Animator(clips),rig=new FighterRig(sc,hero,family,mantle);
+  const clips=fighterClips(hero==='tirzah'?'blade':family,hero),anim=new Animator(clips),rig=new FighterRig(sc,hero,family,mantle,cape);
   const moves=Object.values(MOVESETS[family]).flatMap(v=>Array.isArray(v)?v:typeof v==='object'?[v as AttackDef]:[]);
   const attacks=new Set(moves.map(m=>m.clip));
   const names=hero==='tirzah'?[...COMMON,'bowDraw','bowRelease']:[...new Set([...COMMON,...attacks,'b1','b2','b4','heavy','dash','launch','storm','plunge'])];

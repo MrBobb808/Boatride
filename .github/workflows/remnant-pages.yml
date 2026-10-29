@@ -104,6 +104,7 @@ jobs:
       - run: node scripts/powers.mjs
       - run: node scripts/foes.mjs
       - run: node scripts/saves.mjs
+      - run: node scripts/economy.mjs
       - run: node scripts/echoes.mjs
       - run: node scripts/bosses.mjs
       - run: node scripts/classic-bosses.mjs

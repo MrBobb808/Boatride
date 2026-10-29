@@ -316,6 +316,7 @@ textarea.code { width: 100%; height: 70px; background: rgba(10,8,14,0.9); color:
 
 /* shop */
 .price { font-family: var(--font-display); color: var(--gold-hi); font-size: 0.85em; white-space: nowrap; }
+.row-item.dim { opacity: 0.62; }
 .silver { font-family: var(--font-display); color: var(--bone); font-size: 0.85em; letter-spacing: 0.06em; }
 .mats { display: flex; gap: 10px; flex-wrap: wrap; font-size: 0.85em; color: var(--muted); }
 .mats b { color: var(--bone); font-weight: 600; }
