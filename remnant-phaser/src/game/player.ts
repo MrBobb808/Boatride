@@ -163,11 +163,9 @@ export class Player {
   get combatStyle(): CombatStyle { const s = this.w.save.combatStyle; return s === 'wraith' || s === 'sentinel' ? s : 'vanguard'; }
   switchHero() {
     if (this.switchCd > 0 || G.paused || G.inCutscene || this.dead || !['free', 'swim'].includes(this.state)) { this.w.toast('Switch after the current move.'); return false; }
-    // Each hero has her own health pool and gear: the switch keeps the share of health left.
-    const share = this.hp / Math.max(1, this.maxHp);
+    // Each hero has her own maximum; the health left carries over (capped), so a switch never heals.
     this.w.save.playableHero = this.hero === 'elior' ? 'tirzah' : 'elior';
     this.w.refreshStats();
-    this.hp = Math.max(1, Math.round(share * this.maxHp));
     this.switchCd = 0.8; this.bow.cancel(); this.w.controls.flush();
     this.w.spark(this.x,this.y,this.hero === 'tirzah' ? 0xa6efdc : 0xffd27a,12);
     this.w.toast(this.hero === 'tirzah' ? 'Tirzah · bow and arrow · hold Strike to charge; Up + Strike for spread' : 'Elior · ' + STYLE_NAMES[this.combatStyle]);
