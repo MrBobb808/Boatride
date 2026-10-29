@@ -157,6 +157,26 @@ try {
   assert.ok(await E(page, () => { const s = JSON.parse(localStorage.getItem('remnant-phaser.save.v2')); return s.archer.equipment.quiver === 'new_quiver' && s.archer.skills.t_hide === 1; }), 'her choices were saved');
   console.log('Menu: her section spent a stat point, equipped the Quiver of the Mighty and learned Tanned Hide; saved');
 
+  // ---- while she fights, the menu opens on her pages; Pack → Gear shows and equips her pieces
+  await E(page, () => { const w = window.__remnant.world, s = w.save; if (w.player.hero !== 'tirzah') { w.player.switchCd = 0; w.player.switchHero(); } s.inventory.push({ uid: 'pack_bow', id: 'rimebough', rarity: 4, plus: 0, affixes: [], isNew: true }); });
+  await page.keyboard.press('Escape');
+  await until(page, () => !!document.querySelector('#ui .menu'));
+  await click(page, 'sec_elior');
+  await page.keyboard.press('Escape');
+  await until(page, () => !document.querySelector('#ui .menu'));
+  await page.keyboard.press('Escape');
+  await until(page, () => document.querySelector('.tab.on')?.dataset.k === 'tab_tz_character');
+  await click(page, 'sec_pack');
+  await click(page, 'tab_gear');
+  assert.ok(await E(page, () => document.querySelector('[data-k="gear_who_tirzah"]').getAttribute('aria-pressed') === 'true'), "Pack → Gear opens on Tirzah's gear while she fights");
+  await click(page, 'gear_equip_pack_bow');
+  assert.equal(await E(page, () => window.__remnant.world.save.archer.equipment.bow), 'pack_bow', 'the Rimebough equipped from Pack → Gear');
+  assert.equal(await E(page, () => window.__remnant.world.player.bow.element()), 'frost', 'and her arrows carry its frost');
+  await page.screenshot({ path: 'qa/pack-gear.png' });
+  await page.keyboard.press('Escape');
+  await until(page, () => !document.querySelector('#ui .menu'));
+  console.log("Pack: while she fights the menu opens on her pages, and Pack → Gear equipped her Rimebough");
+
   assert.deepEqual(errors, [], 'no page errors');
   console.log('phaser tirzah progression: all checks passed');
 } finally {

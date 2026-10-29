@@ -253,6 +253,17 @@ Verified by `scripts/tirzah-progression.mjs`.
 
 Verified by `scripts/tirzah-dagger.mjs`.
 
+## The pack
+
+Whatever Ilan's store sells to be used later now waits in the pack (`SaveData.pack`, the shared `game/economy.ts` `PACK`, `stow` and `usePack`). That covers elixirs, Balm vials, tomes and the Sealed Satchel. Brewed elixirs go there too.
+
+- **Pack → Items** drinks, uses, reads or opens them. A tome can be read as Elior or as Tirzah. Materials and keepsakes are listed below.
+- **Pack → Gear** lists every piece for Elior or Tirzah, with Equip; it opens on the hero in play.
+- **Opening the menu while Tirzah fights** turns Elior's Character, Equipment and Skills into hers (`Hud.togglePause`, `menuTab`).
+- **The Balm cap** counts vials waiting in the pack, and so does the next vial's price.
+
+Verified by `scripts/economy.mjs` and `scripts/tirzah-progression.mjs`.
+
 ## The archer's sounds
 
 All generated in code, in the shared `remnant/src/audio/audio.ts` (new effects only; existing ones are unchanged). `WorldApi.playEffect(name, { x, vol, pitch })` pans each by where it happens on screen.

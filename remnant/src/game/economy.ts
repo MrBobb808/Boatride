@@ -288,15 +288,16 @@ export function storeOffers(s: SaveData, extra: { id: string; price: number; mat
   mat('sentinel_steel', 60, 'Dov forges Sentinel helms, plate and sigils from it.', 'ch1_done');
   mat('covenant_fragment', 180, 'Needed past +3 tempering, for Balm vials and Echo evolution. Three a day.', 'ch2_done', 3);
   mat('radiant_core', 1500, 'Takes an Echo to its final form. One a day.', 'ch5_done', 1);
-  const vials = Math.max(0, s.balmMax - 3);
-  out.push({ key: 'balm', kind: 'supply', name: 'Balm Vial', why: `One more Balm charge, for good (${s.balmMax}/${BALM_CAP}).`, icon: 'vial', rarity: 2,
-    silver: discount(140 * Math.pow(2, vials) * mild), closed: s.balmMax >= BALM_CAP ? 'You carry as many as you can.' : undefined,
-    give: (sv) => { sv.balmMax++; sv.balm++; return 'Balm charges: ' + sv.balmMax; } });
+  // Vials waiting in the pack count toward the cap and the price.
+  const held = packCount(s, 'balm_vial'), vials = Math.max(0, s.balmMax - 3) + held;
+  out.push({ key: 'balm', kind: 'supply', name: 'Balm Vial', why: `One more Balm charge, for good, used from your pack (${s.balmMax + held}/${BALM_CAP}).`, icon: 'vial', rarity: 2,
+    silver: discount(140 * Math.pow(2, vials) * mild), closed: s.balmMax + held >= BALM_CAP ? 'You carry as many as you can.' : undefined,
+    give: (sv) => stow(sv, 'balm_vial') });
 
-  // Elixirs: drunk on the spot, five minutes of play.
+  // Elixirs: kept in the pack until drunk; five minutes of play.
   for (const e of Object.values(ELIXIRS)) {
-    out.push({ key: 'elixir_' + e.id, kind: 'elixir', name: e.name, why: e.desc + ' Five minutes; a new one replaces it.', icon: 'flask', color: e.color, rarity: 1,
-      silver: discount(e.price * f), give: (sv) => { drinkElixir(sv, e.id as ElixirId); G.d = derive(sv); return e.name + ' · 5:00'; } });
+    out.push({ key: 'elixir_' + e.id, kind: 'elixir', name: e.name, why: e.desc + ' Five minutes once drunk; a new one replaces it.', icon: 'flask', color: e.color, rarity: 1,
+      silver: discount(e.price * f), give: (sv) => stow(sv, 'elixir_' + e.id) });
   }
 
   // The classic stall, plus whatever the Rest's caravans bring.
@@ -315,14 +316,14 @@ export function storeOffers(s: SaveData, extra: { id: string; price: number; mat
   }
 
   // Tomes, once per chapter.
-  const tome = (id: string, name: string, why: string, price: number, read: (sv: SaveData) => string) => {
+  const tome = (id: string, name: string, why: string, price: number) => {
     const key = `${id}_${ch}`, done = s.store?.tomes?.includes(key);
     out.push({ key: 'tome_' + id, kind: 'tome', name, why, icon: 'book', rarity: 4, silver: discount(price * f),
       closed: done ? 'Read this chapter. Another copy turns up next chapter.' : undefined,
-      give: (sv) => { (today(sv).tomes ??= []).push(key); return read(sv); } });
+      give: (sv) => { (today(sv).tomes ??= []).push(key); return stow(sv, 'tome_' + id); } });
   };
-  tome('insight', 'Tome of Insight', 'One skill point. One copy per chapter.', 900, (sv) => { sv.skillPoints++; return '+1 skill point'; });
-  tome('discipline', 'Codex of Discipline', 'Three stat points. One copy per chapter.', 700, (sv) => { sv.statPoints += 3; return '+3 stat points'; });
+  tome('insight', 'Tome of Insight', 'One skill point, for whichever hero reads it. One copy per chapter.', 900);
+  tome('discipline', 'Codex of Discipline', 'Three stat points, for whichever hero reads it. One copy per chapter.', 700);
 
   // Capes: worn from Journey → Valor.
   for (const id of ['saffron', 'indigo', 'cedar', 'pearl', 'ash']) {
@@ -340,13 +341,12 @@ export function storeOffers(s: SaveData, extra: { id: string; price: number; mat
   // The day's surprise.
   out.push({ key: 'satchel', kind: 'surprise', name: 'Sealed Satchel', why: 'Ilan won\'t say what\'s inside. Always useful; sometimes a curio. One a day.', icon: 'craft', rarity: 3,
     silver: discount(120 * f), closed: boughtToday(s, 'satchel') ? 'Opened. Another tomorrow.' : undefined,
-    give: (sv) => openSatchel(sv, ch) });
+    give: (sv) => { today(sv).bought!.push('satchel'); return stow(sv, 'satchel'); } });
   return out;
 }
 
 /** The satchel: always materials, often more, now and then a whole curio. */
 function openSatchel(s: SaveData, ch: number, random = Math.random) {
-  today(s).bought!.push('satchel');
   const got: string[] = [];
   const add = (id: string, n: number) => { addMaterial(s, id, n); got.push(`${ITEMS[id].name} ×${n}`); };
   add('iron_scrap', 3 + Math.floor(random() * 3));
@@ -370,6 +370,51 @@ export function buyOffer(s: SaveData, o: Offer): string | null {
   s.silver -= o.silver;
   if (o.shards) s.materials[SHARD] -= o.shards;
   return o.give(s);
+}
+
+// ---------------------------------------------------------------- the pack
+
+/** What the store and the brewer put in the pack, to use when you choose (Pack → Items). Saved as
+ * `SaveData.pack`, a count per id. */
+export const PACK: Record<string, { name: string; desc: string; icon: string; color?: string; verb: string; /** Read by a hero of your choosing. */ hero?: boolean }> = {
+  ...Object.fromEntries(Object.values(ELIXIRS).map((e) => ['elixir_' + e.id, { name: e.name, desc: e.desc + ' Lasts five minutes of play; a new one replaces it.', icon: 'flask', color: e.color, verb: 'Drink' }])),
+  balm_vial: { name: 'Balm Vial', desc: 'One more Balm charge, for good.', icon: 'vial', color: '#ff8a8a', verb: 'Use' },
+  tome_insight: { name: 'Tome of Insight', desc: 'One skill point for the hero who reads it.', icon: 'book', color: '#c48cff', verb: 'Read', hero: true },
+  tome_discipline: { name: 'Codex of Discipline', desc: 'Three stat points for the hero who reads it.', icon: 'book', color: '#6fa8ff', verb: 'Read', hero: true },
+  satchel: { name: 'Sealed Satchel', desc: 'Ilan won\'t say what\'s inside. Always useful; sometimes a curio.', icon: 'craft', color: '#e2b85a', verb: 'Open' },
+};
+export const packCount = (s: SaveData, id: string) => Math.max(0, Math.floor(s.pack?.[id] ?? 0));
+/** Put one in the pack; returns the toast. */
+export function stow(s: SaveData, id: string, n = 1) {
+  const p = (s.pack ??= {});
+  p[id] = packCount(s, id) + n;
+  return `${PACK[id]?.name ?? id} · in your pack (Menu → Pack)`;
+}
+/** Use one from the pack: drink, read, open. `hero` reads a tome for Tirzah where she has her own points.
+ * Returns the toast, or null if it can't be used now. */
+export function usePack(s: SaveData, id: string, hero: 'elior' | 'tirzah' = 'elior'): string | null {
+  const def = PACK[id];
+  if (!def || packCount(s, id) <= 0) return null;
+  let said: string;
+  const her = hero === 'tirzah' && !!s.archer;
+  if (id.startsWith('elixir_')) {
+    const e = ELIXIRS[id.slice(7) as ElixirId];
+    if (!e) return null;
+    drinkElixir(s, e.id); G.d = derive(s); said = `${e.name} · 5:00`;
+  } else if (id === 'balm_vial') {
+    if (s.balmMax >= BALM_CAP) return null;
+    s.balmMax++; s.balm++; said = 'Balm charges: ' + s.balmMax;
+  } else if (id === 'tome_insight') {
+    if (her) s.archer!.skillPoints++; else s.skillPoints++;
+    said = `+1 skill point for ${her ? 'Tirzah' : 'Elior'}`;
+  } else if (id === 'tome_discipline') {
+    if (her) s.archer!.statPoints += 3; else s.statPoints += 3;
+    said = `+3 stat points for ${her ? 'Tirzah' : 'Elior'}`;
+  } else if (id === 'satchel') said = openSatchel(s, storeChapter(s));
+  else return null;
+  s.pack![id] = packCount(s, id) - 1;
+  if (!s.pack![id]) delete s.pack![id];
+  return said;
 }
 
 /** The pause menu's store: anywhere outside a fight, a boss, a cutscene or the Trial. */

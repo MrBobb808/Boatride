@@ -138,6 +138,7 @@ Never ship files from `art/incoming/` directly.
   - Selling pays silver and materials, and Epic gear and up also pays Relic Shards (`relic_dust`). Dov dismantles for double materials. Locks are `SaveData.locked`. Sell all junk and session-only buyback are there too.
   - The stock turns over each local day: three featured `curio_*` items scaled to the chapter, supplies, Balm vials, elixirs, the classic gear, tomes once per chapter, dyed capes and the Sealed Satchel. Purchases are recorded in `SaveData.store`.
   - Elixirs are timed buffs on the playtime clock (`game/elixirs.ts`, `SaveData.elixir`, folded in by `derive`).
+  - Elixirs, Balm vials, tomes and the Sealed Satchel go into the pack when bought or brewed (`SaveData.pack`, `PACK`, `stow` and `usePack` in `game/economy.ts`). They are used from the pause menu's Pack → Items; a tome can be read by either hero. Pack → Gear lists each hero's gear with Equip, opening on the hero in play.
   - The curios add four mods: `barter`, `salvage`, `mantleGain` and `parryHeal`.
   - The screens are in `ui/menus.ts`: Ilan's stall, Dov's Dismantle tab, and the pause menu's Elior → Store, which is closed during fights.
   - Capes show on Elior in the Phaser build: `fighterRig.ts` dyes the cape when it bakes the sprite sheet.
@@ -172,8 +173,10 @@ Never ship files from `art/incoming/` directly.
   updates leave alone. Settings → Audio → Soundtrack (Songs / Score only) and
   Sung songs. Verified by `scripts/soundtrack.mjs` and
   `scripts/soundtrack.test.mjs`.
-- **Menus and first-time flow:** the pause menu has five sections with
-  sub-tabs (`ui/menus.ts`, `SECTIONS`; old page names still open).
+- **Menus and first-time flow:** the pause menu has six sections with
+  sub-tabs (`ui/menus.ts`, `SECTIONS`; old page names still open). A host
+  build can add its own through `addMenuSection` (the Phaser build adds
+  Tirzah's, and opens it while she fights).
   `ui/coach.ts` shows optional one-time coaching cards (`SaveData.coached`)
   and `ui/statTips.ts` explains every stat on hover or long-press.
 - **Guidance:** `game/guide.ts` maps quest stages to targets and draws the

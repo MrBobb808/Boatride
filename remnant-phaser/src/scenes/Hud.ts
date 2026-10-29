@@ -16,7 +16,7 @@ import { dpr } from '../game/screen';
 import { measureSafe, safe } from '../game/safe';
 import type { Action } from '../game/controls';
 import type { World } from './World';
-import { openMenu, closeMenu, isMenuOpen } from '../../../remnant/src/ui/menus';
+import { openMenu, closeMenu, isMenuOpen, menuTab } from '../../../remnant/src/ui/menus';
 import { settings, onSettingsChange } from '../classic/shim/settings';
 import { controlSpot } from '../../../remnant/src/ui/touch';
 import { drawIsland, islandSide } from '../../../remnant/src/ui/island';
@@ -36,6 +36,9 @@ export const hudBoxes = { column: [0, 0, 0, 0], boss: [0, 0, 0, 0] };
 const box = (b: number[], x: number, y: number, w: number, h: number) => { b[0] = x; b[1] = y; b[2] = w; b[3] = h; };
 
 interface Btn { a: Action; x: number; y: number; r: number; label: string; i: Phaser.GameObjects.Image; g: Phaser.GameObjects.Arc; t: Phaser.GameObjects.Text; down: boolean }
+
+const HER_PAGES: Record<string, string> = { character: 'tz_character', equipment: 'tz_equipment', skills: 'tz_skills' };
+const HIS_PAGES: Record<string, string> = Object.fromEntries(Object.entries(HER_PAGES).map(([a, b]) => [b, a]));
 
 export class Hud extends Phaser.Scene {
   get paused() { return isMenuOpen(); }
@@ -471,7 +474,9 @@ export class Hud extends Phaser.Scene {
     const w = this.world;
     if (this.paused) { closeMenu(); return; }
     w.persist();
-    openMenu();
+    // The hero's own pages: while Tirzah fights, Elior's character, equipment and skills open as hers, and back.
+    const t = menuTab(), mine = w.player.hero === 'tirzah' ? HER_PAGES[t] : HIS_PAGES[t];
+    openMenu(mine);
   }
 
   // ---------------------------------------------------------------- touch
