@@ -46,11 +46,11 @@ try {
  await until(()=>window.__remnant.world.player.hero==='tirzah'&&window.__remnant.world.player.sprite.texture.key==='action-tirzah-bow-mantle');
  await page.keyboard.down('KeyJ');await until(()=>window.__remnant.world.player.bow.charge>0.6);await page.screenshot({path:'qa/equipment-tirzah-mantle.png'});await page.keyboard.up('KeyJ');
  await E(()=>window.__remnant.G.ui.openMenu('settings'));assert.ok(await E(()=>!window.__remnant.world.visuals.smoke.active),'smoke pauses with menus');
- await page.tap('[data-k="qlow"]');await page.tap('[data-k="rfon"]');await page.tap('[data-k="menu_resume"]');await until(()=>window.__remnant.world.visuals.tier===0&&window.__remnant.world.visuals.smoke.getAliveParticleCount()>0);await page.waitForTimeout(1200);
- assert.equal(await E(()=>window.__remnant.world.visuals.smokeFront.getAliveParticleCount()),0,'Low/Reduce flashes remove foreground haze');assert.ok(await E(()=>window.__remnant.world.player.sprite.texture.key.endsWith('-mantle')),'form remains identifiable');
+ await page.tap('[data-k="qlow"]');await page.tap('[data-k="rfon"]');await page.tap('[data-k="menu_resume"]');await until(()=>window.__remnant.world.visuals.tier===0&&window.__remnant.world.player.dawn.wings.visible);await page.waitForTimeout(1200);
+ assert.equal(await E(()=>window.__remnant.world.visuals.smokeFront.getAliveParticleCount()),0,'Low/Reduce flashes remove foreground haze');assert.ok(await E(()=>window.__remnant.world.player.sprite.texture.key.endsWith('-mantle')&&window.__remnant.world.visuals.smoke.getAliveParticleCount()===0),'Tirzah\'s form (the Wings of the Morning) stays identifiable, in dawn light without the Mantle\'s smoke');
  await E(()=>window.__remnant.world.player.die());await until(()=>!window.__remnant.world.visuals.light.visible&&window.__remnant.world.visuals.smoke.getAliveParticleCount()===0);
  await E(()=>window.__remnant.world.loadRoom('sanctuary','start'));await until(()=>window.__remnant.world.player.onGround);assert.equal(await E(()=>window.__remnant.world.visuals.smoke.getAliveParticleCount()),0,'room exit clears the form');
- assert.deepEqual(errors,[]);console.log('Mantle: G activation, violet body/weapon, smoke/crown, melee and tagged archer, pause, quality and death/room cleanup');
+ assert.deepEqual(errors,[]);console.log('Mantle: G activation, violet body/weapon, smoke/crown, melee; tagged to the archer it becomes the Wings; pause, quality and death/room cleanup');
 } finally {await browser.close();close();}
 const fallback=await chromium.launch({...launch,args:['--disable-webgl']}),{base:canvasBase,close:closeCanvas}=await serve();
 try {
