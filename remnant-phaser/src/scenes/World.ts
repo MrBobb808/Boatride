@@ -41,7 +41,7 @@ import { castAbility } from '../../../remnant/src/game/abilities';
 import { Proj } from '../../../remnant/src/game/projectiles';
 const SHOOTABLE = new Set(['arrow', 'orb', 'drop', 'flame', 'arcbolt', 'star', 'debris']);
 import type { Player as OriginalPlayer } from '../../../remnant/src/game/player';
-import type { SkillId } from '../game/abilities';
+import { syncArcher, type SkillId } from '../game/abilities';
 import { audio, sfx } from '../classic/shim/audio';
 import { music } from '../classic/shim/music';
 import { songs } from '../../../remnant/src/audio/songs';
@@ -696,6 +696,7 @@ export class World extends Phaser.Scene implements WorldApi {
 
   /** Elior's stats from the save, as the original derives them (level, stat points, skills, gear). */
   refreshStats() {
+    for (const t of syncArcher(this.save)) if (t !== 'standard') this.hud?.toast(`New arrows for Tirzah: ${t[0].toUpperCase() + t.slice(1)} (Down + Sub to nock them)`);
     this.d = stats(this.save);
     G.d = this.d;
     if (this.player) { this.player.maxHp = this.d.maxHp; this.player.maxCe = this.d.maxCe; }
@@ -898,6 +899,8 @@ export class World extends Phaser.Scene implements WorldApi {
     this.classic.after(0.5, () => { if (G.camera.focus === focus) { G.camera.focus = null; G.camera.focusRate = 8; } G.camera.zoomTarget = 1; });
   }
   private nextFinaleAt = 0;
+  slowTime(sec: number, scale: number) { this.classic.slowmo(sec, scale); }
+  echoesFocus(f: FoeLike) { const e = this.classic.entityFor(f); if (e) for (const u of this.classic.squad.echoes) u.takeOver(e); }
 
   shake(intensity: number, ms: number) {
     // Ordinary impacts stay steady. Even major impacts cannot chain into

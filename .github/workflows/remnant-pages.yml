@@ -104,6 +104,7 @@ jobs:
       - run: node scripts/combat-feel.mjs
       - run: node scripts/archer.mjs
       - run: node scripts/archer-craft.mjs
+      - run: node scripts/archer-kit.mjs
       - run: node scripts/facing.mjs
       - run: node scripts/powers.mjs
       - run: node scripts/foes.mjs

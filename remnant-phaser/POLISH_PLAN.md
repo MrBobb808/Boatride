@@ -324,8 +324,7 @@ around them stays the same.
   - [x] Eleven Covenant abilities play the generated V03/V04 art (Chain Snare waits on its retry row)
   - [x] The classic effects' rings, pillars, arcs and streaks, Elior's glows and the Fallen Crown telegraphs draw from the art; burning, frozen and bleeding foes wear V07 (#73)
 - [x] 4. The archer's mechanics (§5c): True Aim, embedded arrows and Recall, precision head shots, shooting projectiles down and interrupting wind-ups, the backflip and diving shots, a slowed fall while drawing, the bow-bash, pinning; `scripts/archer-craft.mjs`
-  - [ ] Arrow types (§5c.7) come with her abilities and the `quiver` field (item 5)
-- [ ] 5. The archer's six abilities and her separate loadout (§5a)
+- [x] 5. The archer's six abilities and her separate loadout (§5a), with arrow types (§5c.7) and the `archerSkills`, `archerKnown`, `quiver` and `arrowType` save fields; `scripts/archer-kit.mjs`
 - [x] 6. Wings of the Morning and Dawnstep (§5b): shared gauge (the owner's choice), dawn form and wings, Dawnstep with safe-ground refusal, Morning Star, glide, free charged shots, the closing volley; `scripts/archer.mjs`
 - [x] 7. Selling, salvage, dismantling, locks, buyback (§6.1–6.3), moved ahead of the archer items at the owner's request
 - [x] 8. The store and crafting (§6.4–6.5): owner's choices were Ilan's stall plus a pause-menu Store, a daily rotation, three featured rare curios for silver plus Relic Shards, keepsakes unsellable, a balanced economy, and every category plus a surprise (the Sealed Satchel)

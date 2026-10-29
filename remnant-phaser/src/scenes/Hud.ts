@@ -8,7 +8,7 @@
 import Phaser from 'phaser';
 import { STYLE_NAMES, STYLE_HELP, RANKS } from '../game/style';
 import { xpToNext, type RoomDef } from '../shared';
-import { SKILLS, SLOTS, skillSlots } from '../game/abilities';
+import { SKILLS, SLOTS, skillSlots, ARCHER, ARCHER_IDS } from '../game/abilities';
 import { dpr } from '../game/screen';
 import { measureSafe, safe } from '../game/safe';
 import type { Action } from '../game/controls';
@@ -20,7 +20,6 @@ import { drawIsland, islandSide } from '../../../remnant/src/ui/island';
 import { measureSafe as measureSharedSafe } from '../../../remnant/src/ui/safe';
 import { haptic } from '../../../remnant/src/core/haptics';
 import { icon } from '../../../remnant/src/ui/icons';
-import { ABILITIES } from '../../../remnant/src/game/data';
 import { guidePoint } from '../../../remnant/src/game/guide';
 import { G } from '../classic/shim/ctx';
 import { audio } from '../classic/shim/audio';
@@ -318,7 +317,7 @@ export class Hud extends Phaser.Scene {
       }
       if (b.a === 'sub') { b.t.setText(p.mantleT > 0 ? 'THROW' : 'SUB'); continue; }
       if (!id) { if (slot >= 0) b.t.setText('EMPTY').setAlpha(0.35); continue; }
-      b.i.setTexture(this.iconKey(ABILITIES[id].icon));
+      b.i.setTexture(this.iconKey(SKILLS[id].icon));
       const def = SKILLS[id], cd = p.cds[id] / def.cd;
       if (b.t.text !== def.short) b.t.setText(def.short);
       b.t.setAlpha(w.save.ce >= def.cost ? 0.9 : 0.4);
@@ -522,9 +521,9 @@ export class Hud extends Phaser.Scene {
   // ---------------------------------------------------------------- the Echo wheel
 
   /** Open the Echo command wheel at a page; the world waits while it is up. */
-  openWheel(page: 'main' | 'squad' | 'orders' | 'heroes' = 'main') {
+  openWheel(page: 'main' | 'squad' | 'orders' | 'heroes' | 'archer' = 'main') {
     const w = this.world, s = w.save, sq = w.classic.squad;
-    if (!s.echoes.length && page !== 'heroes') page = 'heroes';
+    if (!s.echoes.length && page !== 'heroes' && page !== 'archer') page = 'heroes';
     this.closeWheel(false);
     this.wheelOpen = true;
     w.physics.pause();
@@ -536,9 +535,27 @@ export class Hud extends Phaser.Scene {
       items = [
         {label:w.player.hero==='elior'?'Switch to Tirzah · bow':'Switch to Elior · blade',run:()=>{if(w.player.switchHero())w.persist();}},
         ...(['vanguard','wraith','sentinel'] as const).map(style=>({label:STYLE_NAMES[style],on:w.player.combatStyle===style,run:()=>{if(!['free','swim'].includes(w.player.state)){this.toast('Change style after the current move.');return;}s.combatStyle=style;this.toast(STYLE_HELP[style]);w.persist();}})),
-        {label:'Bow: tap / hold Strike / Up + Strike',run:()=>this.toast('Quick arrow · hold Strike for piercing shot (6 CE) · spread (10 CE). Aim at visible foes ahead.')},
-        {label:'Bow craft: Recall, bash, evasive shots',run:()=>this.toast('Down + Heavy recalls embedded arrows · Strike at arm\'s length bashes · Dodge then Strike backflips · Down + Strike in the air dives · hold Up to aim at the head')},
+
+        {label:"Tirzah's abilities…",page:true,run:()=>this.openWheel('archer')},
+        {label:`Arrows: ${(s.arrowType??'standard')[0].toUpperCase()+(s.arrowType??'standard').slice(1)}`,run:()=>{w.player.bow.cycleArrows();w.persist();}},
+        {label:'Bow help',run:()=>this.toast('Tap Strike: arrow · hold: piercing shot (6 CE) · Up + Strike: spread (10 CE) · Down + Heavy: recall · Strike at arm\'s length: bash · Dodge then Strike: backflip · Down + Strike in the air: dive · hold Up: aim at the head · Down + Sub: arrow type')},
         {label:'Close',run:()=>{}},
+      ];
+    } else if (page === 'archer') {
+      // Her own three slots: tap an ability to equip it (into the first empty slot, else the third) or to take it off.
+      const slots = (s.archerSkills ??= [null, null, null]), keys = ['Q', 'E', 'R'];
+      title = "Tirzah's abilities"; sub = 'Her three skill buttons while she fights';
+      items = [
+        ...ARCHER_IDS.map((id) => {
+          const def = ARCHER[id], at = slots.indexOf(id), open = s.level >= def.level;
+          return { label: `${def.short} · ${def.name}${open ? at >= 0 ? ` [${keys[at]}]` : '' : ` · Lv ${def.level}`}`, on: at >= 0, page: true, run: () => {
+            if (!open) { this.toast(`${def.name} comes at level ${def.level}.`); return; }
+            if (at >= 0) slots[at] = null;
+            else { const free = slots.indexOf(null); slots[free >= 0 ? free : 2] = id; this.toast(`${def.name}: ${def.desc}${def.verse ? ' ' + def.verse : ''}`); }
+            w.persist(); this.openWheel('archer');
+          } };
+        }),
+        { label: 'Back', page: true, run: () => this.openWheel('heroes') },
       ];
     } else if (page === 'squad') {
       const pre = s.summonPreset ?? 'all';

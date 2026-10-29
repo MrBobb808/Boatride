@@ -181,6 +181,24 @@ Her own way to fight (POLISH_PLAN §5c), all in `src/game/bow.ts`:
 - **Pinning:** a charged arrow that drives a foe into a wall pins it for about a second.
 - Verified by `scripts/archer-craft.mjs`.
 
+## Tirzah's abilities and arrows
+
+- **Her own loadout:** while she fights, the three skill buttons are hers (`skillSlots` reads `archerSkills`). She equips them from the Echo wheel → Heroes → "Tirzah's abilities"; when all three are full, a new one takes the third slot.
+- **Unlocks:** each ability opens at a level of the shared journey. `syncArcher` (run from `World.refreshStats`) puts newly reached ones into empty slots and records them in `archerKnown`.
+- **The six** (catalog in `abilities.ts`, effects in `archerKit.ts`):
+
+  | Ability | Level | What it does |
+  |---|---|---|
+  | Arrow of Deliverance (2 Kings 13:17) | 1 | Pierces the whole line, knocks foes down, breaks guards. |
+  | Jonathan's Volley (1 Samuel 20:20) | 6 | Three arrows plant past the foes and burst back from behind. |
+  | Hunter's Mark | 10 | 8 s: her arrows curve to the foe, it takes ×1.25 from her, and the Echoes turn on it. |
+  | Rain of Arrows | 16 | Arrows fall over the ground ahead for 2.5 s. |
+  | Watchman's Eye (Ezekiel 33:7) | 22 | 2 s of slowed time, glowing weak points, and three precision shots. |
+  | Quiver of the Mighty (Psalm 127:4) | 30 | 10 s of every shot splitting in three. |
+- **Arrow types:** standard, then fire (level 8), frost (12), storm (18) and holy (24) join the quiver (`quiver`). Down + Sub, or the wheel's "Arrows" item, nocks the next one (`arrowType`). A nocked type replaces the weapon's element on her hits and picks its C06 art.
+- **Save fields:** `archerSkills`, `archerKnown`, `quiver` and `arrowType` are all optional and are checked on load.
+- Verified by `scripts/archer-kit.mjs`.
+
 ## Store and economy
 
 The store is the original's own shop, rebuilt in shared code (`remnant/src/game/economy.ts`, `game/elixirs.ts` and the shop screens in `ui/menus.ts`), so both editions have it.

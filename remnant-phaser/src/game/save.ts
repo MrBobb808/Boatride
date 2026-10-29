@@ -8,7 +8,16 @@
 import { newGame, migrateSave, derive, gainXp as stateGainXp, absorbEcho, type SaveData, type Derived } from '../../../remnant/src/game/state';
 import { ROOMS } from '../shared';
 
-export type PhaserSave = SaveData & { playableHero?: import('./style').PlayableHero; combatStyle?: import('./style').CombatStyle; bestStyle?: number };
+export type ArrowType = 'standard' | 'fire' | 'frost' | 'storm' | 'holy';
+/** Phaser-only fields, all optional: the fighter in play, Elior's style, and Tirzah's loadout (her three ability slots,
+ * the abilities she has been offered, the arrow types she has unlocked and the one nocked). */
+export type PhaserSave = SaveData & {
+  playableHero?: import('./style').PlayableHero; combatStyle?: import('./style').CombatStyle; bestStyle?: number;
+  archerSkills?: (import('./abilities').ArcherSkillId | null)[]; archerKnown?: import('./abilities').ArcherSkillId[];
+  quiver?: ArrowType[]; arrowType?: ArrowType;
+};
+/** The levels at which her arrow types join the quiver. */
+export const ARROW_LEVELS: Record<ArrowType, number> = { standard: 1, fire: 8, frost: 12, storm: 18, holy: 24 };
 
 const KEY = 'remnant-phaser.save.v2';
 export const activeSlot = () => { const n = Number(read('remnant-phaser.active-slot') ?? 0); return [0, 1, 2].includes(n) ? n : 0; };
@@ -46,6 +55,12 @@ function settle(d: SaveData): SaveData {
   if(kit.playableHero!==undefined&&kit.playableHero!=='tirzah'&&kit.playableHero!=='elior')delete kit.playableHero;
   if(kit.combatStyle!==undefined&&!['vanguard','wraith','sentinel'].includes(kit.combatStyle))delete kit.combatStyle;
   if(kit.bestStyle!==undefined)kit.bestStyle=Number.isFinite(kit.bestStyle)?Math.max(0,Math.min(6,Math.floor(kit.bestStyle))):0;
+  // Tirzah's loadout: drop anything unknown, keep three slots, and nock only an unlocked arrow.
+  const archer=['deliverance','jonathan','mark','rain','watchman','quiver'];
+  if(kit.archerSkills!==undefined)kit.archerSkills=Array.isArray(kit.archerSkills)?[0,1,2].map(i=>archer.includes(kit.archerSkills![i] as string)?kit.archerSkills![i]:null):undefined;
+  if(kit.archerKnown!==undefined)kit.archerKnown=Array.isArray(kit.archerKnown)?kit.archerKnown.filter(id=>archer.includes(id)):undefined;
+  if(kit.quiver!==undefined)kit.quiver=Array.isArray(kit.quiver)?kit.quiver.filter(t=>t in ARROW_LEVELS):undefined;
+  if(kit.arrowType!==undefined&&!(kit.quiver??['standard']).includes(kit.arrowType))delete kit.arrowType;
   if (!ROOMS[d.room]) { d.room = 'sanctuary'; d.spawn = 'start'; }
   return d;
 }

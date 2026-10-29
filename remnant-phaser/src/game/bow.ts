@@ -6,9 +6,15 @@ import type { Dawn } from './dawn';
 import { weaponElement, type Element } from '../../../remnant/src/game/power';
 import { spriteFrame, isSpriteWindup } from '../../../remnant/src/render/spriteMotion';
 import { G } from '../classic/shim/ctx';
+import { ArcherKit } from './archerKit';
+import type { ArrowType } from './save';
+const STANDARD: readonly ArrowType[] = ['standard'];
 /** `back`: a Dawnstep's point-blank arrow (breaks guard). `dawn`: shot under the Wings, drawn with a trail of light.
  * `x0`/`y0`: where it was loosed, for True Aim. `recall`: an arrow pulled back to her. `spike`: the diving arrow. */
-interface Arrow { x:number; y:number; vx:number; vy:number; life:number; damage:number; pierce:number; hits:Set<FoeLike>; move:string; back:boolean; dawn:boolean; finisher:boolean; x0:number; y0:number; recall:boolean; spike:boolean }
+interface Arrow { x:number; y:number; vx:number; vy:number; life:number; damage:number; pierce:number; hits:Set<FoeLike>; move:string; back:boolean; dawn:boolean; finisher:boolean; x0:number; y0:number; recall:boolean; spike:boolean;
+  /** Ability arrows: `guard` breaks guards, `knock` knocks down, `scale` draws it larger, `frame` fixes its art (-1: by element). `precise` always takes the head. */
+  guard:boolean; knock:boolean; scale:number; frame:number; precise:boolean }
+const FRESH = { back:false, dawn:false, finisher:false, recall:false, spike:false, guard:false, knock:false, scale:0, frame:-1, precise:false };
 /** A classic foe's body, as her arrows read it (pinning, interrupts, bosses). */
 type Body = { isBoss?: boolean; maxHp?: number; state?: string; st?: number; staggered?: number; stagger?: () => void; glintAt?: number; anim?: { u: number }; body?: { vx: number } };
 const bodyOf = (f: FoeLike) => (f as FoeLike & { e?: Body }).e;
@@ -37,7 +43,9 @@ function entry(x:number,y:number,dx:number,dy:number,b:Phaser.Geom.Rectangle) {
   return lo;
 }
 export class Bow {
-  readonly arrows: Arrow[] = Array.from({length:24},()=>({x:0,y:0,vx:0,vy:0,life:0,damage:0,pierce:0,hits:new Set(),move:'',back:false,dawn:false,finisher:false,x0:0,y0:0,recall:false,spike:false}));
+  readonly arrows: Arrow[] = Array.from({length:32},()=>({x:0,y:0,vx:0,vy:0,life:0,damage:0,pierce:0,hits:new Set(),move:'',x0:0,y0:0,...FRESH}));
+  /** Her six abilities. */
+  readonly kit: ArcherKit;
   /** Arrows standing in foes, ripped back through them by Recall. */
   readonly embedded: { foe: FoeLike | null; img: Phaser.GameObjects.Image; dx: number; dy: number }[];
   /** The True Aim tick on the sweet spot while she draws. */
@@ -65,6 +73,26 @@ export class Bow {
     this.stuck=Array.from({length:6},()=>({img:w.sc.add.image(0,0,'arrows',8).setOrigin(0.86,0.6).setDepth(12.9).setVisible(false),t:-1}));
     this.embedded=Array.from({length:EMBED_MAX},()=>({foe:null,img:w.sc.add.image(0,0,'arrows',0).setOrigin(0.93,61/128).setScale(0.24).setDepth(9.4).setVisible(false),dx:0,dy:0}));
     this.tick=w.sc.add.image(0,0,'vfx-impacts',0).setScale(0.12).setBlendMode(Phaser.BlendModes.ADD).setDepth(13).setVisible(false);
+    this.kit=new ArcherKit(w,p,this);
+  }
+  /** Loose an arrow from the pool with the given flight; everything unnamed starts fresh. */
+  spawn(o: Partial<Arrow> & { x:number; y:number; vx:number; vy:number; life:number; damage:number; pierce:number; move:string }) {
+    const a=this.arrows.find(a=>a.life<=0);if(!a)return null;
+    Object.assign(a,FRESH,{x0:o.x,y0:o.y},o);a.hits.clear();
+    return a;
+  }
+  /** The element her arrows carry: the nocked arrow type, or the weapon's own. */
+  element(): Element | null {
+    const t=this.w.save.arrowType;
+    return t&&t!=='standard'&&this.quiver().includes(t)?t:weaponElement();
+  }
+  /** Arrow types she has unlocked (`syncArcher` records them as she levels). */
+  quiver(): readonly ArrowType[] { return this.w.save.quiver??STANDARD; }
+  /** Down + Sub: nock the next arrow type. */
+  cycleArrows() {
+    const q=this.quiver(),s=this.w.save,i=q.indexOf(s.arrowType??'standard');
+    s.arrowType=q[(i+1)%q.length];
+    this.w.toast(q.length>1?`${s.arrowType[0].toUpperCase()+s.arrowType.slice(1)} arrows`:'Only standard arrows so far.');
   }
   get embeddedCount() { let n=0; for(const o of this.embedded) if(o.foe) n++; return n; }
   /** The arrow stays in the foe where it struck, until the foe falls or she recalls it. */
@@ -86,10 +114,8 @@ export class Bow {
         this.w.heroHit(f,hp!==undefined&&f.hp!==undefined?Math.max(0,hp-f.hp):0,false);
         this.w.spark(x,y,0xa6efdc,6);
       }
-      const a=this.arrows.find(a=>a.life<=0);if(!a)continue;
       const d=Math.max(1,Math.hypot(p.x-x,p.feet-30-y)),speed=620;
-      Object.assign(a,{x,y,x0:x,y0:y,vx:(p.x-x)/d*speed,vy:(p.feet-30-y)/d*speed,life:d/speed,damage:p.power()*0.35,pierce:3,move:'recall',back:false,dawn:false,finisher:false,recall:true,spike:false});
-      a.hits.clear();a.hits.add(f);
+      this.spawn({x,y,vx:(p.x-x)/d*speed,vy:(p.feet-30-y)/d*speed,life:d/speed,damage:p.power()*0.35,pierce:3,move:'recall',recall:true})?.hits.add(f);
     }
     this.tally.recalled+=n;
     this.p.noteStyle('recall');
@@ -97,7 +123,7 @@ export class Bow {
     return true;
   }
   /** Which arrow the sheet draws: light under the Wings, charged for a piercing shot, else the weapon's element. */
-  private frameOf(a:Arrow) { if(a.dawn)return LIGHT; if(a.pierce>1)return CHARGED; const el=weaponElement(); return el?ARROW_FRAME[el]:0; }
+  private frameOf(a:Arrow) { if(a.frame>=0)return a.frame; if(a.dawn)return LIGHT; const el=this.element(); if(el&&!a.recall)return ARROW_FRAME[el]; return a.pierce>1?CHARGED:0; }
   private stick(a:Arrow,frame:number) {
     const o=this.stuck.find(o=>o.t<0)??this.stuck.reduce((x,o)=>(o.t>x.t?o:x));
     // The stuck art leans about 38° from the shaft's line; turn it to match the flight.
@@ -114,6 +140,7 @@ export class Bow {
       o.img.setPosition(f.x+o.dx,f.box.top+o.dy);
     }
     this.aimTick();
+    this.kit.update(dt);
     for (const o of this.stuck) {
       if (o.t<0) continue;
       o.t+=dt;
@@ -123,6 +150,13 @@ export class Bow {
       const a=this.arrows[i],img=this.sprites[i];
       if (a.life <= 0) { if(img.visible)img.setVisible(false); continue; }
       a.life-=dt;
+      // Hunter's Mark: her own shots curve toward the marked foe.
+      const m=this.kit.mark;
+      if(m&&m.alive&&!a.back&&!a.recall&&a.move!=='rain'&&a.move!=='morning_star'&&!a.hits.has(m)){
+        const want=Math.atan2(m.box.centerY-a.y,m.x-a.x),cur=Math.atan2(a.vy,a.vx),sp=Math.hypot(a.vx,a.vy);
+        const turn=Phaser.Math.Clamp(Phaser.Math.Angle.Wrap(want-cur),-4*dt,4*dt);
+        a.vx=Math.cos(cur+turn)*sp;a.vy=Math.sin(cur+turn)*sp;
+      }
       const dx=a.vx*dt,dy=a.vy*dt;
       let wall=1;
       const steps=Math.max(1,Math.ceil(Math.hypot(dx,dy)/4));
@@ -148,12 +182,12 @@ export class Bow {
         const hx=a.x+dx*time,hy=a.y+dy*time,body=bodyOf(nearest),aimed=!a.back&&!a.recall&&a.move!=='morning_star';
         // True Aim: mid range lands hardest. Precision: a shot from range that takes the head (the top quarter) always crits and staggers a little more.
         const travelled=Math.hypot(hx-a.x0,hy-a.y0),trueAim=aimed&&travelled>=SWEET[0]&&travelled<=SWEET[1];
-        const precise=aimed&&travelled>40&&hy<nearest.box.top+nearest.box.height*0.25;
+        const precise=aimed&&(a.precise||travelled>40&&hy<nearest.box.top+nearest.box.height*0.25);
         const interrupt=aimed&&windingUp(body);
         const crit=a.back||precise||(a.move!=='morning_star'&&Math.random()<this.w.d.crit);
-        let damage=a.damage*(crit&&!a.back?this.w.d.critDmg:1)*(trueAim?SWEET_MUL:1);
+        let damage=a.damage*(crit&&!a.back?this.w.d.critDmg:1)*(trueAim?SWEET_MUL:1)*this.kit.damageFor(nearest);
         if(a.finisher&&hp!==undefined&&body&&!body.isBoss&&body.maxHp&&hp<body.maxHp*0.4)damage=Math.max(damage,hp+1);
-        if(nearest.hit(Math.round(damage),Math.sign(a.vx),a.back?3:a.pierce>1?2.5:0.8,crit,{kind:'proj',kx:Math.sign(a.vx)*(a.back?140:55),ky:a.spike?260:a.back?-60:0,poise:(a.back?60:a.pierce>1?24:8)+(precise?16:0),guardBreak:a.back})) {
+        if(nearest.hit(Math.round(damage),Math.sign(a.vx),a.back?3:a.pierce>1?2.5:0.8,crit,{kind:'proj',kx:Math.sign(a.vx)*(a.back||a.knock?140:55),ky:a.spike?260:a.knock?-220:a.back?-60:0,poise:(a.back||a.knock?60:a.pierce>1?24:8)+(precise?16:0),guardBreak:a.back||a.guard,launch:a.knock})) {
           this.w.heroHit(nearest,hp!==undefined&&nearest.hp!==undefined?Math.max(0,hp-nearest.hp):damage,false,crit);
           if(a.back&&!nearest.alive)this.w.finale(nearest.x,nearest.box.centerY,a.finisher?1.2:0.9);
           else if(crit&&!a.back)this.dawn?.critStep(nearest);
@@ -177,7 +211,7 @@ export class Bow {
       const frame=this.frameOf(a);
       if(struck&&!a.dawn&&!a.recall){this.stick(a,frame);img.setVisible(false);continue;}
       if(a.life<=0){img.setVisible(false);continue;}
-      img.setFrame(frame).setPosition(a.x,a.y).setRotation(Math.atan2(a.vy,a.vx)).setScale(a.dawn||a.pierce>1?0.32:0.27).setVisible(true);
+      img.setFrame(frame).setPosition(a.x,a.y).setRotation(Math.atan2(a.vy,a.vx)).setScale(a.scale||(a.dawn||a.pierce>1?0.32:0.27)).setVisible(true);
     }
   }
   control(dt:number) {
@@ -283,29 +317,32 @@ export class Bow {
     const {x:muzzleX,y:muzzleY,aim:aimed}=this.aim(),aim=kind==='dive'?1.05:aimed;
     // After a bow-bash the next shot is point-blank: harder, as True Aim's equal.
     const blank=this.bashT>0?1.4:1;this.bashT=0;
-    for(let i=0;i<(kind==='volley'?3:1);i++) {
-      const a=this.arrows.find(a=>a.life<=0);if(!a)break;
-      const angle=aim+(kind==='volley'?(i-1)*0.14:0),speed=(kind==='pierce'?590:kind==='dive'?560:440)*(p.water.swimming?0.65:1);
-      a.x=a.x0=muzzleX;a.y=a.y0=muzzleY;a.vx=Math.cos(angle)*speed*p.face;a.vy=Math.sin(angle)*speed;
-      a.life=1.2;a.damage=p.power()*(kind==='pierce'?2.1:kind==='volley'?0.48:kind==='dive'?1.1:0.7)*blank;a.pierce=kind==='pierce'||kind==='dive'?(kind==='dive'?2:3):1;a.hits.clear();a.move=move;a.back=false;a.dawn=wings;a.finisher=false;a.recall=false;a.spike=kind==='dive';
+    // Quiver of the Mighty splits every shot in three; Watchman's Eye makes the next shots precision hits.
+    const split=kind==='volley'||this.kit.quiverT>0&&kind!=='dive'?3:1,precise=this.kit.eyeShots>0;
+    if(precise)this.kit.eyeShots--;
+    for(let i=0;i<split;i++) {
+      const angle=aim+(split>1?(i-1)*(kind==='volley'?0.14:0.12):0),speed=(kind==='pierce'?590:kind==='dive'?560:440)*(p.water.swimming?0.65:1);
+      this.spawn({x:muzzleX,y:muzzleY,vx:Math.cos(angle)*speed*p.face,vy:Math.sin(angle)*speed,life:1.2,
+        damage:p.power()*(kind==='pierce'?2.1:kind==='volley'?0.48:kind==='dive'?1.1:0.7)*blank*(split>1&&kind!=='volley'?0.6:1),
+        pierce:kind==='pierce'?3:kind==='dive'?2:1,move,dawn:wings,spike:kind==='dive',precise});
     }
     this.w.playEffect('bowRelease');
     this.w.spark(muzzleX,muzzleY,0xa6efdc,kind==='pierce'?8:3);
   }
   /** Dawnstep's point-blank arrow into a foe's back: harder with each step of the chain. */
   backShot(chain:number,finisher=false) {
-    const p=this.p,a=this.arrows.find(a=>a.life<=0);if(!a)return;
-    a.x=a.x0=p.x+p.face*10;a.y=a.y0=p.feet-31;a.vx=p.face*640;a.vy=0;a.life=0.45;a.recall=a.spike=false;a.damage=p.power()*(2.4+0.35*(chain-1));a.pierce=2;a.hits.clear();a.move='dawnstep';a.back=true;a.dawn=true;a.finisher=finisher;if(finisher)a.damage*=1.6;
+    const p=this.p;
+    this.spawn({x:p.x+p.face*10,y:p.feet-31,vx:p.face*640,vy:0,life:0.45,damage:p.power()*(2.4+0.35*(chain-1))*(finisher?1.6:1),pierce:2,move:'dawnstep',back:true,dawn:true,finisher});
     this.w.playEffect('bowRelease');
   }
   /** Morning Star: a ring of light arrows. */
   radial(n:number) {
     const p=this.p;
     for(let i=0;i<n;i++){
-      const a=this.arrows.find(a=>a.life<=0);if(!a)break;
-      const angle=i/n*Math.PI*2;a.x=a.x0=p.x;a.y=a.y0=p.feet-28;a.recall=a.spike=false;a.vx=Math.cos(angle)*520;a.vy=Math.sin(angle)*520;a.life=0.6;a.damage=p.power()*0.9;a.pierce=2;a.hits.clear();a.move='morning_star';a.back=false;a.dawn=true;a.finisher=false;
+      const angle=i/n*Math.PI*2;
+      if(!this.spawn({x:p.x,y:p.feet-28,vx:Math.cos(angle)*520,vy:Math.sin(angle)*520,life:0.6,damage:p.power()*0.9,pierce:2,move:'morning_star',dawn:true}))break;
     }
   }
-  destroy(){for(const s of this.sprites)s.destroy();for(const o of this.stuck)o.img.destroy();for(const o of this.embedded)o.img.destroy();this.tick.destroy();}
+  destroy(){this.kit.destroy();for(const s of this.sprites)s.destroy();for(const o of this.stuck)o.img.destroy();for(const o of this.embedded)o.img.destroy();this.tick.destroy();}
 }
 function cAim(w:WorldApi){return w.controls.down('up')?-0.4:w.controls.down('down')?0.35:0;}
