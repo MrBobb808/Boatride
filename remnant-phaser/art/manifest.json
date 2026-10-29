@@ -1,4 +1,805 @@
 {
   "schema": "See README.md: one object per delivered image in `images`.",
-  "images": []
+  "images": [
+    {
+      "id": "C01",
+      "file": "incoming/characters/C01-elior-parts-v2.png",
+      "request": "Elior parts sheet v2",
+      "grid": [
+        5,
+        2
+      ],
+      "cell": [
+        256,
+        256
+      ],
+      "baseline": null,
+      "facing": "right",
+      "background": "transparent",
+      "prompt": "Premium 2D pixel art for \"Remnant: Ascension\", a dark biblical-fantasy side-scrolling action RPG. Crisp square pixels, confident dark outlines, rich but limited coherent palette, dramatic rim light, readable when reduced to a 48\u201360 px tall character. Strict side view facing RIGHT unless stated. Exact equal grid cells as specified, generous transparent margins, nothing crossing a cell edge. No text, labels, grid lines, borders, floor shadows, scenery or watermark. Original designs only: no real-world logos or franchise characters.\n\n5 columns \u00d7 2 rows, 256 px cells. Row 1: (1) head and short neck, facing right; (2) torso from shoulders to belt only; (3) hip belt and coat-tail or skirt only; (4) one upper arm, shoulder to elbow, pointing straight down; (5) one forearm ending in a closed gripping hand, pointing down. Row 2: (1) one thigh, hip to knee, pointing down; (2) one lower leg with its boot, toe pointing right; (3) cape or cloak only, attached at top right and trailing down-left; (4) scarf, or for Tirzah her braid, attached at top right and draping down-left; (5) the weapon alone, vertical: sword tip up, or bow with its string on the left. Paint hidden overlaps fully, so joints rotate without holes.\n\nElior parts v2: a higher-detail repaint of Elior's parts in the layout above, with the same identity and colours (see `README.md` style rule). Gold coat edging and leather texture should read at small size.\n\nElior: an adult Black man with dark warm-brown skin, short white hair and a short white beard. He wears a charcoal/black coat with gold edges, a burgundy scarf and cape, leather armour and boots, and carries a silver-gold sword.\n\nTransparent PNG. Exact output canvas: 1280 \u00d7 512 pixels. Exactly ten separate parts in the 5 \u00d7 2 equal grid of 256 \u00d7 256 pixel cells. No full character. Each part stays within its cell. No feet baseline applies to this detached-parts sheet.",
+      "status": "delivered",
+      "notes": "RAW NONCONFORMING SOURCE: generated 1983x793; requested 1280x512. Do not integrate as the requested atlas/reference canvas. Byte-for-byte original generator output; no editing, resizing, cropping or recolouring. No feet baseline was specified for this P1 request. Status delivered records file delivery, not spec compliance. Claude should follow README.md rejection/re-prompt rules for failed sheets. Ten parts are present, but the torso includes an attached sleeve/upper arm. Some parts approach nominal cell edges. Canvas dimensions fail the requested 256 px cell geometry.",
+      "actual_size": [
+        1983,
+        793
+      ],
+      "bytes": 1267797,
+      "sha256": "35237ca729f2ee68212c749ac69b9c2baa270e941082ecb57e54a2058df24d51",
+      "validation": {
+        "size_matches_request": false,
+        "alpha_present": true,
+        "alpha_extrema": [
+          0,
+          255
+        ],
+        "fully_transparent_pixel_fraction": 0.590977,
+        "under_4_mb": true,
+        "unaltered_generator_output": true,
+        "ready_for_integration": false,
+        "visual_review": "Ten parts are present, but the torso includes an attached sleeve/upper arm. Some parts approach nominal cell edges. Canvas dimensions fail the requested 256 px cell geometry.",
+        "max_nominal_boundary_fraction_alpha_above_16": 0.001261,
+        "boundary_check_note": "Diagnostic only: fraction of pixels with alpha > 16 along each rounded internal nominal grid boundary; maximum reported. Wrong-size sheets still fail regardless of this measure."
+      },
+      "generation_tool": "built-in image_gen",
+      "source_commit": "74ec0280069102fe17784a6f4587067c65747436",
+      "expected_size": [
+        1280,
+        512
+      ],
+      "git_blob_sha": "f86d0c85b68f6d07833de35b2442715b87341997",
+      "generated_source_name": "exec-871fd66b-eb7a-4ab2-ac65-f58e63a54ba4.png"
+    },
+    {
+      "id": "C01",
+      "file": "incoming/characters/C01-elior-parts-v2-b.png",
+      "request": "Elior parts sheet v2",
+      "grid": [
+        5,
+        2
+      ],
+      "cell": [
+        256,
+        256
+      ],
+      "baseline": null,
+      "facing": "right",
+      "background": "transparent",
+      "prompt": "Premium 2D pixel art for \"Remnant: Ascension\", a dark biblical-fantasy side-scrolling action RPG. Crisp square pixels, confident dark outlines, rich but limited coherent palette, dramatic rim light, readable when reduced to a 48\u201360 px tall character. Strict side view facing RIGHT unless stated. Exact equal grid cells as specified, generous transparent margins, nothing crossing a cell edge. No text, labels, grid lines, borders, floor shadows, scenery or watermark. Original designs only: no real-world logos or franchise characters.\n\n5 columns \u00d7 2 rows, 256 px cells. Row 1: (1) head and short neck, facing right; (2) torso from shoulders to belt only; (3) hip belt and coat-tail or skirt only; (4) one upper arm, shoulder to elbow, pointing straight down; (5) one forearm ending in a closed gripping hand, pointing down. Row 2: (1) one thigh, hip to knee, pointing down; (2) one lower leg with its boot, toe pointing right; (3) cape or cloak only, attached at top right and trailing down-left; (4) scarf, or for Tirzah her braid, attached at top right and draping down-left; (5) the weapon alone, vertical: sword tip up, or bow with its string on the left. Paint hidden overlaps fully, so joints rotate without holes.\n\nElior parts v2: a higher-detail repaint of Elior's parts in the layout above, with the same identity and colours (see `README.md` style rule). Gold coat edging and leather texture should read at small size.\n\nElior: an adult Black man with dark warm-brown skin, short white hair and a short white beard. He wears a charcoal/black coat with gold edges, a burgundy scarf and cape, leather armour and boots, and carries a silver-gold sword.\n\nTransparent PNG. Exact output canvas: 1280 \u00d7 512 pixels. Exactly ten separate parts in the 5 \u00d7 2 equal grid of 256 \u00d7 256 pixel cells. No full character. Each part stays within its cell. No feet baseline applies to this detached-parts sheet.\n\nOutput resolution requirement: render natively at WIDTH=1280 pixels and HEIGHT=512 pixels, NOT 1983\u00d7793 and NOT a scaled approximation. The five column boundaries are x=0,256,512,768,1024,1280. The two row boundaries are y=0,256,512. These are invisible layout coordinates, not lines to draw. Torso cell must contain NO arms, head or legs. Keep at least 16 transparent pixels between each part and all of its cell boundaries. Do not crop the torso at a cell edge.",
+      "status": "delivered",
+      "notes": "RAW NONCONFORMING SOURCE: generated 1983x793; requested 1280x512. Do not integrate as the requested atlas/reference canvas. Byte-for-byte original generator output; no editing, resizing, cropping or recolouring. No feet baseline was specified for this P1 request. Status delivered records file delivery, not spec compliance. Claude should follow README.md rejection/re-prompt rules for failed sheets. Fresh generation, not an edit of the first take. Torso/arm separation is improved. Canvas dimensions still fail despite explicit pixel-coordinate instructions.",
+      "actual_size": [
+        1983,
+        793
+      ],
+      "bytes": 1152270,
+      "sha256": "2fa6b52f28173b880a9af5274d3d00beb749403d853814c8dfd291e794d45827",
+      "validation": {
+        "size_matches_request": false,
+        "alpha_present": true,
+        "alpha_extrema": [
+          0,
+          255
+        ],
+        "fully_transparent_pixel_fraction": 0.680874,
+        "under_4_mb": true,
+        "unaltered_generator_output": true,
+        "ready_for_integration": false,
+        "visual_review": "Fresh generation, not an edit of the first take. Torso/arm separation is improved. Canvas dimensions still fail despite explicit pixel-coordinate instructions.",
+        "max_nominal_boundary_fraction_alpha_above_16": 0.0,
+        "boundary_check_note": "Diagnostic only: fraction of pixels with alpha > 16 along each rounded internal nominal grid boundary; maximum reported. Wrong-size sheets still fail regardless of this measure."
+      },
+      "generation_tool": "built-in image_gen",
+      "source_commit": "74ec0280069102fe17784a6f4587067c65747436",
+      "expected_size": [
+        1280,
+        512
+      ],
+      "git_blob_sha": "0b3052647a90b84644001db82c250a6a1824c7fa",
+      "generated_source_name": "exec-49f9f70e-417b-4243-91ac-a5375dfc1e9c.png"
+    },
+    {
+      "id": "C02",
+      "file": "incoming/characters/C02-tirzah-parts-v2.png",
+      "request": "Tirzah parts v2",
+      "grid": [
+        5,
+        2
+      ],
+      "cell": [
+        256,
+        256
+      ],
+      "baseline": null,
+      "facing": "right",
+      "background": "transparent",
+      "prompt": "Premium 2D pixel art for \"Remnant: Ascension\", a dark biblical-fantasy side-scrolling action RPG. Crisp square pixels, confident dark outlines, rich but limited coherent palette, dramatic rim light, readable when reduced to a 48\u201360 px tall character. Strict side view facing RIGHT unless stated. Exact equal grid cells as specified, generous transparent margins, nothing crossing a cell edge. No text, labels, grid lines, borders, floor shadows, scenery or watermark. Original designs only: no real-world logos or franchise characters.\n\n5 columns \u00d7 2 rows, 256 px cells. Row 1: (1) head and short neck, facing right; (2) torso from shoulders to belt only; (3) hip belt and coat-tail or skirt only; (4) one upper arm, shoulder to elbow, pointing straight down; (5) one forearm ending in a closed gripping hand, pointing down. Row 2: (1) one thigh, hip to knee, pointing down; (2) one lower leg with its boot, toe pointing right; (3) cape or cloak only, attached at top right and trailing down-left; (4) scarf, or for Tirzah her braid, attached at top right and draping down-left; (5) the weapon alone, vertical: sword tip up, or bow with its string on the left. Paint hidden overlaps fully, so joints rotate without holes.\n\nTirzah parts v2: the same for Tirzah. Teal/charcoal tunic with gold trim, gold bracers, a dark braid as part 9 and the ivory-and-gold recurve bow as part 10.\n\nTirzah, the archer: an adult Black woman with warm-brown skin and a long black braid. She wears a teal and charcoal tunic with gold trim and bracers, and carries an ivory-and-gold recurve bow.\n\nTransparent PNG. Exact output canvas: 1280 \u00d7 512 pixels. Exactly 5 columns \u00d7 2 rows of equal 256 \u00d7 256 pixel cells. Preserve transparent margins within every cell. Detached body parts only, no complete bodies and no extra connected parts. No feet baseline applies to detached parts.",
+      "status": "delivered",
+      "notes": "RAW NONCONFORMING SOURCE: generated 1983x793; requested 1280x512. Do not integrate as the requested atlas/reference canvas. Byte-for-byte original generator output; no editing, resizing, cropping or recolouring. No feet baseline was specified for this P1 request. Status delivered records file delivery, not spec compliance. Claude should follow README.md rejection/re-prompt rules for failed sheets. Ten parts are present with a right-facing head and left-side bow string. The head includes braid detail although a separate braid was requested. Rendering is softer than the requested crisp square-pixel style.",
+      "actual_size": [
+        1983,
+        793
+      ],
+      "bytes": 1158424,
+      "sha256": "890d3b799bbdbf35698dc73aac65db981e15e88eec790d1001a9569a36780d68",
+      "git_blob_sha": "2d66d42ec39f67068d7b2ace4ce4ab8101e56e84",
+      "validation": {
+        "size_matches_request": false,
+        "alpha_present": true,
+        "alpha_extrema": [
+          0,
+          255
+        ],
+        "fully_transparent_pixel_fraction": 0.63234,
+        "under_4_mb": true,
+        "unaltered_generator_output": true,
+        "ready_for_integration": false,
+        "visual_review": "Ten parts are present with a right-facing head and left-side bow string. The head includes braid detail although a separate braid was requested. Rendering is softer than the requested crisp square-pixel style.",
+        "max_nominal_boundary_fraction_alpha_above_16": 0.0,
+        "boundary_check_note": "Diagnostic only: fraction of pixels with alpha > 16 along each rounded internal nominal grid boundary; maximum reported. Wrong-size sheets still fail regardless of this measure."
+      },
+      "generation_tool": "built-in image_gen",
+      "source_commit": "74ec0280069102fe17784a6f4587067c65747436",
+      "expected_size": [
+        1280,
+        512
+      ],
+      "generated_source_name": "exec-773cf429-fb00-4e82-b0d0-7d351fb84289.png"
+    },
+    {
+      "id": "C03",
+      "file": "incoming/characters/C03-elior-shadow-mantle-parts.png",
+      "request": "Elior, Shadow Mantle parts",
+      "grid": [
+        5,
+        2
+      ],
+      "cell": [
+        256,
+        256
+      ],
+      "baseline": null,
+      "facing": "right",
+      "background": "transparent",
+      "prompt": "Premium 2D pixel art for \"Remnant: Ascension\", a dark biblical-fantasy side-scrolling action RPG. Crisp square pixels, confident dark outlines, rich but limited coherent palette, dramatic rim light, readable when reduced to a 48\u201360 px tall character. Strict side view facing RIGHT unless stated. Exact equal grid cells as specified, generous transparent margins, nothing crossing a cell edge. No text, labels, grid lines, borders, floor shadows, scenery or watermark. Original designs only: no real-world logos or franchise characters.\n\n5 columns \u00d7 2 rows, 256 px cells. Row 1: (1) head and short neck, facing right; (2) torso from shoulders to belt only; (3) hip belt and coat-tail or skirt only; (4) one upper arm, shoulder to elbow, pointing straight down; (5) one forearm ending in a closed gripping hand, pointing down. Row 2: (1) one thigh, hip to knee, pointing down; (2) one lower leg with its boot, toe pointing right; (3) cape or cloak only, attached at top right and trailing down-left; (4) scarf, or for Tirzah her braid, attached at top right and draping down-left; (5) the weapon alone, vertical: sword tip up, or bow with its string on the left. Paint hidden overlaps fully, so joints rotate without holes.\n\nElior, Shadow Mantle parts: Elior transformed. A black cloak edged in blue-violet light; violet-tinted armour that keeps its gold fittings; a sword with a violet edge glow. Face and skin unchanged (he stays human).\n\nElior: an adult Black man with dark warm-brown skin, short white hair and a short white beard. He wears a charcoal/black coat with gold edges, a burgundy scarf and cape, leather armour and boots, and carries a silver-gold sword.\n\nTransparent PNG. Exact output canvas: 1280 \u00d7 512 pixels. Exactly 5 columns \u00d7 2 rows of equal 256 \u00d7 256 pixel cells. Preserve transparent margins within every cell. Detached body parts only, no complete bodies and no extra connected parts. No feet baseline applies to detached parts.",
+      "status": "delivered",
+      "notes": "RAW NONCONFORMING SOURCE: generated 1983x793; requested 1280x512. Do not integrate as the requested atlas/reference canvas. Byte-for-byte original generator output; no editing, resizing, cropping or recolouring. No feet baseline was specified for this P1 request. Status delivered records file delivery, not spec compliance. Claude should follow README.md rejection/re-prompt rules for failed sheets. Violet edge light is present, but the cape and scarf remain burgundy instead of the requested black transformation palette. The torso includes an attached sleeve. Effects reach nominal cell boundaries.",
+      "actual_size": [
+        1983,
+        793
+      ],
+      "bytes": 1423734,
+      "sha256": "cb23ef551596d84e01069023f3b6f63210a43327f2baa78a233c6259ded8084b",
+      "git_blob_sha": "8100db49c2f1774430c1a51411c2bf731381d4ee",
+      "validation": {
+        "size_matches_request": false,
+        "alpha_present": true,
+        "alpha_extrema": [
+          0,
+          255
+        ],
+        "fully_transparent_pixel_fraction": 0.584734,
+        "under_4_mb": true,
+        "unaltered_generator_output": true,
+        "ready_for_integration": false,
+        "visual_review": "Violet edge light is present, but the cape and scarf remain burgundy instead of the requested black transformation palette. The torso includes an attached sleeve. Effects reach nominal cell boundaries.",
+        "max_nominal_boundary_fraction_alpha_above_16": 0.30517,
+        "boundary_check_note": "Diagnostic only: fraction of pixels with alpha > 16 along each rounded internal nominal grid boundary; maximum reported. Wrong-size sheets still fail regardless of this measure."
+      },
+      "generation_tool": "built-in image_gen",
+      "source_commit": "74ec0280069102fe17784a6f4587067c65747436",
+      "expected_size": [
+        1280,
+        512
+      ],
+      "generated_source_name": "exec-d020389d-15af-4538-9239-e496204c3636.png"
+    },
+    {
+      "id": "C04",
+      "file": "incoming/characters/C04-tirzah-wings-of-the-morning-parts.png",
+      "request": "Tirzah, Wings of the Morning parts",
+      "grid": [
+        5,
+        2
+      ],
+      "cell": [
+        256,
+        256
+      ],
+      "baseline": null,
+      "facing": "right",
+      "background": "transparent",
+      "prompt": "Premium 2D pixel art for \"Remnant: Ascension\", a dark biblical-fantasy side-scrolling action RPG. Crisp square pixels, confident dark outlines, rich but limited coherent palette, dramatic rim light, readable when reduced to a 48\u201360 px tall character. Strict side view facing RIGHT unless stated. Exact equal grid cells as specified, generous transparent margins, nothing crossing a cell edge. No text, labels, grid lines, borders, floor shadows, scenery or watermark. Original designs only: no real-world logos or franchise characters.\n\n5 columns \u00d7 2 rows, 256 px cells. Row 1: (1) head and short neck, facing right; (2) torso from shoulders to belt only; (3) hip belt and coat-tail or skirt only; (4) one upper arm, shoulder to elbow, pointing straight down; (5) one forearm ending in a closed gripping hand, pointing down. Row 2: (1) one thigh, hip to knee, pointing down; (2) one lower leg with its boot, toe pointing right; (3) cape or cloak only, attached at top right and trailing down-left; (4) scarf, or for Tirzah her braid, attached at top right and draping down-left; (5) the weapon alone, vertical: sword tip up, or bow with its string on the left. Paint hidden overlaps fully, so joints rotate without holes.\n\nTirzah, Wings of the Morning parts: Tirzah's new transformation. Dawn-gold and white with pale teal; light plumage on the cloak (part 8); a radiant bow strung with light (part 10); the braid glowing at its tips. Face and skin unchanged (she stays human).\n\nTirzah, the archer: an adult Black woman with warm-brown skin and a long black braid. She wears a teal and charcoal tunic with gold trim and bracers, and carries an ivory-and-gold recurve bow.\n\nTransparent PNG. Exact output canvas: 1280 \u00d7 512 pixels. Exactly 5 columns \u00d7 2 rows of equal 256 \u00d7 256 pixel cells. Preserve transparent margins within every cell. Detached body parts only, no complete bodies and no extra connected parts. No feet baseline applies to detached parts.",
+      "status": "delivered",
+      "notes": "RAW NONCONFORMING SOURCE: generated 1983x793; requested 1280x512. Do not integrate as the requested atlas/reference canvas. Byte-for-byte original generator output; no editing, resizing, cropping or recolouring. No feet baseline was specified for this P1 request. Status delivered records file delivery, not spec compliance. Claude should follow README.md rejection/re-prompt rules for failed sheets. Dawn gold, white and pale teal details are present and the face remains human. The head retains braid detail; the separate braid includes additional cloth/feather-like detail. Glow/margins need review.",
+      "actual_size": [
+        1983,
+        793
+      ],
+      "bytes": 1611261,
+      "sha256": "276e8c2b70f8519af475061dc53cb65a4ed77e123876c7d1ddf106009d893e8b",
+      "git_blob_sha": "ca1c92b02f3e84239f107054b28613da9135024f",
+      "validation": {
+        "size_matches_request": false,
+        "alpha_present": true,
+        "alpha_extrema": [
+          0,
+          255
+        ],
+        "fully_transparent_pixel_fraction": 0.551523,
+        "under_4_mb": true,
+        "unaltered_generator_output": true,
+        "ready_for_integration": false,
+        "visual_review": "Dawn gold, white and pale teal details are present and the face remains human. The head retains braid detail; the separate braid includes additional cloth/feather-like detail. Glow/margins need review.",
+        "max_nominal_boundary_fraction_alpha_above_16": 0.0,
+        "boundary_check_note": "Diagnostic only: fraction of pixels with alpha > 16 along each rounded internal nominal grid boundary; maximum reported. Wrong-size sheets still fail regardless of this measure."
+      },
+      "generation_tool": "built-in image_gen",
+      "source_commit": "74ec0280069102fe17784a6f4587067c65747436",
+      "expected_size": [
+        1280,
+        512
+      ],
+      "generated_source_name": "exec-597d1a59-0d12-4326-8c70-b4fbf8e4aee4.png"
+    },
+    {
+      "id": "C05",
+      "file": "incoming/characters/C05-dawn-wings.png",
+      "request": "Dawn wings",
+      "grid": [
+        4,
+        2
+      ],
+      "cell": [
+        256,
+        256
+      ],
+      "baseline": null,
+      "facing": "right",
+      "background": "transparent",
+      "prompt": "Premium 2D pixel art for \"Remnant: Ascension\", a dark biblical-fantasy side-scrolling action RPG. Crisp square pixels, confident dark outlines, rich but limited coherent palette, dramatic rim light, readable when reduced to a 48\u201360 px tall character. Strict side view facing RIGHT unless stated. Exact equal grid cells as specified, generous transparent margins, nothing crossing a cell edge. No text, labels, grid lines, borders, floor shadows, scenery or watermark. Original designs only: no real-world logos or franchise characters.\n\nDawn wings: 4 columns \u00d7 2 rows, 256 px. A pair of luminous feather-of-light wings attached at the shoulder, top right. Poses: folded, half-open, fully spread, downbeat; then the same four with a stronger glow. No body.\n\nTransparent PNG. Exact output canvas: 1024 \u00d7 512 pixels. Exactly 4 columns \u00d7 2 rows of equal 256 \u00d7 256 pixel cells. Preserve transparent margins within every cell. No feet baseline applies to this sheet.",
+      "status": "delivered",
+      "notes": "RAW NONCONFORMING SOURCE: generated 1774x887; requested 1024x512. Do not integrate as the requested atlas/reference canvas. Byte-for-byte original generator output; no editing, resizing, cropping or recolouring. No feet baseline was specified for this P1 request. Status delivered records file delivery, not spec compliance. Claude should follow README.md rejection/re-prompt rules for failed sheets. Four poses in each of two glow strengths are recognizable, but the paired wings use a front/back symmetrical view rather than the required side view with a top-right shoulder anchor. Spread wings overlap nominal cell boundaries and lower glow reaches the canvas edge.",
+      "actual_size": [
+        1774,
+        887
+      ],
+      "bytes": 1996724,
+      "sha256": "dc5cfdb7750562e0bdf92597940babf387750a22795da2e2350c0f6cfd669d6e",
+      "git_blob_sha": "b72f9fc9442c7db27d6cd9531c99188ec80ae801",
+      "validation": {
+        "size_matches_request": false,
+        "alpha_present": true,
+        "alpha_extrema": [
+          0,
+          255
+        ],
+        "fully_transparent_pixel_fraction": 0.429496,
+        "under_4_mb": true,
+        "unaltered_generator_output": true,
+        "ready_for_integration": false,
+        "visual_review": "Four poses in each of two glow strengths are recognizable, but the paired wings use a front/back symmetrical view rather than the required side view with a top-right shoulder anchor. Spread wings overlap nominal cell boundaries and lower glow reaches the canvas edge.",
+        "max_nominal_boundary_fraction_alpha_above_16": 0.578354,
+        "boundary_check_note": "Diagnostic only: fraction of pixels with alpha > 16 along each rounded internal nominal grid boundary; maximum reported. Wrong-size sheets still fail regardless of this measure."
+      },
+      "generation_tool": "built-in image_gen",
+      "source_commit": "74ec0280069102fe17784a6f4587067c65747436",
+      "expected_size": [
+        1024,
+        512
+      ],
+      "generated_source_name": "exec-7bc301ef-d57f-454e-b50b-6646b0d1b78d.png"
+    },
+    {
+      "id": "C06",
+      "file": "incoming/characters/C06-arrows.png",
+      "request": "Arrows",
+      "grid": [
+        8,
+        2
+      ],
+      "cell": [
+        128,
+        128
+      ],
+      "baseline": null,
+      "facing": "right; embedded row down-right",
+      "background": "transparent",
+      "prompt": "Premium 2D pixel art for \"Remnant: Ascension\", a dark biblical-fantasy side-scrolling action RPG. Crisp square pixels, confident dark outlines, rich but limited coherent palette, dramatic rim light, readable when reduced to a 48\u201360 px tall character. Strict side view facing RIGHT unless stated. Exact equal grid cells as specified, generous transparent margins, nothing crossing a cell edge. No text, labels, grid lines, borders, floor shadows, scenery or watermark. Original designs only: no real-world logos or franchise characters.\n\nArrows: 8 columns \u00d7 2 rows, 128 px, each arrow horizontal pointing right. Row 1: plain, charged piercing, fire, frost, storm, holy, shadow, dawn. Row 2: the same arrows embedded (shaft half-hidden, pointing down-right), for arrows that stick in foes.\n\nTransparent PNG. Exact output canvas: 1024 \u00d7 256 pixels. Exactly 8 columns \u00d7 2 rows of equal 128 \u00d7 128 pixel cells. Preserve transparent margins within every cell. No feet baseline applies to this sheet.",
+      "status": "delivered",
+      "notes": "RAW NONCONFORMING SOURCE: generated 2172x724; requested 1024x256. Do not integrate as the requested atlas/reference canvas. Byte-for-byte original generator output; no editing, resizing, cropping or recolouring. No feet baseline was specified for this P1 request. Status delivered records file delivery, not spec compliance. Claude should follow README.md rejection/re-prompt rules for failed sheets. Eight arrow types are recognizable and the lower row points down-right. The lower row includes rock/ground impact details instead of only half-hidden embedded arrows. The generated 3:1 canvas also differs from the required 4:1 aspect ratio.",
+      "actual_size": [
+        2172,
+        724
+      ],
+      "bytes": 1301253,
+      "sha256": "1e77d5074cdfe22ea317e0336d4a94e8bfaccf34f0077ef09097aca56653dc60",
+      "git_blob_sha": "6e70ac6b75f2dc94012886d743c54822fdc0156f",
+      "validation": {
+        "size_matches_request": false,
+        "alpha_present": true,
+        "alpha_extrema": [
+          0,
+          255
+        ],
+        "fully_transparent_pixel_fraction": 0.633231,
+        "under_4_mb": true,
+        "unaltered_generator_output": true,
+        "ready_for_integration": false,
+        "visual_review": "Eight arrow types are recognizable and the lower row points down-right. The lower row includes rock/ground impact details instead of only half-hidden embedded arrows. The generated 3:1 canvas also differs from the required 4:1 aspect ratio.",
+        "max_nominal_boundary_fraction_alpha_above_16": 0.0,
+        "boundary_check_note": "Diagnostic only: fraction of pixels with alpha > 16 along each rounded internal nominal grid boundary; maximum reported. Wrong-size sheets still fail regardless of this measure."
+      },
+      "generation_tool": "built-in image_gen",
+      "source_commit": "74ec0280069102fe17784a6f4587067c65747436",
+      "expected_size": [
+        1024,
+        256
+      ],
+      "generated_source_name": "exec-944e7c14-d6ed-46d7-8e0f-5c53718f88f2.png"
+    },
+    {
+      "id": "C07",
+      "file": "incoming/characters/C07-reference-board-elior.png",
+      "request": "Reference boards (design reference only, not shipped)",
+      "grid": null,
+      "cell": null,
+      "baseline": null,
+      "facing": "front, right, back",
+      "background": "transparent",
+      "prompt": "Premium 2D pixel art for \"Remnant: Ascension\", a dark biblical-fantasy side-scrolling action RPG. Crisp square pixels, confident dark outlines, rich but limited coherent palette, dramatic rim light, readable when reduced to a 48\u201360 px tall character. Strict side view facing RIGHT unless stated. Exact equal grid cells as specified, generous transparent margins, nothing crossing a cell edge. No text, labels, grid lines, borders, floor shadows, scenery or watermark. Original designs only: no real-world logos or franchise characters.\n\nReference boards (design reference only, not shipped): one image per hero, 2048\u00d71024, transparent. Front, side and back turnarounds, plus the transformed form beside the normal form. Elior first (`-elior`), then Tirzah (`-tirzah`).\n\nElior: an adult Black man with dark warm-brown skin, short white hair and a short white beard. He wears a charcoal/black coat with gold edges, a burgundy scarf and cape, leather armour and boots, and carries a silver-gold sword.\n\nThis image is ONLY ELIOR. Elior, Shadow Mantle parts: Elior transformed. A black cloak edged in blue-violet light; violet-tinted armour that keeps its gold fittings; a sword with a violet edge glow. Face and skin unchanged (he stays human).\n\nTransparent PNG, exactly 2048 \u00d7 1024 pixels. Front, strict right-facing side and back views of the normal form, with the transformed form beside the normal form. Same body proportions. Design reference only, no grid/cell size or feet baseline is specified for this request.",
+      "status": "delivered",
+      "notes": "RAW NONCONFORMING SOURCE: generated 1774x887; requested 2048x1024. Do not integrate as the requested atlas/reference canvas. Byte-for-byte original generator output; no editing, resizing, cropping or recolouring. No feet baseline was specified for this P1 request. Status delivered records file delivery, not spec compliance. Claude should follow README.md rejection/re-prompt rules for failed sheets. Normal and transformed front/right/back views are present. Elior retains his established identity and the transformed cape uses black/violet. Reference board only; output dimensions fail and rendering is softer than strict square-pixel art.",
+      "actual_size": [
+        1774,
+        887
+      ],
+      "bytes": 1664939,
+      "sha256": "d8121f15f8281b6d384cc04c727e31443cd1485dd11384d0e21864287669caf0",
+      "git_blob_sha": "4aa5121016fc4042843ed11b01517941687a5c50",
+      "validation": {
+        "size_matches_request": false,
+        "alpha_present": true,
+        "alpha_extrema": [
+          0,
+          255
+        ],
+        "fully_transparent_pixel_fraction": 0.513355,
+        "under_4_mb": true,
+        "unaltered_generator_output": true,
+        "ready_for_integration": false,
+        "visual_review": "Normal and transformed front/right/back views are present. Elior retains his established identity and the transformed cape uses black/violet. Reference board only; output dimensions fail and rendering is softer than strict square-pixel art."
+      },
+      "generation_tool": "built-in image_gen",
+      "source_commit": "74ec0280069102fe17784a6f4587067c65747436",
+      "expected_size": [
+        2048,
+        1024
+      ],
+      "generated_source_name": "exec-77ea086a-2820-430b-a7bd-27c4eb5fb051.png"
+    },
+    {
+      "id": "C07",
+      "file": "incoming/characters/C07-reference-board-tirzah.png",
+      "request": "Reference boards (design reference only, not shipped)",
+      "grid": null,
+      "cell": null,
+      "baseline": null,
+      "facing": "front, right, back",
+      "background": "transparent",
+      "prompt": "Premium 2D pixel art for \"Remnant: Ascension\", a dark biblical-fantasy side-scrolling action RPG. Crisp square pixels, confident dark outlines, rich but limited coherent palette, dramatic rim light, readable when reduced to a 48\u201360 px tall character. Strict side view facing RIGHT unless stated. Exact equal grid cells as specified, generous transparent margins, nothing crossing a cell edge. No text, labels, grid lines, borders, floor shadows, scenery or watermark. Original designs only: no real-world logos or franchise characters.\n\nReference boards (design reference only, not shipped): one image per hero, 2048\u00d71024, transparent. Front, side and back turnarounds, plus the transformed form beside the normal form. Elior first (`-elior`), then Tirzah (`-tirzah`).\n\nTirzah, the archer: an adult Black woman with warm-brown skin and a long black braid. She wears a teal and charcoal tunic with gold trim and bracers, and carries an ivory-and-gold recurve bow.\n\nThis image is ONLY TIRZAH. Tirzah, Wings of the Morning parts: Tirzah's new transformation. Dawn-gold and white with pale teal; light plumage on the cloak (part 8); a radiant bow strung with light (part 10); the braid glowing at its tips. Face and skin unchanged (she stays human).\n\nTransparent PNG, exactly 2048 \u00d7 1024 pixels. Front, strict right-facing side and back views of the normal form, with the transformed form beside the normal form. Same body proportions. Design reference only, no grid/cell size or feet baseline is specified for this request.",
+      "status": "delivered",
+      "notes": "RAW NONCONFORMING SOURCE: generated 1774x887; requested 2048x1024. Do not integrate as the requested atlas/reference canvas. Byte-for-byte original generator output; no editing, resizing, cropping or recolouring. No feet baseline was specified for this P1 request. Status delivered records file delivery, not spec compliance. Claude should follow README.md rejection/re-prompt rules for failed sheets. Normal and transformed front/right/back views are present with dawn plumage and radiant bow. Reference board only; output dimensions fail, and the rightmost glow reaches the canvas edge.",
+      "actual_size": [
+        1774,
+        887
+      ],
+      "bytes": 1970051,
+      "sha256": "f23ae9fcbe054dccb0b848c07e6f598788732a47c0654f3134546027ccd49de4",
+      "git_blob_sha": "ac0b227f20e42085cf9f558a2a03671a6fb3b7b7",
+      "validation": {
+        "size_matches_request": false,
+        "alpha_present": true,
+        "alpha_extrema": [
+          0,
+          255
+        ],
+        "fully_transparent_pixel_fraction": 0.49096,
+        "under_4_mb": true,
+        "unaltered_generator_output": true,
+        "ready_for_integration": false,
+        "visual_review": "Normal and transformed front/right/back views are present with dawn plumage and radiant bow. Reference board only; output dimensions fail, and the rightmost glow reaches the canvas edge."
+      },
+      "generation_tool": "built-in image_gen",
+      "source_commit": "74ec0280069102fe17784a6f4587067c65747436",
+      "expected_size": [
+        2048,
+        1024
+      ],
+      "generated_source_name": "exec-99e29cb3-e170-4bea-95d9-c0d57750de67.png"
+    },
+    {
+      "id": "V01",
+      "file": "incoming/vfx/V01-sword-slash-arcs.png",
+      "request": "Sword slash arcs",
+      "grid": [
+        6,
+        4
+      ],
+      "cell": [
+        256,
+        256
+      ],
+      "baseline": null,
+      "facing": "right where directional",
+      "background": "transparent",
+      "prompt": "Premium 2D pixel art for \"Remnant: Ascension\", a dark biblical-fantasy side-scrolling action RPG. Crisp square pixels, confident dark outlines, rich but limited coherent palette, dramatic rim light, readable when reduced to a 48\u201360 px tall character. Strict side view facing RIGHT unless stated. Exact equal grid cells as specified, generous transparent margins, nothing crossing a cell edge. No text, labels, grid lines, borders, floor shadows, scenery or watermark. Original designs only: no real-world logos or franchise characters.\n\nEffects sheets are bright shapes on a transparent background, built to be added onto the scene as light: no black background and no baked character. Each row is one effect, played left to right.\n\n6\u00d74, 256 px. Sword slash arcs: light cut, heavy cut, rising launcher, full 360\u00b0 spin. White-gold core with a warm edge, tapering trail.\n\nTransparent PNG. Exact output canvas: 1536 \u00d7 1024 pixels. Exactly 6 columns \u00d7 4 rows of equal 256 \u00d7 256 pixel cells. Each row shows sequential animation frames of its stated effect from left to right, keeping the effect origin aligned in every cell. Nothing crosses the cell edges. No feet baseline applies to effects. No text or baked bodies.",
+      "status": "delivered",
+      "notes": "CANVAS SIZE MATCHES ONLY: cell-margin and visual review issues remain; not approved for integration. Byte-for-byte original generator output; no editing, resizing, cropping or recolouring. No feet baseline was specified for this P1 request. Status delivered records file delivery, not spec compliance. Claude should follow README.md rejection/re-prompt rules for failed sheets. The requested six-frame, four-row layout and canvas dimensions are present. Light, heavy, rising and spinning slash rows are recognizable. Nontransparent pixels occur on internal cell boundaries, so generous empty margins are not satisfied. Directional slash orientation, frame alignment and pixel style still require review; a size match is not integration approval.",
+      "actual_size": [
+        1536,
+        1024
+      ],
+      "bytes": 2008525,
+      "sha256": "57961a097e3b4c35b58a66ccef4031268ba20548de33225d869de3b8566b65d6",
+      "git_blob_sha": "fa80f3af5d2f65b3aa6b7eb6e4564c8017a5ffa1",
+      "validation": {
+        "size_matches_request": true,
+        "alpha_present": true,
+        "alpha_extrema": [
+          0,
+          253
+        ],
+        "fully_transparent_pixel_fraction": 0.367055,
+        "under_4_mb": true,
+        "unaltered_generator_output": true,
+        "ready_for_integration": false,
+        "visual_review": "The requested six-frame, four-row layout and canvas dimensions are present. Light, heavy, rising and spinning slash rows are recognizable. Nontransparent pixels occur on internal cell boundaries, so generous empty margins are not satisfied. Directional slash orientation, frame alignment and pixel style still require review; a size match is not integration approval.",
+        "max_nominal_boundary_fraction_alpha_above_16": 0.007812,
+        "boundary_check_note": "Diagnostic only: fraction of pixels with alpha > 16 along each rounded internal nominal grid boundary; maximum reported. Wrong-size sheets still fail regardless of this measure."
+      },
+      "generation_tool": "built-in image_gen",
+      "source_commit": "74ec0280069102fe17784a6f4587067c65747436",
+      "expected_size": [
+        1536,
+        1024
+      ],
+      "generated_source_name": "exec-cf30eb78-bd6c-4521-a615-dffd44a910e8.png"
+    },
+    {
+      "id": "V02",
+      "file": "incoming/vfx/V02-impacts.png",
+      "request": "Impacts",
+      "grid": [
+        6,
+        4
+      ],
+      "cell": [
+        192,
+        192
+      ],
+      "baseline": null,
+      "facing": "right where directional",
+      "background": "transparent",
+      "prompt": "Premium 2D pixel art for \"Remnant: Ascension\", a dark biblical-fantasy side-scrolling action RPG. Crisp square pixels, confident dark outlines, rich but limited coherent palette, dramatic rim light, readable when reduced to a 48\u201360 px tall character. Strict side view facing RIGHT unless stated. Exact equal grid cells as specified, generous transparent margins, nothing crossing a cell edge. No text, labels, grid lines, borders, floor shadows, scenery or watermark. Original designs only: no real-world logos or franchise characters.\n\nEffects sheets are bright shapes on a transparent background, built to be added onto the scene as light: no black background and no baked character. Each row is one effect, played left to right.\n\n6\u00d74, 192 px. Impacts: normal hit spark, critical hit burst, guard-break shatter, perfect-parry flash (a white ring with sparks).\n\nTransparent PNG. Exact output canvas: 1152 \u00d7 768 pixels. Exactly 6 columns \u00d7 4 rows of equal 192 \u00d7 192 pixel cells. Each row shows sequential animation frames of its stated effect from left to right, keeping the effect origin aligned in every cell. Nothing crosses the cell edges. No feet baseline applies to effects. No text or baked bodies.",
+      "status": "delivered",
+      "notes": "RAW NONCONFORMING SOURCE: generated 1536x1024; requested 1152x768. Do not integrate as the requested atlas/reference canvas. Byte-for-byte original generator output; no editing, resizing, cropping or recolouring. No feet baseline was specified for this P1 request. Status delivered records file delivery, not spec compliance. Claude should follow README.md rejection/re-prompt rules for failed sheets. Four six-frame rows show gold hits, red criticals, guard-break shards and blue/white parry rings. Canvas/cell dimensions fail. Some glow reaches nominal cell boundaries.",
+      "actual_size": [
+        1536,
+        1024
+      ],
+      "bytes": 2075694,
+      "sha256": "3cacccb6efb200a5173449fea852e66656a3eeaab5d8e44114d168f2c19bc3e3",
+      "git_blob_sha": "087b5e3996cc6304e85a02cc01cca31d24825699",
+      "validation": {
+        "size_matches_request": false,
+        "alpha_present": true,
+        "alpha_extrema": [
+          0,
+          253
+        ],
+        "fully_transparent_pixel_fraction": 0.470718,
+        "under_4_mb": true,
+        "unaltered_generator_output": true,
+        "ready_for_integration": false,
+        "visual_review": "Four six-frame rows show gold hits, red criticals, guard-break shards and blue/white parry rings. Canvas/cell dimensions fail. Some glow reaches nominal cell boundaries.",
+        "max_nominal_boundary_fraction_alpha_above_16": 0.017578,
+        "boundary_check_note": "Diagnostic only: fraction of pixels with alpha > 16 along each rounded internal nominal grid boundary; maximum reported. Wrong-size sheets still fail regardless of this measure."
+      },
+      "generation_tool": "built-in image_gen",
+      "source_commit": "74ec0280069102fe17784a6f4587067c65747436",
+      "expected_size": [
+        1152,
+        768
+      ],
+      "generated_source_name": "exec-f18a0b08-b678-4f9a-b5bd-77cb33d246b1.png"
+    },
+    {
+      "id": "V03",
+      "file": "incoming/vfx/V03-covenant-abilities-i.png",
+      "request": "Covenant abilities I (one row each)",
+      "grid": [
+        8,
+        6
+      ],
+      "cell": [
+        256,
+        256
+      ],
+      "baseline": null,
+      "facing": "right where directional",
+      "background": "transparent",
+      "prompt": "Premium 2D pixel art for \"Remnant: Ascension\", a dark biblical-fantasy side-scrolling action RPG. Crisp square pixels, confident dark outlines, rich but limited coherent palette, dramatic rim light, readable when reduced to a 48\u201360 px tall character. Strict side view facing RIGHT unless stated. Exact equal grid cells as specified, generous transparent margins, nothing crossing a cell edge. No text, labels, grid lines, borders, floor shadows, scenery or watermark. Original designs only: no real-world logos or franchise characters.\n\nEffects sheets are bright shapes on a transparent background, built to be added onto the scene as light: no black background and no baked character. Each row is one effect, played left to right.\n\n8\u00d76, 256 px. Covenant abilities I (one row each): Sword of the Word (a golden arc projectile in flight); Trumpet of Victory (an expanding sound ring with gold motes); Shield of Faith (a hexagonal light barrier forming, holding, breaking); Lion's Courage (an amber aura flare with a lion-mane silhouette of light); Still Waters (a pool of pale-blue light rippling); Pillar of Fire (a white-gold column erupting and roaring).\n\nTransparent PNG. Exact output canvas: 2048 \u00d7 1536 pixels. Exactly 8 columns \u00d7 6 rows of equal 256 \u00d7 256 pixel cells. Each row shows sequential animation frames of its stated effect from left to right, keeping the effect origin aligned in every cell. Nothing crosses the cell edges. No feet baseline applies to effects. No text or baked bodies.",
+      "status": "delivered",
+      "notes": "RAW NONCONFORMING SOURCE: generated 1448x1086; requested 2048x1536. Do not integrate as the requested atlas/reference canvas. Byte-for-byte original generator output; no editing, resizing, cropping or recolouring. No feet baseline was specified for this P1 request. Status delivered records file delivery, not spec compliance. Claude should follow README.md rejection/re-prompt rules for failed sheets. Six eight-frame effect sequences are recognizable. Diffuse glow crosses nominal cell boundaries, and the bottom fire effects reach the outer edge. Exact canvas/cell dimensions fail.",
+      "actual_size": [
+        1448,
+        1086
+      ],
+      "bytes": 2750179,
+      "sha256": "221ddc84c358429aad608e3202559ed6ec13d60576205f1c64bd8eaa53751561",
+      "git_blob_sha": "90f38074bf04ad1889562fd4068a4e80826b48cd",
+      "validation": {
+        "size_matches_request": false,
+        "alpha_present": true,
+        "alpha_extrema": [
+          0,
+          253
+        ],
+        "fully_transparent_pixel_fraction": 0.091816,
+        "under_4_mb": true,
+        "unaltered_generator_output": true,
+        "ready_for_integration": false,
+        "visual_review": "Six eight-frame effect sequences are recognizable. Diffuse glow crosses nominal cell boundaries, and the bottom fire effects reach the outer edge. Exact canvas/cell dimensions fail.",
+        "max_nominal_boundary_fraction_alpha_above_16": 0.187845,
+        "boundary_check_note": "Diagnostic only: fraction of pixels with alpha > 16 along each rounded internal nominal grid boundary; maximum reported. Wrong-size sheets still fail regardless of this measure."
+      },
+      "generation_tool": "built-in image_gen",
+      "source_commit": "74ec0280069102fe17784a6f4587067c65747436",
+      "expected_size": [
+        2048,
+        1536
+      ],
+      "generated_source_name": "exec-b5e68004-749c-4ec6-af30-d4fe22132bae.png"
+    },
+    {
+      "id": "V04",
+      "file": "incoming/vfx/V04-covenant-abilities-ii.png",
+      "request": "Covenant abilities II",
+      "grid": [
+        8,
+        6
+      ],
+      "cell": [
+        256,
+        256
+      ],
+      "baseline": null,
+      "facing": "right where directional",
+      "background": "transparent",
+      "prompt": "Premium 2D pixel art for \"Remnant: Ascension\", a dark biblical-fantasy side-scrolling action RPG. Crisp square pixels, confident dark outlines, rich but limited coherent palette, dramatic rim light, readable when reduced to a 48\u201360 px tall character. Strict side view facing RIGHT unless stated. Exact equal grid cells as specified, generous transparent margins, nothing crossing a cell edge. No text, labels, grid lines, borders, floor shadows, scenery or watermark. Original designs only: no real-world logos or franchise characters.\n\nEffects sheets are bright shapes on a transparent background, built to be added onto the scene as light: no black background and no baked character. Each row is one effect, played left to right.\n\n8\u00d76, 256 px. Covenant abilities II: Chains Broken (bright chains shattering outward); Armor of Light (plates of light assembling); Chain Snare (a pale chain lashing forward and wrapping); Rift Assault (a violet rift tear opening and closing); Mending Light (green-gold motes spiralling up); Winter Halo (a ring of frost light with ice crystals).\n\nTransparent PNG. Exact output canvas: 2048 \u00d7 1536 pixels. Exactly 8 columns \u00d7 6 rows of equal 256 \u00d7 256 pixel cells. Each row shows sequential animation frames of its stated effect from left to right, keeping the effect origin aligned in every cell. Nothing crosses the cell edges. No feet baseline applies to effects. No text or baked bodies.",
+      "status": "delivered",
+      "notes": "RAW NONCONFORMING SOURCE: generated 1448x1086; requested 2048x1536. Do not integrate as the requested atlas/reference canvas. Byte-for-byte original generator output; no editing, resizing, cropping or recolouring. No feet baseline was specified for this P1 request. Status delivered records file delivery, not spec compliance. Claude should follow README.md rejection/re-prompt rules for failed sheets. Six effect rows are recognizable, but the chain-snare lash initially points left instead of the requested right. Glow approaches/crosses nominal cell boundaries. Exact canvas/cell dimensions fail.",
+      "actual_size": [
+        1448,
+        1086
+      ],
+      "bytes": 2841422,
+      "sha256": "998bcf0c936370d708029190ab3cafdea1d14784221b3a1b518c3fbd90a5cf82",
+      "git_blob_sha": "0d1572089286fdabf8b38a634fd9e5cfeb1e4539",
+      "validation": {
+        "size_matches_request": false,
+        "alpha_present": true,
+        "alpha_extrema": [
+          0,
+          252
+        ],
+        "fully_transparent_pixel_fraction": 0.101653,
+        "under_4_mb": true,
+        "unaltered_generator_output": true,
+        "ready_for_integration": false,
+        "visual_review": "Six effect rows are recognizable, but the chain-snare lash initially points left instead of the requested right. Glow approaches/crosses nominal cell boundaries. Exact canvas/cell dimensions fail.",
+        "max_nominal_boundary_fraction_alpha_above_16": 0.020028,
+        "boundary_check_note": "Diagnostic only: fraction of pixels with alpha > 16 along each rounded internal nominal grid boundary; maximum reported. Wrong-size sheets still fail regardless of this measure."
+      },
+      "generation_tool": "built-in image_gen",
+      "source_commit": "74ec0280069102fe17784a6f4587067c65747436",
+      "expected_size": [
+        2048,
+        1536
+      ],
+      "generated_source_name": "exec-abcc92aa-4d7d-472a-a33d-cce8318740e3.png"
+    },
+    {
+      "id": "V05",
+      "file": "incoming/vfx/V05-archer-effects.png",
+      "request": "Archer effects",
+      "grid": [
+        8,
+        6
+      ],
+      "cell": [
+        256,
+        256
+      ],
+      "baseline": null,
+      "facing": "right where directional",
+      "background": "transparent",
+      "prompt": "Premium 2D pixel art for \"Remnant: Ascension\", a dark biblical-fantasy side-scrolling action RPG. Crisp square pixels, confident dark outlines, rich but limited coherent palette, dramatic rim light, readable when reduced to a 48\u201360 px tall character. Strict side view facing RIGHT unless stated. Exact equal grid cells as specified, generous transparent margins, nothing crossing a cell edge. No text, labels, grid lines, borders, floor shadows, scenery or watermark. Original designs only: no real-world logos or franchise characters.\n\nEffects sheets are bright shapes on a transparent background, built to be added onto the scene as light: no black background and no baked character. Each row is one effect, played left to right.\n\n8\u00d76, 256 px. Archer effects: dawn blink-out (a light burst with feathers); dawn blink-in; backshot (a point-blank arrow burst with feathers); hunter's mark sigil over a target (looping); arrow rain falling from above; bow charge glow growing on the string.\n\nTransparent PNG. Exact output canvas: 2048 \u00d7 1536 pixels. Exactly 8 columns \u00d7 6 rows of equal 256 \u00d7 256 pixel cells. Each row shows sequential animation frames of its stated effect from left to right, keeping the effect origin aligned in every cell. Nothing crosses the cell edges. No feet baseline applies to effects. No text or baked bodies.",
+      "status": "delivered",
+      "notes": "RAW NONCONFORMING SOURCE: generated 1448x1086; requested 2048x1536. Do not integrate as the requested atlas/reference canvas. Byte-for-byte original generator output; no editing, resizing, cropping or recolouring. No feet baseline was specified for this P1 request. Status delivered records file delivery, not spec compliance. Claude should follow README.md rejection/re-prompt rules for failed sheets. Six archer rows show blink-out, blink-in, a rightward back-shot burst, mark, arrow rain and bow charge. The later mark frames do not visibly return to the first-frame state, so looping needs review. Glow crosses nominal cell boundaries and lower charge effects reach the edge.",
+      "actual_size": [
+        1448,
+        1086
+      ],
+      "bytes": 2287617,
+      "sha256": "bc654cefa6f2e1954863ed50600d9d37b496543a2f13bb288f8c10d6f37e6086",
+      "git_blob_sha": "b9bbb9dc236aa0d5541182abb48f26200c9b65a9",
+      "validation": {
+        "size_matches_request": false,
+        "alpha_present": true,
+        "alpha_extrema": [
+          0,
+          252
+        ],
+        "fully_transparent_pixel_fraction": 0.095004,
+        "under_4_mb": true,
+        "unaltered_generator_output": true,
+        "ready_for_integration": false,
+        "visual_review": "Six archer rows show blink-out, blink-in, a rightward back-shot burst, mark, arrow rain and bow charge. The later mark frames do not visibly return to the first-frame state, so looping needs review. Glow crosses nominal cell boundaries and lower charge effects reach the edge.",
+        "max_nominal_boundary_fraction_alpha_above_16": 0.077348,
+        "boundary_check_note": "Diagnostic only: fraction of pixels with alpha > 16 along each rounded internal nominal grid boundary; maximum reported. Wrong-size sheets still fail regardless of this measure."
+      },
+      "generation_tool": "built-in image_gen",
+      "source_commit": "74ec0280069102fe17784a6f4587067c65747436",
+      "expected_size": [
+        2048,
+        1536
+      ],
+      "generated_source_name": "exec-a132ec7d-6067-4e19-b064-581cd92f600e.png"
+    },
+    {
+      "id": "V06",
+      "file": "incoming/vfx/V06-transformations.png",
+      "request": "Transformations",
+      "grid": [
+        8,
+        4
+      ],
+      "cell": [
+        256,
+        256
+      ],
+      "baseline": null,
+      "facing": "right where directional",
+      "background": "transparent",
+      "prompt": "Premium 2D pixel art for \"Remnant: Ascension\", a dark biblical-fantasy side-scrolling action RPG. Crisp square pixels, confident dark outlines, rich but limited coherent palette, dramatic rim light, readable when reduced to a 48\u201360 px tall character. Strict side view facing RIGHT unless stated. Exact equal grid cells as specified, generous transparent margins, nothing crossing a cell edge. No text, labels, grid lines, borders, floor shadows, scenery or watermark. Original designs only: no real-world logos or franchise characters.\n\nEffects sheets are bright shapes on a transparent background, built to be added onto the scene as light: no black background and no baked character. Each row is one effect, played left to right.\n\n8\u00d74, 256 px. Transformations: rows 1\u20132, Shadow Mantle forming (smoke wraps in, then a violet burst); rows 3\u20134, Wings of the Morning forming (light gathers, then the wings unfold in a dawn flash).\n\nTransparent PNG. Exact output canvas: 2048 \u00d7 1024 pixels. Exactly 8 columns \u00d7 4 rows of equal 256 \u00d7 256 pixel cells. Each row shows sequential animation frames of its stated effect from left to right, keeping the effect origin aligned in every cell. Nothing crosses the cell edges. No feet baseline applies to effects. No text or baked bodies.",
+      "status": "delivered",
+      "notes": "RAW NONCONFORMING SOURCE: generated 1774x887; requested 2048x1024. Do not integrate as the requested atlas/reference canvas. Byte-for-byte original generator output; no editing, resizing, cropping or recolouring. No feet baseline was specified for this P1 request. Status delivered records file delivery, not spec compliance. Claude should follow README.md rejection/re-prompt rules for failed sheets. Two violet-smoke rows followed by two dawn-light/wing rows are present. The wing burst is frontal rather than strict side view; lower glow reaches the edge. Exact canvas/cell dimensions fail.",
+      "actual_size": [
+        1774,
+        887
+      ],
+      "bytes": 2341873,
+      "sha256": "46487508d8c36614258f48c2a41da1efdf31dde67bed081936f5837dce3da18d",
+      "git_blob_sha": "d38fa0529e95e16ed1cdcdbbd3229a46cd090133",
+      "validation": {
+        "size_matches_request": false,
+        "alpha_present": true,
+        "alpha_extrema": [
+          0,
+          253
+        ],
+        "fully_transparent_pixel_fraction": 0.307811,
+        "under_4_mb": true,
+        "unaltered_generator_output": true,
+        "ready_for_integration": false,
+        "visual_review": "Two violet-smoke rows followed by two dawn-light/wing rows are present. The wing burst is frontal rather than strict side view; lower glow reaches the edge. Exact canvas/cell dimensions fail.",
+        "max_nominal_boundary_fraction_alpha_above_16": 0.010147,
+        "boundary_check_note": "Diagnostic only: fraction of pixels with alpha > 16 along each rounded internal nominal grid boundary; maximum reported. Wrong-size sheets still fail regardless of this measure."
+      },
+      "generation_tool": "built-in image_gen",
+      "source_commit": "74ec0280069102fe17784a6f4587067c65747436",
+      "expected_size": [
+        2048,
+        1024
+      ],
+      "generated_source_name": "exec-3132a680-b645-459c-ab28-8ab99b1f74a0.png"
+    },
+    {
+      "id": "V07",
+      "file": "incoming/vfx/V07-status-overlays.png",
+      "request": "Status overlays (looping)",
+      "grid": [
+        8,
+        6
+      ],
+      "cell": [
+        128,
+        128
+      ],
+      "baseline": null,
+      "facing": "right where directional",
+      "background": "transparent",
+      "prompt": "Premium 2D pixel art for \"Remnant: Ascension\", a dark biblical-fantasy side-scrolling action RPG. Crisp square pixels, confident dark outlines, rich but limited coherent palette, dramatic rim light, readable when reduced to a 48\u201360 px tall character. Strict side view facing RIGHT unless stated. Exact equal grid cells as specified, generous transparent margins, nothing crossing a cell edge. No text, labels, grid lines, borders, floor shadows, scenery or watermark. Original designs only: no real-world logos or franchise characters.\n\nEffects sheets are bright shapes on a transparent background, built to be added onto the scene as light: no black background and no baked character. Each row is one effect, played left to right.\n\n8\u00d76, 128 px. Status overlays (looping): burning, frozen, shocked, bleeding, holy-marked, shadow-bound.\n\nTransparent PNG. Exact output canvas: 1024 \u00d7 768 pixels. Exactly 8 columns \u00d7 6 rows of equal 128 \u00d7 128 pixel cells. Each row shows sequential animation frames of its stated effect from left to right, keeping the effect origin aligned in every cell. Nothing crosses the cell edges. No feet baseline applies to effects. No text or baked bodies.",
+      "status": "delivered",
+      "notes": "RAW NONCONFORMING SOURCE: generated 1448x1086; requested 1024x768. Do not integrate as the requested atlas/reference canvas. Byte-for-byte original generator output; no editing, resizing, cropping or recolouring. No feet baseline was specified for this P1 request. Status delivered records file delivery, not spec compliance. Claude should follow README.md rejection/re-prompt rules for failed sheets. Burning, frozen, shocked, bleeding, holy-marked and shadow-bound rows are present. Several rows expand and dissipate rather than visibly returning to the first-frame state, so seamless loops are not established. Effects reach nominal cell boundaries and outer edges.",
+      "actual_size": [
+        1448,
+        1086
+      ],
+      "bytes": 2397837,
+      "sha256": "9fc00681b79678c0b13e833aadb092e248cd811067bbbb1c30afefeaad85c209",
+      "git_blob_sha": "e1024f8a29a9af7f977918f85e0cfc4dffb26d17",
+      "validation": {
+        "size_matches_request": false,
+        "alpha_present": true,
+        "alpha_extrema": [
+          0,
+          254
+        ],
+        "fully_transparent_pixel_fraction": 0.278653,
+        "under_4_mb": true,
+        "unaltered_generator_output": true,
+        "ready_for_integration": false,
+        "visual_review": "Burning, frozen, shocked, bleeding, holy-marked and shadow-bound rows are present. Several rows expand and dissipate rather than visibly returning to the first-frame state, so seamless loops are not established. Effects reach nominal cell boundaries and outer edges.",
+        "max_nominal_boundary_fraction_alpha_above_16": 0.033149,
+        "boundary_check_note": "Diagnostic only: fraction of pixels with alpha > 16 along each rounded internal nominal grid boundary; maximum reported. Wrong-size sheets still fail regardless of this measure."
+      },
+      "generation_tool": "built-in image_gen",
+      "source_commit": "74ec0280069102fe17784a6f4587067c65747436",
+      "expected_size": [
+        1024,
+        768
+      ],
+      "generated_source_name": "exec-c5a8a4fd-d468-4a59-b7fa-6ef2020f7377.png"
+    },
+    {
+      "id": "V08",
+      "file": "incoming/vfx/V08-world-effects.png",
+      "request": "World effects",
+      "grid": [
+        8,
+        4
+      ],
+      "cell": [
+        128,
+        128
+      ],
+      "baseline": null,
+      "facing": "right where directional",
+      "background": "transparent",
+      "prompt": "Premium 2D pixel art for \"Remnant: Ascension\", a dark biblical-fantasy side-scrolling action RPG. Crisp square pixels, confident dark outlines, rich but limited coherent palette, dramatic rim light, readable when reduced to a 48\u201360 px tall character. Strict side view facing RIGHT unless stated. Exact equal grid cells as specified, generous transparent margins, nothing crossing a cell edge. No text, labels, grid lines, borders, floor shadows, scenery or watermark. Original designs only: no real-world logos or franchise characters.\n\nEffects sheets are bright shapes on a transparent background, built to be added onto the scene as light: no black background and no baked character. Each row is one effect, played left to right.\n\n8\u00d74, 128 px. World effects: dust puff, water splash, lava ember burst, wood-splinter burst.\n\nTransparent PNG. Exact output canvas: 1024 \u00d7 512 pixels. Exactly 8 columns \u00d7 4 rows of equal 128 \u00d7 128 pixel cells. Each row shows sequential animation frames of its stated effect from left to right, keeping the effect origin aligned in every cell. Nothing crosses the cell edges. No feet baseline applies to effects. No text or baked bodies.",
+      "status": "delivered",
+      "notes": "RAW NONCONFORMING SOURCE: generated 1774x887; requested 1024x512. Do not integrate as the requested atlas/reference canvas. Byte-for-byte original generator output; no editing, resizing, cropping or recolouring. No feet baseline was specified for this P1 request. Status delivered records file delivery, not spec compliance. Claude should follow README.md rejection/re-prompt rules for failed sheets. Dust, water, lava and wood rows are recognizable, but the generator baked visible grid lines into the image despite the prompt forbidding them. Some effects cross or touch nominal cell boundaries. Do not integrate this source as an atlas.",
+      "actual_size": [
+        1774,
+        887
+      ],
+      "bytes": 1734607,
+      "sha256": "8f37f6b69cc5b1bc0368121324f558d3747c5778f4785b387acd8cc2a50d8716",
+      "git_blob_sha": "91756e6460090226bcf36ea46a1d5628f87b8c6c",
+      "validation": {
+        "size_matches_request": false,
+        "alpha_present": true,
+        "alpha_extrema": [
+          0,
+          255
+        ],
+        "fully_transparent_pixel_fraction": 0.474545,
+        "under_4_mb": true,
+        "unaltered_generator_output": true,
+        "ready_for_integration": false,
+        "visual_review": "Dust, water, lava and wood rows are recognizable, but the generator baked visible grid lines into the image despite the prompt forbidding them. Some effects cross or touch nominal cell boundaries. Do not integrate this source as an atlas.",
+        "max_nominal_boundary_fraction_alpha_above_16": 0.957159,
+        "boundary_check_note": "Diagnostic only: fraction of pixels with alpha > 16 along each rounded internal nominal grid boundary; maximum reported. Wrong-size sheets still fail regardless of this measure."
+      },
+      "generation_tool": "built-in image_gen",
+      "source_commit": "74ec0280069102fe17784a6f4587067c65747436",
+      "expected_size": [
+        1024,
+        512
+      ],
+      "generated_source_name": "exec-fdda8f02-7012-412a-aa42-1e05e2cf74d6.png"
+    }
+  ]
 }
