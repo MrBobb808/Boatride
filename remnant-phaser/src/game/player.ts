@@ -830,7 +830,8 @@ export class Player {
     const b = this.body;
     const vx = Math.abs(b.velocity.x);
     const ground=this.onGround;
-    const travel=Math.abs(this.x-this.visualX),moving=travel>.02&&travel<24;
+    // Coasting out of a lunge is not a stride: run only on real speed or a held direction.
+    const travel=Math.abs(this.x-this.visualX),moving=travel>.02&&travel<24&&(vx>18||Math.abs(this.w.controls.axis)>.2);
     this.visualX=this.x;
     if(ground&&!this.wasGrounded&&this.lastVy>80&&!this.water.swimming)this.landT=.14;
     else this.landT=Math.max(0,this.landT-dt);

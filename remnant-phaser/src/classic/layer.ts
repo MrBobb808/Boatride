@@ -803,7 +803,11 @@ export class ClassicLayer {
     if (this.storyEnabled && this.room.id === "trial_arena") this.story.ch3.rounds.update(dt);
     lighting.begin();
     for (const e of (this.room as any).ents) if (e.t === 'light' && (!e.cond || flag(e.cond))) lighting.add(e.x * TILE, e.y * TILE - 10, e.r ?? (e.k === 'window' ? 130 : 100), e.c ?? (e.k === 'window' ? '#9fb4e8' : '#ffcf6b'), 0.9, 0.5);
-    lighting.add(this.player.x, this.player.cy, G.save.flags.relic_taken ? 90 : 45, '#ffe6a8', 0.65, 0.2);
+    // Elior's own light, as the original Player.lights(): wider once the relic wakes, brighter while charging or empowered.
+    const p = this.host.player, relic = !!G.save.flags.relic_taken;
+    lighting.add(p.x, p.feet - 20, relic ? 120 : 90, '#ffd9a0', relic ? 0.85 : 0.7, 0.15);
+    if (p.state === 'charge') lighting.add(p.x, p.feet - 30, 60 + p.chargeLvl * 20, '#ffe6a8', 0.8, 0.6);
+    if (p.armorLight > 0 || p.lion > 0) lighting.add(p.x, p.feet - 20, 110, '#ffcf6b', 0.9, 0.4);
     for (let i = 0; i < this.ents.length; i++) {
       const e = this.ents[i];
       try { e.update(dt); } catch (err) { this.fault(e, err); }

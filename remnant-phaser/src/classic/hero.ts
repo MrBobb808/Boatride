@@ -49,8 +49,11 @@ export class HeroPowers {
   ghosts: { x: number; y: number; face: number; a: number; pose?: unknown; rot?: number }[] = [];
   private ghostSprites: Phaser.GameObjects.Sprite[];
   private g: Phaser.GameObjects.Graphics;
+  /** Power and the Mantle read as soft light behind the hero, never as an outline over him. */
+  private aura: Phaser.GameObjects.Image;
   constructor(readonly L: ClassicLayer, readonly p: Player) {
     this.g = L.host.sc.add.graphics().setDepth(9);
+    this.aura = L.host.sc.add.image(0, 0, 'glow').setDepth(9).setBlendMode(Phaser.BlendModes.ADD).setVisible(false);
     this.ghostSprites = Array.from({ length: 16 }, () => L.host.sc.add.sprite(0, 0, 'elior', 0).setOrigin(0.5, 120 / 128).setScale(56 / 128).setDepth(8).setVisible(false));
   }
   private get actor() { return this.L.playerView as unknown as OriginalPlayer; }
@@ -176,16 +179,19 @@ export class HeroPowers {
   private render() {
     const p = this.p, g = this.g.clear(), tier = powerTier(), el = weaponElement();
     const color = p.mantleT > 0 ? 0xb45cff : el ? ELEMENT_COLORS[el] : 0xffd27a;
-    if (p.mantleT > 0 || p.state === 'transform') {
-      g.fillStyle(0x080611, 0.9).fillTriangle(p.x - p.face * 2, p.feet - 30, p.x - p.face * (18 + Math.abs(p.body.velocity.x) * 0.05), p.feet + 4, p.x + p.face * 5, p.feet - 2);
-      g.lineStyle(1.5, 0xb45cff, 0.8).lineBetween(p.x - p.face * 2, p.feet - 30, p.x - p.face * 18, p.feet + 4);
+    void g;
+    const shown = (tier >= 2 || p.mantleT > 0 || p.state === 'transform') && !p.dead && p.sprite.visible;
+    this.aura.setVisible(shown);
+    if (shown) {
+      // Stronger tiers glow a little wider and brighter; the Mantle's own light comes from Visuals.
+      const a = (p.mantleT > 0 ? 0.1 : 0.05 + tier * 0.012) * (settings.reduceFlashes ? 0.6 : 1 + Math.sin(G.time * 2.2) * 0.12);
+      this.aura.setTint(color).setPosition(p.x, p.feet - 20).setDisplaySize(40 + tier * 5, 58 + tier * 4).setAlpha(a);
     }
-    if (tier >= 2 || p.mantleT > 0 || p.state === 'transform') g.lineStyle(1 + tier * 0.2, color, settings.reduceFlashes ? 0.3 : 0.35 + Math.sin(G.time * 5) * 0.12).strokeEllipse(p.x, p.y, 28 + tier * 4, 46 + tier * 2);
     for (let i = 0; i < this.ghostSprites.length; i++) {
       const s = this.ghostSprites[i], v = this.ghosts[i]; s.setVisible(!!v);
       if (v) s.setPosition(v.x, v.y).setTexture(p.sprite.texture.key,p.sprite.frame.name).setOrigin(p.sprite.originX,p.sprite.originY).setScale(p.sprite.scaleX,p.sprite.scaleY).setFlipX(v.face < 0).setAlpha(v.a * 0.55).setTint(color);
     }
     p.sprite.setVisible(!this.fin?.hidden);
   }
-  destroy() { this.g.destroy(); for (const s of this.ghostSprites) s.destroy(); }
+  destroy() { this.g.destroy(); this.aura.destroy(); for (const s of this.ghostSprites) s.destroy(); }
 }

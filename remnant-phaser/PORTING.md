@@ -92,6 +92,21 @@ silhouette. Smoke pauses with menus and clears on form end, death and room exit.
 Low/Reduce flashes retain the core look while dropping foreground haze and motion
 silhouettes. Authored rain, embers, ash and motes use depth layers.
 
+Power tiers (from level 20) and the Mantle read as a soft additive light behind
+the hero, never as an outline drawn over him; the Mantle keeps its violet rig,
+cape, smoke and crown without the old solid wedge. Elior carries the original's
+own light (90 units, 120 once the relic wakes, brighter while charging or in
+Armor of Light / Lion's Courage), so dark rooms and arenas no longer swallow
+him. Atlas frames are picked the way they were baked: loops wrap at sixteen
+steps, one-shot moves land on their last pose. Coasting out of a lunge no longer
+flashes a running frame.
+
+The HUD keeps the fight clear: on keyboard and pad the skills sit in the
+bottom-right corner (hidden in story scenes and until one is equipped); the
+hero tag and action style are small chips under Elior's column, labelled with
+their keys (N, B) on a keyboard; toasts stack below them; and the boss bar takes
+the top lane on every device.
+
 Boss introductions and phase changes receive gentle framing; combat framing
 keeps Elior visible and responsive. Shared story pans, finishers and supers take
 priority. Screen shake Off disables the extra framing; Reduced softens it.
