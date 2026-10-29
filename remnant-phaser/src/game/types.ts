@@ -73,5 +73,7 @@ export interface WorldApi {
   shake(intensity: number, ms: number): void;
   floatText(x: number, y: number, text: string, color: string, crit?: boolean): void;
   spark(x: number, y: number, color: number, n?: number): void;
+  /** An impact burst from the V02 sheet: 0 hit, 1 crit, 2 heavy, 3 parry. */
+  burst(x: number, y: number, kind: number): void;
   onFoeDied(xp: number, silver: number, x: number, y: number, eliteId?: string): void;
 }

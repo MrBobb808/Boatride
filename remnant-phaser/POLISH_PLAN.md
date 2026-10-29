@@ -331,6 +331,7 @@ around them stays the same.
   - [ ] Still to come: quiver upgrades and special arrows (with §5), recipe scrolls, Echo imprint tokens, "new item" dots (`stockSeen`)
 - [ ] 9. Gameplay polish (§7)
 - [ ] 10+. Art integrations as drops arrive (§8): characters C01–C06, effects V01–V08, bosses B01–B10, foes F01–F05, environments E01–E12, icons and UI I01–I05
+  - Drop P1: the V01 slash arcs and V02 impacts ship. C01 was tried in game and rejected, because it reads worse than v1 at 56 px. C02, C04, C06, V03, V05, V06 and V07 are held for their plan items. Retries are requested for C01, C03, C05, V04 and V08.
 
 Tick each item with its PR number when it merges.
 

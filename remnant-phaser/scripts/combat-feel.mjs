@@ -68,10 +68,26 @@ try {
   await until(page, () => { const p = window.__remnant.world.player; return p.onGround && p.state === 'free'; });
   await page.keyboard.press('KeyJ');
   await until(page, (hp) => window.target.hp < hp, strike);
-  const landed = await E(page, () => { const w = window.__remnant.world; return { numbers: w.feedback.nums.filter((n) => n.life > 0).length, shaking: w.cameras.main.shakeEffect.isRunning }; });
+  const landed = await E(page, () => { const w = window.__remnant.world; return { numbers: w.feedback.nums.filter((n) => n.life > 0).length, shaking: w.cameras.main.shakeEffect.isRunning, burst: w.visuals.bursts.some((b) => b.t >= 0), slash: w.player.slash.texture.key }; });
   assert.ok(landed.numbers >= 1 && !landed.shaking, `a strike shows its number and the camera holds (${JSON.stringify(landed)})`);
+  assert.ok(landed.burst && landed.slash === 'vfx-slashes', `the blow plays the art drop's slash arc and impact burst (${JSON.stringify(landed)})`);
   await page.screenshot({ path: 'qa/combat-feel-strike.png' });
-  console.log('Strike: the blow shows its number and the camera stays steady');
+  console.log('Strike: the blow shows its number, the V01 arc and a V02 burst, and the camera stays steady');
+
+  // ---- the arc steps through its six frames, and a parry flashes the parry burst
+  const arc = await E(page, async () => {
+    const w = window.__remnant.world, seen = new Set();
+    w.player.placeAt(window.target.x - 22, window.target.y, 1);
+    await new Promise((r) => setTimeout(r, 300));
+    const stop = Date.now() + 1200;
+    window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyJ' }));
+    while (Date.now() < stop) { if (w.player.slash.visible) seen.add(Number(w.player.slash.frame.name)); await new Promise((r) => requestAnimationFrame(r)); }
+    w.burst(w.player.x, w.player.feet - 30, 3);
+    const parry = w.visuals.bursts.find((b) => b.t >= 0 && b.row === 3);
+    return { frames: [...seen].sort((a, b) => a - b), parry: !!parry };
+  });
+  assert.ok(arc.frames.length >= 3 && arc.parry, `the slash animates through its frames and the parry burst plays (${JSON.stringify(arc)})`);
+  console.log(`Art: the light cut showed frames ${arc.frames.join(',')}; the parry burst plays row 4`);
 
   // ---- purification dissolve, and an elite's slow-motion beat
   const fall = await E(page, async () => {

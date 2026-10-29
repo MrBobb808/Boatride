@@ -140,7 +140,7 @@ export class Player {
     this.body.setGravityY(GRAV).setMaxVelocityY(MAX_FALL);
     this.body.setCollideWorldBounds(true);
     this.sprite = sc.add.sprite(x, feet, 'elior', 0).setOrigin(0.5, FOOT / FRAME).setScale(DRAW / FRAME).setDepth(10);
-    this.slash = sc.add.image(x, feet, 'slash').setDepth(11).setBlendMode(Phaser.BlendModes.ADD).setVisible(false);
+    this.slash = sc.add.image(x, feet, 'vfx-slashes', 0).setDepth(11).setBlendMode(Phaser.BlendModes.ADD).setVisible(false);
     this.aura = sc.add.graphics().setDepth(12).setBlendMode(Phaser.BlendModes.ADD);
     this.maxHp = w.d.maxHp;
     this.maxCe = w.d.maxCe;
@@ -775,6 +775,7 @@ export class Player {
       this.w.save.ce = Math.min(this.maxCe, this.w.save.ce + (skillRank(this.w.save, 'g_timing') ? 12 : CE_PARRY));
       h.src?.parried();
       this.w.spark(this.x + this.face * 10, this.y - 6, 0xfff6dc, 16);
+      this.w.burst(this.x + this.face * 10, this.y - 6, 3);
       this.w.floatText(this.x, this.body.top - 10, 'PARRY', '#fff1c4');
       this.powers?.onParry();
       if (this.w.d.parryHeal) this.hp = Math.min(this.maxHp, this.hp + this.maxHp * this.w.d.parryHeal);
@@ -880,13 +881,17 @@ export class Player {
     this.slash.setVisible(show);
     if (show) {
       const k = (u - this.atk.hit[0]) / (this.atk.hit[1] + 0.15 - this.atk.hit[0]);
-      const big = this.atk.heavy ? 1.2 + this.atkMult * 0.25 : this.combo === 2 ? 1.25 : 1;
-      this.slash.setPosition(b.center.x + this.face * 20, b.center.y - 2)
+      // Art drop V01: rows are a light cut, a heavy cut, a rising launcher and a full spin, six frames each.
+      const id = this.atk.id, spin = id === 'storm' || id === 'flurry' || id === 'cross';
+      const row = spin ? 3 : this.atk.launch || id === 'launch' || id === 'comet' || id === 'rend' ? 2 : this.atk.heavy ? 1 : 0;
+      const big = (this.atk.heavy ? 1.15 + this.atkMult * 0.2 : this.combo === 2 ? 1.15 : 1) * (spin ? 0.55 : 0.46);
+      this.slash.setFrame(row * 6 + Math.min(5, Math.floor(k * 6)))
+        .setPosition(b.center.x + (spin ? 0 : this.face * 18), b.center.y - 2)
         .setFlipX(this.face < 0)
-        .setScale(big, this.atk.heavy ? 1.3 : 1)
-        .setAngle(this.face * (this.combo === 1 ? 20 : -10))
-        .setTint(this.atk.heavy ? 0xffd27a : 0xffffff)
-        .setAlpha(1 - k);
+        .setScale(big)
+        .setAngle(row === 0 ? this.face * (this.combo === 1 ? 14 : -8) : 0)
+        .setTint(0xffffff)
+        .setAlpha(1);
     }
     // Charge glow, the parry flash, the shield bubble.
     const g = this.aura.clear();

@@ -6,6 +6,8 @@ import { cutBossFrames } from '../game/bosses';
 import { glowTexture } from '../game/tileset';
 import { loadCreatureSprites } from '../../../remnant/src/render/creatureSprites';
 import fighterPartsUrl from '../assets/fighter-parts-v1.png';
+import slashesUrl from '../assets/vfx-slashes.png';
+import impactsUrl from '../assets/vfx-impacts.png';
 
 /** Loads the sprite sheets and makes the generated textures every scene shares. */
 export class Boot extends Phaser.Scene {
@@ -14,6 +16,9 @@ export class Boot extends Phaser.Scene {
   preload() {
     this.load.spritesheet('elior', eliorUrl, { frameWidth: 128, frameHeight: 128 });
     this.load.image('fighter-parts',fighterPartsUrl);
+    // Art drop V01/V02: rows of six frames (art/manifest.json).
+    this.load.spritesheet('vfx-slashes', slashesUrl, { frameWidth: 128, frameHeight: 128 });
+    this.load.spritesheet('vfx-impacts', impactsUrl, { frameWidth: 128, frameHeight: 128 });
     this.load.image('varkhos', varkhosUrl);
     this.load.image('morvane', morvaneUrl);
     this.load.image('azkar', azkarUrl);
@@ -27,7 +32,6 @@ export class Boot extends Phaser.Scene {
   create() {
     glowTexture(this);
     cutBossFrames(this);
-    this.makeSlash();
     actionAtlas(this,'elior','blade');
     actionAtlas(this,'tirzah','blade');
     const p = new URLSearchParams(location.search);
@@ -38,23 +42,5 @@ export class Boot extends Phaser.Scene {
     if (resume) { const url = new URL(location.href); url.searchParams.delete('fresh'); url.searchParams.set('autostart', ''); history.replaceState(null, '', url); }
     // The foes' sheets (drawn by the original's render/creatureSprites.ts) are in before the first room.
     void loadCreatureSprites().then(() => this.scene.start(p.has('autostart') || resume ? 'world' : 'title', { fresh: !resume && p.has('fresh') }));
-  }
-
-  /** A crescent of light for Elior's blade. */
-  private makeSlash() {
-    const w = 44, h = 44;
-    const tex = this.textures.createCanvas('slash', w, h)!;
-    const c = tex.getContext();
-    const g = c.createLinearGradient(0, 0, w, 0);
-    g.addColorStop(0, 'rgba(255,240,200,0)');
-    g.addColorStop(0.6, 'rgba(255,240,200,0.55)');
-    g.addColorStop(1, 'rgba(255,255,255,0.95)');
-    c.fillStyle = g;
-    c.beginPath();
-    c.arc(4, h / 2, 38, -1.1, 1.1);
-    c.arc(-4, h / 2, 34, 1.0, -1.0, true);
-    c.closePath();
-    c.fill();
-    tex.refresh();
   }
 }

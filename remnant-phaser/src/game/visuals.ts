@@ -34,6 +34,8 @@ export class Visuals {
   private smoke: Phaser.GameObjects.Particles.ParticleEmitter;
   private smokeFront: Phaser.GameObjects.Particles.ParticleEmitter;
   private crown: Phaser.GameObjects.Graphics;
+  /** Impact bursts (V02 sheet), pooled and stepped here so they freeze with the fight. */
+  private bursts: { img: Phaser.GameObjects.Image; t: number; row: number }[];
   private mantled = false;
   private bubbles: Phaser.GameObjects.Particles.ParticleEmitter;
   private appliedTier = -1;
@@ -56,6 +58,7 @@ export class Visuals {
     this.smoke = w.add.particles(0,0,'vfx-smoke',{emitting:false,maxParticles:48,lifespan:1100,speedX:{min:-18,max:18},speedY:{min:-38,max:-16},scale:{start:0.2,end:0.7},alpha:{start:0.65,end:0},rotate:{min:-80,max:80},tint:[0x281035,0x4d156d,0x8134a8]}).setDepth(9);
     this.smokeFront = w.add.particles(0,0,'vfx-smoke',{emitting:false,maxParticles:24,lifespan:850,speedX:{min:-12,max:12},speedY:{min:-32,max:-14},scale:{start:0.14,end:0.48},alpha:{start:0.27,end:0},tint:[0x9346c5,0xbf6ee8]}).setDepth(10.5);
     this.crown = w.add.graphics().setDepth(9.5).setBlendMode(Phaser.BlendModes.ADD);
+    this.bursts = Array.from({ length: 8 }, () => ({ img: w.add.image(0, 0, 'vfx-impacts', 0).setDepth(15.5).setBlendMode(Phaser.BlendModes.ADD).setVisible(false), t: -1, row: 0 }));
     this.bubbles = w.add.particles(0, 0, 'vfx-bubble', { emitting: false, maxParticles: 20, lifespan: 650, speedX: { min: -7, max: 7 }, speedY: { min: -42, max: -25 }, scale: { start: 0.5, end: 0.2 }, alpha: { start: 0.45, end: 0 } }).setDepth(17);
     if (this.gpu) {
       this.map = w.textures.createCanvas(this.key, MAP_SIZE, MAP_SIZE)!;
@@ -95,6 +98,7 @@ export class Visuals {
     for (const e of this.weather) e.destroy(); this.weather.length = 0;
     for (const e of [this.sparks, this.wisps, this.smoke, this.smokeFront, this.bubbles]) { e.killAll(); e.resume(); }
     this.crown.clear();this.mantled=false;
+    for (const b of this.bursts) { b.t = -1; b.img.setVisible(false); }
     this.paused = false;
     this.light.setVisible(false); this.weaponLight.setVisible(false);
     if (this.displacement) this.displacement.active = false;
@@ -149,8 +153,28 @@ export class Visuals {
 
   impact(x: number, y: number, heavy: boolean, crit: boolean) {
     if (this.paused) return;
+    this.burst(x, y, crit ? 1 : 0, heavy);
     this.sparks.setParticleTint(this.element ? COLORS[this.element] : 0xffd27a);
     this.sparks.emitParticleAt(x, y, this.tier === 0 ? 2 : heavy || crit ? 12 : 5);
+  }
+
+  /** One burst: 0 hit, 1 crit, 2 guard break, 3 parry. Light hits are smaller; low quality keeps only the big ones. */
+  burst(x: number, y: number, row: number, heavy = false) {
+    if (this.tier === 0 && row === 0 && !heavy) return;
+    const b = this.bursts.find((o) => o.t < 0) ?? this.bursts.reduce((a, o) => (o.t > a.t ? o : a));
+    const size = row === 0 ? (heavy ? 0.48 : 0.34) : row === 3 ? 0.5 : 0.46;
+    b.t = 0; b.row = row;
+    b.img.setFrame(row * 6).setPosition(x, y).setScale(size).setAngle(row === 3 ? 0 : Math.random() * 360).setAlpha(settings.reduceFlashes ? 0.55 : 1)
+      .setTint(this.element && row === 0 ? COLORS[this.element] : 0xffffff).setVisible(true);
+  }
+
+  private stepBursts(dt: number) {
+    for (const b of this.bursts) {
+      if (b.t < 0) continue;
+      b.t += dt;
+      const f = Math.floor(b.t / 0.045);
+      if (f >= 6) { b.t = -1; b.img.setVisible(false); } else b.img.setFrame(b.row * 6 + f);
+    }
   }
 
   private update(_time: number, delta: number) {
@@ -164,6 +188,7 @@ export class Visuals {
     }
     if (held) { this.budget.reset(); return; }
     const dt = Math.min(delta / 1000, 0.05);
+    this.stepBursts(dt);
     if (delta > 200) this.budget.reset();
     else if (settings.quality === 'auto' && !G.inCutscene) this.budget.sample(delta / 1000, 0, settings.fps === '60');
     this.applyQuality();
@@ -235,6 +260,7 @@ export class Visuals {
     const cam = this.w.cameras.main;
     if (this.displacement && cam) cam.filters.internal.remove(this.displacement);
     for (const o of [this.light, this.weaponLight, this.sparks, this.wisps, this.smoke, this.smokeFront, this.crown, this.bubbles]) o.destroy();
+    for (const b of this.bursts) b.img.destroy();
     if (this.map) this.w.textures.remove(this.key);
   }
 }
