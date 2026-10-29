@@ -37,7 +37,10 @@ try {
   await until(()=>window.__remnant.world.classic.ents.some(e=>e.elite==='chamber_sentinel'&&e.awaitingPurify));
   await p.keyboard.down('KeyF'); await until(()=>window.__remnant.G.inCutscene); await p.keyboard.up('KeyF');
   await drain(()=>window.__remnant.world.save.flags.has_echo&&!window.__remnant.G.inCutscene);
-  assert.ok(await p.evaluate(()=>window.__remnant.world.save.echoes.length>0&&window.__remnant.world.classic.echoes.length>0));
+  // The purified Echo waits to be called; calling it brings it out.
+  assert.ok(await p.evaluate(()=>window.__remnant.world.save.echoes.length>0&&window.__remnant.world.classic.echoes.length===0),'a new Echo does not appear on its own');
+  await p.evaluate(()=>window.__remnant.world.classic.squad.echoCommand('toggle'));
+  assert.ok(await p.evaluate(()=>window.__remnant.world.classic.echoes.length>0),'called, it comes out');
   console.log('Relic and purification: scripture card, Phantom/ability unlock, actual hold-to-purify, shared Echo and chamber progress');
   for(let n=1;n<=10;n++) {
     await p.evaluate(n=>{window.cardResult=null;window.__remnant.G.ui.chapterEnd(n).then(v=>window.cardResult=v);},n);

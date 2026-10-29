@@ -19,7 +19,7 @@ import {
 } from '../game/data';
 import {
   derive, getItem, itemMods, upgradeCost, MAX_PLUS, hasMaterials, payMaterials, makeItem, canLearn, learn, skillRank,
-  echoMaxHp, echoAtk, addMaterial, equipAbility, unlockCombatSkills, COMBAT_UNLOCKS, allocateStat, learnRanks, isWorn,
+  echoMaxHp, echoAtk, addMaterial, equipAbility, unlockCombatSkills, COMBAT_UNLOCKS, allocateStat, learnRanks, isWorn, leadEcho, echoBond,
 } from '../game/state';
 import { QUESTS } from '../game/story';
 import { ROOMS, chapterOf } from '../game/rooms';
@@ -707,6 +707,7 @@ function echoesTab() {
           h('span', null, 'Level'), h('span', null, `${sel.level} / ${ECHO_LEVEL_CAP}`),
           h('span', null, 'Health'), h('span', null, `${Math.ceil(sel.hp > 0 ? Math.min(sel.hp, maxHp) : 0)} / ${maxHp}`),
           h('span', null, 'Attack'), h('span', null, echoAtk(s, sel, d).toFixed(1)),
+          h('span', { 'data-tip': 'One Echo called alone fights with the whole bond: +80% attack and +50% health. As one of two, half of that.', class: 'tipped' }, 'Bond'), h('span', { 'data-k': 'ec_bond' }, echoBond(s) ? `+${Math.round(echoBond(s) * 80)}% attack · +${Math.round(echoBond(s) * 50)}% health` : 'None (call fewer for more)'),
         ),
         h('div', { class: 'bar', style: 'margin-top:6px' }, h('i', { style: `width:${sel.level >= ECHO_LEVEL_CAP ? 100 : (sel.xp / echoXpToNext(sel.level)) * 100}%` })),
       )),
@@ -733,6 +734,13 @@ function echoesTab() {
         else if (s.active.length < d.echoSlots) s.active.push(sel.uid);
         syncArmy();
       }, 'btn', { disabled: !canActivate, 'data-k': 'ec_act' }),
+      btn(s.summonPreset === 'one' && s.active[0] === sel.uid ? 'Fighting beside you' : 'Fight beside me', () => {
+        // The chosen one alone, with the covenant's whole bond: stronger and sturdier than in a crowd.
+        if (!leadEcho(s, sel.uid, G.d.echoSlots)) return;
+        G.world.setSummon('one');
+        for (const echo of G.world.echoes) echo.refreshStats();
+        sfx('uiConfirm'); G.world.autosave(true); render();
+      }, 'btn primary', { 'data-k': 'ec_lead', disabled: (sel.downFor ?? 0) > 0 }),
       btn((s.squadPick ?? []).includes(sel.uid) ? 'Remove from squad pick' : 'Add to squad pick', () => { const pick = s.squadPick ?? []; s.squadPick = pick.includes(sel.uid) ? pick.filter(u => u !== sel.uid) : [...pick, sel.uid]; G.world.autosave(true); render(); }, 'btn', { 'data-k': 'ec_squad' }),
       skillRank(s, 'c_warden') ? btn(sel.commander ? 'Relieve command' : 'Promote to Commander', () => {
         const was = sel.commander;
@@ -767,7 +775,7 @@ function echoesTab() {
 function syncArmy() {
   const W = G.world;
   for (const e of W.echoes) if (!G.save.active.includes(e.inst.uid)) e.dismiss();
-  if (G.save.flags.army_out !== false) W.summonEchoes(true);
+  if (G.save.flags.army_out === true) W.summonEchoes(true);
   sfx('uiConfirm');
   render();
 }

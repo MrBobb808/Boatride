@@ -32,8 +32,11 @@ const start = async (ctx) => {
       s.active.push(inst.uid);
     }
     setInterval(() => { const p = window.__remnant.world.player; if (p && !p.dead) p.hp = p.maxHp; }, 40);
-    window.__remnant.warp('ashen_road', 'left');
   });
+  // They never appear on their own; called once, they come along through the doors.
+  await page.waitForTimeout(300);
+  assert.equal(await E(page, () => window.__remnant.world.classic.squad.echoes.length), 0, 'Echoes wait to be called');
+  await E(page, () => { window.__remnant.world.refreshStats(); window.__remnant.world.classic.squad.echoCommand('toggle'); window.__remnant.warp('ashen_road', 'left'); });
   await until(page, () => window.__remnant.world.room.id === 'ashen_road' && !window.__remnant.world.transitioning);
   return page;
 };

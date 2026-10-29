@@ -9,7 +9,7 @@ import { G } from './shim/ctx';
 import { input } from './shim/input';
 import { EchoUnit } from '../../../remnant/src/game/echoes';
 import { EchoCombinations } from '../../../remnant/src/game/echoCombos';
-import { echoMaxHp, skillRank } from '../../../remnant/src/game/state';
+import { echoMaxHp, skillRank, leadEcho, echoName } from '../../../remnant/src/game/state';
 import { ECHO_SPECIES, type EchoOrder } from '../../../remnant/src/game/data';
 import { Marshal } from '../../../remnant/src/game/bosses2';
 import { fx } from '../../../remnant/src/render/fx';
@@ -110,8 +110,19 @@ export class Squad {
     s.summonPreset = pre;
     if (!s.active.length) s.active = s.echoes.slice(0, G.d.echoSlots).map((e: { uid: string }) => e.uid);
     this.summonEchoes();
+    // The bond follows how many are called: fewer Echoes, each stronger.
+    for (const e of this.echoes) e.refreshStats();
     const n = this.summonList().length;
     this.toast(pre === 'one' ? 'Summon: the lead Echo' : pre === 'two' ? 'Summon: the lead two' : pre === 'squad' ? `Summon: your squad (${n})` : `Summon: the whole lineup (${n})`);
+  }
+
+  /** One Echo, chosen, fights beside the hero alone with the whole bond. */
+  choose(uid: string) {
+    const s = G.save;
+    if (!leadEcho(s, uid, G.d.echoSlots)) return;
+    this.summonEchoes();
+    for (const e of this.echoes) e.refreshStats();
+    this.toast(`${echoName(s, uid)} fights beside you, with the whole bond`);
   }
 
   /** Give every summoned Echo an order (or one, by uid). */
@@ -168,7 +179,7 @@ export class Squad {
       if (inst.downFor > 0) continue;
       inst.downFor = 0;
       inst.hp = echoMaxHp(s, inst, G.d);
-      if (s.active.includes(inst.uid) && s.flags.army_out !== false && !G.inCutscene) {
+      if (s.active.includes(inst.uid) && s.flags.army_out === true && !G.inCutscene) {
         this.summonEchoes();
         this.toast(`${ECHO_SPECIES[inst.species].stages[inst.stage].name} returns to your side`);
       }
@@ -188,7 +199,7 @@ export class Squad {
     if (this.duel) { this.toast('An honour duel: your Echoes kneel and watch.'); return; }
     if (!s.echoes.length) { this.toast('You have no Echoes yet.'); return; }
     if (this.switchCd > 0) { this.toast(`Switch ready in ${Math.ceil(this.switchCd)}s`); return; }
-    if (!this.echoes.length && s.flags.army_out === false) { this.echoCommand('toggle'); return; }
+    if (!this.echoes.length && s.flags.army_out !== true) { this.echoCommand('toggle'); return; }
     const p = this.p;
     const target = (this.priorityTarget && !this.priorityTarget.dying ? this.priorityTarget : null) ?? this.nearestEnemy(p.x, p.y - 20, 260, 0);
     const bench = this.benchReady() ? s.echoes.filter((e: { uid: string; downFor?: number }) => !s.active.includes(e.uid) && (e.downFor ?? 0) <= 0) : [];

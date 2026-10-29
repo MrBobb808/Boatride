@@ -207,7 +207,7 @@ export class Chapter2 {
     s.storySlots = Math.max(s.storySlots, 3);
     G.d = derive(s);
     G.ui.banner('COMMANDER OF THE REMNANT', 'A third Echo may now fight beside you', 'level');
-    W.summonEchoes();
+    if (s.flags.army_out === true) W.summonEchoes();
     await wait(2.4);
     sfx('rumble');
     sfx('door');
@@ -369,8 +369,7 @@ export class Chapter2 {
       G.d = derive(s);
       // The Marshal leads: he takes the first place in the line.
       s.active = [inst.uid, ...s.active.filter((u) => u !== inst.uid)].slice(0, G.d.echoSlots);
-      s.flags.army_out = true;
-      W.summonEchoes(true);
+      if (s.flags.army_out === true) W.summonEchoes(true);
       const unit = W.echoes.find((u) => u.inst.uid === inst.uid);
       if (unit) {
         unit.x = m.x;
@@ -403,7 +402,7 @@ export class Chapter2 {
       G.ui.itemGet(it);
       if (!s.lore.includes('tim47')) s.lore.push('tim47');
       await G.ui.lore('tim47');
-      if (s.flags.army_out !== false) W.summonEchoes();
+      if (s.flags.army_out === true) W.summonEchoes();
     }
     W.spawnLoot(m.x, m.y - 30, [{ silver: 500 }, { mat: 'radiant_core', n: 1 }, { mat: 'covenant_fragment', n: 3 }], true);
     addMaterial(s, 'sentinel_steel', 3);

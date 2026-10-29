@@ -603,7 +603,7 @@ function openOrdersPanel() {
         else if (pick.size >= G.d.echoSlots) { hooks.toast(`Your squad holds ${G.d.echoSlots}.`, 'warn'); return; }
         else pick.add(inst.uid);
         s.squadPick = [...pick];
-        if (s.summonPreset === 'squad') W.summonEchoes(true);
+        if (s.summonPreset === 'squad' && s.flags.army_out === true) W.summonEchoes(true);
         render();
       }, 'btn small' + (inSquad ? ' on' : ''), { 'data-nav': '' });
       list.appendChild(h('div', { class: 'orders-row' + (here ? '' : ' away') },

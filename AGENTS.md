@@ -117,6 +117,16 @@ Never ship files from `art/incoming/` directly.
     for one at a time and the squad picks). Orders live on `EchoInst.order`
     and drive targeting and movement in `EchoUnit.chooseTarget` / `standX`.
     Flank blows to a foe's back hit harder; guards earn XP from blows taken.
+  - **Called, never automatic:** Echoes appear only when called (the wheel,
+    the ECHOES button, a summon preset); `flags.army_out === true` then keeps
+    them along through doors until dismissed. Story beats, purifications and
+    level-ups never call them out on their own.
+  - **Choosing and the bond:** `leadEcho` (game/state.ts) puts one Echo at
+    the head of the lineup and calls it out alone: the Echoes page's "Fight
+    beside me", and in the Phaser build the wheel's Summon → Choose one….
+    `echoBond` gives one Echo alone +80% attack and +50% health; as one of
+    two, half that; in a larger line, none. `setSummon` refreshes the Echoes'
+    stats so the bond follows the preset.
   - **Swap:** `World.switchSupport` trades places with `World.swapPick`
     (nearest Echo in the aimed direction, marked by a gold chevron). The Echo
     takes over Elior's foe (`EchoUnit.takeOver`) and Elior's next blow within
