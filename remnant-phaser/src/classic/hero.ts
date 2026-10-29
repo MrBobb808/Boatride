@@ -20,6 +20,7 @@ import { clipsFor } from '../../../remnant/src/game/weapons';
 import { fx, PK } from '../../../remnant/src/render/fx';
 import type { ClassicLayer } from './layer';
 import type { Player } from '../game/player';
+import { heroLevel, trank } from '../game/archer';
 
 const ELEMENT_COLORS = Object.fromEntries(Object.entries(ELEMENTS).map(([id, e]) => [id, parseInt(e.c.slice(1), 16)]));
 
@@ -74,7 +75,7 @@ export class HeroPowers {
     const p = this.p, w = this.L.host, c = w.controls, s = w.save;
     this.clipTime+=dt*this.clipSpeed;
     this.subCd = Math.max(0, this.subCd - dt); const recharge = dt * runBlessings.recharge * w.d.pursuitRecharge; this.throwCd = Math.max(0, this.throwCd - recharge); this.pursuitCd = Math.max(0, this.pursuitCd - recharge);
-    if (s.level >= 25 && !s.flags.mantle_known) { s.flags.mantle_known = true; s.mantle = 100; w.toast('Shadow Mantle awakened · G / the MANTLE button'); }
+    if (heroLevel(s) >= 25 && !s.flags.mantle_known) { s.flags.mantle_known = true; s.mantle = 100; w.toast(`${p.hero === 'tirzah' ? 'Wings of the Morning' : 'Shadow Mantle'} awakened · G / the MANTLE button`); }
     if (p.mantleT > 0 && p.state !== 'transform' && !G.inCutscene) {
       p.mantleT = Math.max(0, p.mantleT - dt);
       this.shadeT -= dt;
@@ -94,7 +95,7 @@ export class HeroPowers {
     if (p.state === 'transform') {
       this.transformT += dt; p.body.setGravityY(0).setVelocity(0, this.transformT < 0.72 ? -12 : 0);
       if (this.transformT >= 0.72 && !this.transformed) {
-        this.transformed = true; p.mantleT = this.mantleMax = mantleDuration();
+        this.transformed = true; p.mantleT = this.mantleMax = mantleDuration() + (p.hero === 'tirzah' ? trank(this.L.host.save, 't_wings') * 1.5 : 0);
         // Tirzah takes the Wings of the Morning from the same gauge: dawn light instead of shadow.
         const dawn = p.hero === 'tirzah';
         if (dawn) { fx.holyBurst(p.x, p.y - 20, 35, 1.8); fx.column(p.x, p.feet, 44, 440, '#ffe6a8', 1); fx.ring(p.x, p.y, 6, 150, '#fff1c4', 0.7, 5); }
@@ -138,7 +139,7 @@ export class HeroPowers {
   tryTransform() {
     const s = this.L.host.save;
     const form = this.p.hero === 'tirzah' ? 'Wings of the Morning' : 'Shadow Mantle';
-    if (s.level < 25) { this.L.host.toast(`${form} awakens at level 25.`); return false; }
+    if (heroLevel(s) < 25) { this.L.host.toast(`${form} awakens at level 25.`); return false; }
     if (this.p.mantleT > 0 || (s.mantle ?? 0) < 100) { this.L.host.toast(`Fill the transformation gauge through battle (${form}).`); return false; }
     s.mantle = 0; this.transformT = 0; this.transformed = false; this.clip = 'charge'; this.p.state = 'transform'; sfx(this.p.hero === 'tirzah' ? 'wingsForm' : 'transform'); return true;
   }

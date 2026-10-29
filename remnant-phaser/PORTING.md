@@ -214,6 +214,27 @@ Her own way to fight (POLISH_PLAN §5c), all in `src/game/bow.ts`:
   - comes with the finisher's shake, slow motion and push in.
 - **Perfect Draw:** releasing a held draw between 0.62 and 0.8 s (a gold glint marks the window) looses a perfect shot. It is free, 25% faster and always a crit, so under the Wings it also brings the jab.
 
+## Tirzah's own progression
+
+Tirzah levels, spends points and wears gear of her own (`src/game/archer.ts`, saved in the shared optional `SaveData.archer`, an `ArcherSave`).
+
+- **Level and experience:** the hero fighting earns full experience and the one waiting half (`World.giveXp`). Each of her levels brings 3 stat points and a skill point, as Elior's do. Her abilities (1/6/10/16/22/30), arrow types and the Wings (25) open at her level; the HUD's level badge (edged green) and experience bar show the fighter's.
+- **Her numbers:** `archerStats` runs the original's `derive()` over her level, stats and gear, with no weapon mastery and none of Elior's tree, then applies her own tree. Echo slots and strength, Super charge and prices stay Elior's. `World.eliorD` holds his stats (the original's modules read and replace them as `G.d`); `World.d` is the fighting hero's, worked out again whenever his change. A switch keeps the share of health left.
+- **Her gear:** seven slots of her own (`ARCHER_SLOTS` in the shared `data.ts`): bow, quiver, dagger, hood, garb, amulet, charm. Her items share the inventory but only her slots take them; the store treats what she wears as equipped (`isWorn`). Her bow's element is her arrows' unless she has nocked another type. There are 27 items. Two are keepsakes, won once and never dropped: Ehud's Blade (Judges 3:16) from the Crimson Marshal and the Bow of Jonathan (1 Samuel 18:4) from the prince of Persia (`ARCHER_KEEPSAKES`). The Quiver of the Mighty carries Psalm 127:4-5.
+- **Drops:** 30% of a foe's or elite's gear is hers while Elior fights, and 55% while she does (`World.gearDrop`). Every boss leaves her a piece two rarities above the chapter (`bossSpoils`). Her drops carry a Power that grows with her level (`archerLootPower`), so a bow found late keeps up.
+- **Under way:** a journey saved before this gets Tirzah at Elior's level, with his stats as allocated, his unspent points, a skill point for every level and a kit whose main stats match what he wears (the Power found for each piece). A new journey starts her at level 1 with a plain kit.
+- **Her skill tree** (19 nodes, three branches, capstones need both roots):
+
+| Branch | Nodes |
+|---|---|
+| Marksman | Steady Draw (+8% damage a rank), Long Sight (True Aim 90–270 px, ×1.45), Hawk's Eye (crit), Patient String (wider Perfect window, +1 pierce), Headhunter (head shots +35%), Twin String (a full draw looses a second arrow) |
+| Huntress | Keen Dagger (dagger and bash +10% a rank), Fleet-Footed (speed), Dawn Wings (+1.5 s a rank), Shadowstep (a shot just after a dodge crits), Dawn Jab (×1.4, fells below 55%), Night Huntress (Wings crit +15%, a jab kill returns 15% of the gauge) |
+| Warden | Vigor (health), Tanned Hide (damage taken), Swift Recall (+60%, mends 1% an arrow), Quiet Focus (ability power and energy), Deep Quiver (abilities recharge 15% faster), Elemental Fletching (+25%), Covenant Archer (abilities cost 25% less, their arrows +30%) |
+
+- **The pause menu** gains a Tirzah section (Character, Equipment, Skill tree, Abilities), added through the shared menu's `addMenuSection` hook (`src/game/tirzahMenu.ts`); the original edition adds none.
+
+Verified by `scripts/tirzah-progression.mjs`.
+
 ## The archer's sounds
 
 All generated in code, in the shared `remnant/src/audio/audio.ts` (new effects only; existing ones are unchanged). `WorldApi.playEffect(name, { x, vol, pitch })` pans each by where it happens on screen.

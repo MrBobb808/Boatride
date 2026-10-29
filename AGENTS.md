@@ -141,6 +141,7 @@ Never ship files from `art/incoming/` directly.
   - The curios add four mods: `barter`, `salvage`, `mantleGain` and `parryHeal`.
   - The screens are in `ui/menus.ts`: Ilan's stall, Dov's Dismantle tab, and the pause menu's Elior → Store, which is closed during fights.
   - Capes show on Elior in the Phaser build: `fighterRig.ts` dyes the cape when it bakes the sprite sheet.
+  - Tirzah's gear (bows, quivers, daggers, hoods, garbs, amulets, charms) lives in the same `ITEMS` table with her own `ArcherSlot`s; Elior's `SLOTS` never take it. Her level, points, tree and gear are the optional `SaveData.archer`, used only by the Phaser build (`remnant-phaser/src/game/archer.ts`); `isWorn` covers both heroes.
   - Verified by `remnant-phaser/scripts/economy.mjs`.
 - **Trials of Valor and the daily challenge:** `game/valor.ts` holds the
   trophies (a boss trophy and a flawless title/cape per boss) and

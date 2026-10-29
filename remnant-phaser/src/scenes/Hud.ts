@@ -9,6 +9,7 @@ import Phaser from 'phaser';
 import { STYLE_NAMES, STYLE_HELP, RANKS } from '../game/style';
 import { xpToNext, type RoomDef } from '../shared';
 import { SKILLS, SLOTS, skillSlots, ARCHER, ARCHER_IDS } from '../game/abilities';
+import { heroLevel, archerLevel } from '../game/archer';
 import { bakeAbilityIcons, abilityIconKey } from '../game/abilityIcons';
 import { dpr } from '../game/screen';
 import { measureSafe, safe } from '../game/safe';
@@ -207,11 +208,12 @@ export class Hud extends Phaser.Scene {
     const g = this.bars.clear();
     // The level badge: a gold-edged diamond.
     const bx = x0 + 15 * k, by = y0 + 15 * k, d = 11 * k;
-    const r = d * 1.35;
-    g.fillStyle(0x0c0910, 0.9).lineStyle(1.4 * k, 0xe2b85a, 1);
+    const r = d * 1.35, her = p.hero === 'tirzah' && !!s.archer;
+    // Each hero has her own level: Tirzah's badge is edged in her green.
+    g.fillStyle(0x0c0910, 0.9).lineStyle(1.4 * k, her ? 0xa6efdc : 0xe2b85a, 1);
     g.beginPath().moveTo(bx, by - r).lineTo(bx + r, by).lineTo(bx, by + r).lineTo(bx - r, by).closePath();
     g.fillPath().strokePath();
-    this.levelText.setText(String(s.level));
+    this.levelText.setText(String(her ? s.archer!.level : s.level));
     // Health, with a pale trail that catches up after a blow.
     const hx = x0 + 34 * k, hy = y0 + 6 * k, hw = 196 * k, hh = 10 * k;
     const f = Phaser.Math.Clamp(p.hp / p.maxHp, 0, 1);
@@ -229,7 +231,7 @@ export class Hud extends Phaser.Scene {
     g.fillStyle(0xd8b45a, 1).fillRect(hx, cy, hw * 0.82 * cf, 6 * k);
     g.fillStyle(0xfff1c4, 0.8).fillRect(hx, cy, hw * 0.82 * cf, 1.5 * k);
     cy += 6 * k + 4 * k;
-    const xf = Phaser.Math.Clamp(s.xp / xpToNext(s.level), 0, 1);
+    const xf = Phaser.Math.Clamp(her ? s.archer!.xp / xpToNext(s.archer!.level) : s.xp / xpToNext(s.level), 0, 1);
     g.fillStyle(0xffffff, 0.08).fillRect(hx, cy, hw * 0.82, 2 * k);
     g.fillStyle(0x9fc4ff, 1).fillRect(hx, cy, hw * 0.82 * xf, 2 * k);
     cy += 2 * k + 8 * k;
@@ -253,7 +255,7 @@ export class Hud extends Phaser.Scene {
     this.echoText.setVisible(total > 0);
     cy += 13 * k;
     const form = p.hero === 'tirzah' ? 'Wings' : 'Mantle';
-    const power = `Super ${Math.floor(s.rally)}%${s.level >= 25 ? p.mantleT > 0 ? ` · ${form} ${Math.ceil(p.mantleT)}s` : ` · ${form} ${Math.floor(s.mantle ?? 0)}%` : ''}${s.sub ? ` · ${s.sub.replace('_', ' ')} ${s.hearts ?? 0}♥` : ''}`;
+    const power = `Super ${Math.floor(s.rally)}%${heroLevel(s) >= 25 ? p.mantleT > 0 ? ` · ${form} ${Math.ceil(p.mantleT)}s` : ` · ${form} ${Math.floor(s.mantle ?? 0)}%` : ''}${s.sub ? ` · ${s.sub.replace('_', ' ')} ${s.hearts ?? 0}♥` : ''}`;
     this.powerText.setText(power).setPosition(hx, cy);
     const touch = w.controls.device === 'touch';
     box(hudBoxes.column, x0, y0, hx + hw - x0, cy - y0 + 8 * k);
@@ -522,7 +524,7 @@ export class Hud extends Phaser.Scene {
     const echoes = this.world.save.echoes.length > 0;
     for (const x of this.btns) if (x.a === 'echo' || x.a === 'switch') { x.g.setVisible(echoes); x.t.setVisible(echoes); }
     for (const x of this.btns) {
-      if (x.a === 'transform') { x.g.setVisible(this.world.save.level >= 25); x.t.setVisible(this.world.save.level >= 25); }
+      if (x.a === 'transform') { const on = heroLevel(this.world.save) >= 25; x.g.setVisible(on); x.t.setVisible(on); }
       if (x.a === 'ultimate') { x.g.setVisible(!!this.world.save.flags.relic_taken); x.t.setVisible(!!this.world.save.flags.relic_taken); }
       if (x.a === 'sub') { const on = !!this.world.save.sub || this.world.player.mantleT > 0; x.g.setVisible(on); x.t.setVisible(on); }
     }
@@ -557,7 +559,7 @@ export class Hud extends Phaser.Scene {
       title = "Tirzah's abilities"; sub = 'Her three skill buttons while she fights';
       items = [
         ...ARCHER_IDS.map((id) => {
-          const def = ARCHER[id], at = slots.indexOf(id), open = s.level >= def.level;
+          const def = ARCHER[id], at = slots.indexOf(id), open = archerLevel(s) >= def.level;
           return { label: `${def.short} · ${def.name}${open ? at >= 0 ? ` [${keys[at]}]` : '' : ` · Lv ${def.level}`}`, on: at >= 0, page: true, run: () => {
             if (!open) { this.toast(`${def.name} comes at level ${def.level}.`); return; }
             if (at >= 0) slots[at] = null;

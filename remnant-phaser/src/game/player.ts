@@ -5,6 +5,7 @@
 // Combat follows the shared weapon definitions: ground and air routes,
 // Phantom Step, charged blows, parries, buffs, Balm and the selected skills.
 
+import { trank, heroLevel } from './archer';
 import Phaser from 'phaser';
 import { Bow } from './bow';
 import { StyleMeter, STYLE_NAMES, RANKS, type CombatStyle, type PlayableHero } from './style';
@@ -162,7 +163,11 @@ export class Player {
   get combatStyle(): CombatStyle { const s = this.w.save.combatStyle; return s === 'wraith' || s === 'sentinel' ? s : 'vanguard'; }
   switchHero() {
     if (this.switchCd > 0 || G.paused || G.inCutscene || this.dead || !['free', 'swim'].includes(this.state)) { this.w.toast('Switch after the current move.'); return false; }
+    // Each hero has her own health pool and gear: the switch keeps the share of health left.
+    const share = this.hp / Math.max(1, this.maxHp);
     this.w.save.playableHero = this.hero === 'elior' ? 'tirzah' : 'elior';
+    this.w.refreshStats();
+    this.hp = Math.max(1, Math.round(share * this.maxHp));
     this.switchCd = 0.8; this.bow.cancel(); this.w.controls.flush();
     this.w.spark(this.x,this.y,this.hero === 'tirzah' ? 0xa6efdc : 0xffd27a,12);
     this.w.toast(this.hero === 'tirzah' ? 'Tirzah · bow and arrow · hold Strike to charge; Up + Strike for spread' : 'Elior · ' + STYLE_NAMES[this.combatStyle]);
@@ -191,9 +196,9 @@ export class Player {
   get ce() { return this.w.save.ce; }
   get moves() { return MOVESETS[this.w.d.family]; }
   /** A blow's base: the original's attack from stats and gear, its melee multiplier and the level's power tier. */
-  power() { const d = this.w.d; return d.atk * d.meleeMult * sovereignDamage(this.w.save.level) * (this.lion > 0 ? 1.35 : 1) * (this.powers?.multiplier ?? 1); }
+  power() { const d = this.w.d; return d.atk * d.meleeMult * sovereignDamage(heroLevel(this.w.save)) * (this.lion > 0 ? 1.35 : 1) * (this.powers?.multiplier ?? 1); }
   /** A Covenant skill's base: attack times the original's ability power. */
-  skillPower() { const d = this.w.d; return d.atk * d.abil * sovereignDamage(this.w.save.level); }
+  skillPower() { const d = this.w.d; return d.atk * d.abil * sovereignDamage(heroLevel(this.w.save)); }
 
   /** A moment untouchable (an Echo exchange). */
   grantInvuln(t: number) { this.invuln = Math.max(this.invuln, t); }
@@ -239,6 +244,8 @@ export class Player {
     const c = this.w.controls, b = this.body, s = this.w.save;
     const actionDt = dt * ((this.state==='attack'||this.state==='charge'||this.state==='cast'||this.state==='phantom'||this.state==='bow') ? ACTION_RATE : this.state === 'dodge' && this.combatStyle === 'wraith' ? 1.2 : 1);
     this.st += actionDt;
+    // The original's heals fill to Elior's limits; each hero keeps her own.
+    if (s.hp > this.maxHp) s.hp = this.maxHp;
     this.switchCd = Math.max(0,this.switchCd-dt);
     this.styleMeter.update(dt);
     this.bow.update(dt);
@@ -439,8 +446,10 @@ export class Player {
       const t = this.target(260, true);
       if (!t || !this.blinkSpot(t)) { this.w.toast('No reachable enemy ahead.'); return false; }
     }
-    if (s.ce < def.cost) { this.w.floatText(this.x, this.body.top - 8, 'Not enough Covenant Energy', '#9fc4ff'); return false; }
-    s.ce -= def.cost;
+    // Covenant Archer: her abilities cost a quarter less.
+    const cost = isArcherSkill(id) && trank(s, 't_covenant') ? Math.round(def.cost * 0.75) : def.cost;
+    if (s.ce < cost) { this.w.floatText(this.x, this.body.top - 8, 'Not enough Covenant Energy', '#9fc4ff'); return false; }
+    s.ce -= cost;
     this.cds[id] = def.cd;
     this.castId = id;
     this.state = 'cast';

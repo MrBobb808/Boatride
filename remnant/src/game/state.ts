@@ -91,6 +91,24 @@ export interface SaveData extends ProgressionData, ValorSave, DailySave, ElixirS
   locked?: string[];
   /** Ilan's store (game/economy.ts): today's purchases, capes and tomes bought. */
   store?: StoreSave;
+  /** Tirzah's own progression in the Phaser build (remnant-phaser/src/game/archer.ts). */
+  archer?: ArcherSave;
+}
+
+/** Tirzah's level, points, stats, skill tree ranks and gear (item uids in the shared inventory). */
+export interface ArcherSave {
+  level: number;
+  xp: number;
+  statPoints: number;
+  skillPoints: number;
+  stats: Record<StatKey, number>;
+  skills: Record<string, number>;
+  equipment: Partial<Record<Slot, string>>;
+}
+
+/** Every item worn by Elior or Tirzah. */
+export function isWorn(s: SaveData, uid: string) {
+  return Object.values(s.equipment).includes(uid) || (!!s.archer && Object.values(s.archer.equipment).includes(uid));
 }
 
 export function makeItem(id: string, rarity?: Rarity, plus = 0, rollAffixes = true): ItemInst {

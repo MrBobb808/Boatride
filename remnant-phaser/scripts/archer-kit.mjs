@@ -31,7 +31,7 @@ try {
   // Level 30 Tirzah, two foes in a line on flat ground that never move or fall.
   const slots = await E(page, () => {
     const w = window.__remnant.world, s = w.save, open = (x, y) => w.tileAt(Math.floor(x / 16), Math.floor(y / 16)) === 0;
-    Object.assign(s, { level: 30, playableHero: 'tirzah' }); s.flags.relic_taken = true;
+    Object.assign(s, { level: 30, playableHero: 'tirzah' }); s.archer.level = 30; s.flags.relic_taken = true;
     w.refreshStats(); w.d.crit = 0;
     const foes = w.classic.ents.filter((e) => e.isFoe && !e.dying && !e.flying).slice(0, 2);
     for (const e of w.classic.ents) if (!foes.includes(e) && e.isFoe) e.remove = true;

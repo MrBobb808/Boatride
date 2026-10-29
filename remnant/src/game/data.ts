@@ -5,10 +5,14 @@ export type Rarity = 0 | 1 | 2 | 3 | 4 | 5;
 export const RARITY_NAMES = ['Common', 'Uncommon', 'Rare', 'Epic', 'Legendary', 'Covenant'];
 export const RARITY_COLORS = ['#c9c3b8', '#8fc77a', '#6fa8ff', '#c48cff', '#ffae42', '#fff2c2'];
 
-export type Slot = 'weapon' | 'helm' | 'armor' | 'gauntlets' | 'boots' | 'relic' | 'ring';
+export type Slot = 'weapon' | 'helm' | 'armor' | 'gauntlets' | 'boots' | 'relic' | 'ring' | ArcherSlot;
 export const SLOTS: Slot[] = ['weapon', 'helm', 'armor', 'gauntlets', 'boots', 'relic', 'ring'];
+/** Tirzah's own set (the Phaser build): only she can wear these, and Elior's slots never take them. */
+export type ArcherSlot = 'bow' | 'quiver' | 'dagger' | 'hood' | 'garb' | 'amulet' | 'charm';
+export const ARCHER_SLOTS: ArcherSlot[] = ['bow', 'quiver', 'dagger', 'hood', 'garb', 'amulet', 'charm'];
 export const SLOT_NAMES: Record<Slot, string> = {
   weapon: 'Weapon', helm: 'Helm', armor: 'Armor', gauntlets: 'Gauntlets', boots: 'Boots', relic: 'Relic', ring: 'Ring',
+  bow: 'Bow', quiver: 'Quiver', dagger: 'Dagger', hood: 'Hood', garb: 'Garb', amulet: 'Amulet', charm: 'Charm',
 };
 
 export type StatKey = 'vit' | 'str' | 'agi' | 'end' | 'res' | 'wis';
@@ -204,6 +208,34 @@ export const ITEMS: Record<string, ItemBase> = {
   curio_veilcoat: { id: 'curio_veilcoat', name: 'Veil-Woven Coat', slot: 'armor', rarity: 3, icon: 'armor', look: 2, mods: { hp: 90, def: 10, ceRegen: 10, res: 2 }, value: 200, desc: 'Purified veil-thread woven into a travelling coat. Light, warm and hard to cut.' },
   curio_watch_crown: { id: 'curio_watch_crown', name: 'Watchman\'s Circlet', slot: 'helm', rarity: 3, icon: 'helm', look: 2, mods: { def: 6, hp: 50, crit: 4, xp: 8 }, value: 200, desc: 'A thin band worn by those who keep the night watch. Sharper eyes, quicker learning.' },
   curio_hinds_feet: { id: 'curio_hinds_feet', name: 'Hinds\' Feet', slot: 'boots', rarity: 3, icon: 'boot', look: 2, mods: { speed: 12, agi: 3, def: 3 }, value: 200, desc: 'Soft boots for high places.', lore: '"The LORD God is my strength, and he will make my feet like hinds\' feet, and he will make me to walk upon mine high places." — Habakkuk 3:19 (KJV)' },
+  // Tirzah's gear (the Phaser build). Drops scale with her level through lootPower.
+  hunters_bow: { id: 'hunters_bow', name: 'Hunter\'s Bow', slot: 'bow', rarity: 0, icon: 'bow', mods: { atk: 10 }, value: 10, desc: 'Ash limbs and a waxed gut string. It has fed a village through two winters.' },
+  ashwood_longbow: { id: 'ashwood_longbow', name: 'Ashwood Longbow', slot: 'bow', rarity: 1, icon: 'bow', mods: { atk: 14, crit: 2 }, value: 50, desc: 'Cut from a tree the fire spared. A long, patient draw.' },
+  hornback_bow: { id: 'hornback_bow', name: 'Hornback Recurve', slot: 'bow', rarity: 2, icon: 'bow', mods: { atk: 18, crit: 4, aspd: 4 }, value: 120, desc: 'Horn, sinew and glue, the way the eastern bowyers make them. Quick to the shoulder.' },
+  watchtower_bow: { id: 'watchtower_bow', name: 'Watchtower Warbow', slot: 'bow', rarity: 3, icon: 'bow', mods: { atk: 26, critDmg: 15, crit: 4 }, value: 260, desc: 'The kind kept on the walls. It throws a heavy shaft a long way.' },
+  emberstring: { id: 'emberstring', name: 'Emberstring', slot: 'bow', rarity: 3, icon: 'bow', element: 'fire', mods: { atk: 28, crit: 5 }, value: 280, desc: 'Fire element. The string glows when drawn; every arrow leaves it already burning.' },
+  rimebough: { id: 'rimebough', name: 'Rimebough', slot: 'bow', rarity: 4, icon: 'bow', element: 'frost', mods: { atk: 40, crit: 6, aspd: 6 }, value: 440, desc: 'Frost element. A bough that froze in a single night and never thawed.' },
+  stormspine: { id: 'stormspine', name: 'Stormspine', slot: 'bow', rarity: 4, icon: 'bow', element: 'storm', mods: { atk: 44, critDmg: 25, abil: 10 }, value: 460, desc: 'Storm element. Its spine was struck by lightning while the bowyer worked. He finished it anyway.' },
+  bow_of_jonathan: { id: 'bow_of_jonathan', name: 'Bow of Jonathan', slot: 'bow', rarity: 5, icon: 'bow', element: 'holy', unique: true, mods: { atk: 96, crit: 12, critDmg: 30, abil: 20 }, value: 999, desc: 'Light element. A prince\'s bow, given away in friendship.', lore: '"And Jonathan stripped himself of the robe that was upon him, and gave it to David, and his garments, even to his sword, and to his bow, and to his girdle." — 1 Samuel 18:4 (KJV)' },
+  quiver_hide: { id: 'quiver_hide', name: 'Hide Quiver', slot: 'quiver', rarity: 0, icon: 'quiver', mods: { aspd: 2 }, value: 5, desc: 'Stitched rawhide with a wooden mouth.' },
+  quiver_fletcher: { id: 'quiver_fletcher', name: 'Fletcher\'s Quiver', slot: 'quiver', rarity: 1, icon: 'quiver', mods: { atk: 3, aspd: 4 }, value: 45, desc: 'Every shaft in it was fletched by the same careful hand.' },
+  quiver_swift: { id: 'quiver_swift', name: 'Quiver of Swift Shafts', slot: 'quiver', rarity: 2, icon: 'quiver', mods: { aspd: 8, crit: 3 }, value: 110, desc: 'Light reed arrows. They leave the string almost before you loose them.' },
+  quiver_mighty: { id: 'quiver_mighty', name: 'Quiver of the Mighty', slot: 'quiver', rarity: 4, icon: 'quiver', mods: { atk: 12, aspd: 10, abil: 15 }, value: 420, desc: 'Full to the brim.', lore: '"As arrows are in the hand of a mighty man; so are children of the youth. Happy is the man that hath his quiver full of them..." — Psalm 127:4-5 (KJV)' },
+  flint_knife: { id: 'flint_knife', name: 'Flint Knife', slot: 'dagger', rarity: 0, icon: 'dagger', mods: { atk: 3 }, value: 5, desc: 'Knapped flint bound to a bone grip. For skinning, and for anything that gets too close.' },
+  bronze_dirk: { id: 'bronze_dirk', name: 'Bronze Dirk', slot: 'dagger', rarity: 1, icon: 'dagger', mods: { atk: 5, crit: 2 }, value: 45, desc: 'Short, heavy and green at the hilt.' },
+  hooked_kris: { id: 'hooked_kris', name: 'Hooked Kris', slot: 'dagger', rarity: 2, icon: 'dagger', mods: { atk: 7, crit: 4, critDmg: 10 }, value: 120, desc: 'A wavy blade that bites deeper on the way out.' },
+  ehuds_blade: { id: 'ehuds_blade', name: 'Ehud\'s Blade', slot: 'dagger', rarity: 4, icon: 'dagger', unique: true, mods: { atk: 16, crit: 8, critDmg: 30 }, value: 480, desc: 'Two-edged and a cubit long, worn on the right thigh where no one looks.', lore: '"But Ehud made him a dagger which had two edges, of a cubit length; and he did gird it under his raiment upon his right thigh." — Judges 3:16 (KJV)' },
+  hood_wool: { id: 'hood_wool', name: 'Ranger\'s Hood', slot: 'hood', rarity: 0, icon: 'hood', mods: { def: 1 }, value: 5, desc: 'Grey wool that shades the eyes and keeps the string dry.' },
+  hood_shadow: { id: 'hood_shadow', name: 'Shadowed Cowl', slot: 'hood', rarity: 2, icon: 'hood', mods: { def: 4, crit: 3, hp: 10 }, value: 110, desc: 'Dyed in walnut and soot. Foes look straight past it.' },
+  hood_falcon: { id: 'hood_falcon', name: 'Falconer\'s Hood', slot: 'hood', rarity: 3, icon: 'hood', mods: { def: 6, hp: 30, crit: 5 }, value: 260, desc: 'Feathers sewn into the brow. The eyes beneath them miss nothing.' },
+  garb_leather: { id: 'garb_leather', name: 'Leather Jerkin', slot: 'garb', rarity: 0, icon: 'armor', mods: { def: 2, hp: 5 }, value: 8, desc: 'Supple enough to draw in, stiff enough to turn a thorn.' },
+  garb_scale: { id: 'garb_scale', name: 'Scaled Brigandine', slot: 'garb', rarity: 1, icon: 'armor', mods: { def: 5, hp: 12 }, value: 60, desc: 'Small plates riveted under green cloth.' },
+  garb_ranger: { id: 'garb_ranger', name: 'Ranger\'s Coat', slot: 'garb', rarity: 3, icon: 'armor', mods: { def: 9, hp: 25, speed: 5 }, value: 260, desc: 'Long, split for riding and running, with a dozen pockets for fletching.' },
+  amulet_feather: { id: 'amulet_feather', name: 'Feather Amulet', slot: 'amulet', rarity: 1, icon: 'feather', mods: { ce: 10, ceRegen: 10 }, value: 50, desc: 'A hawk\'s feather in a silver cage. Light as a breath.' },
+  amulet_eye: { id: 'amulet_eye', name: 'Watchman\'s Eye', slot: 'amulet', rarity: 3, icon: 'sigil', mods: { crit: 5, abil: 12, ce: 15 }, value: 240, desc: 'A polished stone set in bronze. Nothing creeps up on whoever wears it.' },
+  charm_arrowhead: { id: 'charm_arrowhead', name: 'Arrowhead Charm', slot: 'charm', rarity: 0, icon: 'shard', mods: { hp: 5 }, value: 5, desc: 'Her first arrowhead, kept on a cord.' },
+  charm_stag: { id: 'charm_stag', name: 'Stag-Bone Charm', slot: 'charm', rarity: 2, icon: 'shard', mods: { speed: 5, agi: 1, crit: 2 }, value: 110, desc: 'Carved from an antler shed in the high woods.' },
+  charm_dawn: { id: 'charm_dawn', name: 'Dawnstone Charm', slot: 'charm', rarity: 4, icon: 'shard', mods: { mantleGain: 20, crit: 5, critDmg: 15 }, value: 420, desc: 'It catches the first light and holds it. The Wings come sooner while she wears it.' },
   // Materials
   iron_scrap: { id: 'iron_scrap', name: 'Iron Scrap', slot: 'material', rarity: 0, icon: 'scrap', value: 3, desc: 'Salvaged metal. The smith can use it.' },
   veil_shard: { id: 'veil_shard', name: 'Veil Shard', slot: 'material', rarity: 1, icon: 'veil', value: 6, desc: 'Crystallized corruption. Five can be purified into a Covenant Fragment.' },

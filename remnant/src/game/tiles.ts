@@ -38,6 +38,8 @@ export type NpcKind = 'azriel' | 'mara' | 'tobiah' | 'ilan' | 'dov' | 'regent' |
 export interface Loot {
   item?: string;
   rarity?: number;
+  /** Gear Power (ItemInst.lootPower): Tirzah's drops scale with her level. */
+  power?: number;
   mat?: string;
   n?: number;
   silver?: number;

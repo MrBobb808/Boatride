@@ -45,7 +45,6 @@ import { mantleStyle } from '../../../remnant/src/game/mantle';
 import { ELEMENTS } from '../../../remnant/src/game/power';
 import { ITEMS, RARITY_COLORS } from '../../../remnant/src/game/data';
 import type { HumanStyle } from '../../../remnant/src/render/actors';
-import { rollGear } from '../../../remnant/src/game/loot';
 import { WeaponPractice } from '../../../remnant/src/game/progression';
 import { sfx } from './shim/audio';
 import { migrateSave, getItem, makeItem, absorbEcho } from '../../../remnant/src/game/state';
@@ -69,6 +68,13 @@ const overlaps = (a: Rect, b: Rect) => a.x < b.x + b.w && b.x < a.x + a.w && a.y
 
 /** What the classic layer needs from the World scene beyond `WorldApi`. */
 export interface ClassicHost extends WorldApi {
+  /** Elior's own stats (G.d); `d` is the fighting hero's. */
+  eliorD: import('../../../remnant/src/game/state').Derived;
+  setEliorStats(d: import('../../../remnant/src/game/state').Derived): void;
+  /** A foe's piece of gear: Elior's or, as often, Tirzah's. */
+  gearDrop(elite: boolean): Loot;
+  /** A boss always leaves Tirzah something fine. */
+  bossSpoils(key?: string): void;
   visuals: Visuals;
   feedback: import('../game/feedback').Feedback;
   player: Player & {
@@ -459,7 +465,7 @@ export class ClassicLayer {
     const h = this.host, L = this;
     G.world = this;
     G.save = h.save; G.slot = activeSlot();
-    Object.defineProperty(G, 'd', { configurable: true, enumerable: true, get: () => h.d, set: (d) => { h.d = d; if (h.player) { h.player.maxHp = d.maxHp; h.player.maxCe = d.maxCe; } } });
+    Object.defineProperty(G, 'd', { configurable: true, enumerable: true, get: () => h.eliorD, set: (d) => h.setEliorStats(d) });
     G.debug = new URLSearchParams(location.search).has("debug");
     h.save.defeated ??= [];
     G.renderer = { tier: settings.quality === 'low' ? 0 : settings.quality === 'medium' ? 1 : 2, pixel: settings.artStyle === 'pixel', effects: 0, bw: 0, bh: 0, generation: 0, scale: 1,
@@ -741,7 +747,7 @@ export class ClassicLayer {
     if (e.elite) this.slowmo(0.32, 0.35);
     this.addRally(6); G.save.ce = Math.min(G.d.maxCe, G.save.ce + (G.save.flags.relic_taken ? 5 : 0));
     this.host.onFoeDied(xp, Math.round(Phaser.Math.Between(st.silver[0], st.silver[1]) * elite * tier), e.x, e.y - 20, e.elite ?? undefined);
-    if (this.storyEnabled) { const loot: Loot[] = []; if (Math.random() < 0.28) loot.push({ mat: 'veil_shard', n: 1 }); if (Math.random() < 0.22) loot.push({ mat: 'iron_scrap', n: 1 }); if (e.kind === 'sentinel') loot.push({ mat: 'sentinel_steel', n: e.elite ? 3 : 1 }); if (e.elite) loot.push({ mat: 'covenant_fragment', n: 1 }); if (Math.random() < (e.elite ? 1 : 0.06)) loot.push(rollGear(e.elite ? 2 : 0)); this.spawnLoot(e.x, e.cy, loot); }
+    if (this.storyEnabled) { const loot: Loot[] = []; if (Math.random() < 0.28) loot.push({ mat: 'veil_shard', n: 1 }); if (Math.random() < 0.22) loot.push({ mat: 'iron_scrap', n: 1 }); if (e.kind === 'sentinel') loot.push({ mat: 'sentinel_steel', n: e.elite ? 3 : 1 }); if (e.elite) loot.push({ mat: 'covenant_fragment', n: 1 }); if (Math.random() < (e.elite ? 1 : 0.06)) loot.push(this.host.gearDrop(!!e.elite)); this.spawnLoot(e.x, e.cy, loot); }
     // The Echoes out share in it, as in the original.
     const echoXp = Math.min(160, Math.max(4, Math.round(Math.sqrt(Math.max(1, xp)) * 1.5)));
     for (const ec of this.squad.echoes) if (!ec.remove && ec.hp > 0 && ec.despawn <= 0 && ec.tempT <= 0) { ec.gainXp(echoXp); if (G.d.sets.legion >= 3) ec.hp = ec.inst.hp = Math.min(ec.maxHp, ec.hp + ec.maxHp * 0.03); }
@@ -749,6 +755,7 @@ export class ClassicLayer {
   }
   onBossDefeated(b: Entity & { key?: string }) {
     this.bossActive = false;
+    this.host.bossSpoils(b.key ?? 'idol');
     if (!this.storyEnabled) { this.host.onClassicBossDefeated(b.key ?? 'idol'); return; }
     valorTrack.bossDown(b);
     const R = this.story.ch3.rounds;

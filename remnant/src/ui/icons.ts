@@ -255,6 +255,21 @@ const ICONS: Record<string, Draw> = {
     line(x, [10, 16, 16, 22], 2.4);
     line(x, [6, 26, 13, 19], 3);
   },
+  bow: (x) => {
+    // A recurve limb drawn back on its string, an arrow nocked.
+    x.lineWidth = 2.6;
+    x.beginPath(); x.moveTo(9, 4); x.quadraticCurveTo(24, 8, 23, 16); x.quadraticCurveTo(24, 24, 9, 28); x.stroke();
+    line(x, [9, 4, 13, 16, 9, 28], 1);
+    line(x, [5, 16, 28, 16], 1.6);
+    fillPoly(x, [29, 16, 25, 13, 25, 19]);
+    fillPoly(x, [5, 16, 3, 13, 8, 16, 3, 19]);
+  },
+  quiver: (x) => {
+    // A slanted quiver with three fletched shafts.
+    fillPoly(x, [8, 14, 15, 11, 23, 27, 16, 30]);
+    line(x, [11, 13, 6, 3], 1.6); line(x, [13, 12, 11, 2], 1.6); line(x, [15, 11, 16, 3], 1.6);
+    fillPoly(x, [6, 3, 4, 7, 8, 6]); fillPoly(x, [11, 2, 9, 6, 13, 5]); fillPoly(x, [16, 3, 14, 6, 18, 6]);
+  },
   axe: (x) => {
     line(x, [8, 27, 21, 8], 2.4);
     fillPoly(x, [17, 5, 27, 9, 26, 17, 21, 12, 19, 10]);

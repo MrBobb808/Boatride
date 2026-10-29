@@ -11,6 +11,7 @@ import { TILE, isSolid, type T } from '../shared';
 import type { WorldApi, FoeLike } from './types';
 import type { Player } from './player';
 import type { Bow } from './bow';
+import { trank } from './archer';
 
 const ARM_T = 0.6, CHAIN_T = 2.4, ICD = 0.3, MARKS = 8;
 /** Rows of the V05 sheet. */
@@ -157,9 +158,11 @@ export class Dawn {
     this.spear.setVisible(true).setFlipX(p.face < 0).setPosition(p.x + p.face * (6 + reach * 16), p.feet - 30).setAlpha(this.jabT < 0.16 ? 1 : Math.max(0, 1 - (this.jabT - 0.16) / 0.1));
     if (before < 0.07 && this.jabT >= 0.07 && f && f.alive) {
       const hp = f.hp, e = (f as FoeLike & { e?: { isBoss?: boolean; maxHp?: number } }).e;
-      let dmg = this.p.power() * 3.2 * this.w.d.critDmg;
+      // Dawn Jab (her tree) strikes harder and fells foes from higher up.
+      const s = this.w.save, keen = trank(s, 't_jab') > 0;
+      let dmg = this.p.power() * 3.2 * this.w.d.critDmg * (keen ? 1.4 : 1);
       // A foe already low falls to it outright (bosses only take the damage).
-      if (hp !== undefined && e && !e.isBoss && e.maxHp && hp < e.maxHp * 0.4) dmg = Math.max(dmg, hp + 1);
+      if (hp !== undefined && e && !e.isBoss && e.maxHp && hp < e.maxHp * (keen ? 0.55 : 0.4)) dmg = Math.max(dmg, hp + 1);
       if (f.hit(Math.round(dmg), p.face, 3, true, { kind: 'melee', kx: p.face * 160, ky: -90, poise: 70, guardBreak: true })) {
         this.w.heroHit(f, hp !== undefined && f.hp !== undefined ? Math.max(0, hp - f.hp) : 0, true, true);
         this.w.burst(f.x - p.face * 4, f.box.centerY, 1);
@@ -168,6 +171,8 @@ export class Dawn {
         this.w.playEffect('dawnJab', { x: f.x });
         this.p.noteStyle('dawn_jab');
         this.jabs++;
+        // Night Huntress: a kill gives back some of the gauge.
+        if (!f.alive && trank(s, 't_huntress')) s.mantle = Math.min(100, (s.mantle ?? 0) + 15);
       }
     }
     if (this.jabT >= 0.26) { this.jabT = -1; this.jabFoe = null; this.spear.setVisible(false); }

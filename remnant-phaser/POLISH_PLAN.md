@@ -328,6 +328,7 @@ around them stays the same.
 - [x] 5. The archer's six abilities and her separate loadout (§5a), with arrow types (§5c.7) and the `archerSkills`, `archerKnown`, `quiver` and `arrowType` save fields; `scripts/archer-kit.mjs`
 - [x] 6. Wings of the Morning and Dawnstep (§5b): shared gauge (the owner's choice), dawn form and wings, Dawnstep with safe-ground refusal, Morning Star, glide, free charged shots, the closing volley; `scripts/archer.mjs`
 - [x] 7. Selling, salvage, dismantling, locks, buyback (§6.1–6.3), moved ahead of the archer items at the owner's request
+- [x] 5b. Tirzah's own progression, asked for by the owner: her level and experience (the fighter full, the partner half), stat and skill points, a 19-node skill tree, seven gear slots of her own with bow, quiver and dagger drops scaled to her level, and a Tirzah section in the pause menu; `scripts/tirzah-progression.mjs`
 - [x] 8. The store and crafting (§6.4–6.5): owner's choices were Ilan's stall plus a pause-menu Store, a daily rotation, three featured rare curios for silver plus Relic Shards, keepsakes unsellable, a balanced economy, and every category plus a surprise (the Sealed Satchel)
   - [ ] Still to come: quiver upgrades and special arrows (with §5), recipe scrolls, Echo imprint tokens, "new item" dots (`stockSeen`)
 - [ ] 9. Gameplay polish (§7)

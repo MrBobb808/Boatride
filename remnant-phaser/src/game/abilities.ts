@@ -5,6 +5,7 @@
 import { ABILITIES, type AbilityId } from '../../../remnant/src/game/data';
 import { ARROW_LEVELS, type PhaserSave, type ArrowType } from './save';
 import type { WorldApi } from './types';
+import { archerLevel } from './archer';
 
 export type SkillId = AbilityId;
 export type ArcherSkillId = 'deliverance' | 'jonathan' | 'mark' | 'rain' | 'watchman' | 'quiver';
@@ -16,7 +17,7 @@ const STYLE: Record<SkillId, [string, number]> = {
   chains: ['BREAK', 0xddcfb0], armor_light: ['ARMOR', 0xffe6a8], chain_snare: ['SNARE', 0xddcfb0],
   blink_strike: ['RIFT', 0xad9aff], mending_light: ['MEND', 0x9de6bb], frost_ring: ['WINTER', 0xa0deff],
 };
-/** Tirzah's abilities, each unlocked at a level of the shared journey. */
+/** Tirzah's abilities, each unlocked at one of her levels. */
 export const ARCHER: Record<ArcherSkillId, SkillDef & { level: number }> = {
   deliverance: { id: 'deliverance', name: 'Arrow of Deliverance', short: 'DELIVER', cost: 30, cd: 6, color: 0xffb35c, icon: 'arc', level: 1,
     desc: 'One blazing arrow that pierces the whole line, knocks foes down and breaks guards.',
@@ -44,7 +45,7 @@ export const SKILLS = {
   ...ARCHER,
 } as Record<AnySkillId, SkillDef>;
 export const isArcherSkill = (id: AnySkillId | null | undefined): id is ArcherSkillId => !!id && id in ARCHER;
-export const archerUnlocked = (s: PhaserSave, id: ArcherSkillId) => s.level >= ARCHER[id].level;
+export const archerUnlocked = (s: PhaserSave, id: ArcherSkillId) => archerLevel(s) >= ARCHER[id].level;
 /** Button positions are stable; the journey owns the ability in each position. While Tirzah fights, they are hers. */
 export const SLOTS = [0, 1, 2] as const;
 export const skillSlots = (s: PhaserSave): readonly (AnySkillId | null)[] => s.playableHero === 'tirzah' ? (s.archerSkills ?? NONE) : s.equippedSkills;
@@ -53,7 +54,7 @@ const NONE = [null, null, null] as const;
  * opened to the quiver. Returns the arrow types just added, for a notice. */
 export function syncArcher(s: PhaserSave) {
   const quiver = (s.quiver ??= ['standard']), fresh: ArrowType[] = [];
-  for (const t of Object.keys(ARROW_LEVELS) as ArrowType[]) if (s.level >= ARROW_LEVELS[t] && !quiver.includes(t)) { quiver.push(t); fresh.push(t); }
+  for (const t of Object.keys(ARROW_LEVELS) as ArrowType[]) if (archerLevel(s) >= ARROW_LEVELS[t] && !quiver.includes(t)) { quiver.push(t); fresh.push(t); }
   const slots = (s.archerSkills ??= [null, null, null]);
   const known = new Set(s.archerKnown ?? []);
   for (const id of ARCHER_IDS) {

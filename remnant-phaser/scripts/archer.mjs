@@ -29,7 +29,7 @@ try {
   // Level 30 with a full gauge, Tirzah out, one foe that stands still and never falls.
   await E(page, () => {
     const w = window.__remnant.world, s = w.save, open = (x, y) => w.tileAt(Math.floor(x / 16), Math.floor(y / 16)) === 0;
-    Object.assign(s, { level: 30, mantle: 100, playableHero: 'tirzah' }); s.flags.mantle_known = true; s.flags.relic_taken = true;
+    Object.assign(s, { level: 30, mantle: 100, playableHero: 'tirzah' }); s.archer.level = 30; s.flags.mantle_known = true; s.flags.relic_taken = true;
     w.refreshStats();
     // No random crits while the Dawnstep chain is checked by hand (a crit under the Wings steps on its own).
     w.d.crit = 0; w.player.bow.wingsCrit = 0;

@@ -50,7 +50,10 @@ export interface WorldApi {
   controls: Controls;
   save: PhaserSave;
   /** Elior's stats, derived from the save as the original does (game/state.ts derive). */
-  d: Derived;
+  /** The fighting hero's stats. */
+  readonly d: Derived;
+  /** Work the heroes' stats out again (after gear, points or a switch). */
+  refreshStats(): void;
   /** Tile type at a tile coordinate (solid outside the room's sides). */
   tileAt(tx: number, ty: number): number;
   player: { x: number; y: number; feet: number; dead: boolean; hp: number; maxHp: number; hurt(h: Blow): boolean };
