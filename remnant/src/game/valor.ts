@@ -68,6 +68,12 @@ export const CAPES: Record<string, CapeLook> = {
   ember: { name: 'Unburnt Ember', c: '#3e1406', trim: '#ff8a3a' },
   blood: { name: 'Merciless Red', c: '#5a080e', trim: '#1a0a0a' },
   gold: { name: 'Sovereign Gold', c: '#6a4a12', trim: '#fff1c4' },
+  // Dyed cloth from Ilan's store (game/economy.ts).
+  saffron: { name: 'Saffron Pilgrim', c: '#a8701a', trim: '#fff1c4' },
+  indigo: { name: 'Indigo of Tyre', c: '#22245c', trim: '#d9b25a' },
+  cedar: { name: 'Cedar of Lebanon', c: '#3a2a18', trim: '#8fc77a' },
+  pearl: { name: 'Pearl of Ophir', c: '#cfc8b8', trim: '#5f8fd8' },
+  ash: { name: 'Sackcloth and Ash', c: '#4a4640', trim: '#9b92a6' },
 };
 
 /** The bosses with trophies, in story order (keys as in SaveData.defeated). */
@@ -201,8 +207,8 @@ export function capeOf(s: SaveData): CapeLook | null {
   const k = s.valor?.cape;
   return k ? CAPES[k] ?? null : null;
 }
-/** Cape colours the save has earned. */
-export const capesEarned = (s: SaveData) => TROPHIES.filter((t) => t.cape && hasTrophy(s, t.id)).map((t) => t.cape!);
+/** Cape colours the save has earned or bought. */
+export const capesEarned = (s: SaveData) => [...new Set([...TROPHIES.filter((t) => t.cape && hasTrophy(s, t.id)).map((t) => t.cape!), ...(s.store?.capes ?? []).filter((c) => CAPES[c])])];
 export const titlesEarned = (s: SaveData) => TROPHIES.filter((t) => t.title && hasTrophy(s, t.id));
 
 // ---------------------------------------------------------------- unlocking

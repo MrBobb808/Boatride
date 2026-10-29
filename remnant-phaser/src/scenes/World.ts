@@ -15,6 +15,7 @@ import type { Rarity } from '../../../remnant/src/game/data';
 import type { WorldApi, FoeLike, BossView } from '../game/types';
 import { chapterOf } from '../../../remnant/src/game/rooms';
 import { catchUpXp } from '../../../remnant/src/game/curve';
+import { tickElixir } from '../../../remnant/src/game/economy';
 import { FINISHERS } from '../../../remnant/src/game/finishers';
 import { powerTier, SOVEREIGN_LV } from '../../../remnant/src/game/power';
 import { MANTLE_LV, announceMantle, mantleTier, mantlePerks } from '../../../remnant/src/game/mantle';
@@ -512,6 +513,7 @@ export class World extends Phaser.Scene implements WorldApi {
     // Autosave and time played measure real active time, independent of pacing.
     this.saveT += rawDt;
     this.save.playtime += rawDt;
+    tickElixir();
     if (this.saveT > 30) this.persist();
     this.hud.sync(this);
   }

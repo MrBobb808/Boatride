@@ -31,6 +31,11 @@ import { MANTLE_LV, mantlePerks } from '../game/mantle';
 import { nextChapter, travelToChapter, trainingOpen, startTraining } from '../game/chapters';
 import { altarName, travelGroups, travelBlocked, travelTo } from '../game/travel';
 import { restStock, restRecipes } from '../game/settlement';
+import {
+  storeOffers, buyOffer, storeBlocked, OFFER_KINDS, SHARD, keepReason, isLocked, toggleLock, needsConfirm, sellPrice, salvageOf,
+  sellItem, dismantleItem, junk, sellJunk, buyback, canBuyBack, buyBack, type OfferKind,
+} from '../game/economy';
+import { ELIXIRS, elixirOn, elixirLeft, drinkElixir, type ElixirId } from '../game/elixirs';
 import { chaptersTab, gameModes } from './chapters';
 import { progressionTab } from './progression';
 import { valorTab } from './valor';
@@ -80,6 +85,7 @@ const SECTIONS: { id: string; label: string; icon: string; tabs: { id: string; l
     { id: 'progression', label: 'Mastery', icon: 'sword' },
     { id: 'moves', label: 'Move list', icon: 'sword' },
     { id: 'crafting', label: 'Crafting', icon: 'craft' },
+    { id: 'store', label: 'Store', icon: 'sigil' },
   ] },
   { id: 'echoes', label: 'Echoes', icon: 'echo', tabs: [
     { id: 'echoes', label: 'Squad', icon: 'echo' },
@@ -217,6 +223,7 @@ function render() {
     case 'moves': bodyEl.appendChild(h('div', { class: 'col scroll', style: 'flex:1' }, techniques())); break;
     case 'imprints': bodyEl.appendChild(h('div', { class: 'col scroll', style: 'flex:1' }, echoImprintPanel())); break;
     case 'crafting': bodyEl.appendChild(craftingTab()); break;
+    case 'store': bodyEl.appendChild(storeTab()); break;
     case 'settings': bodyEl.appendChild(settingsTab()); break;
     case 'system': bodyEl.appendChild(systemTab()); break;
   }
@@ -395,6 +402,7 @@ function equipmentTab() {
         isEq
           ? btn('Unequip', () => { if (eqSlot !== 'weapon') { delete s.equipment[eqSlot]; refreshEquip(); } }, 'btn', { disabled: eqSlot === 'weapon', 'data-k': 'unequip' })
           : btn('Equip', () => { s.equipment[eqSlot] = sel.uid; sfx('uiConfirm'); refreshEquip(); }, 'btn primary', { 'data-k': 'equip' }),
+        base.unique ? null : lockButton(sel),
       ),
     );
   } else detail = h('div', { class: 'box muted' }, 'Select an item.');
@@ -849,6 +857,15 @@ function journalTab(view: typeof jView) {
 
 interface Recipe { id: string; name: string; desc: string; cost: Record<string, number>; forge: boolean; make: () => void; icon: string; max?: () => boolean }
 
+/** Elixirs brewed from salvage, for those who would rather not pay Ilan. */
+const BREWS: { id: ElixirId; cost: Record<string, number> }[] = [
+  { id: 'might', cost: { sentinel_steel: 1, veil_shard: 3 } },
+  { id: 'warding', cost: { iron_scrap: 4, veil_shard: 2 } },
+  { id: 'swiftness', cost: { veil_shard: 4, iron_scrap: 1 } },
+  { id: 'focus', cost: { covenant_fragment: 1, veil_shard: 1 } },
+  { id: 'insight', cost: { veil_shard: 3, iron_scrap: 2 } },
+];
+
 function recipes(): Recipe[] {
   const s = G.save;
   const give = (id: string) => () => { const it = makeItem(id); s.inventory.push(it); G.ui.itemGet(it); };
@@ -859,6 +876,10 @@ function recipes(): Recipe[] {
     { id: 'plate', name: 'Bulwark Plate', desc: 'Black plate with gold seams. Heavy protection and health.', cost: { sentinel_steel: 5, iron_scrap: 4, covenant_fragment: 1, silver: 150 }, forge: true, icon: 'armor', make: give('bulwark_plate') },
     { id: 'sigil', name: 'Sigil of the Sentinel', desc: 'A relic that strengthens every Echo near you.', cost: { sentinel_steel: 2, covenant_fragment: 2 }, forge: true, icon: 'sigil', make: give('sentinel_sigil') },
     { id: 'blade', name: 'Covenant Blade', desc: 'Reforge a blade around light from the relic. Epic sword with crit and ability power.', cost: { covenant_fragment: 4, iron_scrap: 4, silver: 120 }, forge: true, icon: 'sword', max: () => !flag('relic_taken'), make: give('covenant_blade') },
+    // Salvage put to work: Relic Shards for Ilan's curios, and elixirs brewed in the field.
+    { id: 'shard', name: 'Fuse a Relic Shard', desc: 'Three Covenant Fragments and Sentinel steel, fused into the shard Ilan asks for his featured curios.', cost: { covenant_fragment: 3, sentinel_steel: 2 }, forge: true, icon: 'fragment', make: () => { addMaterial(s, SHARD, 1); G.ui.toast('Relic Shard', 'loot'); } },
+    ...BREWS.map((b) => ({ id: 'brew_' + b.id, name: 'Brew: ' + ELIXIRS[b.id].name, desc: ELIXIRS[b.id].desc + ' Drunk at once; five minutes.', cost: b.cost, forge: false, icon: 'flask', max: () => !!storeBlocked(),
+      make: () => { drinkElixir(s, b.id); G.d = derive(s); G.ui.toast(ELIXIRS[b.id].name + ' · 5:00', 'good'); } })),
     // The settlement's forge adds its own work (empty anywhere else).
     ...restRecipes(),
   ];
@@ -881,7 +902,7 @@ function craftingTab(forceForge = false) {
       img(r.icon, '#f6dea0'),
       h('div', null, h('div', { class: 'nm', style: 'color:var(--bone);font-weight:600' }, r.name), h('div', { class: 'muted', style: 'font-size:0.85em' }, r.desc), costView(r.cost),
         r.forge && !atForge ? h('div', { class: 'down', style: 'font-size:0.8em' }, 'Requires Dov\'s forge in Hearthward.') : null,
-        blocked ? h('div', { class: 'muted', style: 'font-size:0.8em' }, r.id === 'vial' ? 'Maximum Balm charges reached.' : 'The covenant has not yet woken.') : null),
+        blocked ? h('div', { class: 'muted', style: 'font-size:0.8em' }, r.id === 'vial' ? 'Maximum Balm charges reached.' : r.id.startsWith('brew_') ? 'Brew once you are clear of danger.' : 'The covenant has not yet woken.') : null),
       btn('Craft', () => {
         if (payMaterials(G.save, r.cost)) {
           r.make();
@@ -1085,29 +1106,14 @@ function renderAny() {
 let shopEl: HTMLElement | null = null;
 let shopBody: HTMLElement;
 let shopKind: 'merchant' | 'smith' = 'merchant';
-let shopTab: 'buy' | 'sell' | 'temper' | 'forge' = 'buy';
-
-const STOCK: { id: string; price: number; mat?: boolean; once?: boolean; cond?: string }[] = [
-  { id: 'iron_scrap', price: 14, mat: true },
-  { id: 'veil_shard', price: 24, mat: true },
-  { id: 'balm_vial', price: 140, once: true },
-  { id: 'iron_cap', price: 45 },
-  { id: 'chain_hauberk', price: 95 },
-  { id: 'bronze_gauntlets', price: 60 },
-  { id: 'greaves', price: 60 },
-  { id: 'ember_lamp', price: 90 },
-  { id: 'rusted_greatsword', price: 120 },
-  { id: 'bell_shard', price: 160 },
-  // Elemental arms, as the road goes on.
-  { id: 'ember_brand', price: 420, once: true, cond: 'ch1_done' },
-  { id: 'frostwake_spear', price: 420, once: true, cond: 'ch1_done' },
-  { id: 'stormcaller', price: 780, once: true, cond: 'ch2_done' },
-];
+let shopTab: 'store' | 'sell' | 'temper' | 'dismantle' | 'forge' = 'store';
 
 export function openShop(kind: 'merchant' | 'smith') {
   if (shopEl) return;
   shopKind = kind;
-  shopTab = kind === 'merchant' ? 'buy' : 'temper';
+  shopTab = kind === 'merchant' ? 'store' : 'temper';
+  storeKind = restStock().length ? 'rest' : 'featured';
+  confirmKey = null;
   pause(true);
   sfx('uiOpen');
   shopBody = h('div', { class: 'menu-body' });
@@ -1116,9 +1122,9 @@ export function openShop(kind: 'merchant' | 'smith') {
   renderShop();
   pushLayer({ el: shopEl, onBack: closeShop, onAction: (a) => {
     if (a === 'tabL' || a === 'tabR') {
-      const tabs = shopKind === 'merchant' ? ['buy', 'sell'] : ['temper', 'forge'];
+      const tabs = shopTabs().map(([id]) => id);
       const i = tabs.indexOf(shopTab);
-      shopTab = tabs[(i + 1) % 2] as typeof shopTab;
+      shopTab = tabs[(i + (a === 'tabR' ? 1 : tabs.length - 1)) % tabs.length] as typeof shopTab;
       renderShop();
       return true;
     }
@@ -1135,48 +1141,29 @@ function closeShop() {
   G.d = derive(G.save);
 }
 
-function sellValue(it: ItemInst) {
-  return Math.round((ITEMS[it.id].value * (1 + it.plus * 0.3) * (1 + it.rarity * 0.4)) / 2);
+function shopTabs(): [typeof shopTab, string][] {
+  return shopKind === 'merchant' ? [['store', 'Store'], ['sell', 'Sell']] : [['temper', 'Temper'], ['dismantle', 'Dismantle'], ['forge', 'Forge']];
 }
 
 function renderShop() {
   if (!shopEl) return;
   const s = G.save;
+  const keepScroll = (shopEl.querySelector('.scroll') as HTMLElement | null)?.scrollTop ?? 0;
+  const focusId = (document.activeElement as HTMLElement | null)?.dataset?.k;
   clear(shopEl);
-  const tabs = shopKind === 'merchant' ? [['buy', 'Buy'], ['sell', 'Sell']] : [['temper', 'Temper'], ['forge', 'Forge']];
   const top = h('div', { class: 'menu-top' },
     h('div', { class: 'tabs' }, h('div', { class: 'tab on', style: 'cursor:default' }, shopKind === 'merchant' ? 'Ilan\'s stall' : 'Dov\'s forge'),
-      tabs.map(([id, l]) => h('button', { class: 'tab' + (shopTab === id ? ' on' : ''), 'data-nav': '', onclick: () => { shopTab = id as typeof shopTab; renderShop(); } }, l))),
-    h('span', { class: 'silver' }, `${s.silver} silver`),
+      shopTabs().map(([id, l]) => h('button', { class: 'tab' + (shopTab === id ? ' on' : ''), 'data-nav': '', 'data-k': 'shop_' + id, onclick: () => { shopTab = id; confirmKey = null; renderShop(); } }, l))),
+    purse(),
     btn('Leave', closeShop, 'btn small'),
   );
   shopBody = h('div', { class: 'menu-body' });
   shopEl.append(top, shopBody);
   let content: HTMLElement;
-  if (shopTab === 'buy') {
-    content = h('div', { class: 'list' }, [...STOCK, ...restStock()].filter((x) => !(x.once && G.save.flags['bought_' + x.id]) && (!x.cond || flag(x.cond))).map((x) => {
-      const base = ITEMS[x.id];
-      return h('div', { class: 'row-item', style: 'cursor:default' }, img(base.icon, RARITY_COLORS[base.rarity]),
-        h('div', null, h('div', { class: 'nm', style: rarityStyle(base.rarity) }, base.name), h('div', { class: 'sub' }, base.desc)),
-        h('div', { style: 'display:flex;gap:8px;align-items:center' }, h('span', { class: 'price' }, `${x.price}`),
-          btn('Buy', () => {
-            if (s.silver < x.price) return;
-            s.silver -= x.price;
-            if (x.mat) addMaterial(s, x.id, 1);
-            else if (x.id === 'balm_vial') { s.balmMax++; s.balm++; G.save.flags['bought_' + x.id] = true; G.ui.toast('Balm charges: ' + s.balmMax, 'good'); }
-            else { const it = makeItem(x.id); s.inventory.push(it); G.ui.itemGet(it); if (x.once) G.save.flags['bought_' + x.id] = true; }
-            sfx('loot');
-            renderShop();
-          }, 'btn small primary', { disabled: s.silver < x.price, 'data-k': 'buy_' + x.id })));
-    }));
-  } else if (shopTab === 'sell') {
-    const equipped = new Set(Object.values(s.equipment));
-    const sellable = s.inventory.filter((i) => !equipped.has(i.uid) && !ITEMS[i.id].unique);
-    content = h('div', { class: 'list' }, sellable.length ? sellable.map((it) => h('div', { class: 'row-item', style: 'cursor:default' }, itemIcon(it),
-      h('div', null, h('div', { class: 'nm', style: rarityStyle(it.rarity) }, itemName(it)), h('div', { class: 'sub' }, RARITY_NAMES[it.rarity] + ' ' + SLOT_NAMES[ITEMS[it.id].slot as Slot])),
-      h('div', { style: 'display:flex;gap:8px;align-items:center' }, h('span', { class: 'price' }, `${sellValue(it)}`),
-        btn('Sell', () => { s.silver += sellValue(it); s.inventory = s.inventory.filter((x) => x !== it); sfx('pickup'); renderShop(); }, 'btn small', { 'data-k': 'sell_' + it.uid })))) : h('div', { class: 'muted' }, 'Nothing to sell. Equipped and unique items stay with you.'));
-  } else if (shopTab === 'temper') {
+  if (shopTab === 'store') content = storePane(true);
+  else if (shopTab === 'sell') content = sellPane(false);
+  else if (shopTab === 'dismantle') content = sellPane(true);
+  else if (shopTab === 'temper') {
     const gear = s.inventory.filter((i) => ITEMS[i.id].slot !== 'material' && ITEMS[i.id].slot !== 'key');
     const eqSet = new Set(Object.values(s.equipment));
     gear.sort((a, b) => Number(eqSet.has(b.uid)) - Number(eqSet.has(a.uid)));
@@ -1195,6 +1182,133 @@ function renderShop() {
     content = craftingTab(true);
   }
   shopBody.appendChild(h('div', { class: 'col scroll', style: 'flex:1' }, content));
+  const sc = shopBody.querySelector('.scroll') as HTMLElement | null;
+  if (sc) sc.scrollTop = keepScroll;
+  if (focusId && input.lastDevice !== 'touch') (shopEl.querySelector(`[data-k="${focusId}"]`) as HTMLElement | null)?.focus({ preventScroll: true });
+}
+
+// ---------------------------------------------------------------- Ilan's store and selling (game/economy.ts)
+
+let storeKind: OfferKind = 'featured';
+let storePage: 'buy' | 'sell' = 'buy';
+/** A rare sale or a dismantle waits for a second press. */
+let confirmKey: string | null = null;
+
+/** Silver and Relic Shards, beside the tabs. */
+function purse() {
+  const shards = G.save.materials[SHARD] ?? 0;
+  return h('span', { class: 'silver', 'data-k': 'purse' }, `${G.save.silver} silver` + (shards ? ` · ${shards} relic ${shards === 1 ? 'shard' : 'shards'}` : ''));
+}
+
+function matsView(m: Record<string, number>) {
+  return h('div', { class: 'mats' }, Object.entries(m).map(([k, n]) => h('span', null, h('b', null, `${n}× `), ITEMS[k].name)));
+}
+
+function lockButton(it: ItemInst) {
+  const on = isLocked(G.save, it);
+  return btn(on ? 'Unlock' : 'Lock', () => { toggleLock(G.save, it); sfx('ui'); renderAny(); }, 'btn small' + (on ? ' primary' : ''), { 'data-k': 'lock_' + it.uid, 'aria-pressed': String(on), title: on ? 'Locked: it can\'t be sold or dismantled.' : 'Protect it from selling and dismantling.' });
+}
+
+/** The time until the stock turns over, at the player's own midnight. */
+function untilTomorrow() {
+  const now = new Date(), next = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+  const m = Math.max(1, Math.round((next.getTime() - now.getTime()) / 60000));
+  return m >= 60 ? `${Math.floor(m / 60)}h ${m % 60}m` : `${m}m`;
+}
+
+function storePane(atStall: boolean) {
+  const s = G.save;
+  const offers = storeOffers(s, atStall ? restStock() : []);
+  const kinds = OFFER_KINDS.filter((k) => offers.some((o) => o.kind === k.id));
+  if (!kinds.some((k) => k.id === storeKind)) storeKind = kinds[0].id;
+  const ex = elixirOn(s);
+  const head = h('div', { class: 'box', style: 'display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:space-between' },
+    h('div', null, h('div', { class: 'eyebrow' }, 'Ilan\'s store'), h('div', { class: 'muted', style: 'font-size:0.85em' }, `New wares in ${untilTomorrow()}. Featured curios cost Relic Shards too: sell or dismantle Epic gear and up for them.`)),
+    ex ? h('div', { class: 'tag', 'data-k': 'elixir_on', style: `color:${ELIXIRS[ex].color}` }, `${ELIXIRS[ex].name} · ${formatTime(elixirLeft(s))}`) : null);
+  const chips = h('div', { class: 'modes', style: 'flex-wrap:wrap;margin:6px 0' }, kinds.map((k) =>
+    btn(k.label, () => { storeKind = k.id; renderAny(); }, 'btn small' + (storeKind === k.id ? ' primary' : ''), { 'data-k': 'kind_' + k.id, 'aria-pressed': String(storeKind === k.id) })));
+  const shards = s.materials[SHARD] ?? 0;
+  const list = h('div', { class: 'list' }, offers.filter((o) => o.kind === storeKind).map((o) => {
+    const afford = s.silver >= o.silver && shards >= (o.shards ?? 0);
+    const eq = o.item ? getItem(s, s.equipment[ITEMS[o.item.id].slot as Slot]) : undefined;
+    return h('div', { class: 'row-item' + (o.closed ? ' dim' : ''), style: 'cursor:default', 'data-offer': o.key },
+      o.item ? itemIcon(o.item) : img(o.icon, o.color ?? RARITY_COLORS[o.rarity]),
+      h('div', null,
+        h('div', { class: 'nm', style: rarityStyle(o.item?.rarity ?? o.rarity) }, o.name + (o.item ? ` · ${RARITY_NAMES[o.item.rarity]}` : '')),
+        h('div', { class: 'sub' }, o.why),
+        o.item ? h('div', { style: 'font-size:0.85em' }, modLines(itemMods(o.item), eq ? itemMods(eq) : undefined)) : null,
+        o.item && eq ? h('div', { class: 'muted', style: 'font-size:0.78em' }, `Compared with ${itemName(eq)} (equipped).`) : null,
+        o.closed ? h('div', { class: 'muted', style: 'font-size:0.85em' }, o.closed) : null),
+      h('div', { style: 'display:flex;gap:8px;align-items:center' },
+        h('span', { class: 'price' }, `${o.silver}` + (o.shards ? ` + ${o.shards} ◆` : '')),
+        btn('Buy', () => {
+          const msg = buyOffer(s, o);
+          if (!msg) return;
+          sfx('loot');
+          if (!o.item && o.kind !== 'gear') G.ui.toast(msg, 'good');
+          G.d = derive(s);
+          renderAny();
+        }, 'btn small primary', { disabled: !!o.closed || !afford, 'data-k': 'buy_' + o.key })));
+  }));
+  return h('div', { class: 'col', style: 'flex:1' }, head, chips, list,
+    h('div', { class: 'muted', style: 'font-size:0.8em;margin-top:6px' }, '◆ Relic Shards. Prices follow the chapter you have reached.'));
+}
+
+/** Selling (Ilan: silver and salvage, with buyback) or dismantling (Dov: double salvage, no silver). */
+function sellPane(dismantle: boolean) {
+  const s = G.save;
+  const gear = s.inventory.filter((it) => { const sl = ITEMS[it.id].slot; return sl !== 'material' && sl !== 'key' && sl !== 'consumable'; });
+  const why = new Map(gear.map((it) => [it, keepReason(s, it)]));
+  gear.sort((a, b) => Number(!!why.get(a)) - Number(!!why.get(b)) || b.rarity - a.rarity);
+  const trash = dismantle ? [] : junk(s);
+  const junkSilver = trash.reduce((n, it) => n + sellPrice(it), 0);
+  const act = (it: ItemInst) => {
+    const key = (dismantle ? 'dis_' : 'sell_') + it.uid;
+    if ((dismantle || needsConfirm(it)) && confirmKey !== key) { confirmKey = key; sfx('ui'); renderAny(); return; }
+    confirmKey = null;
+    const got = dismantle ? dismantleItem(s, it) : sellItem(s, it)?.mats;
+    if (!got) return;
+    sfx(dismantle ? 'hitMetal' : 'pickup');
+    G.ui.toast(Object.entries(got).map(([k, n]) => `${ITEMS[k].name} ×${n}`).join(' · '), 'loot');
+    renderAny();
+  };
+  const rows = gear.map((it) => {
+    const reason = why.get(it), key = (dismantle ? 'dis_' : 'sell_') + it.uid, arm = confirmKey === key;
+    return h('div', { class: 'row-item' + (reason ? ' dim' : ''), style: 'cursor:default' }, itemIcon(it),
+      h('div', null,
+        h('div', { class: 'nm', style: rarityStyle(it.rarity) }, itemName(it)),
+        h('div', { class: 'sub' }, `${RARITY_NAMES[it.rarity]} ${SLOT_NAMES[ITEMS[it.id].slot as Slot]}` + (reason ? ` · ${reason}` : '')),
+        reason ? null : h('div', { style: 'font-size:0.85em' }, dismantle ? null : h('span', { class: 'price' }, `${sellPrice(it)} silver`), matsView(salvageOf(it, dismantle)))),
+      h('div', { style: 'display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end' },
+        ITEMS[it.id].unique || Object.values(s.equipment).includes(it.uid) ? null : lockButton(it),
+        reason ? null : btn(arm ? (dismantle ? 'Break it down' : 'Confirm sale') : dismantle ? 'Dismantle' : 'Sell', () => act(it), 'btn small' + (arm ? ' primary' : ''), { 'data-k': key })));
+  });
+  const backs = !dismantle && buyback.length ? [h('h3', { style: 'margin:12px 0 4px' }, 'Buy back'), h('div', { class: 'muted', style: 'font-size:0.85em' }, 'Your last ten sales, until you close the game. The salvage goes back with the silver.'),
+    h('div', { class: 'list' }, buyback.map((sale, i) => h('div', { class: 'row-item', style: 'cursor:default' }, itemIcon(sale.it),
+      h('div', null, h('div', { class: 'nm', style: rarityStyle(sale.it.rarity) }, itemName(sale.it)), matsView(sale.mats)),
+      h('div', { style: 'display:flex;gap:8px;align-items:center' }, h('span', { class: 'price' }, `${sale.silver}`),
+        btn('Buy back', () => { if (buyBack(s, sale)) { sfx('loot'); renderAny(); } }, 'btn small', { disabled: !canBuyBack(s, sale), 'data-k': 'back_' + i })))))] : [];
+  return h('div', { class: 'col', style: 'flex:1' },
+    h('div', { class: 'muted', style: 'font-size:0.88em' }, dismantle
+      ? 'Dov breaks gear down for twice the salvage of a sale, and no silver. Press twice to confirm.'
+      : 'Selling pays silver and salvage. Rare gear and up asks you to confirm. Epic and up also yields Relic Shards.'),
+    trash.length ? btn(`Sell all junk · ${trash.length} ${trash.length === 1 ? 'item' : 'items'} · ${junkSilver} silver`, () => {
+      const r = sellJunk(s);
+      if (r.n) { sfx('pickup'); G.ui.toast(`Sold ${r.n} for ${r.silver} silver`, 'loot'); renderAny(); }
+    }, 'btn small', { 'data-k': 'sell_junk', style: 'margin:6px 0', title: 'Common and Uncommon gear, untempered and unlocked, where you already wear something at least as rare.' }) : null,
+    rows.length ? h('div', { class: 'list' }, rows) : h('div', { class: 'muted' }, 'Nothing to part with. Equipped gear and keepsakes stay with you.'),
+    ...backs);
+}
+
+/** The pause menu's Store: buy and sell anywhere outside a fight. */
+function storeTab() {
+  const blocked = storeBlocked();
+  const pages = h('div', { class: 'modes', style: 'margin-bottom:6px' },
+    ([['buy', 'Buy'], ['sell', 'Sell']] as const).map(([id, l]) => btn(l, () => { storePage = id; confirmKey = null; render(); }, 'btn small' + (storePage === id ? ' primary' : ''), { 'data-k': 'store_' + id })),
+    purse());
+  return h('div', { class: 'col scroll', style: 'flex:1' }, pages,
+    blocked ? h('div', { class: 'box' }, h('p', { class: 'muted', style: 'margin:0' }, `${blocked} The store opens here once you are clear of danger, or visit Ilan's stall.`))
+      : storePage === 'buy' ? storePane(false) : sellPane(false));
 }
 
 // ---------------------------------------------------------------- altar menu

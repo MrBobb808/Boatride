@@ -13,13 +13,15 @@ import { ASCENDANT_LOOT, lootScale, waveLootPower, sovereignDamage, softGrowth, 
 import { masteryRank, migrateProgression, contractPrize, contractWins, type GearSetId, type ContractId, type ProgressionData } from './progression';
 import { migrateValor, type ValorSave } from './valor';
 import type { DailySave } from './daily';
+import { elixirOn, type ElixirSave } from './elixirs';
+import type { StoreSave } from './economy';
 
 export interface QuestState {
   stage: number;
   done: boolean;
 }
 
-export interface SaveData extends ProgressionData, ValorSave, DailySave {
+export interface SaveData extends ProgressionData, ValorSave, DailySave, ElixirSave {
   version: 1;
   name: string;
   created: number;
@@ -85,6 +87,10 @@ export interface SaveData extends ProgressionData, ValorSave, DailySave {
   trialMilestones?: number[];
   /** Remnant's Rest: tier last seen, accepted requests, titles (game/settlement.ts). */
   settlement?: SettlementSave;
+  /** Item uids protected from selling and dismantling. */
+  locked?: string[];
+  /** Ilan's store (game/economy.ts): today's purchases, capes and tomes bought. */
+  store?: StoreSave;
 }
 
 export function makeItem(id: string, rarity?: Rarity, plus = 0, rollAffixes = true): ItemInst {
@@ -209,6 +215,11 @@ export interface Derived {
   pursuitRecharge: number;
   heavyMult: number;
   heavyPoiseMult: number;
+  /** Store curios: better prices, more salvage, faster transformation gauge, healing parries (fractions). */
+  barter: number;
+  salvage: number;
+  mantleGain: number;
+  parryHeal: number;
 }
 
 export const skillRank = (s: SaveData, id: string) => s.skills[id] ?? 0;
@@ -251,7 +262,8 @@ export function derive(s: SaveData): Derived {
   const resolve = Math.max(0, stats.res - 5), level = Math.max(0, s.level - 1);
   const strength = softGrowth(stats.str, 60, 0.35), agility = softGrowth(stats.agi, 60, 0.35);
   const wisdom = softGrowth(stats.wis, 60, 0.35), sovereign = sovereignDamage(s.level) - 1;
-  const incoming = Math.pow(0.94, r('g_skin')) / (1 + stats.end * 0.025 + defense * 0.04);
+  const ex = elixirOn(s);
+  const incoming = Math.pow(0.94, r('g_skin')) / (1 + stats.end * 0.025 + defense * 0.04) * (ex === 'warding' ? 0.8 : 1);
   return {
     stats,
     maxHp: Math.round((80 + stats.vit * 12 + vitality * 12 + endurance * 8 + level * 10 + m('hp')) * (1 + vitality * 0.0075)),
@@ -260,15 +272,15 @@ export function derive(s: SaveData): Derived {
     dr: Math.min(0.9, 1 - incoming),
     crit: Math.min(0.75, 0.05 + agility * 0.005 + m('crit') / 100 + r('w_keen') * 0.03 + (blade >= 3 ? 0.05 : 0)),
     critDmg: 1.5 + softGrowth(m('critDmg'), 100, 0.25) / 100 + r('w_keen') * 0.1 + (agility + softGrowth(stats.res, 60, 0.35)) * 0.004,
-    aspd: Math.min(3, 1 + agility * 0.012 + m('aspd') / 100 + (blade >= 6 ? 0.08 : 0)),
-    speed: 1 + m('speed') / 100 + (sets.rift >= 2 ? 0.08 : 0),
-    abil: 1 + wisdom * 0.035 + softGrowth(m('abil'), 100, 0.25) / 100 + trainingBonus(r('l_lamp')) + sovereign + (spear >= 3 ? 0.15 : 0) + (sets.rift >= 2 ? 0.25 : 0),
-    ceRegen: (1 + m('ceRegen') / 100 + (spear >= 6 ? 0.3 : 0)) * (1 + r('l_radiance') * 0.5),
+    aspd: Math.min(3, 1 + agility * 0.012 + m('aspd') / 100 + (blade >= 6 ? 0.08 : 0) + (ex === 'swiftness' ? 0.1 : 0)),
+    speed: 1 + m('speed') / 100 + (sets.rift >= 2 ? 0.08 : 0) + (ex === 'swiftness' ? 0.12 : 0),
+    abil: 1 + wisdom * 0.035 + softGrowth(m('abil'), 100, 0.25) / 100 + trainingBonus(r('l_lamp')) + sovereign + (spear >= 3 ? 0.15 : 0) + (sets.rift >= 2 ? 0.25 : 0) + (ex === 'focus' ? 0.15 : 0),
+    ceRegen: (1 + m('ceRegen') / 100 + (spear >= 6 ? 0.3 : 0) + (ex === 'focus' ? 0.4 : 0)) * (1 + r('l_radiance') * 0.5),
     echoDmg: (1 + softGrowth(m('echoDmg'), 100, 0.25) / 100 + trainingBonus(r('c_kin')) + softGrowth(resolve, 55, 0.35) * 0.008 + sovereign + (sets.legion >= 2 ? 0.3 : 0)) * runBlessings.echoes,
     echoHp: 1 + m('echoHp') / 100 + trainingBonus(r('c_kin')) + endurance * 0.005 + (sets.legion >= 2 ? 0.25 : 0),
     parryWin: Math.min(0.6, (0.15 + stats.res * 0.004) * (1 + m('parry') / 100) * (r('g_timing') ? 1.5 : 1) * (sets.vigil >= 2 ? 1.2 : 1)),
     poise: 20 + stats.end * 2 + m('poise'),
-    xpMult: 1 + m('xp') / 100,
+    xpMult: 1 + m('xp') / 100 + (ex === 'insight' ? 0.3 : 0),
     rallyMult: (1 + stats.res * 0.06 + m('rally') / 100),
     lifesteal: m('lifesteal') / 100 + (blade >= 10 ? 0.03 : 0),
     family,
@@ -276,12 +288,16 @@ export function derive(s: SaveData): Derived {
     weaponRarity: weapon?.rarity ?? 0,
     echoSlots: echoSlotsFor(s.level, s.storySlots, r('c_banner') > 0),
     defense,
-    meleeMult: (1 + trainingBonus(r('w_edge'))) * runBlessings.weapon * (1 + rank * 0.03),
+    meleeMult: (1 + trainingBonus(r('w_edge'))) * runBlessings.weapon * (1 + rank * 0.03) * (ex === 'might' ? 1.2 : 1),
     hpRegen: r('g_regen') * 0.0075 + runBlessings.regen + (sets.vigil >= 2 ? 0.005 : 0),
     masteryRank: rank, sets, skillRecharge: recharge,
     pursuitRecharge: recharge * (sets.rift >= 3 ? 1.75 : 1),
     heavyMult: great >= 6 ? 1.2 : 1,
     heavyPoiseMult: great >= 3 ? 1.15 : 1,
+    barter: Math.min(0.4, m('barter') / 100),
+    salvage: m('salvage') / 100,
+    mantleGain: m('mantleGain') / 100,
+    parryHeal: Math.min(0.15, m('parryHeal') / 100),
   };
 }
 
@@ -297,6 +313,7 @@ export function migrateSave(s: SaveData) {
   s.echoImprints ??= {};
   s.settlement ??= { seen: -1, quests: {}, titles: [] };
   s.coached ??= {};
+  s.locked ??= [];
   for (const e of s.echoes) {
     e.absorptions ??= e.stage + 1;
     if (e.role && !ECHO_ROLES[e.role]) e.role = undefined;

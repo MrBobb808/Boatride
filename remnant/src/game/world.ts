@@ -59,6 +59,7 @@ import { noteSaved } from '../ui/hud';
 import { solve, newJoints, BASE_POSE } from '../render/skeleton';
 import { drawHumanoid } from '../render/actors';
 import { SENT_DIMS, SENT_BASE, sentinelStyle, ARCH_DIMS, ARCH_BASE, archerStyle } from './enemies';
+import { tickElixir } from './economy';
 
 const byLayer = (a: Entity, b: Entity) => a.layer - b.layer;
 
@@ -382,6 +383,7 @@ export class World {
     }
     G.time += dt;
     s.playtime += dtRaw;
+    tickElixir();
     valorTick(dtRaw);
     // Lost for a while? Point at the marker.
     if (!G.inCutscene && !this.bossActive) this.lostT += dtRaw;

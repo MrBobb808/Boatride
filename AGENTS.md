@@ -134,6 +134,14 @@ Never ship files from `art/incoming/` directly.
 - **Remnant's Rest** (`remnant_rest`): the survivor settlement grows by tier
   from people rescued and chapters finished (`game/settlement.ts`,
   `game/restRoom.ts`, `render/envRest.ts`, `ui/settlement.ts`).
+- **Store and economy:** `game/economy.ts` is Ilan's store and salvage.
+  - Selling pays silver and materials, and Epic gear and up also pays Relic Shards (`relic_dust`). Dov dismantles for double materials. Locks are `SaveData.locked`. Sell all junk and session-only buyback are there too.
+  - The stock turns over each local day: three featured `curio_*` items scaled to the chapter, supplies, Balm vials, elixirs, the classic gear, tomes once per chapter, dyed capes and the Sealed Satchel. Purchases are recorded in `SaveData.store`.
+  - Elixirs are timed buffs on the playtime clock (`game/elixirs.ts`, `SaveData.elixir`, folded in by `derive`).
+  - The curios add four mods: `barter`, `salvage`, `mantleGain` and `parryHeal`.
+  - The screens are in `ui/menus.ts`: Ilan's stall, Dov's Dismantle tab, and the pause menu's Elior → Store, which is closed during fights.
+  - Capes show on Elior in the Phaser build: `fighterRig.ts` dyes the cape when it bakes the sprite sheet.
+  - Verified by `remnant-phaser/scripts/economy.mjs`.
 - **Trials of Valor and the daily challenge:** `game/valor.ts` holds the
   trophies (a boss trophy and a flawless title/cape per boss) and
   `game/daily.ts` one seeded ten-wave Trial run per day with its own board.

@@ -326,8 +326,9 @@ around them stays the same.
 - [ ] 4. The archer's mechanics: True Aim, Recall, precision zones, shooting projectiles down, evasive shots, close-range answer, arrow types, pinning (§5c)
 - [ ] 5. The archer's six abilities and her separate loadout (§5a)
 - [ ] 6. Wings of the Morning and Dawnstep (§5b)
-- [ ] 7. Selling, salvage, dismantling, locks, buyback (§6.1–6.3)
-- [ ] 8. The store and crafting (§6.4–6.5)
+- [x] 7. Selling, salvage, dismantling, locks, buyback (§6.1–6.3), moved ahead of the archer items at the owner's request
+- [x] 8. The store and crafting (§6.4–6.5): owner's choices were Ilan's stall plus a pause-menu Store, a daily rotation, three featured rare curios for silver plus Relic Shards, keepsakes unsellable, a balanced economy, and every category plus a surprise (the Sealed Satchel)
+  - [ ] Still to come: quiver upgrades and special arrows (with §5), recipe scrolls, Echo imprint tokens, "new item" dots (`stockSeen`)
 - [ ] 9. Gameplay polish (§7)
 - [ ] 10+. Art integrations as drops arrive (§8): characters C01–C06, effects V01–V08, bosses B01–B10, foes F01–F05, environments E01–E12, icons and UI I01–I05
 

@@ -26,6 +26,8 @@ export const STAT_INFO: Record<StatKey, { name: string; desc: string }> = {
 export type ModKey =
   | 'hp' | 'ce' | 'atk' | 'def' | 'crit' | 'critDmg' | 'aspd' | 'speed' | 'abil' | 'ceRegen'
   | 'echoDmg' | 'echoHp' | 'parry' | 'poise' | 'xp' | 'rally' | 'lifesteal'
+  // Store curios' special effects (game/economy.ts).
+  | 'barter' | 'salvage' | 'mantleGain' | 'parryHeal'
   | StatKey;
 
 export const MOD_LABEL: Record<ModKey, (v: number) => string> = {
@@ -46,6 +48,10 @@ export const MOD_LABEL: Record<ModKey, (v: number) => string> = {
   xp: (v) => `+${v}% Experience`,
   rally: (v) => `+${v}% Rally charge`,
   lifesteal: (v) => `Heal ${v}% of damage dealt`,
+  barter: (v) => `+${v}% better prices at the store`,
+  salvage: (v) => `+${v}% salvage from selling and dismantling`,
+  mantleGain: (v) => `+${v}% transformation gauge gain`,
+  parryHeal: (v) => `Heal ${v}% of health on a perfect parry`,
   vit: (v) => `+${v} Vitality`,
   str: (v) => `+${v} Strength`,
   agi: (v) => `+${v} Agility`,
@@ -186,12 +192,25 @@ export const ITEMS: Record<string, ItemBase> = {
   stormglass: { id: 'stormglass', name: 'Stormglass', slot: 'relic', rarity: 4, icon: 'shard', mods: { atk: 14, crit: 6, aspd: 8, ceRegen: 12 }, value: 560, desc: 'A shard of the Prince of the Storm\'s crown, clear as water. Lightning still turns inside it, and does not get out.', unique: true },
   twentyfirst_day: { id: 'twentyfirst_day', name: 'The Twenty-First Day', slot: 'weapon', rarity: 5, icon: 'sword', family: 'blade', element: 'holy', mods: { atk: 118, crit: 12, abil: 28, poise: 22, def: 6 }, value: 999, desc: 'Light element. Left lying on the clouds where the prince\'s throne stood, as if someone set it down for you. It is heaviest in the hand that keeps standing.', look: 2, unique: true, lore: '"...from the first day that thou didst set thine heart to understand... thy words were heard, and I am come for thy words." — Daniel 10:12 (KJV)' },
   watch_breastplate: { id: 'watch_breastplate', name: 'Breastplate of the Watch', slot: 'armor', rarity: 5, icon: 'armor', mods: { def: 20, hp: 120, poise: 24, res: 3 }, value: 999, desc: 'Dov forged it by the great river from Persian bronze and Judean iron. A breastplate for standing in.', look: 2, unique: true, lore: '"Stand therefore, having your loins girt about with truth, and having on the breastplate of righteousness;" — Ephesians 6:14 (KJV)' },
+  // Ilan's curios: store-only gear, scaled to the chapter when stocked (game/economy.ts).
+  curio_dawn_feather: { id: 'curio_dawn_feather', name: 'Feather of Dawn', slot: 'ring', rarity: 3, icon: 'feather', look: 2, mods: { mantleGain: 25, speed: 6, agi: 2 }, value: 200, desc: 'A pale plume that never quite stops moving. Your transformation gauge fills faster.' },
+  curio_mercy_signet: { id: 'curio_mercy_signet', name: 'Signet of Mercy', slot: 'ring', rarity: 3, icon: 'ring', look: 2, mods: { parryHeal: 4, parry: 15, hp: 40 }, value: 200, desc: 'Turning a blow aside mends you a little.' },
+  curio_balance: { id: 'curio_balance', name: 'Ilan\'s Balance', slot: 'relic', rarity: 3, icon: 'sigil', look: 2, mods: { barter: 15, xp: 6, hp: 30 }, value: 200, desc: 'A merchant\'s honest scale. Traders give you better prices while you carry it.' },
+  curio_salvager: { id: 'curio_salvager', name: 'Salvager\'s Grips', slot: 'gauntlets', rarity: 3, icon: 'gauntlet', look: 2, mods: { salvage: 30, atk: 10, poise: 10 }, value: 200, desc: 'Scarred leather that knows where every rivet is. More materials from selling and dismantling.' },
+  curio_lodestar: { id: 'curio_lodestar', name: 'Wayfarer\'s Lodestar', slot: 'relic', rarity: 3, icon: 'lamp', look: 2, mods: { speed: 10, ceRegen: 15, rally: 10 }, value: 200, desc: 'A pilgrim\'s stone that always points home. Quicker feet and quicker energy.' },
+  curio_morningstar: { id: 'curio_morningstar', name: 'Morningstar Sabre', slot: 'weapon', family: 'blade', element: 'holy', rarity: 3, icon: 'sword', look: 2, mods: { atk: 40, crit: 8, critDmg: 20 }, value: 200, desc: 'Light element. A curved blade that catches the first light of every day.' },
+  curio_riverwatch: { id: 'curio_riverwatch', name: 'Riverwatch Pike', slot: 'weapon', family: 'spear', element: 'frost', rarity: 3, icon: 'spear', look: 2, mods: { atk: 42, parry: 10, poise: 15 }, value: 200, desc: 'Frost element. Carried by the watch on the great river; cold to the touch in any season.' },
+  curio_ophir: { id: 'curio_ophir', name: 'Ember of Ophir', slot: 'weapon', family: 'greatsword', element: 'fire', rarity: 3, icon: 'greatsword', look: 2, mods: { atk: 52, poise: 30, critDmg: 15 }, value: 200, desc: 'Fire element. Gold-veined steel that holds its heat long after the forge.' },
+  curio_veilcoat: { id: 'curio_veilcoat', name: 'Veil-Woven Coat', slot: 'armor', rarity: 3, icon: 'armor', look: 2, mods: { hp: 90, def: 10, ceRegen: 10, res: 2 }, value: 200, desc: 'Purified veil-thread woven into a travelling coat. Light, warm and hard to cut.' },
+  curio_watch_crown: { id: 'curio_watch_crown', name: 'Watchman\'s Circlet', slot: 'helm', rarity: 3, icon: 'helm', look: 2, mods: { def: 6, hp: 50, crit: 4, xp: 8 }, value: 200, desc: 'A thin band worn by those who keep the night watch. Sharper eyes, quicker learning.' },
+  curio_hinds_feet: { id: 'curio_hinds_feet', name: 'Hinds\' Feet', slot: 'boots', rarity: 3, icon: 'boot', look: 2, mods: { speed: 12, agi: 3, def: 3 }, value: 200, desc: 'Soft boots for high places.', lore: '"The LORD God is my strength, and he will make my feet like hinds\' feet, and he will make me to walk upon mine high places." — Habakkuk 3:19 (KJV)' },
   // Materials
   iron_scrap: { id: 'iron_scrap', name: 'Iron Scrap', slot: 'material', rarity: 0, icon: 'scrap', value: 3, desc: 'Salvaged metal. The smith can use it.' },
   veil_shard: { id: 'veil_shard', name: 'Veil Shard', slot: 'material', rarity: 1, icon: 'veil', value: 6, desc: 'Crystallized corruption. Five can be purified into a Covenant Fragment.' },
   covenant_fragment: { id: 'covenant_fragment', name: 'Covenant Fragment', slot: 'material', rarity: 3, icon: 'fragment', value: 40, desc: 'A purified sliver of light. Used to evolve Echoes and temper equipment.' },
   radiant_core: { id: 'radiant_core', name: 'Radiant Core', slot: 'material', rarity: 4, icon: 'core', value: 150, desc: 'The burning heart left when the Idol fell. Lets an Echo reach its final form.' },
   sentinel_steel: { id: 'sentinel_steel', name: 'Sentinel Steel', slot: 'material', rarity: 2, icon: 'scrap', value: 25, desc: 'Dense black steel from a Fallen Sentinel.' },
+  relic_dust: { id: 'relic_dust', name: 'Relic Shard', slot: 'material', rarity: 3, icon: 'fragment', value: 60, desc: 'A splinter of old power, left when rare gear is sold or dismantled. Ilan takes them for his featured wares.' },
   // Consumables
   balm_vial: { id: 'balm_vial', name: 'Empty Balm Vial', slot: 'consumable', rarity: 2, icon: 'vial', value: 80, desc: 'Adds one Balm charge, permanently.' },
   // Key items

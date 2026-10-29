@@ -1506,6 +1506,7 @@ export class Player extends Entity {
       G.world.hitstop(0.06);
       G.camera.addTrauma(0.2 * shakeScale());
       G.save.ce = Math.min(d.maxCe, G.save.ce + (skillRank(s, 'g_timing') ? 12 : 5));
+      if (d.parryHeal) s.hp = Math.min(d.maxHp, s.hp + d.maxHp * d.parryHeal);
       if (d.sets.vigil >= 3 && this.vigilParryCd <= 0) {
         this.vigilParryCd = 3;
         s.hp = Math.min(d.maxHp, s.hp + d.maxHp * 0.05);
