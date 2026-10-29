@@ -474,7 +474,7 @@
       ],
       "generated_source_name": "exec-cf30eb78-bd6c-4521-a615-dffd44a910e8.png",
       "review": "Claude, 2026-10-29: Used as src/assets/vfx-slashes.png (6x4 at 128 px, haze cleared, premultiplied resize, art/tools/sheet.py). Elior's swing plays row 1 (light cut), 2 (heavy), 3 (launcher/rising) or 4 (storm/flurry/cross spin), stepped across the hit window.",
-      "pr": null
+      "pr": 70
     },
     {
       "id": "V02",
@@ -524,7 +524,7 @@
       ],
       "generated_source_name": "exec-f18a0b08-b678-4f9a-b5bd-77cb33d246b1.png",
       "review": "Claude, 2026-10-29: Used as src/assets/vfx-impacts.png (6x4 at 128 px, art/tools/sheet.py). Pooled bursts in game/visuals.ts: row 1 on hits (bigger on heavy blows), row 2 on crits, row 4 on a perfect parry; row 3 (guard-break shatter) waits for a guard-break hook. Grid size differs from the request but the cells are equal, which is what matters.",
-      "pr": null
+      "pr": 70
     },
     {
       "id": "V03",
