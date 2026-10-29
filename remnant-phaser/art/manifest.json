@@ -542,7 +542,7 @@
       "facing": "right where directional",
       "background": "transparent",
       "prompt": "Premium 2D pixel art for \"Remnant: Ascension\", a dark biblical-fantasy side-scrolling action RPG. Crisp square pixels, confident dark outlines, rich but limited coherent palette, dramatic rim light, readable when reduced to a 48\u201360 px tall character. Strict side view facing RIGHT unless stated. Exact equal grid cells as specified, generous transparent margins, nothing crossing a cell edge. No text, labels, grid lines, borders, floor shadows, scenery or watermark. Original designs only: no real-world logos or franchise characters.\n\nEffects sheets are bright shapes on a transparent background, built to be added onto the scene as light: no black background and no baked character. Each row is one effect, played left to right.\n\n8\u00d76, 256 px. Covenant abilities I (one row each): Sword of the Word (a golden arc projectile in flight); Trumpet of Victory (an expanding sound ring with gold motes); Shield of Faith (a hexagonal light barrier forming, holding, breaking); Lion's Courage (an amber aura flare with a lion-mane silhouette of light); Still Waters (a pool of pale-blue light rippling); Pillar of Fire (a white-gold column erupting and roaring).\n\nTransparent PNG. Exact output canvas: 2048 \u00d7 1536 pixels. Exactly 8 columns \u00d7 6 rows of equal 256 \u00d7 256 pixel cells. Each row shows sequential animation frames of its stated effect from left to right, keeping the effect origin aligned in every cell. Nothing crosses the cell edges. No feet baseline applies to effects. No text or baked bodies.",
-      "status": "delivered",
+      "status": "integrated",
       "notes": "RAW NONCONFORMING SOURCE: generated 1448x1086; requested 2048x1536. Do not integrate as the requested atlas/reference canvas. Byte-for-byte original generator output; no editing, resizing, cropping or recolouring. No feet baseline was specified for this P1 request. Status delivered records file delivery, not spec compliance. Claude should follow README.md rejection/re-prompt rules for failed sheets. Six eight-frame effect sequences are recognizable. Diffuse glow crosses nominal cell boundaries, and the bottom fire effects reach the outer edge. Exact canvas/cell dimensions fail.",
       "actual_size": [
         1448,
@@ -573,7 +573,8 @@
         1536
       ],
       "generated_source_name": "exec-b5e68004-749c-4ec6-af30-d4fe22132bae.png",
-      "review": "Claude, 2026-10-29: Held for ability effects (POLISH_PLAN \u00a79 item 3)."
+      "review": "Claude, 2026-10-29: Used as src/assets/vfx-abilities-1.png (8x6 at 128 px, art/tools/sheet.py). Sword of the Word rides its projectile, Trumpet rings out from Elior, Shield of Faith forms, shimmers while it holds and breaks, Lion's Courage flares, Still Waters pools under its well, Pillar of Fire rises with its pillar (game/visuals.ts, ABILITY_ART). The pillar's glow is clipped slightly where it crosses the row above; not visible at game size.",
+      "pr": null
     },
     {
       "id": "V04",
@@ -591,7 +592,7 @@
       "facing": "right where directional",
       "background": "transparent",
       "prompt": "Premium 2D pixel art for \"Remnant: Ascension\", a dark biblical-fantasy side-scrolling action RPG. Crisp square pixels, confident dark outlines, rich but limited coherent palette, dramatic rim light, readable when reduced to a 48\u201360 px tall character. Strict side view facing RIGHT unless stated. Exact equal grid cells as specified, generous transparent margins, nothing crossing a cell edge. No text, labels, grid lines, borders, floor shadows, scenery or watermark. Original designs only: no real-world logos or franchise characters.\n\nEffects sheets are bright shapes on a transparent background, built to be added onto the scene as light: no black background and no baked character. Each row is one effect, played left to right.\n\n8\u00d76, 256 px. Covenant abilities II: Chains Broken (bright chains shattering outward); Armor of Light (plates of light assembling); Chain Snare (a pale chain lashing forward and wrapping); Rift Assault (a violet rift tear opening and closing); Mending Light (green-gold motes spiralling up); Winter Halo (a ring of frost light with ice crystals).\n\nTransparent PNG. Exact output canvas: 2048 \u00d7 1536 pixels. Exactly 8 columns \u00d7 6 rows of equal 256 \u00d7 256 pixel cells. Each row shows sequential animation frames of its stated effect from left to right, keeping the effect origin aligned in every cell. Nothing crosses the cell edges. No feet baseline applies to effects. No text or baked bodies.",
-      "status": "rejected",
+      "status": "integrated",
       "notes": "RAW NONCONFORMING SOURCE: generated 1448x1086; requested 2048x1536. Do not integrate as the requested atlas/reference canvas. Byte-for-byte original generator output; no editing, resizing, cropping or recolouring. No feet baseline was specified for this P1 request. Status delivered records file delivery, not spec compliance. Claude should follow README.md rejection/re-prompt rules for failed sheets. Six effect rows are recognizable, but the chain-snare lash initially points left instead of the requested right. Glow approaches/crosses nominal cell boundaries. Exact canvas/cell dimensions fail.",
       "actual_size": [
         1448,
@@ -622,7 +623,8 @@
         1536
       ],
       "generated_source_name": "exec-abcc92aa-4d7d-472a-a33d-cce8318740e3.png",
-      "review": "Claude, 2026-10-29: The Chain Snare row lashes left; effects must travel right (the game mirrors them). See V04 retry."
+      "review": "Claude, 2026-10-29: Used as src/assets/vfx-abilities-2.png: Chains Broken, Armor of Light, Rift (Blink Strike), Mending Light and Winter Halo. The Chain Snare row stays unused (its tip launches left while the chain wraps right), so Chain Snare keeps its drawn chain; the V04 retry only needs that row.",
+      "pr": null
     },
     {
       "id": "V05",

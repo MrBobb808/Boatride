@@ -45,7 +45,7 @@ adds a light and a short slow-motion beat. Hit-stop goes by weight (light, combo
 ender, heavy, crit, parry), and a lighter freeze never shortens a heavier one.
 Ordinary hits leave the camera steady. Verified by `scripts/combat-feel.mjs`.
 
-The first art drop's effects ship. Elior's swing plays the generated slash arcs (`assets/vfx-slashes.png`, V01): a light cut, a heavy cut, a rising launcher, or a spin for storm, flurry and cross. Hits, crits and perfect parries play the impact bursts (`assets/vfx-impacts.png`, V02), pooled in `game/visuals.ts`. Raw drops stay in `art/incoming/`. `art/tools/sheet.py` normalises an effect sheet, and `art/tools/parts.py` packs a character-parts sheet for `fighterRig.ts`.
+The first art drop's effects ship. Elior's swing plays the generated slash arcs (`assets/vfx-slashes.png`, V01): a light cut, a heavy cut, a rising launcher, or a spin for storm, flurry and cross. Hits, crits and perfect parries play the impact bursts (`assets/vfx-impacts.png`, V02), pooled in `game/visuals.ts`. The Covenant abilities play the drop's ability art (V03/V04, `ABILITY_ART` in `game/visuals.ts`): projectiles carry theirs, Shield of Faith holds while it lasts, and long effects stay dimmer so stacked casts don't blow out. Chain Snare keeps its drawn chain until its row is redone. Raw drops stay in `art/incoming/`. `art/tools/sheet.py` normalises an effect sheet, and `art/tools/parts.py` packs a character-parts sheet for `fighterRig.ts`.
 
 ### Playable fighters and action styles
 

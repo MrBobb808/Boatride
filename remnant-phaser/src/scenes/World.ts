@@ -657,7 +657,12 @@ export class World extends Phaser.Scene implements WorldApi {
   }
 
   roomW() { return this.gw * TILE; }
-  castCovenant(id: SkillId) { castAbility(this.classic.playerView as unknown as OriginalPlayer, id); }
+  castCovenant(id: SkillId) {
+    const before = this.classic.ents.length;
+    castAbility(this.classic.playerView as unknown as OriginalPlayer, id);
+    // A projectile the ability just made (Word, Pillar, Waters) carries its art.
+    this.visuals.ability(id, this.classic.ents.length > before ? this.classic.ents[this.classic.ents.length - 1] as unknown as { x: number; y: number; life: number; maxLife: number; remove: boolean } : null);
+  }
 
   lightWave() {
     const p = this.player;

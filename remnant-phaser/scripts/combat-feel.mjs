@@ -89,6 +89,23 @@ try {
   assert.ok(arc.frames.length >= 3 && arc.parry, `the slash animates through its frames and the parry burst plays (${JSON.stringify(arc)})`);
   console.log(`Art: the light cut showed frames ${arc.frames.join(',')}; the parry burst plays row 4`);
 
+  // ---- every Covenant ability plays its row of the V03/V04 art (Chain Snare keeps its drawn chain)
+  const casts = await E(page, async () => {
+    const w = window.__remnant.world, out = {};
+    const rows = { sword_word: [1, 0], trumpet: [1, 1], shield_faith: [1, 2], lion: [1, 3], still_waters: [1, 4], pillar_fire: [1, 5], chains: [2, 0], armor_light: [2, 1], blink_strike: [2, 3], mending_light: [2, 4], frost_ring: [2, 5] };
+    for (const [id, [sheet, row]] of Object.entries(rows)) {
+      w.player.placeAt(window.target.x - 70, window.target.y, 1);
+      w.castCovenant(id);
+      const c = w.visuals.casts.find((o) => o.t >= 0 && o.id === id);
+      out[id] = !!c && c.img.texture.key === 'vfx-abilities-' + sheet && Math.floor(Number(c.img.frame.name) / 8) === row;
+      w.visuals.clear();
+    }
+    return out;
+  });
+  assert.ok(Object.values(casts).every(Boolean), `each ability starts its own art row (${JSON.stringify(casts)})`);
+  await E(page, () => window.__remnant.world.visuals.load());
+  console.log(`Abilities: ${Object.keys(casts).length} Covenant abilities each play their V03/V04 row`);
+
   // ---- purification dissolve, and an elite's slow-motion beat
   const fall = await E(page, async () => {
     const w = window.__remnant.world, f = window.target, motes = w.feedback.motes;
