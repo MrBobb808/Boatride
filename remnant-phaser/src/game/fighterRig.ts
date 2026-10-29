@@ -71,9 +71,11 @@ export class FighterRig {
         const image=g.getImageData(0,0,w,h),d=image.data;
         for(let n=0;n<d.length;n+=4)if(d[n+3]){
           const r=d[n],gr=d[n+1],b=d[n+2];
-          // Preserve gold fittings; cloth, leather and cape become violet.
+          // Preserve gold fittings; cloth, leather and cape become violet (the Mantle) or dawn ivory (Tirzah's Wings).
           if(r>gr*1.12&&gr>b*1.25&&gr>65)continue;
-          const l=r*.22+gr*.58+b*.2;d[n]=Math.min(255,l*1.35+12);d[n+1]=l*.45;d[n+2]=Math.min(255,l*1.8+20);
+          const l=r*.22+gr*.58+b*.2;
+          if(hero==='tirzah'){d[n]=Math.min(255,l*1.3+70);d[n+1]=Math.min(255,l*1.2+58);d[n+2]=Math.min(255,l*.95+40);}
+          else{d[n]=Math.min(255,l*1.35+12);d[n+1]=l*.45;d[n+2]=Math.min(255,l*1.8+20);}
         }
         g.putImageData(image,0,0);
       }
@@ -111,12 +113,12 @@ export class FighterRig {
     this.bone(c,1,j.neckX,j.neckY,j.hipX,j.hipY,12.8);
     if(!archer)this.bone(c,8,j.neckX,j.neckY,j.neckX-1,j.neckY+4,11);
     this.bone(c,0,j.neckX,j.neckY,j.neckX+Math.sin(j.headA)*12.8,j.neckY-Math.cos(j.headA)*12.8,archer?11:10.8);
-    if(this.mantle){c.fillStyle='#edc7ff';c.fillRect(j.headX+2.8,j.headY-1.8,1.6,.65);}
+    if(this.mantle){c.fillStyle=archer?'#fff6dc':'#edc7ff';c.fillRect(j.headX+2.8,j.headY-1.8,1.6,.65);}
     if(armed){
       if(archer){
         const x=j.haFX,y=j.haFY,top=y-17,bottom=y+17;
         this.bone(c,9,x,y,x,top,8.5);
-        c.strokeStyle=this.mantle?'#dbb4ff':'#e8d4a1';c.lineWidth=.65;c.beginPath();c.moveTo(x-2,top);c.lineTo(x-2-pull*11,y);c.lineTo(x-2,bottom);c.stroke();
+        c.strokeStyle=this.mantle?'#fff1c4':'#e8d4a1';c.lineWidth=.65;c.beginPath();c.moveTo(x-2,top);c.lineTo(x-2-pull*11,y);c.lineTo(x-2,bottom);c.stroke();
         if(drawing){c.strokeStyle='#ead9ae';c.lineWidth=.9;c.beginPath();c.moveTo(x-2-pull*11,y);c.lineTo(x+14-pull*3,y);c.stroke();c.fillStyle='#f6e7c8';c.fillRect(x+12-pull*3,y-.8,3,1.6);}
       }else drawWeapon(c,j,this.weapon,time);
     }

@@ -60,6 +60,9 @@ export class Visuals {
   /** Impact bursts (V02 sheet), pooled and stepped here so they freeze with the fight. */
   private bursts: { img: Phaser.GameObjects.Image; t: number; row: number }[];
   /** Ability effects in flight (V03/V04 sheets). */
+  /** The transformation forming (V06): the Mantle's shadow, or the Wings' dawn. */
+  private forming: Phaser.GameObjects.Image;
+  private formT = -1;
   private casts: { img: Phaser.GameObjects.Image; t: number; id: SkillId; carrier: Carrier | null; face: number; end: number }[];
   private mantled = false;
   private bubbles: Phaser.GameObjects.Particles.ParticleEmitter;
@@ -83,6 +86,7 @@ export class Visuals {
     this.smoke = w.add.particles(0,0,'vfx-smoke',{emitting:false,maxParticles:48,lifespan:1100,speedX:{min:-18,max:18},speedY:{min:-38,max:-16},scale:{start:0.2,end:0.7},alpha:{start:0.65,end:0},rotate:{min:-80,max:80},tint:[0x281035,0x4d156d,0x8134a8]}).setDepth(9);
     this.smokeFront = w.add.particles(0,0,'vfx-smoke',{emitting:false,maxParticles:24,lifespan:850,speedX:{min:-12,max:12},speedY:{min:-32,max:-14},scale:{start:0.14,end:0.48},alpha:{start:0.27,end:0},tint:[0x9346c5,0xbf6ee8]}).setDepth(10.5);
     this.crown = w.add.graphics().setDepth(9.5).setBlendMode(Phaser.BlendModes.ADD);
+    this.forming = w.add.image(0, 0, 'vfx-transform', 0).setDepth(15.2).setBlendMode(Phaser.BlendModes.ADD).setVisible(false);
     this.casts = Array.from({ length: 4 }, () => ({ img: w.add.image(0, 0, 'vfx-abilities-1', 0).setDepth(15.4).setBlendMode(Phaser.BlendModes.ADD).setVisible(false), t: -1, id: 'trumpet' as SkillId, carrier: null, face: 1, end: -1 }));
     this.bursts = Array.from({ length: 8 }, () => ({ img: w.add.image(0, 0, 'vfx-impacts', 0).setDepth(15.5).setBlendMode(Phaser.BlendModes.ADD).setVisible(false), t: -1, row: 0 }));
     this.bubbles = w.add.particles(0, 0, 'vfx-bubble', { emitting: false, maxParticles: 20, lifespan: 650, speedX: { min: -7, max: 7 }, speedY: { min: -42, max: -25 }, scale: { start: 0.5, end: 0.2 }, alpha: { start: 0.45, end: 0 } }).setDepth(17);
@@ -126,6 +130,7 @@ export class Visuals {
     this.crown.clear();this.mantled=false;
     for (const b of this.bursts) { b.t = -1; b.img.setVisible(false); }
     for (const c of this.casts) { c.t = -1; c.carrier = null; c.img.setVisible(false); }
+    this.formT = -1; this.forming.setVisible(false);
     this.paused = false;
     this.light.setVisible(false); this.weaponLight.setVisible(false);
     if (this.displacement) this.displacement.active = false;
@@ -232,6 +237,15 @@ export class Visuals {
     }
   }
 
+  /** Sixteen frames of the form gathering across the transformation (1.15 s), Mantle or Wings. */
+  private stepForming(dt: number, dawn: boolean) {
+    const p = this.w.player;
+    if (p.state !== 'transform' || p.dead) { if (this.formT >= 0) { this.formT = -1; this.forming.setVisible(false); } return; }
+    this.formT = Math.max(0, this.formT) + dt;
+    const f = Math.min(15, Math.floor((this.formT / 1.15) * 16));
+    this.forming.setFrame((dawn ? 16 : 0) + f).setPosition(p.x, p.feet - 30).setScale(0.62).setAlpha(settings.reduceFlashes ? 0.55 : 1).setVisible(true);
+  }
+
   private stepBursts(dt: number) {
     for (const b of this.bursts) {
       if (b.t < 0) continue;
@@ -261,9 +275,12 @@ export class Visuals {
     for (const e of this.weather) e.setPosition(v.centerX, v.y);
     this.element = weaponElement();
     const mantle = !p.dead && (p.mantleT > 0 || p.state === 'transform');
-    const visible=mantle&&p.sprite.visible;
+    // Tirzah's Wings of the Morning share the Mantle's timer but are dawn light: no smoke, no crown.
+    const dawn = p.hero === 'tirzah';
+    const visible=mantle&&p.sprite.visible&&!dawn;
     this.smoke.setVisible(visible);this.smokeFront.setVisible(visible);
-    if(mantle&&!this.mantled) {this.smoke.emitParticleAt(p.x,p.feet-12,this.tier===0||settings.reduceFlashes?3:12);this.tick=0;}
+    this.stepForming(dt, dawn);
+    if(mantle&&!this.mantled&&!dawn) {this.smoke.emitParticleAt(p.x,p.feet-12,this.tier===0||settings.reduceFlashes?3:12);this.tick=0;}
     else if(!mantle&&this.mantled) {this.smoke.killAll();this.smokeFront.killAll();this.wisps.killAll();}
     this.mantled=mantle;
     const crown=this.crown.clear();
@@ -273,10 +290,10 @@ export class Visuals {
     }
     const color = this.element ? COLORS[this.element] : 0xffffff;
     const pulse = settings.reduceFlashes ? 0.2 : 0.26 + Math.sin(G.time * 3) * 0.035;
-    this.light.setVisible(mantle && p.sprite.visible).setPosition(p.x, p.y).setAlpha(pulse);
+    this.light.setVisible(mantle && p.sprite.visible).setPosition(p.x, p.y).setAlpha(pulse).setTint(dawn ? 0xffc96a : 0xa04bf5);
     this.weaponLight.setVisible(!!this.element && !p.dead && p.sprite.visible).setTint(color).setPosition(p.x + p.face * 12, p.feet - 24).setAlpha(settings.reduceFlashes ? 0.12 : 0.2);
     if (this.element && p.slash.visible) p.slash.setTint(color);
-    if (this.heroGlow) { this.heroGlow.active = mantle && this.tier > 0; this.heroGlow.outerStrength = settings.reduceFlashes ? 1 : 1.8 + Math.sin(G.time * 3) * 0.25; }
+    if (this.heroGlow) { this.heroGlow.active = mantle && this.tier > 0; this.heroGlow.color = dawn ? 0xffd27a : 0xa34bdf; this.heroGlow.outerStrength = settings.reduceFlashes ? 1 : 1.8 + Math.sin(G.time * 3) * 0.25; }
     if (this.bladeGlow) { this.bladeGlow.active = !!this.element && p.slash.visible && this.tier > 0; this.bladeGlow.color = color; }
     this.tick -= dt;
     if (this.tick <= 0) {
@@ -327,6 +344,7 @@ export class Visuals {
     for (const o of [this.light, this.weaponLight, this.sparks, this.wisps, this.smoke, this.smokeFront, this.crown, this.bubbles]) o.destroy();
     for (const b of this.bursts) b.img.destroy();
     for (const c of this.casts) c.img.destroy();
+    this.forming.destroy();
     if (this.map) this.w.textures.remove(this.key);
   }
 }

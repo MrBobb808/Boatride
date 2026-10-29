@@ -245,7 +245,8 @@ export class Hud extends Phaser.Scene {
     }
     this.echoText.setVisible(total > 0);
     cy += 13 * k;
-    const power = `Super ${Math.floor(s.rally)}%${s.level >= 25 ? p.mantleT > 0 ? ` · Mantle ${Math.ceil(p.mantleT)}s` : ` · Mantle ${Math.floor(s.mantle ?? 0)}%` : ''}${s.sub ? ` · ${s.sub.replace('_', ' ')} ${s.hearts ?? 0}♥` : ''}`;
+    const form = p.hero === 'tirzah' ? 'Wings' : 'Mantle';
+    const power = `Super ${Math.floor(s.rally)}%${s.level >= 25 ? p.mantleT > 0 ? ` · ${form} ${Math.ceil(p.mantleT)}s` : ` · ${form} ${Math.floor(s.mantle ?? 0)}%` : ''}${s.sub ? ` · ${s.sub.replace('_', ' ')} ${s.hearts ?? 0}♥` : ''}`;
     this.powerText.setText(power).setPosition(hx, cy);
     const touch = w.controls.device === 'touch';
     box(hudBoxes.column, x0, y0, hx + hw - x0, cy - y0 + 8 * k);

@@ -127,6 +127,19 @@ distortion and softens glows. Canvas fallback retains light sprites and particle
 without using GPU filters. Room changes, Trial sectors and returning to the title
 dispose their effects and reset boss framing.
 
+## Tirzah's Wings of the Morning
+
+When Tirzah is the active hero, the transformation gauge and button give her **Wings of the Morning** (Psalm 139:9) instead of the Shadow Mantle. It's the same gauge, button and timer (`Player.mantleT`).
+- **Look:** she takes a dawn palette (`fighterRig.ts`) and wears wings of light (V06), and her transformation plays its own forming art.
+- **Dawnstep** (`game/dawn.ts`):
+  - Any arrow that lands arms its foe for 0.6 s.
+  - Dodge then blinks her behind the foe, but only onto floor she can stand on, with a line of sight; otherwise she stays put. She looses a guard-breaking back arrow.
+  - Three in a chain (within 2.4 s each) end in Morning Star, a ring of twelve light arrows.
+- **While transformed:** holding Jump glides, charged shots are free, and her arrows leave dawn trails. Her blows add the light element instead of shadow.
+- **When the form ends,** light falls on every foe she struck during it.
+- **Elior's Shadow Mantle is unchanged.**
+- **Verified by** `scripts/archer.mjs`.
+
 ## Store and economy
 
 The store is the original's own shop, rebuilt in shared code (`remnant/src/game/economy.ts`, `game/elixirs.ts` and the shop screens in `ui/menus.ts`), so both editions have it.
