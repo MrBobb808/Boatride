@@ -59,7 +59,8 @@ export interface WorldApi {
   enemyShots(): readonly { x: number; y: number; w: number; h: number; remove: boolean }[];
   castCovenant(id: SkillId): void;
   lightWave(): void;
-  playEffect(name: string): void;
+  /** A generated sound; `x` pans it by where it is on screen. */
+  playEffect(name: string, o?: { x?: number; vol?: number; pitch?: number }): void;
   heroHit(f: FoeLike, damage: number, heavy: boolean, crit?: boolean): void;
   strikeLamps(box: { x: number; y: number; w: number; h: number }): void;
   /** Bring a new foe into the room (a boss's adds). */

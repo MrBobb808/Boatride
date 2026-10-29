@@ -214,6 +214,33 @@ Her own way to fight (POLISH_PLAN §5c), all in `src/game/bow.ts`:
   - comes with the finisher's shake, slow motion and push in.
 - **Perfect Draw:** releasing a held draw between 0.62 and 0.8 s (a gold glint marks the window) looses a perfect shot. It is free, 25% faster and always a crit, so under the Wings it also brings the jab.
 
+## The archer's sounds
+
+All generated in code, in the shared `remnant/src/audio/audio.ts` (new effects only; existing ones are unchanged). `WorldApi.playEffect(name, { x, vol, pitch })` pans each by where it happens on screen.
+
+| Moment | Sound |
+|---|---|
+| Drawing | `bowCreak`: the string creaks every 0.17 s, its pitch and volume rising with the pull. |
+| Perfect Draw window | `perfectChime`: a bright chime. |
+| Release | `bowRelease`, its pitch varied so repeats differ. A charged or perfect shot adds `bowCrack` and an `arrowWhistle`. |
+| Impacts | `arrowPierce` through a foe (louder on a crit); `arrowThunk` into a wall. |
+| Recall | `arrowRecall`: a reversed rush. |
+| The Wings jab | `dawnJab`: a rushing blink and a bell of light. |
+| The Wings forming | `wingsForm`: a rising chord. Elior's Mantle keeps `transform`. |
+
+Her six abilities each have a signature sound:
+
+| Ability | Sound |
+|---|---|
+| Arrow of Deliverance | `deliverance` |
+| Jonathan's Volley | `volleyPlant` |
+| Hunter's Mark | `markLock` |
+| Rain of Arrows | `arrowRain`, renewed while it falls |
+| Watchman's Eye | `watchEye` |
+| Quiver of the Mighty | `quiverMight` |
+
+Verified by `scripts/sound-pass.mjs`, which records every effect asked of the engine.
+
 ## Store and economy
 
 The store is the original's own shop, rebuilt in shared code (`remnant/src/game/economy.ts`, `game/elixirs.ts` and the shop screens in `ui/menus.ts`), so both editions have it.

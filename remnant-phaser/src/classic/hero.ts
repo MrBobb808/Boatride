@@ -140,7 +140,7 @@ export class HeroPowers {
     const form = this.p.hero === 'tirzah' ? 'Wings of the Morning' : 'Shadow Mantle';
     if (s.level < 25) { this.L.host.toast(`${form} awakens at level 25.`); return false; }
     if (this.p.mantleT > 0 || (s.mantle ?? 0) < 100) { this.L.host.toast(`Fill the transformation gauge through battle (${form}).`); return false; }
-    s.mantle = 0; this.transformT = 0; this.transformed = false; this.clip = 'charge'; this.p.state = 'transform'; sfx('transform'); return true;
+    s.mantle = 0; this.transformT = 0; this.transformed = false; this.clip = 'charge'; this.p.state = 'transform'; sfx(this.p.hero === 'tirzah' ? 'wingsForm' : 'transform'); return true;
   }
   trySuper() {
     const s = this.L.host.save;

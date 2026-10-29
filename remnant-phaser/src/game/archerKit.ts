@@ -17,6 +17,8 @@ export class ArcherKit {
   /** Rain of Arrows: where it falls, how long, and the next arrow. */
   private rainX = 0;
   rainT = 0;
+  /** The rain's patter, renewed while it falls. */
+  private patterT = 0;
   private rainNext = 0;
   /** Watchman's Eye: slowed time and the precision shots left. */
   eyeT = 0;
@@ -50,7 +52,7 @@ export class ArcherKit {
         this.bow.spawn({ x: p.x + p.face * 15, y: p.feet - 31, vx: p.face * 720, vy: 0, life: 1, damage: p.power() * 3.2, pierce: 30, move: 'deliverance', guard: true, knock: true, scale: 0.5, frame: 2 });
         w.burst(p.x + p.face * 20, p.feet - 31, 2);
         w.floatText(p.x, p.feet - 64, 'DELIVERANCE', '#ffd27a');
-        w.playEffect('bowRelease');
+        w.playEffect('deliverance');
         break;
       }
       case 'jonathan': {
@@ -59,7 +61,7 @@ export class ArcherKit {
           o.x = x + p.face * i * 22; o.y = this.floorAt(o.x) ?? p.feet; o.t = -0.15 * i;
           o.img.setPosition(o.x, o.y + 2).setFlipX(p.face < 0).setAlpha(0).setVisible(true);
         });
-        w.playEffect('bowRelease');
+        w.playEffect('volleyPlant', { x });
         break;
       }
       case 'mark': {
@@ -68,27 +70,26 @@ export class ArcherKit {
         this.mark = f; this.markT = MARK_T;
         w.echoesFocus(f);
         w.floatText(f.x, f.box.top - 12, 'MARKED', '#ff8a6a');
-        w.playEffect('bowDraw');
+        w.playEffect('markLock');
         break;
       }
       case 'rain': {
         const f = this.mark?.alive ? this.mark : this.target();
         this.rainX = f ? f.x : p.x + p.face * 130;
-        this.rainT = RAIN_T; this.rainNext = 0;
-        w.playEffect('bowRelease');
+        this.rainT = RAIN_T; this.rainNext = 0; this.patterT = 0;
         break;
       }
       case 'watchman': {
         this.eyeT = EYE_T; this.eyeShots = EYE_SHOTS;
         w.slowTime(EYE_T, 0.35);
         w.floatText(p.x, p.feet - 64, "WATCHMAN'S EYE", '#fff1c4');
-        w.playEffect('rally');
+        w.playEffect('watchEye');
         break;
       }
       case 'quiver': {
         this.quiverT = QUIVER_T;
         w.floatText(p.x, p.feet - 64, 'QUIVER OF THE MIGHTY', '#ffd27a');
-        w.playEffect('rally');
+        w.playEffect('quiverMight');
         break;
       }
     }
@@ -145,7 +146,8 @@ export class ArcherKit {
     }
     // Rain of Arrows.
     if (this.rainT > 0) {
-      this.rainT -= dt; this.rainNext -= dt;
+      this.rainT -= dt; this.rainNext -= dt; this.patterT -= dt;
+      if (this.patterT <= 0) { this.patterT = 0.55; w.playEffect('arrowRain', { x: this.rainX }); }
       while (this.rainNext <= 0 && this.rainT > 0) {
         this.rainNext += 0.09;
         const x = this.rainX + Phaser.Math.Between(-55, 55);
