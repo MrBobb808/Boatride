@@ -165,6 +165,7 @@ export class Dawn {
         this.w.burst(f.x - p.face * 4, f.box.centerY, 1);
         this.w.spark(f.x, f.box.centerY, 0xfff1c4, 14);
         this.w.finale(f.x, f.box.centerY, 1.2);
+        this.w.playEffect('dawnJab', { x: f.x });
         this.p.noteStyle('dawn_jab');
         this.jabs++;
       }

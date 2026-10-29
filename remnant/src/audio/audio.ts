@@ -553,6 +553,97 @@ export const SFX: Record<string, SfxFn> = {
     a.osc('triangle', 180 * p, t, 0.25, d, 0.25 * v, 0.001, 150);
     a.noiseHit(t, 0.12, d, 'highpass', 2500, 1, 0.15 * v);
   },
+  /** The bowstring creaking under the draw; pitch rises with the pull. */
+  bowCreak(a, t, v, p, pan) {
+    const d = a.out(pan, 0.1);
+    a.noiseHit(t, 0.09, d, 'bandpass', 420 * p, 9, 0.07 * v, 700 * p, 0.01);
+    a.osc('sawtooth', 95 * p, t, 0.08, d, 0.025 * v, 0.01, 110 * p);
+  },
+  /** A charged shot leaving the string: a dry crack over the twang. */
+  bowCrack(a, t, v, p, pan) {
+    const d = a.out(pan, 0.35);
+    a.noiseHit(t, 0.07, d, 'highpass', 3200, 0.8, 0.32 * v, 1800, 0.001);
+    a.osc('square', 140 * p, t, 0.09, d, 0.08 * v, 0.001, 70);
+  },
+  /** An arrow's whistle, falling in pitch as it flies off. */
+  arrowWhistle(a, t, v, p, pan) {
+    const d = a.out(pan, 0.4);
+    a.osc('sine', 2400 * p, t, 0.45, d, 0.035 * v, 0.02, 1500 * p);
+    a.noiseHit(t, 0.35, d, 'bandpass', 5000, 6, 0.04 * v, 2600);
+  },
+  /** An arrow into wood or stone. */
+  arrowThunk(a, t, v, p, pan) {
+    const d = a.out(pan, 0.3);
+    a.osc('triangle', 210 * p, t, 0.09, d, 0.22 * v, 0.001, 90);
+    a.noiseHit(t, 0.05, d, 'lowpass', 1400, 1, 0.2 * v);
+    a.osc('sine', 520 * p, t + 0.02, 0.16, d, 0.04 * v, 0.002, 470);
+  },
+  /** An arrow through a foe. */
+  arrowPierce(a, t, v, p, pan) {
+    const d = a.out(pan, 0.2);
+    a.noiseHit(t, 0.08, d, 'bandpass', 900 * p, 1.5, 0.22 * v, 500);
+    a.osc('triangle', 320 * p, t, 0.05, d, 0.1 * v, 0.001, 140);
+  },
+  /** The Perfect Draw window opening: a small bright chime. */
+  perfectChime(a, t, v, p) {
+    const d = a.out(0, 0.6);
+    bell(a, t, 1568 * p, 0.55 * v, d, 0.5);
+  },
+  /** The Wings jab: a rushing blink and a struck bell of light. */
+  dawnJab(a, t, v, p, pan) {
+    const d = a.out(pan, 0.7);
+    a.noiseHit(t, 0.18, d, 'bandpass', 1800, 3, 0.18 * v, 5200, 0.01);
+    bell(a, t + 0.05, 988 * p, 0.9 * v, d, 1.1);
+    a.osc('triangle', 180, t + 0.05, 0.14, d, 0.18 * v, 0.001, 70);
+  },
+  /** Recall: arrows tearing back out, a reversed whoosh. */
+  arrowRecall(a, t, v, p, pan) {
+    const d = a.out(pan, 0.4);
+    a.noiseHit(t, 0.32, d, 'bandpass', 700, 2, 0.16 * v, 3600, 0.25);
+    a.osc('sawtooth', 120, t + 0.25, 0.08, d, 0.06 * v, 0.002, 60);
+  },
+  /** Arrow of Deliverance: a roaring fire arrow. */
+  deliverance(a, t, v) {
+    const d = a.out(0, 0.8);
+    a.noiseHit(t, 0.7, d, 'lowpass', 900, 1, 0.3 * v, 220, 0.02);
+    a.osc('sawtooth', 110, t, 0.5, d, 0.08 * v, 0.01, 55);
+    bell(a, t + 0.04, 523, 0.6 * v, d, 1.2);
+  },
+  /** Jonathan's Volley: three arrows planting one after another. */
+  volleyPlant(a, t, v) {
+    const d = a.out(0, 0.3);
+    for (let i = 0; i < 3; i++) { a.osc('triangle', 230 - i * 15, t + i * 0.12, 0.08, d, 0.16 * v, 0.001, 90); a.noiseHit(t + i * 0.12, 0.04, d, 'lowpass', 1500, 1, 0.14 * v); }
+  },
+  /** Hunter's Mark: two rising tones locking on. */
+  markLock(a, t, v) {
+    const d = a.out(0, 0.5);
+    a.osc('square', 660, t, 0.08, d, 0.05 * v, 0.002);
+    a.osc('square', 990, t + 0.09, 0.14, d, 0.05 * v, 0.002);
+    bell(a, t + 0.09, 1320, 0.35 * v, d, 0.6);
+  },
+  /** Rain of Arrows: a patter of shafts falling. */
+  arrowRain(a, t, v) {
+    const d = a.out(0, 0.4);
+    for (let i = 0; i < 8; i++) a.noiseHit(t + i * 0.06 + Math.random() * 0.03, 0.05, d, 'bandpass', 2600 + Math.random() * 1400, 4, 0.08 * v);
+    a.noiseHit(t, 0.6, d, 'highpass', 4000, 1, 0.05 * v, 2500, 0.1);
+  },
+  /** Watchman's Eye: time drawing out, a deep slowed bell. */
+  watchEye(a, t, v) {
+    const d = a.out(0, 1);
+    bell(a, t, 196, 1.1 * v, d, 2.4);
+    a.noiseHit(t, 0.6, d, 'bandpass', 3000, 3, 0.06 * v, 400, 0.3);
+  },
+  /** Quiver of the Mighty: a shimmering triple ring. */
+  quiverMight(a, t, v) {
+    const d = a.out(0, 0.7);
+    [784, 988, 1175].forEach((f, i) => bell(a, t + i * 0.07, f, 0.55 * v, d, 0.9));
+  },
+  /** Wings of the Morning forming: a rising major chord of bells and air. */
+  wingsForm(a, t, v) {
+    const d = a.out(0, 1);
+    [392, 494, 587, 784].forEach((f, i) => bell(a, t + i * 0.12, f, 0.8 * v, d, 1.8));
+    a.noiseHit(t, 1.1, d, 'bandpass', 900, 2, 0.12 * v, 4200, 0.4);
+  },
   arrowHit(a, t, v, p, pan) {
     const d = a.out(pan, 0.2);
     a.osc('triangle', 600 * p, t, 0.06, d, 0.12 * v, 0.001, 200);

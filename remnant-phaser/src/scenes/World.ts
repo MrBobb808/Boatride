@@ -678,7 +678,7 @@ export class World extends Phaser.Scene implements WorldApi {
     const p = this.player;
     this.classic.add(new Proj('lightwave', p.x + p.face * 14, p.feet - 14, 'player', p.skillPower() * 0.8, { vx: p.face * 380, life: 0.55, w: 18, h: 30, poise: 10 }));
   }
-  playEffect(name: string) { sfx(name); }
+  playEffect(name: string, o: { x?: number; vol?: number; pitch?: number } = {}) { sfx(name, { pan: o.x === undefined ? 0 : this.classic.pan(o.x), vol: o.vol, pitch: o.pitch }); }
   heroHit(f: FoeLike, damage: number, heavy: boolean, crit = false) { const e = this.classic.entityFor(f); if (e) this.classic.hero?.onHit(e, damage, heavy, crit); this.visuals.impact(f.x, f.box.centerY, heavy, crit); }
   strikeLamps(box: { x: number; y: number; w: number; h: number }) { strikeLamps(box); }
   banner(title: string, sub: string) { this.hud.banner(title, sub); }

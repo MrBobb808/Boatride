@@ -61,6 +61,8 @@ export class Bow {
   bashT = 0;
   /** Strike pressed during a dodge: the backflip shot when it ends. */
   private flipT = 0;
+  /** The next creak of the string while she draws. */
+  private creakT = 0;
   /** Under the Wings her arrows find crits more often, and each crit carries her behind the foe for the jab. */
   wingsCrit = 0.2;
   /** Counts for the archer checks: True Aim, precision, shot down, interrupted, pinned. */
@@ -133,7 +135,7 @@ export class Bow {
     }
     this.tally.recalled+=n;
     this.p.noteStyle('recall');
-    this.w.playEffect('bowRelease');
+    this.w.playEffect('arrowRecall',{x:this.p.x});
     return true;
   }
   /** Which arrow the sheet draws: light under the Wings, charged for a piercing shot, else the weapon's element. */
@@ -143,6 +145,7 @@ export class Bow {
     // The stuck art leans about 38° from the shaft's line; turn it to match the flight.
     o.t=0;o.rot=Math.atan2(a.vy,a.vx)-0.67;o.img.setFrame(8+frame).setPosition(a.x,a.y).setRotation(o.rot).setScale(0.26).setAlpha(1).setVisible(true);
     this.w.spark(a.x,a.y,GLOW[frame],4);
+    this.w.playEffect('arrowThunk',{x:a.x,pitch:0.9+Math.random()*0.2});
   }
   cancel() { this.charge=0; this.recovery=0; this.drawing=false;this.queued=null; }
   update(dt:number) {
@@ -214,6 +217,7 @@ export class Bow {
           this.p.comboHits++; this.w.save.bestCombo=Math.max(this.w.save.bestCombo??0,this.p.comboHits);
           this.w.save.ce=Math.min(this.p.maxCe,this.w.save.ce+1);
           this.w.spark(hx,hy,GLOW[this.frameOf(a)],crit?9:5);
+          this.w.playEffect('arrowPierce',{x:hx,pitch:0.9+Math.random()*0.2,vol:crit?1:0.8});
           this.dawn?.onArrowHit(nearest);
           if(precise){this.tally.precise++;this.w.spark(hx,hy,0xffffff,6);}
           if(trueAim){this.tally.trueAim++;this.w.spark(hx,hy,0xffd27a,4);}
@@ -256,7 +260,9 @@ export class Bow {
         this.charge=Math.min(1.2,this.charge+dt);
         if(Math.abs(c.axis)>0.25)p.face=Math.sign(c.axis);
         // The Perfect Draw window opens with a gold glint at the bow.
-        if(was<PERFECT[0]&&this.charge>=PERFECT[0]){this.w.spark(p.x+p.face*15,p.feet-31,0xffd27a,6);this.w.playEffect('bowDraw');}
+        if(was<PERFECT[0]&&this.charge>=PERFECT[0]){this.w.spark(p.x+p.face*15,p.feet-31,0xffd27a,6);this.w.playEffect('perfectChime');}
+        // The string creaks tighter the longer she holds.
+        this.creakT-=dt;if(this.creakT<=0&&this.charge<1.2){this.creakT=0.17;this.w.playEffect('bowCreak',{x:p.x,pitch:0.8+this.charge*0.55+Math.random()*0.05,vol:0.5+this.charge*0.5});}
         if(!c.down(this.chargeKey)||this.charge>=1.2) {
           const perfect=c.down(this.chargeKey)===false&&this.charge>=PERFECT[0]&&this.charge<=PERFECT[1];
           this.fire(perfect?'pierce':this.charge>=0.55?'pierce':'quick',perfect?'bow_perfect':undefined,perfect);this.drawing=false;this.recovery=0.28;
@@ -271,7 +277,7 @@ export class Bow {
         this.recovery-=dt;
         if(this.recovery<=0){
           p.releaseState();
-          if(this.queued){p.face=p.swingFacing();this.w.playEffect('bowDraw');this.chargeKey=this.queued;this.drawing=true;this.charge=0;this.queued=null;p.state='bow';}
+          if(this.queued){p.face=p.swingFacing();this.w.playEffect('bowDraw');this.chargeKey=this.queued;this.drawing=true;this.charge=0;this.creakT=0.17;this.queued=null;p.state='bow';}
         }
       }
       return true;
@@ -294,10 +300,10 @@ export class Bow {
     if(c.pressed('heavy')||c.pressed('attack')||c.down('heavy'))p.face=p.swingFacing();
     // A foe right in front: bow-bash and kick it back first.
     if(c.pressed('attack')&&!c.down('up')&&p.onGround&&this.bash()){this.recovery=0.22;this.drawing=false;p.state='bow';return true;}
-    if(c.pressed('heavy')||c.down('heavy')) {this.w.playEffect('bowDraw');this.chargeKey='heavy';this.drawing=true;this.charge=0;this.recovery=0;p.state='bow';return true;}
+    if(c.pressed('heavy')||c.down('heavy')) {this.w.playEffect('bowDraw');this.chargeKey='heavy';this.drawing=true;this.charge=0;this.creakT=0.17;this.recovery=0;p.state='bow';return true;}
     if(c.pressed('attack')) {
       if(c.down('up')){this.fire('volley');this.recovery=0.28;this.drawing=false;}
-      else {this.w.playEffect('bowDraw');this.chargeKey='attack';this.drawing=true;this.charge=0;this.recovery=0;}
+      else {this.w.playEffect('bowDraw');this.chargeKey='attack';this.drawing=true;this.charge=0;this.creakT=0.17;this.recovery=0;}
       p.state='bow';return true;
     }
     return false;
@@ -367,7 +373,8 @@ export class Bow {
         damage:p.power()*(kind==='pierce'?2.1:kind==='volley'?0.48:kind==='dive'?1.1:0.7)*blank*(split>1&&kind!=='volley'?0.6:1),
         pierce:kind==='pierce'?3:kind==='dive'?2:1,move,dawn:wings,spike:kind==='dive',precise,perfect});
     }
-    this.w.playEffect('bowRelease');
+    this.w.playEffect('bowRelease',{x:p.x,pitch:0.94+Math.random()*0.12});
+    if(kind==='pierce'||perfect){this.w.playEffect('bowCrack',{x:p.x});this.w.playEffect('arrowWhistle',{x:p.x+p.face*120,pitch:perfect?1.15:1});}
     // The release: a flash of the arrow's colour at the bow.
     const colour=perfect?0xffd27a:GLOW[wings?LIGHT:this.element()?ARROW_FRAME[this.element()!]:kind==='pierce'?CHARGED:0];
     this.w.spark(muzzleX,muzzleY,colour,kind==='pierce'||perfect?8:3);

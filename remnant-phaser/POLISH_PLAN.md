@@ -320,6 +320,7 @@ around them stays the same.
   - [ ] 1b. Foe hit reactions: flinch, knockback arcs, launch poses, guard-break, knockdown (§2.1)
   - [ ] 1c. Telegraphs, defence feel and enemy spacing (§2.3, §2.6, §2.7); boss death sequences; style meter
 - [ ] 2. Sound pass (§3)
+  - [x] The bow and the archer (§3.3, §3.4 for her abilities, §3.5 for the Wings): creak, chime, twang, crack, whistle, pierce, thunk, recall, jab and six ability signatures, panned and pitch-varied; `scripts/sound-pass.mjs`
 - [ ] 3. Ability effects and animation, procedural first (§4)
   - [x] Eleven Covenant abilities play the generated V03/V04 art (Chain Snare waits on its retry row)
   - [x] The classic effects' rings, pillars, arcs and streaks, Elior's glows and the Fallen Crown telegraphs draw from the art; burning, frozen and bleeding foes wear V07 (#73)
