@@ -117,6 +117,10 @@ Never ship files from `art/incoming/` directly.
     for one at a time and the squad picks). Orders live on `EchoInst.order`
     and drive targeting and movement in `EchoUnit.chooseTarget` / `standX`.
     Flank blows to a foe's back hit harder; guards earn XP from blows taken.
+  - **Called, never automatic:** Echoes appear only when called (the wheel,
+    the ECHOES button, a summon preset); `flags.army_out === true` then keeps
+    them along through doors until dismissed. Story beats, purifications and
+    level-ups never call them out on their own.
   - **Choosing and the bond:** `leadEcho` (game/state.ts) puts one Echo at
     the head of the lineup and calls it out alone: the Echoes page's "Fight
     beside me", and in the Phaser build the wheel's Summon → Choose one….

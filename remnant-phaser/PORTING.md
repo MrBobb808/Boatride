@@ -266,6 +266,7 @@ Verified by `scripts/economy.mjs` and `scripts/tirzah-progression.mjs`.
 
 ## Choosing an Echo, and the bond
 
+- **Called, never automatic:** Echoes appear only when called. Once out (`flags.army_out === true`) they follow through doors until dismissed. A new purification, a story banner or a level-up never summons them.
 - **Choosing:** the command wheel's Summon page has Choose one… (`Hud.openWheel('choose')`): every Echo, strongest first, eight to a page. The Echoes page has Fight beside me. Either one calls `leadEcho` (shared `game/state.ts`): the chosen Echo heads the lineup and the "One" summon calls it out alone (`Squad.choose`).
 - **The bond** (`echoBond`): one Echo alone fights with the covenant's whole bond, +80% attack and +50% health. As one of two it has half that; in a larger line, none. The Echo page shows it.
 - **Stronger Echoes overall** (`echoAtk`, `echoMaxHp`, shared): more of the hero's attack carries over, they grow more per level and per stage, and their base health and damage are higher. `scripts/power-walls.test.mjs` still holds.
