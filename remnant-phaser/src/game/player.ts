@@ -462,11 +462,27 @@ export class Player {
     this.hitSeg = -1;
     this.swung = false;
     this.linger = '';
+    // Each swing turns with the stick, or toward a foe behind when none is ahead (Phantom strikes keep the side they chose).
+    if (a.id !== 'pstrike' && a.id !== 'cross') this.face = this.swingFacing();
     this.powers?.onSwing(!!a.finisher, !!a.air);
     this.begin();
     this.w.playEffect(a.sfx);
     if (a.rise && (this.w.controls.down('up') || a.forceRise)) this.body.setVelocityY(a.rise);
     if (a.air && this.body.velocity.y > 0) this.body.setVelocityY(this.body.velocity.y * 0.2);
+  }
+
+  /** Where the next swing or shot points: the held direction, else the nearest foe behind if nothing is ahead. */
+  swingFacing() {
+    const ax = this.w.controls.axis;
+    if (Math.abs(ax) > 0.2) return Math.sign(ax);
+    let ahead = false, behind = 0, best = 90;
+    for (const f of this.w.foes()) {
+      if (!f.alive || Math.abs(f.box.centerY - this.y) > 50) continue;
+      const dx = f.x - this.x;
+      if (Math.sign(dx) === this.face || Math.abs(dx) < 6) { if (Math.abs(dx) < 110) ahead = true; }
+      else if (Math.abs(dx) < best) { best = Math.abs(dx); behind = Math.sign(dx); }
+    }
+    return !ahead && behind ? behind : this.face;
   }
 
   /** The same routes for every weapon family, including deliberate pauses. */
@@ -546,6 +562,7 @@ export class Player {
         }
         this.queued = false;
       }
+      if (!this.heavyQueued && this.onGround && !a.air && Math.abs(c.axis) > 0.5) { this.toFree(); return; }
     }
     if (u >= 1) {
       if (a.auto) { const next = m[a.auto as keyof typeof m]; if (typeof next === 'object' && !Array.isArray(next)) { this.startMove(next); return; } }
@@ -767,6 +784,10 @@ export class Player {
         if (this.atk.hang && !this.onGround) this.body.setVelocityY(Math.min(this.body.velocity.y, this.atk.hang));
         if (this.w.d.lifesteal) this.hp = Math.min(this.maxHp, this.hp + dmg * swap * this.w.d.lifesteal);
         this.w.hitstop(crit ? STOP.crit : this.atk.heavy ? STOP.heavy : this.combo === 2 ? STOP.ender : STOP.light);
+        // The chain's last blow lands with weight: Judgment Cross and the third Phantom strike always,
+        // a combo finisher when it fells its foe. Ordinary hits stay steady.
+        const id = this.atk.id, ender = this.atk.finisher || this.combo === 2 || id === 'storm' || id === 'comet';
+        if (id === 'cross' || (id === 'pstrike' && this.phantomN >= 3) || (ender && !f.alive)) this.w.finale(f.x, f.box.centerY, id === 'cross' ? 1.4 : id === 'pstrike' ? 0.8 : 1);
       }
     }
   }

@@ -872,6 +872,23 @@ export class World extends Phaser.Scene implements WorldApi {
   }
 
   private nextShakeAt = 0;
+  /**
+   * The big moments only (a Phantom chain's Judgment Cross, a finishing blow,
+   * an execution, Tirzah's finishing arrow): a real shake, a slow-motion beat
+   * and a push in on the blow. Ordinary hits stay steady (shake() below).
+   */
+  finale(x: number, y: number, power = 1) {
+    if (this.time.now < this.nextFinaleAt) return;
+    this.nextFinaleAt = this.time.now + 700;
+    const amount = 0.005 * power * shakeScale();
+    if (amount) this.cameras.main.shake(200 + power * 60, amount);
+    this.classic.slowmo(0.4 + power * 0.1, 0.3);
+    const focus = { x, y };
+    G.camera.zoomTarget = 1 + 0.22 * power; G.camera.focus = focus; G.camera.focusRate = 14;
+    this.classic.after(0.5, () => { if (G.camera.focus === focus) { G.camera.focus = null; G.camera.focusRate = 8; } G.camera.zoomTarget = 1; });
+  }
+  private nextFinaleAt = 0;
+
   shake(intensity: number, ms: number) {
     // Ordinary impacts stay steady. Even major impacts cannot chain into
     // continuous shaking or move the camera by a large fraction of the phone.

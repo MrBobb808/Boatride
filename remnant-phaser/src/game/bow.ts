@@ -4,7 +4,7 @@ import type { WorldApi, FoeLike } from './types';
 import type { Player } from './player';
 import type { Dawn } from './dawn';
 /** `back`: a Dawnstep's point-blank arrow (breaks guard). `dawn`: shot under the Wings, drawn with a trail of light. */
-interface Arrow { x:number; y:number; vx:number; vy:number; life:number; damage:number; pierce:number; hits:Set<FoeLike>; move:string; back:boolean; dawn:boolean }
+interface Arrow { x:number; y:number; vx:number; vy:number; life:number; damage:number; pierce:number; hits:Set<FoeLike>; move:string; back:boolean; dawn:boolean; finisher:boolean }
 // Entry time along a swept segment. This catches fast arrows between frames.
 function entry(x:number,y:number,dx:number,dy:number,b:Phaser.Geom.Rectangle) {
   let lo = 0, hi = 1;
@@ -16,7 +16,7 @@ function entry(x:number,y:number,dx:number,dy:number,b:Phaser.Geom.Rectangle) {
   return lo;
 }
 export class Bow {
-  readonly arrows: Arrow[] = Array.from({length:24},()=>({x:0,y:0,vx:0,vy:0,life:0,damage:0,pierce:0,hits:new Set(),move:'',back:false,dawn:false}));
+  readonly arrows: Arrow[] = Array.from({length:24},()=>({x:0,y:0,vx:0,vy:0,life:0,damage:0,pierce:0,hits:new Set(),move:'',back:false,dawn:false,finisher:false}));
   dawn: Dawn | null = null;
   private lampBox={x:0,y:0,w:0,h:0};
   readonly graphics: Phaser.GameObjects.Graphics;
@@ -44,8 +44,15 @@ export class Bow {
         if(!nearest) break;
         a.hits.add(nearest);
         const hp=nearest.hp;
-        if(nearest.hit(Math.round(a.damage),Math.sign(a.vx),a.back?3:a.pierce>1?2.5:0.8,a.back,{kind:'proj',kx:Math.sign(a.vx)*(a.back?140:55),ky:a.back?-60:0,poise:a.back?60:a.pierce>1?24:8,guardBreak:a.back})) {
-          this.w.heroHit(nearest,hp!==undefined&&nearest.hp!==undefined?Math.max(0,hp-nearest.hp):a.damage,false);
+        // Her arrows crit like his blows; a back arrow always does, and a finishing one fells a weakened foe outright.
+        const crit=a.back||(a.move!=='morning_star'&&Math.random()<this.w.d.crit);
+        let damage=a.damage*(crit&&!a.back?this.w.d.critDmg:1);
+        const body=(nearest as FoeLike&{e?:{isBoss?:boolean;maxHp?:number}}).e;
+        if(a.finisher&&hp!==undefined&&body&&!body.isBoss&&body.maxHp&&hp<body.maxHp*0.4)damage=Math.max(damage,hp+1);
+        if(nearest.hit(Math.round(damage),Math.sign(a.vx),a.back?3:a.pierce>1?2.5:0.8,crit,{kind:'proj',kx:Math.sign(a.vx)*(a.back?140:55),ky:a.back?-60:0,poise:a.back?60:a.pierce>1?24:8,guardBreak:a.back})) {
+          this.w.heroHit(nearest,hp!==undefined&&nearest.hp!==undefined?Math.max(0,hp-nearest.hp):damage,false,crit);
+          if(a.back&&!nearest.alive)this.w.finale(nearest.x,nearest.box.centerY,a.finisher?1.2:0.9);
+          else if(crit&&!a.back)this.dawn?.critStep(nearest);
           this.p.noteStyle(a.move);
           this.p.comboHits++; this.w.save.bestCombo=Math.max(this.w.save.bestCombo??0,this.p.comboHits);
           this.w.save.ce=Math.min(this.p.maxCe,this.w.save.ce+1);
@@ -73,15 +80,19 @@ export class Bow {
       } else {
         if(c.pressed('attack'))this.queued='attack';
         if(c.pressed('heavy'))this.queued='heavy';
+        // She turns during the follow-through, and running cancels it.
+        if(Math.abs(c.axis)>0.25)p.face=Math.sign(c.axis);
+        if(!this.queued&&Math.abs(c.axis)>0.5&&this.recovery<0.2){this.recovery=0;p.releaseState();return false;}
         this.recovery-=dt;
         if(this.recovery<=0){
           p.releaseState();
-          if(this.queued){this.w.playEffect('bowDraw');this.chargeKey=this.queued;this.drawing=true;this.charge=0;this.queued=null;p.state='bow';}
+          if(this.queued){p.face=p.swingFacing();this.w.playEffect('bowDraw');this.chargeKey=this.queued;this.drawing=true;this.charge=0;this.queued=null;p.state='bow';}
         }
       }
       return true;
     }
     if(p.state!=='free'&&p.state!=='swim') return false;
+    if(c.pressed('heavy')||c.pressed('attack')||c.down('heavy'))p.face=p.swingFacing();
     if(c.pressed('heavy')||c.down('heavy')) {this.w.playEffect('bowDraw');this.chargeKey='heavy';this.drawing=true;this.charge=0;this.recovery=0;p.state='bow';return true;}
     if(c.pressed('attack')) {
       if(c.down('up')){this.fire('volley');this.recovery=0.28;this.drawing=false;}
@@ -106,15 +117,15 @@ export class Bow {
       const a=this.arrows.find(a=>a.life<=0);if(!a)break;
       const angle=aim+(kind==='volley'?(i-1)*0.14:0),speed=(kind==='pierce'?590:440)*(p.water.swimming?0.65:1);
       a.x=muzzleX;a.y=muzzleY;a.vx=Math.cos(angle)*speed*p.face;a.vy=Math.sin(angle)*speed;
-      a.life=1.2;a.damage=p.power()*(kind==='pierce'?2.1:kind==='volley'?0.48:0.7);a.pierce=kind==='pierce'?3:1;a.hits.clear();a.move=`bow_${kind}`;a.back=false;a.dawn=wings;
+      a.life=1.2;a.damage=p.power()*(kind==='pierce'?2.1:kind==='volley'?0.48:0.7);a.pierce=kind==='pierce'?3:1;a.hits.clear();a.move=`bow_${kind}`;a.back=false;a.dawn=wings;a.finisher=false;
     }
     this.w.playEffect('bowRelease');
     this.w.spark(muzzleX,muzzleY,0xa6efdc,kind==='pierce'?8:3);
   }
   /** Dawnstep's point-blank arrow into a foe's back: harder with each step of the chain. */
-  backShot(chain:number) {
+  backShot(chain:number,finisher=false) {
     const p=this.p,a=this.arrows.find(a=>a.life<=0);if(!a)return;
-    a.x=p.x+p.face*10;a.y=p.feet-31;a.vx=p.face*640;a.vy=0;a.life=0.45;a.damage=p.power()*(2.4+0.35*(chain-1));a.pierce=2;a.hits.clear();a.move='dawnstep';a.back=true;a.dawn=true;
+    a.x=p.x+p.face*10;a.y=p.feet-31;a.vx=p.face*640;a.vy=0;a.life=0.45;a.damage=p.power()*(2.4+0.35*(chain-1));a.pierce=2;a.hits.clear();a.move='dawnstep';a.back=true;a.dawn=true;a.finisher=finisher;if(finisher)a.damage*=1.6;
     this.w.playEffect('bowRelease');
   }
   /** Morning Star: a ring of light arrows. */
@@ -122,7 +133,7 @@ export class Bow {
     const p=this.p;
     for(let i=0;i<n;i++){
       const a=this.arrows.find(a=>a.life<=0);if(!a)break;
-      const angle=i/n*Math.PI*2;a.x=p.x;a.y=p.feet-28;a.vx=Math.cos(angle)*520;a.vy=Math.sin(angle)*520;a.life=0.6;a.damage=p.power()*0.9;a.pierce=2;a.hits.clear();a.move='morning_star';a.back=false;a.dawn=true;
+      const angle=i/n*Math.PI*2;a.x=p.x;a.y=p.feet-28;a.vx=Math.cos(angle)*520;a.vy=Math.sin(angle)*520;a.life=0.6;a.damage=p.power()*0.9;a.pierce=2;a.hits.clear();a.move='morning_star';a.back=false;a.dawn=true;a.finisher=false;
     }
   }
   destroy(){this.graphics.destroy();}

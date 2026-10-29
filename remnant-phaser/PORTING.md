@@ -127,6 +127,23 @@ distortion and softens glows. Canvas fallback retains light sprites and particle
 without using GPU filters. Room changes, Trial sectors and returning to the title
 dispose their effects and reset boss framing.
 
+## Facing and finishers
+
+- **Facing:**
+  - Both heroes turn with the stick on every swing and shot, and during a bow's follow-through.
+  - A held direction past an attack's cancel point leaves the swing, so turning and running never wait on a recovery.
+  - With no direction held, a swing or shot turns to the nearest foe behind when there is none ahead (`Player.swingFacing`).
+  - Verified by `scripts/facing.mjs`.
+- **Finishers:** `World.finale` is for big moments only: a real shake, a slow-motion beat and a push in on the blow. Ordinary hits still never shake. It plays for:
+  - Judgment Cross and the third Phantom strike;
+  - a combo finisher that fells its foe;
+  - an execution;
+  - Tirzah's finishing back arrow.
+- **Tirzah's crits:**
+  - Her arrows crit like Elior's blows.
+  - Under the Wings, a critical arrow carries her behind the foe on her own (a 1.2 s cooldown). Her finishing arrow there fells any non-boss foe below 40% health.
+  - Verified by `scripts/combat-feel.mjs` and `scripts/archer.mjs`.
+
 ## Tirzah's Wings of the Morning
 
 When Tirzah is the active hero, the transformation gauge and button give her **Wings of the Morning** (Psalm 139:9) instead of the Shadow Mantle. It's the same gauge, button and timer (`Player.mantleT`).

@@ -89,6 +89,22 @@ try {
   assert.ok(arc.frames.length >= 3 && arc.parry, `the slash animates through its frames and the parry burst plays (${JSON.stringify(arc)})`);
   console.log(`Art: the light cut showed frames ${arc.frames.join(',')}; the parry burst plays row 4`);
 
+  // ---- Judgment Cross, the Phantom chain's last blow, lands with a finale: a real shake, slow motion and a push in
+  const cross = await E(page, async () => {
+    const w = window.__remnant.world, p = w.player, f = window.target, cam = w.cameras.main, base = w.baseZoom ?? cam.zoom;
+    let calls = []; const real = w.finale.bind(w); w.finale = (...a) => { calls.push(a[2]); return real(...a); };
+    p.placeAt(f.x - 22, f.y, 1);
+    await new Promise((r) => setTimeout(r, 300));
+    w.save.ce = 50; p.startCross();
+    let zoom = 0, shook = false, slow = 1;
+    for (let i = 0; i < 90; i++) { await new Promise((r) => requestAnimationFrame(r)); zoom = Math.max(zoom, cam.zoom / base); shook ||= cam.shakeEffect.isRunning; slow = Math.min(slow, w.classic.simulationScale); }
+    w.finale = real;
+    return { calls, zoom: +zoom.toFixed(3), shook, slow: +slow.toFixed(2) };
+  });
+  assert.ok(cross.calls.includes(1.4) && cross.shook && cross.zoom > 1.05 && cross.slow < 0.5, `Judgment Cross lands with shake, slow motion and a push in (${JSON.stringify(cross)})`);
+  await until(page, () => window.__remnant.world.player.state === 'free' && window.__remnant.world.classic.simulationScale >= 0.79);
+  console.log(`Finale: Judgment Cross shook the camera, slowed time to ${cross.slow} and pushed in to ×${cross.zoom}`);
+
   // ---- every Covenant ability plays its row of the V03/V04 art (Chain Snare keeps its drawn chain)
   const casts = await E(page, async () => {
     const w = window.__remnant.world, out = {};
