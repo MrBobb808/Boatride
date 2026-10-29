@@ -149,9 +149,7 @@ Give each one:
 
 ## 5. The archer: her own kit and her own transformation
 
-The archer is **Tirzah** in the game today. The owner wrote "Camile": confirm
-whether to rename her before shipping. Renaming is a text and data change; the
-save keeps `playableHero: 'tirzah'` as its internal id.
+The archer is **Tirzah** (the owner confirmed the name).
 
 She shares the journey, health, energy, gear and level with Elior, as now.
 Her moves already include: a quick shot, a charged piercing shot (6 CE), and
@@ -326,7 +324,7 @@ around them stays the same.
   - [x] Eleven Covenant abilities play the generated V03/V04 art (Chain Snare waits on its retry row)
 - [ ] 4. The archer's mechanics: True Aim, Recall, precision zones, shooting projectiles down, evasive shots, close-range answer, arrow types, pinning (§5c)
 - [ ] 5. The archer's six abilities and her separate loadout (§5a)
-- [ ] 6. Wings of the Morning and Dawnstep (§5b)
+- [x] 6. Wings of the Morning and Dawnstep (§5b): shared gauge (the owner's choice), dawn form and wings, Dawnstep with safe-ground refusal, Morning Star, glide, free charged shots, the closing volley; `scripts/archer.mjs`
 - [x] 7. Selling, salvage, dismantling, locks, buyback (§6.1–6.3), moved ahead of the archer items at the owner's request
 - [x] 8. The store and crafting (§6.4–6.5): owner's choices were Ilan's stall plus a pause-menu Store, a daily rotation, three featured rare curios for silver plus Relic Shards, keepsakes unsellable, a balanced economy, and every category plus a surprise (the Sealed Satchel)
   - [ ] Still to come: quiver upgrades and special arrows (with §5), recipe scrolls, Echo imprint tokens, "new item" dots (`stockSeen`)
@@ -338,7 +336,4 @@ Tick each item with its PR number when it merges.
 
 ## 10. Questions for the owner
 
-1. The archer: keep the name **Tirzah**, or rename her **Camile** (or another
-   spelling)?
-2. Should Wings of the Morning share the Shadow Mantle's gauge (the proposal
-   here), or should each hero have their own?
+Answered: the archer stays **Tirzah**, and Wings of the Morning **shares** the Mantle's gauge.

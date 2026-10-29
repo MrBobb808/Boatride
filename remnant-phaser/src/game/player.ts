@@ -25,6 +25,7 @@ import { haptic } from '../../../remnant/src/core/haptics';
 import { valorTrack } from '../../../remnant/src/game/valor';
 import { runBlessings } from '../../../remnant/src/game/blessings';
 import type { HeroPowers } from '../classic/hero';
+import { Dawn } from './dawn';
 
 export const GRAV = 1500;
 const MAX_FALL = 560;
@@ -58,6 +59,7 @@ export class Player {
   aura: Phaser.GameObjects.Graphics;
   readonly styleMeter = new StyleMeter();
   readonly bow: Bow;
+  readonly dawn: Dawn;
   private switchCd = 0;
   private trail: { sprite:Phaser.GameObjects.Sprite; life:number }[] = [];
   private trailT = 0;
@@ -147,6 +149,8 @@ export class Player {
     this.hp = w.save.hp > 0 ? Math.min(w.save.hp, this.maxHp) : this.maxHp;
     this.face = face;
     this.bow = new Bow(w, this);
+    this.dawn = new Dawn(w, this, this.bow);
+    this.bow.dawn = this.dawn;
     this.trail = Array.from({length:4},()=>({sprite:sc.add.sprite(x,feet,'elior',0).setDepth(9).setVisible(false).setTint(0xa99ad7),life:0}));
   }
 
@@ -206,6 +210,7 @@ export class Player {
 
   destroy() {
     this.bow.destroy();
+    this.dawn.destroy();
     for(const g of this.trail)g.sprite.destroy();
     this.sprite.destroy();
     this.slash.destroy();
@@ -232,6 +237,7 @@ export class Player {
     this.switchCd = Math.max(0,this.switchCd-dt);
     this.styleMeter.update(dt);
     this.bow.update(dt);
+    this.dawn.update(dt);
     this.vigilParryCd = Math.max(0, this.vigilParryCd - dt);
     this.invuln = Math.max(0, this.invuln - dt);
     this.dodgeCd = Math.max(0, this.dodgeCd - dt);
@@ -272,16 +278,21 @@ export class Player {
     if (this.scriptX !== null) { const dx = this.scriptX - this.x; if (Math.abs(dx) < 3) { this.scriptX = null; b.setVelocityX(0); } else { this.face = Math.sign(dx); b.setVelocityX(this.face * this.scriptSpeed); } this.draw(dt); return; }
     if (G.inCutscene && this.state === 'free') { b.setVelocityX(0); this.draw(dt); return; }
     if (!G.inCutscene && this.powers) this.powers.clip = '';
+    // Dawnstep: Dodge while an arrow's mark is fresh blinks her behind that foe.
+    if (this.hero === 'tirzah' && !G.inCutscene && (this.state === 'free' || this.state === 'bow') && c.pressed('dodge') && this.dawn.ready()) {
+      this.bow.cancel(); if (this.state === 'bow') this.releaseState();
+      this.dawn.step(); this.draw(dt); return;
+    }
     if (this.hero === 'tirzah' && !G.inCutscene && this.bow.control(dt * ACTION_RATE)) {
       if (c.pressed('dodge') || c.pressed('parry')) { this.bow.cancel(); this.releaseState(); this.defence(); }
-      b.setGravityY(this.water.swimming ? 0 : GRAV);
+      b.setGravityY(this.water.swimming ? 0 : this.glide() ? GRAV * 0.12 : GRAV);
       const hz=this.hazard();if(hz&&this.vulnerable)this.hurt({dmg:hz===T.Spikes?18:10,dir:0,hazard:true});
       this.draw(dt); return;
     }
     if (this.state === 'swim') { this.swim(dt); this.draw(dt); return; }
     // Short hops: letting go of jump on the way up pulls Elior down sooner.
     const airSwing = (this.state === 'attack' || this.state === 'charge') && !this.onGround;
-    b.setGravityY(this.water.swimming ? 0 : this.state === 'phantom' || this.state === 'airdash' ? 0 : airSwing && this.atk.id !== 'rend' ? GRAV * 0.35 : b.velocity.y < 0 && !c.down('jump') ? GRAV * 1.9 : GRAV);
+    b.setGravityY(this.water.swimming ? 0 : this.glide() ? GRAV * 0.12 : this.state === 'phantom' || this.state === 'airdash' ? 0 : airSwing && this.atk.id !== 'rend' ? GRAV * 0.35 : b.velocity.y < 0 && !c.down('jump') ? GRAV * 1.9 : GRAV);
 
     switch (this.state) {
       case 'free': {
@@ -622,6 +633,12 @@ export class Player {
       }
     const floor = this.w.tileAt(Math.floor(x / TILE), Math.floor(feet / TILE));
     return floor !== T.Spikes && floor !== T.Veil;
+  }
+  /** Under the Wings, holding Jump while falling glides (and she can draw while she does). */
+  private glide() {
+    const on = this.dawn.active && !this.onGround && this.w.controls.down('jump') && this.body.velocity.y > 0;
+    if (on) this.body.setVelocityY(Math.min(this.body.velocity.y, 70));
+    return on;
   }
   lineOfSight(x: number, y: number) {
     const dx = x - this.x, dy = y - this.y, n = Math.max(1, Math.ceil(Math.hypot(dx, dy) / 4));

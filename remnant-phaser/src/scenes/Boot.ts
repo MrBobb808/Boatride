@@ -10,6 +10,8 @@ import slashesUrl from '../assets/vfx-slashes.png';
 import impactsUrl from '../assets/vfx-impacts.png';
 import abilities1Url from '../assets/vfx-abilities-1.png';
 import abilities2Url from '../assets/vfx-abilities-2.png';
+import transformUrl from '../assets/vfx-transform.png';
+import archerUrl from '../assets/vfx-archer.png';
 
 /** Loads the sprite sheets and makes the generated textures every scene shares. */
 export class Boot extends Phaser.Scene {
@@ -24,6 +26,9 @@ export class Boot extends Phaser.Scene {
     // Art drop V03/V04: the Covenant abilities, eight frames per row.
     this.load.spritesheet('vfx-abilities-1', abilities1Url, { frameWidth: 128, frameHeight: 128 });
     this.load.spritesheet('vfx-abilities-2', abilities2Url, { frameWidth: 128, frameHeight: 128 });
+    // V06 (Mantle and Wings forming) and V05 (Tirzah's dawn effects).
+    this.load.spritesheet('vfx-transform', transformUrl, { frameWidth: 128, frameHeight: 128 });
+    this.load.spritesheet('vfx-archer', archerUrl, { frameWidth: 128, frameHeight: 128 });
     this.load.image('varkhos', varkhosUrl);
     this.load.image('morvane', morvaneUrl);
     this.load.image('azkar', azkarUrl);
