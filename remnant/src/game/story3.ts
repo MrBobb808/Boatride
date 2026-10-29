@@ -308,8 +308,7 @@ export class Chapter3 {
     const inst = absorbed.echo;
     G.d = derive(s);
     s.active = [inst.uid, ...s.active.filter((u) => u !== inst.uid)].slice(0, G.d.echoSlots);
-    s.flags.army_out = true;
-    W.summonEchoes(true);
+    if (s.flags.army_out === true) W.summonEchoes(true);
     const unit = W.echoes.find((u) => u.inst.uid === inst.uid);
     if (unit) {
       unit.x = k.x;

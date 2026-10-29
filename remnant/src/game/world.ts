@@ -217,7 +217,8 @@ export class World {
     s.spawn = spawnName;
     const first = !s.visited.includes(id);
     if (first) s.visited.push(id);
-    if (G.save.flags.army_out !== false) this.summonEchoes(true);
+    // Echoes come along only once called (and until dismissed); they never appear on their own.
+    if (G.save.flags.army_out === true) this.summonEchoes(true);
     if (r.music) music.play(r.music);
     this.story.onEnter(id, first);
     // Prepared chunks go in only now, after the story has had its say about tiles and props
@@ -892,7 +893,7 @@ export class World {
         }
         this.after(1.4, () => {
           G.ui.toast(`Your covenant widens: ${G.d.echoSlots} Echoes may now fight beside you.`, 'good');
-          if (s.flags.army_out !== false) this.summonEchoes();
+          if (s.flags.army_out === true) this.summonEchoes();
         });
       }
     }
@@ -1155,7 +1156,7 @@ export class World {
         if (inst.downFor! <= 0) {
           inst.downFor = 0;
           inst.hp = echoMaxHp(s, inst, G.d);
-          if (s.active.includes(inst.uid) && s.flags.army_out !== false && !G.inCutscene) {
+          if (s.active.includes(inst.uid) && s.flags.army_out === true && !G.inCutscene) {
             this.summonEchoes();
             G.ui.toast(`${ECHO_SPECIES[inst.species].stages[inst.stage].name} returns to your side`, 'good');
           }
@@ -1190,7 +1191,7 @@ export class World {
       sfx('denied');
       return;
     }
-    if (!this.echoes.length && s.flags.army_out === false) {
+    if (!this.echoes.length && s.flags.army_out !== true) {
       this.echoCommand('toggle');
       return;
     }
@@ -1324,7 +1325,7 @@ export class World {
       unit.hp = e.hp;
       unit.name = ECHO_SPECIES[species].stages[e.stage].name;
     }
-    this.summonEchoes(true);
+    if (G.save.flags.army_out === true) this.summonEchoes(true);
     sfx('purify');
     G.ui.banner(result.evolved ? 'ECHO EVOLVED' : result.created ? 'ECHO ABSORBED' : 'ECHO REINFORCED', `${ECHO_SPECIES[species].stages[e.stage].name} · ${ECHO_SPECIES[species].stages[e.stage].title}`, 'echo');
     this.autosave(true);

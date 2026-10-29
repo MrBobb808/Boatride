@@ -264,7 +264,8 @@ export class World extends Phaser.Scene implements WorldApi {
     if (this.classic.storyEnabled && id === 'covenant_chamber' && !this.save.flags.relic_taken) this.classic.addRelic();
     placeLamps(r);
     // The Echoes come along through every door, unless they were dismissed.
-    if (this.save.echoes.length && this.save.flags.army_out !== false) this.classic.summonEchoes(true);
+    // Echoes come along only once called (and until dismissed); they never appear on their own.
+    if (this.save.echoes.length && this.save.flags.army_out === true) this.classic.summonEchoes(true);
     this.fitCamera();
     this.visuals.load();
     this.cameras.main.startFollow(this.player.rect, true, 0.14, 0.12, 0, 24);
@@ -1034,7 +1035,7 @@ export class World extends Phaser.Scene implements WorldApi {
         }
         this.classic.after(1.4, () => {
           G.ui.toast(`Your covenant widens: ${G.d.echoSlots} Echoes may now fight beside you.`, 'good');
-          if (s.flags.army_out !== false) this.classic.summonEchoes();
+          if (s.flags.army_out === true) this.classic.summonEchoes();
         });
       }
     }

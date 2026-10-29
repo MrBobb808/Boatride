@@ -708,7 +708,7 @@ export class Story {
     const absorbed = W.absorb(species)!;
     const inst = absorbed.echo;
     G.d = derive(s);
-    W.summonEchoes(true);
+    if (s.flags.army_out === true) W.summonEchoes(true);
     const unit = W.echoes.find((u) => u.inst.uid === inst.uid);
     if (unit) {
       unit.x = e.x;
@@ -803,7 +803,7 @@ export class Story {
     s.storySlots = Math.max(s.storySlots, 2);
     G.d = derive(s);
     G.ui.banner('COMMANDER OF THE REMNANT', 'A second Echo may now fight beside you', 'level');
-    W.summonEchoes();
+    if (s.flags.army_out === true) W.summonEchoes();
     await wait(2.6);
     this.quest('m_dark', 4, true);
     // Azriel finds you.

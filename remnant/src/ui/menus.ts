@@ -775,7 +775,7 @@ function echoesTab() {
 function syncArmy() {
   const W = G.world;
   for (const e of W.echoes) if (!G.save.active.includes(e.inst.uid)) e.dismiss();
-  if (G.save.flags.army_out !== false) W.summonEchoes(true);
+  if (G.save.flags.army_out === true) W.summonEchoes(true);
   sfx('uiConfirm');
   render();
 }

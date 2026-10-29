@@ -179,7 +179,7 @@ export class Squad {
       if (inst.downFor > 0) continue;
       inst.downFor = 0;
       inst.hp = echoMaxHp(s, inst, G.d);
-      if (s.active.includes(inst.uid) && s.flags.army_out !== false && !G.inCutscene) {
+      if (s.active.includes(inst.uid) && s.flags.army_out === true && !G.inCutscene) {
         this.summonEchoes();
         this.toast(`${ECHO_SPECIES[inst.species].stages[inst.stage].name} returns to your side`);
       }
@@ -199,7 +199,7 @@ export class Squad {
     if (this.duel) { this.toast('An honour duel: your Echoes kneel and watch.'); return; }
     if (!s.echoes.length) { this.toast('You have no Echoes yet.'); return; }
     if (this.switchCd > 0) { this.toast(`Switch ready in ${Math.ceil(this.switchCd)}s`); return; }
-    if (!this.echoes.length && s.flags.army_out === false) { this.echoCommand('toggle'); return; }
+    if (!this.echoes.length && s.flags.army_out !== true) { this.echoCommand('toggle'); return; }
     const p = this.p;
     const target = (this.priorityTarget && !this.priorityTarget.dying ? this.priorityTarget : null) ?? this.nearestEnemy(p.x, p.y - 20, 260, 0);
     const bench = this.benchReady() ? s.echoes.filter((e: { uid: string; downFor?: number }) => !s.active.includes(e.uid) && (e.downFor ?? 0) <= 0) : [];
