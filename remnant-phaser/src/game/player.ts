@@ -40,6 +40,8 @@ const CE_REGEN = 2.6, CE_HIT = 2.4, CE_PARRY = 5;
 type Swing = AttackDef & { t: number; force: number; reach: number; heavy: boolean };
 const swing = (a: AttackDef, speed = 1): Swing => ({ ...a, t: a.dur / speed, force: a.poise / 14, reach: a.box.w, heavy: !!a.finisher || a.id === 'heavy' });
 /** Charge levels: the hold needed, and the original's damage and poise scales. */
+// Hit-stop by weight, shortest first: light, combo ender, heavy, crit, parry.
+const STOP = { light: 0.012, ender: 0.022, heavy: 0.04, crit: 0.055, parry: 0.08 };
 const CHARGE_AT = [0, 0.35, 0.85, 1.4];
 const CHARGE_MULT = [1, 1.35, 1.8, 2.5];
 
@@ -747,7 +749,7 @@ export class Player {
         if (this.w.save.flags.relic_taken || !this.powers?.L.storyEnabled) this.w.save.ce = Math.min(this.maxCe, this.w.save.ce + CE_HIT * (1 + skillRank(this.w.save, 'l_radiance') * 0.3));
         if (this.atk.hang && !this.onGround) this.body.setVelocityY(Math.min(this.body.velocity.y, this.atk.hang));
         if (this.w.d.lifesteal) this.hp = Math.min(this.maxHp, this.hp + dmg * swap * this.w.d.lifesteal);
-        this.w.hitstop(this.atk.heavy ? 0.05 : this.combo === 2 || crit ? 0.028 : 0.012);
+        this.w.hitstop(crit ? STOP.crit : this.atk.heavy ? STOP.heavy : this.combo === 2 ? STOP.ender : STOP.light);
       }
     }
   }
@@ -778,7 +780,7 @@ export class Player {
       if (this.w.d.sets.vigil >= 3 && this.vigilParryCd <= 0) { this.vigilParryCd = 3; this.hp = Math.min(this.maxHp, this.hp + this.maxHp * 0.05); this.w.save.ce = Math.min(this.maxCe, this.w.save.ce + 8); }
       valorTrack.parry(); haptic('parry'); input.rumble(0.7, 0.5, 150);
       this.w.playEffect('parryPerfect');
-      this.w.hitstop(0.08);
+      this.w.hitstop(STOP.parry);
       return false;
     }
     // The original's armour: damage reduction from Endurance and gear (half of it against hazards).

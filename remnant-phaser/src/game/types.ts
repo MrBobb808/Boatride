@@ -71,7 +71,7 @@ export interface WorldApi {
   /** A short freeze on a heavy impact. */
   hitstop(sec: number): void;
   shake(intensity: number, ms: number): void;
-  floatText(x: number, y: number, text: string, color: string): void;
+  floatText(x: number, y: number, text: string, color: string, crit?: boolean): void;
   spark(x: number, y: number, color: number, n?: number): void;
   onFoeDied(xp: number, silver: number, x: number, y: number, eliteId?: string): void;
 }

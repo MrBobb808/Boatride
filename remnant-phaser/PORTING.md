@@ -37,6 +37,14 @@ for the faster choreography; jump arcs and teleport destinations are retained.
 Hit-stop is shorter on light blows and uses real time. Menus, audio, update checks
 and active playtime use real time.
 
+Combat feedback (`game/feedback.ts`) uses fixed pools: 28 damage numbers, impact
+sparks and gold purification motes, so a hit adds no new objects. Numbers stack
+instead of overlapping, crits pop larger with a "!", and heals, hits taken and
+notes have their own look. A fallen foe lifts away as gold motes; an elite's fall
+adds a light and a short slow-motion beat. Hit-stop goes by weight (light, combo
+ender, heavy, crit, parry), and a lighter freeze never shortens a heavier one.
+Ordinary hits leave the camera steady. Verified by `scripts/combat-feel.mjs`.
+
 ### Playable fighters and action styles
 
 Elior has three selectable styles: Vanguard permits a jump-cancel after a confirmed
