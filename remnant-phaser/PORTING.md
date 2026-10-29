@@ -45,6 +45,8 @@ adds a light and a short slow-motion beat. Hit-stop goes by weight (light, combo
 ender, heavy, crit, parry), and a lighter freeze never shortens a heavier one.
 Ordinary hits leave the camera steady. Verified by `scripts/combat-feel.mjs`.
 
+The first art drop's effects ship. Elior's swing plays the generated slash arcs (`assets/vfx-slashes.png`, V01): a light cut, a heavy cut, a rising launcher, or a spin for storm, flurry and cross. Hits, crits and perfect parries play the impact bursts (`assets/vfx-impacts.png`, V02), pooled in `game/visuals.ts`. Raw drops stay in `art/incoming/`. `art/tools/sheet.py` normalises an effect sheet, and `art/tools/parts.py` packs a character-parts sheet for `fighterRig.ts`.
+
 ### Playable fighters and action styles
 
 Elior has three selectable styles: Vanguard permits a jump-cancel after a confirmed

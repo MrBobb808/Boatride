@@ -59,6 +59,23 @@ Each row is one effect, played left to right.
 | V07 | 8×6, 128 px | **Status overlays** (looping): burning, frozen, shocked, bleeding, holy-marked, shadow-bound. |
 | V08 | 8×4, 128 px | **World effects:** dust puff, water splash, lava ember burst, wood-splinter burst. |
 
+## Retries after drop P1 (do these before P2)
+
+Claude reviewed drop P1 in game (see each entry's `review` in
+`manifest.json`). V01 and V02 now ship. Redo these five, saving each as
+`<id>-retry.png` beside the original. Exact canvas size no longer matters:
+the generator rarely honours it, and Claude cuts any **equal** grid. What
+still matters is the grid count, equal cells, nothing crossing a cell edge,
+and no lines drawn.
+
+| ID | What went wrong | Add to the original prompt |
+|---|---|---|
+| C01 | At 56 px tall, the charcoal coat and fine gold trim turned to noise and the face lost definition. Part 9 came out as a cape flap, not a scarf. | "Design for a 56 px tall sprite: big, flat colour blocks with two or three tones each, thick gold edging (not filigree), a high-contrast face with a clear white beard and a bright eye highlight. Keep Elior's current gold-and-navy armour plates from `fighter-parts-v1.png` and only refine them. Part 9 is a short burgundy scarf knot that wraps the neck, about as wide as the neck, not a trailing cloth." |
+| C03 | The cloak and scarf stayed burgundy. | "Every cloth part (cape, scarf, coat-tail) is black with a thin blue-violet light edge; no burgundy or red anywhere. Armour plates are violet-tinted steel and keep their gold fittings. The skin, hair and beard are unchanged." |
+| C05 | The wings faced the viewer, and frames crossed cell edges. | "Strict side view, as seen from the character's right side: one near wing in front, the far wing a darker silhouette behind it. The wing root is at the top-right of each cell, where the shoulder would be. Each pose fits inside its cell with 16 px clear on every side." |
+| V04 | The Chain Snare row lashes to the left. | "Every effect travels or points to the RIGHT. Chain Snare starts at the left of its cells and lashes rightward, wrapping on the right." |
+| V08 | Grid lines are baked into the image. | "Absolutely no lines, borders or frames between cells; the space between effects is fully transparent." |
+
 ## Bosses (P2) → `incoming/bosses/`
 
 Each boss is a 4×4 sheet, 384 px cells, feet baseline at y=360, facing right:

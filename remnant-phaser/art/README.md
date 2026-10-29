@@ -77,7 +77,16 @@ remnant-phaser/art/
 ```
 
 Claude changes `status` to `integrated` (with the PR number) or `rejected`
-(with a reason) once it has used the image.
+(with a reason) once it has used the image, and adds a `review` note.
+
+## Claude's tools
+
+`tools/sheet.py` turns a raw effect sheet into a game spritesheet. It cuts the
+equal grid, clears near-transparent haze and resizes each cell without dark
+fringes. `tools/parts.py` packs a 5×2 character-parts sheet and prints the
+`PARTS` rows (joints and widths) for `src/game/fighterRig.ts`. Both need
+Pillow and numpy. Every candidate is compared in game before it replaces
+anything.
 
 ## Rules for Claude (using the images)
 
