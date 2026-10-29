@@ -27,6 +27,9 @@ try{
  const context=await browser.newContext({viewport:{width:932,height:430},isMobile:true,hasTouch:true,deviceScaleFactor:3}),page=await context.newPage();await page.addInitScript(()=>{const interval=window.setInterval;window.setInterval=(f,ms,...args)=>{if(ms===60000)window.__updatePoll=f;return interval(f,ms,...args);};});page.on('pageerror',e=>errors.push(e.message));
  await page.goto(base+'?debug&autostart');await page.waitForFunction(()=>window.__remnant?.G.world?.player?.style);
  await page.evaluate(()=>{const s=window.__remnant.G.save;s.flags.intro_done=s.flags.relic_taken=true;localStorage.setItem('remnant-save-2',JSON.stringify(s));});
+ // Install first, then reopen, as an installed copy does: a page opened while the worker is still
+ // installing stays uncontrolled in current Chromium even after clients.claim().
+ await page.evaluate(async()=>{await navigator.serviceWorker.ready;});
  await page.goto(base+'?debug');await page.waitForFunction(()=>!!window.__remnant);await page.evaluate(()=>window.__remnant.load(2));
  await page.waitForFunction(()=>window.__remnant.G.world.player.style&&!window.__remnant.G.inCutscene);
  await page.evaluate(async()=>{await navigator.serviceWorker.ready;});await page.waitForFunction(()=>!!navigator.serviceWorker.controller);
