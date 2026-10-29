@@ -152,7 +152,9 @@ try {
   // ---- Elior keeps his Shadow Mantle
   const elior = await E(page, async () => {
     const w = window.__remnant.world, p = w.player;
-    p.mantleT = 0; w.save.mantle = 100; p.switchHero();
+    // The stab ends in an arrow loosed on through the foe: switch once that move is done.
+    for (let i = 0; i < 600 && p.state !== 'free'; i++) await new Promise((r) => requestAnimationFrame(r));
+    p.mantleT = 0; w.save.mantle = 100; p.switchCd = 0; p.switchHero();
     await new Promise((r) => setTimeout(r, 1000));
     window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyG' }));
     await new Promise((r) => setTimeout(r, 50));
