@@ -19,6 +19,17 @@ up next starts from the latest version.
    Explicit update navigations wait for the fresh document on slow connections;
    failed refreshes retry after a cooldown.
 
+## Continuing the Phaser transition
+
+The owner has handed the rest of the Phaser transition to **ChatGPT Codex**.
+Read `remnant-phaser/TRANSITION_GUIDE.md` before any Phaser engine work. It
+covers:
+- what is still drawn by the original Canvas 2D engine inside Phaser;
+- the phases left, in order, and what "done" means for each;
+- what every pull request must contain;
+- the testing lessons already learned;
+- a progress checklist to tick as phases merge.
+
 ## What is in the repository
 
 | Path | What it is |
