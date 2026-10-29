@@ -166,6 +166,21 @@ When Tirzah is the active hero, the transformation gauge and button give her **W
 - **Elior's Shadow Mantle is unchanged.**
 - **Verified by** `scripts/archer.mjs`.
 
+## Tirzah's craft
+
+Her own way to fight (POLISH_PLAN §5c), all in `src/game/bow.ts`:
+- **True Aim:** shots that land 110–230 px out deal ×1.25. A tick marks the sweet spot while she draws.
+- **Embedded arrows and Recall:** an arrow that stops in a foe stays there (up to eight, C06 art). Down + Heavy tears them all back out through their foes and home, hitting what's in the way; more arrows rip harder.
+- **Precision:** holding Up while drawing aims at the head. A head shot from range always crits and staggers a little more.
+- **Shooting things down:** her arrows destroy enemy arrows, orbs, drops, flames, bolts and debris (`World.enemyShots`). An arrow into a foe's wind-up (its telegraph glint, or a sprite foe's anticipation frame) interrupts the attack: her version of a parry.
+- **Evasive shots:**
+  - Dodge then Strike: a backflip shot.
+  - Down + Strike in the air: a diving arrow that spikes foes down and hops her up.
+  - Drawing in the air slows her fall to 110 px/s.
+- **Bow-bash:** Strike with a foe at arm's length bashes it back, and the next shot lands point-blank (×1.4).
+- **Pinning:** a charged arrow that drives a foe into a wall pins it for about a second.
+- Verified by `scripts/archer-craft.mjs`.
+
 ## Store and economy
 
 The store is the original's own shop, rebuilt in shared code (`remnant/src/game/economy.ts`, `game/elixirs.ts` and the shop screens in `ui/menus.ts`), so both editions have it.

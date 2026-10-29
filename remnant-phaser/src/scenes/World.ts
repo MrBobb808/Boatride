@@ -39,6 +39,7 @@ import { Grid } from '../../../remnant/src/game/tiles';
 import { trialArena, trialSector } from '../../../remnant/src/game/trialArena';
 import { castAbility } from '../../../remnant/src/game/abilities';
 import { Proj } from '../../../remnant/src/game/projectiles';
+const SHOOTABLE = new Set(['arrow', 'orb', 'drop', 'flame', 'arcbolt', 'star', 'debris']);
 import type { Player as OriginalPlayer } from '../../../remnant/src/game/player';
 import type { SkillId } from '../game/abilities';
 import { audio, sfx } from '../classic/shim/audio';
@@ -82,6 +83,7 @@ export class World extends Phaser.Scene implements WorldApi {
   /** The brood's waves before the Locust King hatches: which wave, and its foes. */
   private brood: { i: number; foes: { remove: boolean; dying: boolean }[] } | null = null;
   private allFoes: FoeLike[] = [];
+  private shotList: Proj[] = [];
   /** Seconds the interact button has been held beside a kneeling elite. */
   private purifyHold = 0;
   private layer!: Phaser.Tilemaps.TilemapLayer;
@@ -148,7 +150,7 @@ export class World extends Phaser.Scene implements WorldApi {
         game: this.game, world: this, controls: this.controls, rooms: ROOMS, G,
         warp: (id: string, spawn = 'start') => this.goTo(id, spawn),
         give: (xp: number) => this.onFoeDied(xp, 0, this.player.x, this.player.y),
-        hud: hudBoxes, audio, music, songs, settings, offlineReady,
+        hud: hudBoxes, audio, music, songs, settings, offlineReady, Proj,
       };
     }
   }
@@ -641,6 +643,14 @@ export class World extends Phaser.Scene implements WorldApi {
   // ---------------------------------------------------------------- WorldApi
 
   /** Everything Elior can strike: the Phaser foes and bosses, and the classic ones. */
+  /** Hostile projectiles an arrow can shoot down: arrows, orbs, drops, flames, bolts and falling debris. */
+  enemyShots() {
+    const out = this.shotList;
+    out.length = 0;
+    for (const e of this.classic.ents) if (e instanceof Proj && e.team !== 'player' && !e.remove && SHOOTABLE.has(e.kind)) out.push(e);
+    return out;
+  }
+
   foes() {
     if (!this.classic.ents.length) return this.foeList;
     const all = this.allFoes;

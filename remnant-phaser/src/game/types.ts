@@ -55,6 +55,8 @@ export interface WorldApi {
   tileAt(tx: number, ty: number): number;
   player: { x: number; y: number; feet: number; dead: boolean; hp: number; maxHp: number; hurt(h: Blow): boolean };
   foes(): FoeLike[];
+  /** Hostile projectiles in flight (classic `Proj`s): centre x/y, size, and `remove` to destroy one. */
+  enemyShots(): readonly { x: number; y: number; w: number; h: number; remove: boolean }[];
   castCovenant(id: SkillId): void;
   lightWave(): void;
   playEffect(name: string): void;

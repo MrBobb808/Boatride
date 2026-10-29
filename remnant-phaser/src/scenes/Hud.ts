@@ -537,6 +537,7 @@ export class Hud extends Phaser.Scene {
         {label:w.player.hero==='elior'?'Switch to Tirzah · bow':'Switch to Elior · blade',run:()=>{if(w.player.switchHero())w.persist();}},
         ...(['vanguard','wraith','sentinel'] as const).map(style=>({label:STYLE_NAMES[style],on:w.player.combatStyle===style,run:()=>{if(!['free','swim'].includes(w.player.state)){this.toast('Change style after the current move.');return;}s.combatStyle=style;this.toast(STYLE_HELP[style]);w.persist();}})),
         {label:'Bow: tap / hold Strike / Up + Strike',run:()=>this.toast('Quick arrow · hold Strike for piercing shot (6 CE) · spread (10 CE). Aim at visible foes ahead.')},
+        {label:'Bow craft: Recall, bash, evasive shots',run:()=>this.toast('Down + Heavy recalls embedded arrows · Strike at arm\'s length bashes · Dodge then Strike backflips · Down + Strike in the air dives · hold Up to aim at the head')},
         {label:'Close',run:()=>{}},
       ];
     } else if (page === 'squad') {

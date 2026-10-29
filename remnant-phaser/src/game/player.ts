@@ -92,7 +92,7 @@ export class Player {
   private airAttacks = 0;
   private airDash = 1;
   private airJumps = 0;
-  private sinceDodge = 99;
+  sinceDodge = 99;
   private recentHit = 0;
   private linger = '';
   private lingerT = 0;
@@ -290,7 +290,10 @@ export class Player {
     }
     if (this.hero === 'tirzah' && !G.inCutscene && this.bow.control(dt * ACTION_RATE)) {
       if (c.pressed('dodge') || c.pressed('parry')) { this.bow.cancel(); this.releaseState(); this.defence(); }
-      b.setGravityY(this.water.swimming ? 0 : this.glide() ? GRAV * 0.12 : GRAV);
+      // Holding a draw in the air slows her fall.
+      const aloftDraw = this.state === 'bow' && this.bow.drawing && !this.onGround;
+      if (aloftDraw && b.velocity.y > 110) b.setVelocityY(110);
+      b.setGravityY(this.water.swimming ? 0 : this.glide() ? GRAV * 0.12 : aloftDraw ? GRAV * 0.3 : GRAV);
       const hz=this.hazard();if(hz&&this.vulnerable)this.hurt({dmg:hz===T.Spikes?18:10,dir:0,hazard:true});
       this.draw(dt); return;
     }

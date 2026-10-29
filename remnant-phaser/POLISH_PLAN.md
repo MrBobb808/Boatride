@@ -322,7 +322,9 @@ around them stays the same.
 - [ ] 2. Sound pass (§3)
 - [ ] 3. Ability effects and animation, procedural first (§4)
   - [x] Eleven Covenant abilities play the generated V03/V04 art (Chain Snare waits on its retry row)
-- [ ] 4. The archer's mechanics: True Aim, Recall, precision zones, shooting projectiles down, evasive shots, close-range answer, arrow types, pinning (§5c)
+  - [x] The classic effects' rings, pillars, arcs and streaks, Elior's glows and the Fallen Crown telegraphs draw from the art; burning, frozen and bleeding foes wear V07 (#73)
+- [x] 4. The archer's mechanics (§5c): True Aim, embedded arrows and Recall, precision head shots, shooting projectiles down and interrupting wind-ups, the backflip and diving shots, a slowed fall while drawing, the bow-bash, pinning; `scripts/archer-craft.mjs`
+  - [ ] Arrow types (§5c.7) come with her abilities and the `quiver` field (item 5)
 - [ ] 5. The archer's six abilities and her separate loadout (§5a)
 - [x] 6. Wings of the Morning and Dawnstep (§5b): shared gauge (the owner's choice), dawn form and wings, Dawnstep with safe-ground refusal, Morning Star, glide, free charged shots, the closing volley; `scripts/archer.mjs`
 - [x] 7. Selling, salvage, dismantling, locks, buyback (§6.1–6.3), moved ahead of the archer items at the owner's request
