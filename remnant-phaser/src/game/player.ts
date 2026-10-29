@@ -57,6 +57,8 @@ export class Player {
   sprite: Phaser.GameObjects.Sprite;
   slash: Phaser.GameObjects.Image;
   aura: Phaser.GameObjects.Graphics;
+  /** The charge, guard, buff and mote glows, drawn from the impact art (V02) instead of circles. */
+  private glow: Record<'charge' | 'guard' | 'buff' | 'mote', Phaser.GameObjects.Image>;
   readonly styleMeter = new StyleMeter();
   readonly bow: Bow;
   readonly dawn: Dawn;
@@ -144,6 +146,8 @@ export class Player {
     this.sprite = sc.add.sprite(x, feet, 'elior', 0).setOrigin(0.5, FOOT / FRAME).setScale(DRAW / FRAME).setDepth(10);
     this.slash = sc.add.image(x, feet, 'vfx-slashes', 0).setDepth(11).setBlendMode(Phaser.BlendModes.ADD).setVisible(false);
     this.aura = sc.add.graphics().setDepth(12).setBlendMode(Phaser.BlendModes.ADD);
+    const glow = () => sc.add.image(x, feet, 'vfx-impacts', 0).setDepth(12).setBlendMode(Phaser.BlendModes.ADD).setVisible(false);
+    this.glow = { charge: glow(), guard: glow(), buff: glow(), mote: glow() };
     this.maxHp = w.d.maxHp;
     this.maxCe = w.d.maxCe;
     this.hp = w.save.hp > 0 ? Math.min(w.save.hp, this.maxHp) : this.maxHp;
@@ -215,6 +219,7 @@ export class Player {
     this.sprite.destroy();
     this.slash.destroy();
     this.aura.destroy();
+    for (const g of Object.values(this.glow)) g.destroy();
     this.rect.destroy();
   }
 
@@ -386,8 +391,8 @@ export class Player {
       case 'plunge':
         b.setVelocityX(b.velocity.x * 0.9);
         b.setVelocityY(Math.max(520, b.velocity.y));
-        this.strike();
-        if (this.onGround && this.st > 0.05) this.landPlunge();
+        if (this.strike() || this.spikesBelow()) this.pogo();
+        else if (this.onGround && this.st > 0.05) this.landPlunge();
         else if (this.st > 1.8) this.toFree();
         break;
       case 'hurt':
@@ -462,11 +467,27 @@ export class Player {
     this.hitSeg = -1;
     this.swung = false;
     this.linger = '';
+    // Each swing turns with the stick, or toward a foe behind when none is ahead (Phantom strikes keep the side they chose).
+    if (a.id !== 'pstrike' && a.id !== 'cross') this.face = this.swingFacing();
     this.powers?.onSwing(!!a.finisher, !!a.air);
     this.begin();
     this.w.playEffect(a.sfx);
     if (a.rise && (this.w.controls.down('up') || a.forceRise)) this.body.setVelocityY(a.rise);
     if (a.air && this.body.velocity.y > 0) this.body.setVelocityY(this.body.velocity.y * 0.2);
+  }
+
+  /** Where the next swing or shot points: the held direction, else the nearest foe behind if nothing is ahead. */
+  swingFacing() {
+    const ax = this.w.controls.axis;
+    if (Math.abs(ax) > 0.2) return Math.sign(ax);
+    let ahead = false, behind = 0, best = 90;
+    for (const f of this.w.foes()) {
+      if (!f.alive || Math.abs(f.box.centerY - this.y) > 50) continue;
+      const dx = f.x - this.x;
+      if (Math.sign(dx) === this.face || Math.abs(dx) < 6) { if (Math.abs(dx) < 110) ahead = true; }
+      else if (Math.abs(dx) < best) { best = Math.abs(dx); behind = Math.sign(dx); }
+    }
+    return !ahead && behind ? behind : this.face;
   }
 
   /** The same routes for every weapon family, including deliberate pauses. */
@@ -546,6 +567,7 @@ export class Player {
         }
         this.queued = false;
       }
+      if (!this.heavyQueued && this.onGround && !a.air && Math.abs(c.axis) > 0.5) { this.toFree(); return; }
     }
     if (u >= 1) {
       if (a.auto) { const next = m[a.auto as keyof typeof m]; if (typeof next === 'object' && !Array.isArray(next)) { this.startMove(next); return; } }
@@ -616,6 +638,22 @@ export class Player {
   }
 
   private startPlunge() { this.startMove(this.moves.plunge); this.state = 'plunge'; this.body.setVelocityY(260); }
+  /** Spikes just under a falling plunge: struck, not landed on. */
+  private spikesBelow() {
+    const b = this.body, ty = Math.floor((b.bottom + 10) / TILE);
+    for (let tx = Math.floor((b.left + 2) / TILE); tx <= Math.floor((b.right - 2) / TILE); tx++) if (this.w.tileAt(tx, ty) === T.Spikes) return true;
+    return false;
+  }
+  /** After Hollow Knight: a plunge that strikes a foe or spikes springs back up with the air attacks and air dash restored. */
+  private pogo() {
+    this.toFree();
+    this.body.setVelocityY(-JUMP_V * 0.8);
+    this.airAttacks = 0; this.airDash = 1;
+    this.grantInvuln(0.12);
+    this.w.burst(this.x, this.feet + 6, 0);
+    this.noteStyle('pogo', true);
+    haptic('hit');
+  }
   private landPlunge() {
     this.w.shake(0.008, 170);
     this.w.spark(this.x, this.feet - 2, 0xffd27a, 20);
@@ -739,7 +777,9 @@ export class Player {
     return new Phaser.Geom.Rectangle(x, this.feet + a.box.y, reach, a.box.h);
   }
 
+  /** Returns whether any blow landed. */
   private strike() {
+    let landed = false;
     const box = this.blade();
     this.w.strikeLamps({ x: box.x, y: box.y, w: box.width, h: box.height });
     for (const f of this.w.foes()) {
@@ -755,6 +795,7 @@ export class Player {
       const beforeHp = f.hp;
       if (f.hit(Math.round(dmg * swap), this.face, force, crit, { poise: this.atk.poise * this.atkMult * this.w.d.heavyPoiseMult, kx: this.atk.kx * this.face, ky: this.atk.ky, launch: this.atk.launch, heavy: this.atk.heavy, guardBreak: this.atk.guardBreak })) {
         haptic('hit');
+        landed = true;
         const dealt = beforeHp !== undefined && f.hp !== undefined ? Math.max(0, beforeHp - f.hp) : Math.round(dmg * swap);
         this.w.heroHit(f, dealt, this.atk.heavy, crit);
         this.counterT = 0;
@@ -767,8 +808,13 @@ export class Player {
         if (this.atk.hang && !this.onGround) this.body.setVelocityY(Math.min(this.body.velocity.y, this.atk.hang));
         if (this.w.d.lifesteal) this.hp = Math.min(this.maxHp, this.hp + dmg * swap * this.w.d.lifesteal);
         this.w.hitstop(crit ? STOP.crit : this.atk.heavy ? STOP.heavy : this.combo === 2 ? STOP.ender : STOP.light);
+        // The chain's last blow lands with weight: Judgment Cross and the third Phantom strike always,
+        // a combo finisher when it fells its foe. Ordinary hits stay steady.
+        const id = this.atk.id, ender = this.atk.finisher || this.combo === 2 || id === 'storm' || id === 'comet';
+        if (id === 'cross' || (id === 'pstrike' && this.phantomN >= 3) || (ender && !f.alive)) this.w.finale(f.x, f.box.centerY, id === 'cross' ? 1.4 : id === 'pstrike' ? 0.8 : 1);
       }
     }
+    return landed;
   }
 
   /**
@@ -913,16 +959,30 @@ export class Player {
     // Charge glow, the parry flash, the shield bubble.
     const g = this.aura.clear();
     if (this.water.showT > 0) { const f = this.water.breath / 20; g.lineStyle(1.8, f < 0.3 ? 0xff6a6a : 0x8fdcff, this.water.showT).beginPath().arc(this.x + this.face * 16, this.feet - 43, 6, -Math.PI / 2, -Math.PI / 2 + Math.max(0.001, f) * Math.PI * 2).strokePath(); }
-    if (this.state === 'charge') {
-      const r = 10 + this.chargeLvl * 6 + Math.sin(this.st * 30) * 1.5;
-      g.lineStyle(1.5, this.chargeLvl >= 2 ? 0xfff1c4 : 0xe8c27a, 0.8).strokeCircle(b.center.x, b.center.y, r);
+    // Rows of the impact sheet: 0 a gold star burst, 3 a ring of light. The Shield of Faith's own art holds while it lasts.
+    const { charge, guard, buff, mote } = this.glow, shown = this.sprite.visible, pulse = Math.sin(this.st * 30);
+    charge.setVisible(shown && this.state === 'charge');
+    if (charge.visible) {
+      const r = 10 + this.chargeLvl * 6 + pulse * 1.5;
+      charge.setFrame(19 + Math.min(1, this.chargeLvl)).setPosition(b.center.x, b.center.y).setScale(r / 40).setRotation(this.st * 2)
+        .setTint(this.chargeLvl >= 2 ? 0xfff1c4 : 0xe8c27a).setAlpha(0.75);
     }
-    if (this.parryT > 0) g.lineStyle(2, 0xfff6dc, 0.9).strokeCircle(b.center.x + this.face * 8, b.center.y - 2, 9);
-    else if (this.state === 'block') g.lineStyle(1.5, 0xffe6a8, 0.5).strokeCircle(b.center.x + this.face * 8, b.center.y - 2, 9);
-    if (this.shieldT > 0) g.lineStyle(2, 0x9fd8ff, 0.4 + 0.3 * Math.sin(this.st * 20)).strokeCircle(b.center.x, b.center.y, 22);
-    if (this.lion > 0) g.lineStyle(1.5, 0xffb347, 0.6).strokeCircle(b.center.x, b.center.y, 20);
-    if (this.armorLight > 0) g.lineStyle(2, 0xffe6a8, 0.7).strokeRoundedRect(b.left - 5, b.top - 4, b.width + 10, b.height + 8, 6);
-    if (this.mendT > 0) g.fillStyle(0x9de6bb, 0.7).fillCircle(b.center.x + Math.sin(this.st * 5) * 13, b.center.y + Math.cos(this.st * 5) * 20, 2);
-    if (this.counterT > 0) g.fillStyle(0xfff1c4, 0.7).fillCircle(b.center.x + this.face * 10, b.top - 2, 1.5);
+    guard.setVisible(shown && (this.parryT > 0 || this.state === 'block'));
+    if (guard.visible) {
+      const parry = this.parryT > 0;
+      guard.setFrame(parry ? 2 : 19).setPosition(b.center.x + this.face * 8, b.center.y - 2).setScale(parry ? 0.24 : 0.2).setRotation(parry ? this.st * 6 : 0)
+        .setTint(parry ? 0xffffff : 0xffe6a8).setAlpha(parry ? 0.95 : 0.5);
+    }
+    buff.setVisible(shown && (this.armorLight > 0 || this.lion > 0));
+    if (buff.visible) {
+      const armor = this.armorLight > 0;
+      buff.setFrame(armor ? 21 : 3 + (Math.floor(this.st * 10) % 3)).setPosition(b.center.x, b.center.y).setScale(armor ? 0.5 : 0.42)
+        .setTint(armor ? 0xffe6a8 : 0xffb347).setAlpha(armor ? 0.45 : 0.4);
+    }
+    mote.setVisible(shown && (this.mendT > 0 || this.counterT > 0));
+    if (mote.visible) {
+      if (this.mendT > 0) mote.setFrame(23).setPosition(b.center.x + Math.sin(this.st * 5) * 13, b.center.y + Math.cos(this.st * 5) * 20).setScale(0.2).setTint(0x9de6bb).setAlpha(0.8);
+      else mote.setFrame(0).setPosition(b.center.x + this.face * 10, b.top - 2).setScale(0.12).setTint(0xfff1c4).setAlpha(0.8);
+    }
   }
 }

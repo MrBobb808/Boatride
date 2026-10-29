@@ -23,6 +23,9 @@ export class Dawn {
   private chainT = 0;
   private icd = 0;
   private was = false;
+  /** A critical arrow under the Wings: she follows it behind the foe on her own (with its own cooldown). */
+  private pending: FoeLike | null = null;
+  private autoCd = 0;
   /** Foes struck during the form, for the closing volley. */
   readonly marked = new Set<FoeLike>();
   private wings: Phaser.GameObjects.Image;
@@ -42,10 +45,12 @@ export class Dawn {
     this.armed = f; this.armT = ARM_T;
   }
 
+  critStep(f: FoeLike) { if (this.active && this.autoCd <= 0) this.pending = f; }
+
   ready() { return this.active && !!this.armed && this.armed.alive && this.armT > 0 && this.icd <= 0; }
 
   /** Blink behind the armed foe and loose the back arrow. Refuses unsafe or unseen ground behind it. */
-  step() {
+  step(finisher = false) {
     const p = this.p, f = this.armed!;
     this.armed = null; this.armT = 0;
     const side = Math.sign(f.x - p.x) || p.face;
@@ -58,7 +63,7 @@ export class Dawn {
     this.play(FX.in, p.x, p.feet - 28, 0.3, 0.5);
     this.chain = this.chainT > 0 ? this.chain + 1 : 1;
     this.chainT = CHAIN_T; this.icd = ICD;
-    this.bow.backShot(this.chain);
+    this.bow.backShot(this.chain, finisher);
     this.play(FX.back, p.x + p.face * 22, p.feet - 31, 0.28, 0.42, p.face < 0);
     this.w.playEffect('dash');
     if (this.chain >= 3) this.morningStar();
@@ -105,6 +110,14 @@ export class Dawn {
   update(dt: number) {
     this.armT = Math.max(0, this.armT - dt);
     this.icd = Math.max(0, this.icd - dt);
+    this.autoCd = Math.max(0, this.autoCd - dt);
+    const f = this.pending;
+    this.pending = null;
+    if (f && f.alive && this.active && this.icd <= 0 && (this.p.state === 'free' || this.p.state === 'bow')) {
+      this.bow.cancel(); if (this.p.state === 'bow') this.p.releaseState();
+      this.armed = f; this.armT = ARM_T;
+      if (this.step(true)) this.autoCd = 1.2;
+    }
     this.chainT = Math.max(0, this.chainT - dt);
     if (!this.chainT) this.chain = 0;
     const on = this.active;

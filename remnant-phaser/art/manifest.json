@@ -342,7 +342,7 @@
         256
       ],
       "generated_source_name": "exec-944e7c14-d6ed-46d7-8e0f-5c53718f88f2.png",
-      "review": "Claude, 2026-10-29: Held for the archer items (POLISH_PLAN \u00a75c)."
+      "review": "Claude, 2026-10-29: Used as src/assets/arrows.png (8x2 cells of 96x128). Row 1 is Tirzah's arrows in flight (plain, charged, fire, frost, storm, holy, shadow, light under the Wings; Bow.frameOf), row 2 the same arrows left standing where one strikes a wall."
     },
     {
       "id": "C07",
@@ -773,7 +773,7 @@
         768
       ],
       "generated_source_name": "exec-c5a8a4fd-d468-4a59-b7fa-6ef2020f7377.png",
-      "review": "Claude, 2026-10-29: Held for status effects (POLISH_PLAN \u00a74)."
+      "review": "Claude, 2026-10-29: Used as src/assets/vfx-status.png (8x6 at 128 px). Burning, frozen and bleeding foes wear rows 1, 2 and 4 as looping overlays (ArtFx.statuses); Azkar's low fire waves are row 1. The loops don't return to frame 1, but cycled quickly as flames they read well."
     },
     {
       "id": "V08",

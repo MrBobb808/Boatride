@@ -31,6 +31,8 @@ try {
     const w = window.__remnant.world, s = w.save, open = (x, y) => w.tileAt(Math.floor(x / 16), Math.floor(y / 16)) === 0;
     Object.assign(s, { level: 30, mantle: 100, playableHero: 'tirzah' }); s.flags.mantle_known = true; s.flags.relic_taken = true;
     w.refreshStats();
+    // No random crits while the Dawnstep chain is checked by hand (a crit under the Wings steps on its own).
+    w.d.crit = 0;
     const f = w.classic.ents.find((e) => e.isFoe && !e.dying && !e.flying);
     for (const e of w.classic.ents) if (e !== f && e.isFoe) e.remove = true;
     // A stretch of flat ground: 120 px clear before the foe and 70 px behind it.
@@ -132,10 +134,25 @@ try {
   assert.deepEqual(finale, { marked: true, struck: true, cleared: true, active: false }, 'the closing volley strikes the marked foe');
   console.log('Finale: the form ended and light fell on the marked foe');
 
+  // ---- a critical arrow under the Wings: she steps behind on her own and her finishing arrow fells a weakened foe
+  const finisher = await E(page, async () => {
+    const w = window.__remnant.world, p = w.player, f = window.target;
+    p.mantleT = 12; p.placeAt(f.x - 90, f.y, 1);
+    await new Promise((r) => setTimeout(r, 400));
+    let finales = 0; const real = w.finale.bind(w); w.finale = (...a) => { finales++; return real(...a); };
+    w.d.crit = 1; f.maxHp = 1000; f.hp = 300;
+    return { finales0: finales };
+  });
+  await page.keyboard.press('KeyJ');
+  await until(page, () => window.target.hp <= 0 || window.target.dying, undefined, 4000);
+  const fell = await E(page, () => { const w = window.__remnant.world, p = w.player, f = window.target; w.d.crit = 0; return { behind: Math.sign(p.x - f.x), dead: f.hp <= 0 || f.dying }; });
+  assert.ok(fell.dead && fell.behind === 1, `a critical arrow sent her behind the foe and the finishing arrow felled it (${JSON.stringify({ finisher, fell })})`);
+  console.log('Finisher: a critical arrow under the Wings carried her behind the foe, and the finishing arrow felled it');
+
   // ---- Elior keeps his Shadow Mantle
   const elior = await E(page, async () => {
     const w = window.__remnant.world, p = w.player;
-    w.save.mantle = 100; p.switchHero();
+    p.mantleT = 0; w.save.mantle = 100; p.switchHero();
     await new Promise((r) => setTimeout(r, 1000));
     window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyG' }));
     await new Promise((r) => setTimeout(r, 50));

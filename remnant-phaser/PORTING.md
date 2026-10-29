@@ -127,6 +127,32 @@ distortion and softens glows. Canvas fallback retains light sprites and particle
 without using GPU filters. Room changes, Trial sectors and returning to the title
 dispose their effects and reset boss framing.
 
+## Facing and finishers
+
+- **Facing:**
+  - Both heroes turn with the stick on every swing and shot, and during a bow's follow-through.
+  - A held direction past an attack's cancel point leaves the swing, so turning and running never wait on a recovery.
+  - With no direction held, a swing or shot turns to the nearest foe behind when there is none ahead (`Player.swingFacing`).
+  - Verified by `scripts/facing.mjs`.
+- **Finishers:** `World.finale` is for big moments only: a real shake, a slow-motion beat and a push in on the blow. Ordinary hits still never shake. It plays for:
+  - Judgment Cross and the third Phantom strike;
+  - a combo finisher that fells its foe;
+  - an execution;
+  - Tirzah's finishing back arrow.
+- **Tirzah's crits:**
+  - Her arrows crit like Elior's blows.
+  - Under the Wings, a critical arrow carries her behind the foe on her own (a 1.2 s cooldown). Her finishing arrow there fells any non-boss foe below 40% health.
+  - Verified by `scripts/combat-feel.mjs` and `scripts/archer.mjs`.
+
+## Effects as art
+
+The classic effects' shapes are drawn from the art drop instead of lines and circles:
+- **Classic primitives** (`src/game/artFx.ts`, installed by the classic layer): every `fx.ring` is V02's ring of light, `fx.column` V03's pillar, `fx.slash` V01's arc, and `fx.streak` a baked trail of light. Each is tinted to the colour asked for (dark colours draw normally, bright ones add light), from a pool of 40.
+- **Status overlays:** burning, frozen and bleeding foes wear V07's looping overlays (`ArtFx.statuses`; off on Low quality).
+- **Arrows:** Tirzah's arrows are C06 sprites, by kind and weapon element, and stay a moment where they strike a wall.
+- **Elior's glows:** charge, guard, parry, armour, Lion and mending glows use V02 frames (`Player.glow`). The Shield of Faith's own art holds while it lasts.
+- **Fallen Crown telegraphs:** glints, closing floor rings, eruption and spore pillars and Azkar's sweep and armour are art (`Boss.telegraph`, `Boss.pillar`). His fire waves are V07's flames.
+
 ## Tirzah's Wings of the Morning
 
 When Tirzah is the active hero, the transformation gauge and button give her **Wings of the Morning** (Psalm 139:9) instead of the Shadow Mantle. It's the same gauge, button and timer (`Player.mantleT`).

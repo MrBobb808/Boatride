@@ -70,6 +70,8 @@ export interface WorldApi {
   onBossDefeated(key: string): void;
   /** A short freeze on a heavy impact. */
   hitstop(sec: number): void;
+  /** A finishing moment: shake, slow motion and a push in (never for ordinary hits). */
+  finale(x: number, y: number, power?: number): void;
   shake(intensity: number, ms: number): void;
   floatText(x: number, y: number, text: string, color: string, crit?: boolean): void;
   spark(x: number, y: number, color: number, n?: number): void;

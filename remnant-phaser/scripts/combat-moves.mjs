@@ -111,6 +111,17 @@ try {
   await p.keyboard.up('Space');
   console.log('Aerial routes: dash → Rising Comet, three air strikes → Rend → landing impact, and an invulnerable air dash');
 
+  // After Hollow Knight: a plunge that strikes a foe springs back up with the air dash restored.
+  await setup(p);
+  await E(p, () => { const w = window.__remnant.world, f = w.classic.ents.find((e) => e.isFoe && !e.remove); w.player.placeAt(f.x, f.y - 70, 1); w.player.body.setVelocity(0, 0); window.pogoHp = f.hp; });
+  await p.keyboard.down('KeyS');
+  await attack(p);
+  await until(p, () => window.__remnant.world.player.body.velocity.y < -150);
+  await p.keyboard.up('KeyS');
+  const pogo = await E(p, () => { const a = window.__remnant.world.player, f = window.__remnant.world.classic.ents.find((e) => e.isFoe && !e.remove); return { state: a.state, airDash: a.airDash, onGround: a.onGround, struck: f.hp < window.pogoHp }; });
+  assert.ok(pogo.struck && pogo.state === 'free' && pogo.airDash === 1 && !pogo.onGround, `a plunge onto a foe bounces back up (${JSON.stringify(pogo)})`);
+  console.log('Pogo: a plunge onto a foe strikes it and springs Elior back up with his air dash');
+
   // Phantom Steps alternate safe sides, retain their chain, and spend Energy.
   await setup(p, { phantom: true });
   await attack(p);
