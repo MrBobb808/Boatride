@@ -3,7 +3,8 @@ import { TILE, isSolid, T } from '../shared';
 import type { WorldApi, FoeLike } from './types';
 import type { Player } from './player';
 import type { Dawn } from './dawn';
-import { weaponElement, type Element } from '../../../remnant/src/game/power';
+import type { Element } from '../../../remnant/src/game/power';
+import { trank, bowElement } from './archer';
 import { spriteFrame, isSpriteWindup } from '../../../remnant/src/render/spriteMotion';
 import { G } from '../classic/shim/ctx';
 import { settings } from '../classic/shim/settings';
@@ -15,18 +16,20 @@ const STANDARD: readonly ArrowType[] = ['standard'];
 interface Arrow { x:number; y:number; vx:number; vy:number; life:number; damage:number; pierce:number; hits:Set<FoeLike>; move:string; back:boolean; dawn:boolean; finisher:boolean; x0:number; y0:number; recall:boolean; spike:boolean;
   /** Ability arrows: `guard` breaks guards, `knock` knocks down, `scale` draws it larger, `frame` fixes its art (-1: by element). `precise` always takes the head. */
   guard:boolean; knock:boolean; scale:number; frame:number; precise:boolean;
-  /** `perfect`: loosed in the Perfect Draw window (always a crit). `age`: seconds in flight, for the launch flex. */
-  perfect:boolean; age:number }
-const FRESH = { back:false, dawn:false, finisher:false, recall:false, spike:false, guard:false, knock:false, scale:0, frame:-1, precise:false, perfect:false, age:0 };
+  /** `perfect`: loosed in the Perfect Draw window (always a crit). `sure`: always a crit (Shadowstep). `age`: seconds in flight, for the launch flex. */
+  perfect:boolean; sure:boolean; age:number }
+const FRESH = { back:false, dawn:false, finisher:false, recall:false, spike:false, guard:false, knock:false, scale:0, frame:-1, precise:false, perfect:false, sure:false, age:0 };
 /** The colour of an arrow's trail and impact, by its art column. */
 const GLOW = [0xe8dcc0, 0x9fd8ff, 0xff8a3a, 0xa0deff, 0xb08aff, 0xffe6a8, 0x8a4ad0, 0xfff1c4];
 /** Perfect Draw: releasing a draw in this window (seconds held) looses a perfect shot. */
-const PERFECT = [0.62, 0.8] as const;
+const PERFECT = [0.62, 0.8] as const, PERFECT_WIDE = [0.58, 0.85] as const;
 /** A classic foe's body, as her arrows read it (pinning, interrupts, bosses). */
 type Body = { isBoss?: boolean; maxHp?: number; state?: string; st?: number; staggered?: number; stagger?: () => void; glintAt?: number; anim?: { u: number }; body?: { vx: number } };
 const bodyOf = (f: FoeLike) => (f as FoeLike & { e?: Body }).e;
 /** True Aim: the range where her shots land hardest. */
-const SWEET = [110, 230] as const, SWEET_MUL = 1.25;
+const SWEET = [110, 230, 1.25] as const, SWEET_LONG = [90, 270, 1.45] as const;
+/** The arrows of her abilities (Covenant Archer strengthens them). */
+const ABILITY_MOVES = new Set(['deliverance', 'jonathan', 'rain']);
 const EMBED_MAX = 8;
 /** A foe is winding up: a drawn foe glinted this moment, or a sprite foe shows its anticipation frame. */
 function windingUp(e: Body | undefined) {
@@ -100,8 +103,14 @@ export class Bow {
   /** The element her arrows carry: the nocked arrow type, or the weapon's own. */
   element(): Element | null {
     const t=this.w.save.arrowType;
-    return t&&t!=='standard'&&this.quiver().includes(t)?t:weaponElement();
+    return t&&t!=='standard'&&this.quiver().includes(t)?t:bowElement(this.w.save);
   }
+  /** Her rank in a skill-tree node. */
+  private r(id:string) { return trank(this.w.save,id); }
+  /** The Perfect Draw window (Patient String widens it). */
+  private get perfectWin() { return this.r('t_perfect')?PERFECT_WIDE:PERFECT; }
+  /** True Aim's band and bonus (Long Sight widens and strengthens it). */
+  private get sweet() { return this.r('t_sight')?SWEET_LONG:SWEET; }
   /** Arrow types she has unlocked (`syncArcher` records them as she levels). */
   quiver(): readonly ArrowType[] { return this.w.save.quiver??STANDARD; }
   /** Down + Sub: nock the next arrow type. */
@@ -119,20 +128,22 @@ export class Bow {
   }
   /** Recall: every embedded arrow tears back out through its foe and flies home, hitting what's in the way. More arrows, a bigger rip. */
   recall() {
-    const p=this.p,n=this.embeddedCount;
+    const p=this.p,n=this.embeddedCount,swift=this.r('t_recall')>0;
     if(!n)return false;
     for(const o of this.embedded) {
       const f=o.foe; if(!f)continue;
       o.foe=null;o.img.setVisible(false);
       if(!f.alive)continue;
       const x=f.x+o.dx,y=f.box.top+o.dy,hp=f.hp,dir=Math.sign(p.x-x)||1;
-      if(f.hit(Math.round(p.power()*0.45*(1+0.12*(n-1))),dir,1.2,false,{kind:'proj',kx:dir*90,ky:-40,poise:14})){
+      if(f.hit(Math.round(p.power()*0.45*(1+0.12*(n-1))*(swift?1.6:1)),dir,1.2,false,{kind:'proj',kx:dir*90,ky:-40,poise:14})){
         this.w.heroHit(f,hp!==undefined&&f.hp!==undefined?Math.max(0,hp-f.hp):0,false);
         this.w.spark(x,y,0xa6efdc,6);
       }
       const d=Math.max(1,Math.hypot(p.x-x,p.feet-30-y)),speed=620;
-      this.spawn({x,y,vx:(p.x-x)/d*speed,vy:(p.feet-30-y)/d*speed,life:d/speed,damage:p.power()*0.35,pierce:3,move:'recall',recall:true})?.hits.add(f);
+      this.spawn({x,y,vx:(p.x-x)/d*speed,vy:(p.feet-30-y)/d*speed,life:d/speed,damage:p.power()*0.35*(swift?1.6:1),pierce:3,move:'recall',recall:true})?.hits.add(f);
     }
+    // Swift Recall: every arrow home mends her a little.
+    if(swift)p.hp=Math.min(p.maxHp,p.hp+p.maxHp*0.01*n);
     this.tally.recalled+=n;
     this.p.noteStyle('recall');
     this.w.playEffect('arrowRecall',{x:this.p.x});
@@ -203,13 +214,16 @@ export class Bow {
         // Her arrows crit like his blows; a back arrow always does, and a finishing one fells a weakened foe outright.
         const hx=a.x+dx*time,hy=a.y+dy*time,body=bodyOf(nearest),aimed=!a.back&&!a.recall&&a.move!=='morning_star';
         // True Aim: mid range lands hardest. Precision: a shot from range that takes the head (the top quarter) always crits and staggers a little more.
-        const travelled=Math.hypot(hx-a.x0,hy-a.y0),trueAim=aimed&&travelled>=SWEET[0]&&travelled<=SWEET[1];
+        const sw=this.sweet,travelled=Math.hypot(hx-a.x0,hy-a.y0),trueAim=aimed&&travelled>=sw[0]&&travelled<=sw[1];
         const precise=aimed&&(a.precise||travelled>40&&hy<nearest.box.top+nearest.box.height*0.25);
         const interrupt=aimed&&windingUp(body);
-        const crit=a.back||precise||a.perfect||(a.move!=='morning_star'&&Math.random()<this.w.d.crit+(this.dawn?.active?this.wingsCrit:0));
-        let damage=a.damage*(crit&&!a.back?this.w.d.critDmg:1)*(trueAim?SWEET_MUL:1)*this.kit.damageFor(nearest);
+        const wingsCrit=this.dawn?.active?this.wingsCrit+(this.r('t_huntress')?0.15:0):0;
+        const crit=a.back||precise||a.perfect||a.sure||(a.move!=='morning_star'&&Math.random()<this.w.d.crit+wingsCrit);
+        // Her tree: Headhunter, Elemental Fletching and Covenant Archer.
+        const tree=(precise&&this.r('t_heads')?1.35:1)*(!a.recall&&!a.dawn&&this.element()&&this.r('t_fletch')?1.25:1)*(ABILITY_MOVES.has(a.move)&&this.r('t_covenant')?1.3:1);
+        let damage=a.damage*(crit&&!a.back?this.w.d.critDmg:1)*(trueAim?sw[2]:1)*this.kit.damageFor(nearest)*tree;
         if(a.finisher&&hp!==undefined&&body&&!body.isBoss&&body.maxHp&&hp<body.maxHp*0.4)damage=Math.max(damage,hp+1);
-        if(nearest.hit(Math.round(damage),Math.sign(a.vx),a.back?3:a.pierce>1?2.5:0.8,crit,{kind:'proj',kx:Math.sign(a.vx)*(a.back||a.knock?140:55),ky:a.spike?260:a.knock?-220:a.back?-60:0,poise:(a.back||a.knock?60:a.pierce>1?24:8)+(precise?16:0),guardBreak:a.back||a.guard,launch:a.knock})) {
+        if(nearest.hit(Math.round(damage),Math.sign(a.vx),a.back?3:a.pierce>1?2.5:0.8,crit,{kind:'proj',kx:Math.sign(a.vx)*(a.back||a.knock?140:55),ky:a.spike?260:a.knock?-220:a.back?-60:0,poise:(a.back||a.knock?60:a.pierce>1?24:8)+(precise?(this.r('t_heads')?32:16):0),guardBreak:a.back||a.guard,launch:a.knock})) {
           this.w.heroHit(nearest,hp!==undefined&&nearest.hp!==undefined?Math.max(0,hp-nearest.hp):damage,false,crit);
           if(a.back&&!nearest.alive)this.w.finale(nearest.x,nearest.box.centerY,a.finisher?1.2:0.9);
           else if(crit&&!a.back)this.dawn?.critStep(nearest);
@@ -260,11 +274,12 @@ export class Bow {
         this.charge=Math.min(1.2,this.charge+dt);
         if(Math.abs(c.axis)>0.25)p.face=Math.sign(c.axis);
         // The Perfect Draw window opens with a gold glint at the bow.
-        if(was<PERFECT[0]&&this.charge>=PERFECT[0]){this.w.spark(p.x+p.face*15,p.feet-31,0xffd27a,6);this.w.playEffect('perfectChime');}
+        const pw=this.perfectWin;
+        if(was<pw[0]&&this.charge>=pw[0]){this.w.spark(p.x+p.face*15,p.feet-31,0xffd27a,6);this.w.playEffect('perfectChime');}
         // The string creaks tighter the longer she holds.
         this.creakT-=dt;if(this.creakT<=0&&this.charge<1.2){this.creakT=0.17;this.w.playEffect('bowCreak',{x:p.x,pitch:0.8+this.charge*0.55+Math.random()*0.05,vol:0.5+this.charge*0.5});}
         if(!c.down(this.chargeKey)||this.charge>=1.2) {
-          const perfect=c.down(this.chargeKey)===false&&this.charge>=PERFECT[0]&&this.charge<=PERFECT[1];
+          const perfect=c.down(this.chargeKey)===false&&this.charge>=pw[0]&&this.charge<=pw[1];
           this.fire(perfect?'pierce':this.charge>=0.55?'pierce':'quick',perfect?'bow_perfect':undefined,perfect);this.drawing=false;this.recovery=0.28;
         }
       } else {
@@ -315,7 +330,7 @@ export class Bow {
     for(const f of this.w.foes()){const dx=f.x-p.x;if(f.alive&&dx*p.face>-4&&Math.abs(dx)<36&&Math.abs(f.box.centerY-(p.feet-24))<34){foe=f;break;}}
     if(!foe)return false;
     const hp=foe.hp;
-    if(foe.hit(Math.round(p.power()*0.6),p.face,1.8,false,{kind:'melee',kx:p.face*300,ky:-90,poise:30})){
+    if(foe.hit(Math.round(p.power()*0.6*(1+this.r('t_blade')*0.1)),p.face,1.8,false,{kind:'melee',kx:p.face*300,ky:-90,poise:30})){
       this.w.heroHit(foe,hp!==undefined&&foe.hp!==undefined?Math.max(0,hp-foe.hp):0,false);
       this.w.burst(p.x+p.face*16,p.feet-26,2);
       this.p.noteStyle('bow_bash');
@@ -340,7 +355,7 @@ export class Bow {
     const p=this.p,show=p.state==='bow'&&this.drawing;
     this.tick.setVisible(show);
     if(!show)return;
-    const {x,y,aim}=this.aim(),d=(SWEET[0]+SWEET[1])/2;
+    const {x,y,aim}=this.aim(),sw=this.sweet,d=(sw[0]+sw[1])/2;
     this.tick.setPosition(x+Math.cos(aim)*d*p.face,y+Math.sin(aim)*d).setAlpha(0.35+Math.min(1,this.charge/0.55)*0.3).setRotation(this.charge*3);
   }
   /** Where she looses from, and the angle: toward the nearest foe ahead in sight (its head while Up is held), or up or down with the stick. */
@@ -367,12 +382,16 @@ export class Bow {
     // Quiver of the Mighty splits every shot in three; Watchman's Eye makes the next shots precision hits.
     const split=kind==='volley'||this.kit.quiverT>0&&kind!=='dive'?3:1,precise=this.kit.eyeShots>0;
     if(precise)this.kit.eyeShots--;
+    // Shadowstep: a shot just after a dodge always crits. Patient String: a Perfect shot pierces one more.
+    const sure=this.r('t_shadow')>0&&p.sinceDodge<0.6,pierce=(kind==='pierce'?3:kind==='dive'?2:1)+(perfect&&this.r('t_perfect')?1:0);
     for(let i=0;i<split;i++) {
       const angle=aim+(split>1?(i-1)*(kind==='volley'?0.14:0.12):0),speed=(kind==='pierce'?590:kind==='dive'?560:440)*(perfect?1.25:1)*(p.water.swimming?0.65:1);
       this.spawn({x:muzzleX,y:muzzleY,vx:Math.cos(angle)*speed*p.face,vy:Math.sin(angle)*speed,life:1.2,
         damage:p.power()*(kind==='pierce'?2.1:kind==='volley'?0.48:kind==='dive'?1.1:0.7)*blank*(split>1&&kind!=='volley'?0.6:1),
-        pierce:kind==='pierce'?3:kind==='dive'?2:1,move,dawn:wings,spike:kind==='dive',precise,perfect});
+        pierce,move,dawn:wings,spike:kind==='dive',precise,perfect,sure});
     }
+    // Twin String: a full draw looses a second arrow just behind the first.
+    if(kind==='pierce'&&this.charge>=1&&this.r('t_twin'))this.spawn({x:muzzleX-p.face*14,y:muzzleY+3,vx:Math.cos(aim)*590*p.face,vy:Math.sin(aim)*590,life:1.2,damage:p.power()*2.1*blank*0.7,pierce,move:'bow_twin',dawn:wings,sure});
     this.w.playEffect('bowRelease',{x:p.x,pitch:0.94+Math.random()*0.12});
     if(kind==='pierce'||perfect){this.w.playEffect('bowCrack',{x:p.x});this.w.playEffect('arrowWhistle',{x:p.x+p.face*120,pitch:perfect?1.15:1});}
     // The release: a flash of the arrow's colour at the bow.

@@ -10,7 +10,7 @@
 
 import { G, flag } from './ctx';
 import { ITEMS, AFFIX_POOL, RARITY_AFFIX_COUNT, type ItemInst, type Rarity, type Slot } from './data';
-import { addMaterial, makeItem, derive, type SaveData } from './state';
+import { addMaterial, makeItem, derive, isWorn, type SaveData } from './state';
 import { chapterCurve } from './curve';
 import { chapterOf } from './rooms';
 import { RNG, uid } from '../core/math';
@@ -59,7 +59,7 @@ const discount = (silver: number) => Math.max(1, Math.round(silver * (1 - barter
 export function keepReason(s: SaveData, it: ItemInst): string | null {
   const base = ITEMS[it.id];
   if (!base || base.slot === 'material' || base.slot === 'key' || base.slot === 'consumable') return 'Not for sale.';
-  if (Object.values(s.equipment).includes(it.uid)) return 'Equipped.';
+  if (isWorn(s, it.uid)) return 'Equipped.';
   if (base.unique) return 'A keepsake: trophies and rewards stay with you.';
   if (s.locked?.includes(it.uid)) return 'Locked.';
   return null;
@@ -80,7 +80,7 @@ export function sellPrice(it: ItemInst) {
   return Math.round((ITEMS[it.id].value * (1 + it.plus * 0.3) * (1 + it.rarity * 0.4)) / 2 * (1 + barterOf()));
 }
 
-const METAL: Partial<Record<Slot, number>> = { weapon: 2, armor: 2, helm: 1, gauntlets: 1, boots: 1 };
+const METAL: Partial<Record<Slot, number>> = { weapon: 2, armor: 2, helm: 1, gauntlets: 1, boots: 1, bow: 1, dagger: 1, garb: 1 };
 
 /** What breaking an item down yields: dismantling doubles it. */
 export function salvageOf(it: ItemInst, dismantle = false): Record<string, number> {
@@ -153,7 +153,7 @@ export function buyBack(s: SaveData, sale: Sale) {
 export function junk(s: SaveData): ItemInst[] {
   return s.inventory.filter((it) => {
     if (it.rarity > 1 || it.plus > 0 || keepReason(s, it)) return false;
-    const eq = s.inventory.find((x) => x.uid === s.equipment[ITEMS[it.id].slot as Slot]);
+    const slot = ITEMS[it.id].slot as Slot, eq = s.inventory.find((x) => x.uid === (s.equipment[slot] ?? s.archer?.equipment[slot]));
     return !!eq && eq.rarity >= it.rarity;
   });
 }

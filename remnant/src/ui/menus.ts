@@ -19,7 +19,7 @@ import {
 } from '../game/data';
 import {
   derive, getItem, itemMods, upgradeCost, MAX_PLUS, hasMaterials, payMaterials, makeItem, canLearn, learn, skillRank,
-  echoMaxHp, echoAtk, addMaterial, equipAbility, unlockCombatSkills, COMBAT_UNLOCKS, allocateStat, learnRanks,
+  echoMaxHp, echoAtk, addMaterial, equipAbility, unlockCombatSkills, COMBAT_UNLOCKS, allocateStat, learnRanks, isWorn,
 } from '../game/state';
 import { QUESTS } from '../game/story';
 import { ROOMS, chapterOf } from '../game/rooms';
@@ -100,7 +100,32 @@ const SECTIONS: { id: string; label: string; icon: string; tabs: { id: string; l
     { id: 'system', label: 'Save & system', icon: 'save' },
   ] },
 ];
-const TABS = SECTIONS.flatMap((sec) => sec.tabs);
+let TABS = SECTIONS.flatMap((sec) => sec.tabs);
+
+/** What an added section's pages get: the shared helpers, and a way to redraw or change page. */
+export interface MenuPageKit {
+  rerender: () => void;
+  setTab: (t: string) => void;
+  batch: () => number;
+  pointBatchPicker: () => HTMLElement;
+  itemIcon: typeof itemIcon;
+  itemName: typeof itemName;
+  modLines: typeof modLines;
+  rarityStyle: typeof rarityStyle;
+  lockButton: typeof lockButton;
+}
+type MenuSection = (typeof SECTIONS)[number];
+const EXTRA_PAGES: Record<string, (kit: MenuPageKit) => HTMLElement> = {};
+/** A host build adds a section of its own (the Phaser build's Tirzah), placed after the section named. The
+ * original edition adds none. */
+export function addMenuSection(sec: MenuSection, after: string, pages: Record<string, (kit: MenuPageKit) => HTMLElement>) {
+  if (SECTIONS.some((x) => x.id === sec.id)) return;
+  const i = SECTIONS.findIndex((x) => x.id === after);
+  SECTIONS.splice(i < 0 ? SECTIONS.length : i + 1, 0, sec);
+  TABS = SECTIONS.flatMap((x) => x.tabs);
+  Object.assign(EXTRA_PAGES, pages);
+}
+const pageKit = (): MenuPageKit => ({ rerender: render, setTab, batch: () => pointBatch, pointBatchPicker, itemIcon, itemName, modLines, rarityStyle, lockButton });
 /** Old page names still open the right sub-tab. */
 const ALIASES: Record<string, string> = { journal: 'quests' };
 const sectionOf = (t: string) => SECTIONS.find((sec) => sec.tabs.some((x) => x.id === t)) ?? SECTIONS[0];
@@ -226,6 +251,7 @@ function render() {
     case 'store': bodyEl.appendChild(storeTab()); break;
     case 'settings': bodyEl.appendChild(settingsTab()); break;
     case 'system': bodyEl.appendChild(systemTab()); break;
+    default: if (EXTRA_PAGES[tab]) bodyEl.appendChild(EXTRA_PAGES[tab](pageKit()));
   }
   const sc = bodyEl.querySelector('.scroll') as HTMLElement | null;
   if (sc) sc.scrollTop = keepScroll;
@@ -1165,15 +1191,14 @@ function renderShop() {
   else if (shopTab === 'dismantle') content = sellPane(true);
   else if (shopTab === 'temper') {
     const gear = s.inventory.filter((i) => ITEMS[i.id].slot !== 'material' && ITEMS[i.id].slot !== 'key');
-    const eqSet = new Set(Object.values(s.equipment));
-    gear.sort((a, b) => Number(eqSet.has(b.uid)) - Number(eqSet.has(a.uid)));
+    gear.sort((a, b) => Number(isWorn(s, b.uid)) - Number(isWorn(s, a.uid)));
     content = h('div', { class: 'list' }, gear.map((it) => {
       const cost = upgradeCost(it);
       const maxed = it.plus >= MAX_PLUS;
       const ok = !maxed && hasMaterials(s, cost);
       const next = { ...it, plus: it.plus + 1 };
       return h('div', { class: 'box', style: 'display:grid;grid-template-columns:34px 1fr auto;gap:10px;align-items:center' }, itemIcon(it),
-        h('div', null, h('div', { class: 'nm', style: rarityStyle(it.rarity) + ';font-weight:600' }, itemName(it) + (eqSet.has(it.uid) ? ' · equipped' : '')),
+        h('div', null, h('div', { class: 'nm', style: rarityStyle(it.rarity) + ';font-weight:600' }, itemName(it) + (isWorn(s, it.uid) ? ' · equipped' : '')),
           maxed ? h('div', { class: 'muted' }, 'Fully tempered.') : h('div', { style: 'font-size:0.85em' }, modLines(itemMods(next), itemMods(it))),
           maxed ? null : costView(cost), it.id.includes('sword') || it.id.includes('spear') || it.id.includes('blade') ? h('div', { class: 'muted', style: 'font-size:0.78em' }, 'Weapons begin to glow at +3 and burn with white fire at +5.') : null),
         btn('Temper', () => { if (payMaterials(s, cost)) { it.plus++; sfx('hitMetal'); sfx('loot'); G.d = derive(s); renderShop(); } }, 'btn small primary', { disabled: !ok, 'data-k': 'tmp_' + it.uid }));
@@ -1280,7 +1305,7 @@ function sellPane(dismantle: boolean) {
         h('div', { class: 'sub' }, `${RARITY_NAMES[it.rarity]} ${SLOT_NAMES[ITEMS[it.id].slot as Slot]}` + (reason ? ` · ${reason}` : '')),
         reason ? null : h('div', { style: 'font-size:0.85em' }, dismantle ? null : h('span', { class: 'price' }, `${sellPrice(it)} silver`), matsView(salvageOf(it, dismantle)))),
       h('div', { style: 'display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end' },
-        ITEMS[it.id].unique || Object.values(s.equipment).includes(it.uid) ? null : lockButton(it),
+        ITEMS[it.id].unique || isWorn(s, it.uid) ? null : lockButton(it),
         reason ? null : btn(arm ? (dismantle ? 'Break it down' : 'Confirm sale') : dismantle ? 'Dismantle' : 'Sell', () => act(it), 'btn small' + (arm ? ' primary' : ''), { 'data-k': key })));
   });
   const backs = !dismantle && buyback.length ? [h('h3', { style: 'margin:12px 0 4px' }, 'Buy back'), h('div', { class: 'muted', style: 'font-size:0.85em' }, 'Your last ten sales, until you close the game. The salvage goes back with the silver.'),

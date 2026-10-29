@@ -32,7 +32,7 @@ try {
     window.heard = [];
     const play = R.audio.play.bind(R.audio);
     R.audio.play = (name, o = {}) => { window.heard.push([name, o.pitch ?? 1, o.pan ?? 0]); return play(name, o); };
-    Object.assign(s, { level: 30, playableHero: 'tirzah', mantle: 100 }); s.flags.relic_taken = true; s.flags.mantle_known = true;
+    Object.assign(s, { level: 30, playableHero: 'tirzah', mantle: 100 }); s.archer.level = 30; s.flags.relic_taken = true; s.flags.mantle_known = true;
     s.archerSkills = ['deliverance', 'jonathan', 'mark'];
     w.refreshStats(); w.d.crit = 0; w.player.bow.wingsCrit = 0;
     const f = w.classic.ents.find((e) => e.isFoe && !e.dying && !e.flying);

@@ -30,7 +30,7 @@ try {
   // Tirzah, no random crits, one foe that never moves or falls, on flat ground with room to stand back.
   await E(page, () => {
     const w = window.__remnant.world, s = w.save, open = (x, y) => w.tileAt(Math.floor(x / 16), Math.floor(y / 16)) === 0;
-    Object.assign(s, { level: 20, playableHero: 'tirzah' }); s.flags.relic_taken = true;
+    Object.assign(s, { level: 20, playableHero: 'tirzah' }); s.archer.level = 20; s.flags.relic_taken = true;
     w.refreshStats(); w.d.crit = 0;
     const f = w.classic.ents.find((e) => e.isFoe && !e.dying && !e.flying);
     for (const e of w.classic.ents) if (e !== f && e.isFoe) e.remove = true;

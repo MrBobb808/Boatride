@@ -10,12 +10,14 @@ import { makeBoss, bossPorted, BOSS_CHAPTER, type Boss } from '../game/bosses';
 import { biomeTileset, tileIndex, backdropTextures, TI } from '../game/tileset';
 import { newSave, loadSave, writeSave, gainXp, stats, type PhaserSave } from '../game/save';
 import { absorbEcho, makeItem, addMaterial, echoMaxHp, type Derived } from '../../../remnant/src/game/state';
-import { ITEMS } from '../../../remnant/src/game/data';
+import { ITEMS, ARCHER_SLOTS } from '../../../remnant/src/game/data';
 import type { Rarity } from '../../../remnant/src/game/data';
 import type { WorldApi, FoeLike, BossView } from '../game/types';
 import { chapterOf } from '../../../remnant/src/game/rooms';
+import { rollGear } from '../../../remnant/src/game/loot';
+import type { Loot } from '../../../remnant/src/game/tiles';
 import { catchUpXp } from '../../../remnant/src/game/curve';
-import { tickElixir } from '../../../remnant/src/game/economy';
+import { tickElixir, keepReason } from '../../../remnant/src/game/economy';
 import { FINISHERS } from '../../../remnant/src/game/finishers';
 import { powerTier, SOVEREIGN_LV } from '../../../remnant/src/game/power';
 import { MANTLE_LV, announceMantle, mantleTier, mantlePerks } from '../../../remnant/src/game/mantle';
@@ -41,7 +43,9 @@ import { castAbility } from '../../../remnant/src/game/abilities';
 import { Proj } from '../../../remnant/src/game/projectiles';
 const SHOOTABLE = new Set(['arrow', 'orb', 'drop', 'flame', 'arcbolt', 'star', 'debris']);
 import type { Player as OriginalPlayer } from '../../../remnant/src/game/player';
-import { syncArcher, type SkillId } from '../game/abilities';
+import { syncArcher, ARCHER, ARCHER_IDS, type SkillId } from '../game/abilities';
+import { archerStats, archerLevel, archerGainXp, archerDrop, learnArcher, allocateArcher, trank, newArcher, ARCHER_KEEPSAKES } from '../game/archer';
+import { addTirzahMenu, useAbilityTextures } from '../game/tirzahMenu';
 import { audio, sfx } from '../classic/shim/audio';
 import { music } from '../classic/shim/music';
 import { songs } from '../../../remnant/src/audio/songs';
@@ -58,8 +62,19 @@ interface Interactable { x: number; y: number; label: string; use: () => void }
 export class World extends Phaser.Scene implements WorldApi {
   controls!: Controls;
   save!: PhaserSave;
-  /** Elior's stats from the save (refreshed on load, level-up and gear change). */
-  d!: Derived;
+  /** Elior's stats as the original derives them (refreshed on load, level-up and gear change). The original's
+   * modules read and replace them as G.d. */
+  eliorD!: Derived;
+  /** The fighting hero's stats: Elior's, or Tirzah's from her own level, gear and tree, worked out again whenever
+   * his are replaced. */
+  get d(): Derived {
+    const base = this.eliorD;
+    if (this.save?.playableHero !== 'tirzah' || !this.save.archer) return base;
+    if (this.herFor !== base) { this.herD = archerStats(this.save, base); this.herFor = base; }
+    return this.herD!;
+  }
+  private herD: Derived | null = null;
+  private herFor: Derived | null = null;
   room!: RoomDef;
   player!: Player;
   private grid = new Uint8Array(0);
@@ -117,6 +132,7 @@ export class World extends Phaser.Scene implements WorldApi {
     this.save = (!this.fresh && loadSave()) || newSave(!new URLSearchParams(location.search).has("nostory"));
     const away = Date.now() - this.save.updated;
     this.refreshStats();
+    addTirzahMenu(this); useAbilityTextures(this.textures);
     this.controls = new Controls(this);
     this.classic = new ClassicLayer(this);
     this.art = new RoomArt(this);
@@ -151,6 +167,7 @@ export class World extends Phaser.Scene implements WorldApi {
         warp: (id: string, spawn = 'start') => this.goTo(id, spawn),
         give: (xp: number) => this.onFoeDied(xp, 0, this.player.x, this.player.y),
         hud: hudBoxes, audio, music, songs, settings, offlineReady, Proj,
+        archer: { archerStats, archerDrop, archerGainXp, learnArcher, allocateArcher, trank, newArcher, keepReason },
       };
     }
   }
@@ -697,13 +714,18 @@ export class World extends Phaser.Scene implements WorldApi {
   /** Elior's stats from the save, as the original derives them (level, stat points, skills, gear). */
   refreshStats() {
     for (const t of syncArcher(this.save)) if (t !== 'standard') this.hud?.toast(`New arrows for Tirzah: ${t[0].toUpperCase() + t.slice(1)} (Down + Sub to nock them)`);
-    this.d = stats(this.save);
-    G.d = this.d;
-    if (this.player) { this.player.maxHp = this.d.maxHp; this.player.maxCe = this.d.maxCe; }
+    this.herFor = null;
+    this.setEliorStats(stats(this.save));
+  }
+  /** New stats for Elior (G.d's setter); the player takes the fighting hero's limits. */
+  setEliorStats(d: Derived) {
+    this.eliorD = d;
+    const cur = this.d;
+    if (this.player) { this.player.maxHp = cur.maxHp; this.player.maxCe = cur.maxCe; this.player.hp = Math.min(this.player.hp, cur.maxHp); }
   }
 
   /** A chest's loot, as the original's world.collect gives it. */
-  collect(l: { silver?: number; mat?: string; n?: number; item?: string; rarity?: number }) {
+  collect(l: { silver?: number; mat?: string; n?: number; item?: string; rarity?: number; power?: number }) {
     const s = this.save;
     if (l.silver) {
       s.silver += l.silver;
@@ -716,8 +738,10 @@ export class World extends Phaser.Scene implements WorldApi {
       if (base.slot === 'key') { if (!s.keyItems.includes(l.item)) s.keyItems.push(l.item); this.toast(base.name); return; }
       const it = makeItem(l.item, (l.rarity ?? base.rarity) as Rarity);
       it.isNew = true;
+      if (l.power) it.lootPower = l.power;
       s.inventory.push(it);
-      this.toast(`${base.name} · in your pack (Menu → Elior → Equipment)`);
+      const hers = (ARCHER_SLOTS as string[]).includes(base.slot);
+      this.toast(`${base.name}${hers ? ' for Tirzah' : ''} · in your pack (Menu → ${hers ? 'Tirzah' : 'Elior'} → Equipment)`);
     }
   }
 
@@ -868,6 +892,7 @@ export class World extends Phaser.Scene implements WorldApi {
     if (n) this.save.flags[`ch${n}_done`] = true;
     this.closeGate(false);
     this.boss = null;
+    this.bossSpoils(key);
     const name = key === 'beast_monarch' ? 'Varkhos' : key === 'plague_monarch' ? 'Morvane' : 'Azkar';
     this.banner('THE CROWN IS BROKEN', `${name} has fallen · the road belongs to the living again`);
     const xp = n ? chapterCurve(n).clearXp ?? 10000 : 10000;
@@ -921,6 +946,38 @@ export class World extends Phaser.Scene implements WorldApi {
     this.feedback.spark(x, y, color, n);
   }
 
+  /** Tirzah's share: her own levels, points and the abilities and arrows they open. */
+  private archerXp(xp: number) {
+    const s = this.save, before = archerLevel(s), levels = archerGainXp(s, xp);
+    if (!levels) return;
+    const a = s.archer!, her = this.player.hero === 'tirzah';
+    this.refreshStats();
+    if (her) {
+      s.hp = this.player.hp = this.d.maxHp;
+      G.ui.levelUp(levels);
+      islandNotify(`TIRZAH ${a.level}`, '#a6efdc', 'stats', 2.8);
+      islandRipple('#a6efdc');
+    } else this.toast(`Tirzah reached level ${a.level} · her points wait in Menu → Tirzah`);
+    for (const id of ARCHER_IDS) if (ARCHER[id].level > before && ARCHER[id].level <= a.level) this.classic.after(2.4, () => G.ui.toast(`Tirzah learned ${ARCHER[id].name}`, 'good'));
+    if (before < MANTLE_LV && a.level >= MANTLE_LV) this.classic.after(3.2, () => G.ui.toast('Tirzah can take the Wings of the Morning (G / the MANTLE button).', 'good'));
+  }
+
+  gearDrop(elite: boolean): Loot {
+    // Her share leans toward whoever is fighting.
+    const share = this.player.hero === 'tirzah' ? 0.55 : 0.3;
+    return Math.random() < share ? archerDrop(this.save, chapterOf(this.room.id), elite ? 'elite' : 'foe') : rollGear(elite ? 2 : 0);
+  }
+  bossSpoils(key = this.room.id) {
+    // Once a boss, like its other rewards.
+    const flag = `tz_spoils_${key}`;
+    if (this.save.flags[flag]) return;
+    this.save.flags[flag] = true;
+    this.collect(archerDrop(this.save, chapterOf(this.room.id), 'boss'));
+    // Two of her keepsakes are won, once, from particular foes.
+    const keep = key && ARCHER_KEEPSAKES[key];
+    if (keep && !this.save.inventory.some((i) => i.id === keep)) this.collect({ item: keep });
+  }
+
   onFoeDied(xp: number, silver: number, x: number, y: number, eliteId?: string) {
     if (eliteId) this.objective(eliteId);
     this.save.kills++;
@@ -931,18 +988,25 @@ export class World extends Phaser.Scene implements WorldApi {
   giveXp(xp: number, x = this.player.x, y = this.player.y) {
     const s = this.save;
     const lvBefore = s.level;
-    // Story XP catches a player up to the chapter's arrival level; the Trial pays by its own rules.
-    if (this.room.id !== 'trial_arena') xp = Math.round(xp * catchUpXp(s.level, chapterOf(this.room.id)));
+    // The hero fighting earns it all; the one waiting earns half. Story XP catches each up to the chapter's
+    // arrival level by their own level; the Trial pays by its own rules.
+    const her = this.player.hero === 'tirzah', catchUp = (lv: number) => this.room.id !== 'trial_arena' ? catchUpXp(lv, chapterOf(this.room.id)) : 1;
+    const hisXp = Math.round(xp * catchUp(s.level) * (her ? 0.5 : 1)), herXp = Math.round(xp * catchUp(archerLevel(s)) * (her ? 1 : 0.5));
+    this.archerXp(herXp);
+    xp = hisXp;
     const levels = gainXp(s, xp);
-    fx.number(this.player.x, this.player.y - 56, `+${xp} XP`, false, '#cfe6ff');
+    fx.number(this.player.x, this.player.y - 56, `+${her ? herXp : xp} XP`, false, '#cfe6ff');
     if (levels > 0) {
       const slotsBefore = G.d.echoSlots;
       this.refreshStats();
-      s.hp = G.d.maxHp;
       this.classic.playerView.styleKey = '';
-      G.ui.levelUp(levels);
-      islandNotify(`LEVEL ${s.level}`, '#f6dea0', 'stats', 2.8);
-      islandRipple('#ffd27a');
+      if (her) this.toast(`Elior reached level ${s.level} · his points wait in Menu → Elior`);
+      else {
+        s.hp = G.d.maxHp;
+        G.ui.levelUp(levels);
+        islandNotify(`LEVEL ${s.level}`, '#f6dea0', 'stats', 2.8);
+        islandRipple('#ffd27a');
+      }
       for (const ec of this.classic.echoes) ec.refreshStats();
       // New finishers and power tiers announce themselves.
       const fins = FINISHERS.filter((f) => f.level > lvBefore && f.level <= s.level && f.level > 1);

@@ -7,6 +7,7 @@
 
 import { newGame, migrateSave, derive, gainXp as stateGainXp, absorbEcho, type SaveData, type Derived } from '../../../remnant/src/game/state';
 import { ROOMS } from '../shared';
+import { settleArcher } from './archer';
 
 export type ArrowType = 'standard' | 'fire' | 'frost' | 'storm' | 'holy';
 /** Phaser-only fields, all optional: the fighter in play, Elior's style, and Tirzah's loadout (her three ability slots,
@@ -51,6 +52,7 @@ function settle(d: SaveData): SaveData {
   d.choices ??= {};
   d.equippedSkills ??= [null, null, null];
   migrateSave(d);
+  settleArcher(d);
   const kit=d as PhaserSave;
   if(kit.playableHero!==undefined&&kit.playableHero!=='tirzah'&&kit.playableHero!=='elior')delete kit.playableHero;
   if(kit.combatStyle!==undefined&&!['vanguard','wraith','sentinel'].includes(kit.combatStyle))delete kit.combatStyle;
