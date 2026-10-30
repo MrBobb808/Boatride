@@ -17,6 +17,8 @@ interface Fire { x: number; y: number; t: number; r: number; dmg: number; img: P
 export class Arsenal {
   /** Weapon levels: 1 when gained, up to 6 (five upgrades). */
   readonly lv = new Map<WeaponId, number>();
+  /** Weapons evolved (defs.ts EVOLUTIONS). */
+  readonly evolved = new Set<WeaponId>();
   private t = new Map<WeaponId, number>();
   private anims: Anim[] = [];
   private missiles: Missile[] = [];
@@ -107,7 +109,8 @@ export class Arsenal {
       if (!f) { this.t.set(id, 0.05); return; }
       set(0.9);
       // Every fourth cut (third from the fifth upgrade, every other in the Mantle) is a Phantom chain instead.
-      if (++this.swings >= (h.hero.form ? 2 : lv >= 5 ? 3 : 4) && this.phantom(lv)) { this.swings = 0; return; }
+      const evo = this.evolved.has('blade');
+      if (++this.swings >= (h.hero.form || evo ? 2 : lv >= 5 ? 3 : 4) && this.phantom(lv)) { this.swings = 0; return; }
       const a = Math.atan2(f.y - 10 - y, f.x - x);
       this.bladeFlip = -this.bladeFlip;
       h.hero.look(f.x - x);
@@ -120,9 +123,11 @@ export class Arsenal {
       });
       cut(a, 0.06);
       if (lv >= 5) cut(a + Math.PI, 0.2);
-      if (lv >= 6) this.later(0.1, () => this.launch('crescent', h.hero.x, h.hero.y - 12, Math.cos(a), Math.sin(a), 260, dmg * 0.8, 99, 0.7));
+      if (lv >= 6) this.later(0.1, () => this.launch('crescent', h.hero.x, h.hero.y - 12, Math.cos(a), Math.sin(a), 260, dmg * (evo ? 1.4 : 0.8), 99, 0.7, false, evo ? 1.5 : 1));
+      // The Sword of the Spirit: every cut also sends a wave of light the other way.
+      if (evo) this.later(0.16, () => this.launch('crescent', h.hero.x, h.hero.y - 12, -Math.cos(a), -Math.sin(a), 260, dmg * 1.2, 99, 0.7, false, 1.3));
     } else if (id === 'bow') {
-      const n = 1 + (lv >= 2 ? 1 : 0) + (lv >= 5 ? 1 : 0) + h.plenty + (h.hero.form ? 2 : 0);
+      const evo = this.evolved.has('bow'), n = 1 + (lv >= 2 ? 1 : 0) + (lv >= 5 ? 1 : 0) + h.plenty + (h.hero.form ? 2 : 0) + (evo ? 2 : 0);
       const targets: Foe[] = [];
       h.swarm.near(x, y, 320, (f) => { targets.push(f); return targets.length >= 24; });
       if (!targets.length) { this.t.set(id, 0.05); return; }
@@ -130,7 +135,7 @@ export class Arsenal {
       targets.sort((a, b) => (a.x - x) ** 2 + (a.y - y) ** 2 - ((b.x - x) ** 2 + (b.y - y) ** 2));
       h.hero.look(targets[0].x - x);
       h.hero.play('bowRelease', 0.26);
-      const dmg = 9 * (lv >= 4 ? 1.25 : 1), pierce = 1 + (lv >= 3 ? 1 : 0) + (h.hero.form ? 2 : 0);
+      const dmg = 9 * (lv >= 4 ? 1.25 : 1), pierce = evo ? 99 : 1 + (lv >= 3 ? 1 : 0) + (h.hero.form ? 2 : 0);
       for (let i = 0; i < n; i++) {
         const f = targets[i % targets.length];
         let a = Math.atan2(f.y - 12 - y, f.x - x);
@@ -139,38 +144,43 @@ export class Arsenal {
       }
       h.sfx('bowRelease', 0.4);
     } else if (id === 'flame') {
-      const crown = h.hero.form, n = 1 + (lv >= 2 ? 1 : 0) + (lv >= 5 ? 1 : 0) + h.plenty + (crown ? 2 : 0);
+      const crown = h.hero.form, evo = this.evolved.has('flame'), n = 1 + (lv >= 2 ? 1 : 0) + (lv >= 5 ? 1 : 0) + h.plenty + (crown ? 2 : 0) + (evo ? 1 : 0);
       const targets = this.targets(300, n);
       if (!targets.length) { this.t.set(id, 0.05); return; }
       set(1.0);
       h.hero.look(targets[0].x - x);
       h.hero.play('cast', 0.3);
-      const dmg = 14 * (lv >= 3 ? 1.25 : 1), blast = 26 * area * (lv >= 4 ? 1.3 : 1) * (crown ? 1.6 : 1);
+      const dmg = 14 * (lv >= 3 ? 1.25 : 1), blast = 26 * area * (lv >= 4 ? 1.3 : 1) * (crown ? 1.6 : 1) * (evo ? 1.3 : 1);
       for (let i = 0; i < n; i++) {
         const t = targets[i % targets.length], a = Math.atan2(t.y - 12 - y, t.x - x) + (i >= targets.length ? (i % 2 ? 0.25 : -0.25) : 0);
-        this.later(i * 0.06, () => this.launch('fireball', h.hero.x + h.hero.face * 6, h.hero.y - 18, Math.cos(a), Math.sin(a), crown ? 300 : 260, dmg, 0, 0.95, lv >= 6, crown ? 1.6 : 1, blast));
+        this.later(i * 0.06, () => this.launch('fireball', h.hero.x + h.hero.face * 6, h.hero.y - 18, Math.cos(a), Math.sin(a), crown ? 300 : 260, dmg, 0, 0.95, lv >= 6 || evo, crown ? 1.6 : 1, blast));
       }
       h.sfx('fireball', 0.35);
     } else if (id === 'pillar') {
-      set(lv >= 6 ? 1.3 : 2.6);
-      const n = 1 + (lv >= 2 ? 1 : 0) + (lv >= 5 ? 1 : 0), r = 30 * area * (lv >= 3 ? 1.3 : 1), dmg = 24 * (lv >= 4 ? 1.3 : 1);
+      const evo = this.evolved.has('pillar');
+      set(evo ? 1 : lv >= 6 ? 1.3 : 2.6);
+      const n = evo ? 4 : 1 + (lv >= 2 ? 1 : 0) + (lv >= 5 ? 1 : 0), r = 30 * area * (lv >= 3 ? 1.3 : 1), dmg = 24 * (lv >= 4 ? 1.3 : 1);
       for (let i = 0; i < n; i++) {
         const p = this.target(230);
         if (!p) break;
         this.strike(p.x, p.y, r, dmg, 'holy');
       }
     } else if (id === 'lion') {
-      set(lv >= 4 ? 3.8 : 5);
+      const evo = this.evolved.has('lion');
+      set((lv >= 4 ? 3.8 : 5) * (evo ? 0.5 : 1));
+      // The Pride of the Lion heals with each roar.
+      if (evo) h.heal(0.03);
       const r = 72 * area * (lv >= 2 ? 1.2 : 1), dmg = 18 * (lv >= 3 ? 1.3 : 1) * (lv >= 6 ? 1.4 : 1);
       this.anim('vfx-abilities-1', 24, 8, x, y + 8, 0.6, r / 44, { originY: 0.75, follow: true });
       this.burst(x, y, r, dmg, 300);
       if (lv >= 5) { const fire = this.fires.find((f) => f.t < 0); if (fire) { fire.x = x; fire.y = h.hero.y; fire.t = 0; fire.r = r * 0.7; fire.dmg = dmg * 0.25; } }
       h.sfx('lion', 0.6); h.shake(0.004, 120);
     } else if (id === 'chains') {
-      set(2.2);
-      const links = 3 + (lv >= 2 ? 2 : 0) + (lv >= 4 ? 2 : 0), dmg = 11 * (lv >= 3 ? 1.25 : 1);
+      const evo = this.evolved.has('chains');
+      set(evo ? 1.1 : 2.2);
+      const links = evo ? 9 : 3 + (lv >= 2 ? 2 : 0) + (lv >= 4 ? 2 : 0), dmg = 11 * (lv >= 3 ? 1.25 : 1);
       this.chainG.clear().lineStyle(2, 0xffd27a, 1);
-      for (let c = 0; c < (lv >= 6 ? 2 : 1); c++) {
+      for (let c = 0; c < (lv >= 6 || evo ? 2 : 1); c++) {
         let px = x, py = y, f = h.swarm.nearest(x, y, 180, (o) => c > 0 && o.hitBy[SLOT.storm] > h.time.now / 1000);
         let left = links;
         while (f && left-- > 0) {
@@ -179,7 +189,7 @@ export class Arsenal {
           this.chainG.lineBetween(px, py, hit.x, hit.y - 12);
           this.anim('vfx-abilities-2', 0, 8, hit.x, hit.y - 12, 0.3, 0.2);
           h.damage(hit, dmg, 0, 0, 40);
-          if (lv >= 5 && hit.alive) { hit.slowT = 1.5; hit.slowK = 0.6; }
+          if ((lv >= 5 || evo) && hit.alive) { hit.slowT = 1.5; hit.slowK = evo ? 0.2 : 0.6; }
           px = hit.x; py = hit.y - 12;
           f = h.swarm.nearest(px, py, 95, (o) => o.hitBy[SLOT.storm] > h.time.now / 1000);
         }
@@ -190,19 +200,21 @@ export class Arsenal {
       h.sfx('chains', 0.4);
     } else if (id === 'crescent') {
       set(2.4);
-      const n = 1 + (lv >= 2 ? 1 : 0) + (lv >= 5 ? 1 : 0) + h.plenty, dmg = 12 * (lv >= 3 ? 1.25 : 1) * (lv >= 6 ? 1.3 : 1);
+      const evo = this.evolved.has('crescent'), n = 1 + (lv >= 2 ? 1 : 0) + (lv >= 5 ? 1 : 0) + h.plenty + (evo ? 2 : 0), dmg = 12 * (lv >= 3 ? 1.25 : 1) * (lv >= 6 ? 1.3 : 1);
       const f = h.swarm.nearest(x, y, 300);
       const a0 = f ? Math.atan2(f.y - y, f.x - x) : (h.hero.face > 0 ? 0 : Math.PI);
       for (let i = 0; i < n; i++) {
         const a = a0 + (i - (n - 1) / 2) * 0.5;
-        this.launch('crescent', x, y, Math.cos(a), Math.sin(a), 230 * (lv >= 6 ? 1.3 : 1), dmg, 999, 1.5, false, (lv >= 4 ? 1.4 : 1) * area);
+        this.launch('crescent', x, y, Math.cos(a), Math.sin(a), 230 * (lv >= 6 ? 1.3 : 1) * (evo ? 1.25 : 1), dmg, 999, 1.5, false, (lv >= 4 ? 1.4 : 1) * (evo ? 1.3 : 1) * area);
       }
       h.sfx('waveWhoosh', 0.35);
     } else if (id === 'frost') {
-      set(lv >= 5 ? 2.6 : 3.5);
-      const r = 62 * area * (lv >= 2 ? 1.25 : 1), dmg = 8 * (lv >= 3 ? 1.3 : 1) * (lv >= 6 ? 1.4 : 1);
-      this.anim('vfx-abilities-2', 40, 8, x, y + 6, 0.55, r / 40, { originY: 0.7, follow: true });
-      h.swarm.near(x, y, r, (f) => { h.damage(f, dmg, 0, 0, 0); if (f.alive) { f.slowT = lv >= 4 ? 1 : 2; f.slowK = lv >= 4 ? 0.05 : 0.5; } });
+      const evo = this.evolved.has('frost');
+      set(evo ? 5 : lv >= 5 ? 2.6 : 3.5);
+      // The Crown of Winter freezes the whole field.
+      const r = (evo ? 280 : 62 * area * (lv >= 2 ? 1.25 : 1)), dmg = 8 * (lv >= 3 ? 1.3 : 1) * (lv >= 6 ? 1.4 : 1);
+      this.anim('vfx-abilities-2', 40, 8, x, y + 6, 0.55, evo ? 2.2 : r / 40, { originY: 0.7, follow: true });
+      h.swarm.near(x, y, r, (f) => { h.damage(f, dmg, 0, 0, 0); if (f.alive) { f.slowT = evo ? 1.5 : lv >= 4 ? 1 : 2; f.slowK = lv >= 4 || evo ? 0.05 : 0.5; } });
       h.sfx('shatter', 0.35);
     }
   }
@@ -290,12 +302,15 @@ export class Arsenal {
 
   private orbsStep(dt: number) {
     const h = this.h, lv = this.level('seraphs');
-    const n = lv ? 2 + (lv >= 2 ? 1 : 0) + (lv >= 4 ? 1 : 0) + (lv >= 6 ? 1 : 0) + h.plenty : 0;
+    // The Halo of Seraphs: eight orbs, the outer four turning the other way, at double strength.
+    const evo = this.evolved.has('seraphs');
+    const n = !lv ? 0 : evo ? 8 : 2 + (lv >= 2 ? 1 : 0) + (lv >= 4 ? 1 : 0) + (lv >= 6 ? 1 : 0) + h.plenty;
     this.orbA += dt * (lv >= 5 ? 3.8 : 2.7);
-    const R = 46 * h.areaMult, dmg = 7 * (lv >= 3 ? 1.25 : 1), now = h.time.now / 1000;
+    const R = 46 * h.areaMult, dmg = 7 * (lv >= 3 ? 1.25 : 1) * (evo ? 2 : 1), now = h.time.now / 1000;
     this.orbs.forEach((o, i) => {
       if (i >= n) { o.setVisible(false); return; }
-      const a = this.orbA + (i / n) * Math.PI * 2, x = h.hero.x + Math.cos(a) * R, y = h.hero.y - 12 + Math.sin(a) * R * 0.8;
+      const outer = evo && i >= 4, k = evo ? 4 : n, ring = outer ? R * 1.55 : R;
+      const a = (outer ? -this.orbA * 0.8 : this.orbA) + ((i % k) / k) * Math.PI * 2, x = h.hero.x + Math.cos(a) * ring, y = h.hero.y - 12 + Math.sin(a) * ring * 0.8;
       o.setVisible(true).setPosition(x, y).setDepth(y + 20).setRotation(a * 2);
       h.swarm.near(x, y + 8, 12, (f) => {
         if (f.hitBy[SLOT.seraphs] > now) return;
@@ -310,14 +325,19 @@ export class Arsenal {
     const h = this.h, lv = this.level('hallowed');
     this.ground.setVisible(lv > 0);
     if (!lv) return;
-    const r = 42 * h.areaMult * (lv >= 2 ? 1.25 : 1) * (lv >= 5 ? 1.25 : 1), dmg = 4 * (lv >= 3 ? 1.3 : 1) * (lv >= 6 ? 1.4 : 1), now = h.time.now / 1000;
-    this.ground.setPosition(h.hero.x, h.hero.y).setScale(r / 32, (r / 32) * 0.8).setDepth(-30000).setAlpha(0.25 + Math.sin(now * 4) * 0.08);
+    const evo = this.evolved.has('hallowed');
+    const r = 42 * h.areaMult * (lv >= 2 ? 1.25 : 1) * (lv >= 5 ? 1.25 : 1) * (evo ? 1.5 : 1), dmg = 4 * (lv >= 3 ? 1.3 : 1) * (lv >= 6 ? 1.4 : 1) * (evo ? 2 : 1), now = h.time.now / 1000;
+    let inside = false;
+    this.ground.setPosition(h.hero.x, h.hero.y).setScale(r / 32, (r / 32) * 0.8).setDepth(-30000).setAlpha(0.25 + Math.sin(now * 4) * 0.08).setTint(evo ? 0xfff1c4 : 0xffd27a);
     h.swarm.near(h.hero.x, h.hero.y, r, (f) => {
       if (lv >= 4) { f.slowT = Math.max(f.slowT, 0.2); f.slowK = Math.min(f.slowK, 0.7); }
+      inside = true;
       if (f.hitBy[SLOT.hallowed] > now) return;
       f.hitBy[SLOT.hallowed] = now + 0.5;
       h.damage(f, dmg, 0, 0, 0);
     });
+    // Holy Ground heals while the horde stands in it.
+    if (evo && inside) h.heal(0.01 * dt);
     h.bossHit(h.hero.x, h.hero.y, r, dmg * dt * 2);
   }
 
@@ -421,9 +441,28 @@ export class Arsenal {
       if (s.f) this.burst(tx, ty - 6, last ? 56 : 38, dmg * (last ? 2.4 : 1.4), last ? 260 : 120);
       else h.bossHit(tx, ty - 30, 60, dmg * (last ? 3 : 1.6), true);
       h.sfx('teleport', 0.25); h.sfx(last ? 'swingHeavy' : 'swing', 0.45);
-      if (last) h.impact(tx, ty - 14, 1.2);
+      if (last) { h.impact(tx, ty - 14, 1.2); h.tagWindow(); }
     }));
     return true;
+  }
+
+  /** A Phantom chain right now, whatever the cut count (a tag combo, the Trinity). False with fewer than two foes. */
+  phantomNow() { return this.phantom(Math.max(3, this.level('blade'))); }
+
+  /**
+   * Elior as an echo (the Trinity, while another hero fights): cuts at the nearest foes one after another, his
+   * afterimage at each, without moving the hero in play.
+   */
+  echoCuts(n: number, dmg: number) {
+    const h = this.h;
+    this.targets(260, n).forEach((f, i) => this.later(0.05 + i * 0.07, () => {
+      const x = f.x, y = f.y;
+      h.hero.ghost(x - 14, y, 0.35, 'elior');
+      this.anim('vfx-slashes', 6, 6, x, y - 14, 0.22, 1.2, { rot: Math.random() * Math.PI * 2, tint: 0xc59bff });
+      this.burst(x, y - 6, 40, dmg, 160);
+      if (i % 2 === 0) h.sfx('swing', 0.35);
+    }));
+    if (h.boss) h.bossHit(h.boss.x, h.boss.y - 30, 1, dmg * 3, true);
   }
 
   /** Elior's Phantom Step (his dash): a blink that cuts everything along the way. */

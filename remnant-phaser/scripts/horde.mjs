@@ -1,7 +1,8 @@
 // The Horde (POLISH_PLAN §13): held upright, the stick walks the hero, the buttons dash, cast, transform and switch
 // (Elior, Tirzah, then Uri with his orc shaman);
-// the weapons strike on their own; a level-up offers three cards; the monarch arrives, falls, and the stage is
-// cleared; sideways, the controls reflow on screen; a fall banks the run into the save; the journey and the title
+// the weapons strike on their own; a level-up offers three cards, and can be rerolled or a card banished; a switch
+// after a big move is a tag combo, three full gauges the Trinity, and a chest evolves a maxed weapon (§13d); the
+// monarch arrives, falls, and the stage is cleared; sideways, the controls reflow on screen; a fall banks the run into the save; the journey and the title
 // both lead in.
 import { chromium } from '@playwright/test';
 import assert from 'node:assert/strict';
@@ -27,7 +28,7 @@ try {
   await mkdir('qa', { recursive: true });
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
   const page = await ctx.newPage();
-  page.on('pageerror', (e) => errors.push(e.message));
+  page.on('pageerror', (e) => { errors.push(e.message); if (process.env.STACKS) console.log(e.stack); });
   await page.goto(base + '?debug&horde');
   await until(page, () => window.__remnant?.horde?.hero?.sprite, null, 60000);
   await page.waitForTimeout(800);
@@ -77,17 +78,39 @@ try {
   assert.ok(after === before + 1 || offer[0] === 'Rest' || offer[0] === 'Silver', 'the chosen upgrade is taken');
   console.log(`Level-up: ${offer.join(' · ')}; tapped "${offer[0]}"`);
 
+  // ---- a level-up can be redrawn, and a choice banished from the run (the offer is drawn again without it)
+  await drain(page);
+  await H(page, (h) => h.collect('gem', h.xpNext - h.xp + 0.5));
+  await until(page, () => document.querySelectorAll('.hz-card').length === 3);
+  await page.locator('[data-k=hz_reroll]').tap();
+  assert.equal(await H(page, (h) => h.rerolls), 2, 'a reroll is spent');
+  await page.locator('[data-k=hz_banish]').tap();
+  assert.ok(await E(page, () => document.querySelectorAll('.hz-card.hz-banish').length > 0), 'Banish marks the cards');
+  await page.screenshot({ path: 'qa/horde-banish.png' });
+  const banished = (await H(page, (h) => h.offer))[0];
+  await page.locator('.hz-card').first().tap();
+  assert.deepEqual(await H(page, (h) => [h.banishes, h.banned.size]), [2, 1], 'a banish is spent and the choice struck');
+  assert.ok(!(await H(page, (h) => h.offer)).includes(banished), 'the banished choice is gone from the new offer');
+  await page.locator('.hz-card').first().tap();
+  console.log(`Rerolled once and banished "${banished}"`);
+
   // ---- the skill, the transformation, the switch (buttons)
   // A button tap clears any level-up card first, or the tap would land on the card.
-  const tap = async (k) => { await drain(page); const s = (await H(page, (h) => h.ui.spots))[k]; await page.touchscreen.tap(s.x, s.y); await page.waitForTimeout(150); };
-  await tap('skill');
+  // A card can still open between the drain and the tap (kills keep coming): then the tap is tried again.
+  const tap = async (k, done) => {
+    for (let i = 0; i < 4; i++) {
+      await drain(page); const s = (await H(page, (h) => h.ui.spots))[k]; await page.touchscreen.tap(s.x, s.y); await page.waitForTimeout(150);
+      if (!done || await H(page, done)) return;
+    }
+  };
+  await tap('skill', (h) => h.cds.skill > 0);
   assert.ok(await H(page, (h) => h.cds.skill > 0), 'STORM casts');
   await H(page, (h) => { h.gauge = 1; });
-  await tap('form');
+  await tap('form', (h) => h.formT > 0);
   assert.ok(await H(page, (h) => h.formT > 0 && h.hero.key.endsWith('-mantle')), 'MANTLE transforms Elior');
   await page.waitForTimeout(500);
   await page.screenshot({ path: 'qa/horde-mantle.png' });
-  await tap('switch');
+  await tap('switch', (h) => h.heroId === 'tirzah');
   assert.equal(await H(page, (h) => [h.heroId, h.formT > 0]).then((v) => v.join()), 'tirzah,false', 'the switch brings Tirzah in (and ends the form)');
   await drain(page);
   // The field may be cleared by now (upright, new foes enter well beyond bow range): one stands close.
@@ -98,19 +121,19 @@ try {
   // ---- Uri: the third press of the switch; his shaman at his side; his prayer; the Crown merges the two
   await drain(page);
   await H(page, (h) => { h.cds.switch = 0; });
-  await tap('switch');
+  await tap('switch', (h) => h.heroId === 'uri');
   assert.deepEqual(await H(page, (h) => [h.heroId, h.shaman.active, h.hero.key]), ['uri', true, 'painted-uri'], 'the switch brings Uri, and his shaman with him');
   await drain(page);
   await H(page, (h) => { h.spawnFoe(h.hero.x + 90, h.hero.y, 'bulwark'); });
   await until(page, () => window.__remnant.horde.arsenal.missiles.some((m) => m.t >= 0 && m.kind === 'fireball'), null, 15000);
   await drain(page);
-  await tap('skill');
+  await tap('skill', (h) => h.cds.skill > 0);
   assert.ok(await H(page, (h) => h.cds.skill > 0), 'FIRE prays down fire from heaven');
   await page.waitForTimeout(600);
   await page.screenshot({ path: 'qa/horde-uri.png' });
   await drain(page);
   await H(page, (h) => { h.gauge = 1; });
-  await tap('form');
+  await tap('form', (h) => h.formT > 0);
   assert.deepEqual(await H(page, (h) => [h.formT > 0, h.hero.key, h.shaman.active]), [true, 'painted-uri-crown', false], 'the Crown of Flame merges Uri and the shaman');
   await page.waitForTimeout(500);
   await page.screenshot({ path: 'qa/horde-crown.png' });
@@ -118,6 +141,23 @@ try {
   await drain(page);
   await until(page, () => window.__remnant.horde.shaman.active && !window.__remnant.horde.hero.form);
   console.log('Uri: his fireballs fly on their own, the shaman stands at his side, FIRE prays fire down, and the Crown of Flame makes the two one until it fades');
+
+  // ---- a switch in the moment after a big move is a tag combo; three full gauges are the Trinity; a chest evolves
+  await drain(page);
+  const tags = await H(page, (h) => h.tags);
+  await H(page, (h) => { h.cds.switch = 0; h.tagWindow(5); });
+  await tap('switch', (h) => h.heroId === 'elior');
+  assert.deepEqual(await H(page, (h) => [h.heroId, h.tags]), ['elior', tags + 1], 'a switch inside the window lands as a tag combo (Elior returns in a Phantom chain)');
+  await drain(page);
+  await H(page, (h) => { h.gauges = { elior: 1, tirzah: 1, uri: 1 }; });
+  await tap('form', (h) => h.trinities > 0);
+  assert.deepEqual(await H(page, (h) => [h.trinities, h.formT > 0, Object.values(h.gauges).every((v) => v < 0.5)]), [1, false, true], 'three full gauges make the form button the Trinity, and it spends them all');
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: 'qa/horde-trinity.png' });
+  await drain(page);
+  await H(page, (h) => { h.arsenal.lv.set('blade', 6); h.passives.might = Math.max(1, h.passives.might); h.collect('chest'); });
+  assert.deepEqual(await H(page, (h) => [h.arsenal.evolved.has('blade'), h.evolutions]), [true, 1], 'a chest evolves the maxed Blade with Might into the Sword of the Spirit');
+  console.log(`Depth: a tag combo on the switch, the Trinity, and the Blade evolved (${tags} earlier tag${tags === 1 ? '' : 's'} from play)`);
 
   // ---- the monarch: it comes at the stage's end, falls, and the stage is cleared
   // The monarch's fight and the stage after it are about the stage's flow, not the hero's health: no blow lands until the fall below.
@@ -127,18 +167,21 @@ try {
   await page.screenshot({ path: 'qa/horde-boss.png' });
   const boss = await H(page, (h) => h.boss.name);
   await H(page, (h) => { h.boss.hp = 1; h.boss.x = h.hero.x + 30; h.boss.y = h.hero.y; });
-  for (let i = 0; i < 40; i++) {
+  // Headless frames are slow, and the gems the fall gathers can bring a run of level-ups first.
+  for (let i = 0; i < 80; i++) {
     if (await E(page, () => !!document.querySelector('[data-k=hz_next]'))) break;
     if (await E(page, () => document.querySelectorAll('.hz-card').length)) await page.locator('.hz-card').first().tap();
     await page.waitForTimeout(400);
   }
+  if (!await E(page, () => !!document.querySelector('[data-k=hz_next]'))) console.log('Boss state:', await H(page, (h) => JSON.stringify({ boss: h.boss && { hp: h.boss.hp, dx: h.boss.x - h.hero.x, dy: h.boss.y - h.hero.y }, cleared: h.cleared, overlay: !!h.overlay, offer: h.offer, pending: h.pendingLevels, dead: h.dead, hero: h.heroId, stageT: h.stageT })));
   assert.ok(await E(page, () => !!document.querySelector('[data-k=hz_next]')), `${boss} falls and the stage is cleared`);
   assert.ok(await H(page, (h) => !h.boss && h.loot.length === 1), 'the monarch leaves gear');
   await page.locator('[data-k=hz_next]').tap();
   await until(page, () => window.__remnant.horde.stage === 2);
   // The gems the monarch's fall gathered may bring level-ups: take them.
   for (let i = 0; i < 20 && await H(page, (h) => !!h.overlay); i++) { await drain(page); await page.waitForTimeout(300); }
-  assert.ok(await H(page, (h) => !h.overlay), `stage 2 plays (${await H(page, (h) => JSON.stringify({ dead: h.dead, cards: document.querySelectorAll('.hz-card').length, keys: [...document.querySelectorAll('[data-horde] [data-k]')].map((b) => b.dataset.k) }))})`);
+  // With the Blade evolved, stage 2's horde can keep a level-up card coming; any other card means the stage is stuck.
+  assert.ok(await H(page, (h) => !h.dead && (!h.overlay || document.querySelectorAll('.hz-card').length === 3)), `stage 2 plays (${await H(page, (h) => JSON.stringify({ dead: h.dead, cards: document.querySelectorAll('.hz-card').length, keys: [...document.querySelectorAll('[data-horde] [data-k]')].map((b) => b.dataset.k) }))})`);
   console.log(`${boss}: arrived when the stage ran out, fell, left gear; onward to stage 2 (${await H(page, (h) => h.biome.name)})`);
 
   // ---- sideways: everything reflows onto the screen

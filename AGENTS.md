@@ -263,7 +263,9 @@ Never ship files from `art/incoming/` directly.
   (`remnant-phaser/src/scenes/Horde.ts`, `src/game/horde/`): auto-weapons, a
   1-of-3 upgrade per level, a Fallen Crown monarch per stage, Elior, Tirzah and
   Uri (the flame-caller, with his orc shaman; Horde only for now) switchable,
-  upright or sideways. A run banks silver, XP and gear into the
+  upright or sideways. Maxed weapons evolve with a partner passive; a switch
+  after a big move is a tag combo, three full gauges the Trinity; level-ups
+  can be rerolled or banished (§13d). A run banks silver, XP and gear into the
   save (`PhaserSave.horde` keeps the best stage). See POLISH_PLAN §13.
 - **iPhone performance:** the game targets 120 Hz.
   - Do not use `shadowBlur`.
