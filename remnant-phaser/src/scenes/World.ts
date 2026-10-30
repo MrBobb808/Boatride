@@ -19,6 +19,7 @@ import { barTiles, barProps } from '../game/pilot';
 import { grantForBoss, syncPsalms, wears, wear, takeOff, slots, used } from '../game/psalms';
 const psalmApi = { wear, takeOff, slots, used };
 import { addPsalmsMenu } from '../game/psalmsMenu';
+import { addHordeMode } from '../game/horde/entry';
 import { rollGear } from '../../../remnant/src/game/loot';
 import type { Loot } from '../../../remnant/src/game/tiles';
 import { catchUpXp } from '../../../remnant/src/game/curve';
@@ -146,6 +147,7 @@ export class World extends Phaser.Scene implements WorldApi {
     const late = syncPsalms(this.save);
     this.refreshStats();
     addTirzahMenu(this); useAbilityTextures(this.textures); addPsalmsMenu(this);
+    addHordeMode(() => this.save, () => this.enterHorde());
     if (late.length) this.time.delayedCall(2500, () => this.toast(`${late.length === 1 ? 'A Psalm' : `${late.length} Psalms`} from bosses you have beaten · Menu → Psalms`));
     this.controls = new Controls(this);
     this.classic = new ClassicLayer(this);
@@ -815,6 +817,13 @@ export class World extends Phaser.Scene implements WorldApi {
   toast(text: string) { this.hud.toast(text); }
 
   /** Save and go back to the title. */
+  /** Leave the journey (saved where it stands) for the Horde. */
+  enterHorde() {
+    this.persist();
+    this.scene.stop('hud');
+    this.scene.start('horde');
+  }
+
   quitToTitle() {
     this.persist();
     this.scene.stop('hud');

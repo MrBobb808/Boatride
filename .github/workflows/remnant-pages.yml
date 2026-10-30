@@ -123,6 +123,7 @@ jobs:
       - run: node scripts/shade.mjs
       - run: node scripts/ch1-pilot.mjs
       - run: node scripts/psalms.mjs
+      - run: node scripts/horde.mjs
       - run: node scripts/bosses.mjs
       - run: node scripts/classic-bosses.mjs
       - run: node scripts/install-audio.mjs

@@ -14,6 +14,10 @@ import transformUrl from '../assets/vfx-transform.png';
 import archerUrl from '../assets/vfx-archer.png';
 import arrowsUrl from '../assets/arrows.png';
 import statusUrl from '../assets/vfx-status.png';
+import foesAshen from '../../../remnant/src/assets/foes-ashen.png';
+import foesShinar from '../../../remnant/src/assets/foes-shinar.png';
+import foesBeasts from '../../../remnant/src/assets/foes-beasts.png';
+import foesVeil from '../../../remnant/src/assets/foes-veil.png';
 
 /** Loads the sprite sheets and makes the generated textures every scene shares. */
 export class Boot extends Phaser.Scene {
@@ -33,6 +37,8 @@ export class Boot extends Phaser.Scene {
     this.load.spritesheet('vfx-archer', archerUrl, { frameWidth: 128, frameHeight: 128 });
     this.load.spritesheet('arrows', arrowsUrl, { frameWidth: 96, frameHeight: 128 });
     this.load.spritesheet('vfx-status', statusUrl, { frameWidth: 128, frameHeight: 128 });
+    // The original's foe sheets as Phaser frames, for the Horde (four keyframes a row, 96 px cells).
+    for (const [key, url] of [['foes-ashen', foesAshen], ['foes-shinar', foesShinar], ['foes-beasts', foesBeasts], ['foes-veil', foesVeil]]) this.load.spritesheet(key, url, { frameWidth: 96, frameHeight: 96 });
     this.load.image('varkhos', varkhosUrl);
     this.load.image('morvane', morvaneUrl);
     this.load.image('azkar', azkarUrl);
@@ -55,6 +61,6 @@ export class Boot extends Phaser.Scene {
     }
     if (resume) { const url = new URL(location.href); url.searchParams.delete('fresh'); url.searchParams.set('autostart', ''); history.replaceState(null, '', url); }
     // The foes' sheets (drawn by the original's render/creatureSprites.ts) are in before the first room.
-    void loadCreatureSprites().then(() => this.scene.start(p.has('autostart') || resume ? 'world' : 'title', { fresh: !resume && p.has('fresh') }));
+    void loadCreatureSprites().then(() => this.scene.start(p.has('horde') ? 'horde' : p.has('autostart') || resume ? 'world' : 'title', { fresh: !resume && p.has('fresh') }));
   }
 }

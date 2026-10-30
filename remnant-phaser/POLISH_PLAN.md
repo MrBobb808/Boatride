@@ -410,6 +410,26 @@ The owner chose this order: phone, death, the pilot, then Psalms.
 - **What they are:** equippable, charm-like Psalms that change how you play. Each costs slots from a limited number.
 - **How they fit:** they sit beside levels and gear, and are found as rewards for exploring.
 
+## 13. The Horde: a top-down mode in endless stages (owner's answers, 30 October 2026)
+
+The owner asked for a horde mode in the survivors genre: seen from above, the horde coming from every side, the
+heroes' weapons striking on their own, an occasional boss, rewards, and stages without end that grow harder. It
+should play held upright, with buttons for the abilities, the transformation and the switch. A third hero, a mage,
+follows it.
+
+- **Run shape:** endless stages. Each is a few minutes of horde, then a monarch; clear it, choose onward or leave,
+  and the next stage is harder. The best stage is kept.
+- **Growth in a run:** each level-up offers one of three upgrades (a new relic weapon, a stronger weapon or a
+  passive); the build resets each run.
+- **Rewards:** what a run earns (silver, XP, the monarchs' gear) goes into the journey's save.
+- **Holding the phone:** built for upright, and sideways works too.
+- **The third hero:** Uri, a human flame-caller whose fire answers prayer (1 Kings 18:38). His summoned ally is a
+  great orc shaman, a cleansed battle-imprint; his transformation merges the two. He comes to the Horde first and
+  joins the story after.
+
+### 13a. The Horde (shipped: `scripts/horde.mjs`)
+The mode is `src/scenes/Horde.ts` with `src/game/horde/`. PORTING.md has the details.
+
 ## 10. Questions for the owner
 
 Answered: the archer stays **Tirzah**, and Wings of the Morning **shares** the Mantle's gauge.

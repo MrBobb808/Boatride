@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { loadSave, liveSlots, importLive, activeSlot, selectSlot } from '../game/save';
+import { loadSave, liveSlots, importLive, activeSlot, selectSlot, type PhaserSave } from '../game/save';
 import { ROOMS } from '../shared';
 import { dpr } from '../game/screen';
 import { music } from '../classic/shim/music';
@@ -14,7 +14,7 @@ export class Title extends Phaser.Scene {
     music.play('title');
     const { width: W, height: H } = this.scale;
     const k = dpr();
-    const save = loadSave(), liveList = liveSlots(), count = (save ? 2 : 1) + liveList.length, ty = count > 3 ? H * 0.15 : H * 0.27;
+    const save = loadSave(), liveList = liveSlots(), count = (save ? 3 : 2) + liveList.length, ty = count > 3 ? H * 0.15 : H * 0.27;
     this.cameras.main.setBackgroundColor('#07060a');
     const glow = this.add.image(W / 2, H * 0.38, 'glow').setTint(0xe2b85a).setScale(10 * k, 4 * k).setAlpha(0.25).setBlendMode(Phaser.BlendModes.ADD);
     this.tweens.add({ targets: glow, alpha: 0.4, yoyo: true, repeat: -1, duration: 2400, ease: 'Sine.inOut' });
@@ -49,6 +49,10 @@ export class Title extends Phaser.Scene {
         if (importLive(slot)) this.scene.start('world', { fresh: false });
       }]);
     }
+    // The Horde: the top-down endless stages (scenes/Horde.ts), on whatever journey is open.
+    const best = (save as PhaserSave | null)?.horde?.best;
+    const hordeAt = opts.length;
+    opts.push([best ? `The Horde · best stage ${best}` : 'The Horde · endless stages', () => this.scene.start('horde')]);
     const step = (count > 4 ? 38 : 44) * k, y0 = Math.min(H * (count > 3 ? 0.48 : 0.62), H - opts.length * step - 12 * k);
     const texts: Phaser.GameObjects.Text[] = [];
     opts.forEach(([label, go], i) => {
@@ -57,7 +61,7 @@ export class Title extends Phaser.Scene {
       t.on('pointerover', () => t.setColor('#ffffff'));
       t.on('pointerout', () => t.setColor(i === 0 ? '#f6dea0' : '#ddd4c6'));
       t.on('pointerup', go);
-      t.setData('k', i === 0 ? 'title_first' : i === 1 ? 'title_second' : `title_live_${i - 2}`);
+      t.setData('k', i === hordeAt ? 'title_horde' : i === 0 ? 'title_first' : i === 1 ? 'title_second' : `title_live_${i - 2}`);
       texts.push(t);
     });
     // The shared input service already consumes Enter/Space before Phaser's keys.
