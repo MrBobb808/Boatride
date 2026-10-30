@@ -106,7 +106,14 @@ try {
   assert.ok(await E(page, () => !!document.querySelector('[data-k=hz_next]')), `${boss} falls and the stage is cleared`);
   assert.ok(await H(page, (h) => !h.boss && h.loot.length === 1), 'the monarch leaves gear');
   await page.locator('[data-k=hz_next]').tap();
-  await until(page, () => window.__remnant.horde.stage === 2 && !window.__remnant.horde.overlay);
+  await until(page, () => window.__remnant.horde.stage === 2);
+  // The gems the monarch's fall gathered may bring level-ups: take them.
+  for (let i = 0; i < 12; i++) {
+    if (!await H(page, (h) => !!h.overlay)) break;
+    if (await E(page, () => document.querySelectorAll('.hz-card').length)) await page.locator('.hz-card').first().tap();
+    await page.waitForTimeout(400);
+  }
+  assert.ok(await H(page, (h) => !h.overlay), 'stage 2 plays');
   console.log(`${boss}: arrived when the stage ran out, fell, left gear; onward to stage 2 (${await H(page, (h) => h.biome.name)})`);
 
   // ---- sideways: everything reflows onto the screen
