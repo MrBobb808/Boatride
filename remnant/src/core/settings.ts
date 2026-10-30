@@ -36,6 +36,10 @@ export interface Settings {
   guide: boolean;
   /** Words under the touch buttons. */
   buttonLabels: boolean;
+  /** Touch buttons appear only when they apply (skills and parry in a fight, Balm when hurt, the Mantle and Super when ready). */
+  smartButtons?: boolean;
+  /** The camera leads in the direction the hero faces. */
+  lookAhead?: boolean;
   /** Game status drawn around the Dynamic Island. */
   island: boolean;
   /** The island's length: auto, the iPhone 18 Pro's smaller island, the iPhone 14-17 Pro's, or a measured length. */
@@ -101,6 +105,8 @@ const DEFAULTS: Settings = {
   haptics: true,
   guide: true,
   buttonLabels: false,
+  smartButtons: true,
+  lookAhead: true,
   island: true,
   islandSize: 'auto',
   islandLen: 96,

@@ -375,6 +375,41 @@ The owner plays on an iPhone with touch. They chose **looks first** over a guara
 ### 11e. Richer animation
 - New frames come from ChatGPT art drops (requests A01–A04). Code-made placeholders ship until they arrive.
 
+## 12. Design review: the next upgrades (owner's answers, 30 October 2026)
+
+A review in the spirit of Hollow Knight and Castlevania found:
+- **The world is a corridor.** 68 of 77 rooms have one or two doors, and the 9 locked doors open by story flags, never by an ability.
+- **Exploring opens paths only in Chapter I** (the temple's seals and cracked walls).
+- **Rooms are flat.** Only 6 are tall.
+- **Death costs nothing.**
+- **Progression is a deep action-RPG.**
+- **On a phone, nine buttons cover about 40% of the right side.**
+
+The owner chose this order: phone, death, the pilot, then Psalms.
+
+### 12a. Phone controls and camera (shipped: `scripts/phone-controls.mjs`)
+- **Smart buttons** (Settings → Touch controls, on by default):
+  - strike, jump and dodge always show;
+  - parry, the skills, Switch and Sub show in a fight and for 3 s after;
+  - Balm shows when hurt;
+  - the Mantle and Super show when ready.
+
+  Buttons fade in place, so nothing moves under a thumb, and turn see-through while a foe or the hero stands behind them.
+- **Camera look-ahead** (Settings → Display, on by default): the camera leads the way the hero faces, by up to 72 world px, once he has kept to it for 0.22 s. A boss's framing and story shots take over.
+- **Zoom:** the normal camera distance is 10% closer on a phone.
+
+### 12b. Death with stakes
+- **The shade:** falling drops your silver as a shade where you fell. Strike it to win the silver back. Shades stack: a second death leaves a second shade.
+- **Respawn:** at the last shrine you rested at, not the doorway.
+
+### 12c. The metroidvania pilot: Chapter I
+- **An interconnected map:** the village and the temple loop back on themselves, with shortcuts that open from one side.
+- **Locks:** high ledges need the Eagle Plume's double jump, and wide gaps need the air dash. The plume should come early enough to send the player back.
+
+### 12d. Psalms
+- **What they are:** equippable, charm-like Psalms that change how you play. Each costs slots from a limited number.
+- **How they fit:** they sit beside levels and gear, and are found as rewards for exploring.
+
 ## 10. Questions for the owner
 
 Answered: the archer stays **Tirzah**, and Wings of the Morning **shares** the Mantle's gauge.
