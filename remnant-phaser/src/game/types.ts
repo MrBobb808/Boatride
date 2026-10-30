@@ -80,6 +80,8 @@ export interface WorldApi {
   finale(x: number, y: number, power?: number): void;
   /** Once a room the AI partner pulls the player back up; true if it did. */
   partnerRevive?(): boolean;
+  /** A short-lived light (POLISH_PLAN §11b). */
+  flashLight?(x: number, y: number, r: number, c: string, d?: number): void;
   shake(intensity: number, ms: number): void;
   /** Slow the fight (foes, projectiles, effects) but not the hero, for `sec` seconds. */
   slowTime(sec: number, scale: number): void;

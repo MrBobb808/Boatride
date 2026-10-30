@@ -356,7 +356,7 @@ The owner plays on an iPhone with touch. They chose **looks first** over a guara
   - **banter** in a **playful rivalry** (kills, style ranks);
   - **own XP and gear:** the partner keeps its own level and gear, and earns the waiting hero's half XP as now.
 
-### 11b. Lighting (Phaser 4 lights), dramatic
+### 11b. Lighting, dramatic (shipped: `scripts/lighting.mjs`; normal maps wait on L01)
 - Caves, temples and night rooms go properly dark.
 - Light comes from torches, lamps, the heroes' weapons, arrows in flight, spells, the Wings and the Mantle.
 - Code-made normal maps stand in until art arrives (requests L01–L03).

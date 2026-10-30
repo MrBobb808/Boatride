@@ -253,6 +253,21 @@ Verified by `scripts/tirzah-progression.mjs`.
 
 Verified by `scripts/tirzah-dagger.mjs`.
 
+## Dramatic lighting
+
+POLISH_PLAN §11b; the owner chose dramatic.
+
+- **Settings → Lighting** (shared `settings.lighting`: dramatic by default, balanced, subtle) changes how dark a dim room goes, through `lightingLevel` in the shared `render/lighting.ts`. Dramatic deepens rooms that are already dim (×1.45 + 0.06, at most 0.92). Daylight (darkness under 0.15) is left alone.
+- **More lights, gathered each frame** (`World.gatherLights`, called by the classic layer after the room's lights and Elior's own):
+  - Tirzah's own light;
+  - the Mantle (violet) and the Wings (gold), wide;
+  - every arrow in flight, in its element's colour;
+  - the partner and the Echoes;
+  - a faint dull glow on every foe, so threats stay readable in the dark;
+  - short flashes (`World.flashLight`) on crits and heavy blows, ability casts and finishers.
+
+Verified by `scripts/lighting.mjs`, which reads the darkness layer's pixels.
+
 ## The AI partner hero
 
 The hero you are not playing can fight beside you (`src/game/partner.ts`, POLISH_PLAN §11a).

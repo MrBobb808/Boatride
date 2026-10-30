@@ -236,6 +236,9 @@ Never ship files from `art/incoming/` directly.
   - Never break `SaveData` compatibility.
   - Add new fields as optional and fill them in `migrateSave` (`game/state.ts`)
     or `migrate` (`game/save.ts`).
+- **Lighting:** Settings → Lighting (`settings.lighting`, dramatic by
+  default) scales a dim room's darkness in `render/lighting.ts`
+  (`lightingLevel`); daylight is untouched.
 - **iPhone performance:** the game targets 120 Hz.
   - Do not use `shadowBlur`.
   - Cache gradients and avoid allocating in per-frame paths.

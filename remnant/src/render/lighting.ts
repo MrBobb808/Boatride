@@ -3,6 +3,13 @@
 
 import { makeCanvas, glowSprite, glow, parseColor, type Ctx } from './draw';
 import type { Camera, Renderer } from './renderer';
+import { settings } from '../core/settings';
+
+/** Settings → Lighting: dramatic deepens a room that is already dim, subtle lifts it; daylight is left alone. */
+export function lightingLevel(darkness: number) {
+  if (darkness < 0.15) return darkness;
+  return settings.lighting === 'dramatic' ? Math.min(0.92, darkness * 1.45 + 0.06) : settings.lighting === 'subtle' ? darkness * 0.6 : darkness;
+}
 
 export interface Light {
   x: number;
@@ -42,6 +49,7 @@ export class Lighting {
   }
 
   render(ctx: Ctx, cam: Camera, r: Renderer, darkness: number, tint: string) {
+    darkness = lightingLevel(darkness);
     if (darkness <= 0.01) return;
     // Auto quality's second rung renders the darkness coarser before any resolution drop.
     const div = (r.pixel ? 2 : r.tier === 0 ? 6 : 4) * (r.effects >= 2 ? 1.5 : 1);

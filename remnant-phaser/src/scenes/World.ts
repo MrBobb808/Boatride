@@ -47,6 +47,7 @@ import { syncArcher, ARCHER, ARCHER_IDS, type SkillId } from '../game/abilities'
 import { archerStats, archerLevel, archerGainXp, archerDrop, learnArcher, allocateArcher, trank, newArcher, ARCHER_KEEPSAKES } from '../game/archer';
 import { addTirzahMenu, useAbilityTextures } from '../game/tirzahMenu';
 import { Partner } from '../game/partner';
+import { lighting } from '../classic/shim/lighting';
 import { audio, sfx } from '../classic/shim/audio';
 import { music } from '../classic/shim/music';
 import { songs } from '../../../remnant/src/audio/songs';
@@ -702,7 +703,29 @@ export class World extends Phaser.Scene implements WorldApi {
     this.classic.add(new Proj('lightwave', p.x + p.face * 14, p.feet - 14, 'player', p.skillPower() * 0.8, { vx: p.face * 380, life: 0.55, w: 18, h: 30, poise: 10 }));
   }
   playEffect(name: string, o: { x?: number; vol?: number; pitch?: number } = {}) { sfx(name, { pan: o.x === undefined ? 0 : this.classic.pan(o.x), vol: o.vol, pitch: o.pitch }); }
-  heroHit(f: FoeLike, damage: number, heavy: boolean, crit = false) { const e = this.classic.entityFor(f); if (e) this.classic.hero?.onHit(e, damage, heavy, crit); this.visuals.impact(f.x, f.box.centerY, heavy, crit); }
+  heroHit(f: FoeLike, damage: number, heavy: boolean, crit = false) { const e = this.classic.entityFor(f); if (e) this.classic.hero?.onHit(e, damage, heavy, crit); this.visuals.impact(f.x, f.box.centerY, heavy, crit); if (crit || heavy) this.flashLight(f.x, f.box.centerY, crit ? 120 : 80, '#ffe6a8', 0.2); }
+
+  // ---------------------------------------------------------------- light (POLISH_PLAN §11b)
+
+  /** Short-lived lights: a crit, a cast, a finisher. Pooled; each fades over its time. */
+  private flashes = Array.from({ length: 12 }, () => ({ x: 0, y: 0, r: 0, c: '', t: 0, d: 1 }));
+  flashLight(x: number, y: number, r: number, c: string, d = 0.25) {
+    const f = this.flashes.find((o) => o.t <= 0) ?? this.flashes.reduce((a, o) => (o.t < a.t ? o : a));
+    f.x = x; f.y = y; f.r = r; f.c = c; f.t = d; f.d = d;
+  }
+  /** Lights beyond the room's own and Elior's (classic layer): each hero's colour, the forms, arrows in flight, the
+   * partner and the Echoes, and the flashes. Called once a frame between lighting.begin and render. */
+  gatherLights(dt: number) {
+    const p = this.player, her = p.hero === 'tirzah';
+    if (her) lighting.add(p.x, p.feet - 22, 100, '#c8f0e4', 0.75, 0.15);
+    if (p.mantleT > 0) lighting.add(p.x, p.feet - 30, 180, her ? '#ffe6a8' : '#b98cff', 0.95, 0.7);
+    const el = p.bow.element(), arrow = el === 'fire' ? '#ff9a4a' : el === 'frost' ? '#9fd8ff' : el === 'storm' ? '#c9b8ff' : el === 'holy' ? '#fff1c4' : '#ffe6a8';
+    for (const a of p.bow.arrows) if (a.life > 0) lighting.add(a.x, a.y, a.perfect || a.dawn || a.scale ? 72 : 44, a.dawn ? '#fff6dc' : a.perfect ? '#ffd27a' : arrow, 0.8, 0.5);
+    for (const e of this.classic.squad.echoes) if (!e.remove && e.despawn <= 0) lighting.add(e.x, e.y - 24, e === this.partner?.unit ? 90 : 56, e === this.partner?.unit ? (her ? '#ffd9a0' : '#c8f0e4') : '#ffe6a8', 0.6, 0.15);
+    // Foes keep a faint, dull glow: dark rooms stay dramatic but every threat can still be read.
+    for (const e of this.classic.ents) if (e.isFoe && !e.dying && !e.remove) lighting.add(e.x, e.y - e.body.h / 2, Math.max(34, e.body.w * 0.9), '#c86a5a', e.isBoss ? 0.55 : 0.4, 0);
+    for (const f of this.flashes) if (f.t > 0) { f.t -= dt; if (f.t > 0) lighting.add(f.x, f.y, f.r, f.c, 0.95 * (f.t / f.d), 0.9); }
+  }
   strikeLamps(box: { x: number; y: number; w: number; h: number }) { strikeLamps(box); }
   banner(title: string, sub: string) { this.hud.banner(title, sub); }
   toast(text: string) { this.hud.toast(text); }
@@ -920,6 +943,7 @@ export class World extends Phaser.Scene implements WorldApi {
    * and a push in on the blow. Ordinary hits stay steady (shake() below).
    */
   finale(x: number, y: number, power = 1) {
+    this.flashLight(x, y, 200, '#fff1c4', 0.5);
     if (this.time.now < this.nextFinaleAt) return;
     this.nextFinaleAt = this.time.now + 700;
     const amount = 0.005 * power * shakeScale();

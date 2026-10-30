@@ -454,6 +454,7 @@ export class Player {
     s.ce -= cost;
     this.cds[id] = def.cd;
     this.castId = id;
+    this.w.flashLight?.(this.x, this.feet - 30, 160, '#' + SKILLS[id].color.toString(16).padStart(6, '0'), 0.45);
     this.state = 'cast';
     this.st = 0;
     this.slash.setVisible(false);

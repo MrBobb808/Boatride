@@ -17,6 +17,8 @@ export interface Settings {
   reduceFlashes: boolean;
   /** Foes slain in the Shadow Mantle or the Sovereign form rise as shadow allies for half a minute (off by default). */
   shadowAllies: boolean;
+  /** How dark the dark rooms go: dramatic (the owner's choice) deepens them; the open air stays as it is. */
+  lighting: 'dramatic' | 'balanced' | 'subtle';
   dmgNumbers: boolean;
   zoom: 'close' | 'normal' | 'wide';
   textSize: 'normal' | 'large' | 'xl';
@@ -88,6 +90,7 @@ const DEFAULTS: Settings = {
   shake: 'full',
   reduceFlashes: false,
   shadowAllies: false,
+  lighting: 'dramatic',
   dmgNumbers: true,
   zoom: 'normal',
   textSize: 'normal',
