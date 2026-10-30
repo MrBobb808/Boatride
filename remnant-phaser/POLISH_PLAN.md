@@ -367,7 +367,7 @@ The owner plays on an iPhone with touch. They chose **looks first** over a guara
 - Fog layers: the Valley of Bones, the Hunt and the Pestilence marsh.
 - Motes falling through light beams: temples and the Rest.
 
-### 11d. Screen effects (Phaser 4 filters)
+### 11d. Screen effects (Phaser 4 filters; shipped: `src/game/screenFx.ts`, `scripts/screen-fx.mjs`)
 - Bloom and glow on light, fire, the Wings and the Mantle.
 - Place effects: foundry heat shimmer, an underwater ripple, a cold tint in the snow.
 - Cinematic boss intros: film grain, letterbox and a per-chapter colour grade.

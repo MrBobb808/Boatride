@@ -9,6 +9,7 @@ import { blockingUI } from '../../../remnant/src/ui/ui';
 import { topLayer } from '../../../remnant/src/ui/dom';
 import { BossCamera } from './bossCamera';
 import { Atmosphere } from './atmosphere';
+import { ScreenFx } from './screenFx';
 import type { World } from '../scenes/World';
 import type { SkillId } from './abilities';
 
@@ -41,6 +42,7 @@ let nextId = 0;
 export class Visuals {
   readonly bossCamera: BossCamera;
   readonly atmosphere: Atmosphere;
+  readonly screen: ScreenFx;
   readonly gpu: boolean;
   readonly budget = new FrameBudget();
   element: Element | null = null;
@@ -100,6 +102,7 @@ export class Visuals {
       this.displacement = w.cameras.main.filters.internal.addDisplacement(this.key, 0, 0);
       this.displacement.active = false;
     }
+    this.screen = new ScreenFx(w, this.gpu);
     w.events.on(Phaser.Scenes.Events.POST_UPDATE, this.update, this);
     w.scale.on('resize', this.resized, this);
   }
@@ -155,6 +158,7 @@ export class Visuals {
       this.heroGlow.active = this.bladeGlow.active = false;
     }
     this.applyQuality();
+    this.screen.room(this.w.room.biome);
   }
 
   private applyQuality() {
@@ -280,6 +284,7 @@ export class Visuals {
     const v = w.cameras.main.worldView;
     for (const e of this.weather) e.setPosition(v.centerX, v.y);
     this.atmosphere.step(dt, v);
+    this.screen.step(dt, v, this.tier, { letterbox: w.hud.letterbox ?? 0, intro: this.bossCamera.mode === 'intro', submerged: !!p.water?.submerged, form: !p.dead && (p.mantleT > 0 || p.state === 'transform') });
     this.element = weaponElement();
     const mantle = !p.dead && (p.mantleT > 0 || p.state === 'transform');
     // Tirzah's Wings of the Morning share the Mantle's timer but are dawn light: no smoke, no crown.
@@ -346,6 +351,7 @@ export class Visuals {
     this.w.scale.off('resize', this.resized, this);
     for (const e of this.weather) e.destroy(); this.weather.length = 0;
     this.atmosphere.destroy();
+    this.screen.destroy();
     // Phaser may already have disposed the camera before this shutdown hook.
     const cam = this.w.cameras.main;
     if (this.displacement && cam) cam.filters.internal.remove(this.displacement);

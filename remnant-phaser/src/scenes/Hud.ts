@@ -415,6 +415,8 @@ export class Hud extends Phaser.Scene {
 
   /** The letterbox bars of a boss's entrance. */
   cinematicBars(on: boolean) { this.barsOn = on; }
+  /** How far the letterbox has closed in (0–1); the screen effects grade and grain with it. */
+  get letterbox() { return this.barsAmt; }
 
   private drawBars() {
     this.barsAmt = Phaser.Math.Clamp(this.barsAmt + (this.barsOn ? 0.08 : -0.08), 0, 1);

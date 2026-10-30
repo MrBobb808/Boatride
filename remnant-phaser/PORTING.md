@@ -280,6 +280,17 @@ POLISH_PLAN §11c. `src/game/atmosphere.ts` adds each place's mood on top of the
 
 The textures (`atmo-fog`, `atmo-beam`, `atmo-flake`) are baked once. Low quality keeps fewer particles and no front fog or motes. Verified by `scripts/atmosphere.mjs`.
 
+## Screen effects
+
+POLISH_PLAN §11d. `src/game/screenFx.ts` puts Phaser 4 filters on the main camera (external list, after the heat and water displacement); `Visuals` owns and steps it.
+
+- **Bloom** (`Phaser.Actions.AddEffectBloom`), at the top quality tier only. It grows while the Mantle or the Wings are on, and swells briefly on lightning and on big flashes (`World.flashLight` with a radius of 160 or more).
+- **A colour grade per place** (`GRADES`, by biome, set once as the room loads). The grades are gentle: the cold of the Hunt's snow, the heat of the furnace and Cinders, the teal of the storm coast, the pale bone of the valley, and so on.
+- **Underwater**, a blue-green cast and a closer vignette ease in while the hero is submerged. The existing water and heat displacement still ripple and shimmer.
+- **Cinematic moments:** while the letterbox is in (`Hud.letterbox`: a boss's entrance, a Super) or a boss intro holds the camera, the effects add a harder grade, a deeper vignette and film grain (a baked noise tile at depth 19.6), easing back out after.
+
+Reduce flashes softens the bloom and the grain. Without WebGL only the grain remains. Verified by `scripts/screen-fx.mjs`.
+
 ## The AI partner hero
 
 The hero you are not playing can fight beside you (`src/game/partner.ts`, POLISH_PLAN §11a).

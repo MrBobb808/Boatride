@@ -242,6 +242,8 @@ Never ship files from `art/incoming/` directly.
 - **Weather (Phaser build):** `remnant-phaser/src/game/atmosphere.ts` adds
   storms with lightning, fog, ash and ember gusts, and light shafts with motes
   by biome over the original's particle weather. Presentation only; see PORTING.md.
+  `screenFx.ts` adds bloom, a colour grade per place, an underwater cast and
+  cinematic grain under the letterbox (camera filters, WebGL only).
 - **iPhone performance:** the game targets 120 Hz.
   - Do not use `shadowBlur`.
   - Cache gradients and avoid allocating in per-frame paths.

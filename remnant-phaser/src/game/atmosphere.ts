@@ -244,6 +244,7 @@ export class Atmosphere {
     const dir = Math.random() < 0.5 ? -1 : 1;
     for (let i = 0; i < 5; i++) { this.branch[this.branchN++] = bx; this.branch[this.branchN++] = by; bx += dir * (0.02 + Math.random() * 0.03); by += 0.03; }
     this.thunderIn = 0.15 + Math.random() * 0.8;
+    this.w.visuals.screen.swell(0.45);
     this.thunderPan = (this.bolt[0] - 0.5) * 1.2;
   }
 

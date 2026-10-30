@@ -712,6 +712,7 @@ export class World extends Phaser.Scene implements WorldApi {
   flashLight(x: number, y: number, r: number, c: string, d = 0.25) {
     const f = this.flashes.find((o) => o.t <= 0) ?? this.flashes.reduce((a, o) => (o.t < a.t ? o : a));
     f.x = x; f.y = y; f.r = r; f.c = c; f.t = d; f.d = d;
+    if (r >= 160) this.visuals.screen.swell(0.3);
   }
   /** Lights beyond the room's own and Elior's (classic layer): each hero's colour, the forms, arrows in flight, the
    * partner and the Echoes, and the flashes. Called once a frame between lighting.begin and render. */
