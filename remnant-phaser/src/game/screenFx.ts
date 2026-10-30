@@ -1,7 +1,8 @@
 // Screen effects (POLISH_PLAN §11d), Phaser 4 camera filters, presentation only: bloom on light, fire and the
 // forms; a colour grade for each place (the cold of the snow, the heat of the foundry, the teal of the storm
 // coast); an underwater cast; and, while the letterbox is in (a boss's entrance, a Super), a harder grade, a
-// deeper vignette and film grain. WebGL only, apart from the grain; bloom only at the top quality tier.
+// deeper vignette and film grain. WebGL only, apart from the grain. The grade, the water and the cinema are one
+// colour-matrix pass; bloom (a full-screen blur) runs only in the moments that call for it, at the top tier.
 import Phaser from 'phaser';
 import { settings } from '../classic/shim/settings';
 import type { World } from '../scenes/World';
@@ -36,18 +37,40 @@ const GRADES: Record<string, Grade> = {
 };
 const NONE: Grade = { sat: 0, con: 0, tint: [1, 1, 1] };
 
+/** A 4×5 colour matrix, rows red, green, blue, alpha; offsets in 0–255, as Phaser's ColorMatrix keeps them. */
+type Mat = Float32Array;
+const mat = (r = 1, g = 1, b = 1, o: readonly number[] = [0, 0, 0]): Mat => Float32Array.from([r, 0, 0, 0, o[0], 0, g, 0, 0, o[1], 0, 0, b, 0, o[2], 0, 0, 0, 1, 0]);
+const sat = (v: number): Mat => { const x = 1 + v * 2 / 3, y = (x - 1) * -0.5; return Float32Array.from([x, y, y, 0, 0, y, x, y, 0, 0, y, y, x, 0, 0, 0, 0, 0, 1, 0]); };
+/** Contrast about the middle grey. */
+const con = (c: number): Mat => mat(1 + c, 1 + c, 1 + c, [-128 * c, -128 * c, -128 * c]);
+/** `first`, then `then`. */
+function then(first: Mat, next: Mat): Mat {
+  const m = new Float32Array(20);
+  for (let i = 0; i < 4; i++) {
+    for (let j = 0; j < 4; j++) { let v = 0; for (let k = 0; k < 4; k++) v += next[i * 5 + k] * first[k * 5 + j]; m[i * 5 + j] = v; }
+    let o = next[i * 5 + 4]; for (let k = 0; k < 4; k++) o += next[i * 5 + k] * first[k * 5 + 4]; m[i * 5 + 4] = o;
+  }
+  return m;
+}
+const chain = (...ms: Mat[]) => ms.reduce(then);
+
 export class ScreenFx {
   /** The current amounts, for the debug API and tests. */
   cine = 0;
   under = 0;
+  glow = 0;
   biome = '';
-  private grade?: Phaser.Filters.ColorMatrix;
-  private cinema?: Phaser.Filters.ColorMatrix;
-  private water?: Phaser.Filters.ColorMatrix;
+  private color?: Phaser.Filters.ColorMatrix;
   private vignette?: Phaser.Filters.Vignette;
   private bloom?: { parallelFilters: Phaser.Filters.ParallelFilters; threshold: Phaser.Filters.Threshold; blur: Phaser.Filters.Blur };
   private grain: Phaser.GameObjects.TileSprite;
   private glowT = 0;
+  /** The place's grade alone, under the cinema, and under water; blended into `out` without allocating. */
+  private base: Mat = mat();
+  private cineM: Mat = mat();
+  private waterM: Mat = mat();
+  private out = new Float32Array(20);
+  private shown = [-1, -1];
 
   constructor(private w: World, gpu: boolean) {
     if (!w.textures.exists('fx-grain')) {
@@ -58,23 +81,21 @@ export class ScreenFx {
     this.grain = w.add.tileSprite(0, 0, 8, 8, 'fx-grain').setOrigin(0).setDepth(19.6).setVisible(false);
     if (!gpu) return;
     const f = w.cameras.main.filters.external;
-    this.grade = f.addColorMatrix();
-    this.water = f.addColorMatrix();
-    this.water.colorMatrix.saturate(-0.15).multiply([0.78, 0, 0, 0, 0, 0, 0.98, 0, 0, 0.02, 0, 0, 1.12, 0, 0.05, 0, 0, 0, 1, 0], true);
-    this.water.colorMatrix.alpha = 0;
-    this.cinema = f.addColorMatrix();
-    this.cinema.colorMatrix.saturate(-0.22).contrast(0.16, true).brightness(0.96, true);
-    this.cinema.colorMatrix.alpha = 0;
-    this.vignette = f.addVignette(0.5, 0.5, 0.82, 0.25);
-    this.bloom = Phaser.Actions.AddEffectBloom(w.cameras.main, { threshold: 0.62, blurRadius: 2, blurSteps: 4, blurQuality: 0, blendAmount: 0.4 })[0];
+    this.color = f.addColorMatrix();
+    this.vignette = f.addVignette(0.5, 0.5, 0.82, 0);
+    this.vignette.active = false;
+    this.bloom = Phaser.Actions.AddEffectBloom(w.cameras.main, { threshold: 0.62, blurRadius: 2, blurSteps: 3, blurQuality: 0, blendAmount: 0 })[0];
+    this.bloom.parallelFilters.active = false;
   }
 
-  /** The place's grade, set once as the room loads. */
+  /** The place's grade, worked out once as the room loads. */
   room(biome: string) {
     this.biome = biome;
-    if (!this.grade) return;
-    const g = GRADES[biome] ?? NONE, m = this.grade.colorMatrix;
-    m.saturate(g.sat).contrast(g.con, true).multiply([g.tint[0], 0, 0, 0, 0, 0, g.tint[1], 0, 0, 0, 0, 0, g.tint[2], 0, 0, 0, 0, 0, 1, 0], true);
+    const g = GRADES[biome] ?? NONE;
+    this.base = chain(sat(g.sat), con(g.con), mat(g.tint[0], g.tint[1], g.tint[2]));
+    this.cineM = chain(this.base, sat(-0.22), con(0.14), mat(0.97, 0.97, 0.97));
+    this.waterM = chain(this.base, sat(-0.15), mat(0.78, 0.98, 1.12, [0, 6, 14]));
+    this.shown[0] = this.shown[1] = -1;
   }
 
   /** Bloom swells briefly on big light (a strike of lightning, a finisher). */
@@ -86,17 +107,27 @@ export class ScreenFx {
     this.under += ((o.submerged ? 1 : 0) - this.under) * ease;
     this.glowT = Math.max(0, this.glowT - dt);
     const calm = settings.reduceFlashes;
-    if (this.grade) {
-      this.grade.active = tier > 0;
-      this.cinema!.colorMatrix.alpha = this.cine; this.cinema!.active = this.cine > 0.01;
-      this.water!.colorMatrix.alpha = this.under * 0.85; this.water!.active = this.under > 0.01;
-      const vg = this.vignette!;
-      vg.radius = 0.82 - this.cine * 0.16 - this.under * 0.12; vg.strength = 0.25 + this.cine * 0.3 + this.under * 0.2;
+    // Bloom only while something bright is happening: a form, a flash, a boss's entrance.
+    const glow = tier === 2 ? (o.form ? 0.5 : 0) + (calm ? 0 : this.glowT * 0.9) + this.cine * 0.25 : 0;
+    this.glow += (glow * (calm ? 0.6 : 1) - this.glow) * (1 - Math.exp(-dt * 8));
+    if (this.color) {
+      const c = this.cine, u = this.under * 0.85;
+      this.color.active = tier > 0 || c > 0.01 || u > 0.01;
+      if (Math.abs(c - this.shown[0]) > 0.003 || Math.abs(u - this.shown[1]) > 0.003) {
+        this.shown[0] = c; this.shown[1] = u;
+        const b = this.base, cm = this.cineM, wm = this.waterM, out = this.out;
+        for (let i = 0; i < 20; i++) out[i] = b[i] + (cm[i] - b[i]) * c + (wm[i] - b[i]) * u;
+        this.color.colorMatrix.set(out);
+      }
+      // The vignette closes in for the cinema and the water only; at rest the frame keeps one pass.
+      const vg = this.vignette!, close = Math.max(c, this.under);
+      vg.active = close > 0.01;
+      vg.radius = 0.82 - c * 0.16 - this.under * 0.12; vg.strength = close * 0.3 + c * 0.25 + this.under * 0.2;
     }
     if (this.bloom) {
-      const on = tier === 2;
+      const on = this.glow > 0.02;
       this.bloom.parallelFilters.active = on;
-      if (on) this.bloom.parallelFilters.blend.amount = (calm ? 0.25 : 0.4) + (o.form ? 0.2 : 0) + (calm ? 0 : this.glowT * 0.6);
+      if (on) this.bloom.parallelFilters.blend.amount = this.glow;
     }
     const grain = this.cine > 0.02 && tier > 0;
     this.grain.setVisible(grain);
@@ -112,6 +143,6 @@ export class ScreenFx {
     const cam = this.w.cameras.main;
     if (!cam) return;
     const f = cam.filters.external;
-    for (const x of [this.grade, this.water, this.cinema, this.vignette, this.bloom?.parallelFilters]) if (x) f.remove(x);
+    for (const x of [this.color, this.vignette, this.bloom?.parallelFilters]) if (x) f.remove(x);
   }
 }
