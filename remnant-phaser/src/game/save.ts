@@ -18,6 +18,10 @@ export type PhaserSave = SaveData & {
   quiver?: ArrowType[]; arrowType?: ArrowType;
   /** The other hero is out as an AI partner (game/partner.ts). */
   partnerOut?: boolean;
+  /** Silver left where the hero fell, one shade per death (game/shade.ts). */
+  shades?: import('./shade').ShadeSave[];
+  /** Where the hero last rested at an altar: a fall in that chapter rises there. */
+  restAt?: { room: string; x: number; y: number };
   /** Psalms owned and worn (game/psalms.ts). */
   psalms?: { owned: import('./psalms').PsalmId[]; worn: import('./psalms').PsalmId[] };
 };

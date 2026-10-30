@@ -68,6 +68,8 @@ const overlaps = (a: Rect, b: Rect) => a.x < b.x + b.w && b.x < a.x + a.w && a.y
 
 /** What the classic layer needs from the World scene beyond `WorldApi`. */
 export interface ClassicHost extends WorldApi {
+  /** Resting at an altar marks where a fall rises (POLISH_PLAN §12b). */
+  markRest(): void;
   /** Elior's own stats (G.d); `d` is the fighting hero's. */
   eliorD: import('../../../remnant/src/game/state').Derived;
   setEliorStats(d: import('../../../remnant/src/game/state').Derived): void;
@@ -558,7 +560,7 @@ export class ClassicLayer {
   spawnLoot(x: number, y: number, loot: Loot[], _burst = true) { if (!this.rushing) for (const l of loot) this.add(new Drop(x, y, l)); }
   absorb(id: string, _manual = false) { const e = absorbEcho(G.save, id, G.d); this.host.refreshStats(); return e; }
   rest() { this.host.rest(); }
-  restAtAltar(a: Altar) { if (!G.save.altarsLit.includes(a.idKey)) G.save.altarsLit.push(a.idKey); G.save.altar = { room: this.room.id, spawn: 'altar' }; this.rest(); G.ui.openAltar(a.idKey); }
+  restAtAltar(a: Altar) { if (!G.save.altarsLit.includes(a.idKey)) G.save.altarsLit.push(a.idKey); G.save.altar = { room: this.room.id, spawn: 'altar' }; this.host.markRest(); this.rest(); G.ui.openAltar(a.idKey); }
   get cache() { return { invalidate: () => { this.syncTiles(); (this.host as any).art?.cache?.invalidate(); } }; }
   private syncTiles() { for (let y = 0; y < this.grid.h; y++) for (let x = 0; x < this.grid.w; x++) this.host.setTile(x, y, this.grid.get(x, y)); }
   summonEchoes(silent = false) { this.squad.summonEchoes(silent); }
