@@ -18,6 +18,7 @@ import { actionAtlas, actionFrame, ACTION_CELL, ACTION_FOOT } from './actionArt'
 import { archerStats } from './archer';
 import type { PlayableHero } from './style';
 import type { PhaserSave } from './save';
+import { wears } from './psalms';
 
 /** What the partner world needs from the scene. */
 interface Host {
@@ -69,7 +70,8 @@ export class Partner {
   /** Seconds until a fallen partner returns. */
   private downT = 0;
   /** The revive is spent until the next room. */
-  private revived = false;
+  /** Pulls this room: one, or two with the Psalm of the Watch. */
+  private revived = 0;
   private lastRoom = '';
   private stride = 0;
   private lastShots = 0;
@@ -122,8 +124,8 @@ export class Partner {
   /** Once a room, the partner pulls the player back up instead of letting them fall. */
   revive(): boolean {
     const u = this.unit, p = this.h.player;
-    if (!this.out || this.revived || !u || u.remove || u.despawn > 0 || u.hp <= 0) return false;
-    this.revived = true;
+    if (!this.out || this.revived >= (wears(this.h.save, 'watch') ? 2 : 1) || !u || u.remove || u.despawn > 0 || u.hp <= 0) return false;
+    this.revived++;
     p.hp = Math.round(p.maxHp * 0.35);
     p.grantInvuln(2);
     this.h.floatText(p.x, p.feet - 64, `${NAME[u.hero].toUpperCase()} PULLS YOU UP`, '#a6efdc');
@@ -177,7 +179,7 @@ export class Partner {
 
   update(dt: number, roomId: string) {
     const s = this.h.save;
-    if (roomId !== this.lastRoom) { this.lastRoom = roomId; this.revived = false; this.unit = null; }
+    if (roomId !== this.lastRoom) { this.lastRoom = roomId; this.revived = 0; this.unit = null; }
     // Echoes called out: the partner steps back (one or the other).
     if (s.partnerOut && s.flags.army_out === true) { s.partnerOut = false; this.unit?.dismiss(); }
     const u = this.unit;

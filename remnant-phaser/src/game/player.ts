@@ -27,6 +27,7 @@ import { valorTrack } from '../../../remnant/src/game/valor';
 import { runBlessings } from '../../../remnant/src/game/blessings';
 import type { HeroPowers } from '../classic/hero';
 import { Dawn, STAB_T } from './dawn';
+import { wears } from './psalms';
 
 export const GRAV = 1500;
 const MAX_FALL = 560;
@@ -88,6 +89,13 @@ export class Player {
   mendT = 0;
   veiled = 0;
   untouchable = 0;
+  /** Blows the Psalm of the Refiner has made certain to crit. */
+  psalmCrits = 0;
+  /** Seconds this hero has lived, for timed marks. */
+  private clock = 0;
+  /** Air dashes and air jumps a landing restores: the Psalms of the Open Gate and the Four Winds add one each. */
+  private airDashes() { return wears(this.w.save, 'open_gate') ? 2 : 1; }
+  private airJumpCount() { return this.w.save.keyItems.includes('eagle_wings') ? (wears(this.w.save, 'four_winds') ? 2 : 1) : 0; }
   sinceHurt = 0;
   private vigilParryCd = 0;
   private airAttacks = 0;
@@ -266,6 +274,7 @@ export class Player {
     this.armorLight = Math.max(0, this.armorLight - dt);
     this.veiled = Math.max(0, this.veiled - dt);
     this.untouchable = Math.max(0, this.untouchable - dt);
+    this.clock += dt;
     this.sinceHurt += dt;
     if (!this.dead) {
       const mend = Math.min(dt, this.mendT);
@@ -280,7 +289,7 @@ export class Player {
     if (!this.phantomT && this.state !== 'phantom') { this.phantomN = 0; this.phantomStruck.clear(); }
     this.comboT = Math.max(0, this.comboT - dt);
     if (!this.comboT) this.comboHits = 0;
-    if (this.onGround) { this.airAttacks = 0; this.airDash = 1; this.airJumps = s.keyItems.includes('eagle_wings') ? 1 : 0; }
+    if (this.onGround) { this.airAttacks = 0; this.airDash = this.airDashes(); this.airJumps = this.airJumpCount(); }
     if (this.state !== 'dead' && (s.flags.relic_taken || !this.powers?.L.storyEnabled)) s.ce = Math.min(this.maxCe, s.ce + CE_REGEN * this.w.d.ceRegen * dt);
     this.coyote = this.onGround ? COYOTE : Math.max(0, this.coyote - dt);
     this.jumpBuf = c.pressed('jump') ? BUFFER : Math.max(0, this.jumpBuf - dt);
@@ -394,7 +403,8 @@ export class Player {
       case 'airdash':
         b.setVelocity(this.face * 360, 0);
         if (c.pressed('attack')) this.chooseAttack();
-        else if (this.st >= 0.2) this.toFree();
+        // The Psalm of the Wind carries the dash 40% further.
+        else if (this.st >= (wears(this.w.save, 'wind') ? 0.28 : 0.2)) this.toFree();
         break;
       case 'phantom':
         b.setVelocity(0, 0);
@@ -561,7 +571,7 @@ export class Player {
     }
     if (a.dive && this.onGround && this.st > 0.08) { this.landPlunge(); return; }
     if (this.combatStyle === 'vanguard' && this.recentHit > 0 && this.jumpBuf > 0 && !this.water.swimming) {
-      this.jumpBuf = 0; this.recentHit = 0; this.airAttacks = 0; this.airDash = 1;
+      this.jumpBuf = 0; this.recentHit = 0; this.airAttacks = 0; this.airDash = this.airDashes();
       this.toFree(); this.body.setVelocityY(-JUMP_V * 0.78); this.noteStyle('jump_cancel',true); return;
     }
     if (c.pressed('dodge') && this.recentHit > 0 && this.canPhantom()) { this.startPhantom(); return; }
@@ -665,7 +675,7 @@ export class Player {
   private pogo() {
     this.toFree();
     this.body.setVelocityY(-JUMP_V * 0.8);
-    this.airAttacks = 0; this.airDash = 1;
+    this.airAttacks = 0; this.airDash = this.airDashes();
     this.grantInvuln(0.12);
     this.w.burst(this.x, this.feet + 6, 0);
     this.noteStyle('pogo', true);
@@ -780,7 +790,7 @@ export class Player {
       const approach = (n: number, target: number) => n + Phaser.Math.Clamp(target - n, -SWIM_ACCEL * dt, SWIM_ACCEL * dt);
       b.setVelocity(approach(b.velocity.x, mx * speed + w.flowX), approach(b.velocity.y, w.air && vy < 0 ? Math.max(vy, (rest - this.feet) * 4) : vy)); }
     if (my > 0.5) this.dropT = 0.1;
-    if (c.pressed('jump')) { if (w.air && this.feet - (w.surface + FLOAT_DEPTH) < 12) { w.breachT = 0.4; w.swimming = false; this.state = 'free'; b.setVelocityY(-440); b.setGravityY(GRAV); this.airJumps = this.w.save.keyItems.includes('eagle_wings') ? 1 : 0; this.airDash = 1; this.w.playEffect('splash'); }
+    if (c.pressed('jump')) { if (w.air && this.feet - (w.surface + FLOAT_DEPTH) < 12) { w.breachT = 0.4; w.swimming = false; this.state = 'free'; b.setVelocityY(-440); b.setGravityY(GRAV); this.airJumps = this.airJumpCount(); this.airDash = this.airDashes(); this.w.playEffect('splash'); }
       else if (w.strokeCd <= 0) { b.setVelocityY(-210); w.strokeCd = 0.28; this.w.playEffect('swimStroke'); } }
     if (c.pressed('dodge')) this.swimDash();
     else if (c.pressed('parry')) this.startParry();
@@ -796,27 +806,34 @@ export class Player {
 
   /** Returns whether any blow landed. */
   private strike() {
-    let landed = false;
+    let landed = false, waved = false;
     const box = this.blade();
     this.w.strikeLamps({ x: box.x, y: box.y, w: box.width, h: box.height });
     for (const f of this.w.foes()) {
       if (!f.alive || this.hitDone.has(f) || !Phaser.Geom.Rectangle.Overlaps(box, f.box)) continue;
       this.hitDone.add(f);
       const counter = this.counterT > 0;
-      const d = this.w.d, crit = counter || Math.random() < d.crit;
+      const ps = this.w.save, d = this.w.d, crit = counter || this.psalmCrits > 0 || Math.random() < d.crit;
       let dmg = this.power() * this.atk.dmg * this.atkMult * (this.atk.heavy ? d.heavyMult : 1) * Phaser.Math.FloatBetween(0.92, 1.08);
       if (crit) dmg *= d.critDmg;
+      // The Psalm of the Hunt: a parried foe takes half again as much for a while.
+      const marked = (f as { e?: { psalmMarkT?: number } }).e ?? (f as { psalmMarkT?: number });
+      if ((marked.psalmMarkT ?? 0) > this.clock) dmg *= 1.5;
       // Arriving from a swap: the first blow carries the momentum.
       const swap = this.swapStrikeT > 0 ? 1.5 : 1;
       const force = this.atk.force * this.atkMult * (counter ? 1.5 : 1) * swap;
       const beforeHp = f.hp;
-      if (f.hit(Math.round(dmg * swap), this.face, force, crit, { poise: this.atk.poise * this.atkMult * this.w.d.heavyPoiseMult, kx: this.atk.kx * this.face, ky: this.atk.ky, launch: this.atk.launch, heavy: this.atk.heavy, guardBreak: this.atk.guardBreak })) {
+      if (f.hit(Math.round(dmg * swap), this.face, force, crit, { poise: this.atk.poise * this.atkMult * this.w.d.heavyPoiseMult * (this.atk.heavy && wears(ps, 'broken_idol') ? 1.4 : 1), kx: this.atk.kx * this.face, ky: this.atk.ky, launch: this.atk.launch, heavy: this.atk.heavy, guardBreak: this.atk.guardBreak })) {
         haptic('hit');
         landed = true;
         const dealt = beforeHp !== undefined && f.hp !== undefined ? Math.max(0, beforeHp - f.hp) : Math.round(dmg * swap);
         this.w.heroHit(f, dealt, this.atk.heavy, crit);
         this.counterT = 0;
         this.swapStrikeT = 0;
+        if (crit && this.psalmCrits > 0) this.psalmCrits--;
+        if (crit && wears(ps, 'balance')) this.w.save.ce = Math.min(this.maxCe, this.w.save.ce + 6);
+        // The Psalm of the Swarm: a combo's third blow looses the Sword of the Word's wave, once a swing.
+        if (this.combo === 2 && !waved && wears(ps, 'swarm')) { waved = true; this.w.lightWave(); }
         this.recentHit = 0.65;
         this.noteStyle(this.atk.id);
         this.comboHits++; this.comboT = 1.7;
@@ -859,6 +876,11 @@ export class Player {
       this.w.floatText(this.x, this.body.top - 10, 'PARRY', '#fff1c4');
       this.powers?.onParry();
       if (this.w.d.parryHeal) this.hp = Math.min(this.maxHp, this.hp + this.maxHp * this.w.d.parryHeal);
+      // Psalms: the Furnace heals, the Hunt marks the attacker, the Refiner readies three critical blows.
+      const ps = this.w.save;
+      if (wears(ps, 'furnace')) this.hp = Math.min(this.maxHp, this.hp + this.maxHp * 0.08);
+      if (wears(ps, 'hunt') && h.src) ((h.src.ent ?? h.src) as { psalmMarkT?: number }).psalmMarkT = this.clock + 4;
+      if (wears(ps, 'refiner')) this.psalmCrits = 3;
       if (this.w.d.sets.vigil >= 3 && this.vigilParryCd <= 0) { this.vigilParryCd = 3; this.hp = Math.min(this.maxHp, this.hp + this.maxHp * 0.05); this.w.save.ce = Math.min(this.maxCe, this.w.save.ce + 8); }
       valorTrack.parry(); haptic('parry'); input.rumble(0.7, 0.5, 150);
       this.w.playEffect('parryPerfect');
