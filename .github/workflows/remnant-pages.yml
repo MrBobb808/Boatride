@@ -119,6 +119,7 @@ jobs:
       - run: node scripts/lighting.mjs
       - run: node scripts/atmosphere.mjs
       - run: node scripts/screen-fx.mjs
+      - run: node scripts/shade.mjs
       - run: node scripts/bosses.mjs
       - run: node scripts/classic-bosses.mjs
       - run: node scripts/install-audio.mjs

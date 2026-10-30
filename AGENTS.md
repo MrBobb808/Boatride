@@ -244,6 +244,10 @@ Never ship files from `art/incoming/` directly.
   by biome over the original's particle weather. Presentation only; see PORTING.md.
   `screenFx.ts` adds bloom, a colour grade per place, an underwater cast and
   cinematic grain under the letterbox (camera filters, WebGL only).
+- **Death (Phaser build):** a fall leaves the silver in a shade where it
+  happened (`game/shade.ts`, `PhaserSave.shades`; strike it to win it back;
+  shades stack) and rises at the last altar rested at in that chapter
+  (`PhaserSave.restAt`).
 - **iPhone performance:** the game targets 120 Hz.
   - Do not use `shadowBlur`.
   - Cache gradients and avoid allocating in per-frame paths.

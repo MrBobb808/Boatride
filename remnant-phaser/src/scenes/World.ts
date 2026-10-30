@@ -14,6 +14,7 @@ import { ITEMS, ARCHER_SLOTS } from '../../../remnant/src/game/data';
 import type { Rarity } from '../../../remnant/src/game/data';
 import type { WorldApi, FoeLike, BossView } from '../game/types';
 import { chapterOf } from '../../../remnant/src/game/rooms';
+import { Shade } from '../game/shade';
 import { rollGear } from '../../../remnant/src/game/loot';
 import type { Loot } from '../../../remnant/src/game/tiles';
 import { catchUpXp } from '../../../remnant/src/game/curve';
@@ -267,6 +268,7 @@ export class World extends Phaser.Scene implements WorldApi {
     this.colliders.push(this.physics.add.collider(this.player.rect, this.layer, undefined, (_o, t) => this.passable(t as Phaser.Tilemaps.Tile, this.player.dropT > 0), this));
     for (const e of r.ents) this.spawnEnt(e);
     if (this.classic.storyEnabled && id === 'covenant_chamber' && !this.save.flags.relic_taken) this.classic.addRelic();
+    this.raiseShades(id);
     placeLamps(r);
     // The Echoes come along through every door, unless they were dismissed.
     // Echoes come along only once called (and until dismissed); they never appear on their own.
@@ -358,7 +360,7 @@ export class World extends Phaser.Scene implements WorldApi {
         const it: Interactable = {
           x, y, label, use: () => {
             // The original's rule: clear the guards near it first.
-            if (this.foes().some((f) => f.alive && Math.abs(f.x - x) < 190 && f !== this.boss)) { this.hud.toast('Clear the nearby guards first.'); return; }
+            if (this.foes().some((f) => f.alive && !(f as Shade).shade && Math.abs(f.x - x) < 190 && f !== this.boss)) { this.hud.toast('Clear the nearby guards first.'); return; }
             this.objective(o.id);
             this.spark(x, y - 24, col, 16);
             glow.destroy(); mark.destroy();
@@ -388,7 +390,7 @@ export class World extends Phaser.Scene implements WorldApi {
         g.fillStyle(0xe2b85a, 1).fillRect(x + 6, y - 12, 4, 8);
         const glow = this.add.image(x + 8, y - 20, 'glow').setTint(0xffd27a).setBlendMode(Phaser.BlendModes.ADD).setScale(1.1).setAlpha(0.5).setDepth(-3);
         this.roomObjs.push(g, glow);
-        this.interactables.push({ x: x + 8, y, label: 'Rest', use: () => this.rest(e.id) });
+        this.interactables.push({ x: x + 8, y, label: 'Rest', use: () => { this.markRest(); this.rest(e.id); } });
         return;
       }
       case 'chest': {
@@ -505,7 +507,7 @@ export class World extends Phaser.Scene implements WorldApi {
       if (music.name !== this.boss.key) music.play(this.boss.key, 0.6);
       music.bossPhase(Math.max(0, this.boss.phase - 1));
     }
-    music.setIntensity(this.boss?.fighting || this.classic.bossActive ? 1 : this.foes().some((f) => f.alive && Math.abs(f.x - this.player.x) < 200) ? 0.7 : 0);
+    music.setIntensity(this.boss?.fighting || this.classic.bossActive ? 1 : this.foes().some((f) => f.alive && !(f as Shade).shade && Math.abs(f.x - this.player.x) < 200) ? 0.7 : 0);
     if (this.cboss?.remove) this.cboss = null;
     this.updateBrood();
 
@@ -522,7 +524,7 @@ export class World extends Phaser.Scene implements WorldApi {
     if (this.classic.storyEnabled) valorTick(dt);
     if (this.player.dead) {
       this.deadT += dt;
-      if (!this.deathCounted) { this.deathCounted = true; this.save.deaths++; }
+      if (!this.deathCounted) { this.deathCounted = true; this.save.deaths++; this.dropShade(); }
       const R = this.classic.story.ch3.rounds;
       if (this.room.id === 'trial_arena' && R.active && !this.classic.deathHandled) { this.classic.deathHandled = true; this.classic.after(1.8, async () => this.classic.afterRun(await R.onDeath())); }
       if (this.deadT > 1.4 && !this.classic.deathHandled) {
@@ -628,8 +630,46 @@ export class World extends Phaser.Scene implements WorldApi {
   }
 
   /** Fallen: rise again at the doorway of this room, whole. */
+  // ---------------------------------------------------------------- the shade and the altar (POLISH_PLAN §12b)
+
+  /** Resting marks the altar: a fall in this chapter rises here. */
+  markRest() {
+    const p = this.player;
+    (this.save as PhaserSave).restAt = { room: this.room.id, x: Math.round(p.x), y: Math.round(p.feet) };
+  }
+  /** A fall leaves the silver where it happened, with a shade to hold it (each fall its own). Not in the Trial. */
+  private dropShade() {
+    const s = this.save as PhaserSave, p = this.player;
+    if (this.room.id === 'trial_arena' || s.silver <= 0) return;
+    // Over a pit or spikes, the shade waits a little above where the hero fell.
+    const sh = { room: this.room.id, x: Math.round(p.x), y: Math.round(Math.min(p.feet, this.gh * TILE - 20)), silver: s.silver };
+    (s.shades ??= []).push(sh);
+    s.silver = 0;
+    this.hud.toast(`${sh.silver} silver lies where you fell. Strike your shade to win it back.`);
+  }
+  private raiseShades(room: string) {
+    const here = ((this.save as PhaserSave).shades ?? []).filter((sh) => sh.room === room);
+    for (const sh of here) this.foeList.push(new Shade(this, sh));
+    if (here.length) this.time.delayedCall(900, () => this.room.id === room && this.hud.toast(here.length > 1 ? `${here.length} of your shades linger here.` : 'Your shade lingers here.'));
+  }
+  recoverShade(sh: Shade) {
+    const s = this.save as PhaserSave;
+    s.shades = (s.shades ?? []).filter((x) => x !== sh.save);
+    s.silver += sh.save.silver;
+    this.floatText(sh.save.x, sh.save.y - 50, `+${sh.save.silver}`, '#d8c8ff');
+    this.hud.toast(`${sh.save.silver} silver recovered.`);
+    this.persist();
+  }
+  /** Where a fall rises: the last altar rested at, in this chapter; otherwise this room's doorway. */
+  private risePoint() {
+    const r = (this.save as PhaserSave).restAt;
+    if (!r || !ROOMS[r.room] || this.room.id === 'trial_arena' || chapterOf(r.room) !== chapterOf(this.room.id)) return null;
+    return r;
+  }
+
   private respawn(keepHp = false) {
     this.deadT = 0;
+    const rise = keepHp ? null : this.risePoint();
     // Rising after a fall is a rest, as in the original: the Balm comes back too.
     if (!keepHp) this.save.balm = this.save.balmMax;
     const hp = this.player.hp;
@@ -638,7 +678,13 @@ export class World extends Phaser.Scene implements WorldApi {
     const cam = this.cameras.main;
     cam.fadeOut(260, 7, 6, 10);
     cam.once('camerafadeoutcomplete', () => {
-      this.loadRoom(this.room.id, this.entrySpawn);
+      if (rise) {
+        // The room's own altar spawn where it has one (a known-safe spot); otherwise where the hero rested.
+        const spawn = ROOMS[rise.room].spawns.altar;
+        this.loadRoom(rise.room, spawn ? 'altar' : 'start');
+        if (!spawn) this.player.placeAt(rise.x, rise.y, 1);
+        cam.centerOn(this.player.x, this.player.feet - 24);
+      } else this.loadRoom(this.room.id, this.entrySpawn);
       cam.fadeIn(300, 7, 6, 10);
       this.transitioning = false;
     });
@@ -726,6 +772,8 @@ export class World extends Phaser.Scene implements WorldApi {
     // Foes keep a faint, dull glow: dark rooms stay dramatic but every threat can still be read.
     for (const e of this.classic.ents) if (e.isFoe && !e.dying && !e.remove) lighting.add(e.x, e.y - e.body.h / 2, Math.max(34, e.body.w * 0.9), '#c86a5a', e.isBoss ? 0.55 : 0.4, 0);
     this.visuals.atmosphere.lights();
+    // A shade carries its own violet light, so it can be found in the dark.
+    for (const f of this.foeList) if ((f as Shade).shade && f.alive) lighting.add(f.x, f.box.centerY, 80, '#a47cff', 0.8, 0.45);
     for (const f of this.flashes) if (f.t > 0) { f.t -= dt; if (f.t > 0) lighting.add(f.x, f.y, f.r, f.c, 0.95 * (f.t / f.d), 0.9); }
   }
   strikeLamps(box: { x: number; y: number; w: number; h: number }) { strikeLamps(box); }
