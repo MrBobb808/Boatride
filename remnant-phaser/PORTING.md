@@ -563,7 +563,7 @@ POLISH_PLAN §13a. A scene of its own (`src/scenes/Horde.ts`), entered from the 
   - **Skill:** Fire from Heaven (`Arsenal.heaven`). Its verse shows once per run.
   - **The shaman** (`shaman.ts`): out whenever Uri fights. It runs hail (`Arsenal.firefall`), a war-cry (slow) and a burning ward (`Arsenal.ring`) on its own clocks.
   - **The Crown of Flame:** the shaman merges in (hidden); meteors (+2, wider); a ring of fire at Uri's feet (`crownStep`).
-  - **Strength:** `heroD.uri` is Elior's until Uri has his own save data. The run's XP goes to Elior and Tirzah.
+  - **Strength** (`uri.ts`): his own level and XP in the optional `PhaserSave.uri`. `uriStats` scales Elior's numbers by `(uri level + 4) / (Elior's level + 4)`, held between 0.6 and 1.3; `uriGainXp` banks the run's XP to him too, tripled while he is behind Elior.
 
 Verified by `scripts/horde.mjs`: upright touch (stick, DASH, buttons on screen), auto-weapons, a level-up card, the skill, transformation and switch, Uri, his shaman, his prayer and the Crown, a monarch's arrival and fall, stage 2, the landscape reflow, a fall banking the run, and both ways in.
 

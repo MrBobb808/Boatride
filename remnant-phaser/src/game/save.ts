@@ -26,6 +26,8 @@ export type PhaserSave = SaveData & {
   psalms?: { owned: import('./psalms').PsalmId[]; worn: import('./psalms').PsalmId[] };
   /** The Horde's records: the deepest stage reached, runs, and foes felled (game/horde). */
   horde?: { best: number; runs: number; kills: number; bestKills: number };
+  /** Uri's level and XP, earned in the Horde (game/horde/uri.ts). */
+  uri?: import('./horde/uri').UriSave;
 };
 /** The levels at which her arrow types join the quiver. */
 export const ARROW_LEVELS: Record<ArrowType, number> = { standard: 1, fire: 8, frost: 12, storm: 18, holy: 24 };
