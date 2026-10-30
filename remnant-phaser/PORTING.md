@@ -486,3 +486,21 @@ POLISH_PLAN §12b.
 
 Verified by `scripts/shade.mjs`.
 
+## The Chapter I metroidvania pilot
+
+POLISH_PLAN §12c. `src/game/pilot.ts` patches the shared Chapter I rooms once at startup (`patchChapterOne`, from `main.ts`) for this build only; the original edition keeps its own Chapter I.
+
+- **The loop:** the crypt's west end now opens into the cistern's east end. The passage is barred (`BARS`, flag `crypt_bar`):
+  - `barTiles` fills it with stone as the room loads;
+  - `barProps` draws the iron bars and, on the crypt side only, a "Lift the bar" lever.
+  - From the cistern a hint says it is barred from the far side. Once it is lifted, the Eagle Plume's dead end at the crypt's west end is a way back up through the cistern and its well to the village square.
+- **Ledges for the Eagle Plume** (a single jump climbs about 62 px, the second jump adds about 50):
+  - a loft over the village square, 5 tiles above its highest ledge;
+  - a rooftop over the Ashen Road, 5 tiles above the long ledge.
+
+  Each has a secret chest, and a hint shows until the Plume is found.
+- **A far rooftop for the second jump and an air dash together:** a running double jump returns to its height about 1.5 tiles short. With an air dash at the top it carries about 2 tiles onto it (at 60 fps). It has the best reward.
+- **`?fixedstep`** (with `?debug`, for tests): every frame advances the game and the physics by exactly 1/60 s, so jump and dash distances measure as on a 60 fps phone however slow the headless frames are. Without it, a slow frame stretches timed moves like the air dash, because the game's timers run on capped time and the physics on real time.
+
+Verified by `scripts/ch1-pilot.mjs`.
+

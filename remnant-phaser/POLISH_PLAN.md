@@ -402,7 +402,7 @@ The owner chose this order: phone, death, the pilot, then Psalms.
 - **The shade:** falling drops your silver as a shade where you fell. Strike it to win the silver back. Shades stack: a second death leaves a second shade.
 - **Respawn:** at the last shrine you rested at, not the doorway.
 
-### 12c. The metroidvania pilot: Chapter I
+### 12c. The metroidvania pilot: Chapter I (shipped: `scripts/ch1-pilot.mjs`)
 - **An interconnected map:** the village and the temple loop back on themselves, with shortcuts that open from one side.
 - **Locks:** high ledges need the Eagle Plume's double jump, and wide gaps need the air dash. The plume should come early enough to send the player back.
 

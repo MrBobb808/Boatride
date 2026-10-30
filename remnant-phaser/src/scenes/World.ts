@@ -15,6 +15,7 @@ import type { Rarity } from '../../../remnant/src/game/data';
 import type { WorldApi, FoeLike, BossView } from '../game/types';
 import { chapterOf } from '../../../remnant/src/game/rooms';
 import { Shade } from '../game/shade';
+import { barTiles, barProps } from '../game/pilot';
 import { rollGear } from '../../../remnant/src/game/loot';
 import type { Loot } from '../../../remnant/src/game/tiles';
 import { catchUpXp } from '../../../remnant/src/game/curve';
@@ -61,6 +62,8 @@ import { Feedback } from '../game/feedback';
 const VIEW_H = 300;
 
 interface Interactable { x: number; y: number; label: string; use: () => void }
+
+const FIXED_STEP = new URLSearchParams(location.search).has('fixedstep');
 
 export class World extends Phaser.Scene implements WorldApi {
   controls!: Controls;
@@ -142,6 +145,9 @@ export class World extends Phaser.Scene implements WorldApi {
     this.classic = new ClassicLayer(this);
     this.art = new RoomArt(this);
     this.visuals = new Visuals(this);
+    // ?fixedstep (tests only): the physics too advances exactly 1/60 s a frame, so jumps and dashes measure as on a
+    // 60 fps phone however slow the frames are.
+    if (FIXED_STEP) { const pw = this.physics.world, step = pw.update.bind(pw); pw.update = (time: number) => step(time, 1000 / 60); }
     this.feedback = new Feedback(this);
     this.partner = new Partner(this);
     this.events.once('shutdown', () => { this.feedback.destroy(); this.visuals.destroy(); this.art.destroy(); this.classic.destroy(); this.partner.destroy(); });
@@ -256,6 +262,7 @@ export class World extends Phaser.Scene implements WorldApi {
     for (let i = 0; i < this.grid.length; i++) if (this.grid[i] === T.Gate) { this.grid[i] = T.Empty; this.gates.push(i); }
 
     this.classic.load();
+    barTiles(this);
     for (let y = 0; y < r.h; y++) for (let x = 0; x < r.w; x++) this.grid[y * r.w + x] = this.classic.grid.get(x, y) === T.Gate ? T.Empty : this.classic.grid.get(x, y);
     this.buildBackdrop(r);
     this.buildTiles(r);
@@ -267,6 +274,7 @@ export class World extends Phaser.Scene implements WorldApi {
     this.classic.attachPlayer();
     this.colliders.push(this.physics.add.collider(this.player.rect, this.layer, undefined, (_o, t) => this.passable(t as Phaser.Tilemaps.Tile, this.player.dropT > 0), this));
     for (const e of r.ents) this.spawnEnt(e);
+    barProps(this, (o) => this.roomObjs.push(o), (i) => this.interactables.push(i), (label) => { this.interactables = this.interactables.filter((i) => i.label !== label); });
     if (this.classic.storyEnabled && id === 'covenant_chamber' && !this.save.flags.relic_taken) this.classic.addRelic();
     this.raiseShades(id);
     placeLamps(r);
@@ -488,6 +496,7 @@ export class World extends Phaser.Scene implements WorldApi {
 
   update(_t: number, delta: number) {
     if (!this.ready) return;
+    if (FIXED_STEP) delta = 1000 / 60;
     const rawDt = Math.min(delta / 1000, 1 / 30);
     const dt = rawDt * this.classic.simulationScale;
     this.physics.world.timeScale = 1 / this.classic.simulationScale;

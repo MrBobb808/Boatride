@@ -252,6 +252,10 @@ Never ship files from `art/incoming/` directly.
   happened (`game/shade.ts`, `PhaserSave.shades`; strike it to win it back;
   shades stack) and rises at the last altar rested at in that chapter
   (`PhaserSave.restAt`).
+- **Chapter I pilot (Phaser build):** `remnant-phaser/src/game/pilot.ts` patches
+  the shared Chapter I rooms at startup (Phaser only): the crypt–cistern loop
+  behind a bar, and ledges for the Eagle Plume and the air dash. `?fixedstep`
+  makes headless tests measure jumps at 60 fps.
 - **iPhone performance:** the game targets 120 Hz.
   - Do not use `shadowBlur`.
   - Cache gradients and avoid allocating in per-frame paths.
