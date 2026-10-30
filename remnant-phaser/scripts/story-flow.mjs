@@ -48,6 +48,17 @@ try {
     await p.keyboard.press('Escape');await until(()=>window.cardResult==='stay');
   }
   console.log('All ten chapter-end screens show their shared chapter text and hold/resume the Phaser world');
+  // A Crown chapter's guide: a finished chapter's "journey on" altar never hides the current one's objectives; a save
+  // that began the chapter without its quest gets it back; the marker leads to each objective, then to the open throne.
+  const guideText=()=>p.evaluate(()=>window.__remnant.world.hud.guideText?.text??'');
+  await p.evaluate(()=>{const w=window.__remnant.world,s=w.save;Object.assign(s.flags,{ch2_done:true,ch8_intro:true});delete s.flags.ch3_intro;delete s.quests.m_crown8;w.loadRoom('pestilent_causeway','start');});
+  await until(()=>(window.__remnant.world.hud.guideText?.text??'').includes('Marsh Spore Heart'));
+  assert.ok(await p.evaluate(()=>window.__remnant.world.save.quests.m_crown8?.stage===0),'the chapter quest is restored');
+  assert.ok(await p.evaluate(()=>[...document.querySelectorAll('.toast')].some(t=>t.textContent.includes('still sealed'))),'the ridge says the throne is sealed and what is left');
+  await p.evaluate(()=>{const w=window.__remnant.world;Object.assign(w.save.flags,{plague_source_a:true,plague_source_b:true});w.loadRoom('pestilent_causeway','start');});
+  await until(()=>(window.__remnant.world.hud.guideText?.text??'').includes('Morvane: the throne is open'));
+  console.log(`Crown guide: ${await guideText()}`);
+  await p.evaluate(()=>{const s=window.__remnant.world.save;for(const f of ['ch2_done','ch8_intro','plague_source_a','plague_source_b','ch8_boundary_open'])delete s.flags[f];delete s.quests.m_crown8;});
   await p.evaluate(()=>{const w=window.__remnant.world;w.save.flags.ch7_intro=true;w.save.flags.ch6_done=true;w.loadRoom('hunt_throne','start');w.classic.onBossDefeated(w.classic.boss);});
   await drain(()=>window.__remnant.world.save.flags.ch7_done&&!window.__remnant.G.inCutscene&&!!document.querySelector('.chapter h2'));
   const reward=await p.evaluate(()=>({silver:window.__remnant.world.save.silver,inventory:window.__remnant.world.save.inventory.length}));

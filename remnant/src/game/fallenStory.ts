@@ -16,12 +16,20 @@ export const FALLEN_QUESTS:QuestDef[]=FALLEN_CHAPTERS.flatMap(c=>[
   {id:`m_crown${c.n}`,title:c.title,kind:'main' as const,stages:[c.intro[1],`One objective remains. ${c.intro[1]}`,`The boundary is open. Rest at the ridge altar, then confront ${c.name}.`],done:`${c.name} has fallen. The road belongs to the living again.`},
   {id:`s_crown${c.n}`,title:c.words?c.words.sideQuest:c.n===9?'Hands That Build':c.n===7?'Those Who Would Not Run':'The Last Clean Breath',kind:'side' as const,stages:[`Find the survivors in ${c.words?c.words.sidePlace:c.n===9?'the Last Smithy above the Bellows Foundry':c.n===7?'the Unhunted Grove above the Fang Pits':'the Silent Infirmary above the Sporeworks'}. Clear their guards, speak to ${c.n===10?'Hanan':c.n===9?'Talia':c.n===7?'Barak':'Ezra'}, and bring the record there to Mara.`],done:'The survivors are safe and Mara has the warning of the next Fallen Crown.'},
 ]);
+/** A Crown chapter under way: begun and not finished (its quest, or for older saves its flags). */
+const underway=(c:FallenChapter)=>{const q=G.save.quests[`m_crown${c.n}`];return q?!q.done:flag(`ch${c.n}_intro`)&&!flag(`ch${c.n}_done`)&&!G.save.defeated.includes(c.boss);};
 registerGuide(()=>{
   if(!G.save)return null;
   for(const c of FALLEN_CHAPTERS){
-    if(G.save.quests[`m_crown${c.n}`]&&!G.save.quests[`m_crown${c.n}`].done){const o=c.objectives.find(o=>!flag(o.flag));return o?{room:o.room,at:(c.n===7?'enemy:':'shrine:')+o.id,label:o.name}:{room:c.arena,at:'trigger:'+c.boss+'_start',label:c.name+' beyond the boundary'};}
-    if(flag(`ch${c.n-1}_done`)&&!flag(`ch${c.n}_intro`))return{room:FALLEN_CHAPTERS.find(p=>p.n===c.n-1)?.hub??'hiddekel_camp',label:`an altar: choose Journey on to Chapter ${c.roman}`};
+    if(!underway(c))continue;
+    // The throne stays sealed until both objectives are done: the marker leads to each in turn, then to the crown.
+    const o=c.objectives.find(o=>!flag(o.flag)),done=c.objectives.filter(o=>flag(o.flag)).length;
+    return o?{room:o.room,at:(c.n===7?'enemy:':'shrine:')+o.id,label:`${o.name} (${done}/2 to unseal ${c.name}'s throne)`}:{room:c.arena,at:'trigger:'+c.boss+'_start',label:`${c.name}: the throne is open`};
   }return null;
+},()=>{
+  if(!G.save)return null;
+  for(const c of FALLEN_CHAPTERS)if(flag(`ch${c.n-1}_done`)&&!flag(`ch${c.n}_intro`))return{room:FALLEN_CHAPTERS.find(p=>p.n===c.n-1)?.hub??'hiddekel_camp',label:`an altar: choose Journey on to Chapter ${c.roman}`};
+  return null;
 });
 export class FallenStory {
   private epoch=0;private completing=false;private ownsCine=false;
@@ -33,7 +41,11 @@ export class FallenStory {
     this.epoch++;this.completing=false;if(this.ownsCine)this.cine(false);
     const c=chapterForRoom(id);if(!c)return false;
     this.refresh(c);if(!flag(`ch${c.n}_intro`)){void this.opening(c);return true;}
+    // A save that began the chapter before its quest was kept gets the quest back, so the journal and the guide know it.
+    if(!G.save.quests[`m_crown${c.n}`]&&!flag(`ch${c.n}_done`)&&!G.save.defeated.includes(c.boss))this.st.quest(`m_crown${c.n}`,c.objectives.filter(o=>flag(o.flag)).length);
     if(first)G.ui.banner(G.world.room.name.toUpperCase(),`Chapter ${c.roman} · ${c.title}`,'area');
+    // Reaching the ridge with the throne still sealed says what is left, before the door does.
+    if(id===c.ridge&&!flag(`ch${c.n}_boundary_open`)&&!G.save.defeated.includes(c.boss))G.ui.toast(this.sealed(c),'warn');
     if(id===c.arena&&G.save.defeated.includes(c.boss)&&!flag(`ch${c.n}_done`))void this.complete(c);
     return true;
   }

@@ -65,12 +65,12 @@ registerGuide(() => {
     if (!s.defeated.includes('weigher')) return { room: 'hall_of_scales', at: 'trigger:weigher_start', label: 'the Hall of Scales, at the top of the palace stair' };
     return null;
   }
-  if (flag('ch4_done') && !flag('ch5_intro')) {
-    const here = G.world.room;
-    const alt = here.ents.find((e) => e.t === 'altar');
-    if (alt && alt.t === 'altar') return { room: here.id, at: 'altar:' + alt.id, label: 'an altar: rest and choose Journey on' };
-  }
   return null;
+}, () => {
+  if (!flag('ch4_done') || flag('ch5_intro')) return null;
+  const here = G.world.room;
+  const alt = here.ents.find((e) => e.t === 'altar');
+  return alt && alt.t === 'altar' ? { room: here.id, at: 'altar:' + alt.id, label: 'an altar: rest and choose Journey on' } : null;
 });
 
 export class Chapter5 {
