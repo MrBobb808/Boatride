@@ -9,6 +9,14 @@ import { bakeAbilityIcons } from '../abilityIcons';
 import { sfx } from '../../../../remnant/src/audio/audio';
 import { input, type Action } from '../../../../remnant/src/core/input';
 import type { Horde } from '../../scenes/Horde';
+import type { HeroId } from './defs';
+
+/** Each hero's skill and transformation buttons: icon, label (and a tint for the borrowed icon). */
+const FACES: Record<HeroId, [string, string, string, string, number]> = {
+  elior: ['action-ultimate', 'STORM', 'action-transform_elior', 'MANTLE', 0xffffff],
+  tirzah: ['ability-rain', 'RAIN', 'action-transform_tirzah', 'WINGS', 0xffffff],
+  uri: ['ability-pillar_fire', 'FIRE', 'action-transform_elior', 'CROWN', 0xff9a50],
+};
 
 export type Act = 'dash' | 'skill' | 'form' | 'switch';
 /** The story's controls, carried over: Jump and Dodge dash, Attack and the skills cast, the Mantle's keys transform. */
@@ -18,7 +26,7 @@ interface Button { a: Act; x: number; y: number; r: number; g: Phaser.GameObject
 export interface Readout {
   hp: number; maxHp: number; xp: number; xpNext: number; level: number;
   stage: number; time: number; stageTime: number; kills: number; silver: number;
-  hero: string; other: string;
+  hero: string; heroId: HeroId; other: string;
   cd: Record<Act, number>; gauge: number; form: number;
   boss: { name: string; title: string; hp: number; max: number } | null;
 }
@@ -192,8 +200,9 @@ export class HordeUI {
     }
     const [dash, skill, form, sw] = this.buttons;
     dash.icon.setTexture('action-dodge'); dash.label.setText('DASH');
-    skill.icon.setTexture(s.hero === 'Tirzah' ? 'ability-rain' : 'action-ultimate'); skill.label.setText(s.hero === 'Tirzah' ? 'RAIN' : 'STORM');
-    form.icon.setTexture(s.hero === 'Tirzah' ? 'action-transform_tirzah' : 'action-transform_elior'); form.label.setText(s.hero === 'Tirzah' ? 'WINGS' : 'MANTLE');
+    const [skillIcon, skillName, formIcon, formName, tint] = FACES[s.heroId];
+    skill.icon.setTexture(skillIcon); skill.label.setText(skillName);
+    form.icon.setTexture(formIcon).setTint(tint); form.label.setText(formName);
     sw.icon.setTexture('action-switch'); sw.label.setText(s.other.toUpperCase());
 
     this.bannerT -= dt; this.toastT -= dt;

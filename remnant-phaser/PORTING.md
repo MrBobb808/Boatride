@@ -557,5 +557,13 @@ POLISH_PLAN §13a. A scene of its own (`src/scenes/Horde.ts`), entered from the 
   - **Cards:** DOM panels (`overlay`) for level-ups, pause, a cleared stage and the run's end, navigable by the D-pad.
 - **Rewards** (`Horde.bank`, once a run): the run's silver, XP worth `gemXp × (2 + stage/4)` to both heroes, the monarchs' gear into the pack, and `PhaserSave.horde` (best stage, runs, kills; optional).
 
-Verified by `scripts/horde.mjs`: upright touch (stick, DASH, buttons on screen), auto-weapons, a level-up card, the skill, transformation and switch, a monarch's arrival and fall, stage 2, the landscape reflow, a fall banking the run, and both ways in.
+- **Uri** (POLISH_PLAN §13b), the third hero, Horde only for now. The switch cycles Elior → Tirzah → Uri (`HEROES`); each hero's part is `KIT` in `Horde.ts`.
+  - **Art:** Uri, the orc shaman and the Crown of Flame are painted by the original's pixel painter from the shared skeleton and baked into fighter-style atlases (`uriArt.ts`, `paintedAtlas`). The painter is switched on for the bake only, because the Phaser build otherwise draws with the vector painter.
+  - **Weapon:** the Hand of Flame (`flame`): fireballs that burst on the first foe. At its last upgrade they leave burning ground.
+  - **Skill:** Fire from Heaven (`Arsenal.heaven`). Its verse shows once per run.
+  - **The shaman** (`shaman.ts`): out whenever Uri fights. It runs hail (`Arsenal.firefall`), a war-cry (slow) and a burning ward (`Arsenal.ring`) on its own clocks.
+  - **The Crown of Flame:** the shaman merges in (hidden); meteors (+2, wider); a ring of fire at Uri's feet (`crownStep`).
+  - **Strength:** `heroD.uri` is Elior's until Uri has his own save data. The run's XP goes to Elior and Tirzah.
+
+Verified by `scripts/horde.mjs`: upright touch (stick, DASH, buttons on screen), auto-weapons, a level-up card, the skill, transformation and switch, Uri, his shaman, his prayer and the Crown, a monarch's arrival and fall, stage 2, the landscape reflow, a fall banking the run, and both ways in.
 

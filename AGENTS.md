@@ -261,8 +261,9 @@ Never ship files from `art/incoming/` directly.
   Echoes; `PhaserSave.psalms`. See PORTING.md.
 - **The Horde (Phaser build):** a top-down survival mode in endless stages
   (`remnant-phaser/src/scenes/Horde.ts`, `src/game/horde/`): auto-weapons, a
-  1-of-3 upgrade per level, a Fallen Crown monarch per stage, Elior and Tirzah
-  switchable, upright or sideways. A run banks silver, XP and gear into the
+  1-of-3 upgrade per level, a Fallen Crown monarch per stage, Elior, Tirzah and
+  Uri (the flame-caller, with his orc shaman; Horde only for now) switchable,
+  upright or sideways. A run banks silver, XP and gear into the
   save (`PhaserSave.horde` keeps the best stage). See POLISH_PLAN §13.
 - **iPhone performance:** the game targets 120 Hz.
   - Do not use `shadowBlur`.
