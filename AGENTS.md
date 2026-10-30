@@ -248,6 +248,10 @@ Never ship files from `art/incoming/` directly.
   buttons only when they apply; Camera look-ahead (`settings.lookAhead`) leads
   the way the hero faces. See POLISH_PLAN §12 for the design review's plan
   (death stakes, a Chapter I metroidvania pilot, Psalms).
+- **Death (Phaser build):** a fall leaves the silver in a shade where it
+  happened (`game/shade.ts`, `PhaserSave.shades`; strike it to win it back;
+  shades stack) and rises at the last altar rested at in that chapter
+  (`PhaserSave.restAt`).
 - **iPhone performance:** the game targets 120 Hz.
   - Do not use `shadowBlur`.
   - Cache gradients and avoid allocating in per-frame paths.

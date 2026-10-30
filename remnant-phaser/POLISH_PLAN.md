@@ -398,7 +398,7 @@ The owner chose this order: phone, death, the pilot, then Psalms.
 - **Camera look-ahead** (Settings → Display, on by default): the camera leads the way the hero faces, by up to 72 world px, once he has kept to it for 0.22 s. A boss's framing and story shots take over.
 - **Zoom:** the normal camera distance is 10% closer on a phone.
 
-### 12b. Death with stakes
+### 12b. Death with stakes (shipped: `scripts/shade.mjs`)
 - **The shade:** falling drops your silver as a shade where you fell. Strike it to win the silver back. Shades stack: a second death leaves a second shade.
 - **Respawn:** at the last shrine you rested at, not the doorway.
 

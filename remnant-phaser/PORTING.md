@@ -476,3 +476,13 @@ POLISH_PLAN §12a.
 
 Verified by `scripts/phone-controls.mjs`.
 
+## The shade and the altar
+
+POLISH_PLAN §12b.
+
+- **The altar:** resting at an altar (`World.markRest`, from the classic `restAtAltar` or the native altar) records `PhaserSave.restAt`. A fall in the same chapter (`chapterOf`) rises there: at the room's `altar` spawn where it has one, otherwise where the hero rested. Otherwise, or in the Trial, it rises at the room's doorway as before. Dropping into a pit is not a fall: it still returns to the doorway with the health kept.
+- **The shade:** a fall with silver leaves a shade (`src/game/shade.ts`). The save (`PhaserSave.shades`) holds its room, spot and the silver, and the silver drops to 0. Shades stack: each fall leaves its own.
+- **Recovering it:** a shade is a native `FoeLike` in `World.foeList` (never a classic entity), so blows and arrows hit it. Echoes, the music and the "clear the guards" rule ignore it (`shade: true`). One hit breaks it and returns its silver (`World.recoverShade`). It wears the hero's figure drained to violet shadow, with its own light.
+
+Verified by `scripts/shade.mjs`.
+
