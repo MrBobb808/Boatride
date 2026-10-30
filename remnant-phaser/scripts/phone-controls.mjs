@@ -53,13 +53,14 @@ try {
   await until(page, () => { const b = window.__remnant.game.scene.getScene('hud').btns; return ['parry', 'skill1', 'skill2', 'skill3'].every((a) => b.find((x) => x.a === a).live); });
   const fight = await live(page);
   const seen = await E(page, async () => {
-    const h = window.__remnant.game.scene.getScene('hud'), w = window.__remnant.world, cam = w.cameras.main, b = h.btns.find((x) => x.a === 'attack'), f = w.classic.ents.find((e) => e.isFoe && !e.dying);
-    // Stand the foe right behind Strike: the button turns see-through, then comes back when it leaves.
-    // An entity's x and y read its body, so move the body; and hold the foe still meanwhile.
-    f.think = function () { this.body.vx = 0; };
+    const h = window.__remnant.game.scene.getScene('hud'), w = window.__remnant.world, cam = w.cameras.main, b = h.btns.find((x) => x.a === 'attack');
+    // A fresh foe, held still, stood right behind Strike (an entity's x and y read its body, so move the body).
+    const f = w.classic.spawnEnemy('husk', cam.worldView.centerX, w.player.feet);
+    f.hp = f.maxHp = 1e7; f.think = function () { this.body.vx = 0; };
     const at = () => { f.body.x = cam.worldView.x + b.x / cam.zoom; f.body.y = cam.worldView.y + b.y / cam.zoom + f.body.h / 2; };
-    for (let i = 0; i < 20 && !b.behind; i++) { at(); await new Promise((r) => requestAnimationFrame(r)); }
-    return { behind: b.behind, alpha: +b.g.alpha.toFixed(2) };
+    // Judge in the same moment: a frame later the foe's physics would have set it back on the floor.
+    for (let i = 0; i < 30 && !b.behind; i++) { await new Promise((r) => requestAnimationFrame(r)); at(); h.updateInteractBtn(); }
+    return { behind: b.behind, alpha: +b.g.alpha.toFixed(2), device: w.controls.device, foe: { dying: !!f.dying, remove: !!f.remove } };
   });
   assert.ok(seen.behind && seen.alpha < 0.3, `a foe behind a button turns it see-through (${JSON.stringify(seen)})`);
   await page.screenshot({ path: 'qa/phone-fight.png' });
