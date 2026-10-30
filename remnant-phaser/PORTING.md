@@ -504,3 +504,30 @@ POLISH_PLAN §12c. `src/game/pilot.ts` patches the shared Chapter I rooms once a
 
 Verified by `scripts/ch1-pilot.mjs`.
 
+## Psalms
+
+POLISH_PLAN §12d. The owner chose: 3 slots growing to 7, Psalms from bosses, and effects for combat, movement, and the Echoes and partner. Data and rules are in `src/game/psalms.ts`; the menu is `src/game/psalmsMenu.ts` (a Psalms section after Tirzah's, through `addMenuSection`).
+
+- **One Psalm per boss**, granted with its spoils (`World.bossSpoils` → `grantForBoss`). Saves that beat bosses before Psalms existed receive them on load (`syncPsalms`: the spoils flag, `defeated_*`, or the story flag in `BEATEN`). Both heroes wear the same Psalms. They are saved as the optional `PhaserSave.psalms` (`owned`, `worn`).
+- **Slots:** 3, plus one per Psalter Page (key items `psalter_1`–`psalter_4`, registered at startup by `registerPsalms`), up to 7. The Pages:
+  - two hide in secret chests (the cistern's and the Ashen Road's far roof);
+  - two come from bosses (the Crimson Marshal and the Storm Prince).
+- **Effects** (`wears(save, id)` where each applies):
+
+  | Kind | Psalm | Cost | Effect | Where it applies |
+  |---|---|---|---|---|
+  | Movement | Open Gate | 2 | a second air dash | `Player.airDashes` |
+  | Movement | Four Winds | 3 | a third air jump, with the Eagle Plume | `Player.airJumpCount` |
+  | Movement | Wind | 2 | the air dash lasts 0.28 s, not 0.2 | — |
+  | Echoes | Banner | 2 | Echo damage ×1.25 | `World.refreshStats` |
+  | Echoes | Cleansing | 2 | Echo health ×1.3 | `World.refreshStats` |
+  | Echoes | Watch | 2 | the partner revives twice a room | `partner.ts` |
+  | Combat | Broken Idol | 1 | heavy poise ×1.4 | — |
+  | Combat | Swarm | 2 | a combo's third blow looses the Word's wave (`World.lightWave`) | — |
+  | Combat | Furnace | 1 | a perfect parry heals 8% | — |
+  | Combat | Balance | 1 | a critical blow returns 6 Energy | — |
+  | Combat | Hunt | 2 | a parried attacker takes ×1.5 for 4 s | marked through the parry source's `ent`, timed on the player's clock |
+  | Combat | Refiner | 2 | a perfect parry makes the next three blows critical | `Player.psalmCrits` |
+
+Verified by `scripts/psalms.mjs`.
+

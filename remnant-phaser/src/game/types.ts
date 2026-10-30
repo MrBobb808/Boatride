@@ -10,7 +10,7 @@ export interface Blow {
   dmg: number;
   dir: number;
   /** A melee attacker, staggered when the blow is parried or meets the Shield of Faith. */
-  src?: { parried(): void };
+  src?: { parried(): void; ent?: object };
   ranged?: boolean;
   /** Ground hazards (spikes, eruptions, fire waves): no dodge, parry or guard turns them; jump or leave. */
   hazard?: boolean;

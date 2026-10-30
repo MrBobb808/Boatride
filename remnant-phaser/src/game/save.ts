@@ -22,6 +22,8 @@ export type PhaserSave = SaveData & {
   shades?: import('./shade').ShadeSave[];
   /** Where the hero last rested at an altar: a fall in that chapter rises there. */
   restAt?: { room: string; x: number; y: number };
+  /** Psalms owned and worn (game/psalms.ts). */
+  psalms?: { owned: import('./psalms').PsalmId[]; worn: import('./psalms').PsalmId[] };
 };
 /** The levels at which her arrow types join the quiver. */
 export const ARROW_LEVELS: Record<ArrowType, number> = { standard: 1, fire: 8, frost: 12, storm: 18, holy: 24 };

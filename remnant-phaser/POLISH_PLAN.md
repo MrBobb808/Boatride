@@ -406,7 +406,7 @@ The owner chose this order: phone, death, the pilot, then Psalms.
 - **An interconnected map:** the village and the temple loop back on themselves, with shortcuts that open from one side.
 - **Locks:** high ledges need the Eagle Plume's double jump, and wide gaps need the air dash. The plume should come early enough to send the player back.
 
-### 12d. Psalms
+### 12d. Psalms (shipped: `scripts/psalms.mjs`)
 - **What they are:** equippable, charm-like Psalms that change how you play. Each costs slots from a limited number.
 - **How they fit:** they sit beside levels and gear, and are found as rewards for exploring.
 

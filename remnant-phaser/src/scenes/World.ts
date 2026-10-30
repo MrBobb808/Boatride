@@ -16,6 +16,9 @@ import type { WorldApi, FoeLike, BossView } from '../game/types';
 import { chapterOf } from '../../../remnant/src/game/rooms';
 import { Shade } from '../game/shade';
 import { barTiles, barProps } from '../game/pilot';
+import { grantForBoss, syncPsalms, wears, wear, takeOff, slots, used } from '../game/psalms';
+const psalmApi = { wear, takeOff, slots, used };
+import { addPsalmsMenu } from '../game/psalmsMenu';
 import { rollGear } from '../../../remnant/src/game/loot';
 import type { Loot } from '../../../remnant/src/game/tiles';
 import { catchUpXp } from '../../../remnant/src/game/curve';
@@ -139,8 +142,11 @@ export class World extends Phaser.Scene implements WorldApi {
   create() {
     this.save = (!this.fresh && loadSave()) || newSave(!new URLSearchParams(location.search).has("nostory"));
     const away = Date.now() - this.save.updated;
+    // Bosses beaten before Psalms existed leave theirs now.
+    const late = syncPsalms(this.save);
     this.refreshStats();
-    addTirzahMenu(this); useAbilityTextures(this.textures);
+    addTirzahMenu(this); useAbilityTextures(this.textures); addPsalmsMenu(this);
+    if (late.length) this.time.delayedCall(2500, () => this.toast(`${late.length === 1 ? 'A Psalm' : `${late.length} Psalms`} from bosses you have beaten · Menu → Psalms`));
     this.controls = new Controls(this);
     this.classic = new ClassicLayer(this);
     this.art = new RoomArt(this);
@@ -180,6 +186,7 @@ export class World extends Phaser.Scene implements WorldApi {
         give: (xp: number) => this.onFoeDied(xp, 0, this.player.x, this.player.y),
         hud: hudBoxes, audio, music, songs, settings, offlineReady, Proj,
         archer: { archerStats, archerDrop, archerGainXp, learnArcher, allocateArcher, trank, newArcher, keepReason },
+        psalms: { grantForBoss, syncPsalms, wears, ...psalmApi },
       };
     }
   }
@@ -821,7 +828,11 @@ export class World extends Phaser.Scene implements WorldApi {
   refreshStats() {
     for (const t of syncArcher(this.save)) if (t !== 'standard') this.hud?.toast(`New arrows for Tirzah: ${t[0].toUpperCase() + t.slice(1)} (Down + Sub to nock them)`);
     this.herFor = null;
-    this.setEliorStats(stats(this.save));
+    const d = stats(this.save);
+    // The Psalms of the Banner and the Cleansing strengthen the Echoes (Tirzah's numbers copy these).
+    if (wears(this.save, 'banner')) d.echoDmg *= 1.25;
+    if (wears(this.save, 'cleansing')) d.echoHp *= 1.3;
+    this.setEliorStats(d);
   }
   /** New stats for Elior (G.d's setter); the player takes the fighting hero's limits. */
   setEliorStats(d: Derived) {
@@ -1080,6 +1091,10 @@ export class World extends Phaser.Scene implements WorldApi {
     if (this.save.flags[flag]) return;
     this.save.flags[flag] = true;
     this.collect(archerDrop(this.save, chapterOf(this.room.id), 'boss'));
+    // Each boss leaves its Psalm; two also leave a Psalter Page.
+    const g = grantForBoss(this.save, key);
+    if (g.psalm) this.time.delayedCall(1200, () => this.hud.banner(g.psalm!.name.toUpperCase(), `${g.psalm!.desc} · Menu → Psalms`));
+    if (g.page) this.toast('A Psalter Page · one more Psalm can be worn');
     // Two of her keepsakes are won, once, from particular foes.
     const keep = key && ARCHER_KEEPSAKES[key];
     if (keep && !this.save.inventory.some((i) => i.id === keep)) this.collect({ item: keep });

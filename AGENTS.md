@@ -256,6 +256,9 @@ Never ship files from `art/incoming/` directly.
   the shared Chapter I rooms at startup (Phaser only): the crypt–cistern loop
   behind a bar, and ledges for the Eagle Plume and the air dash. `?fixedstep`
   makes headless tests measure jumps at 60 fps.
+- **Psalms (Phaser build):** `remnant-phaser/src/game/psalms.ts`: one per boss,
+  worn in 3–7 slots (Psalter Pages), changing combat, movement and the
+  Echoes; `PhaserSave.psalms`. See PORTING.md.
 - **iPhone performance:** the game targets 120 Hz.
   - Do not use `shadowBlur`.
   - Cache gradients and avoid allocating in per-frame paths.

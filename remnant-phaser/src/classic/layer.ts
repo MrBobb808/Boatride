@@ -308,7 +308,8 @@ class PlayerView {
       ranged: h.kind === 'proj',
       hazard: h.kind === 'hazard',
       unblockable: !!h.unblockable,
-      src: src && h.parryable !== false && h.kind !== 'hazard' ? { parried: () => src.parried?.(this) } : undefined,
+      // `ent` lets a Psalm mark the attacker itself (the Hunt).
+      src: src && h.parryable !== false && h.kind !== 'hazard' ? { parried: () => src.parried?.(this), ent: src } : undefined,
     };
     const hurt = this.p.hurt(blow);
     if (hurt && !h.noKnock) this.p.body.setVelocity(Math.sign(h.kx || h.dir) * Math.min(220, Math.abs(h.kx)) * 0.6, Math.min(0, h.ky) * 0.5);
