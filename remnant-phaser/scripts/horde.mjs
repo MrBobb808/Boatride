@@ -92,7 +92,8 @@ try {
   console.log('Uri: his fireballs fly on their own, the shaman stands at his side, FIRE prays fire down, and the Crown of Flame makes the two one until it fades');
 
   // ---- the monarch: it comes at the stage's end, falls, and the stage is cleared
-  await H(page, (h) => { h.stageT = 9999; h.hp = h.maxHp; });
+  // The monarch's fight and the stage after it are about the stage's flow, not the hero's health: no blow lands until the fall below.
+  await H(page, (h) => { h.stageT = 9999; h.hp = h.maxHp; h.hurtHero = () => {}; });
   await until(page, () => window.__remnant.horde.boss);
   await page.waitForTimeout(1500);
   await page.screenshot({ path: 'qa/horde-boss.png' });
@@ -108,12 +109,12 @@ try {
   await page.locator('[data-k=hz_next]').tap();
   await until(page, () => window.__remnant.horde.stage === 2);
   // The gems the monarch's fall gathered may bring level-ups: take them.
-  for (let i = 0; i < 12; i++) {
+  for (let i = 0; i < 40; i++) {
     if (!await H(page, (h) => !!h.overlay)) break;
     if (await E(page, () => document.querySelectorAll('.hz-card').length)) await page.locator('.hz-card').first().tap();
     await page.waitForTimeout(400);
   }
-  assert.ok(await H(page, (h) => !h.overlay), 'stage 2 plays');
+  assert.ok(await H(page, (h) => !h.overlay), `stage 2 plays (${await H(page, (h) => JSON.stringify({ dead: h.dead, cards: document.querySelectorAll('.hz-card').length, keys: [...document.querySelectorAll('[data-horde] [data-k]')].map((b) => b.dataset.k) }))})`);
   console.log(`${boss}: arrived when the stage ran out, fell, left gear; onward to stage 2 (${await H(page, (h) => h.biome.name)})`);
 
   // ---- sideways: everything reflows onto the screen
@@ -127,7 +128,7 @@ try {
   // ---- a fall banks the run: silver, XP, gear and the record go into the save
   const saved = await H(page, (h) => ({ silver: h.save.silver, inv: h.save.inventory.length, level: h.save.level, xp: h.save.xp, run: h.silver, uri: { ...(h.save.uri ?? { level: 1, xp: 0 }) } }));
   for (let i = 0; i < 10 && await E(page, () => document.querySelectorAll('.hz-card').length); i++) { await page.locator('.hz-card').first().click(); await page.waitForTimeout(250); }
-  await H(page, (h) => { h.invuln = 0; h.hurtHero(1e9); });
+  await H(page, (h) => { delete h.hurtHero; h.invuln = 0; h.hurtHero(1e9); });
   await until(page, () => document.querySelector('[data-k=hz_return]'));
   const banked = await H(page, (h) => ({ silver: h.save.silver, inv: h.save.inventory.length, level: h.save.level, xp: h.save.xp, rec: h.save.horde, uri: h.save.uri }));
   assert.equal(banked.silver, saved.silver + saved.run, 'the run\'s silver is banked');
