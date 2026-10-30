@@ -112,8 +112,45 @@ function decorTexture(sc: Phaser.Scene, b: Biome, kind: Biome['decor'][number], 
   return key;
 }
 
-/** Textures every stage shares: shadows, gems, coins, hearts, the chest and the foes' shots. */
+/**
+ * Bolts from above, drawn once in white (tinted where they fall): a jagged stroke in four widths for the glow and
+ * the core, a fork or two, and the top fading out so no edge ever shows (the bloom where it lands is its own image).
+ */
+function boltTextures(sc: Phaser.Scene) {
+  // Wide enough that the outer glow never meets the sides.
+  const W = 80, H = 260;
+  for (let v = 0; v < 3; v++) {
+    const key = `hz-bolt-${v}`;
+    if (sc.textures.exists(key)) continue;
+    const { t, g } = canvas(sc, key, W, H), r = rng(91 + v * 37);
+    const path: [number, number][] = [];
+    let x = W / 2 + (r() - 0.5) * 8;
+    for (let y = 0; y <= H - 8; y += 10 + r() * 8) { path.push([x, y]); x = Math.max(26, Math.min(W - 26, x + (r() - 0.5) * 18)); }
+    path.push([W / 2, H - 8]);
+    const forks: [number, number][][] = [];
+    for (let f = 0; f < 2; f++) {
+      const from = path[3 + Math.floor(r() * (path.length - 6))], dir = r() < 0.5 ? -1 : 1, fork: [number, number][] = [from];
+      let fx = from[0], fy = from[1];
+      for (let k = 0; k < 4; k++) { fx += dir * (3 + r() * 5); fy += 8 + r() * 6; fork.push([fx, fy]); }
+      forks.push(fork);
+    }
+    g.lineJoin = 'round'; g.lineCap = 'round'; g.strokeStyle = '#ffffff';
+    for (const [w, a] of [[16, 0.08], [9, 0.18], [4.5, 0.55], [1.8, 1]] as const) {
+      g.globalAlpha = a; g.lineWidth = w;
+      for (const line of [path, ...forks]) { g.beginPath(); line.forEach(([px, py], i) => (i ? g.lineTo(px, py) : g.moveTo(px, py))); g.stroke(); }
+    }
+    // From nothing at the top to full strength a third of the way down: the bolt comes out of the dark, not a frame's edge.
+    const fade = g.createLinearGradient(0, 0, 0, H * 0.4);
+    fade.addColorStop(0, 'rgba(0,0,0,0)'); fade.addColorStop(1, 'rgba(0,0,0,1)');
+    g.globalCompositeOperation = 'destination-in'; g.fillStyle = fade; g.fillRect(0, 0, W, H);
+    g.globalCompositeOperation = 'source-over';
+    t.refresh();
+  }
+}
+
+/** Textures every stage shares: shadows, gems, coins, hearts, the chest, the foes' shots and the bolts. */
 export function hordeTextures(sc: Phaser.Scene) {
+  boltTextures(sc);
   if (sc.textures.exists('hz-gem-0')) return;
   const make = (key: string, w: number, h: number, draw: (g: CanvasRenderingContext2D) => void) => { const { t, g } = canvas(sc, key, w, h); draw(g); t.refresh(); };
   make('hz-shadow', 32, 12, (g) => {

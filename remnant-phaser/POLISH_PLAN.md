@@ -444,6 +444,21 @@ The mode is `src/scenes/Horde.ts` with `src/game/horde/`. PORTING.md has the det
   levels (0.6× far behind to 1.3× ahead), and he earns triple XP while behind Elior. Joining the story is the next
   step.
 
+### 13c. Teleport combos and impact frames (shipped: `scripts/horde.mjs`)
+The owner asked for more teleporting in the combos, the slow-motion impact frames, and better-looking strikes
+(the falling columns showed as hard-edged squares that popped in and out).
+- **Elior's Phantom chain:** every fourth cut (third from the blade's fifth upgrade, every other in the Mantle) he
+  blinks from foe to foe, cutting each, leaving afterimages. The monarch, if near, takes the last cut, and the last
+  cut is an impact frame.
+- **The dash is a blink for every hero:** Elior's Phantom Step cuts what it passes; Tirzah's Dawnstep leaves
+  feathers and looses a fan of arrows (stepping away from the horde when the stick is still); Uri's Ember Step bursts
+  into fire at both ends.
+- **Impact frames:** a near-freeze, a camera punch, a ring of light and a shake, at most one a half second, for the
+  chain's last cut, an elite felled and the first strike of Fire from Heaven.
+- **Strikes from above** (the Pillar of Fire relic, the shaman's hail, Fire from Heaven) are drawn bolts that fade
+  in from the dark, flicker and dim, with a soft bloom, a ring of light and sparks or flames where they land. Every
+  sheet effect now fades through its last quarter.
+
 ## 10. Questions for the owner
 
 Answered: the archer stays **Tirzah**, and Wings of the Morning **shares** the Mantle's gauge.

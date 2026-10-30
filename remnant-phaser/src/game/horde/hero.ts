@@ -41,11 +41,20 @@ export class HordeHero {
     this.keys['uri-form'] = crownAtlas(sc);
     this.shadow = wl(sc.add.image(0, 0, 'hz-shadow').setScale(0.9, 1));
     this.wings = wl(sc.add.image(0, 0, 'vfx-transform', 27).setBlendMode(Phaser.BlendModes.ADD).setVisible(false).setScale(0.62));
-    for (let i = 0; i < 5; i++) this.trail.push({ img: wl(sc.add.image(0, 0, this.keys.elior, 'idle:0').setVisible(false).setTint(0xb48cff).setTintMode(Phaser.TintModes.FILL)), life: 0 });
+    for (let i = 0; i < 10; i++) this.trail.push({ img: wl(sc.add.image(0, 0, this.keys.elior, 'idle:0').setVisible(false).setTint(0xb48cff).setTintMode(Phaser.TintModes.FILL)), life: 0 });
     this.sprite = wl(sc.add.sprite(0, 0, this.keys.elior, 'idle:0').setOrigin(0.5, ACTION_FOOT / ACTION_CELL).setScale(0.82));
   }
 
   get key() { return this.keys[this.hero + (this.form ? '-form' : '')]; }
+
+  /** A fading copy of the hero where they stand now (a blink's afterimage), at (x, y) if given. */
+  ghost(x = this.x, y = this.y, life = 0.3) {
+    const g = this.trail.find((t) => t.life <= 0);
+    if (!g) return;
+    g.life = life;
+    g.img.setTexture(this.sprite.texture.key, this.sprite.frame.name).setOrigin(this.sprite.originX, this.sprite.originY).setScale(this.sprite.scaleX).setFlipX(this.face < 0)
+      .setPosition(Math.round(x), Math.round(y)).setDepth(y - 1).setTint(this.hero === 'tirzah' ? 0xffe6a8 : this.hero === 'uri' ? 0xff9a50 : 0xb48cff).setTintMode(Phaser.TintModes.FILL);
+  }
 
   /** Play a one-shot clip (a swing, a loosed arrow) over the movement loop. */
   play(clip: string, dur: number) { this.shot = { clip, t: 0, dur }; }
@@ -81,6 +90,6 @@ export class HordeHero {
       if (g) { g.life = 0.22; g.img.setTexture(key, this.sprite.frame.name).setOrigin(this.sprite.originX, this.sprite.originY).setScale(this.sprite.scaleX).setFlipX(this.face < 0).setPosition(this.sprite.x, this.sprite.y).setDepth(this.y - 1).setTint(this.hero === 'tirzah' ? 0xffe6a8 : 0xb48cff).setTintMode(Phaser.TintModes.FILL); }
       this.trailT = 0.04;
     }
-    for (const t of this.trail) { t.life -= dt; t.img.setVisible(t.life > 0).setAlpha(Math.max(0, t.life / 0.22) * 0.55); }
+    for (const t of this.trail) { t.life -= dt; t.img.setVisible(t.life > 0).setAlpha(Math.min(1, Math.max(0, t.life / 0.22)) * 0.55); }
   }
 }

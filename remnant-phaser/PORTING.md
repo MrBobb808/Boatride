@@ -555,6 +555,12 @@ POLISH_PLAN §13a. A scene of its own (`src/scenes/Horde.ts`), entered from the 
   - **Upright:** a floating stick wherever the left thumb lands; four buttons in the right thumb's arc. DASH (i-frames, clears shots), the skill (Elior's Covenant Storm, Tirzah's Rain of Dawn), the transformation (the Shadow Mantle or the Wings of Dawn, from a gauge the kills fill) and the switch.
   - **Keyboard and controller:** through the shared input service with the story's bindings (Dodge or Jump dash; Attack or a skill casts; the Mantle's keys transform; Switch, or N).
   - **Cards:** DOM panels (`overlay`) for level-ups, pause, a cleared stage and the run's end, navigable by the D-pad.
+- **Teleports and impact frames** (POLISH_PLAN §13c):
+  - The blade's every fourth cut is a Phantom chain (`Arsenal.phantom`): blinks foe to foe (`HordeHero.ghost` afterimages), and the hero is held (`Horde.lockHero`) until it ends.
+  - The dash is a blink (`Horde.blink`): `phantomStep`, `dawnstep` or `emberStep` by hero.
+  - `Horde.impact` is the impact frame: slow-motion at 6% for about a tenth of a second, a zoom punch from `baseZoom`, a ring and a shake, with a half-second cooldown.
+  - Strikes from above use `Arsenal.strike`, bolts baked once (`hz-bolt-*` in `ground.ts`, the top faded by a gradient), instead of the ability sheet's column frames, which are cut off by their cell.
+  - `Arsenal.anim` fades every sheet effect through its last quarter.
 - **Rewards** (`Horde.bank`, once a run): the run's silver, XP worth `gemXp × (2 + stage/4)` to both heroes, the monarchs' gear into the pack, and `PhaserSave.horde` (best stage, runs, kills; optional).
 
 - **Uri** (POLISH_PLAN §13b), the third hero, Horde only for now. The switch cycles Elior → Tirzah → Uri (`HEROES`); each hero's part is `KIT` in `Horde.ts`.
