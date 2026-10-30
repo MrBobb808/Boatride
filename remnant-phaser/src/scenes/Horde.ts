@@ -77,9 +77,11 @@ export class Horde extends Phaser.Scene {
   formT = 0;
   private formUses = 0;
   private cds: Record<Act, number> = { dash: 0, skill: 0, form: 0, switch: 0 };
+  /** The arrival pose of a blink, and the seconds a Phantom chain holds the stick. */
   private dashT = 0;
-  private dashX = 0;
-  private dashY = 0;
+  private lockT = 0;
+  private impactCd = 0;
+  private baseZoom = 1;
   private invuln = 0;
   private spawnT = 0;
   private surgeT = 22;
@@ -179,7 +181,8 @@ export class Horde extends Phaser.Scene {
 
   private fit() {
     const W = this.scale.width, H = this.scale.height;
-    this.cameras.main.setSize(W, H).setZoom(Math.min(W, H) / VIEW);
+    this.baseZoom = Math.min(W, H) / VIEW;
+    this.cameras.main.setSize(W, H).setZoom(this.baseZoom);
     this.uiCam.setSize(W, H);
     this.ui?.layout();
   }
@@ -281,9 +284,10 @@ export class Horde extends Phaser.Scene {
     this.invuln = Math.max(0, this.invuln - dt);
     if (this.formT > 0) { this.formT -= dt; if (this.formT <= 0) this.endForm(); }
     if (!this.dead) {
-      // Moving, or dashing along a fixed line.
+      // Moving, except for a moment after a blink and while a Phantom chain carries the hero.
       let mx = this.ui.mx, my = this.ui.my;
-      if (this.dashT > 0) { this.dashT -= dt; mx = this.dashX * 3.6; my = this.dashY * 3.6; this.swarm.clearShots(this.hero.x, this.hero.y - 10, 22); }
+      this.dashT = Math.max(0, this.dashT - dt); this.lockT = Math.max(0, this.lockT - dt); this.impactCd = Math.max(0, this.impactCd - raw);
+      if (this.dashT > 0 || this.lockT > 0) mx = my = 0;
       this.hero.vx = mx * this.speed; this.hero.vy = my * this.speed;
       this.hero.x += this.hero.vx * dt; this.hero.y += this.hero.vy * dt;
       this.hp = Math.min(this.maxHp, this.hp + this.maxHp * 0.005 * this.passives.renewal * dt);
@@ -331,11 +335,7 @@ export class Horde extends Phaser.Scene {
       if (a === 'pause') { if (!this.dead) this.openPause(); continue; }
       if (this.dead) continue;
       if (a === 'dash' && this.cds.dash <= 0) {
-        let dx = this.ui.mx, dy = this.ui.my;
-        if (Math.hypot(dx, dy) < 0.2) { dx = this.hero.face; dy = 0; }
-        const n = Math.hypot(dx, dy); this.dashX = dx / n; this.dashY = dy / n;
-        this.dashT = 0.2; this.invuln = Math.max(this.invuln, 0.34); this.cds.dash = 1.8 * this.cdMult;
-        sfx('dash', { vol: 0.6 }); haptic('light');
+        this.blink();
       } else if (a === 'skill' && this.cds.skill <= 0) {
         this.cds.skill = this.skillCd();
         if (this.heroId === 'elior') this.arsenal.storm(2.4);
@@ -351,6 +351,51 @@ export class Horde extends Phaser.Scene {
       } else if (a === 'switch' && this.cds.switch <= 0) this.switchHero();
     }
     this.ui.pressed.clear();
+  }
+
+  /**
+   * The dash is a blink for every hero: Elior's Phantom Step cuts through what it passes, Tirzah's Dawnstep looses a
+   * fan of arrows where she lands (stepping away from the horde when the stick is still), and Uri's Ember Step bursts
+   * into fire at both ends.
+   */
+  private blink() {
+    let dx = this.ui.mx, dy = this.ui.my;
+    if (Math.hypot(dx, dy) < 0.2) {
+      const f = this.heroId === 'tirzah' ? this.swarm.nearest(this.hero.x, this.hero.y, 200) : null;
+      if (f) { dx = this.hero.x - f.x; dy = this.hero.y - f.y; } else { dx = this.hero.face; dy = 0; }
+    }
+    const n = Math.hypot(dx, dy) || 1, dist = this.heroId === 'elior' ? 84 : 72, x0 = this.hero.x, y0 = this.hero.y;
+    const x1 = x0 + (dx / n) * dist, y1 = y0 + (dy / n) * dist;
+    // Afterimages along the way, then the hero is simply there.
+    for (let i = 0; i < 3; i++) this.hero.ghost(x0 + (x1 - x0) * (i / 3), y0 + (y1 - y0) * (i / 3), 0.18 + i * 0.06);
+    this.hero.x = x1; this.hero.y = y1;
+    if (Math.abs(dx) > 0.1) this.hero.face = dx > 0 ? 1 : -1;
+    this.dashT = 0.1; this.invuln = Math.max(this.invuln, 0.35); this.cds.dash = 1.8 * this.cdMult;
+    this.swarm.clearShots(x0, y0 - 10, 30); this.swarm.clearShots(x1, y1 - 10, 30);
+    if (this.heroId === 'elior') this.arsenal.phantomStep(x0, y0, x1, y1);
+    else if (this.heroId === 'tirzah') this.arsenal.dawnstep(x0, y0, x1, y1);
+    else this.arsenal.emberStep(x0, y0, x1, y1);
+    sfx('teleport', { vol: 0.5 }); sfx('dash', { vol: 0.4 }); haptic('light');
+  }
+
+  /** A Phantom chain carries the hero: the stick waits, and no blow lands, until it ends. */
+  lockHero(sec: number) { this.lockT = Math.max(this.lockT, sec); this.invuln = Math.max(this.invuln, sec + 0.1); }
+
+  /**
+   * An impact frame for the big blows (a chain's last cut, an elite felled, fire from heaven): the world almost
+   * stops for a breath, the camera punches in, light rings out, and the screen shakes. At most one a half second.
+   */
+  impact(x: number, y: number, power = 1) {
+    if (this.impactCd > 0) return;
+    this.impactCd = 0.5;
+    this.slowMo(0.06, 0.06 + 0.05 * power);
+    const cam = this.cameras.main;
+    this.tweens.killTweensOf(cam);
+    cam.setZoom(this.baseZoom * (1 + 0.07 * power));
+    this.tweens.add({ targets: cam, zoom: this.baseZoom, duration: 280, ease: 'Cubic.easeOut' });
+    this.arsenal.boom('vfx-impacts', 18, 6, x, y + 10, 0.3, 0.5 * power);
+    this.shake(0.006 * power, 160);
+    sfx('hitHeavy', { vol: 0.6 }); haptic('heavy');
   }
 
   private beginForm() {
@@ -417,7 +462,7 @@ export class Horde extends Phaser.Scene {
     if (this.formT <= 0) this.gauge = Math.min(1, this.gauge + 1 / (60 + this.formUses * 15));
     if (this.formT > 0 && this.heroId === 'elior') this.arsenal.formBurst(x, y);
     this.pickups.drop('gem', x, y, f.xp);
-    if (f.elite) { this.pickups.drop('chest', x, y, 1); haptic('kill'); }
+    if (f.elite) { this.pickups.drop('chest', x, y, 1); haptic('kill'); this.impact(x, y - 16, 1); }
     else if (Math.random() < 0.1) this.pickups.drop('coin', x + 6, y, Math.ceil((1 + this.stage * 0.5) * this.fortune));
     else if (Math.random() < 0.012) this.pickups.drop('heart', x - 6, y, 1);
   }

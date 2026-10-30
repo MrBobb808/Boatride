@@ -33,18 +33,27 @@ try {
   await page.waitForTimeout(700);
   const walked = (await H(page, (h) => h.hero.x)) - x0;
   const spots = await H(page, (h) => h.ui.spots);
+  const x1 = await H(page, (h) => h.hero.x);
   await touch('touchMove', [[182, 640], [spots.dash.x, spots.dash.y]]);
   await page.waitForTimeout(120);
   const dashed = await H(page, (h) => h.cds.dash > 0);
+  const blinked = (await H(page, (h) => h.hero.x)) - x1;
   await touch('touchEnd', []);
   assert.ok(walked > 25, `the stick walks the hero right (${walked.toFixed(1)} px)`);
-  assert.ok(dashed, 'the dash button dashes while the stick is held');
+  assert.ok(dashed && blinked > 60, `the dash button blinks the hero ahead while the stick is held (${blinked.toFixed(0)} px)`);
   for (const [k, s] of Object.entries(spots)) assert.ok(s.x - s.r >= 0 && s.x + s.r <= 390 && s.y - s.r >= 0 && s.y + s.r <= 844, `${k} is on screen upright`);
-  console.log(`Upright: the stick walked ${walked.toFixed(0)} px; DASH dashed with the stick held; every button on screen`);
+  console.log(`Upright: the stick walked ${walked.toFixed(0)} px; DASH blinked ${blinked.toFixed(0)} px with the stick held; every button on screen`);
 
   // ---- the weapons strike on their own
   await until(page, () => window.__remnant.horde.kills >= 2, null, 45000);
   console.log(`Auto-weapons: ${await H(page, (h) => h.kills)} foes fell with no attack pressed`);
+
+  // ---- Elior's cuts turn into a Phantom chain: he blinks foe to foe, and the last cut is an impact frame
+  await H(page, (h) => { for (let i = 0; i < 6; i++) h.spawnFoe(h.hero.x + 40 + i * 22, h.hero.y + (i % 2 ? 18 : -18), 'bulwark'); });
+  await until(page, () => window.__remnant.horde.arsenal.phantoms > 0, null, 30000);
+  await page.waitForTimeout(250);
+  await page.screenshot({ path: 'qa/horde-phantom.png' });
+  console.log('Phantom chain: Elior blinked from foe to foe within his fourth cut');
 
   // ---- a level-up offers three cards; a tap takes one
   await H(page, (h) => h.collect('gem', h.xpNext - h.xp + 0.5));
