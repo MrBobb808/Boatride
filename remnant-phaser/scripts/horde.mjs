@@ -14,6 +14,14 @@ const errors = [];
 const until = (page, fn, arg, timeout = 30000) => page.waitForFunction(fn, arg, { timeout });
 const E = (page, fn, arg) => page.evaluate(fn, arg);
 const H = (page, fn) => page.evaluate(`(${fn})(window.__remnant.horde)`);
+/** Take every level-up card that has come up, so a timed check is not waiting on a paused field. */
+async function drain(page) {
+  for (let i = 0; i < 150; i++) {
+    if (!await page.evaluate(() => document.querySelectorAll('.hz-card').length)) return;
+    await page.locator('.hz-card').first().click();
+    await page.waitForTimeout(120);
+  }
+}
 
 try {
   await mkdir('qa', { recursive: true });
@@ -56,6 +64,7 @@ try {
   console.log('Phantom chain: Elior blinked from foe to foe within his fourth cut');
 
   // ---- a level-up offers three cards; a tap takes one
+  await drain(page);
   await H(page, (h) => h.collect('gem', h.xpNext - h.xp + 0.5));
   await until(page, () => document.querySelectorAll('.hz-card').length === 3);
   const offer = await H(page, (h) => h.offer);
@@ -69,7 +78,8 @@ try {
   console.log(`Level-up: ${offer.join(' · ')}; tapped "${offer[0]}"`);
 
   // ---- the skill, the transformation, the switch (buttons)
-  const tap = async (k) => { const s = (await H(page, (h) => h.ui.spots))[k]; await page.touchscreen.tap(s.x, s.y); await page.waitForTimeout(150); };
+  // A button tap clears any level-up card first, or the tap would land on the card.
+  const tap = async (k) => { await drain(page); const s = (await H(page, (h) => h.ui.spots))[k]; await page.touchscreen.tap(s.x, s.y); await page.waitForTimeout(150); };
   await tap('skill');
   assert.ok(await H(page, (h) => h.cds.skill > 0), 'STORM casts');
   await H(page, (h) => { h.gauge = 1; });
@@ -79,24 +89,30 @@ try {
   await page.screenshot({ path: 'qa/horde-mantle.png' });
   await tap('switch');
   assert.equal(await H(page, (h) => [h.heroId, h.formT > 0]).then((v) => v.join()), 'tirzah,false', 'the switch brings Tirzah in (and ends the form)');
+  await drain(page);
   await until(page, () => window.__remnant.horde.arsenal.missiles.some((m) => m.t >= 0), null, 15000);
   console.log('Buttons: STORM cast, MANTLE transformed Elior, the switch brought Tirzah, and her bow looses on its own');
 
   // ---- Uri: the third press of the switch; his shaman at his side; his prayer; the Crown merges the two
+  await drain(page);
   await H(page, (h) => { h.cds.switch = 0; });
   await tap('switch');
   assert.deepEqual(await H(page, (h) => [h.heroId, h.shaman.active, h.hero.key]), ['uri', true, 'painted-uri'], 'the switch brings Uri, and his shaman with him');
+  await drain(page);
   await until(page, () => window.__remnant.horde.arsenal.missiles.some((m) => m.t >= 0 && m.kind === 'fireball'), null, 15000);
+  await drain(page);
   await tap('skill');
   assert.ok(await H(page, (h) => h.cds.skill > 0), 'FIRE prays down fire from heaven');
   await page.waitForTimeout(600);
   await page.screenshot({ path: 'qa/horde-uri.png' });
+  await drain(page);
   await H(page, (h) => { h.gauge = 1; });
   await tap('form');
   assert.deepEqual(await H(page, (h) => [h.formT > 0, h.hero.key, h.shaman.active]), [true, 'painted-uri-crown', false], 'the Crown of Flame merges Uri and the shaman');
   await page.waitForTimeout(500);
   await page.screenshot({ path: 'qa/horde-crown.png' });
   await H(page, (h) => { h.formT = 0.01; });
+  await drain(page);
   await until(page, () => window.__remnant.horde.shaman.active && !window.__remnant.horde.hero.form);
   console.log('Uri: his fireballs fly on their own, the shaman stands at his side, FIRE prays fire down, and the Crown of Flame makes the two one until it fades');
 
@@ -118,11 +134,7 @@ try {
   await page.locator('[data-k=hz_next]').tap();
   await until(page, () => window.__remnant.horde.stage === 2);
   // The gems the monarch's fall gathered may bring level-ups: take them.
-  for (let i = 0; i < 40; i++) {
-    if (!await H(page, (h) => !!h.overlay)) break;
-    if (await E(page, () => document.querySelectorAll('.hz-card').length)) await page.locator('.hz-card').first().tap();
-    await page.waitForTimeout(400);
-  }
+  for (let i = 0; i < 20 && await H(page, (h) => !!h.overlay); i++) { await drain(page); await page.waitForTimeout(300); }
   assert.ok(await H(page, (h) => !h.overlay), `stage 2 plays (${await H(page, (h) => JSON.stringify({ dead: h.dead, cards: document.querySelectorAll('.hz-card').length, keys: [...document.querySelectorAll('[data-horde] [data-k]')].map((b) => b.dataset.k) }))})`);
   console.log(`${boss}: arrived when the stage ran out, fell, left gear; onward to stage 2 (${await H(page, (h) => h.biome.name)})`);
 
@@ -139,8 +151,9 @@ try {
   for (let i = 0; i < 10 && await E(page, () => document.querySelectorAll('.hz-card').length); i++) { await page.locator('.hz-card').first().click(); await page.waitForTimeout(250); }
   await H(page, (h) => { delete h.hurtHero; h.invuln = 0; h.hurtHero(1e9); });
   await until(page, () => document.querySelector('[data-k=hz_return]'));
-  const banked = await H(page, (h) => ({ silver: h.save.silver, inv: h.save.inventory.length, level: h.save.level, xp: h.save.xp, rec: h.save.horde, uri: h.save.uri }));
-  assert.equal(banked.silver, saved.silver + saved.run, 'the run\'s silver is banked');
+  // The run's silver as banked (coins still flying in after the snapshot above count too).
+  const banked = await H(page, (h) => ({ silver: h.save.silver, inv: h.save.inventory.length, level: h.save.level, xp: h.save.xp, rec: h.save.horde, uri: h.save.uri, run: h.silver }));
+  assert.equal(banked.silver, saved.silver + banked.run, 'the run\'s silver is banked');
   assert.equal(banked.inv, saved.inv + 1, 'the monarch\'s gear is in the pack');
   assert.ok(banked.level > saved.level || banked.xp > saved.xp, 'the journey earns XP');
   assert.equal(banked.rec.best, 2, 'the deepest stage is recorded');
@@ -149,7 +162,7 @@ try {
   await page.locator('[data-k=hz_return]').click();
   await until(page, () => window.__remnant?.world?.player);
   assert.equal(await E(page, () => window.__remnant.world.save.horde.best), 2, 'the journey loads with the record');
-  console.log(`Fall: ${saved.run} silver, the gear and the XP banked (Uri level ${banked.uri.level}); best stage 2 recorded; back on the journey`);
+  console.log(`Fall: ${banked.run} silver, the gear and the XP banked (Uri level ${banked.uri.level}); best stage 2 recorded; back on the journey`);
 
   // ---- the ways in: the pause menu's Game modes and the title
   await E(page, () => window.__remnant.world.enterHorde());
