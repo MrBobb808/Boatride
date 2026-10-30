@@ -244,6 +244,10 @@ Never ship files from `art/incoming/` directly.
   by biome over the original's particle weather. Presentation only; see PORTING.md.
   `screenFx.ts` adds bloom, a colour grade per place, an underwater cast and
   cinematic grain under the letterbox (camera filters, WebGL only).
+- **Phone (Phaser build):** Smart buttons (`settings.smartButtons`) show touch
+  buttons only when they apply; Camera look-ahead (`settings.lookAhead`) leads
+  the way the hero faces. See POLISH_PLAN §12 for the design review's plan
+  (death stakes, a Chapter I metroidvania pilot, Psalms).
 - **iPhone performance:** the game targets 120 Hz.
   - Do not use `shadowBlur`.
   - Cache gradients and avoid allocating in per-frame paths.

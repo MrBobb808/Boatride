@@ -275,6 +275,8 @@ export class World extends Phaser.Scene implements WorldApi {
     this.visuals.load();
     this.cameras.main.startFollow(this.player.rect, true, 0.14, 0.12, 0, 24);
     this.cameras.main.setDeadzone(24, 40);
+    // Arrive already leading the way the hero faces, not sweeping to it.
+    this.leadFace = this.player.face; this.lead = 0; this.leadCamera(2);
     this.hud.roomEntered?.(r);
     const first = !this.save.visited.includes(id); if (first) this.save.visited.push(id);
     this.classic.enter(first);
@@ -430,6 +432,19 @@ export class World extends Phaser.Scene implements WorldApi {
   // ---------------------------------------------------------------- camera
 
   baseZoom = 1;
+  /** Look-ahead (after Hollow Knight): the camera leads the way the hero faces, once he has kept to it a moment, so
+   * what is coming stays in view and out from under the thumbs. A boss's framing or a story shot takes over. */
+  private lead = 0;
+  private leadFace = 1;
+  private leadHold = 0;
+  private leadCamera(dt: number) {
+    const cam = this.cameras.main, p = this.player;
+    if (p.face !== this.leadFace) { this.leadHold += dt; if (this.leadHold > 0.22) { this.leadFace = p.face; this.leadHold = 0; } } else this.leadHold = 0;
+    const want = settings.lookAhead !== false && !G.inCutscene && !G.camera.focus ? this.leadFace * Math.min(72, cam.worldView.width * 0.16) : 0;
+    this.lead += (want - this.lead) * (1 - Math.exp(-dt * 2.4));
+    cam.followOffset.x = -this.lead;
+  }
+
   fitCamera() {
     if (!this.room) return;
     const cam = this.cameras.main;
@@ -437,7 +452,9 @@ export class World extends Phaser.Scene implements WorldApi {
     cam.setSize(W, H);
     const r = this.room;
     // 300 world px tall, but never wider than the room (small rooms fill the screen).
-    const height = VIEW_H * (settings.zoom === 'close' ? 0.82 : settings.zoom === 'wide' ? 1.2 : 1);
+    // On a phone the normal distance sits a little closer: the heroes read larger on a small screen.
+    const phone = this.controls?.device === 'touch';
+    const height = VIEW_H * (settings.zoom === 'close' ? 0.82 : settings.zoom === 'wide' ? 1.2 : phone ? 0.9 : 1);
     let zoom = H / height;
     zoom = Math.max(zoom, W / (r.w * TILE), H / (r.h * TILE));
     this.baseZoom = zoom;
@@ -496,6 +513,7 @@ export class World extends Phaser.Scene implements WorldApi {
     if (this.controls.pressed('switch') && !G.inCutscene && !this.player.dead) this.classic.squad.switchSupport();
     this.controls.locked = G.inCutscene;
     this.player.update(dt);
+    this.leadCamera(rawDt);
     for (const f of this.foeList) if (!f.removed) f.update(dt * this.classic.nativeScale(f));
     this.foeList = this.foeList.filter((f) => !f.removed);
     this.classic.update(rawDt);
