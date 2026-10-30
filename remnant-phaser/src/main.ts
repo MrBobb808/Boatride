@@ -11,6 +11,9 @@ measureSafe(); initHaptics();
 import { Boot } from './scenes/Boot';
 import { Title } from './scenes/Title';
 import { World } from './scenes/World';
+import { patchChapterOne } from './game/pilot';
+// The Chapter I pilot reshapes the shared rooms for this build only (POLISH_PLAN §12c).
+patchChapterOne();
 import { Hud } from './scenes/Hud';
 
 import { dpr } from './game/screen';
