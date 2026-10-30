@@ -26,10 +26,13 @@ try {
   const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
   page.on('pageerror', (e) => errors.push(e.message));
   page.on('console', (m) => { if (m.type() === 'error' && !m.text().includes('404')) errors.push(m.text()); });
-  await page.goto(base + '?debug&nostory&autostart&fresh');
+  // `fx` keeps the passes on in this software-rendered browser, where the game would otherwise leave them off.
+  await page.goto(base + '?debug&nostory&autostart&fresh&fx');
   await until(page, () => window.__remnant?.world?.player?.onGround);
   const gpu = await E(page, () => window.__remnant.world.visuals.gpu);
   assert.ok(gpu, 'the test browser renders with WebGL');
+  const soft = await E(page, async () => { const w = window.__remnant.world; return w.visuals.screen.on; });
+  assert.ok(soft, 'the passes are on with fx');
   await E(page, () => { window.__remnant.settings.quality = 'high'; });
 
   // ---- each place its grade: the Hunt's snow cold, the foundry hot
@@ -83,6 +86,15 @@ try {
   assert.ok(typeof under === 'object' && under.under > 0.5 && under.water, `the water casts its colour under the surface (${JSON.stringify(under)})`);
   await page.screenshot({ path: 'qa/screen-fx-underwater.png' });
   console.log(`Underwater: ${JSON.stringify(under)}`);
+
+  // ---- without fx, this software renderer gets none of the full-screen passes
+  const plain = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+  plain.on('pageerror', (e) => errors.push(e.message));
+  await plain.goto(base + '?debug&nostory&autostart&fresh');
+  await until(plain, () => window.__remnant?.world?.player?.onGround);
+  const off = await E(plain, () => { const s = window.__remnant.world.visuals.screen; return { on: s.on, filters: !!(s.color || s.vignette || s.bloom) }; });
+  assert.deepEqual(off, { on: false, filters: false }, 'a software renderer keeps no full-screen passes');
+  console.log('Software renderer: no full-screen passes');
 
   assert.deepEqual(errors, [], 'no page errors');
   console.log('phaser screen effects: all checks passed');

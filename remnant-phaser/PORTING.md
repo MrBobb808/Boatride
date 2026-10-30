@@ -289,7 +289,7 @@ POLISH_PLAN §11d. `src/game/screenFx.ts` puts Phaser 4 filters on the main came
 - **Underwater**, a blue-green cast and a closing vignette ease in while the hero is submerged. The vignette runs only then and under the letterbox, so the resting frame costs one extra pass. The existing water and heat displacement still ripple and shimmer.
 - **Cinematic moments:** while the letterbox is in (`Hud.letterbox`: a boss's entrance, a Super) or a boss intro holds the camera, the effects add a harder grade, a deeper vignette and film grain (a baked noise tile at depth 19.6), easing back out after.
 
-Reduce flashes softens the bloom and the grain. Without WebGL only the grain remains. Verified by `scripts/screen-fx.mjs`.
+Reduce flashes softens the bloom and the grain. Without WebGL only the grain remains. A software renderer (SwiftShader, llvmpipe: no GPU) keeps none of it, because full-screen passes are what such a renderer cannot afford; `?fx` in the URL keeps them on, which `scripts/screen-fx.mjs` uses. Verified by `scripts/screen-fx.mjs`.
 
 ## The AI partner hero
 

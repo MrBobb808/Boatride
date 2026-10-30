@@ -54,12 +54,22 @@ function then(first: Mat, next: Mat): Mat {
 }
 const chain = (...ms: Mat[]) => ms.reduce(then);
 
+/** Software WebGL (SwiftShader, llvmpipe) cannot afford full-screen passes; `?fx` keeps them on for the tests. */
+function softwareGl(w: World) {
+  const gl = (w.game.renderer as Phaser.Renderer.WebGL.WebGLRenderer).gl;
+  if (!gl || new URLSearchParams(location.search).has('fx')) return false;
+  const info = gl.getExtension('WEBGL_debug_renderer_info');
+  return /swiftshader|llvmpipe|softpipe|software/i.test(String(gl.getParameter(info ? info.UNMASKED_RENDERER_WEBGL : gl.RENDERER)));
+}
+
 export class ScreenFx {
   /** The current amounts, for the debug API and tests. */
   cine = 0;
   under = 0;
   glow = 0;
   biome = '';
+  /** False on a software renderer: the frame keeps none of the passes, nor the grain. */
+  readonly on: boolean;
   private color?: Phaser.Filters.ColorMatrix;
   private vignette?: Phaser.Filters.Vignette;
   private bloom?: { parallelFilters: Phaser.Filters.ParallelFilters; threshold: Phaser.Filters.Threshold; blur: Phaser.Filters.Blur };
@@ -79,7 +89,8 @@ export class ScreenFx {
       c.putImageData(img, 0, 0); t.refresh();
     }
     this.grain = w.add.tileSprite(0, 0, 8, 8, 'fx-grain').setOrigin(0).setDepth(19.6).setVisible(false);
-    if (!gpu) return;
+    this.on = !gpu || !softwareGl(w);
+    if (!gpu || !this.on) return;
     const f = w.cameras.main.filters.external;
     this.color = f.addColorMatrix();
     this.vignette = f.addVignette(0.5, 0.5, 0.82, 0);
@@ -129,7 +140,7 @@ export class ScreenFx {
       this.bloom.parallelFilters.active = on;
       if (on) this.bloom.parallelFilters.blend.amount = this.glow;
     }
-    const grain = this.cine > 0.02 && tier > 0;
+    const grain = this.on && this.cine > 0.02 && tier > 0;
     this.grain.setVisible(grain);
     if (grain) {
       if (this.grain.width !== Math.ceil(v.width) + 2 || this.grain.height !== Math.ceil(v.height) + 2) this.grain.setSize(Math.ceil(v.width) + 2, Math.ceil(v.height) + 2);
