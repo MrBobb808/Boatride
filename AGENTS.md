@@ -198,7 +198,12 @@ Never ship files from `art/incoming/` directly.
   `ui/coach.ts` shows optional one-time coaching cards (`SaveData.coached`)
   and `ui/statTips.ts` explains every stat on hover or long-press.
 - **Guidance:** `game/guide.ts` maps quest stages to targets and draws the
-  golden objective marker.
+  golden objective marker. Chapters register their objectives with
+  `registerGuide(objective, journey)`; the "journey on" altar hints are
+  checked only after every chapter's objective, so a finished chapter never
+  hides the one under way. In VII–X the marker leads to each of the two
+  objectives that unseal the throne (with a count), then to the boss; the
+  ridge says what is left when the throne is still sealed.
 - **Pixel art:** Settings → Art style (default Pixel) draws the world at one
   pixel per world unit and scales it up hard-edged (`Renderer.world`,
   `Renderer.present`). Characters come from two sources:

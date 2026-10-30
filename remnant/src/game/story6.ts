@@ -72,12 +72,12 @@ registerGuide(() => {
     if (!s.defeated.includes('persia_prince')) return { room: 'prince_throne', at: 'trigger:persia_start', label: 'the throne of the prince, at the top of the high places' };
     return null;
   }
-  if (flag('ch5_done') && !flag('ch6_intro')) {
-    const here = G.world.room;
-    const alt = here.ents.find((e) => e.t === 'altar');
-    if (alt && alt.t === 'altar') return { room: here.id, at: 'altar:' + alt.id, label: 'an altar: rest and choose Journey on' };
-  }
   return null;
+}, () => {
+  if (!flag('ch5_done') || flag('ch6_intro')) return null;
+  const here = G.world.room;
+  const alt = here.ents.find((e) => e.t === 'altar');
+  return alt && alt.t === 'altar' ? { room: here.id, at: 'altar:' + alt.id, label: 'an altar: rest and choose Journey on' } : null;
 });
 
 export class Chapter6 {

@@ -26,14 +26,25 @@ interface Spec {
 
 /** The objective for the current main-quest stage, in story order. */
 function currentSpec(): Spec | null {
-  const s = G.save;
-  const q = (id: string) => s.quests[id];
-  const open = (id: string) => q(id) && !q(id).done;
   // Chapter III and later register their own stages.
   for (const f of extraSpecs) {
     const r = f();
     if (r) return r;
   }
+  const quest = builtinSpec();
+  if (quest) return quest;
+  // Only with no chapter under way: the altar that journeys on to the next one.
+  for (const f of journeySpecs) {
+    const r = f();
+    if (r) return r;
+  }
+  return null;
+}
+
+function builtinSpec(): Spec | null {
+  const s = G.save;
+  const q = (id: string) => s.quests[id];
+  const open = (id: string) => q(id) && !q(id).done;
   if (open('m_tower')) {
     const st = q('m_tower').stage;
     if (st <= 1 && !s.defeated.includes('kiln_overseer')) return { room: 'kiln_yard', at: 'trigger:overseer', label: 'the Overseer\'s yard beyond the brickworks' };
@@ -62,9 +73,14 @@ function currentSpec(): Spec | null {
 }
 
 const extraSpecs: (() => Spec | null)[] = [];
-/** Later chapters add their objectives here (checked first). */
-export function registerGuide(f: () => Spec | null) {
+const journeySpecs: (() => Spec | null)[] = [];
+/**
+ * Later chapters add their objectives here (checked first). A chapter's "journey on" hint goes in `journey`: it is
+ * checked only once no chapter's objective applies, so a finished chapter's altar never hides the current one's.
+ */
+export function registerGuide(f: () => Spec | null, journey?: () => Spec | null) {
   extraSpecs.push(f);
+  if (journey) journeySpecs.push(journey);
 }
 
 function resolve(spec: Spec): GuideTarget | null {

@@ -61,12 +61,12 @@ registerGuide(() => {
     if (!s.defeated.includes('golden_image')) return { room: 'image_base', at: 'trigger:image_start', label: 'the Image of Gold on the plain of Dura' };
     return null;
   }
-  if (flag('ch3_done') && !flag('ch4_intro')) {
-    const here = G.world.room;
-    const alt = here.ents.find((e) => e.t === 'altar');
-    if (alt && alt.t === 'altar') return { room: here.id, at: 'altar:' + alt.id, label: 'an altar: rest and choose Journey on' };
-  }
   return null;
+}, () => {
+  if (!flag('ch3_done') || flag('ch4_intro')) return null;
+  const here = G.world.room;
+  const alt = here.ents.find((e) => e.t === 'altar');
+  return alt && alt.t === 'altar' ? { room: here.id, at: 'altar:' + alt.id, label: 'an altar: rest and choose Journey on' } : null;
 });
 
 export class Chapter4 {

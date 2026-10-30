@@ -56,12 +56,12 @@ registerGuide(() => {
     if (!s.defeated.includes('locust_king')) return { room: 'brood_chamber', at: 'trigger:brood_start', label: 'the brood chamber, deep in the hive' };
     return null;
   }
-  if (flag('ch2_done') && !flag('ch3_intro')) {
-    const here = G.world.room;
-    const alt = here.ents.find((e) => e.t === 'altar');
-    if (alt && alt.t === 'altar') return { room: here.id, at: 'altar:' + alt.id, label: 'an altar: rest and choose Journey on' };
-  }
   return null;
+}, () => {
+  if (!flag('ch2_done') || flag('ch3_intro')) return null;
+  const here = G.world.room;
+  const alt = here.ents.find((e) => e.t === 'altar');
+  return alt && alt.t === 'altar' ? { room: here.id, at: 'altar:' + alt.id, label: 'an altar: rest and choose Journey on' } : null;
 });
 
 export class Chapter3 {
