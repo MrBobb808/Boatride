@@ -4,6 +4,7 @@ import Phaser from 'phaser';
 import { actionAtlas, actionFrame, ACTION_FOOT, ACTION_CELL } from '../actionArt';
 import type { WeaponFamily } from '../../../../remnant/src/game/data';
 import type { HeroId } from './defs';
+import { uriAtlas, crownAtlas } from './uriArt';
 
 const LOOP: Record<string, number> = { idle: 1.6, run: 0.62 };
 
@@ -35,6 +36,9 @@ export class HordeHero {
     this.keys.tirzah = actionAtlas(sc, 'tirzah', 'blade');
     this.keys['elior-form'] = actionAtlas(sc, 'elior', family, true);
     this.keys['tirzah-form'] = actionAtlas(sc, 'tirzah', 'blade', true);
+    // Uri and his Crown of Flame are painted, not cut from parts (game/horde/uriArt.ts).
+    this.keys.uri = uriAtlas(sc);
+    this.keys['uri-form'] = crownAtlas(sc);
     this.shadow = wl(sc.add.image(0, 0, 'hz-shadow').setScale(0.9, 1));
     this.wings = wl(sc.add.image(0, 0, 'vfx-transform', 27).setBlendMode(Phaser.BlendModes.ADD).setVisible(false).setScale(0.62));
     for (let i = 0; i < 5; i++) this.trail.push({ img: wl(sc.add.image(0, 0, this.keys.elior, 'idle:0').setVisible(false).setTint(0xb48cff).setTintMode(Phaser.TintModes.FILL)), life: 0 });
@@ -59,9 +63,10 @@ export class HordeHero {
       if (this.shot.t >= this.shot.dur) this.shot = null;
       else { clip = this.shot.clip; u = this.shot.t / this.shot.dur; }
     }
-    if (dashing) clip = this.hero === 'tirzah' ? 'roll' : 'dash', u = 0.5;
+    if (dashing) clip = this.hero === 'elior' ? 'dash' : 'roll', u = 0.5;
     const key = this.key;
-    this.sprite.setTexture(key, actionFrame(this.sc, key, clip, u)).setFlipX(this.face < 0).setPosition(Math.round(this.x), Math.round(this.y)).setDepth(this.y);
+    // The painted figures are drawn at one pixel per unit and smaller than the fighters' atlases.
+    this.sprite.setTexture(key, actionFrame(this.sc, key, clip, u)).setScale(this.hero === 'uri' ? 1.05 : 0.82).setFlipX(this.face < 0).setPosition(Math.round(this.x), Math.round(this.y)).setDepth(this.y);
     // A hurt flash, then a flicker while the blow's grace lasts.
     this.hurtT = Math.max(0, this.hurtT - dt);
     if (this.hurtT > 0.12) this.sprite.setTint(0xff5a5a).setTintMode(Phaser.TintModes.FILL); else this.sprite.clearTint().setTintMode(Phaser.TintModes.MULTIPLY);

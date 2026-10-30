@@ -15,18 +15,24 @@ import { sfx } from '../../../remnant/src/audio/audio';
 import { haptic } from '../../../remnant/src/core/haptics';
 import { input } from '../../../remnant/src/core/input';
 import { shakeScale } from '../classic/shim/settings';
-import { BIOMES, WEAPONS, PASSIVES, RELICS, RELIC_SLOTS, stageTime, stageHp, stageDmg, type Biome, type HeroId, type PassiveId, type WeaponId } from '../game/horde/defs';
+import { BIOMES, HEROES, WEAPONS, PASSIVES, RELICS, RELIC_SLOTS, stageTime, stageHp, stageDmg, type Biome, type HeroId, type PassiveId, type WeaponId } from '../game/horde/defs';
 import { Terrain, hordeTextures } from '../game/horde/ground';
 import { Swarm, MAX_FOES, type Foe } from '../game/horde/foes';
 import { HordeHero } from '../game/horde/hero';
 import { Arsenal } from '../game/horde/weapons';
+import { Shaman } from '../game/horde/shaman';
 import { HordeBoss } from '../game/horde/boss';
 import { Pickups, type DropKind } from '../game/horde/pickups';
 import { HordeUI, overlay, el, type Act } from '../game/horde/ui';
 
 /** How much of the world the shorter side of the screen shows. */
 const VIEW = 440;
-const NAMES: Record<HeroId, string> = { elior: 'Elior', tirzah: 'Tirzah' };
+/** Each hero's part: their own weapon, their skill, and what their transformation gives (damage, cooldowns, speed). */
+const KIT: Record<HeroId, { name: string; weapon: WeaponId; skillCd: number; skillSfx: string; form: [number, number, number]; formName: string; formSub: string; formSfx: string; arrive: string }> = {
+  elior: { name: 'Elior', weapon: 'blade', skillCd: 11, skillSfx: 'swordWord', form: [1.7, 0.7, 1.15], formName: 'SHADOW MANTLE', formSub: 'Heavier, faster blows · the fallen burst in shadow', formSfx: 'transform', arrive: 'Elior · the Covenant Blade' },
+  tirzah: { name: 'Tirzah', weapon: 'bow', skillCd: 9, skillSfx: 'quiverMight', form: [1.4, 1, 1.2], formName: 'WINGS OF DAWN', formSub: 'Two more arrows · they pierce deeper', formSfx: 'wingsForm', arrive: 'Tirzah · the Dawn Bow' },
+  uri: { name: 'Uri', weapon: 'flame', skillCd: 12, skillSfx: 'pillarFire', form: [1.5, 0.85, 1.1], formName: 'CROWN OF FLAME', formSub: 'Uri and the shaman are one · meteors and a ring of fire', formSfx: 'transform', arrive: 'Uri · the Hand of Flame, and his shaman' },
+};
 const FORM_TIME = 14;
 
 type Choice = { kind: 'weapon'; id: WeaponId } | { kind: 'passive'; id: PassiveId } | { kind: 'boon'; id: 'heal' | 'silver' };
@@ -39,6 +45,9 @@ export class Horde extends Phaser.Scene {
   terrain!: Terrain;
   swarm!: Swarm;
   arsenal!: Arsenal;
+  /** Uri's orc shaman, at his side while he fights. */
+  shaman!: Shaman;
+  private prayed = false;
   hero!: HordeHero;
   pickups!: Pickups;
   ui!: HordeUI;
@@ -96,11 +105,11 @@ export class Horde extends Phaser.Scene {
   private get d() { return this.heroD[this.heroId]; }
   /** A hero's strength from the journey: its attack, compressed so a strong save is strong but never untouchable. */
   private power(id: HeroId) { return Math.pow(Math.max(1, this.heroD[id].atk / 10), 0.8); }
-  get dmgMult() { return this.power(this.heroId) * (1 + 0.12 * this.passives.might) * (this.formT > 0 ? (this.heroId === 'elior' ? 1.7 : 1.4) : 1); }
-  get cdMult() { return (1 - 0.08 * this.passives.haste) * (this.formT > 0 && this.heroId === 'elior' ? 0.7 : 1); }
+  get dmgMult() { return this.power(this.heroId) * (1 + 0.12 * this.passives.might) * (this.formT > 0 ? KIT[this.heroId].form[0] : 1); }
+  get cdMult() { return (1 - 0.08 * this.passives.haste) * (this.formT > 0 ? KIT[this.heroId].form[1] : 1); }
   get areaMult() { return 1 + 0.12 * this.passives.reach; }
   get plenty() { return this.passives.plenty; }
-  private get speed() { return 96 * (1 + 0.08 * this.passives.swift) * (this.formT > 0 ? (this.heroId === 'elior' ? 1.15 : 1.2) : 1); }
+  private get speed() { return 96 * (1 + 0.08 * this.passives.swift) * (this.formT > 0 ? KIT[this.heroId].form[2] : 1); }
   private get crit() { return Math.min(0.6, this.d.crit + 0.06 * this.passives.precision); }
   private get armor() { return Math.min(0.65, 0.08 * this.passives.armor + Math.min(0.3, this.d.dr * 0.5)); }
   private get reach() { return 42 * (1 + 0.4 * this.passives.magnet); }
@@ -118,7 +127,8 @@ export class Horde extends Phaser.Scene {
     this.save = (loadSave() as PhaserSave | null) ?? (newSave(false) as PhaserSave);
     if (!this.save.archer) this.save.archer = newArcher(this.save);
     const eliorD = stats(this.save);
-    this.heroD = { elior: eliorD, tirzah: archerStats(this.save, eliorD) };
+    // Uri has no journey of his own yet: he fights with Elior's strength.
+    this.heroD = { elior: eliorD, tirzah: archerStats(this.save, eliorD), uri: eliorD };
     this.runPower = Math.max(this.power('elior'), this.power('tirzah'));
     this.reset();
     hordeTextures(this);
@@ -134,6 +144,7 @@ export class Horde extends Phaser.Scene {
     this.hero = new HordeHero(this, (o) => this.wl(o), eliorD.family);
     this.hero.hero = this.save.playableHero === 'tirzah' ? 'tirzah' : 'elior';
     this.arsenal = new Arsenal(this);
+    this.shaman = new Shaman(this);
     this.hpBar = this.wl(this.add.graphics());
     for (let i = 0; i < 28; i++) this.nums.push({ t: this.wl(this.add.text(0, 0, '', { fontFamily: 'Georgia, serif', fontSize: '22px', color: '#ffffff', stroke: '#07060a', strokeThickness: 4 }).setOrigin(0.5).setScale(0.36).setVisible(false)), life: 0, vy: 0 });
     this.ui = new HordeUI(this);
@@ -151,7 +162,7 @@ export class Horde extends Phaser.Scene {
       this.overlay?.();
       this.overlay = null;
     });
-    this.arsenal.raise('blade'); this.arsenal.raise('bow');
+    this.arsenal.raise('blade'); this.arsenal.raise('bow'); this.arsenal.raise('flame');
     this.startStage(1);
     if (new URLSearchParams(location.search).has('debug')) (window as unknown as { __remnant: Record<string, unknown> }).__remnant = { ...((window as unknown as { __remnant?: Record<string, unknown> }).__remnant ?? {}), game: this.game, horde: this };
   }
@@ -159,7 +170,7 @@ export class Horde extends Phaser.Scene {
   private reset() {
     this.stage = 1; this.stageT = 0; this.level = 1; this.xp = 0; this.kills = 0; this.silver = 0; this.gemXp = 0; this.loot = [];
     for (const k of Object.keys(this.passives) as PassiveId[]) this.passives[k] = 0;
-    this.gauge = 0; this.formT = 0; this.formUses = 0; this.dead = false; this.banked = false; this.pendingLevels = 0;
+    this.gauge = 0; this.formT = 0; this.formUses = 0; this.prayed = false; this.dead = false; this.banked = false; this.pendingLevels = 0;
     this.maxHp = this.hp = this.baseMaxHp();
     this.cds = { dash: 0, skill: 0, form: 0, switch: 0 };
   }
@@ -281,6 +292,7 @@ export class Horde extends Phaser.Scene {
     const view = this.cameras.main.worldView;
     this.swarm.update(dt, this.hero.x, this.hero.y, view);
     if (!this.dead) this.touchDamage();
+    this.shaman.update(dt);
     this.boss?.update(dt);
     if (this.boss && !this.boss.alive) this.bossFell();
     this.pickups.update(dt, this.hero.x, this.hero.y, this.reach);
@@ -296,11 +308,11 @@ export class Horde extends Phaser.Scene {
   }
 
   private readout() {
-    const other: HeroId = this.heroId === 'elior' ? 'tirzah' : 'elior';
+    const other = this.nextHero;
     return {
       hp: this.hp, maxHp: this.maxHp, xp: this.xp, xpNext: this.xpNext, level: this.level,
       stage: this.stage, time: Math.max(0, stageTime(this.stage) - this.stageT), stageTime: stageTime(this.stage), kills: this.kills, silver: this.silver,
-      hero: NAMES[this.heroId], other: NAMES[other],
+      hero: KIT[this.heroId].name, heroId: this.heroId, other: KIT[other].name,
       cd: { dash: this.cds.dash / (1.8 * this.cdMult), skill: this.cds.skill / this.skillCd(), form: 0, switch: this.cds.switch / 5 },
       gauge: this.gauge, form: this.formT / FORM_TIME,
       boss: this.boss ? { name: this.boss.name, title: this.boss.title, hp: this.boss.hp, max: this.boss.maxHp } : null,
@@ -309,7 +321,8 @@ export class Horde extends Phaser.Scene {
 
   // ---------------------------------------------------------------- the player's acts
 
-  private skillCd() { return (this.heroId === 'elior' ? 11 : 9) * this.cdMult; }
+  private skillCd() { return KIT[this.heroId].skillCd * this.cdMult; }
+  private get nextHero() { return HEROES[(HEROES.indexOf(this.heroId) + 1) % HEROES.length]; }
 
   private acts() {
     for (const a of this.ui.pressed) {
@@ -323,8 +336,14 @@ export class Horde extends Phaser.Scene {
         sfx('dash', { vol: 0.6 }); haptic('light');
       } else if (a === 'skill' && this.cds.skill <= 0) {
         this.cds.skill = this.skillCd();
-        if (this.heroId === 'elior') this.arsenal.storm(2.4); else this.arsenal.rain();
-        sfx(this.heroId === 'elior' ? 'swordWord' : 'quiverMight', { vol: 0.6 }); haptic('heavy');
+        if (this.heroId === 'elior') this.arsenal.storm(2.4);
+        else if (this.heroId === 'tirzah') this.arsenal.rain();
+        else {
+          this.arsenal.heaven();
+          // The prayer's verse, the first time each run.
+          if (!this.prayed) { this.prayed = true; this.ui.banners('FIRE FROM HEAVEN', '“Then the fire of the LORD fell” · 1 Kings 18:38 (KJV)', 2.6); }
+        }
+        sfx(KIT[this.heroId].skillSfx, { vol: 0.6 }); haptic('heavy');
       } else if (a === 'form') {
         if (this.formT <= 0 && this.gauge >= 1) this.beginForm();
       } else if (a === 'switch' && this.cds.switch <= 0) this.switchHero();
@@ -337,21 +356,26 @@ export class Horde extends Phaser.Scene {
     this.hero.form = true;
     this.arsenal.forming(this.heroId);
     this.invuln = Math.max(this.invuln, 0.8);
-    this.ui.banners(this.heroId === 'elior' ? 'SHADOW MANTLE' : 'WINGS OF DAWN', this.heroId === 'elior' ? 'Heavier, faster blows · the fallen burst in shadow' : 'Two more arrows · they pierce deeper', 1.8);
-    sfx(this.heroId === 'elior' ? 'transform' : 'wingsForm'); this.shake(0.008, 300); haptic('phase');
+    const kit = KIT[this.heroId];
+    this.ui.banners(kit.formName, kit.formSub, 1.8);
+    // The shaman steps into Uri: the two are one for the Crown's length.
+    if (this.heroId === 'uri') this.shaman.show(false);
+    sfx(kit.formSfx); this.shake(0.008, 300); haptic('phase');
     this.slowMo(0.4, 0.5);
   }
-  private endForm() { this.formT = 0; this.hero.form = false; sfx('mantleEnd', { vol: 0.5 }); }
+  private endForm() { this.formT = 0; this.hero.form = false; sfx('mantleEnd', { vol: 0.5 }); if (this.heroId === 'uri') this.shaman.show(true); }
 
   private switchHero() {
     if (this.formT > 0) this.endForm();
-    const next: HeroId = this.heroId === 'elior' ? 'tirzah' : 'elior';
+    const next = this.nextHero;
     this.hero.hero = next;
-    this.save.playableHero = next;
+    // The story knows two heroes; Uri's turn leaves the journey's choice as it was.
+    if (next !== 'uri') this.save.playableHero = next;
+    this.shaman.show(next === 'uri');
     this.cds.switch = 5; this.cds.skill = Math.min(this.cds.skill, 2);
     this.invuln = Math.max(this.invuln, 0.5);
     this.arsenal.landing();
-    this.ui.toast(next === 'tirzah' ? 'Tirzah · the Dawn Bow' : 'Elior · the Covenant Blade');
+    this.ui.toast(KIT[next].arrive);
     sfx('teleport', { vol: 0.6 }); haptic('select');
   }
 
@@ -437,7 +461,7 @@ export class Horde extends Phaser.Scene {
   // ---------------------------------------------------------------- level-ups
 
   private choices(): Choice[] {
-    const a = this.arsenal, own: WeaponId = this.heroId === 'elior' ? 'blade' : 'bow', pool: { c: Choice; w: number }[] = [];
+    const a = this.arsenal, own = KIT[this.heroId].weapon, pool: { c: Choice; w: number }[] = [];
     if (a.level(own) < 6) pool.push({ c: { kind: 'weapon', id: own }, w: 4 });
     const relics = a.relics();
     for (const id of RELICS) {

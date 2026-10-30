@@ -1,7 +1,9 @@
 // The Horde (POLISH_PLAN §13): a top-down survival mode in endless stages. This file is its data: the places a
 // stage can be, the foes drawn from the original's sprite sheets, and the upgrades a level-up offers.
 
-export type HeroId = 'elior' | 'tirzah';
+export type HeroId = 'elior' | 'tirzah' | 'uri';
+/** The order the switch brings them in. */
+export const HEROES: HeroId[] = ['elior', 'tirzah', 'uri'];
 
 /** A stage's ground: colours for the generated terrain, the foes that live there, and the monarch at its end. */
 export interface Biome {
@@ -59,11 +61,12 @@ export const FOES: Record<string, FoeKind> = {
 export const FOE_SHEETS = ['foes-ashen', 'foes-shinar', 'foes-beasts', 'foes-veil'];
 
 /** The auto-weapons a level-up can add: one each hero starts with, and the shared relics. */
-export type WeaponId = 'blade' | 'bow' | 'seraphs' | 'pillar' | 'lion' | 'chains' | 'hallowed' | 'crescent' | 'frost';
+export type WeaponId = 'blade' | 'bow' | 'flame' | 'seraphs' | 'pillar' | 'lion' | 'chains' | 'hallowed' | 'crescent' | 'frost';
 export interface WeaponDef { id: WeaponId; name: string; desc: string; hero?: HeroId; levels: string[] }
 export const WEAPONS: Record<WeaponId, WeaponDef> = {
   blade: { id: 'blade', name: 'Covenant Blade', hero: 'elior', desc: 'Elior cuts a wide arc toward the nearest foe.', levels: ['+25% damage', 'Wider arc', '+25% damage', 'A second, backhand cut', 'Every cut sends a crescent'] },
   bow: { id: 'bow', name: 'Dawn Bow', hero: 'tirzah', desc: 'Tirzah looses arrows at the nearest foes.', levels: ['+1 arrow', 'Arrows pierce one more', '+25% damage', '+1 arrow', 'Arrows split on a kill'] },
+  flame: { id: 'flame', name: 'Hand of Flame', hero: 'uri', desc: 'Uri hurls fire at the nearest foes; it bursts where it lands.', levels: ['+1 fireball', '+25% damage', 'Wider burst', '+1 fireball', 'Leaves the ground burning'] },
   seraphs: { id: 'seraphs', name: 'Ring of Light', desc: 'Orbs of light circle you and burn what they touch.', levels: ['+1 orb', '+25% damage', '+1 orb', 'Faster orbit', '+1 orb'] },
   pillar: { id: 'pillar', name: 'Pillar of Fire', desc: 'Fire falls on a foe nearby.', levels: ['+1 pillar', 'Wider flame', '+30% damage', '+1 pillar', 'Falls twice as often'] },
   lion: { id: 'lion', name: 'Roar of the Lion', desc: 'A lion of fire bursts from you and throws the horde back.', levels: ['Wider roar', '+30% damage', 'Roars more often', 'Burns the ground', '+40% damage'] },
@@ -87,7 +90,7 @@ export const PASSIVES: Record<PassiveId, { name: string; desc: string; max: numb
   magnet: { name: 'Gathering', desc: 'Gather gems from 40% farther', max: 5 },
   fortune: { name: 'Fortune', desc: '+15% XP and silver', max: 5 },
   precision: { name: 'Precision', desc: '+6% critical chance', max: 5 },
-  plenty: { name: 'Plenty', desc: '+1 arrow, orb and crescent', max: 2 },
+  plenty: { name: 'Plenty', desc: '+1 arrow, orb, crescent and fireball', max: 2 },
   armor: { name: 'Bulwark', desc: '8% less damage taken', max: 5 },
 };
 

@@ -6,10 +6,10 @@ import type { Foe } from './foes';
 import type { Horde } from '../../scenes/Horde';
 
 /** Re-hit slots on Foe.hitBy for the weapons that touch the same foe over and over. */
-const SLOT = { seraphs: 0, hallowed: 1, crescent: 2, fire: 3, storm: 4, blade: 5 };
+const SLOT = { seraphs: 0, hallowed: 1, crescent: 2, fire: 3, storm: 4, blade: 5, ward: 6, crown: 7 };
 
 interface Anim { img: Phaser.GameObjects.Image; t: number; dur: number; f0: number; n: number; follow: boolean; ox: number; oy: number }
-interface Missile { img: Phaser.GameObjects.Image; kind: 'arrow' | 'crescent'; x: number; y: number; vx: number; vy: number; t: number; life: number; pierce: number; dmg: number; hits: Foe[]; ox: number; oy: number; back: boolean; split: boolean }
+interface Missile { img: Phaser.GameObjects.Image; kind: 'arrow' | 'crescent' | 'fireball'; x: number; y: number; vx: number; vy: number; t: number; life: number; pierce: number; dmg: number; hits: Foe[]; ox: number; oy: number; back: boolean; split: boolean; blast: number }
 interface Fire { x: number; y: number; t: number; r: number; dmg: number; img: Phaser.GameObjects.Image }
 
 export class Arsenal {
@@ -26,13 +26,17 @@ export class Arsenal {
   private fires: Fire[] = [];
   private pending: { t: number; fn: () => void }[] = [];
   private bladeFlip = 1;
+  /** The Crown of Flame's ring of fire at Uri's feet. */
+  private crownFire: Phaser.GameObjects.Image;
+  private crownTick = 0;
 
   constructor(private h: Horde) {
     for (let i = 0; i < 40; i++) this.anims.push({ img: h.wl(h.add.image(0, 0, 'vfx-impacts', 0).setVisible(false).setBlendMode(Phaser.BlendModes.ADD)), t: -1, dur: 0, f0: 0, n: 0, follow: false, ox: 0, oy: 0 });
-    for (let i = 0; i < 70; i++) this.missiles.push({ img: h.wl(h.add.image(0, 0, 'arrows', 0).setVisible(false)), kind: 'arrow', x: 0, y: 0, vx: 0, vy: 0, t: -1, life: 0, pierce: 0, dmg: 0, hits: [], ox: 0, oy: 0, back: false, split: false });
+    for (let i = 0; i < 70; i++) this.missiles.push({ img: h.wl(h.add.image(0, 0, 'arrows', 0).setVisible(false)), kind: 'arrow', x: 0, y: 0, vx: 0, vy: 0, t: -1, life: 0, pierce: 0, dmg: 0, hits: [], ox: 0, oy: 0, back: false, split: false, blast: 0 });
     for (let i = 0; i < 8; i++) this.orbs.push(h.wl(h.add.image(0, 0, 'vfx-impacts', 19).setVisible(false).setBlendMode(Phaser.BlendModes.ADD).setScale(0.16)));
     this.ground = h.wl(h.add.image(0, 0, 'hz-ring').setVisible(false).setTint(0xffd27a).setBlendMode(Phaser.BlendModes.ADD));
     this.chainG = h.wl(h.add.graphics().setBlendMode(Phaser.BlendModes.ADD).setDepth(90000));
+    this.crownFire = h.wl(h.add.image(0, 0, 'vfx-status', 0).setVisible(false).setBlendMode(Phaser.BlendModes.ADD).setOrigin(0.5, 0.7));
     for (let i = 0; i < 6; i++) this.fires.push({ x: 0, y: 0, t: -1, r: 0, dmg: 0, img: h.wl(h.add.image(0, 0, 'vfx-status', 0).setVisible(false).setBlendMode(Phaser.BlendModes.ADD).setOrigin(0.5, 0.75)) });
   }
 
@@ -71,6 +75,7 @@ export class Arsenal {
     this.groundStep(dt);
     this.missileStep(dt);
     this.fireStep(dt);
+    this.crownStep(dt);
     for (const a of this.anims) {
       if (a.t < 0) continue;
       a.t += dt;
@@ -121,6 +126,19 @@ export class Arsenal {
         this.later(i * 0.035, () => this.launch('arrow', h.hero.x, h.hero.y - 14, Math.cos(a), Math.sin(a), 440, dmg, pierce, 0.75, lv >= 6));
       }
       h.sfx('bowRelease', 0.4);
+    } else if (id === 'flame') {
+      const crown = h.hero.form, n = 1 + (lv >= 2 ? 1 : 0) + (lv >= 5 ? 1 : 0) + h.plenty + (crown ? 2 : 0);
+      const targets = this.targets(300, n);
+      if (!targets.length) { this.t.set(id, 0.05); return; }
+      set(1.0);
+      h.hero.look(targets[0].x - x);
+      h.hero.play('cast', 0.3);
+      const dmg = 14 * (lv >= 3 ? 1.25 : 1), blast = 26 * area * (lv >= 4 ? 1.3 : 1) * (crown ? 1.6 : 1);
+      for (let i = 0; i < n; i++) {
+        const t = targets[i % targets.length], a = Math.atan2(t.y - 12 - y, t.x - x) + (i >= targets.length ? (i % 2 ? 0.25 : -0.25) : 0);
+        this.later(i * 0.06, () => this.launch('fireball', h.hero.x + h.hero.face * 6, h.hero.y - 18, Math.cos(a), Math.sin(a), crown ? 300 : 260, dmg, 0, 0.95, lv >= 6, crown ? 1.6 : 1, blast));
+      }
+      h.sfx('fireball', 0.35);
     } else if (id === 'pillar') {
       set(lv >= 6 ? 1.3 : 2.6);
       const n = 1 + (lv >= 2 ? 1 : 0) + (lv >= 5 ? 1 : 0), r = 30 * area * (lv >= 3 ? 1.3 : 1), dmg = 24 * (lv >= 4 ? 1.3 : 1);
@@ -205,11 +223,12 @@ export class Arsenal {
     return pick.length ? pick[Math.floor(Math.random() * pick.length)] : b;
   }
 
-  launch(kind: 'arrow' | 'crescent', x: number, y: number, dx: number, dy: number, speed: number, dmg: number, pierce: number, life: number, split = false, size = 1) {
+  launch(kind: Missile['kind'], x: number, y: number, dx: number, dy: number, speed: number, dmg: number, pierce: number, life: number, split = false, size = 1, blast = 0) {
     const m = this.missiles.find((o) => o.t < 0);
     if (!m) return;
-    m.kind = kind; m.x = x; m.y = y; m.ox = x; m.oy = y; m.vx = dx * speed; m.vy = dy * speed; m.t = 0; m.life = life; m.pierce = pierce; m.dmg = dmg; m.hits.length = 0; m.back = false; m.split = split;
+    m.kind = kind; m.x = x; m.y = y; m.ox = x; m.oy = y; m.vx = dx * speed; m.vy = dy * speed; m.t = 0; m.life = life; m.pierce = pierce; m.dmg = dmg; m.hits.length = 0; m.back = false; m.split = split; m.blast = blast;
     if (kind === 'arrow') m.img.setTexture('arrows', this.h.hero.form ? 7 : 0).setOrigin(0.93, 61 / 128).setScale(0.24).setBlendMode(Phaser.BlendModes.NORMAL);
+    else if (kind === 'fireball') m.img.setTexture('vfx-status', 4).setOrigin(0.5, 0.6).setScale(0.13 * size).setBlendMode(Phaser.BlendModes.ADD);
     else m.img.setTexture('vfx-abilities-1', 3).setOrigin(0.5).setScale(0.32 * size).setBlendMode(Phaser.BlendModes.ADD);
     m.img.setVisible(true).setPosition(x, y).setRotation(Math.atan2(dy, dx));
   }
@@ -231,6 +250,15 @@ export class Arsenal {
       m.x += m.vx * dt; m.y += m.vy * dt;
       m.img.setPosition(m.x, m.y).setDepth(m.y + 40);
       if (m.kind === 'crescent') m.img.setRotation(m.img.rotation + dt * 14);
+      if (m.kind === 'fireball') {
+        // A fireball flickers as it flies and bursts on the first foe it meets, or where its flight ends.
+        m.img.setFrame(Math.floor(m.t * 14) % 8).setRotation(Math.atan2(m.vy, m.vx) + Math.PI / 2);
+        let hit = m.t >= m.life;
+        if (!hit) h.swarm.near(m.x, m.y + 10, 9, () => { hit = true; return true; });
+        if (!hit && h.boss && (h.boss.x - m.x) ** 2 + (h.boss.y - 30 - m.y) ** 2 < (h.boss.r + 10) ** 2) hit = true;
+        if (hit) { this.explode(m.x, m.y + 8, m.blast || 26, m.dmg, m.split); m.t = -1; m.img.setVisible(false); }
+        continue;
+      }
       if (m.t >= m.life) { m.t = -1; m.img.setVisible(false); continue; }
       const r = m.kind === 'arrow' ? 8 : 16 * (m.img.scaleX / 0.32);
       h.swarm.near(m.x, m.y + 10, r, (f) => {
@@ -294,6 +322,63 @@ export class Arsenal {
     }
   }
 
+  /** Up to `n` foes nearest the hero within `r`, nearest first. */
+  targets(r: number, n: number): Foe[] {
+    const h = this.h, x = h.hero.x, y = h.hero.y, out: Foe[] = [];
+    h.swarm.near(x, y, r, (f) => { out.push(f); return out.length >= 24; });
+    out.sort((a, b) => (a.x - x) ** 2 + (a.y - y) ** 2 - ((b.x - x) ** 2 + (b.y - y) ** 2));
+    out.length = Math.min(out.length, n);
+    return out;
+  }
+
+  /** A fireball's burst: flame where it lands, and (at its last upgrade) burning ground left behind. */
+  private explode(x: number, y: number, r: number, dmg: number, burn: boolean) {
+    this.anim('vfx-status', 0, 8, x, y + 4, 0.35, r / 34, { originY: 0.75 });
+    this.burst(x, y, r, dmg, 70);
+    if (burn) { const fire = this.fires.find((f) => f.t < 0); if (fire) { fire.x = x; fire.y = y; fire.t = 0.5; fire.r = r * 0.8; fire.dmg = dmg * 0.2; } }
+    this.h.sfx('fireBurst', 0.25);
+  }
+
+  /** Fire falling from above on one spot (the shaman's hail, Uri's prayer). */
+  firefall(x: number, y: number, r: number, dmg: number, big = false) {
+    this.anim('vfx-abilities-1', 40, 8, x, y + 4, big ? 0.7 : 0.5, (r / 30) * (big ? 0.9 : 1), { originY: 0.85 });
+    this.later(0.12, () => { this.burst(x, y, r, dmg, big ? 200 : 60); this.h.sfx('pillarFire', big ? 0.6 : 0.35); });
+  }
+
+  /** A burning ring around a point: the shaman's ward. */
+  ring(x: number, y: number, r: number, dmg: number) {
+    const h = this.h, now = h.time.now / 1000;
+    this.anim('vfx-status', 0, 8, x, y + 6, 0.4, r / 30, { originY: 0.7, follow: true, alpha: 0.75 });
+    h.swarm.near(x, y, r, (f) => { if (f.hitBy[SLOT.ward] > now) return; f.hitBy[SLOT.ward] = now + 0.35; h.damage(f, dmg, 0, 0, 30); });
+    h.bossHit(x, y, r, dmg * 0.5);
+  }
+
+  /** The Crown of Flame: Uri walks in a ring of fire. */
+  private crownStep(dt: number) {
+    const h = this.h, on = h.hero.hero === 'uri' && h.hero.form;
+    this.crownFire.setVisible(on);
+    if (!on) return;
+    const r = 56 * h.areaMult, now = h.time.now / 1000;
+    this.crownFire.setPosition(h.hero.x, h.hero.y + 6).setFrame(Math.floor(now * 12) % 8).setScale(r / 30, (r / 30) * 0.8).setAlpha(0.7).setDepth(h.hero.y - 2);
+    this.crownTick -= dt;
+    if (this.crownTick > 0) return;
+    this.crownTick = 0.4;
+    h.swarm.near(h.hero.x, h.hero.y, r, (f) => { if (f.hitBy[SLOT.crown] > now) return; f.hitBy[SLOT.crown] = now + 0.38; h.damage(f, 7, 0, 0, 40); });
+    h.bossHit(h.hero.x, h.hero.y, r, 7);
+  }
+
+  /** Uri's prayer, Fire from Heaven: fire falls on the five thickest knots of the horde. */
+  heaven() {
+    const h = this.h, cands = this.targets(300, 24), spots: { x: number; y: number }[] = [];
+    // The densest foes first, each spot clear of the last.
+    const scored = cands.map((c) => { let n = 0; h.swarm.near(c.x, c.y, 50, () => { n++; }); return { c, n }; }).sort((a, b) => b.n - a.n);
+    for (const { c } of scored) { if (spots.length >= 5) break; if (spots.every((p) => (p.x - c.x) ** 2 + (p.y - c.y) ** 2 > 60 * 60)) spots.push({ x: c.x, y: c.y }); }
+    if (h.boss) spots.unshift({ x: h.boss.x, y: h.boss.y });
+    while (spots.length < 5) { const a = Math.random() * Math.PI * 2; spots.push({ x: h.hero.x + Math.cos(a) * 90, y: h.hero.y + Math.sin(a) * 70 }); }
+    h.hero.play('invoke', 0.7);
+    spots.slice(0, 5).forEach((p, i) => this.later(0.2 + i * 0.15, () => { this.firefall(p.x, p.y, 62 * h.areaMult, 30, true); h.shake(0.006, 140); }));
+  }
+
   // ---------------------------------------------------------------- the heroes' skills
 
   /** Elior's Covenant Storm: blades whirl around him for a few seconds. */
@@ -336,7 +421,11 @@ export class Arsenal {
     this.anim('vfx-abilities-2', 24, 8, x, y - 10, 0.4, 0.4);
     this.burst(x, y, 36, 6, 60);
   }
-  forming(hero: 'elior' | 'tirzah') { const h = this.h; this.anim('vfx-transform', hero === 'tirzah' ? 24 : 8, 8, h.hero.x, h.hero.y - 24, 0.7, 0.8, { follow: true }); }
+  forming(hero: 'elior' | 'tirzah' | 'uri') {
+    const h = this.h;
+    if (hero === 'uri') { this.anim('vfx-transform', 16, 8, h.hero.x, h.hero.y - 24, 0.7, 0.9, { follow: true, tint: 0xff8a3a }); this.anim('vfx-status', 0, 8, h.hero.x, h.hero.y + 6, 0.7, 2, { follow: true, originY: 0.7 }); return; }
+    this.anim('vfx-transform', hero === 'tirzah' ? 24 : 8, 8, h.hero.x, h.hero.y - 24, 0.7, 0.8, { follow: true });
+  }
 
   /** Dust and sparks where a blow lands, or a foe falls. */
   impact(x: number, y: number, crit: boolean) { this.anim('vfx-impacts', crit ? 6 : 0, 6, x, y, 0.22, crit ? 0.34 : 0.22); }
@@ -348,6 +437,7 @@ export class Arsenal {
     for (const a of this.anims) { a.t = -1; a.img.setVisible(false); }
     for (const m of this.missiles) { m.t = -1; m.img.setVisible(false); }
     for (const f of this.fires) { f.t = -1; f.img.setVisible(false); }
+    this.crownFire.setVisible(false);
     this.pending.length = 0;
     this.chainG.clear();
   }

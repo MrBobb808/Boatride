@@ -1,4 +1,5 @@
-// The Horde (POLISH_PLAN §13): held upright, the stick walks the hero, the buttons dash, cast, transform and switch;
+// The Horde (POLISH_PLAN §13): held upright, the stick walks the hero, the buttons dash, cast, transform and switch
+// (Elior, Tirzah, then Uri with his orc shaman);
 // the weapons strike on their own; a level-up offers three cards; the monarch arrives, falls, and the stage is
 // cleared; sideways, the controls reflow on screen; a fall banks the run into the save; the journey and the title
 // both lead in.
@@ -72,6 +73,24 @@ try {
   await until(page, () => window.__remnant.horde.arsenal.missiles.some((m) => m.t >= 0), null, 15000);
   console.log('Buttons: STORM cast, MANTLE transformed Elior, the switch brought Tirzah, and her bow looses on its own');
 
+  // ---- Uri: the third press of the switch; his shaman at his side; his prayer; the Crown merges the two
+  await H(page, (h) => { h.cds.switch = 0; });
+  await tap('switch');
+  assert.deepEqual(await H(page, (h) => [h.heroId, h.shaman.active, h.hero.key]), ['uri', true, 'painted-uri'], 'the switch brings Uri, and his shaman with him');
+  await until(page, () => window.__remnant.horde.arsenal.missiles.some((m) => m.t >= 0 && m.kind === 'fireball'), null, 15000);
+  await tap('skill');
+  assert.ok(await H(page, (h) => h.cds.skill > 0), 'FIRE prays down fire from heaven');
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: 'qa/horde-uri.png' });
+  await H(page, (h) => { h.gauge = 1; });
+  await tap('form');
+  assert.deepEqual(await H(page, (h) => [h.formT > 0, h.hero.key, h.shaman.active]), [true, 'painted-uri-crown', false], 'the Crown of Flame merges Uri and the shaman');
+  await page.waitForTimeout(500);
+  await page.screenshot({ path: 'qa/horde-crown.png' });
+  await H(page, (h) => { h.formT = 0.01; });
+  await until(page, () => window.__remnant.horde.shaman.active && !window.__remnant.horde.hero.form);
+  console.log('Uri: his fireballs fly on their own, the shaman stands at his side, FIRE prays fire down, and the Crown of Flame makes the two one until it fades');
+
   // ---- the monarch: it comes at the stage's end, falls, and the stage is cleared
   await H(page, (h) => { h.stageT = 9999; h.hp = h.maxHp; });
   await until(page, () => window.__remnant.horde.boss);
@@ -87,7 +106,14 @@ try {
   assert.ok(await E(page, () => !!document.querySelector('[data-k=hz_next]')), `${boss} falls and the stage is cleared`);
   assert.ok(await H(page, (h) => !h.boss && h.loot.length === 1), 'the monarch leaves gear');
   await page.locator('[data-k=hz_next]').tap();
-  await until(page, () => window.__remnant.horde.stage === 2 && !window.__remnant.horde.overlay);
+  await until(page, () => window.__remnant.horde.stage === 2);
+  // The gems the monarch's fall gathered may bring level-ups: take them.
+  for (let i = 0; i < 12; i++) {
+    if (!await H(page, (h) => !!h.overlay)) break;
+    if (await E(page, () => document.querySelectorAll('.hz-card').length)) await page.locator('.hz-card').first().tap();
+    await page.waitForTimeout(400);
+  }
+  assert.ok(await H(page, (h) => !h.overlay), 'stage 2 plays');
   console.log(`${boss}: arrived when the stage ran out, fell, left gear; onward to stage 2 (${await H(page, (h) => h.biome.name)})`);
 
   // ---- sideways: everything reflows onto the screen

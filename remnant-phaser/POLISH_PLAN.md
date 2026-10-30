@@ -430,6 +430,19 @@ follows it.
 ### 13a. The Horde (shipped: `scripts/horde.mjs`)
 The mode is `src/scenes/Horde.ts` with `src/game/horde/`. PORTING.md has the details.
 
+### 13b. Uri in the Horde (shipped: `scripts/horde.mjs`)
+- **Uri:** a calm human flame-caller in a charcoal long coat. His own weapon, the Hand of Flame, hurls fireballs at the
+  nearest foes, which burst where they land. His skill, Fire from Heaven, brings fire down on the five thickest knots
+  of the horde. The first time each run, it shows "Then the fire of the LORD fell", 1 Kings 18:38 (KJV).
+- **The orc shaman:** a cleansed battle-imprint at his shoulder whenever he fights. On its own clocks it calls a hail
+  of fire, a war-cry that slows the horde, and a burning ward around Uri.
+- **The Crown of Flame:** his transformation. The shaman steps into him: crowned in fire, he throws meteors (two more,
+  wider) and walks in a ring of fire. The shaman returns when the Crown fades.
+- **Art:** he is painted for now by the original's pixel painter; parts sheets are requested (art/REQUESTS.md
+  C08–C10).
+- **Strength:** he fights with Elior's strength until he has a journey of his own; joining the story is the next
+  step.
+
 ## 10. Questions for the owner
 
 Answered: the archer stays **Tirzah**, and Wings of the Morning **shares** the Mantle's gauge.
