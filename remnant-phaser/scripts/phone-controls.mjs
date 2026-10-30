@@ -55,7 +55,9 @@ try {
   const seen = await E(page, async () => {
     const h = window.__remnant.game.scene.getScene('hud'), w = window.__remnant.world, cam = w.cameras.main, b = h.btns.find((x) => x.a === 'attack'), f = w.classic.ents.find((e) => e.isFoe && !e.dying);
     // Stand the foe right behind Strike: the button turns see-through, then comes back when it leaves.
-    const at = () => { f.x = cam.worldView.x + b.x / cam.zoom; f.y = cam.worldView.y + b.y / cam.zoom + f.body.h / 2; };
+    // An entity's x and y read its body, so move the body; and hold the foe still meanwhile.
+    f.think = function () { this.body.vx = 0; };
+    const at = () => { f.body.x = cam.worldView.x + b.x / cam.zoom; f.body.y = cam.worldView.y + b.y / cam.zoom + f.body.h / 2; };
     for (let i = 0; i < 20 && !b.behind; i++) { at(); await new Promise((r) => requestAnimationFrame(r)); }
     return { behind: b.behind, alpha: +b.g.alpha.toFixed(2) };
   });
