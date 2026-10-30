@@ -16,6 +16,8 @@ export interface Settings {
   fps: 'auto' | '60';
   shake: 'full' | 'reduced' | 'off';
   reduceFlashes: boolean;
+  /** Foes slain in the Shadow Mantle or the Sovereign form rise as shadow allies for half a minute (off by default). */
+  shadowAllies: boolean;
   dmgNumbers: boolean;
   zoom: 'close' | 'normal' | 'wide';
   textSize: 'normal' | 'large' | 'xl';
@@ -86,6 +88,7 @@ const DEFAULTS: Settings = {
   fps: isTouchDevice() ? '60' : 'auto',
   shake: 'full',
   reduceFlashes: false,
+  shadowAllies: false,
   dmgNumbers: true,
   zoom: 'normal',
   textSize: 'normal',

@@ -14,7 +14,9 @@ up next starts from the latest version.
 3. Merging deploys automatically. GitHub Actions verifies both builds, assembles `remnant/dist-pages`, and
    publishes the Phaser main game to GitHub Pages: https://mrbobb808.github.io/Boatride/.
    Installed copies on the owner's iPhone pick up the new build by themselves
-   (see `remnant-phaser/src/game/update.ts`). Settings shows the installed build and
+   (see `remnant-phaser/src/game/update.ts`). Each build carries a readable version,
+   its UTC build time as YYYY.MM.DD.HHMM (`installedVersion`, in `version.json`); the
+   title screen shows it and whether the site serves a newer one. Settings shows the version and build and
    provides Check for updates, which saves and resumes the current slot.
    Explicit update navigations wait for the fresh document on slow connections;
    failed refreshes retry after a cooldown.
@@ -120,7 +122,9 @@ Never ship files from `art/incoming/` directly.
   - **Called, never automatic:** Echoes appear only when called (the wheel,
     the ECHOES button, a summon preset); `flags.army_out === true` then keeps
     them along through doors until dismissed. Story beats, purifications and
-    level-ups never call them out on their own.
+    level-ups never call them out on their own. Foes slain in the Shadow Mantle
+    or the Sovereign form rise as shadow allies only with Settings → Shadow
+    allies on (`settings.shadowAllies`, off by default; `riseAsShadow`).
   - **Choosing and the bond:** `leadEcho` (game/state.ts) puts one Echo at
     the head of the lineup and calls it out alone: the Echoes page's "Fight
     beside me", and in the Phaser build the wheel's Summon → Choose one….

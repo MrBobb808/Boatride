@@ -3,7 +3,7 @@ import { loadSave, liveSlots, importLive, activeSlot, selectSlot } from '../game
 import { ROOMS } from '../shared';
 import { dpr } from '../game/screen';
 import { music } from '../classic/shim/music';
-import { installedBuild } from '../game/update';
+import { installedBuild, installedVersion, latestRelease } from '../game/update';
 import { input } from '../../../remnant/src/core/input';
 
 /** The title: continue the Phaser save, begin again, or bring a journey over from the live game. */
@@ -22,7 +22,13 @@ export class Title extends Phaser.Scene {
     this.add.text(W / 2, ty, 'REMNANT', { fontFamily: 'Cinzel, Georgia, serif', fontSize: `${big}px`, color: '#f6dea0', fontStyle: 'bold' }).setOrigin(0.5).setLetterSpacing(big * 0.3);
     this.add.text(W / 2, ty + big * 0.95, 'ASCENSION', { fontFamily: 'Cinzel, Georgia, serif', fontSize: `${big * 0.42}px`, color: '#e2b85a' }).setOrigin(0.5).setLetterSpacing(big * 0.3);
     this.add.text(W / 2, ty + big * 1.6, 'Ten chapters · One covenant', { fontFamily: 'Georgia, serif', fontStyle: 'italic', fontSize: `${14 * k}px`, color: '#9b92a6' }).setOrigin(0.5);
-    this.add.text(W / 2, H - 8 * k, installedBuild(), { fontFamily: 'Georgia, serif', fontSize: `${9 * k}px`, color: '#776c83' }).setOrigin(0.5, 1);
+    // The version, and whether it is the newest the site serves.
+    const ver = this.add.text(W / 2, H - 8 * k, `Version ${installedVersion()} · checking for updates…`, { fontFamily: 'Georgia, serif', fontSize: `${11 * k}px`, color: '#9b92a6' }).setOrigin(0.5, 1).setName('title_version');
+    void latestRelease().then((r) => {
+      if (!ver.active) return;
+      const fresh = !r || r.build === installedBuild();
+      ver.setText(`Version ${installedVersion()} · ${!r ? 'offline' : fresh ? 'up to date' : `version ${r.version ?? 'new'} is ready: Settings → Check for updates`}`).setColor(fresh ? '#9b92a6' : '#f6dea0');
+    });
     const opts: [string, () => void][] = [];
     if (save) opts.push([`Continue · level ${save.level}`, () => this.scene.start('world', { fresh: false })]);
     let newArmed = false;

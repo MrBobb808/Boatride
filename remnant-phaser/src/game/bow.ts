@@ -27,11 +27,13 @@ const PERFECT = [0.62, 0.8] as const, PERFECT_WIDE = [0.58, 0.85] as const;
 type Body = { isBoss?: boolean; maxHp?: number; state?: string; st?: number; staggered?: number; stagger?: () => void; glintAt?: number; anim?: { u: number }; body?: { vx: number } };
 const bodyOf = (f: FoeLike) => (f as FoeLike & { e?: Body }).e;
 /** True Aim: the range where her shots land hardest. */
+/** How far past a foe's edge the dagger reaches: a short step in. */
+const REACH = 40;
 /** The dagger's three blows: length, where in it the blow lands, the step in, damage, stagger, push and V01 row. */
 const DAGGER = [
-  { t: 0.24, at: 0.42, step: 80, mul: 0.55, stagger: 0.5, kx: 60, ky: 0, poise: 12, row: 0 },
-  { t: 0.24, at: 0.42, step: 80, mul: 0.65, stagger: 0.6, kx: 80, ky: 0, poise: 16, row: 1 },
-  { t: 0.32, at: 0.45, step: 40, mul: 0.9, stagger: 1.8, kx: 420, ky: -120, poise: 40, row: 0 },
+  { t: 0.24, at: 0.42, step: 240, mul: 0.55, stagger: 0.5, kx: 60, ky: 0, poise: 12, row: 0 },
+  { t: 0.24, at: 0.42, step: 240, mul: 0.65, stagger: 0.6, kx: 80, ky: 0, poise: 16, row: 1 },
+  { t: 0.32, at: 0.45, step: 160, mul: 0.9, stagger: 1.8, kx: 420, ky: -120, poise: 40, row: 0 },
 ] as const;
 const SWEET = [110, 230, 1.25] as const, SWEET_LONG = [90, 270, 1.45] as const;
 /** The arrows of her abilities (Covenant Archer strengthens them). */
@@ -310,6 +312,8 @@ export class Bow {
         this.recovery-=dt;
         if(this.recovery<=0){
           p.releaseState();
+          // A Strike queued during the follow-through still finds the dagger when a foe has closed in.
+          if(this.queued==='attack'){p.face=p.swingFacing();if(p.onGround&&!c.down('up')&&this.reach()){this.queued=null;this.startDagger();return true;}}
           if(this.queued){p.face=p.swingFacing();this.w.playEffect('bowDraw');this.chargeKey=this.queued;this.drawing=true;this.charge=0;this.creakT=0.17;this.queued=null;p.state='bow';}
         }
       }
@@ -332,7 +336,7 @@ export class Bow {
     }
     if(c.pressed('heavy')||c.pressed('attack')||c.down('heavy'))p.face=p.swingFacing();
     // A foe at arm's length: the dagger, then the kick back into bow range.
-    if(c.pressed('attack')&&!c.down('up')&&p.onGround&&this.reach()){this.dagger=1;this.daggerT=0;this.daggerNext=false;this.daggerDone=false;this.drawing=false;this.recovery=0;p.state='bow';this.w.playEffect('swing',{x:p.x,pitch:1.45});return true;}
+    if(c.pressed('attack')&&!c.down('up')&&p.onGround&&this.reach()){this.startDagger();return true;}
     if(c.pressed('heavy')||c.down('heavy')) {this.w.playEffect('bowDraw');this.chargeKey='heavy';this.drawing=true;this.charge=0;this.creakT=0.17;this.recovery=0;p.state='bow';return true;}
     if(c.pressed('attack')) {
       if(c.down('up')){this.fire('volley');this.recovery=0.28;this.drawing=false;}
@@ -343,11 +347,16 @@ export class Bow {
   }
   /** How far through the current dagger blow she is (0–1). */
   get daggerU() { return this.dagger?Math.min(1,this.daggerT/DAGGER[this.dagger-1].t):0; }
-  /** The foe at arm's length in front of her, if any. */
+  /** The foe close enough for the dagger in front of her (a short step's reach), if any. */
   private reach(): FoeLike|null {
     const p=this.p;
-    for(const f of this.w.foes()){const dx=f.x-p.x;if(f.alive&&dx*p.face>-f.box.width/2&&Math.abs(dx)-f.box.width/2<26&&Math.abs(f.box.centerY-(p.feet-24))<34)return f;}
+    for(const f of this.w.foes()){const dx=f.x-p.x;if(f.alive&&dx*p.face>-f.box.width/2&&Math.abs(dx)-f.box.width/2<REACH&&Math.abs(f.box.centerY-(p.feet-24))<f.box.height/2+20)return f;}
     return null;
+  }
+  private startDagger() {
+    const p=this.p;
+    this.dagger=1;this.daggerT=0;this.daggerNext=false;this.daggerDone=false;this.drawing=false;this.recovery=0;p.state='bow';
+    this.w.playEffect('swing',{x:p.x,pitch:1.45});
   }
   /** The dagger: each cut steps in and lands partway through; Strike again before it ends for the next. The kick
    * knocks the foe back into bow range and makes her next shot point-blank; Strike during it nocks that shot. */
@@ -377,7 +386,7 @@ export class Bow {
     for(const f of this.w.foes()){
       const dx=f.x-p.x;
       // In front, or close enough to touch.
-      if(!f.alive||dx*p.face<-f.box.width/2||Math.abs(dx)-f.box.width/2>30||Math.abs(f.box.centerY-(p.feet-24))>36)continue;
+      if(!f.alive||dx*p.face<-f.box.width/2||Math.abs(dx)-f.box.width/2>REACH+6||Math.abs(f.box.centerY-(p.feet-24))>f.box.height/2+22)continue;
       const crit=Math.random()<d.crit,hp=f.hp;
       // Her tree's Keen Dagger sharpens every cut and the kick.
       const dmg=p.power()*h.mul*(1+this.r('t_blade')*0.1)*(crit?d.critDmg:1);

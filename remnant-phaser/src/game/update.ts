@@ -1,6 +1,12 @@
 // New documents load from the network; a fully cached shell remains playable
 // offline. An explicit update saves first and resumes the current journey.
 export const installedBuild = () => document.querySelector<HTMLMetaElement>('meta[name="remnant-phaser-build"]')?.content ?? 'development';
+/** The readable version (the build's UTC date and time, YYYY.MM.DD.HHMM), or "development". */
+export const installedVersion = () => document.querySelector<HTMLMetaElement>('meta[name="remnant-phaser-version"]')?.content ?? 'development';
+/** What the site is serving now, or null when offline. */
+export async function latestRelease(): Promise<{ build: string; version?: string } | null> {
+  try { const u = new URL('version.json', document.baseURI); u.searchParams.set('v', String(Date.now())); const r = await fetch(u, { cache: 'no-store' }); return r.ok ? await r.json() : null; } catch { return null; }
+}
 let ready = false;
 let readinessCheck = 0;
 export const offlineReady = () => ready;

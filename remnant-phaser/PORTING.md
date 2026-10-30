@@ -253,6 +253,14 @@ Verified by `scripts/tirzah-progression.mjs`.
 
 Verified by `scripts/tirzah-dagger.mjs`.
 
+## Fixes after the owner's play
+
+- **No uncalled shadow Echoes:** kills in the Shadow Mantle or the Sovereign form, and the Arise finisher, raised slain foes as 30-second shadow Echoes. `riseAsShadow` now does that only with Settings → Shadow allies on (`settings.shadowAllies`, off by default).
+- **The dagger, reliably:** a Strike pressed during a shot's follow-through used to queue another arrow even with a foe at arm's length. Now it draws the dagger. The dagger reaches 40 px past a foe's edge (`REACH`), with a quicker step in, and its blows land over the same reach.
+- **Version:** `postbuild.mjs` stamps a readable version (UTC build time, YYYY.MM.DD.HHMM) beside the build id, in the page and in `version.json`. The title screen shows it and checks the site: up to date, offline, or the newer version ready under Settings → Check for updates. Settings → Save & system shows it above the build id.
+
+Verified by `scripts/tirzah-dagger.mjs` (the queued and longer-reach dagger).
+
 ## The pack
 
 Whatever Ilan's store sells to be used later now waits in the pack (`SaveData.pack`, the shared `game/economy.ts` `PACK`, `stow` and `usePack`). That covers elixirs, Balm vials, tomes and the Sealed Satchel. Brewed elixirs go there too.

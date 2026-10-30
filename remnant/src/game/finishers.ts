@@ -9,7 +9,7 @@ import { Enemy } from './enemies';
 import { fx, PK } from '../render/fx';
 import { sfx } from '../audio/audio';
 import { clamp, rand, sign, choose } from '../core/math';
-import { shakeScale } from '../core/settings';
+import { shakeScale, settings } from '../core/settings';
 import { ELEMENTS, weaponElement, powerTier, isSovereign, bolt, type Element } from './power';
 import { EchoUnit } from './echoes';
 import { makeEcho, skillRank } from './state';
@@ -459,7 +459,8 @@ const SHADOW_OF: Record<string, string> = { archer: 'archer', wisp: 'archer', br
 
 /** The fallen rise as a shadow Echo for half a minute. */
 export function riseAsShadow(e: Entity) {
-  if (!(e instanceof Enemy) || e.elite) return;
+  // Echoes come out only when called, so the fallen rise only if the player has turned it on.
+  if (!settings.shadowAllies || !(e instanceof Enemy) || e.elite) return;
   const W = G.world;
   if (W.echoes.filter((u) => u.tempT > 0).length >= 4) return;
   const species = SHADOW_OF[e.kind] ?? 'sentinel';
