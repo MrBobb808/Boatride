@@ -36,7 +36,7 @@ const GOLD = '#e2b85a', BONE = '#ddd4c6';
 export const hudBoxes = { column: [0, 0, 0, 0], boss: [0, 0, 0, 0] };
 const box = (b: number[], x: number, y: number, w: number, h: number) => { b[0] = x; b[1] = y; b[2] = w; b[3] = h; };
 
-interface Btn { a: Action; x: number; y: number; r: number; label: string; i: Phaser.GameObjects.Image; g: Phaser.GameObjects.Arc; t: Phaser.GameObjects.Text; down: boolean }
+interface Btn { a: Action; x: number; y: number; r: number; label: string; i: Phaser.GameObjects.Image; g: Phaser.GameObjects.Arc; t: Phaser.GameObjects.Text; down: boolean; live: boolean; fade: number; behind: boolean }
 
 const pre1 = (s: { summonPreset?: string }) => (s.summonPreset ?? 'all') === 'one';
 const HER_PAGES: Record<string, string> = { character: 'tz_character', equipment: 'tz_equipment', skills: 'tz_skills' };
@@ -282,7 +282,7 @@ export class Hud extends Phaser.Scene {
     if (touch) this.drawTouchCooldowns(w); else this.drawSkillBar(w);
     this.updateInteractBtn();
     for (const b of this.btns) {
-      b.i.setVisible(b.g.visible); b.t.setVisible(b.g.visible && settings.buttonLabels);
+      b.i.setVisible(b.g.visible).setAlpha(b.fade * (b.behind ? 0.45 : 1)); b.t.setVisible(b.g.visible && b.fade > 0.6 && settings.buttonLabels);
       b.g.setStrokeStyle(1.5 * k, 0xe2b85a, 0.55);
     }
     const coached = this.btns.find(b => b.a === this.coachAction);
@@ -503,7 +503,7 @@ export class Hud extends Phaser.Scene {
       // Each move's own pixel picture where there is one; the line icon otherwise.
       const i = this.add.image(0, 0, actionIconKey(a, this.world.player?.hero ?? 'elior') ?? this.iconKey(name));
       this.touchUi.add([g, i, t]);
-      return { a, i, x: 0, y: 0, r: r * k, label, g, t, down: false };
+      return { a, i, x: 0, y: 0, r: r * k, label, g, t, down: false, live: true, fade: 1, behind: false };
     };
     this.btns = [
       mk('attack', 'STRIKE', 36), mk('jump', 'JUMP', 28), mk('dodge', 'DODGE', 24), mk('parry', 'PARRY', 24), mk('interact', '', 22),
@@ -536,18 +536,57 @@ export class Hud extends Phaser.Scene {
     }
   }
 
+  /** Seconds the fight lingers after the last foe nearby, so buttons do not flicker away mid-fight. */
+  private fightT = 0;
+  /** A fight is on: a boss, or a foe within most of a screen, or a blow taken lately. */
+  private fighting(w: World) {
+    const p = w.player, v = w.cameras.main.worldView;
+    if (w.classic.bossActive || w.boss) return true;
+    for (const e of w.classic.ents) if (e.isFoe && !e.dying && !e.remove && Math.abs(e.x - p.x) < v.width * 0.75 && Math.abs(e.y - p.feet) < 180) return true;
+    return p.hp < p.maxHp && this.time.now - (this.hurtAt ?? -1e9) < 3000;
+  }
+  private hurtAt?: number;
+  /** Screen points of the actors this frame (x, y pairs), reused. */
+  private under: number[] = [];
+  private lastHp = 0;
+
+  /** Which buttons show. With Smart buttons on (the default), each appears only when it applies and fades in and out
+   * where it stands, so nothing moves under a thumb; strike, jump and dodge always stay. */
   private updateInteractBtn() {
-    const b = this.btns.find((x) => x.a === 'interact')!;
-    const on = !!this.interactLabel;
-    b.g.setVisible(on);
-    b.t.setVisible(on).setText((this.interactLabel ?? '').toUpperCase());
-    // The Echo buttons appear once there is an Echo to command.
-    const echoes = this.world.save.echoes.length > 0;
-    for (const x of this.btns) if (x.a === 'echo' || x.a === 'switch') { x.g.setVisible(echoes); x.t.setVisible(echoes); }
+    const w = this.world, s = w.save, p = w.player, dt = Math.min(0.05, this.game.loop.delta / 1000);
+    if (p.hp < this.lastHp) this.hurtAt = this.time.now;
+    this.lastHp = p.hp;
+    this.fightT = this.fighting(w) ? 3 : Math.max(0, this.fightT - dt);
+    const smart = settings.smartButtons !== false, fight = !smart || this.fightT > 0;
+    const echoes = s.echoes.length > 0, form = heroLevel(s) >= 25;
+    const want = (a: Action): boolean => {
+      switch (a) {
+        case 'interact': return !!this.interactLabel;
+        case 'echo': return echoes;
+        case 'switch': return echoes && fight;
+        case 'parry': case 'skill1': case 'skill2': case 'skill3': return fight;
+        case 'heal': return !smart || (s.balm > 0 && p.hp < p.maxHp);
+        case 'transform': return form && (!smart || p.mantleT > 0 || (s.mantle ?? 0) >= 100);
+        case 'ultimate': return !!s.flags.relic_taken && (!smart || s.rally >= 100);
+        case 'sub': return (!!s.sub || p.mantleT > 0) && fight;
+        default: return true;
+      }
+    };
+    // Foes and the hero, in this scene's pixels, so a button they stand behind can turn see-through.
+    const cam = w.cameras.main, v = cam.worldView, z = cam.zoom, under = this.under;
+    under.length = 0;
+    if (w.controls.device === 'touch') {
+      under.push((p.x - v.x) * z, (p.feet - 24 - v.y) * z);
+      for (const e of w.classic.ents) if (e.isFoe && !e.dying && !e.remove && e.x > v.x && e.x < v.right) under.push((e.x - v.x) * z, (e.y - e.body.h / 2 - v.y) * z);
+    }
     for (const x of this.btns) {
-      if (x.a === 'transform') { const on = heroLevel(this.world.save) >= 25; x.g.setVisible(on); x.t.setVisible(on); }
-      if (x.a === 'ultimate') { x.g.setVisible(!!this.world.save.flags.relic_taken); x.t.setVisible(!!this.world.save.flags.relic_taken); }
-      if (x.a === 'sub') { const on = !!this.world.save.sub || this.world.player.mantleT > 0; x.g.setVisible(on); x.t.setVisible(on); }
+      // A held button stays until it is let go.
+      x.live = want(x.a) || x.down;
+      x.fade = Phaser.Math.Clamp(x.fade + (x.live ? dt : -dt) * 7, 0, 1);
+      x.behind = false;
+      for (let i = 0; i < under.length && !x.behind; i += 2) x.behind = !x.down && Math.hypot(under[i] - x.x, under[i + 1] - x.y) < x.r * 1.3;
+      x.g.setVisible(x.fade > 0.02).setAlpha(settings.touchOpacity * x.fade * (x.behind ? 0.4 : 1));
+      if (x.a === 'interact') x.t.setVisible(x.live).setText((this.interactLabel ?? '').toUpperCase());
     }
   }
 
@@ -707,7 +746,7 @@ export class Hud extends Phaser.Scene {
 
   private btnAt(x: number, y: number) {
     for (const b of this.btns) {
-      if (!b.g.visible) continue;
+      if (!b.live) continue;
       // A forgiving target: a little larger than the drawn circle.
       if (Phaser.Math.Distance.Between(x, y, b.x, b.y) < b.r * 1.25) return b;
     }

@@ -458,6 +458,24 @@ rules in `../AGENTS.md`. Avoid per-frame allocations and `shadowBlur`. Shared
 module edits affect both builds, so verify both. CI failure blocks deployment;
 check Pages' actual version after a successful run before calling a release live.
 
+## Phone controls and camera
+
+POLISH_PLAN §12a.
+
+- **Smart buttons** (`settings.smartButtons`, on by default; Settings → Touch controls). `Hud.updateInteractBtn` decides each frame which touch buttons apply:
+  - strike, jump and dodge always;
+  - parry, the skills, Switch and Sub during a fight and for 3 s after (`Hud.fighting`: a boss, a foe within three quarters of a screen, or a recent blow);
+  - Balm when hurt and carried;
+  - the Mantle and Super when ready;
+  - Echoes once there are Echoes;
+  - interact when there is something to use.
+
+  Buttons fade in and out where they stand (`Btn.fade`); only `live` ones take touches, and a held button stays until let go. A button with a foe or the hero behind it drops to 40% (`Btn.behind`). With the setting off, every button shows as before.
+- **Look-ahead** (`settings.lookAhead`, on by default; Settings → Display). `World.leadCamera` sets the follow offset to lead the way the hero faces, by up to 72 world px (16% of the view), easing at 2.4/s. It switches sides only after the facing has held for 0.22 s, and it is off in story shots and boss framing. A new room starts already leading.
+- **Zoom:** on touch, the normal camera distance shows 270 world px of height instead of 300.
+
+Verified by `scripts/phone-controls.mjs`.
+
 ## The shade and the altar
 
 POLISH_PLAN §12b.
