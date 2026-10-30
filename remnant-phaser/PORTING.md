@@ -268,6 +268,29 @@ POLISH_PLAN §11b; the owner chose dramatic.
 
 Verified by `scripts/lighting.mjs`, which reads the darkness layer's pixels.
 
+## Weather and ambience
+
+POLISH_PLAN §11c. `src/game/atmosphere.ts` adds each place's mood on top of the original's particle weather (`Visuals.applyQuality`). It is presentation only: `Visuals` owns it, rebuilds it with the quality tier, steps it and holds it still while a menu is open. `moods(room)` picks the layers from the room's biome and weather:
+
+- **Storm** (rooms with `weather: 'rain'`: the storm ziggurat and the Chittim coast): rain splashes on whatever floor is in view, and lightning every 4–11 s. A bolt is drawn into the room's back canvas between the sky and the far silhouettes (`Atmosphere.sky`, called from `RoomArt.render`), the sky flashes, the room's darkness lifts (`Atmosphere.lights`, gathered with the others) and the thunder follows after a delay. Reduce flashes dims all of it.
+- **Ash** (the Ashen Village and Cinders): tumbling flakes behind and in front of the fight.
+- **Embers** (the village, the sanctuary, the furnace and Cinders): gusts blown across the view from the windward side, and strays between them.
+- **Fog** (the Valley of Bones, the Hunt and the Pestilence, tinted for each): two banks of a baked fog band, one behind the fight and one low in front, drifting with the wind and sinking away as the view climbs.
+- **Light shafts** (temple, sanctum, tower, palace, Shushan and sanctuary interiors, and the Rest): two to five slanted shafts from the ceiling (or the sky) to the floor, with motes drifting through them and a pool of light where each lands.
+
+The textures (`atmo-fog`, `atmo-beam`, `atmo-flake`) are baked once. Low quality keeps fewer particles and no front fog or motes. Verified by `scripts/atmosphere.mjs`.
+
+## Screen effects
+
+POLISH_PLAN §11d. `src/game/screenFx.ts` puts Phaser 4 filters on the main camera (external list, after the heat and water displacement); `Visuals` owns and steps it.
+
+- **Bloom** (`Phaser.Actions.AddEffectBloom`) is a full-screen blur, so it runs only in bright moments, and only at the top quality tier: while the Mantle or the Wings are on, and briefly on lightning and big flashes (`World.flashLight` with a radius of 160 or more). At rest and in scripted scenes it is off.
+- **A colour grade per place** (`GRADES`, by biome, worked out once as the room loads). The place's grade, the cinema and the water are one colour-matrix pass: three matrices built as the room loads (with a true contrast about middle grey; Phaser's own `contrast` divides its offset away) and blended without allocating. The grades are gentle: the cold of the Hunt's snow, the heat of the furnace and Cinders, the teal of the storm coast, the pale bone of the valley, and so on.
+- **Underwater**, a blue-green cast and a closing vignette ease in while the hero is submerged. The vignette runs only then and under the letterbox, so the resting frame costs one extra pass. The existing water and heat displacement still ripple and shimmer.
+- **Cinematic moments:** while the letterbox is in (`Hud.letterbox`: a boss's entrance, a Super) or a boss intro holds the camera, the effects add a harder grade, a deeper vignette and film grain (a baked noise tile at depth 19.6), easing back out after.
+
+Reduce flashes softens the bloom and the grain. Without WebGL only the grain remains. A software renderer (SwiftShader, llvmpipe: no GPU) keeps none of it, because full-screen passes are what such a renderer cannot afford; `?fx` in the URL keeps them on, which `scripts/screen-fx.mjs` uses. Verified by `scripts/screen-fx.mjs`.
+
 ## The AI partner hero
 
 The hero you are not playing can fight beside you (`src/game/partner.ts`, POLISH_PLAN §11a).

@@ -8,6 +8,8 @@ import { FrameBudget } from '../../../remnant/src/core/frameBudget';
 import { blockingUI } from '../../../remnant/src/ui/ui';
 import { topLayer } from '../../../remnant/src/ui/dom';
 import { BossCamera } from './bossCamera';
+import { Atmosphere } from './atmosphere';
+import { ScreenFx } from './screenFx';
 import type { World } from '../scenes/World';
 import type { SkillId } from './abilities';
 
@@ -39,6 +41,8 @@ let nextId = 0;
 
 export class Visuals {
   readonly bossCamera: BossCamera;
+  readonly atmosphere: Atmosphere;
+  readonly screen: ScreenFx;
   readonly gpu: boolean;
   readonly budget = new FrameBudget();
   element: Element | null = null;
@@ -79,6 +83,7 @@ export class Visuals {
     this.gpu = w.game.renderer.type === Phaser.WEBGL;
     this.bossCamera = new BossCamera(w);
     this.textures();
+    this.atmosphere = new Atmosphere(w);
     this.light = w.add.image(0, 0, 'glow').setDepth(8).setTint(0xa04bf5).setDisplaySize(96, 116).setBlendMode(Phaser.BlendModes.ADD).setVisible(false);
     this.weaponLight = w.add.image(0, 0, 'glow').setDepth(11).setDisplaySize(25, 38).setBlendMode(Phaser.BlendModes.ADD).setVisible(false);
     this.sparks = w.add.particles(0, 0, 'vfx-spark', { emitting: false, maxParticles: 80, lifespan: { min: 180, max: 420 }, speedX: { min: -95, max: 95 }, speedY: { min: -110, max: 30 }, gravityY: 190, scale: { start: 0.65, end: 0 }, alpha: { start: 0.85, end: 0 }, blendMode: 'ADD' }).setDepth(16);
@@ -97,6 +102,7 @@ export class Visuals {
       this.displacement = w.cameras.main.filters.internal.addDisplacement(this.key, 0, 0);
       this.displacement.active = false;
     }
+    this.screen = new ScreenFx(w, this.gpu);
     w.events.on(Phaser.Scenes.Events.POST_UPDATE, this.update, this);
     w.scale.on('resize', this.resized, this);
   }
@@ -126,6 +132,7 @@ export class Visuals {
     if (this.heroGlow && p?.sprite.active) p.sprite.filters?.internal.remove(this.heroGlow);
     if (this.bladeGlow && p?.slash.active) p.slash.filters?.internal.remove(this.bladeGlow);
     for (const e of this.weather) e.destroy(); this.weather.length = 0;
+    this.atmosphere.clear();
     for (const e of [this.sparks, this.wisps, this.smoke, this.smokeFront, this.bubbles]) { e.killAll(); e.resume(); }
     this.crown.clear();this.mantled=false;
     for (const b of this.bursts) { b.t = -1; b.img.setVisible(false); }
@@ -151,6 +158,7 @@ export class Visuals {
       this.heroGlow.active = this.bladeGlow.active = false;
     }
     this.applyQuality();
+    this.screen.room(this.w.room.biome);
   }
 
   private applyQuality() {
@@ -160,6 +168,7 @@ export class Visuals {
     this.appliedTier = this.tier; this.flashes = settings.reduceFlashes;
     if (this.tier === 0 || settings.reduceFlashes) { if (this.displacement) this.displacement.active = false; this.distortion = 'none'; }
     for (const e of this.weather) e.destroy(); this.weather.length = 0;
+    this.atmosphere.build(this.tier);
     const weather = this.w.room.weather;
     if (!weather) return;
     const rain = weather === 'rain' || weather === 'drips', ember = weather === 'embers';
@@ -263,6 +272,7 @@ export class Visuals {
     if (held !== this.paused) {
       this.paused = held;
       for (const e of [this.sparks, this.wisps, this.smoke, this.smokeFront, this.bubbles, ...this.weather]) held ? e.pause() : e.resume();
+      this.atmosphere.pause(held);
     }
     if (held) { this.budget.reset(); return; }
     const dt = Math.min(delta / 1000, 0.05);
@@ -273,6 +283,8 @@ export class Visuals {
     this.applyQuality();
     const v = w.cameras.main.worldView;
     for (const e of this.weather) e.setPosition(v.centerX, v.y);
+    this.atmosphere.step(dt, v);
+    this.screen.step(dt, v, this.tier, { letterbox: w.hud.letterbox ?? 0, intro: this.bossCamera.mode === 'intro', submerged: !!p.water?.submerged, form: !p.dead && (p.mantleT > 0 || p.state === 'transform') });
     this.element = weaponElement();
     const mantle = !p.dead && (p.mantleT > 0 || p.state === 'transform');
     // Tirzah's Wings of the Morning share the Mantle's timer but are dawn light: no smoke, no crown.
@@ -338,6 +350,8 @@ export class Visuals {
     this.w.events.off(Phaser.Scenes.Events.POST_UPDATE, this.update, this);
     this.w.scale.off('resize', this.resized, this);
     for (const e of this.weather) e.destroy(); this.weather.length = 0;
+    this.atmosphere.destroy();
+    this.screen.destroy();
     // Phaser may already have disposed the camera before this shutdown hook.
     const cam = this.w.cameras.main;
     if (this.displacement && cam) cam.filters.internal.remove(this.displacement);

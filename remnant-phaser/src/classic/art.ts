@@ -35,6 +35,7 @@ export class RoomArt {
     for (const t of [this.back, this.front]) if (t.width !== W || t.height !== H) t.setSize(W, H);
     const c = this.back.getContext(); c.setTransform(1, 0, 0, 1, 0, 0); c.globalAlpha = 1; c.globalCompositeOperation = 'source-over';
     drawSky(c, pal, W, H, r.interior, G.time);
+    w.visuals.atmosphere.sky(c, W, H);
     for (const l of this.layers) { const y = v.height - l.h + (r.h * 16 - (v.y + v.height)) * l.fy; let x = -((v.x * l.fx) % l.w); if (x > 0) x -= l.w; for (; x < W; x += l.w - 1) c.drawImage(l.c, x, y, l.w, l.h); }
     c.setTransform(1, 0, 0, 1, -ox, -oy);
     this.cache?.draw(c, view); drawLiquids(c, w.classic.grid, G.time, view, r.biome);
