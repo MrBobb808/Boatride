@@ -90,6 +90,8 @@ try {
   await tap('switch');
   assert.equal(await H(page, (h) => [h.heroId, h.formT > 0]).then((v) => v.join()), 'tirzah,false', 'the switch brings Tirzah in (and ends the form)');
   await drain(page);
+  // The field may be cleared by now (upright, new foes enter well beyond bow range): one stands close.
+  await H(page, (h) => { h.spawnFoe(h.hero.x + 90, h.hero.y, 'bulwark'); });
   await until(page, () => window.__remnant.horde.arsenal.missiles.some((m) => m.t >= 0), null, 15000);
   console.log('Buttons: STORM cast, MANTLE transformed Elior, the switch brought Tirzah, and her bow looses on its own');
 
@@ -99,6 +101,7 @@ try {
   await tap('switch');
   assert.deepEqual(await H(page, (h) => [h.heroId, h.shaman.active, h.hero.key]), ['uri', true, 'painted-uri'], 'the switch brings Uri, and his shaman with him');
   await drain(page);
+  await H(page, (h) => { h.spawnFoe(h.hero.x + 90, h.hero.y, 'bulwark'); });
   await until(page, () => window.__remnant.horde.arsenal.missiles.some((m) => m.t >= 0 && m.kind === 'fireball'), null, 15000);
   await drain(page);
   await tap('skill');
