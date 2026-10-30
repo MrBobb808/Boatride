@@ -91,8 +91,8 @@ try {
 
 
   // ---- switching heroes swaps who the partner is
-  await E(page, () => { const p = window.__remnant.world.player; p.switchCd = 0; p.switchHero(); });
-  await until(page, () => { const w = window.__remnant.world; return w.player.hero === 'tirzah' && w.partner.unit?.hero === 'elior'; });
+  // The switch waits for a free moment (the finisher may still hold Elior on a slow runner): ask until it takes.
+  await until(page, () => { const w = window.__remnant.world, p = w.player; if (p.hero !== 'tirzah') { p.switchCd = 0; p.switchHero(); } return p.hero === 'tirzah' && w.partner.unit?.hero === 'elior'; });
   const him = await E(page, () => { const w = window.__remnant.world; return { tex: w.partner.sprite.texture.key, hp: w.partner.unit.maxHp, his: w.eliorD.maxHp }; });
   assert.ok(/action-elior/.test(him.tex) && him.hp === him.his, `Elior is now the partner, with his own health (${JSON.stringify(him)})`);
   console.log('Switch: Tirzah fights, and Elior became the partner in his own sheet');

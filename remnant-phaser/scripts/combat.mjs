@@ -190,6 +190,8 @@ try {
   watch(phone);
   await phone.goto(base + '?debug&nostory&autostart&fresh');
   await ready(phone);
+  // Every button shows, so each can be tapped out of a fight (Smart buttons are tested in phone-controls.mjs).
+  await E(phone, () => { window.__remnant.settings.smartButtons = false; });
   await phone.waitForTimeout(400);
   const btn = (a) => E(phone, (a) => { const b = window.__remnant.game.scene.getScene('hud').btns.find((b) => b.a === a); return [b.x / 2, b.y / 2]; }, a);
   for (const [a, expect] of [['parry', 'parry'], ['skill1', 'cast']]) {
@@ -206,7 +208,8 @@ try {
   await E(phone, () => { const p = window.__remnant.world.player; p.hp = 40; });
   const [hx, hy] = await btn('heal');
   await phone.touchscreen.tap(hx, hy);
-  await phone.waitForFunction(() => window.__remnant.world.player.hp > 40, null, { timeout: 5000 }).catch(() => {});
+  // The heal lands half a second of game time in; slow headless frames can stretch that to several seconds.
+  await phone.waitForFunction(() => window.__remnant.world.player.hp > 40, null, { timeout: 15000 }).catch(() => {});
   assert.ok(await E(phone, () => window.__remnant.world.player.hp > 40), 'the BALM button heals');
   await phone.screenshot({ path: 'qa/combat-phone.png' });
   console.log('Touch: PARRY, WORD and BALM buttons each did their work');

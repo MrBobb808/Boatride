@@ -244,6 +244,14 @@ Never ship files from `art/incoming/` directly.
   by biome over the original's particle weather. Presentation only; see PORTING.md.
   `screenFx.ts` adds bloom, a colour grade per place, an underwater cast and
   cinematic grain under the letterbox (camera filters, WebGL only).
+- **Phone (Phaser build):** Smart buttons (`settings.smartButtons`) show touch
+  buttons only when they apply; Camera look-ahead (`settings.lookAhead`) leads
+  the way the hero faces. See POLISH_PLAN §12 for the design review's plan
+  (death stakes, a Chapter I metroidvania pilot, Psalms).
+- **Death (Phaser build):** a fall leaves the silver in a shade where it
+  happened (`game/shade.ts`, `PhaserSave.shades`; strike it to win it back;
+  shades stack) and rises at the last altar rested at in that chapter
+  (`PhaserSave.restAt`).
 - **Chapter I pilot (Phaser build):** `remnant-phaser/src/game/pilot.ts` patches
   the shared Chapter I rooms at startup (Phaser only): the crypt–cistern loop
   behind a bar, and ledges for the Eagle Plume and the air dash. `?fixedstep`

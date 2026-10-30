@@ -458,6 +458,34 @@ rules in `../AGENTS.md`. Avoid per-frame allocations and `shadowBlur`. Shared
 module edits affect both builds, so verify both. CI failure blocks deployment;
 check Pages' actual version after a successful run before calling a release live.
 
+## Phone controls and camera
+
+POLISH_PLAN §12a.
+
+- **Smart buttons** (`settings.smartButtons`, on by default; Settings → Touch controls). `Hud.updateInteractBtn` decides each frame which touch buttons apply:
+  - strike, jump and dodge always;
+  - parry, the skills, Switch and Sub during a fight and for 3 s after (`Hud.fighting`: a boss, a foe within three quarters of a screen, or a recent blow);
+  - Balm when hurt and carried;
+  - the Mantle and Super when ready;
+  - Echoes once there are Echoes;
+  - interact when there is something to use.
+
+  Buttons fade in and out where they stand (`Btn.fade`); only `live` ones take touches, and a held button stays until let go. A button with a foe or the hero behind it drops to 40% (`Btn.behind`). With the setting off, every button shows as before.
+- **Look-ahead** (`settings.lookAhead`, on by default; Settings → Display). `World.leadCamera` sets the follow offset to lead the way the hero faces, by up to 72 world px (16% of the view), easing at 2.4/s. It switches sides only after the facing has held for 0.22 s, and it is off in story shots and boss framing. A new room starts already leading.
+- **Zoom:** on touch, the normal camera distance shows 270 world px of height instead of 300.
+
+Verified by `scripts/phone-controls.mjs`.
+
+## The shade and the altar
+
+POLISH_PLAN §12b.
+
+- **The altar:** resting at an altar (`World.markRest`, from the classic `restAtAltar` or the native altar) records `PhaserSave.restAt`. A fall in the same chapter (`chapterOf`) rises there: at the room's `altar` spawn where it has one, otherwise where the hero rested. Otherwise, or in the Trial, it rises at the room's doorway as before. Dropping into a pit is not a fall: it still returns to the doorway with the health kept.
+- **The shade:** a fall with silver leaves a shade (`src/game/shade.ts`). The save (`PhaserSave.shades`) holds its room, spot and the silver, and the silver drops to 0. Shades stack: each fall leaves its own.
+- **Recovering it:** a shade is a native `FoeLike` in `World.foeList` (never a classic entity), so blows and arrows hit it. Echoes, the music and the "clear the guards" rule ignore it (`shade: true`). One hit breaks it and returns its silver (`World.recoverShade`). It wears the hero's figure drained to violet shadow, with its own light.
+
+Verified by `scripts/shade.mjs`.
+
 ## The Chapter I metroidvania pilot
 
 POLISH_PLAN §12c. `src/game/pilot.ts` patches the shared Chapter I rooms once at startup (`patchChapterOne`, from `main.ts`) for this build only; the original edition keeps its own Chapter I.
