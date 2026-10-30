@@ -259,6 +259,11 @@ Never ship files from `art/incoming/` directly.
 - **Psalms (Phaser build):** `remnant-phaser/src/game/psalms.ts`: one per boss,
   worn in 3–7 slots (Psalter Pages), changing combat, movement and the
   Echoes; `PhaserSave.psalms`. See PORTING.md.
+- **The Horde (Phaser build):** a top-down survival mode in endless stages
+  (`remnant-phaser/src/scenes/Horde.ts`, `src/game/horde/`): auto-weapons, a
+  1-of-3 upgrade per level, a Fallen Crown monarch per stage, Elior and Tirzah
+  switchable, upright or sideways. A run banks silver, XP and gear into the
+  save (`PhaserSave.horde` keeps the best stage). See POLISH_PLAN §13.
 - **iPhone performance:** the game targets 120 Hz.
   - Do not use `shadowBlur`.
   - Cache gradients and avoid allocating in per-frame paths.

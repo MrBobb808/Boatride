@@ -11,11 +11,15 @@ import { loadBoard, rushClock } from '../game/board';
 import { contractBoard } from './progression';
 import { dailyBox } from './daily';
 
+/** Modes a host build adds to the list (the Phaser build's Horde). */
+export const extraModes: ((close: () => void, busy: boolean) => HTMLElement)[] = [];
+
 /** Kept at the top of Settings so wave entry never disappears below the trophy catalog. */
 export function gameModes(close: () => void): HTMLElement {
   const busy = G.world.bossActive || G.world.transitioning;
   return h('div', { class: 'box game-modes' },
     h('h3', null, 'Game modes'),
+    extraModes.map((f) => f(close, busy)),
     trainingOpen() ? [
       h('b', null, 'Endless monster waves'),
       h('p', { class: 'muted' }, `The Trial of the Remnant · highest available round: ${Math.max(1, trainingBest())}. Start fresh for a ranked run, or practise from an unlocked round.`),

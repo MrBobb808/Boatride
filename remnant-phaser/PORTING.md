@@ -531,3 +531,31 @@ POLISH_PLAN §12d. The owner chose: 3 slots growing to 7, Psalms from bosses, an
 
 Verified by `scripts/psalms.mjs`.
 
+## The Horde
+
+POLISH_PLAN §13a. A scene of its own (`src/scenes/Horde.ts`), entered from the title (`title_horde`), from the pause menu's Game modes (`addHordeMode` in `src/game/horde/entry.ts`, through the shared list's `extraModes` hook) and with `?horde`. It reads the journey's save and writes back only when a run ends.
+
+- **The view:** top-down. The camera shows 440 world px on the screen's shorter side, so it plays held upright or sideways; the world and the UI are separate layers with separate cameras (`Horde.wl` / `Horde.ul`).
+  - The ground is a seamless generated tile per place, with rocks, bones and ruins wrapped around the camera (`ground.ts`).
+  - The heroes are the story's baked fighter atlases turned to face the way they move, the Mantle and Wings atlases included (`hero.ts`).
+- **The horde** (`foes.ts`): the original's foe sheets loaded as Phaser frames (Boot), pooled (260), moved by hand with no physics bodies, and kept apart by a spatial hash. Weapons query the same hash.
+  - Kinds: chase, tank, ranged, lunge and drift (`defs.ts` `FOES`).
+  - Foes left far behind reappear ahead.
+  - Surges ring the hero every 30 s; an elite with a chest comes every 34 s.
+- **Stages** (`defs.ts` `BIOMES`): six places in turn (the Ashen Fields, Shinar, the Valley of Bones, the Frozen Wood, the Blighted Marsh, the Foundry Waste), each with its foes, music and monarch.
+  - Foe health and harm rise by stage (`stageHp`, `stageDmg`), measured against the run's starting strength, so a strong journey is strong but never untouchable.
+  - The monarch arrives when the stage's time runs out (`boss.ts`): the Fallen Crowns' atlases. It charges along a marked lane, looses rings of fire, slams marked ground and calls its brood, faster below half health.
+  - A fallen monarch takes the field with it, leaves gear, and opens the stage-clear card: onward or leave.
+- **Weapons** (`weapons.ts`), automatic:
+  - Elior's Covenant Blade (arcs at the nearest foe) and Tirzah's Dawn Bow (arrows at the nearest foes), each fighting only while its hero does;
+  - up to four relics: Ring of Light, Pillar of Fire, Roar of the Lion, Chains of Judgment, Hallowed Ground, Crescent of Light and Crown of Frost.
+
+  Each weapon has five upgrades. Passives (`PASSIVES`) cover might, speed, haste, area, health, renewal, gathering, fortune, precision, plenty and armour.
+- **The player's acts** (`ui.ts`):
+  - **Upright:** a floating stick wherever the left thumb lands; four buttons in the right thumb's arc. DASH (i-frames, clears shots), the skill (Elior's Covenant Storm, Tirzah's Rain of Dawn), the transformation (the Shadow Mantle or the Wings of Dawn, from a gauge the kills fill) and the switch.
+  - **Keyboard and controller:** through the shared input service with the story's bindings (Dodge or Jump dash; Attack or a skill casts; the Mantle's keys transform; Switch, or N).
+  - **Cards:** DOM panels (`overlay`) for level-ups, pause, a cleared stage and the run's end, navigable by the D-pad.
+- **Rewards** (`Horde.bank`, once a run): the run's silver, XP worth `gemXp × (2 + stage/4)` to both heroes, the monarchs' gear into the pack, and `PhaserSave.horde` (best stage, runs, kills; optional).
+
+Verified by `scripts/horde.mjs`: upright touch (stick, DASH, buttons on screen), auto-weapons, a level-up card, the skill, transformation and switch, a monarch's arrival and fall, stage 2, the landscape reflow, a fall banking the run, and both ways in.
+
