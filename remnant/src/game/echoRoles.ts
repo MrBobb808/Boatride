@@ -2,7 +2,6 @@ import { G } from './ctx';
 import { Entity } from './entity';
 import type { EchoUnit } from './echoes';
 import { ECHO_ROLES, echoRole } from './data';
-import { echoAtk } from './state';
 import { Proj } from './projectiles';
 import { los } from './physics';
 import { T, TILE } from './tiles';
@@ -29,7 +28,7 @@ export function echoSpot(u: EchoUnit, t: Entity, side: number) {
 function bolt(u: EchoUnit, t: Entity, mult: number, kind: 'arcbolt' | 'star', spread = 0) {
   const dx = t.x - u.x, dy = t.cy - u.cy;
   const a = Math.atan2(dy, dx) + spread, speed = kind === 'star' ? 440 : 270;
-  const pr = new Proj(kind, u.x + u.face * 12, u.cy, 'player', echoAtk(G.save, u.inst, G.d) * mult, { vx: Math.cos(a) * speed, vy: Math.sin(a) * speed, life: 1.8, w: 10, h: 10, color: ECHO_ROLES[echoRole(u.inst)].color, echo: true, poise: 18 });
+  const pr = new Proj(kind, u.x + u.face * 12, u.cy, 'player', u.power() * mult, { vx: Math.cos(a) * speed, vy: Math.sin(a) * speed, life: 1.8, w: 10, h: 10, color: ECHO_ROLES[echoRole(u.inst)].color, echo: true, poise: 18 });
   pr.target = t;
   G.world.add(pr);
 }
@@ -53,7 +52,7 @@ export function tickEchoRole(u: EchoUnit, dt: number) {
     return;
   }
   if (!t?.canBeTargeted() || Math.hypot(t.x - u.x, t.cy - u.cy) > 340 || !los(W.grid, W.solid, u.x, u.cy, t.x, t.cy)) return;
-  const atk = echoAtk(G.save, u.inst, G.d) * W.commanderAura(u.x, u.y, u);
+  const atk = u.power() * W.commanderAura(u.x, u.y, u);
   if (role === 'guardian') {
     if (!near) return;
     p.shieldT = Math.max(p.shieldT, 0.65 + st * 0.25);
@@ -121,7 +120,7 @@ class Mirage extends Entity {
       this.struck = true;
       const t = this.target, W = G.world;
       if (t.canBeTargeted() && Math.hypot(t.x - this.x, t.cy - this.cy) < 90 && los(W.grid, W.solid, this.x, this.cy, t.x, t.cy)) {
-        t.takeHit({ dmg: echoAtk(G.save, this.owner.inst, G.d) * 0.9, poise: 25, kx: 0, ky: -70, dir: this.face, kind: 'echo', src: this.owner, noKnock: true });
+        t.takeHit({ dmg: this.owner.power() * 0.9, poise: 25, kx: 0, ky: -70, dir: this.face, kind: 'echo', src: this.owner, noKnock: true });
         fx.slash(t.x, t.cy, 28, -2.4, 0.7, 6, this.face, '#ffffff', '#c4a0ff', 0.25);
       }
     }

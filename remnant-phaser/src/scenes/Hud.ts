@@ -565,6 +565,7 @@ export class Hud extends Phaser.Scene {
       title = 'Remnant fighters'; sub = 'Shared journey, health and equipment · N: tag · B: style';
       items = [
         {label:w.player.hero==='elior'?'Switch to Tirzah · bow':'Switch to Elior · blade',run:()=>{if(w.player.switchHero())w.persist();}},
+        {label:s.partnerOut?`Partner: ${w.partner.hero==='tirzah'?'Tirzah':'Elior'} (send back)`:`Partner: call ${w.partner.hero==='tirzah'?'Tirzah':'Elior'}`,on:!!s.partnerOut,run:()=>{w.partner.toggle();w.persist();}},
         ...(['vanguard','wraith','sentinel'] as const).map(style=>({label:STYLE_NAMES[style],on:w.player.combatStyle===style,run:()=>{if(!['free','swim'].includes(w.player.state)){this.toast('Change style after the current move.');return;}s.combatStyle=style;this.toast(STYLE_HELP[style]);w.persist();}})),
 
         {label:"Tirzah's abilities…",page:true,run:()=>this.openWheel('archer')},
@@ -630,6 +631,7 @@ export class Hud extends Phaser.Scene {
       title = 'Command the Remnant'; sub = `${sq.echoes.length} of ${s.echoes.length} present`;
       items = [
         { label: 'Heroes & styles…', page:true, run:()=>this.openWheel('heroes') },
+        { label: s.partnerOut ? `Send ${w.partner.hero === 'tirzah' ? 'Tirzah' : 'Elior'} back` : `Call ${w.partner.hero === 'tirzah' ? 'Tirzah' : 'Elior'}`, on: !!s.partnerOut, run: () => { w.partner.toggle(); w.persist(); } },
         { label: 'Summon…', page: true, run: () => this.openWheel('squad') },
         { label: 'Orders…', page: true, run: () => this.openWheel('orders') },
         { label: 'Aggressive', on: s.echoMode === 'aggressive', run: cmd('aggressive') },

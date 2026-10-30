@@ -253,6 +253,39 @@ Verified by `scripts/tirzah-progression.mjs`.
 
 Verified by `scripts/tirzah-dagger.mjs`.
 
+## Dramatic lighting
+
+POLISH_PLAN §11b; the owner chose dramatic.
+
+- **Settings → Lighting** (shared `settings.lighting`: dramatic by default, balanced, subtle) changes how dark a dim room goes, through `lightingLevel` in the shared `render/lighting.ts`. Dramatic deepens rooms that are already dim (×1.45 + 0.06, at most 0.92). Daylight (darkness under 0.15) is left alone.
+- **More lights, gathered each frame** (`World.gatherLights`, called by the classic layer after the room's lights and Elior's own):
+  - Tirzah's own light;
+  - the Mantle (violet) and the Wings (gold), wide;
+  - every arrow in flight, in its element's colour;
+  - the partner and the Echoes;
+  - a faint dull glow on every foe, so threats stay readable in the dark;
+  - short flashes (`World.flashLight`) on crits and heavy blows, ability casts and finishers.
+
+Verified by `scripts/lighting.mjs`, which reads the darkness layer's pixels.
+
+## The AI partner hero
+
+The hero you are not playing can fight beside you (`src/game/partner.ts`, POLISH_PLAN §11a).
+
+- **Calling it:** the command wheel's "Call Tirzah" / "Call Elior", or Heroes → Partner. It is off by default, and `save.partnerOut` remembers it across doors and reloads.
+- **What it is:** a `PartnerUnit` is an Echo underneath, so footing, chasing, being struck and falling come from `EchoUnit`.
+  - It uses the partner hero's own numbers through the shared `power()` and `maxHealth()` hooks: Elior's derived stats, or Tirzah's from her level, gear and tree.
+  - It fights aggressively whatever stance the Echoes keep.
+  - It is drawn as that hero from the player's own action atlases: Tirzah draws and looses, Elior swings, both run and jump. A slim health bar in its colour sits above it.
+- **The partner or the Echoes:** calling one sends the other back.
+- **Switching heroes** swaps who the partner is, where it stood.
+- **Falling:** it returns after 20 s. Once a room it pulls you up at 35% health instead of letting you fall (`WorldApi.partnerRevive`, `Player.die`).
+- **Joint finisher:** your finisher on a foe within reach brings it beside you to strike the same foe ("TOGETHER").
+- **Banter:** playful rivalry over kills now and then.
+- **XP:** the partner keeps its own level and gear and earns the waiting hero's half of the experience.
+
+Verified by `scripts/partner.mjs`.
+
 ## Fixes after the owner's play
 
 - **No uncalled shadow Echoes:** kills in the Shadow Mantle or the Sovereign form, and the Arise finisher, raised slain foes as 30-second shadow Echoes. `riseAsShadow` now does that only with Settings → Shadow allies on (`settings.shadowAllies`, off by default).

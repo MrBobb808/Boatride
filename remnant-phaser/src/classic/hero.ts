@@ -155,7 +155,9 @@ export class HeroPowers {
     if (!this.p.onGround) return false;
     const p = this.p, e = this.L.foes().find((e) => e.executable() && Math.abs(e.x - p.x) < (e.isBoss ? e.body.w / 2 + 60 : 36) && Math.abs(e.y - p.feet) < 60 && p.lineOfSight(e.x, e.cy));
     if (!e) return false;
-    p.state = 'execute'; this.fin = beginFinisher(this.actor, e); this.L.host.finale(e.x, e.cy, 1.1); return true;
+    p.state = 'execute'; this.fin = beginFinisher(this.actor, e); this.L.host.finale(e.x, e.cy, 1.1);
+    // The partner joins the finisher on the same foe.
+    this.L.host.partner?.joinFinisher(e); return true;
   }
   get guardAura() { return this.L.guardianAura(this.p.x, this.p.feet); }
   onParry() { this.gain(10); mantleGain(8); }

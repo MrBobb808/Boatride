@@ -187,7 +187,7 @@ export class Player {
     this.w.toast(STYLE_NAMES[this.combatStyle]); return true;
   }
 
-  die() { if (this.dead) return; this.hp = 0; this.state = 'dead'; this.st = 0; this.body.setVelocity(0, -120); }
+  die() { if (this.dead) return; if (this.w.partnerRevive?.()) return; this.hp = 0; this.state = 'dead'; this.st = 0; this.body.setVelocity(0, -120); }
 
   get x() { return this.body.center.x; }
   get feet() { return this.body.bottom; }
@@ -454,6 +454,7 @@ export class Player {
     s.ce -= cost;
     this.cds[id] = def.cd;
     this.castId = id;
+    this.w.flashLight?.(this.x, this.feet - 30, 160, '#' + SKILLS[id].color.toString(16).padStart(6, '0'), 0.45);
     this.state = 'cast';
     this.st = 0;
     this.slash.setVisible(false);

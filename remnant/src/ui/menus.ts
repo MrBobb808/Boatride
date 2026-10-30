@@ -1107,6 +1107,7 @@ function settingsTab() {
       row('Text size', '', seg(st.textSize, [['normal', 'Normal'], ['large', 'Large'], ['xl', 'Extra large']], (v) => { st.textSize = v; applyTextSize(); }, 'ts')),
       row('Screen shake', '', seg(st.shake, [['full', 'Full'], ['reduced', 'Reduced'], ['off', 'Off']], (v) => (st.shake = v), 'sh')),
       row('Reduce flashes', 'Softens bright full-screen flashes.', toggle(st.reduceFlashes, (v) => (st.reduceFlashes = v), 'rf')),
+      row('Lighting', 'Dramatic: dark rooms go properly dark, lit by torches, your weapon, arrows and spells. Balanced: as before. Subtle: lighter rooms.', seg(st.lighting, [['dramatic', 'Dramatic'], ['balanced', 'Balanced'], ['subtle', 'Subtle']], (v) => (st.lighting = v), 'lighting')),
       row('Shadow allies', 'Foes slain in the Shadow Mantle or the Sovereign form rise to fight beside you for half a minute. Off: no Echo appears unless you call it.', toggle(st.shadowAllies, (v) => (st.shadowAllies = v), 'shadow_allies')),
       row('Damage numbers', '', toggle(st.dmgNumbers, (v) => (st.dmgNumbers = v), 'dn')),
       row('Haptics', 'Taps on button presses, and a different pattern for a hit, a parry, a wound, a kill and a boss\'s new phase (iPhone with iOS 18 or later, and Android).', toggle(st.haptics, (v) => (st.haptics = v), 'hp')),

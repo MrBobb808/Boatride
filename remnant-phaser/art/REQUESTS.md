@@ -139,6 +139,20 @@ Dark-fantasy mood, with atmosphere carried by light and colour.
 | E11 | The Sunken Temple and Drowned Library (X): underwater, light shafts, shelves. |
 | E12 | Remnant's Rest: a hopeful tent camp at dusk, a cypress, a campfire glow. |
 
+## Animation and lighting (P1, the owner's 30 October choices) → `incoming/characters/`, `incoming/lighting/`
+
+Placeholders made in code ship until these arrive.
+
+| ID | Request |
+|---|---|
+| A01 | **Elior, extra in-betweens.** Same parts style as `fighter-parts-v1.png`. Cape and hair as separate soft parts in three sway poses each (rest, swept back, lifted), so they can trail his motion. |
+| A02 | **Tirzah, extra in-betweens.** Her hood tail and quiver strap as separate parts in three sway poses; the bowstring hand in three draw positions; her dagger (a short leaf blade) as its own part, held point forward. |
+| A03 | **Hit reactions, both heroes.** 4×2 sheet, 192 px cells: light flinch, heavy stagger, knockback, landing from knockback, for Elior (row 1) and Tirzah (row 2), whole-body poses facing right. |
+| A04 | **Partner moments.** 4×1 sheet, 256 px cells: Elior and Tirzah striking a foe together (joint finisher), Tirzah pulling Elior up, Elior pulling Tirzah up, and the two back to back. |
+| L01 | **Normal maps, heroes.** Normal maps (tangent space, blue-purple) matching `fighter-parts-v1.png` part for part, so the heroes catch real light. |
+| L02 | **Light cookies.** 4×1, 256 px cells, white on black, soft: torch flicker, lamp glow, window light shafts, a ring of light for spells. |
+| L03 | **Weather sprites.** 8×4, 64 px cells, transparent: ash flakes, embers, raindrops and splashes, fog wisps (wide), dust motes, falling leaves. |
+
 ## Icons and UI (P3) → `incoming/icons/`, `incoming/ui/`
 
 Icon sheets are 64 px cells on a transparent background, with a centred

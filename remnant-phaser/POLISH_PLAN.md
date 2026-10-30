@@ -338,6 +338,43 @@ around them stays the same.
 
 Tick each item with its PR number when it merges.
 
+## 11. The partner hero, lighting and atmosphere (owner's answers, 30 October 2026)
+
+The owner plays on an iPhone with touch. They chose **looks first** over a guaranteed 120 Hz: full effects even if that sometimes means 60 fps.
+
+**Order:** the partner first, then lighting, then weather and screen effects.
+
+### 11a. The AI partner hero (core shipped: `scripts/partner.mjs`)
+- The hero you are not controlling can fight beside you as an AI partner.
+  - It is **optional and off by default**: called from the command wheel, with a toggle in Settings.
+  - You can swap control at any time (the switch button changes who you play).
+- **Aggressive:** it goes for kills, uses its abilities and combos freely, and joins your finishers. Tirzah shoots from range and draws the dagger up close; Elior closes in with his blade.
+- **Partner or Echoes:** calling the partner dismisses the Echoes, and calling Echoes sends the partner back.
+- **Beyond fighting:**
+  - **joint finishers:** both strike together, with a camera moment;
+  - **revive:** the partner pulls you back up once per room;
+  - **banter** in a **playful rivalry** (kills, style ranks);
+  - **own XP and gear:** the partner keeps its own level and gear, and earns the waiting hero's half XP as now.
+
+### 11b. Lighting, dramatic (shipped: `scripts/lighting.mjs`; normal maps wait on L01)
+- Caves, temples and night rooms go properly dark.
+- Light comes from torches, lamps, the heroes' weapons, arrows in flight, spells, the Wings and the Mantle.
+- Code-made normal maps stand in until art arrives (requests L01–L03).
+
+### 11c. Weather and ambience
+- Ash and embers: the Ashen Village and Cinders.
+- Rain and storm, with lightning flashes: the Storm Prince and the Chittim coast.
+- Fog layers: the Valley of Bones, the Hunt and the Pestilence marsh.
+- Motes falling through light beams: temples and the Rest.
+
+### 11d. Screen effects (Phaser 4 filters)
+- Bloom and glow on light, fire, the Wings and the Mantle.
+- Place effects: foundry heat shimmer, an underwater ripple, a cold tint in the snow.
+- Cinematic boss intros: film grain, letterbox and a per-chapter colour grade.
+
+### 11e. Richer animation
+- New frames come from ChatGPT art drops (requests A01–A04). Code-made placeholders ship until they arrive.
+
 ## 10. Questions for the owner
 
 Answered: the archer stays **Tirzah**, and Wings of the Morning **shares** the Mantle's gauge.

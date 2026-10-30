@@ -75,6 +75,10 @@ export interface ClassicHost extends WorldApi {
   gearDrop(elite: boolean): Loot;
   /** A boss always leaves Tirzah something fine. */
   bossSpoils(key?: string): void;
+  /** Lights beyond the room's and Elior's: heroes, forms, arrows, partner, Echoes, flashes. */
+  gatherLights(dt: number): void;
+  /** The AI partner hero, when it exists (game/partner.ts). */
+  partner?: { joinFinisher(e: Entity): void };
   visuals: Visuals;
   feedback: import('../game/feedback').Feedback;
   player: Player & {
@@ -829,6 +833,7 @@ export class ClassicLayer {
     lighting.add(p.x, p.feet - 20, relic ? 120 : 90, '#ffd9a0', relic ? 0.85 : 0.7, 0.15);
     if (p.state === 'charge') lighting.add(p.x, p.feet - 30, 60 + p.chargeLvl * 20, '#ffe6a8', 0.8, 0.6);
     if (p.armorLight > 0 || p.lion > 0) lighting.add(p.x, p.feet - 20, 110, '#ffcf6b', 0.9, 0.4);
+    this.host.gatherLights(dt);
     for (let i = 0; i < this.ents.length; i++) {
       const e = this.ents[i];
       try { e.update(dt); } catch (err) { this.fault(e, err); }

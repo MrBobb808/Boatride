@@ -16,6 +16,8 @@ export type PhaserSave = SaveData & {
   playableHero?: import('./style').PlayableHero; combatStyle?: import('./style').CombatStyle; bestStyle?: number;
   archerSkills?: (import('./abilities').ArcherSkillId | null)[]; archerKnown?: import('./abilities').ArcherSkillId[];
   quiver?: ArrowType[]; arrowType?: ArrowType;
+  /** The other hero is out as an AI partner (game/partner.ts). */
+  partnerOut?: boolean;
 };
 /** The levels at which her arrow types join the quiver. */
 export const ARROW_LEVELS: Record<ArrowType, number> = { standard: 1, fire: 8, frost: 12, storm: 18, holy: 24 };
@@ -63,6 +65,7 @@ function settle(d: SaveData): SaveData {
   if(kit.archerKnown!==undefined)kit.archerKnown=Array.isArray(kit.archerKnown)?kit.archerKnown.filter(id=>archer.includes(id)):undefined;
   if(kit.quiver!==undefined)kit.quiver=Array.isArray(kit.quiver)?kit.quiver.filter(t=>t in ARROW_LEVELS):undefined;
   if(kit.arrowType!==undefined&&!(kit.quiver??['standard']).includes(kit.arrowType))delete kit.arrowType;
+  if(kit.partnerOut!==undefined&&typeof kit.partnerOut!=='boolean')delete kit.partnerOut;
   if (!ROOMS[d.room]) { d.room = 'sanctuary'; d.spawn = 'start'; }
   return d;
 }

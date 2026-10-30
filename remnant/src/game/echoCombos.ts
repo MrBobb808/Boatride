@@ -2,7 +2,6 @@ import { G } from './ctx';
 import { echoRole, type EchoRole } from './data';
 import type { EchoUnit } from './echoes';
 import type { Entity } from './entity';
-import { echoAtk } from './state';
 import { echoSpot } from './echoRoles';
 import { los } from './physics';
 import { fx } from '../render/fx';
@@ -71,7 +70,7 @@ export class EchoCombinations {
 
   private strike(setup: Setup, u: EchoUnit) {
     const { source: a, target: t, id } = setup, W = G.world;
-    const atk = (echoAtk(G.save, a.inst, G.d) + echoAtk(G.save, u.inst, G.d)) * 0.65;
+    const atk = (a.power() + u.power()) * 0.65;
     if (id === 'sanctuary') {
       const p = W.player;
       if (Math.hypot(a.x - p.x, a.y - p.y) > 170) return false;
