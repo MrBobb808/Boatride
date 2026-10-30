@@ -561,6 +561,11 @@ POLISH_PLAN §13a. A scene of its own (`src/scenes/Horde.ts`), entered from the 
   - `Horde.impact` is the impact frame: slow-motion at 6% for about a tenth of a second, a zoom punch from `baseZoom`, a ring and a shake, with a half-second cooldown.
   - Strikes from above use `Arsenal.strike`, bolts baked once (`hz-bolt-*` in `ground.ts`, the top faded by a gradient), instead of the ability sheet's column frames, which are cut off by their cell.
   - `Arsenal.anim` fades every sheet effect through its last quarter.
+- **Depth** (POLISH_PLAN §13d):
+  - **Evolutions:** `EVOLUTIONS` (defs.ts) pairs each weapon with a passive. `Horde.evolve` runs at an elite's chest (in place of its upgrade) and at a monarch's fall, adding the first ready weapon (level 6 plus its passive, the hero in play's own first) to `Arsenal.evolved`; each weapon's code reads that set.
+  - **Tag combos:** `Horde.tagWindow` opens after a skill (1.6 s), a transformation (2 s) and a Phantom chain's last cut. `switchHero` inside it calls `tagCombo` for the arriving hero (+0.15 to their gauge, the switch cooldown 3 s instead of 5).
+  - **Per-hero gauges:** `Horde.gauges`; `gauge` reads and writes the hero in play's. `trinity()` fires when all three are full (`trinityReady`, the form button's TRINITY): `HordeHero.trinity` ghosts the other two, `Arsenal.echoCuts`, `rain` and `heaven`.
+  - **Rerolls and banishes:** `rerolls`, `banishes` (3 each, +1 per monarch) and `banned` (`weapon:id` / `passive:id` / `boon:id`, which `choices` leaves out). The level-up card redraws itself in place; R and B on a keyboard.
 - **Rewards** (`Horde.bank`, once a run): the run's silver, XP worth `gemXp × (2 + stage/4)` to both heroes, the monarchs' gear into the pack, and `PhaserSave.horde` (best stage, runs, kills; optional).
 
 - **Uri** (POLISH_PLAN §13b), the third hero, Horde only for now. The switch cycles Elior → Tirzah → Uri (`HEROES`); each hero's part is `KIT` in `Horde.ts`.
@@ -571,5 +576,5 @@ POLISH_PLAN §13a. A scene of its own (`src/scenes/Horde.ts`), entered from the 
   - **The Crown of Flame:** the shaman merges in (hidden); meteors (+2, wider); a ring of fire at Uri's feet (`crownStep`).
   - **Strength** (`uri.ts`): his own level and XP in the optional `PhaserSave.uri`. `uriStats` scales Elior's numbers by `(uri level + 4) / (Elior's level + 4)`, held between 0.6 and 1.3; `uriGainXp` banks the run's XP to him too, tripled while he is behind Elior.
 
-Verified by `scripts/horde.mjs`: upright touch (stick, DASH, buttons on screen), auto-weapons, a level-up card, the skill, transformation and switch, Uri, his shaman, his prayer and the Crown, a monarch's arrival and fall, stage 2, the landscape reflow, a fall banking the run, and both ways in.
+Verified by `scripts/horde.mjs`: upright touch (stick, DASH, buttons on screen), auto-weapons, a level-up card, a reroll and a banish, a tag combo, the Trinity, an evolution, the skill, transformation and switch, Uri, his shaman, his prayer and the Crown, a monarch's arrival and fall, stage 2, the landscape reflow, a fall banking the run, and both ways in.
 

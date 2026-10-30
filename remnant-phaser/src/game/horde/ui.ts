@@ -18,6 +18,10 @@ const FACES: Record<HeroId, [string, string, string, string, number]> = {
   uri: ['ability-pillar_fire', 'FIRE', 'action-transform_elior', 'CROWN', 0xff9a50],
 };
 
+/** Elior's violet, Tirzah's dawn gold, Uri's ember. */
+const PIPS = [0xb48cff, 0xffe6a8, 0xff9a50];
+/** Gild a button's label; only on a change, since recolouring redraws the text. */
+const tint9 = (t: Phaser.GameObjects.Text, gold: boolean) => { const c = gold ? '#f6dea0' : '#ddd4c6'; if (t.style.color !== c) t.setColor(c); };
 export type Act = 'dash' | 'skill' | 'form' | 'switch';
 /** The story's controls, carried over: Jump and Dodge dash, Attack and the skills cast, the Mantle's keys transform. */
 const BINDS: [Action, Act | 'pause'][] = [['dodge', 'dash'], ['jump', 'dash'], ['attack', 'skill'], ['skill1', 'skill'], ['skill2', 'skill'], ['heavy', 'skill'], ['transform', 'form'], ['ultimate', 'form'], ['skill3', 'form'], ['switch', 'switch'], ['menu', 'pause']];
@@ -28,6 +32,8 @@ export interface Readout {
   stage: number; time: number; stageTime: number; kills: number; silver: number;
   hero: string; heroId: HeroId; other: string;
   cd: Record<Act, number>; gauge: number; form: number;
+  /** Elior's, Tirzah's and Uri's gauges; all three full (the Trinity); a switch now lands as a tag combo. */
+  gauges: number[]; trinity: boolean; tag: boolean;
   boss: { name: string; title: string; hp: number; max: number } | null;
 }
 
@@ -190,20 +196,28 @@ export class HordeUI {
     g.fillStyle(0xf6dea0, 1).fillRect(this.pause.x - 5 * k, this.pause.y - 6 * k, 3 * k, 12 * k).fillRect(this.pause.x + 2 * k, this.pause.y - 6 * k, 3 * k, 12 * k);
 
     for (const b of this.buttons) {
-      const cd = s.cd[b.a], ready = b.a === 'form' ? s.gauge >= 1 || s.form > 0 : cd <= 0;
+      const cd = s.cd[b.a], ready = b.a === 'form' ? s.gauge >= 1 || s.form > 0 || s.trinity : cd <= 0;
+      // The Trinity turns the form button gold; an open tag window makes the switch pulse.
+      const glow = (b.a === 'form' && s.trinity) || (b.a === 'switch' && s.tag && cd <= 0);
       b.g.clear().fillStyle(0x07060a, ready ? 0.6 : 0.45).fillCircle(b.x, b.y, b.r);
-      b.g.lineStyle(2 * k, b.a === 'form' && ready ? 0xc59bff : 0xe2b85a, ready ? 0.9 : 0.35).strokeCircle(b.x, b.y, b.r);
+      if (glow) b.g.fillStyle(0xf6dea0, 0.18 + 0.14 * Math.sin(this.h.time.now / 90)).fillCircle(b.x, b.y, b.r + 4 * k);
+      b.g.lineStyle(2 * k, glow ? 0xf6dea0 : b.a === 'form' && ready ? 0xc59bff : 0xe2b85a, ready ? 0.9 : 0.35).strokeCircle(b.x, b.y, b.r);
       // A cooldown sweeps round the rim; the transformation's gauge fills it.
       const fill = b.a === 'form' ? (s.form > 0 ? s.form : Math.min(1, s.gauge)) : 1 - Math.min(1, cd);
       if (fill < 1 || b.a === 'form') b.g.lineStyle(3 * k, b.a === 'form' ? 0xc59bff : 0xf6dea0, 0.95).beginPath().arc(b.x, b.y, b.r - 3 * k, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * fill).strokePath();
       b.icon.setAlpha(ready ? 1 : 0.4);
+      // Three pips over the form button: each hero's gauge.
+      if (b.a === 'form') s.gauges.forEach((v, i) => {
+        const px = b.x + (i - 1) * 9 * k, py = b.y - b.r - 6 * k;
+        b.g.fillStyle(0x07060a, 0.7).fillCircle(px, py, 3.4 * k).fillStyle(PIPS[i], v >= 1 ? 1 : 0.35 + 0.4 * v).fillCircle(px, py, (v >= 1 ? 2.8 : 1.2 + 1.4 * v) * k);
+      });
     }
     const [dash, skill, form, sw] = this.buttons;
     dash.icon.setTexture('action-dodge'); dash.label.setText('DASH');
     const [skillIcon, skillName, formIcon, formName, tint] = FACES[s.heroId];
     skill.icon.setTexture(skillIcon); skill.label.setText(skillName);
-    form.icon.setTexture(formIcon).setTint(tint); form.label.setText(formName);
-    sw.icon.setTexture('action-switch'); sw.label.setText(s.other.toUpperCase());
+    form.icon.setTexture(formIcon).setTint(tint); form.label.setText(s.trinity ? 'TRINITY' : formName); tint9(form.label, s.trinity);
+    sw.icon.setTexture('action-switch'); sw.label.setText(s.tag && s.cd.switch <= 0 ? 'TAG!' : s.other.toUpperCase()); tint9(sw.label, s.tag && s.cd.switch <= 0);
 
     this.bannerT -= dt; this.toastT -= dt;
     const ba = Math.max(0, Math.min(1, this.bannerT * 2, (2.4 - this.bannerT) * 4));
@@ -242,6 +256,12 @@ const CSS = `
 .hz-btn{font-family:Cinzel,Georgia,serif;font-size:15px;padding:11px 14px;border-radius:6px;border:1px solid rgba(226,184,90,.55);background:rgba(20,14,24,.92);color:#ddd4c6;cursor:pointer}
 .hz-btn:focus{outline:2px solid #f6dea0}
 .hz-btn.primary{background:linear-gradient(#6b4a1c,#3e2a10);color:#fff1c4;border-color:#f6dea0}
+.hz-row{display:flex;gap:8px;justify-content:center;margin-top:10px}
+.hz-btn.small{font-size:13px;padding:8px 12px;flex:1;max-width:180px}
+.hz-btn.on{border-color:#ff8a7a;color:#ffd2c8}
+.hz-btn[disabled]{opacity:.4;cursor:default}
+.hz-card.hz-banish{border-color:rgba(255,120,100,.6)}
+.hz-card.hz-banish b{color:#ffb4a4;text-decoration:line-through rgba(255,120,100,.5)}
 `;
 
 /** Show a card over the game; the returned function closes it. Arrows, the D-pad and the stick move between its

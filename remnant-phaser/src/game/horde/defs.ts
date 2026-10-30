@@ -94,6 +94,23 @@ export const PASSIVES: Record<PassiveId, { name: string; desc: string; max: numb
   armor: { name: 'Bulwark', desc: '8% less damage taken', max: 5 },
 };
 
+/**
+ * Evolutions: a weapon at its last level, carried with its partner passive, evolves at the next chest or fallen
+ * monarch into a stronger form of itself.
+ */
+export const EVOLUTIONS: Record<WeaponId, { with: PassiveId; name: string; desc: string; verse?: string }> = {
+  blade: { with: 'might', name: 'Sword of the Spirit', desc: 'Every cut looses a wave of light; the Phantom chain comes every other cut', verse: '“the sword of the Spirit, which is the word of God” · Ephesians 6:17 (KJV)' },
+  bow: { with: 'precision', name: 'Bow of the Dawn', desc: 'Two more arrows; every arrow pierces all and splits on a kill' },
+  flame: { with: 'reach', name: 'Fire of the Altar', desc: 'One more fireball; every burst is wider and leaves the ground burning' },
+  seraphs: { with: 'vigor', name: 'Halo of Seraphs', desc: 'Eight orbs in two rings turning both ways, at double strength' },
+  pillar: { with: 'haste', name: 'Storm of Pillars', desc: 'Four strikes every second' },
+  lion: { with: 'armor', name: 'Pride of the Lion', desc: 'Roars twice as often, and each roar heals' },
+  chains: { with: 'magnet', name: 'Judgment Unbound', desc: 'Two chains twice as often, nine links each, binding all they strike' },
+  hallowed: { with: 'renewal', name: 'Holy Ground', desc: 'Half again as wide, double the burn, and it heals while foes stand in it' },
+  crescent: { with: 'swift', name: 'Crescent Moon', desc: 'Two more crescents, larger and faster' },
+  frost: { with: 'plenty', name: 'Crown of Winter', desc: 'Every few seconds the whole field freezes' },
+};
+
 /** Seconds of horde before the stage's monarch arrives. */
 export const stageTime = (stage: number) => Math.min(120, 70 + stage * 6);
 /** Foe health and damage rise by stage: steady at first, then steeper, with no ceiling. */

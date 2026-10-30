@@ -15,7 +15,7 @@ import { sfx } from '../../../remnant/src/audio/audio';
 import { haptic } from '../../../remnant/src/core/haptics';
 import { input } from '../../../remnant/src/core/input';
 import { shakeScale } from '../classic/shim/settings';
-import { BIOMES, HEROES, WEAPONS, PASSIVES, RELICS, RELIC_SLOTS, stageTime, stageHp, stageDmg, type Biome, type HeroId, type PassiveId, type WeaponId } from '../game/horde/defs';
+import { BIOMES, HEROES, WEAPONS, EVOLUTIONS, PASSIVES, RELICS, RELIC_SLOTS, stageTime, stageHp, stageDmg, type Biome, type HeroId, type PassiveId, type WeaponId } from '../game/horde/defs';
 import { Terrain, hordeTextures } from '../game/horde/ground';
 import { Swarm, MAX_FOES, type Foe } from '../game/horde/foes';
 import { HordeHero } from '../game/horde/hero';
@@ -37,6 +37,8 @@ const KIT: Record<HeroId, { name: string; weapon: WeaponId; skillCd: number; ski
 const FORM_TIME = 14;
 
 type Choice = { kind: 'weapon'; id: WeaponId } | { kind: 'passive'; id: PassiveId } | { kind: 'boon'; id: 'heal' | 'silver' };
+/** A choice's name for banishing. */
+const key = (c: Choice) => `${c.kind}:${c.id}`;
 
 export class Horde extends Phaser.Scene {
   save!: PhaserSave;
@@ -73,7 +75,19 @@ export class Horde extends Phaser.Scene {
   gemXp = 0;
   loot: Loot[] = [];
   passives: Record<PassiveId, number> = { might: 0, swift: 0, haste: 0, reach: 0, vigor: 0, renewal: 0, magnet: 0, fortune: 0, precision: 0, plenty: 0, armor: 0 };
-  gauge = 0;
+  /** Each hero's transformation gauge (their own kills fill it); all three full opens the Trinity. */
+  gauges: Record<HeroId, number> = { elior: 0, tirzah: 0, uri: 0 };
+  get gauge() { return this.gauges[this.heroId]; }
+  set gauge(v: number) { this.gauges[this.heroId] = v; }
+  /** Run aids for the level-up cards: redraws, and choices struck from the run. */
+  rerolls = 3;
+  banishes = 3;
+  banned = new Set<string>();
+  /** Until when (scene seconds) a switch lands as a tag combo; and the counts, for the checks. */
+  private tagUntil = 0;
+  tags = 0;
+  trinities = 0;
+  evolutions = 0;
   formT = 0;
   private formUses = 0;
   private cds: Record<Act, number> = { dash: 0, skill: 0, form: 0, switch: 0 };
@@ -150,6 +164,8 @@ export class Horde extends Phaser.Scene {
     this.arsenal = new Arsenal(this);
     this.shaman = new Shaman(this);
     this.hpBar = this.wl(this.add.graphics());
+    // The scene object outlives a run: the last visit's numbers were destroyed with it.
+    this.nums = [];
     for (let i = 0; i < 28; i++) this.nums.push({ t: this.wl(this.add.text(0, 0, '', { fontFamily: 'Georgia, serif', fontSize: '22px', color: '#ffffff', stroke: '#07060a', strokeThickness: 4 }).setOrigin(0.5).setScale(0.36).setVisible(false)), life: 0, vy: 0 });
     this.ui = new HordeUI(this);
     this.cameras.main.startFollow(this.hero.sprite, true, 0.18, 0.18, 0, 12);
@@ -174,7 +190,7 @@ export class Horde extends Phaser.Scene {
   private reset() {
     this.stage = 1; this.stageT = 0; this.level = 1; this.xp = 0; this.kills = 0; this.silver = 0; this.gemXp = 0; this.loot = [];
     for (const k of Object.keys(this.passives) as PassiveId[]) this.passives[k] = 0;
-    this.gauge = 0; this.formT = 0; this.formUses = 0; this.prayed = false; this.uriLevels = 0; this.dead = false; this.banked = false; this.pendingLevels = 0;
+    this.gauges = { elior: 0, tirzah: 0, uri: 0 }; this.rerolls = 3; this.banishes = 3; this.banned = new Set(); this.tagUntil = 0; this.tags = this.trinities = this.evolutions = 0; this.formT = 0; this.formUses = 0; this.prayed = false; this.uriLevels = 0; this.dead = false; this.banked = false; this.pendingLevels = 0;
     this.maxHp = this.hp = this.baseMaxHp();
     this.cds = { dash: 0, skill: 0, form: 0, switch: 0 };
   }
@@ -264,6 +280,9 @@ export class Horde extends Phaser.Scene {
     const spoil = Math.random() < (this.heroId === 'tirzah' ? 0.6 : 0.35) ? archerDrop(this.save, Math.min(10, this.stage + 1), 'boss') : rollGear(tier);
     this.loot.push(spoil);
     this.silver += Math.round(40 * this.stage * this.fortune);
+    // A broken crown evolves a ready weapon too, and grants a redraw and a banish.
+    this.evolve();
+    this.rerolls++; this.banishes++;
     this.ui.banners(`${b.name} FALLS`, 'Its crown is broken', 2.2);
     b.destroy();
     this.boss = null;
@@ -320,7 +339,7 @@ export class Horde extends Phaser.Scene {
       stage: this.stage, time: Math.max(0, stageTime(this.stage) - this.stageT), stageTime: stageTime(this.stage), kills: this.kills, silver: this.silver,
       hero: KIT[this.heroId].name, heroId: this.heroId, other: KIT[other].name,
       cd: { dash: this.cds.dash / (1.8 * this.cdMult), skill: this.cds.skill / this.skillCd(), form: 0, switch: this.cds.switch / 5 },
-      gauge: this.gauge, form: this.formT / FORM_TIME,
+      gauge: this.gauge, form: this.formT / FORM_TIME, gauges: HEROES.map((id) => this.gauges[id]), trinity: this.trinityReady && this.formT <= 0, tag: this.tagOpen,
       boss: this.boss ? { name: this.boss.name, title: this.boss.title, hp: this.boss.hp, max: this.boss.maxHp } : null,
     };
   }
@@ -346,8 +365,10 @@ export class Horde extends Phaser.Scene {
           if (!this.prayed) { this.prayed = true; this.ui.banners('FIRE FROM HEAVEN', '“Then the fire of the LORD fell” · 1 Kings 18:38 (KJV)', 2.6); }
         }
         sfx(KIT[this.heroId].skillSfx, { vol: 0.6 }); haptic('heavy');
+        this.tagWindow();
       } else if (a === 'form') {
-        if (this.formT <= 0 && this.gauge >= 1) this.beginForm();
+        if (this.formT <= 0 && this.trinityReady) this.trinity();
+        else if (this.formT <= 0 && this.gauge >= 1) this.beginForm();
       } else if (a === 'switch' && this.cds.switch <= 0) this.switchHero();
     }
     this.ui.pressed.clear();
@@ -409,6 +430,7 @@ export class Horde extends Phaser.Scene {
     if (this.heroId === 'uri') this.shaman.show(false);
     sfx(kit.formSfx); this.shake(0.008, 300); haptic('phase');
     this.slowMo(0.4, 0.5);
+    this.tagWindow(2);
   }
   private endForm() { this.formT = 0; this.hero.form = false; sfx('mantleEnd', { vol: 0.5 }); if (this.heroId === 'uri') this.shaman.show(true); }
 
@@ -422,9 +444,65 @@ export class Horde extends Phaser.Scene {
     this.cds.switch = 5; this.cds.skill = Math.min(this.cds.skill, 2);
     this.invuln = Math.max(this.invuln, 0.5);
     this.arsenal.landing();
-    this.ui.toast(next === 'uri' ? `${KIT.uri.arrive} · level ${uriOf(this.save).level}` : KIT[next].arrive);
     sfx('teleport', { vol: 0.6 }); haptic('select');
+    // Switched while the last hero's big move still rings out: the one arriving finishes it.
+    if (this.time.now / 1000 < this.tagUntil) { this.tagCombo(next); return; }
+    this.ui.toast(next === 'uri' ? `${KIT.uri.arrive} · level ${uriOf(this.save).level}` : KIT[next].arrive);
   }
+
+  /** A switch lands as a tag combo for the next moment or two after a skill, a transformation or a Phantom chain. */
+  tagWindow(sec = 1.6) { this.tagUntil = this.time.now / 1000 + sec; }
+  get tagOpen() { return this.time.now / 1000 < this.tagUntil; }
+
+  /**
+   * The tag combos: Tirzah arrives with a volley on the thickest of the horde and a ring of arrows; Uri arrives in a
+   * pillar of fire with three more around him; Elior arrives in a Phantom chain (or, with no chain to make, a storm).
+   */
+  private tagCombo(next: HeroId) {
+    this.tagUntil = 0; this.tags++;
+    const x = this.hero.x, y = this.hero.y;
+    let name: string;
+    if (next === 'tirzah') {
+      name = 'DAWN VOLLEY';
+      this.arsenal.rain();
+      for (let i = 0; i < 10; i++) { const a = (i / 10) * Math.PI * 2; this.arsenal.launch('arrow', x, y - 14, Math.cos(a), Math.sin(a), 440, 12, 3, 0.6); }
+    } else if (next === 'uri') {
+      name = 'EMBER CRASH';
+      this.arsenal.strike(x, y, 64 * this.areaMult, 34, 'fire', true);
+      for (let i = 0; i < 3; i++) { const a = (i / 3) * Math.PI * 2 + 0.5; this.arsenal.strike(x + Math.cos(a) * 70, y + Math.sin(a) * 56, 36, 20, 'fire'); }
+    } else {
+      name = 'PHANTOM ENTRY';
+      if (!this.arsenal.phantomNow()) this.arsenal.storm(1.2);
+    }
+    // A good tag feeds the one arriving, and the switch comes back sooner.
+    this.gauges[next] = Math.min(1, this.gauges[next] + 0.15);
+    this.cds.switch = 3;
+    this.ui.banners('TAG COMBO', name, 1.2);
+    this.impact(x, y - 16, 1);
+  }
+
+  get trinityReady() { return HEROES.every((id) => this.gauges[id] >= 1); }
+
+  /**
+   * The Trinity: every gauge spent at once. The two heroes not in play stand at either shoulder; Elior's echo cuts
+   * through the nearest foes, Tirzah's volley falls on the thickest knot, and Uri's fire comes down from heaven.
+   */
+  private trinity() {
+    for (const id of HEROES) this.gauges[id] = 0;
+    this.trinities++;
+    this.invuln = Math.max(this.invuln, 2);
+    this.hero.trinity(HEROES.filter((id) => id !== this.heroId), 3);
+    this.arsenal.echoCuts(8, 26);
+    this.time.delayedCall(250, () => this.arsenal.rain());
+    this.time.delayedCall(500, () => this.arsenal.heaven());
+    this.ui.banners('TRINITY', 'Elior, Tirzah and Uri as one', 2.2);
+    sfx('transform'); sfx('wingsForm', { vol: 0.6 }); haptic('phase');
+    this.impact(this.hero.x, this.hero.y - 16, 1.5);
+    this.slowMo(0.35, 0.6);
+  }
+
+  /** Healing by a fraction of the hero's health (the evolved Lion and Holy Ground). */
+  heal(frac: number) { this.hp = Math.min(this.maxHp, this.hp + this.maxHp * frac); }
 
   // ---------------------------------------------------------------- blows
 
@@ -497,18 +575,37 @@ export class Horde extends Phaser.Scene {
     } else if (kind === 'coin') { this.silver += v; sfx('loot', { vol: 0.25, gap: 50 }); }
     else if (kind === 'heart') { this.hp = Math.min(this.maxHp, this.hp + this.maxHp * 0.2); sfx('heal', { vol: 0.5 }); }
     else if (kind === 'chest') {
-      // An elite's chest: silver, healing and an upgrade.
+      // An elite's chest: silver, healing, and an evolution if one is ready (else an upgrade).
       this.silver += Math.round(25 * this.stage * this.fortune);
       this.hp = Math.min(this.maxHp, this.hp + this.maxHp * 0.25);
-      this.pendingLevels++;
-      sfx('chest'); this.ui.toast('A chest · silver, healing and a gift');
+      if (!this.evolve()) { this.pendingLevels++; sfx('chest'); this.ui.toast('A chest · silver, healing and a gift'); }
     }
+  }
+
+  /** A weapon ready to evolve (its last level, with its partner passive), the hero in play's own first. */
+  private evolvable(): WeaponId | null {
+    const order = [KIT[this.heroId].weapon, ...(Object.keys(EVOLUTIONS) as WeaponId[])];
+    return order.find((id) => this.arsenal.level(id) >= 6 && !this.arsenal.evolved.has(id) && this.passives[EVOLUTIONS[id].with] > 0) ?? null;
+  }
+
+  /** Evolve the first ready weapon: its banner, its verse (if it has one), an impact frame. False if none was ready. */
+  evolve() {
+    const id = this.evolvable();
+    if (!id) return false;
+    this.arsenal.evolved.add(id); this.evolutions++;
+    const e = EVOLUTIONS[id];
+    this.ui.banners(e.name.toUpperCase(), e.verse ?? e.desc, 2.6);
+    this.ui.toast(`${WEAPONS[id].name} evolved · ${e.desc}`);
+    sfx('levelup'); sfx('transform', { vol: 0.5 }); haptic('phase');
+    this.impact(this.hero.x, this.hero.y - 16, 1);
+    return true;
   }
 
   // ---------------------------------------------------------------- level-ups
 
   private choices(): Choice[] {
-    const a = this.arsenal, own = KIT[this.heroId].weapon, pool: { c: Choice; w: number }[] = [];
+    const a = this.arsenal, own = KIT[this.heroId].weapon, all: { c: Choice; w: number }[] = [];
+    const pool = { push: (o: { c: Choice; w: number }) => { if (!this.banned.has(key(o.c))) all.push(o); } };
     if (a.level(own) < 6) pool.push({ c: { kind: 'weapon', id: own }, w: 4 });
     const relics = a.relics();
     for (const id of RELICS) {
@@ -518,10 +615,10 @@ export class Horde extends Phaser.Scene {
     }
     for (const id of Object.keys(PASSIVES) as PassiveId[]) if (this.passives[id] < PASSIVES[id].max) pool.push({ c: { kind: 'passive', id }, w: 2 });
     const out: Choice[] = [];
-    while (out.length < 3 && pool.length) {
-      let r = Math.random() * pool.reduce((s, p) => s + p.w, 0), i = 0;
-      for (; i < pool.length - 1; i++) { r -= pool[i].w; if (r <= 0) break; }
-      out.push(pool.splice(i, 1)[0].c);
+    while (out.length < 3 && all.length) {
+      let r = Math.random() * all.reduce((s, p) => s + p.w, 0), i = 0;
+      for (; i < all.length - 1; i++) { r -= all[i].w; if (r <= 0) break; }
+      out.push(all.splice(i, 1)[0].c);
     }
     if (out.length < 3) out.push({ kind: 'boon', id: 'heal' });
     if (out.length < 3) out.push({ kind: 'boon', id: 'silver' });
@@ -530,10 +627,17 @@ export class Horde extends Phaser.Scene {
 
   private describe(c: Choice): [string, string, string] {
     if (c.kind === 'weapon') {
-      const def = WEAPONS[c.id], lv = this.arsenal.level(c.id);
-      return lv ? [def.name, `Level ${lv + 1}`, def.levels[lv - 1]] : [def.name, 'New', def.desc];
+      const def = WEAPONS[c.id], lv = this.arsenal.level(c.id), e = EVOLUTIONS[c.id];
+      // The last level says what it evolves with.
+      const tag = lv ? `Level ${lv + 1}${lv + 1 === 6 ? ` · evolves with ${PASSIVES[e.with].name}` : ''}` : 'New';
+      return [def.name, tag, lv ? def.levels[lv - 1] : def.desc];
     }
-    if (c.kind === 'passive') { const p = PASSIVES[c.id], lv = this.passives[c.id]; return [p.name, lv ? `Level ${lv + 1}` : 'New', p.desc]; }
+    if (c.kind === 'passive') {
+      const p = PASSIVES[c.id], lv = this.passives[c.id];
+      // A passive that will evolve a weapon already carried says so.
+      const pair = (Object.keys(EVOLUTIONS) as WeaponId[]).find((w) => EVOLUTIONS[w].with === c.id && this.arsenal.level(w) > 0 && !this.arsenal.evolved.has(w));
+      return [p.name, (lv ? `Level ${lv + 1}` : 'New') + (pair && !lv ? ` · evolves ${WEAPONS[pair].name}` : ''), p.desc];
+    }
     return c.id === 'heal' ? ['Rest', 'Boon', 'Recover half your health'] : ['Silver', 'Boon', `+${30 * this.stage} silver`];
   }
 
@@ -548,22 +652,43 @@ export class Horde extends Phaser.Scene {
 
   private openLevelUp() {
     this.pendingLevels--;
-    const opts = this.choices();
+    let opts = this.choices(), banishing = false, panel: HTMLElement | null = null;
     sfx('levelup', { vol: 0.6 }); haptic('select');
     this.pauseField(true);
-    this.overlay = overlay((p) => {
-      p.append(el('div', 'hz-title', `LEVEL ${this.level - this.pendingLevels}`), el('p', 'hz-sub', 'Choose one'));
+    const pick = (c: Choice) => {
+      if (!banishing) { this.chose(c); return; }
+      // A banished choice never comes again this run; the offer is drawn afresh.
+      this.banned.add(key(c)); this.banishes--; banishing = false;
+      opts = this.choices(); sfx('uiBack'); draw();
+    };
+    const reroll = () => { if (this.rerolls <= 0) return; this.rerolls--; banishing = false; opts = this.choices(); sfx('uiConfirm'); draw(); };
+    const banish = () => { if (this.banishes <= 0 && !banishing) return; banishing = !banishing; draw(); };
+    const draw = () => {
+      if (!panel) return;
+      panel.replaceChildren(el('div', 'hz-title', `LEVEL ${this.level - this.pendingLevels}`), el('p', 'hz-sub', banishing ? 'Choose one to banish from this run' : 'Choose one'));
       const cards = el('div', 'hz-cards');
       opts.forEach((c, i) => {
         const [name, tag, desc] = this.describe(c);
-        const card = el('button', 'hz-card', '', () => this.chose(c));
+        const card = el('button', banishing ? 'hz-card hz-banish' : 'hz-card', '', () => pick(c));
         card.dataset.k = `hz_card_${i}`;
         card.append(el('b', '', name), el('small', '', tag), el('span', '', desc));
         cards.append(card);
       });
-      p.append(cards);
-    });
-    const keys = (e: KeyboardEvent) => { const i = ['Digit1', 'Digit2', 'Digit3'].indexOf(e.code); if (i >= 0 && opts[i]) { e.preventDefault(); this.chose(opts[i]); } };
+      const row = el('div', 'hz-row');
+      const r = el('button', 'hz-btn small', `Reroll · ${this.rerolls}`, reroll), b = el('button', 'hz-btn small' + (banishing ? ' on' : ''), banishing ? 'Cancel banish' : `Banish · ${this.banishes}`, banish);
+      r.dataset.k = 'hz_reroll'; b.dataset.k = 'hz_banish';
+      if (this.rerolls <= 0) r.setAttribute('disabled', '');
+      if (this.banishes <= 0 && !banishing) b.setAttribute('disabled', '');
+      row.append(r, b);
+      panel.append(cards, row);
+    };
+    this.overlay = overlay((p) => { panel = p; draw(); });
+    const keys = (e: KeyboardEvent) => {
+      const i = ['Digit1', 'Digit2', 'Digit3'].indexOf(e.code);
+      if (i >= 0 && opts[i]) { e.preventDefault(); pick(opts[i]); }
+      else if (e.code === 'KeyR') reroll();
+      else if (e.code === 'KeyB') banish();
+    };
     window.addEventListener('keydown', keys);
     this.closeKeys = () => window.removeEventListener('keydown', keys);
   }
@@ -645,7 +770,7 @@ export class Horde extends Phaser.Scene {
     row('Journey XP', String(this.bankXp()));
     if (this.banked) row('Uri', `level ${uriOf(this.save).level}${this.uriLevels ? ` (+${this.uriLevels})` : ''}`);
     if (spoils || this.loot.length) row('Gear', this.loot.length ? this.loot.map((l) => this.lootName(l)).join(', ') : 'none yet');
-    const weapons = [...this.arsenal.lv.entries()].filter(([id]) => !WEAPONS[id].hero).map(([id, lv]) => `${WEAPONS[id].name} ${lv}`);
+    const weapons = [...this.arsenal.lv.entries()].filter(([id]) => !WEAPONS[id].hero || this.arsenal.evolved.has(id)).map(([id, lv]) => this.arsenal.evolved.has(id) ? EVOLUTIONS[id].name : `${WEAPONS[id].name} ${lv}`);
     if (weapons.length) row('Relics', weapons.join(', '));
     return g;
   }

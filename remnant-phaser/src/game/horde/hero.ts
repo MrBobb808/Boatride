@@ -41,19 +41,26 @@ export class HordeHero {
     this.keys['uri-form'] = crownAtlas(sc);
     this.shadow = wl(sc.add.image(0, 0, 'hz-shadow').setScale(0.9, 1));
     this.wings = wl(sc.add.image(0, 0, 'vfx-transform', 27).setBlendMode(Phaser.BlendModes.ADD).setVisible(false).setScale(0.62));
-    for (let i = 0; i < 10; i++) this.trail.push({ img: wl(sc.add.image(0, 0, this.keys.elior, 'idle:0').setVisible(false).setTint(0xb48cff).setTintMode(Phaser.TintModes.FILL)), life: 0 });
+    for (let i = 0; i < 16; i++) this.trail.push({ img: wl(sc.add.image(0, 0, this.keys.elior, 'idle:0').setVisible(false).setTint(0xb48cff).setTintMode(Phaser.TintModes.FILL)), life: 0 });
     this.sprite = wl(sc.add.sprite(0, 0, this.keys.elior, 'idle:0').setOrigin(0.5, ACTION_FOOT / ACTION_CELL).setScale(0.82));
   }
 
   get key() { return this.keys[this.hero + (this.form ? '-form' : '')]; }
 
   /** A fading copy of the hero where they stand now (a blink's afterimage), at (x, y) if given. */
-  ghost(x = this.x, y = this.y, life = 0.3) {
+  ghost(x = this.x, y = this.y, life = 0.3, who: HeroId = this.hero) {
     const g = this.trail.find((t) => t.life <= 0);
     if (!g) return;
     g.life = life;
-    g.img.setTexture(this.sprite.texture.key, this.sprite.frame.name).setOrigin(this.sprite.originX, this.sprite.originY).setScale(this.sprite.scaleX).setFlipX(this.face < 0)
-      .setPosition(Math.round(x), Math.round(y)).setDepth(y - 1).setTint(this.hero === 'tirzah' ? 0xffe6a8 : this.hero === 'uri' ? 0xff9a50 : 0xb48cff).setTintMode(Phaser.TintModes.FILL);
+    // Another hero's afterimage (the Trinity) wears that hero's figure mid-strike.
+    const key = who === this.hero ? this.sprite.texture.key : this.keys[who], frame = who === this.hero ? this.sprite.frame.name : actionFrame(this.sc, key, who === 'tirzah' ? 'bowRelease' : who === 'uri' ? 'invoke' : 'b3', 0.5);
+    g.img.setTexture(key, frame).setOrigin(this.sprite.originX, this.sprite.originY).setScale(who === 'uri' ? 1.05 : 0.82).setFlipX(this.face < 0)
+      .setPosition(Math.round(x), Math.round(y)).setDepth(y - 1).setTint(who === 'tirzah' ? 0xffe6a8 : who === 'uri' ? 0xff9a50 : 0xb48cff).setTintMode(Phaser.TintModes.FILL);
+  }
+
+  /** The Trinity: the two heroes not in play stand at either shoulder for a few seconds, mid-strike. */
+  trinity(others: HeroId[], dur: number) {
+    others.forEach((who, i) => { for (let k = 0; k < 4; k++) this.sc.time.delayedCall(k * (dur * 250), () => this.ghost(this.x + (i ? 30 : -30), this.y - 4, dur / 4 + 0.15, who)); });
   }
 
   /** Play a one-shot clip (a swing, a loosed arrow) over the movement loop. */

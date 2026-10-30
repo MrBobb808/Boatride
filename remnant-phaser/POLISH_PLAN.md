@@ -459,6 +459,24 @@ The owner asked for more teleporting in the combos, the slow-motion impact frame
   in from the dark, flicker and dim, with a soft bloom, a ring of light and sparks or flames where they land. Every
   sheet effect now fades through its last quarter.
 
+### 13d. Evolutions, tag combos and the Trinity, rerolls and banishes (shipped: `scripts/horde.mjs`)
+The three gameplay recommendations the owner chose to build.
+- **Weapon evolutions:** a weapon at its last level, carried with its partner passive, evolves at the next elite's
+  chest or fallen monarch (`EVOLUTIONS` in `defs.ts`): the Covenant Blade with Might becomes the Sword of the Spirit
+  ("the sword of the Spirit, which is the word of God" · Ephesians 6:17 (KJV)): a wave of light every cut and a
+  Phantom chain every other. The Dawn Bow (Precision) becomes the Bow of the Dawn, the Hand of Flame (Reach) the Fire
+  of the Altar, and each relic has its own. The last-level card says what it evolves with, and a passive card says
+  which carried weapon it would evolve.
+- **Tag combos:** switching in the moment after a skill, a transformation or a Phantom chain's last cut lands as a
+  tag combo for the hero arriving: Tirzah's Dawn Volley (a rain of arrows and a ring of them), Uri's Ember Crash (a
+  pillar of fire where he lands and three around), Elior's Phantom Entry (a Phantom chain). The switch button glows
+  and reads TAG! while the window is open; a tag feeds the arriving hero's gauge and the switch returns sooner.
+- **The Trinity:** each hero now fills their own gauge (three pips over the form button). With all three full the
+  button turns gold and reads TRINITY: every gauge is spent at once, the other two heroes stand at the hero's
+  shoulders, Elior's echo cuts through the nearest foes, Tirzah's volley falls and Uri's fire comes down from heaven.
+- **Rerolls and banishes:** three of each per run, one more of each per monarch broken. A reroll draws the three
+  cards again; a banish strikes a card's upgrade from the run.
+
 ## 10. Questions for the owner
 
 Answered: the archer stays **Tirzah**, and Wings of the Morning **shares** the Mantle's gauge.
