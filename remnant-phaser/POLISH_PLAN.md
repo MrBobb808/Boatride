@@ -440,7 +440,8 @@ The mode is `src/scenes/Horde.ts` with `src/game/horde/`. PORTING.md has the det
   wider) and walks in a ring of fire. The shaman returns when the Crown fades.
 - **Art:** he is painted for now by the original's pixel painter; parts sheets are requested (art/REQUESTS.md
   C08–C10).
-- **Strength:** he fights with Elior's strength until he has a journey of his own; joining the story is the next
+- **Strength:** his own level and XP (`PhaserSave.uri`), earned in the Horde. His numbers are Elior's scaled by their
+  levels (0.6× far behind to 1.3× ahead), and he earns triple XP while behind Elior. Joining the story is the next
   step.
 
 ## 10. Questions for the owner

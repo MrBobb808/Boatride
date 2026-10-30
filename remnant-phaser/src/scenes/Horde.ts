@@ -21,6 +21,7 @@ import { Swarm, MAX_FOES, type Foe } from '../game/horde/foes';
 import { HordeHero } from '../game/horde/hero';
 import { Arsenal } from '../game/horde/weapons';
 import { Shaman } from '../game/horde/shaman';
+import { uriOf, uriStats, uriGainXp } from '../game/horde/uri';
 import { HordeBoss } from '../game/horde/boss';
 import { Pickups, type DropKind } from '../game/horde/pickups';
 import { HordeUI, overlay, el, type Act } from '../game/horde/ui';
@@ -48,6 +49,8 @@ export class Horde extends Phaser.Scene {
   /** Uri's orc shaman, at his side while he fights. */
   shaman!: Shaman;
   private prayed = false;
+  /** Levels Uri gained when the run was banked, for the last card. */
+  private uriLevels = 0;
   hero!: HordeHero;
   pickups!: Pickups;
   ui!: HordeUI;
@@ -127,8 +130,7 @@ export class Horde extends Phaser.Scene {
     this.save = (loadSave() as PhaserSave | null) ?? (newSave(false) as PhaserSave);
     if (!this.save.archer) this.save.archer = newArcher(this.save);
     const eliorD = stats(this.save);
-    // Uri has no journey of his own yet: he fights with Elior's strength.
-    this.heroD = { elior: eliorD, tirzah: archerStats(this.save, eliorD), uri: eliorD };
+    this.heroD = { elior: eliorD, tirzah: archerStats(this.save, eliorD), uri: uriStats(this.save, eliorD) };
     this.runPower = Math.max(this.power('elior'), this.power('tirzah'));
     this.reset();
     hordeTextures(this);
@@ -170,7 +172,7 @@ export class Horde extends Phaser.Scene {
   private reset() {
     this.stage = 1; this.stageT = 0; this.level = 1; this.xp = 0; this.kills = 0; this.silver = 0; this.gemXp = 0; this.loot = [];
     for (const k of Object.keys(this.passives) as PassiveId[]) this.passives[k] = 0;
-    this.gauge = 0; this.formT = 0; this.formUses = 0; this.prayed = false; this.dead = false; this.banked = false; this.pendingLevels = 0;
+    this.gauge = 0; this.formT = 0; this.formUses = 0; this.prayed = false; this.uriLevels = 0; this.dead = false; this.banked = false; this.pendingLevels = 0;
     this.maxHp = this.hp = this.baseMaxHp();
     this.cds = { dash: 0, skill: 0, form: 0, switch: 0 };
   }
@@ -375,7 +377,7 @@ export class Horde extends Phaser.Scene {
     this.cds.switch = 5; this.cds.skill = Math.min(this.cds.skill, 2);
     this.invuln = Math.max(this.invuln, 0.5);
     this.arsenal.landing();
-    this.ui.toast(KIT[next].arrive);
+    this.ui.toast(next === 'uri' ? `${KIT.uri.arrive} · level ${uriOf(this.save).level}` : KIT[next].arrive);
     sfx('teleport', { vol: 0.6 }); haptic('select');
   }
 
@@ -596,6 +598,7 @@ export class Horde extends Phaser.Scene {
     row('Level', String(this.level));
     row('Silver', String(this.silver));
     row('Journey XP', String(this.bankXp()));
+    if (this.banked) row('Uri', `level ${uriOf(this.save).level}${this.uriLevels ? ` (+${this.uriLevels})` : ''}`);
     if (spoils || this.loot.length) row('Gear', this.loot.length ? this.loot.map((l) => this.lootName(l)).join(', ') : 'none yet');
     const weapons = [...this.arsenal.lv.entries()].filter(([id]) => !WEAPONS[id].hero).map(([id, lv]) => `${WEAPONS[id].name} ${lv}`);
     if (weapons.length) row('Relics', weapons.join(', '));
@@ -614,6 +617,7 @@ export class Horde extends Phaser.Scene {
     s.silver += this.silver;
     gainXp(s, xp);
     archerGainXp(s, xp);
+    this.uriLevels = uriGainXp(s, xp);
     for (const l of this.loot) {
       if (!l.item || !ITEMS[l.item]) { if (l.silver) s.silver += l.silver; continue; }
       const it = makeItem(l.item, (l.rarity ?? ITEMS[l.item].rarity) as Rarity);

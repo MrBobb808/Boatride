@@ -125,20 +125,21 @@ try {
   console.log('Sideways: the buttons reflow inside the screen');
 
   // ---- a fall banks the run: silver, XP, gear and the record go into the save
-  const saved = await H(page, (h) => ({ silver: h.save.silver, inv: h.save.inventory.length, level: h.save.level, xp: h.save.xp, run: h.silver }));
+  const saved = await H(page, (h) => ({ silver: h.save.silver, inv: h.save.inventory.length, level: h.save.level, xp: h.save.xp, run: h.silver, uri: { ...(h.save.uri ?? { level: 1, xp: 0 }) } }));
   for (let i = 0; i < 10 && await E(page, () => document.querySelectorAll('.hz-card').length); i++) { await page.locator('.hz-card').first().click(); await page.waitForTimeout(250); }
   await H(page, (h) => { h.invuln = 0; h.hurtHero(1e9); });
   await until(page, () => document.querySelector('[data-k=hz_return]'));
-  const banked = await H(page, (h) => ({ silver: h.save.silver, inv: h.save.inventory.length, level: h.save.level, xp: h.save.xp, rec: h.save.horde }));
+  const banked = await H(page, (h) => ({ silver: h.save.silver, inv: h.save.inventory.length, level: h.save.level, xp: h.save.xp, rec: h.save.horde, uri: h.save.uri }));
   assert.equal(banked.silver, saved.silver + saved.run, 'the run\'s silver is banked');
   assert.equal(banked.inv, saved.inv + 1, 'the monarch\'s gear is in the pack');
   assert.ok(banked.level > saved.level || banked.xp > saved.xp, 'the journey earns XP');
   assert.equal(banked.rec.best, 2, 'the deepest stage is recorded');
+  assert.ok(banked.uri.level > saved.uri.level || banked.uri.xp > saved.uri.xp, 'Uri earns XP of his own');
   await page.screenshot({ path: 'qa/horde-end.png' });
   await page.locator('[data-k=hz_return]').click();
   await until(page, () => window.__remnant?.world?.player);
   assert.equal(await E(page, () => window.__remnant.world.save.horde.best), 2, 'the journey loads with the record');
-  console.log(`Fall: ${saved.run} silver, the gear and the XP banked; best stage 2 recorded; back on the journey`);
+  console.log(`Fall: ${saved.run} silver, the gear and the XP banked (Uri level ${banked.uri.level}); best stage 2 recorded; back on the journey`);
 
   // ---- the ways in: the pause menu's Game modes and the title
   await E(page, () => window.__remnant.world.enterHorde());
