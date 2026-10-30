@@ -125,6 +125,10 @@ Never ship files from `art/incoming/` directly.
     level-ups never call them out on their own. Foes slain in the Shadow Mantle
     or the Sovereign form rise as shadow allies only with Settings → Shadow
     allies on (`settings.shadowAllies`, off by default; `riseAsShadow`).
+  - **The AI partner** (Phaser build, `remnant-phaser/src/game/partner.ts`):
+    the hero you are not playing, called from the wheel, fights beside you as
+    an Echo underneath (`EchoUnit.power` / `maxHealth` hooks carry its own
+    numbers). The partner or the Echoes, never both.
   - **Choosing and the bond:** `leadEcho` (game/state.ts) puts one Echo at
     the head of the lineup and calls it out alone: the Echoes page's "Fight
     beside me", and in the Phaser build the wheel's Summon → Choose one….

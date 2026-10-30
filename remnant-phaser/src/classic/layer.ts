@@ -75,6 +75,8 @@ export interface ClassicHost extends WorldApi {
   gearDrop(elite: boolean): Loot;
   /** A boss always leaves Tirzah something fine. */
   bossSpoils(key?: string): void;
+  /** The AI partner hero, when it exists (game/partner.ts). */
+  partner?: { joinFinisher(e: Entity): void };
   visuals: Visuals;
   feedback: import('../game/feedback').Feedback;
   player: Player & {

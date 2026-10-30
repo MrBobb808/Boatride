@@ -115,6 +115,7 @@ jobs:
       - run: node scripts/economy.mjs
       - run: node scripts/echoes.mjs
       - run: node scripts/echo-bond.mjs
+      - run: node scripts/partner.mjs
       - run: node scripts/bosses.mjs
       - run: node scripts/classic-bosses.mjs
       - run: node scripts/install-audio.mjs

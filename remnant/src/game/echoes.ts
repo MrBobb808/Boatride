@@ -325,7 +325,7 @@ export class EchoUnit extends Entity {
     this.anim = new Animator(kit.clips, kit.base);
     this.anim.play('idle', 0);
     this.cape = new Chain(7, 4, x, y - 34);
-    this.maxHp = echoMaxHp(G.save, inst, G.d);
+    this.maxHp = this.maxHealth();
     this.hp = clamp(inst.hp, 1, this.maxHp);
     this.summonT = 1.1;
     this.layer = 7;
@@ -339,8 +339,17 @@ export class EchoUnit extends Entity {
     return this.kit.guardian;
   }
 
+  /** Its blow before a move's multiplier. A partner hero (the Phaser build) answers with its own numbers. */
+  power(): number {
+    return echoAtk(G.save, this.inst, G.d);
+  }
+  /** Its health when whole (likewise overridden by a partner hero). */
+  maxHealth() {
+    return echoMaxHp(G.save, this.inst, G.d);
+  }
+
   refreshStats() {
-    this.maxHp = echoMaxHp(G.save, this.inst, G.d);
+    this.maxHp = this.maxHealth();
     this.hp = Math.min(this.hp, this.maxHp);
   }
 
@@ -621,7 +630,7 @@ export class EchoUnit extends Entity {
 
   private blow(m: Move) {
     const stage = this.inst.stage;
-    let atk = echoAtk(G.save, this.inst, G.d) * G.world.commanderAura(this.x, this.y, this);
+    let atk = this.power() * G.world.commanderAura(this.x, this.y, this);
     let poiseMul = 1;
     const t = this.target;
     if (this.order === 'flank' && t && sign(this.x - t.x) === -(t.face || 1)) {
@@ -657,7 +666,7 @@ export class EchoUnit extends Entity {
   private thinkArcher(dt: number, mode: string) {
     const b = this.body;
     const t = this.target;
-    const atk = echoAtk(G.save, this.inst, G.d) * G.world.commanderAura(this.x, this.y, this);
+    const atk = this.power() * G.world.commanderAura(this.x, this.y, this);
     const stage = this.inst.stage;
     if (this.state === 'draw') {
       b.vx = approach(b.vx, 0, 900 * dt);
@@ -843,7 +852,7 @@ export class EchoUnit extends Entity {
     this.face = sign(t.x - this.x) || 1;
     this.body.vx = this.body.vy = 0;
     fx.column(this.x, this.y, 26, 90, '#fff3c4', 0.5);
-    const atk = echoAtk(G.save, this.inst, G.d) * mult;
+    const atk = this.power() * mult;
     t.takeHit({ dmg: atk * 2.5, poise: 60, kx: this.face * 160, ky: -200, dir: this.face, kind: 'echo', src: this, stop: 0.03 });
     fx.slash(t.x, t.cy, 26, -2.2, 0.8, 9, this.face, '#ffffff', '#ffe6a8', 0.25);
     this.gainXp(4);

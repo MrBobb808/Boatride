@@ -46,6 +46,7 @@ import type { Player as OriginalPlayer } from '../../../remnant/src/game/player'
 import { syncArcher, ARCHER, ARCHER_IDS, type SkillId } from '../game/abilities';
 import { archerStats, archerLevel, archerGainXp, archerDrop, learnArcher, allocateArcher, trank, newArcher, ARCHER_KEEPSAKES } from '../game/archer';
 import { addTirzahMenu, useAbilityTextures } from '../game/tirzahMenu';
+import { Partner } from '../game/partner';
 import { audio, sfx } from '../classic/shim/audio';
 import { music } from '../classic/shim/music';
 import { songs } from '../../../remnant/src/audio/songs';
@@ -73,6 +74,8 @@ export class World extends Phaser.Scene implements WorldApi {
     if (this.herFor !== base) { this.herD = archerStats(this.save, base); this.herFor = base; }
     return this.herD!;
   }
+  /** The other hero fighting beside you, when called (game/partner.ts). */
+  partner!: Partner;
   private herD: Derived | null = null;
   private herFor: Derived | null = null;
   room!: RoomDef;
@@ -138,7 +141,8 @@ export class World extends Phaser.Scene implements WorldApi {
     this.art = new RoomArt(this);
     this.visuals = new Visuals(this);
     this.feedback = new Feedback(this);
-    this.events.once('shutdown', () => { this.feedback.destroy(); this.visuals.destroy(); this.art.destroy(); this.classic.destroy(); });
+    this.partner = new Partner(this);
+    this.events.once('shutdown', () => { this.feedback.destroy(); this.visuals.destroy(); this.art.destroy(); this.classic.destroy(); this.partner.destroy(); });
     // The HUD scene starts on the next step; the first room waits for it.
     this.ready = false;
     this.scene.launch('hud');
@@ -494,6 +498,7 @@ export class World extends Phaser.Scene implements WorldApi {
     for (const f of this.foeList) if (!f.removed) f.update(dt * this.classic.nativeScale(f));
     this.foeList = this.foeList.filter((f) => !f.removed);
     this.classic.update(rawDt);
+    this.partner.update(dt, this.room.id);
     this.classic.render();
     if (this.boss?.fighting) {
       if (music.name !== this.boss.key) music.play(this.boss.key, 0.6);
@@ -979,7 +984,11 @@ export class World extends Phaser.Scene implements WorldApi {
     if (keep && !this.save.inventory.some((i) => i.id === keep)) this.collect({ item: keep });
   }
 
+  /** The partner pulls the player up once a room (WorldApi). */
+  partnerRevive() { return this.partner?.revive() ?? false; }
+
   onFoeDied(xp: number, silver: number, x: number, y: number, eliteId?: string) {
+    this.partner?.onKill();
     if (eliteId) this.objective(eliteId);
     this.save.kills++;
     this.save.silver += silver;

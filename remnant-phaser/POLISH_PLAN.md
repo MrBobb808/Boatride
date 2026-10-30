@@ -344,7 +344,7 @@ The owner plays on an iPhone with touch. They chose **looks first** over a guara
 
 **Order:** the partner first, then lighting, then weather and screen effects.
 
-### 11a. The AI partner hero
+### 11a. The AI partner hero (core shipped: `scripts/partner.mjs`)
 - The hero you are not controlling can fight beside you as an AI partner.
   - It is **optional and off by default**: called from the command wheel, with a toggle in Settings.
   - You can swap control at any time (the switch button changes who you play).

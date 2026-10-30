@@ -187,7 +187,7 @@ export class Player {
     this.w.toast(STYLE_NAMES[this.combatStyle]); return true;
   }
 
-  die() { if (this.dead) return; this.hp = 0; this.state = 'dead'; this.st = 0; this.body.setVelocity(0, -120); }
+  die() { if (this.dead) return; if (this.w.partnerRevive?.()) return; this.hp = 0; this.state = 'dead'; this.st = 0; this.body.setVelocity(0, -120); }
 
   get x() { return this.body.center.x; }
   get feet() { return this.body.bottom; }

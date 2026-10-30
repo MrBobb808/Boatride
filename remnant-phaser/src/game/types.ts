@@ -78,6 +78,8 @@ export interface WorldApi {
   hitstop(sec: number): void;
   /** A finishing moment: shake, slow motion and a push in (never for ordinary hits). */
   finale(x: number, y: number, power?: number): void;
+  /** Once a room the AI partner pulls the player back up; true if it did. */
+  partnerRevive?(): boolean;
   shake(intensity: number, ms: number): void;
   /** Slow the fight (foes, projectiles, effects) but not the hero, for `sec` seconds. */
   slowTime(sec: number, scale: number): void;
