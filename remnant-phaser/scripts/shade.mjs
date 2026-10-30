@@ -46,7 +46,7 @@ try {
 
   // ---- fall on the Ashen Road with 120 silver: rise at the altar, the silver left behind with a shade
   await go(page, 'ashen_road');
-  const at = await E(page, () => { const w = window.__remnant.world; w.save.silver = 120; for (const e of w.classic.ents) if (e.isFoe) e.remove = true; window.standAt(w.room.w * 8); return Math.round(w.player.x); });
+  const at = await E(page, () => { const w = window.__remnant.world; w.save.silver = 120; for (const e of w.classic.ents) if (e.isFoe) e.remove = true; window.standAt(w.room.w * 5); return Math.round(w.player.x); });
   await until(page, () => window.__remnant.world.player.onGround);
   await fall(page);
   const first = await E(page, () => { const w = window.__remnant.world; return { room: w.room.id, x: Math.round(w.player.x), rest: w.save.restAt.x, silver: w.save.silver, shades: w.save.shades }; });
