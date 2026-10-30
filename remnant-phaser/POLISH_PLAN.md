@@ -361,7 +361,7 @@ The owner plays on an iPhone with touch. They chose **looks first** over a guara
 - Light comes from torches, lamps, the heroes' weapons, arrows in flight, spells, the Wings and the Mantle.
 - Code-made normal maps stand in until art arrives (requests L01–L03).
 
-### 11c. Weather and ambience
+### 11c. Weather and ambience (shipped: `src/game/atmosphere.ts`, `scripts/atmosphere.mjs`)
 - Ash and embers: the Ashen Village and Cinders.
 - Rain and storm, with lightning flashes: the Storm Prince and the Chittim coast.
 - Fog layers: the Valley of Bones, the Hunt and the Pestilence marsh.

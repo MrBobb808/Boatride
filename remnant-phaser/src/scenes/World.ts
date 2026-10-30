@@ -724,6 +724,7 @@ export class World extends Phaser.Scene implements WorldApi {
     for (const e of this.classic.squad.echoes) if (!e.remove && e.despawn <= 0) lighting.add(e.x, e.y - 24, e === this.partner?.unit ? 90 : 56, e === this.partner?.unit ? (her ? '#ffd9a0' : '#c8f0e4') : '#ffe6a8', 0.6, 0.15);
     // Foes keep a faint, dull glow: dark rooms stay dramatic but every threat can still be read.
     for (const e of this.classic.ents) if (e.isFoe && !e.dying && !e.remove) lighting.add(e.x, e.y - e.body.h / 2, Math.max(34, e.body.w * 0.9), '#c86a5a', e.isBoss ? 0.55 : 0.4, 0);
+    this.visuals.atmosphere.lights();
     for (const f of this.flashes) if (f.t > 0) { f.t -= dt; if (f.t > 0) lighting.add(f.x, f.y, f.r, f.c, 0.95 * (f.t / f.d), 0.9); }
   }
   strikeLamps(box: { x: number; y: number; w: number; h: number }) { strikeLamps(box); }

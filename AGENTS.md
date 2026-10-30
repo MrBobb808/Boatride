@@ -239,6 +239,9 @@ Never ship files from `art/incoming/` directly.
 - **Lighting:** Settings → Lighting (`settings.lighting`, dramatic by
   default) scales a dim room's darkness in `render/lighting.ts`
   (`lightingLevel`); daylight is untouched.
+- **Weather (Phaser build):** `remnant-phaser/src/game/atmosphere.ts` adds
+  storms with lightning, fog, ash and ember gusts, and light shafts with motes
+  by biome over the original's particle weather. Presentation only; see PORTING.md.
 - **iPhone performance:** the game targets 120 Hz.
   - Do not use `shadowBlur`.
   - Cache gradients and avoid allocating in per-frame paths.
