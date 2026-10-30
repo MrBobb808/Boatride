@@ -107,8 +107,8 @@ export class ScreenFx {
     this.under += ((o.submerged ? 1 : 0) - this.under) * ease;
     this.glowT = Math.max(0, this.glowT - dt);
     const calm = settings.reduceFlashes;
-    // Bloom only while something bright is happening: a form, a flash, a boss's entrance.
-    const glow = tier === 2 ? (o.form ? 0.5 : 0) + (calm ? 0 : this.glowT * 0.9) + this.cine * 0.25 : 0;
+    // Bloom only while something bright is happening: a form or a flash. Scripted scenes keep the frame light.
+    const glow = tier === 2 ? (o.form ? 0.5 : 0) + (calm ? 0 : this.glowT * 0.9) : 0;
     this.glow += (glow * (calm ? 0.6 : 1) - this.glow) * (1 - Math.exp(-dt * 8));
     if (this.color) {
       const c = this.cine, u = this.under * 0.85;
