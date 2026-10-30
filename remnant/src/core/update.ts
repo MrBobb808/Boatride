@@ -10,6 +10,8 @@ const TRIED_AT = 'remnant-update-tried-at';
 const RETRY_MS = 60_000;
 
 export const currentBuild = () => document.querySelector('meta[name="remnant-build"]')?.getAttribute('content') ?? '';
+/** The build stamp (YYYYMMDDHHMMSS…) read as a date: YYYY.MM.DD.HHMM, or "development". */
+export const currentVersion = () => { const b = currentBuild(); return /^\d{12}/.test(b) ? `${b.slice(0, 4)}.${b.slice(4, 6)}.${b.slice(6, 8)}.${b.slice(8, 12)}` : 'development'; };
 
 let pending = false;
 let checking = false;

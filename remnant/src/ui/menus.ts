@@ -3,7 +3,7 @@ import eliorBoard from '../assets/elior-board.webp';
 // The pause menu (character, equipment, skills, Echoes, map, journal,
 // crafting, settings, system), plus the merchant, the forge and altar menus.
 
-import { checkForUpdate, applyUpdate, currentBuild } from '../core/update';
+import { checkForUpdate, applyUpdate, currentBuild, currentVersion } from '../core/update';
 import { G, flag } from '../game/ctx';
 import { h, btn, pushLayer, popLayer, clear, focusFirst } from './dom';
 import { img, iconUrl } from './icons';
@@ -1061,6 +1061,7 @@ function settingsTab() {
   const codeArea = h('textarea', { class: 'code', 'data-nav': '', placeholder: 'Paste a save code here to import it into the current slot.' }) as HTMLTextAreaElement;
   return h('div', { class: 'col scroll', style: 'flex:1' },
     h('div', { class: 'box' }, h('h3', null, 'Game updates'),
+      h('p', { 'data-k': 'current_version', style: 'font-size:1.1em;margin:4px 0' }, 'Version ', h('b', { style: 'color:var(--gold-hi)' }, currentVersion())),
       h('p', { class: 'muted', 'data-k': 'current_build' }, 'Installed build: ' + (currentBuild() || 'development')),
       btn('Check for updates', async () => {
         if (G.inCutscene || G.world?.bossActive || G.world?.transitioning || G.world?.story.ch3.rounds.active) { G.ui.toast('Finish the encounter before installing an update.', 'info'); return; }
@@ -1106,6 +1107,7 @@ function settingsTab() {
       row('Text size', '', seg(st.textSize, [['normal', 'Normal'], ['large', 'Large'], ['xl', 'Extra large']], (v) => { st.textSize = v; applyTextSize(); }, 'ts')),
       row('Screen shake', '', seg(st.shake, [['full', 'Full'], ['reduced', 'Reduced'], ['off', 'Off']], (v) => (st.shake = v), 'sh')),
       row('Reduce flashes', 'Softens bright full-screen flashes.', toggle(st.reduceFlashes, (v) => (st.reduceFlashes = v), 'rf')),
+      row('Shadow allies', 'Foes slain in the Shadow Mantle or the Sovereign form rise to fight beside you for half a minute. Off: no Echo appears unless you call it.', toggle(st.shadowAllies, (v) => (st.shadowAllies = v), 'shadow_allies')),
       row('Damage numbers', '', toggle(st.dmgNumbers, (v) => (st.dmgNumbers = v), 'dn')),
       row('Haptics', 'Taps on button presses, and a different pattern for a hit, a parry, a wound, a kill and a boss\'s new phase (iPhone with iOS 18 or later, and Android).', toggle(st.haptics, (v) => (st.haptics = v), 'hp')),
       row('Objective marker', 'A golden marker and screen-edge arrow that point toward your next objective.', toggle(st.guide, (v) => (st.guide = v), 'gd')),

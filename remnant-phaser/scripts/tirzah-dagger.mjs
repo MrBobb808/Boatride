@@ -72,6 +72,23 @@ try {
   await until(page, () => window.__remnant.world.player.bow.arrows.some((a) => a.life > 0 && a.move.startsWith('bow_')));
   console.log('Kick to draw: Strike during the kick nocked the next arrow at once');
 
+  // ---- a Strike tapped during a shot's follow-through, with a foe now close, draws the dagger
+  await free(page);
+  await E(page, () => { window.place(-150); window.__remnant.world.player.bow.tally.dagger = 0; });
+  await tap(page, 'KeyJ');
+  await until(page, () => { const b = window.__remnant.world.player.bow; return !b.drawing && b.recovery > 0; });
+  await E(page, () => { const p = window.__remnant.world.player; window.target.x = p.x + p.face * 30; window.target.body.vx = 0; });
+  await tap(page, 'KeyJ');
+  await until(page, () => window.__remnant.world.player.bow.tally.dagger >= 1);
+  console.log('Queued: a Strike during the follow-through found the dagger once a foe closed in');
+
+  // ---- a foe a short step away still brings out the dagger
+  await free(page);
+  await E(page, () => { window.place(-46); window.__remnant.world.player.bow.tally.dagger = 0; });
+  await tap(page, 'KeyJ');
+  await until(page, () => window.__remnant.world.player.bow.tally.dagger >= 1);
+  console.log('Reach: a foe a short step away took the dagger');
+
   // ---- from range, Strike still shoots
   await free(page);
   await E(page, () => { window.place(-150); window.__remnant.world.player.bow.tally.dagger = 0; });
