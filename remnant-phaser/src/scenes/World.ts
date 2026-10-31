@@ -58,6 +58,9 @@ import { audio, sfx } from '../classic/shim/audio';
 import { music } from '../classic/shim/music';
 import { songs } from '../../../remnant/src/audio/songs';
 import { settings, shakeScale } from '../classic/shim/settings';
+import { GuideTrail } from '../game/guideTrail';
+import { guidePoint } from '../../../remnant/src/game/guide';
+import { showHint } from '../game/guideHint';
 import { offlineReady, updatePending, checkForUpdates } from '../game/update';
 import { placeLamps, strikeLamps } from '../../../remnant/src/game/lamps';
 import { Visuals } from '../game/visuals';
@@ -103,6 +106,8 @@ export class World extends Phaser.Scene implements WorldApi {
   classic!: ClassicLayer;
   art!: RoomArt;
   visuals!: Visuals;
+  /** The guide's trail of light toward the objective. */
+  guideTrail!: GuideTrail;
   feedback!: Feedback;
   /** The room's classic boss, while it stands. */
   cboss: ClassicBoss | null = null;
@@ -153,6 +158,7 @@ export class World extends Phaser.Scene implements WorldApi {
     this.classic = new ClassicLayer(this);
     this.art = new RoomArt(this);
     this.visuals = new Visuals(this);
+    this.guideTrail = new GuideTrail(this);
     // ?fixedstep (tests only): the physics too advances exactly 1/60 s a frame, so jumps and dashes measure as on a
     // 60 fps phone however slow the frames are.
     if (FIXED_STEP) { const pw = this.physics.world, step = pw.update.bind(pw); pw.update = (time: number) => step(time, 1000 / 60); }
@@ -174,6 +180,8 @@ export class World extends Phaser.Scene implements WorldApi {
       if(e.repeat||!this.canUseKit)return;
       if(e.code==='KeyN'){e.preventDefault();if(this.player.switchHero())this.persist();}
       if(e.code==='KeyB'){e.preventDefault();if(this.player.cycleStyle())this.persist();}
+      // O: what now? The guide's card for the objective and the steps to the boss.
+      if(e.code==='KeyO'&&this.classic.storyEnabled){e.preventDefault();showHint();}
     };
     window.addEventListener('keydown',kitKey);
     this.events.once('shutdown',()=>window.removeEventListener('keydown',kitKey));
@@ -579,8 +587,19 @@ export class World extends Phaser.Scene implements WorldApi {
     this.save.playtime += rawDt;
     tickElixir();
     if (this.saveT > 30) this.persist();
+    this.updateGuide(dt);
     this.hud.sync(this);
   }
+
+  /** The trail of light: only in the story, with the objective marker on, and not in a fight or a scene. */
+  private updateGuide(dt: number) {
+    const on = this.classic.storyEnabled && settings.guide && !G.inCutscene && !this.classic.bossActive && !this.player.dead && !this.classic.story.ch3.rounds.active;
+    const g = on ? guidePoint() : null;
+    if (!g) { if (this.guideTrail.active) this.guideTrail.hide(); return; }
+    this.guideGoal.x = g.point.x; this.guideGoal.y = g.point.y - 22;
+    this.guideTrail.update(dt, this.player.x, this.player.feet - 26, this.guideGoal);
+  }
+  private guideGoal = { x: 0, y: 0 };
 
   private nearest() {
     let best: Interactable | null = null, bd = 30;

@@ -177,3 +177,27 @@ export function guidePoint() {
 export function guideRoom() {
   return currentSpec()?.room ?? null;
 }
+
+/** The rooms between here and the objective's room (both ends included), by the open doorways; empty if none. */
+export function guideRoute(): string[] {
+  const spec = G.save && G.world?.room ? currentSpec() : null;
+  if (!spec) return [];
+  const from = G.world.room.id, to = spec.room;
+  if (from === to) return [from];
+  const prev = new Map<string, string>([[from, '']]);
+  const queue = [from];
+  while (queue.length) {
+    const cur = queue.shift()!;
+    for (const ex of ROOMS[cur]?.exits ?? []) {
+      if ((ex.cond && !flag(ex.cond)) || prev.has(ex.to) || !ROOMS[ex.to]) continue;
+      prev.set(ex.to, cur);
+      if (ex.to === to) {
+        const path = [to];
+        for (let r = cur; r; r = prev.get(r)!) path.unshift(r);
+        return path;
+      }
+      queue.push(ex.to);
+    }
+  }
+  return [];
+}
