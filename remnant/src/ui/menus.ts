@@ -1112,7 +1112,7 @@ function settingsTab() {
       row('Shadow allies', 'Foes slain in the Shadow Mantle or the Sovereign form rise to fight beside you for half a minute. Off: no Echo appears unless you call it.', toggle(st.shadowAllies, (v) => (st.shadowAllies = v), 'shadow_allies')),
       row('Damage numbers', '', toggle(st.dmgNumbers, (v) => (st.dmgNumbers = v), 'dn')),
       row('Haptics', 'Taps on button presses, and a different pattern for a hit, a parry, a wound, a kill and a boss\'s new phase (iPhone with iOS 18 or later, and Android).', toggle(st.haptics, (v) => (st.haptics = v), 'hp')),
-      row('Objective marker', 'A golden marker and screen-edge arrow that point toward your next objective.', toggle(st.guide, (v) => (st.guide = v), 'gd')),
+      row('Objective marker', 'A golden marker, a trail of light and a screen-edge arrow that lead toward your next objective.', toggle(st.guide, (v) => (st.guide = v), 'gd')),
     ),
     isTouchDevice() ? h('div', { class: 'box' }, h('h3', null, 'Touch controls'),
       row('Button size', '', slider(st.touchScale, 0.8, 1.3, 0.05, (v) => (st.touchScale = v), 'tsz')),

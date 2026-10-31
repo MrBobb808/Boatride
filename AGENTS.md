@@ -204,6 +204,9 @@ Never ship files from `art/incoming/` directly.
   hides the one under way. In VII–X the marker leads to each of the two
   objectives that unseal the throne (with a count), then to the boss; the
   ridge says what is left when the throne is still sealed.
+  The Phaser build adds a trail of light toward the goal, an edge arrow when
+  it is off screen, and an objective chip that opens a "what now?" card (O on
+  a keyboard) with the steps to the boss (POLISH_PLAN §12e).
 - **Pixel art:** Settings → Art style (default Pixel) draws the world at one
   pixel per world unit and scales it up hard-edged (`Renderer.world`,
   `Renderer.present`). Characters come from two sources:

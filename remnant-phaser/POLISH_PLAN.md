@@ -410,6 +410,18 @@ The owner chose this order: phone, death, the pilot, then Psalms.
 - **What they are:** equippable, charm-like Psalms that change how you play. Each costs slots from a limited number.
 - **How they fit:** they sit beside levels and gear, and are found as rewards for exploring.
 
+### 12e. A guided story (shipped: `scripts/story-flow.mjs`)
+The owner asked for the story to lead the way to each boss: an arrow, or a trail to follow as in Monster Hunter,
+and a hint to tap that says what to do next.
+- **The trail of light** (`src/game/guideTrail.ts`): motes rise off the hero and stream toward the objective, or the
+  doorway on the way to it, then circle over it once the hero is close. Pooled, and off in fights and scenes.
+- **The edge arrow:** when the goal is out of view, a gold arrow at the screen's edge points to it (the original's
+  HUD arrow, ported).
+- **The objective chip** under the column names the goal with its direction; tapping it, or O on a keyboard, opens
+  the **"what now?" card** (`src/game/guideHint.ts`): the chapter, the main quest, what to do now, the rooms from here
+  to the goal, and every step still ahead to the boss (for VII–X the objectives left and the throne, by name).
+- All of it follows Settings → Objective marker.
+
 ## 13. The Horde: a top-down mode in endless stages (owner's answers, 30 October 2026)
 
 The owner asked for a horde mode in the survivors genre: seen from above, the horde coming from every side, the

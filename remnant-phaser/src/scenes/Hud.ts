@@ -25,6 +25,7 @@ import { measureSafe as measureSharedSafe } from '../../../remnant/src/ui/safe';
 import { haptic } from '../../../remnant/src/core/haptics';
 import { icon } from '../../../remnant/src/ui/icons';
 import { guidePoint } from '../../../remnant/src/game/guide';
+import { showHint } from '../game/guideHint';
 import { G } from '../classic/shim/ctx';
 import { audio } from '../classic/shim/audio';
 import { input } from '../classic/shim/input';
@@ -87,6 +88,10 @@ export class Hud extends Phaser.Scene {
   private islandTex?: Phaser.Textures.CanvasTexture;
   private islandImg?: Phaser.GameObjects.Image;
   private guideText?: Phaser.GameObjects.Text;
+  /** The objective as a chip under the column: tap it (or O) for the guide's card. */
+  private guideChip?: Phaser.GameObjects.Text;
+  /** The arrow at the screen's edge when the objective is out of view. */
+  private guideArrow?: Phaser.GameObjects.Graphics;
   private powerText!: Phaser.GameObjects.Text;
   /** The Echo command wheel (the original's ui/ui.ts openWheel): open while it is shown, and the world waits. */
   wheelOpen = false;
@@ -107,7 +112,7 @@ export class Hud extends Phaser.Scene {
   create() {
     this.world.controls.flush();
     // Phaser reuses this scene after Continue and rotation, but destroys its objects.
-    this.skillTexts = []; this.skillIcons = []; this.toasts = []; this.bannerBox = this.guideText = this.wheelBox = undefined;
+    this.skillTexts = []; this.skillIcons = []; this.toasts = []; this.bannerBox = this.guideText = this.guideChip = this.guideArrow = this.wheelBox = undefined;
     this.wheelItems = []; this.wheelOpen = false; this.wheelSel = this.wheelNavT = 0;
     this.interactLabel = this.coachAction = null;
     this.hpGhost = this.bossGhost = 1; this.barsAmt = 0; this.pausePointer = -1;
@@ -141,6 +146,12 @@ export class Hud extends Phaser.Scene {
     this.heroBtn = this.add.text(0,0,'',font(8,'#a6efdc',true)).setOrigin(0,0.5).setPadding(7*k,5*k).setBackgroundColor('rgba(16,35,41,0.82)').setInteractive({useHandCursor:true}).setName('hero_swap');
     this.styleBtn = this.add.text(0,0,'',font(8,'#f6dea0',true)).setOrigin(0,0.5).setPadding(7*k,5*k).setBackgroundColor('rgba(39,32,48,0.82)').setInteractive({useHandCursor:true}).setName('style_cycle');
     this.styleRank = this.add.text(0,0,'',font(16,'#e7c979',true)).setOrigin(1,0).setName('style_rank');
+    // The objective chip: tap it for the guide's card (O on a keyboard).
+    const chip = this.guideChip = this.add.text(0, 0, '', font(8.5, GOLD, true)).setOrigin(0, 0.5).setPadding(7 * k, 5 * k).setBackgroundColor('rgba(40,30,12,0.84)').setInteractive({ useHandCursor: true }).setName('guide_hint').setDepth(5);
+    chip.on('pointerdown', (pt: Phaser.Input.Pointer) => { if (pt.wasTouch) input.setDevice('touch'); chip.setData('pid', pt.id); });
+    chip.on('pointerout', () => chip.setData('pid', -1));
+    chip.on('pointerup', (pt: Phaser.Input.Pointer) => { const ok = chip.getData('pid') === pt.id; chip.setData('pid', -1); if (ok && !G.inCutscene) showHint(); });
+    this.guideArrow = this.add.graphics().setDepth(5);
     for (const [button,run] of [[this.heroBtn,()=>{if(this.world.player.switchHero())this.world.persist();}], [this.styleBtn,()=>this.openWheel('heroes')]] as const) {
       button.on('pointerdown',(p:Phaser.Input.Pointer)=>{if(p.wasTouch)input.setDevice('touch');button.setData('pid',p.id);});
       button.on('pointerout',()=>button.setData('pid',-1));
@@ -211,8 +222,11 @@ export class Hud extends Phaser.Scene {
     const guide = settings.guide && !G.inCutscene && !w.classic.bossActive ? guidePoint() : null;
     const rounds = w.classic.story.ch3.rounds;
     if (rounds.active) this.guideText.setText(`${rounds.daily ? 'WAVE' : 'ROUND'} ${rounds.round || 1} · ${rounds.left} remaining${rounds.breakT > 0 ? ' · ' + Math.ceil(rounds.breakT) + 's' : ''}`).setPosition(12 * k, this.scale.height * 0.36);
-    else if (guide) this.guideText.setText((guide.point.x > p.x ? '→ ' : '← ') + guide.target.label).setPosition((12 + safe.left) * k, 115 * k);
     else this.guideText.setText('');
+    const story = w.classic.storyEnabled && !rounds.active && !G.inCutscene && !this.paused;
+    const chipText = guide ? `${guide.point.x > p.x + 8 ? '→' : guide.point.x < p.x - 8 ? '←' : guide.point.y < p.feet - 40 ? '↑' : '↓'} ${guide.target.label}` : 'What now?';
+    this.guideChip!.setText(`${chipText}   ${w.controls.device === 'keyboard' ? '[O]' : 'ⓘ'}`).setVisible(story && settings.guide !== false && !w.classic.bossActive);
+    this.drawGuideArrow(w, guide);
     const x0 = (12 + safe.left) * k, y0 = (10 + safe.top) * k;
     const g = this.bars.clear();
     // The level badge: a gold-edged diamond.
@@ -271,8 +285,10 @@ export class Hud extends Phaser.Scene {
     const chipY = cy + 22 * k;
     this.heroBtn.setPosition(hx, chipY);
     this.styleBtn.setPosition(hx + this.heroBtn.displayWidth + 6 * k, chipY);
-    // Toasts stack below the column (and the chips), never over the stats.
-    const toastY = chipY + (this.heroBtn.visible ? 18 : 0) * k;
+    // The objective chip under them, then the toasts, never over the stats.
+    const guideY = chipY + (this.heroBtn.visible ? 18 : 0) * k;
+    this.guideChip?.setPosition(hx, guideY);
+    const toastY = guideY + (this.guideChip?.visible ? 18 : 0) * k;
     this.toasts.forEach((t, i) => t.setPosition(hx - 20 * k, toastY + i * 30 * k));
     this.drawBoss(w, touch, hx + hw);
     this.touchUi.setVisible(touch);
@@ -366,6 +382,25 @@ export class Hud extends Phaser.Scene {
    * Elior's column and the pause button, so the two health bars never cross
    * (as in the original's ui/hud.ts); on keyboard and pad it sits at the bottom.
    */
+  /** The objective off screen: a pulsing gold arrow at the edge of the view, pointing the way (as the original's HUD). */
+  private drawGuideArrow(w: World, guide: ReturnType<typeof guidePoint>) {
+    const g = this.guideArrow!;
+    g.clear();
+    if (!guide || !settings.guide || G.inCutscene || w.classic.bossActive || this.paused) return;
+    const cam = w.cameras.main, v = cam.worldView, W = this.scale.width, H = this.scale.height, k = this.k;
+    const sx = (guide.point.x - v.x) * cam.zoom, sy = (guide.point.y - 30 - v.y) * cam.zoom, m = 30 * k;
+    if (sx > m && sx < W - m && sy > m && sy < H - m) return;
+    const cx = W / 2, cy = H / 2, ang = Math.atan2(sy - cy, sx - cx);
+    const hw = W / 2 - m - Math.max(safe.left, safe.right) * k, hh = H / 2 - m - Math.max(safe.top, safe.bottom) * k - 20 * k;
+    const d = Math.min(hw / Math.max(0.001, Math.abs(Math.cos(ang))), hh / Math.max(0.001, Math.abs(Math.sin(ang))));
+    const ax = cx + Math.cos(ang) * d, ay = cy + Math.sin(ang) * d, pulse = 0.75 + Math.sin(this.time.now / 200) * 0.25;
+    const c = Math.cos(ang), sn = Math.sin(ang), pt = (fx: number, fy: number) => [ax + (fx * c - fy * sn) * k, ay + (fx * sn + fy * c) * k] as const;
+    g.fillStyle(0xffcf6b, 0.22 * pulse).fillCircle(ax, ay, 20 * k);
+    const [x1, y1] = pt(13, 0), [x2, y2] = pt(-7, -9), [x3, y3] = pt(-2, 0), [x4, y4] = pt(-7, 9);
+    g.fillStyle(0xffe6a8, 0.65 + pulse * 0.35).lineStyle(1.4 * k, 0x3a2806, 1);
+    g.beginPath().moveTo(x1, y1).lineTo(x2, y2).lineTo(x3, y3).lineTo(x4, y4).closePath().fillPath().strokePath();
+  }
+
   private drawBoss(w: World, touch: boolean, colRight: number) {
     this.drawBars();
     const g = this.bossG.clear(), b = w.bossView, k = this.k, { width: W, height: H } = this.scale;
