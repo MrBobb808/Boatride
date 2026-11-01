@@ -78,6 +78,12 @@ try {
   const board=await p.evaluate(()=>{const w=window.__remnant.world,b=w.classic.ents.find(e=>e.prompt?.()==='Read the board');if(!b)return false;w.player.placeAt(b.x-16,b.y,1);return true;});assert.ok(board);
   await p.keyboard.press('KeyF');await p.waitForSelector('[data-k="rest_board"]');await p.keyboard.press('Escape');
   console.log('Crown ending: shared rewards are claimed once and return to the hub; Remnant’s Rest has its live quest board');
+  // A broken crown stays broken: going back to its throne finds it empty, not the monarch standing dormant forever.
+  await p.evaluate(()=>{const w=window.__remnant.world;w.save.flags.ch9_intro=w.save.flags.ch9_done=true;(w.save.defeated??=[]).includes('cinder_monarch')||w.save.defeated.push('cinder_monarch');w.loadRoom('hunt_throne','start');});
+  assert.equal(await p.evaluate(()=>!!window.__remnant.world.boss),false,'Varkhos does not stand in his throne room again once beaten');
+  await p.evaluate(()=>window.__remnant.world.loadRoom('cinder_throne','start'));
+  assert.equal(await p.evaluate(()=>!!window.__remnant.world.boss),false,'nor Azkar in his');
+  console.log('Beaten crowns: their throne rooms stay empty on return');
   await p.evaluate(()=>{const w=window.__remnant.world;w.persist();const key=Number(localStorage.getItem('remnant-phaser.active-slot')??0)===0?'remnant-phaser.save.v2':'remnant-phaser.save.slot'+localStorage.getItem('remnant-phaser.active-slot');const s=JSON.parse(localStorage.getItem(key));s.updated=Date.now()-2e6;localStorage.setItem(key,JSON.stringify(s));});
   await p.addInitScript(() => { if (!location.search.includes('resumecheck')) return; const slot=Number(localStorage.getItem('remnant-phaser.active-slot')??0), key=slot===0?'remnant-phaser.save.v2':'remnant-phaser.save.slot'+slot; const s=JSON.parse(localStorage.getItem(key));s.updated=Date.now()-2e6;localStorage.setItem(key,JSON.stringify(s)); });
   await p.goto(base+'?debug&autostart&resumecheck');await p.waitForSelector('.recap-card, .recap',{timeout:15000});await p.keyboard.press('Escape');

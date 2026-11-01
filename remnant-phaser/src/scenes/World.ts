@@ -366,7 +366,8 @@ export class World extends Phaser.Scene implements WorldApi {
       }
       case 'boss': {
         if (isClassicBoss(e.k)) { this.spawnClassicBoss(e.k, e.x * TILE, e.y * TILE); return; }
-        if (!bossPorted(e.k) || this.save.flags[`defeated_${e.k}`]) return;
+        // A broken crown stays broken: the story keeps its wins in `defeated`, the story-less checks in the flag.
+        if (!bossPorted(e.k) || this.save.flags[`defeated_${e.k}`] || this.save.defeated?.includes(e.k)) return;
         this.boss = makeBoss(this, e.k, x + 8, y);
         this.addFoe(this.boss);
         return;
@@ -1030,7 +1031,7 @@ export class World extends Phaser.Scene implements WorldApi {
 
   /** A Crown broken: the chapter is done, the gate opens, and its experience is Elior's. */
   onBossDefeated(key: string) {
-    if (this.classic.storyEnabled && this.boss) { const e = this.classic.entityFor(this.boss); if (e) this.classic.onBossDefeated(e as any); this.boss = null; return; }
+    if (this.classic.storyEnabled && this.boss) { this.save.flags[`defeated_${key}`] = true; const e = this.classic.entityFor(this.boss); if (e) this.classic.onBossDefeated(e as any); this.boss = null; return; }
     music.play('victory');
     const n = BOSS_CHAPTER[key as keyof typeof BOSS_CHAPTER];
     this.save.flags[`defeated_${key}`] = true;
