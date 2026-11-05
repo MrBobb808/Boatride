@@ -595,10 +595,12 @@ Its root is Samson, whose strength was in his unshorn hair and who fought with h
 The owner's Elior passed level 400: foes fell in a blow, levels came too fast, and a wave rode every strike.
 
 - **Foes answer the hero** (`remnant/src/game/might.ts`): past the level a straight-through player leaves a chapter
-  with (the next chapter's arrival; the Trial from 70), a foe's health follows a balanced build's blow and its damage
+  with (the next chapter's arrival), a foe's health follows a balanced build's blow and its damage
   that build's toughness, a little behind both (×0.9 in log), so levels still help. Applied to every foe (`Enemy`),
   every classic boss (`BossBase`, the Idol) and the Fallen Crowns (`bosses.ts`), against the hero in play (Tirzah's
-  level while she fights). Chapter XII at level 400: ×33 health, ×25 damage. Straight-through play is unchanged.
+  level while she fights). Chapter XII at level 400: ×28 health, ×22 damage. Straight-through play is unchanged. The
+  Trial stays as it was ("survival belongs to the wave, not the level"): its rounds grow on their own, and only its
+  pay slows.
 - **Levels cost more as he rises** (`xpToNext`): the same curve through 70, then `XP70 × (lv / 70)^2.2`: 18k at 100,
   83k at 200, 382k at 400. The Trial's waves pay in `trialXpUnit` (the square root of that growth), so a wave at 400
   is worth a fifth of a level, not one and a third.

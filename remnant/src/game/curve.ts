@@ -22,7 +22,7 @@ export interface ChapterCurve {
   xp: number;
   /** Chapter-end XP for the Fallen Crown campaigns. */
   clearXp?: number;
-  /** Fallen Crown boss base health and blow, before boss difficulty and NG+. Never the player's level. */
+  /** Fallen Crown boss base health and blow, before boss difficulty and NG+; a hero far past the chapter meets more (game/might.ts). */
   bossHp?: number;
   bossDmg?: number;
 }

@@ -114,7 +114,8 @@ Never ship files from `art/incoming/` directly.
     health and blow. Below the arrival level XP comes faster (catch-up).
     `scripts/curve-onboarding.mjs` fights VII–IX on Hard at those levels.
   - `game/might.ts`: foes and bosses answer the hero in play. Past the level
-    a player leaves a chapter with (the Trial: past 70), their health follows
+    a player leaves a chapter with (not in the Trial, which grows by its
+    rounds), their health follows
     a balanced build's blow and their damage its toughness (×0.9 in log).
     `xpToNext` (game/data.ts) is the story's curve through level 70, then
     steepens (×46 at 400); the Trial pays by `trialXpUnit`, which grows only

@@ -1,6 +1,6 @@
 // Foes answer the hero's might. Each chapter is tuned for the levels a straight-through player has in it (from its
 // arrival level, game/curve.ts, to the next chapter's); a hero far past them would otherwise cut through the chapter's
-// foes and bosses in a blow or two. Past the level a player leaves the chapter with, a foe's health
+// foes and bosses in a blow or two. Past the level a player leaves the chapter with (never in the Trial), a foe's health
 // follows a balanced build's blow and its damage that build's toughness, a little behind both (×0.9 in log), so
 // every level still helps without leaving the fights behind.
 import { G } from './ctx';
@@ -32,9 +32,6 @@ export function balancedMight(level: number) {
 
 /** The level a straight-through player leaves a chapter with: the next one's arrival (the last chapter, six more). */
 export const leaveLevel = (chapter: number) => Math.max(chapterCurve(chapter + 1).level, chapterCurve(chapter).level + 6);
-/** The Trial pays and scales by its waves until the hero is past the story (level 70); then it answers him too. */
-export const TRIAL_FROM = 70;
-
 /** Health and damage multipliers for foes tuned for a hero of level `from`, against one of `level`; 1 up to `from`. */
 export function outmatch(level: number, from: number) {
   if (level <= from) return { hp: 1, dmg: 1 };
@@ -49,6 +46,9 @@ export function setMightLevel(f: () => number) { heroLevel = f; }
 /** The multipliers for the room the hero is in (or a given chapter's foes). */
 export function might(chapter?: number) {
   const rid = G.world?.room?.id ?? '';
-  if (chapter === undefined && rid === 'trial_arena') return outmatch(heroLevel(), TRIAL_FROM);
+  // Survival belongs to the wave, not the level (game/balance.ts): the Trial's foes grow with its rounds, and the
+  // challenger picks how deep to go.
+  const rounds = (G.world as unknown as { story?: { ch3?: { rounds?: { active?: boolean } } } } | undefined)?.story?.ch3?.rounds;
+  if (chapter === undefined && (rid === 'trial_arena' || rounds?.active)) return { hp: 1, dmg: 1 };
   return outmatch(heroLevel(), leaveLevel(chapter ?? roomChapter(rid)));
 }
