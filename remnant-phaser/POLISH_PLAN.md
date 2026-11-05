@@ -507,7 +507,7 @@ seven worn; bosses always drop one, elites often, chests sometimes, foes rarely;
   strikes three foes) and Wind Volley (a dodge looses five arrows behind her). Brimstone (slain foes burst into
   spreading fire) goes on either hero's gear. A piece carries one (`ItemInst.legend`); only the fighting hero's
   worn gear counts.
-- **Drops:** every boss leaves one (`World.bossSpoils`), elites 35% of the time, a foe's gear drop 1.2%, a chest 20%
+- **Drops:** every boss leaves one (`World.bossSpoils`: once a boss on the journey, every time in the Trial), elites 35% of the time, a foe's gear drop 1.2%, a chest 20%
   (`LEGEND_CHANCE`). A legendary piece is at least Legendary rarity and its power suits whose gear it is, leaning
   toward powers not yet learned. A Horde monarch's spoil always carries one; so does every fifth Trial wave's prize,
   and now and then another.

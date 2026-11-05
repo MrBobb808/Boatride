@@ -1150,9 +1150,11 @@ export class World extends Phaser.Scene implements WorldApi {
   }
 
   bossSpoils(key = this.room.id) {
-    // Every boss always leaves a legendary piece, for whoever is fighting (now and then the other hero's); the
-    // boss rush leaves no loot.
-    if (!this.classic.rushing) {
+    // Every boss always leaves a legendary piece, for whoever is fighting (now and then the other hero's): once a
+    // boss on the journey, every time in the Trial's arena. The boss rush leaves no loot.
+    const lg = `lg_spoils_${key}`, trial = this.room.id === 'trial_arena';
+    if (!this.classic.rushing && (trial || !this.save.flags[lg])) {
+      if (!trial) this.save.flags[lg] = true;
       const hers = this.player.hero === 'tirzah' ? Math.random() < 0.7 : Math.random() < 0.3;
       const l = legendary(this.save, hers ? archerDrop(this.save, chapterOf(this.room.id), 'boss') : rollGear(3));
       this.collect(l);
