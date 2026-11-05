@@ -24,10 +24,17 @@ const EXTRA: Record<string, HumanStyle> = {
     helm: 'visor', helmColor: '#a8823e', helmTrim: '#f2d68e', eye: '#e8f2ff', eyeGlow: 1, iris: '#9ac8ff', outline: '#060408',
     weapon: 'none', offhand: 'none', bulk: 1.2, crest: '#c83a2a',
   },
+  // Chapter XI's storm god, as he stands on the seat (game/bosses11.ts).
+  Baal: {
+    skin: '#3a3448', hair: '#140c26', hairKind: 'long', beard: '#140c26', coat: '#2a1e44', coatDark: '#140c26', skirt: 16, trim: '#e2c86a',
+    pants: '#140c26', boots: '#1a1216', glove: '#1a1216', belt: '#e2c86a', plate: { c: '#3a3058', dark: '#1a1430', hi: '#c8d8ff', tier: 3 },
+    helm: 'crown', helmColor: '#e2c86a', helmTrim: '#fff3c4', eye: '#eef4ff', eyeGlow: 1, iris: '#9ab8ff', outline: '#06040a',
+    weapon: 'none', offhand: 'none', bulk: 1.4, crest: '#9ab8ff',
+  },
 };
 
 /** Who glowers by default. */
-const VILLAINS = new Set(['regent', 'satrap', 'feastlord', 'marshal', 'storm_prince', 'persia_prince', 'The Prince of Grecia', 'Varkhos', 'Morvane', 'Azkar']);
+const VILLAINS = new Set(['regent', 'satrap', 'feastlord', 'marshal', 'storm_prince', 'persia_prince', 'The Prince of Grecia', 'Baal', 'Varkhos', 'Morvane', 'Azkar']);
 
 function styleOf(who: string): HumanStyle | null {
   if (who === 'elior') return G.world?.player?.style ?? NPC_DEFS.tobiah.style;
