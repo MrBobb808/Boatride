@@ -72,6 +72,11 @@ Never ship files from `art/incoming/` directly.
     `DRESS` table) and `game/fallenStory.ts`. Chapter X's coast, Sunken Temple
     and Drowned Library are drawn by `render/envGrecia.ts`; its rescued
     survivor is Hanan from Chapter VI.
+  - XI, *The Gods of the Nations* (Psalm 96:5): the same builder and story
+    (`n: 11`), on Chapter X's temple art with embers. Its rooms hold a second
+    rank of foes and elites (`horde()`), its curve row is a third harder than
+    X's, and two altars (Baal's, Dagon's) seal the throne. Micaiah is rescued
+    from the Valley of Hinnom.
   - `game/chapters.ts` lists the chapters for chapter select (`ui/chapters.ts`)
     and starts training (the Trial of the Remnant from the menu).
 - **Bosses:**
@@ -84,6 +89,12 @@ Never ship files from `art/incoming/` directly.
     Prince of the Kingdom of Persia (with the Twenty-First Day phase).
   - `game/bosses10.ts`: the Prince of Grecia (the he-goat of Daniel 8: a
     charging great horn, then four horns toward the four winds).
+  - `game/bosses11.ts`: the Gods of the Nations, one encounter in three gods,
+    each stronger than Elior and each calling servants: Dagon (trident, the
+    tide along the floor), Molech (burning blade, fire marks, flame waves),
+    Baal (storm spear, chained lightning, steps behind Elior). Fire from
+    heaven ends it (1 Kings 18:38); Elior only withstands. Verified by
+    `remnant-phaser/scripts/gods.mjs`.
   - `game/difficulty.ts`: Settings → Challenge → Boss difficulty (Normal,
     Hard by default, Merciless) scales every boss's health, damage and tempo.
   - `game/curve.ts`: one table per chapter of the level a straight-through

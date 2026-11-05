@@ -42,6 +42,8 @@ export const CURVE: readonly ChapterCurve[] = [
   { level: 40, foeHp: 13, foeDmg: 4.4, xp: 9.0, clearXp: 29000, bossHp: 120000, bossDmg: 205 }, // VIII · Morvane
   { level: 46, foeHp: 15.5, foeDmg: 4.9, xp: 10.8, clearXp: 32000, bossHp: 150000, bossDmg: 290 }, // IX · Azkar
   { level: 52, foeHp: 18, foeDmg: 5.4, xp: 12.6, clearXp: 34000, bossHp: 180000, bossDmg: 330 }, // X · the Prince of Grecia
+  // XI is meant to overmatch: the rooms hold more foes, a third harder and nearly half again as deadly as X's.
+  { level: 58, foeHp: 24, foeDmg: 7.6, xp: 15.5, clearXp: 46000, bossHp: 240000, bossDmg: 470 }, // XI · the Gods of the Nations
 ];
 
 /** A chapter's row; a chapter past the end of the table takes the last one. */

@@ -90,6 +90,7 @@ const BOSSES: { key: string; name: string; won: string; title?: string; cape?: s
   { key: 'plague_monarch', name: 'Morvane, Crown of Pestilence', won: 'The Fever Broken' },
   { key: 'cinder_monarch', name: 'Azkar, Crown of Cinders', won: 'The Forge Cooled', title: 'Crownbreaker' },
   { key: 'grecia_prince', name: 'the Prince of Grecia', won: 'Toward the Four Winds' },
+  { key: 'nation_gods', name: 'the Gods of the Nations', won: 'No Voice, Nor Any That Answered' },
 ];
 const FLAWLESS_REWARD: Record<string, { title?: string; cape?: string }> = {
   idol: { title: 'Idolbreaker' },
@@ -98,6 +99,7 @@ const FLAWLESS_REWARD: Record<string, { title?: string; cape?: string }> = {
   beast_monarch: { cape: 'verdant' },
   cinder_monarch: { title: 'the Unburnt', cape: 'ember' },
   grecia_prince: { title: 'Hornbreaker', cape: 'storm' },
+  nation_gods: { title: 'the Unbowed', cape: 'ember' },
 };
 const cap = (s: string) => s[0].toUpperCase() + s.slice(1);
 

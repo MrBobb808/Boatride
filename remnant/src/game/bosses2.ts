@@ -26,7 +26,7 @@ import { moveBody } from './physics';
 import { SENT_BASE, SENT_DIMS } from './enemies';
 import { marshalStyle } from './tanks';
 
-export type BossKey = 'gatekeeper' | 'marshal' | 'locust_king' | 'golden_image' | 'weigher' | 'storm_prince' | 'persia_prince' | 'beast_monarch' | 'plague_monarch' | 'cinder_monarch' | 'grecia_prince';
+export type BossKey = 'gatekeeper' | 'marshal' | 'locust_king' | 'golden_image' | 'weigher' | 'storm_prince' | 'persia_prince' | 'beast_monarch' | 'plague_monarch' | 'cinder_monarch' | 'grecia_prince' | 'nation_gods';
 
 /** Shared lifecycle for the Chapter II bosses: intro, phases, kneel, defeat. */
 /** The Marshal is drawn larger than a man: a commander, not a soldier. */
@@ -1272,7 +1272,7 @@ export class Gatekeeper extends BossBase {
 type MAtk = 'combo' | 'lunge' | 'leap' | 'edge' | 'blink' | 'riposte';
 
 const MB: Pose = { ...SENT_BASE, bUA: 0.95, bFA: 1.15, fUA: 0.55, fFA: 1.05, wpn: 0.75 };
-const MP = {
+export const MP = {
   ready: MB,
   guard: { ...MB, lean: 0.2, fUA: 0.75, fFA: 1.35, bUA: 1.1, bFA: 1.2, wpn: 0.35, fTh: 0.5, fSh: -0.55, bTh: -0.4, bSh: -0.3 },
   overhead: { ...MB, lean: -0.15, fUA: 3.1, fFA: 0.35, bUA: 2.8, bFA: 0.5, wpn: 0.3, fTh: 0.25, bTh: -0.45 },

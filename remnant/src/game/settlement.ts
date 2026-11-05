@@ -54,7 +54,7 @@ export const restOpen = () => flag('ending_done');
 /** People brought home, weighted by how many came with them. */
 const SURVIVORS: [flag: string, people: number][] = [
   ['tobiah_saved', 1], ['captives_freed', 3], ['ch5_writing', 1], ['ch6_storm_done', 1],
-  ['ch7_rescued', 2], ['ch8_rescued', 2], ['ch9_rescued', 2], ['ch10_rescued', 1],
+  ['ch7_rescued', 2], ['ch8_rescued', 2], ['ch9_rescued', 2], ['ch10_rescued', 1], ['ch11_rescued', 1],
 ];
 /** Score needed for each tier: roughly Ch I, II, IV, VI and VIII with their rescues. */
 const TIER_AT = [0, 3, 8, 12, 18];
@@ -145,6 +145,10 @@ export const RESIDENTS: Resident[] = [
     [always, 'Here the answer comes as bread, and a roof, and rain at the right time. I am content to wait for that kind.'],
     [() => flag('ch6_done'), 'I fasted three weeks by a river for one word. Here they ring a bell for supper. I come running like a boy.'],
     [() => flag('ch10_rescued'), 'I sat in that drowned library so long I forgot the colour of a field. Thank you for bringing me back to one.'],
+  ] },
+  { kind: 'micaiah', role: 'Prophet', here: () => restTier() >= 3 && flag('ch11_rescued'), lines: [
+    [always, 'They asked me to say the gods would win. Here nobody asks me to say anything. I say grace, mostly.'],
+    [() => flag('ch11_done'), 'I watched the fire come down on the high places. I will spend the rest of my life telling it exactly as it happened.'],
   ] },
   { kind: 'arshan', role: 'Keeper of the Tower', here: () => restTier() >= 4 && flag('ch6_storm_done'), lines: [
     [always, 'Captain of a king\'s guard, now keeper of a wooden tower. I have never slept so well.'],

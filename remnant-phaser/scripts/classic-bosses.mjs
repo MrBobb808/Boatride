@@ -57,7 +57,9 @@ const enter = async (page, k) => {
   await E(page, () => { const w = window.__remnant.world, t = w.triggers.find((t) => t.id.endsWith('_start')); w.player.placeAt(t.r.centerX, t.r.bottom, 1); });
   await until(page, () => window.__remnant.world.gateClosed);
 };
-const fighting = (page) => until(page, () => ['idle', 'attack'].includes(window.__remnant.world.cboss?.state));
+// An intro runs several game seconds (the Idol's 5.6) on the frame clock; a slow runner's capped frames can stretch
+// that past the usual wait, so the wait for the fight to begin is longer.
+const fighting = (page) => until(page, () => ['idle', 'attack'].includes(window.__remnant.world.cboss?.state), null, 90000);
 
 try {
   // ---- on a phone: the classic boss's bar has its own lane
