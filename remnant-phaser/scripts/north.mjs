@@ -42,7 +42,9 @@ try {
     // ---- the king: every attack, his host, the three movements, his end
     await E(page, () => {
       const w = window.__remnant.world;
-      w.save.level = 68; w.save.flags.ch12_boundary_open = true;
+      // The Unshorn's awakening plays in this fight (and holds the king above a third until it does); it has its own
+      // test (unshorn.mjs), so here it has already happened.
+      w.save.level = 68; w.save.flags.ch12_boundary_open = true; w.save.flags.unshorn = true;
       window.__god = setInterval(() => { const p = w.player; if (p && !p.dead) p.hp = p.maxHp; }, 30);
       window.__remnant.warp('palace_between_seas', 'start');
     });
@@ -90,7 +92,7 @@ try {
       while (Date.now() < end && !(await E(page, done))) { await page.keyboard.press('Enter'); await page.waitForTimeout(150); }
     };
     await drain(() => !document.querySelector('.dialogue') && !window.__remnant.G.inCutscene, 20000);
-    await E(page, () => { const w = window.__remnant.world, s = w.save; s.level = 68; Object.assign(s.flags, { ending_done: true, ch11_done: true, ch12_intro: true }); s.quests.m_crown12 = { stage: 0, done: false }; w.loadRoom('holy_mountain', 'start'); });
+    await E(page, () => { const w = window.__remnant.world, s = w.save; s.level = 68; Object.assign(s.flags, { ending_done: true, ch11_done: true, ch12_intro: true, unshorn: true }); s.quests.m_crown12 = { stage: 0, done: false }; w.loadRoom('holy_mountain', 'start'); });
     await until(page, () => (window.__remnant.world.hud.guideChip?.text ?? '').includes('Standard of the Chariots'));
     assert.ok(await E(page, () => !window.__remnant.world.save.flags.ch12_boundary_open), 'the palace is sealed while the standards stand');
     await E(page, () => { const w = window.__remnant.world; Object.assign(w.save.flags, { north_standard_a: true, north_standard_b: true }); w.loadRoom('holy_mountain', 'start'); });
