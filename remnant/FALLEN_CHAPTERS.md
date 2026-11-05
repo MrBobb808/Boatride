@@ -10,6 +10,15 @@ Both new rulers are original fictional Fallen Angels inspired by broad monarch a
 
 Progress uses optional flags, existing quest records, opened chests and ordinary inventory entries. Objective changes and final rewards save immediately. Chapter VI also recovers interrupted boss endings and grants its boss trophies directly once, so leaving before pickup cannot lose them. Final rewards are granted once before awaiting ending dialogue. VII and VIII add Varkhos and Morvane to the Boss Gauntlet after their campaign victories; earlier saves retain the six-boss rotation. Gauntlet victories bypass campaign callbacks. The Survival mode, wave scaling, random loot and Spotify audio mixing are preserved.
 
+**XI — The Gods of the Nations**, recommended level 58+, continues from X's ending or Chapters. Its theme is Psalm 96:5 (KJV): "For all the gods of the nations are idols: but the LORD made the heavens." The gods are old powers that took the names men gave them, not gods; Elior withstands them and the victory is not his to take. Six places: the Camp below Carmel, the Groves of Baal, the House of Dagon, the Valley of Hinnom (optional; Micaiah the prophet is rescued there), the Heights of Baal and the Seat of the Gods. It is meant to overmatch the player:
+
+- **More and stronger foes:** each route room holds a second rank (Undying, bulwark, fire-priest, knight) and two elites (`horde()` in `fallenChapters.ts`), ten foes against Chapter X's three or four, and the chapter's curve row is a third harder and half again as deadly as X's.
+- **Two altars** (the Altar of Baal in the Groves, the Altar of Dagon in its House) seal the throne; their guards must fall before each is cast down.
+- **The boss** (`game/bosses11.ts`, `NationGods`) is one encounter in three gods, each larger and stronger than Elior, and each calling servants (two at a time, three under Baal): Dagon (trident combos and lunges; the tide, a wave from each wall along the floor, twice in the later phases), Molech (a burning blade; leaping slams that send flame both ways; the furnace, fire marks under Elior that erupt), then Baal (storm-spear combos; a step behind Elior; crescents; chained lightning that follows him). Each god falls on its face before the next comes down (1 Samuel 5:3). When Baal cries out "there was no voice, nor any that answered" (1 Kings 18:26), and the fire of the LORD falls (1 Kings 18:38).
+- **Rewards:** Idolbreaker (a holy greatsword) and the Oath of Carmel; Micaiah's Scroll from Mara; Gauntlets of the High Places and Ashlar Mail in the caches; the Psalm of the High Places in the Phaser build.
+
+The art reuses Chapter X's temple set with ember weather; dedicated sprites and backgrounds for the gods are a follow-up.
+
 ## Art
 
 Built-in image-generation mode, transparent background, no references. Assets are copied into the repository and consumed by `src/render/fallenArt.ts`, using authored crops and pivots.

@@ -101,6 +101,7 @@ Keep the silhouette identical across cells.
 | B08 | **The Prince of the Kingdom of Persia:** a regal fallen angel prince in Persian armour, dark gold and onyx. |
 | B09 | **The Prince of Grecia** (Daniel 8): a he-goat colossus with one great horn. **Row 3** shows the horn broken into four horns. |
 | B10 | **Varkhos, Morvane, Azkar extra frames:** one 4×2 sheet each (`-varkhos`, `-morvane`, `-azkar`), matching their existing atlases in `remnant/src/assets/`. **Row 1:** two new attack wind-ups and their strikes. **Row 2:** stagger, kneel, death 1, death 2. |
+| B11 | **The Gods of the Nations** (Chapter XI, Psalm 96:5): three 4×2 sheets (`-dagon`, `-molech`, `-baal`), each a towering figure twice a man's height. Dagon: a fish-skin hood over a crowned head, scaled sea-green armour, a trident. Molech: a bull-headed bronze figure, horns swept forward, a burning blade, fire in his chest. Baal: a dark storm lord in violet and gold, a tall horned crown, a spear crackling with lightning. Rows: idle, strike, signature (tide / furnace / thunder), fallen on its face. |
 
 ## Foes (P2) → `incoming/foes/`
 
@@ -141,6 +142,7 @@ Dark-fantasy mood, with atmosphere carried by light and colour.
 | E10 | The Chittim coast (X): storm cliffs, a shattered colonnade, a ruined harbour. |
 | E11 | The Sunken Temple and Drowned Library (X): underwater, light shafts, shelves. |
 | E12 | Remnant's Rest: a hopeful tent camp at dusk, a cypress, a campfire glow. |
+| E13 | The high places (XI): hilltop altars and carved groves under a brown, smoking sky; the House of Dagon (a pillared hall with a toppled fish-idol); the Valley of Hinnom (a furnace in a ravine); the Seat of the Gods (three thrones on a summit). |
 
 ## Animation and lighting (P1, the owner's 30 October choices) → `incoming/characters/`, `incoming/lighting/`
 

@@ -97,6 +97,12 @@ export const ITEMS: Record<string, ItemBase> = {
   oath_of_the_four_winds: {id:'oath_of_the_four_winds',name:'Oath of the Four Winds',slot:'relic',rarity:5,icon:'crown',unique:true,value:3600,mods:{hp:340,def:20,echoDmg:40,ce:60},desc:'Whatever rises toward the four winds, there will be someone standing to meet it.'},
   hanans_lamp: {id:'hanans_lamp',name:'Hanan’s Deep Lamp',slot:'relic',rarity:5,icon:'lamp',unique:true,value:3000,mods:{ce:110,ceRegen:45,abil:35},desc:'Mara’s reward for bringing Hanan and his notes out of the Drowned Library.'},
   tidewalker_greaves: {id:'tidewalker_greaves',name:'Tidewalker Greaves',slot:'boots',rarity:4,icon:'boot',look:2,unique:true,value:2600,mods:{hp:160,speed:14,def:12},desc:'Hidden among the broken columns of the coast. They never slip on wet stone.'},
+  // Chapter XI · The Gods of the Nations.
+  idolbreaker: {id:'idolbreaker',name:'Idolbreaker',slot:'weapon',family:'greatsword',rarity:5,icon:'greatsword',element:'holy',look:2,unique:true,value:5600,mods:{atk:640,crit:10,poise:40,critDmg:30},desc:'Forged from the bronze of the fallen altars on the high places. Trophy of the Gods of the Nations, Chapter XI.'},
+  oath_of_carmel: {id:'oath_of_carmel',name:'Oath of Carmel',slot:'relic',rarity:5,icon:'crown',unique:true,value:4200,mods:{hp:420,def:26,res:16,abil:30},desc:'How long halt ye between two opinions? Worn by one who did not.'},
+  micaiahs_scroll: {id:'micaiahs_scroll',name:'Micaiah’s Scroll',slot:'relic',rarity:5,icon:'lamp',unique:true,value:3400,mods:{ce:130,ceRegen:50,xp:12},desc:'Mara’s reward for bringing Micaiah and his record down from the Valley of Hinnom.'},
+  highplace_gauntlets: {id:'highplace_gauntlets',name:'Gauntlets of the High Places',slot:'gauntlets',rarity:4,icon:'glove',look:2,unique:true,value:3000,mods:{atk:60,crit:8,poise:20},desc:'Hidden in a grove where no altar was ever raised. They are heavier than they look.'},
+  ashlar_mail: {id:'ashlar_mail',name:'Ashlar Mail',slot:'armor',rarity:4,icon:'armor',look:2,unique:true,value:3200,mods:{hp:380,def:28,res:14},desc:'Plates cut from a broken altar stone. Whatever stood on that stone, it does not stand now.'},
   stormglass_mantle: {id:'stormglass_mantle',name:'Stormglass Mantle',slot:'armor',rarity:4,icon:'armor',look:2,unique:true,value:2800,mods:{hp:300,def:22,res:12},desc:'Woven by the librarians of the drowned halls from sailcloth and sea-glass.'},
   cinderbreak: {id:'cinderbreak',name:'Cinderbreak',slot:'weapon',family:'greatsword',rarity:5,icon:'greatsword',element:'fire',look:2,unique:true,value:4200,mods:{atk:470,poise:35,critDmg:25},desc:'Azkar’s broken hammer reforged into a blade by free hands. Trophy of Chapter IX.'},
   oath_of_the_unburnt: {id:'oath_of_the_unburnt',name:'Oath of the Unburnt',slot:'relic',rarity:5,icon:'crown',unique:true,value:3200,mods:{hp:300,def:18,echoDmg:35,echoHp:35},desc:'The foundry’s freedom, carried into every battle.'},
@@ -563,6 +569,7 @@ export interface LoreEntry {
 }
 export const LORE: Record<string, LoreEntry> = {
   jer295: {id:'jer295',title:'The Well-Stone of the Rest',ref:'Jeremiah 29:5 (KJV)',text:'Build ye houses, and dwell in them; and plant gardens, and eat the fruit of them;',note:'Cut into the well-stone at Remnant\'s Rest by its first settlers.'},
+  gods_testament: {id:'gods_testament',title:'Micaiah’s Record of the High Places',ref:'Remnant chronicle · Original fiction',text:'They are not gods. They are old powers that took the names men gave them and grew fat on what was burned to them. Dagon of the sea, Molech of the fire, Baal of the storm. Each is stronger than any of us. None of them made the heavens. Stand where they cannot answer, and they will fall the way their altars fall.',note:'Written in the Valley of Hinnom, in a hand that did not shake.'},
   grecia_testament: {id:'grecia_testament',title:'Hanan’s Notes from the Deep',ref:'Remnant chronicle · Original fiction',text:'The shrines of this coast were built to guide ships home. The prince drowned their beacons so no ship would come but his. He runs, and does not rest, and does not touch the ground. Every stone here says the same thing in a different hand: his great horn will break, and four will rise in its place. Do not despair when they do. Stand, as you stood before.',note:'Recovered from the Drowned Library. Bring it to Mara.'},
   cinder_testament: {id:'cinder_testament',title:'The Testament of Free Hands',ref:'Remnant chronicle · Original fiction',text:'We know the names of every chain we forged. We kept this last workshop for hinges, ploughs and cradles. If the furnaces are freed, let no crown decide what our hands are for again.',note:'Rescue Talia in the Last Smithy, then bring this testament to Mara at Ashwatch.'},
   hunt_plague: {id:'hunt_plague',title:'The Green-Stained Record',ref:'Remnant chronicle · Original fiction',text:'Morvane’s wings carry a thousand smaller wings. The green dust is not pollen. It is a road for her army.',note:'Rescue Barak in the grove, then bring this record to Mara at Thawgate.'},
@@ -807,6 +814,26 @@ export const LORE: Record<string, LoreEntry> = {
     id: 'dan821', title: 'The King of Grecia', ref: 'Daniel 8:21 (KJV)',
     text: 'And the rough goat is the king of Grecia: and the great horn that is between his eyes is the first king.',
     note: 'Cut into the cliff road below the prince’s throne.',
+  },
+  ps965: {
+    id: 'ps965', title: 'The Gods of the Nations', ref: 'Psalm 96:5 (KJV)',
+    text: 'For all the gods of the nations are idols: but the LORD made the heavens.',
+    note: 'Scratched into the doorpost of the camp below Carmel by someone who had seen the high places.',
+  },
+  sam53: {
+    id: 'sam53', title: 'Dagon Was Fallen', ref: '1 Samuel 5:3 (KJV)',
+    text: 'And when they of Ashdod arose early on the morrow, behold, Dagon was fallen upon his face to the earth before the ark of the LORD. And they took Dagon, and set him in his place again.',
+    note: 'Cut into the floor of the House of Dagon, where the worshippers would have to step over it.',
+  },
+  lev1821: {
+    id: 'lev1821', title: 'Not Through the Fire', ref: 'Leviticus 18:21 (KJV)',
+    text: 'And thou shalt not let any of thy seed pass through the fire to Molech, neither shalt thou profane the name of thy God: I am the LORD.',
+    note: 'Painted over the furnace mouth in the Valley of Hinnom, half burned away.',
+  },
+  kgs1821: {
+    id: 'kgs1821', title: 'Between Two Opinions', ref: '1 Kings 18:21 (KJV)',
+    text: 'And Elijah came unto all the people, and said, How long halt ye between two opinions? if the LORD be God, follow him: but if Baal, then follow him. And the people answered him not a word.',
+    note: 'Carved on the last stair of the high places, below the seat of the gods.',
   },
   dan1020: {
     id: 'dan1020', title: 'The Prince of Grecia Shall Come', ref: 'Daniel 10:20 (KJV)',

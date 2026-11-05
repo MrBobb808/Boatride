@@ -1,7 +1,7 @@
 // Original fiction: each Fallen Crown commands a distinct domain.
 import { MapBuilder, type RoomDef, type EntDef, type EnemyKind, type NpcKind } from './tiles';
 export interface FallenChapter {
-  n: 7 | 8 | 9 | 10; roman: string; title: string; name: string; boss: 'beast_monarch' | 'plague_monarch' | 'cinder_monarch' | 'grecia_prince'; biome: 'hunt' | 'plague' | 'cinders' | 'grecia';
+  n: 7 | 8 | 9 | 10 | 11; roman: string; title: string; name: string; boss: 'beast_monarch' | 'plague_monarch' | 'cinder_monarch' | 'grecia_prince' | 'nation_gods'; biome: 'hunt' | 'plague' | 'cinders' | 'grecia';
   hub: string; trail: string; depths: string; side: string; ridge: string; arena: string; rescue: NpcKind;
   objectives: {id: string; flag: string; room: string; name: string}[];
   rewards: string[]; optional: string; caches: string[]; record: string; intro: string[]; challenge: string[]; ending: string[]; tips: string;
@@ -53,6 +53,19 @@ export const FALLEN_CHAPTERS: FallenChapter[] = [
     foes:{lead:'gale',signature:'undying',rear:'archer',guard:'bulwark',side:['knight','gale']},
     cacheItems:['tidewalker_greaves','stormglass_mantle'],
     words:{sideQuest:'What the Deep Kept',sidePlace:'the Drowned Library off the Sunken Temple',guardWarn:'Clear the nearby guards before relighting the beacon.',rescueBlock:'They are still circling in the water. Clear them first; I am too old to outswim them.',rescueThanks:'I came to read what the shrines say of the prince of Grecia. The sea kept me here, and the scrolls with me. Take my notes to Mara. I can walk, if you go slowly.',maraReward:'Hanan’s notes are soaked, but the words held. Take his lamp; it found you in the deep, and it will find you again.',recordPlace:'library',theme:'The fury of a conqueror runs over the earth without touching it. Those who stand on it remain.',stay:'Return to Chittim'},
+  },
+  { n:11, roman:'XI', title:'The Gods of the Nations', name:'Baal', boss:'nation_gods', biome:'grecia', hub:'carmel_camp', trail:'groves_of_baal', depths:'house_of_dagon', side:'valley_of_hinnom', ridge:'heights_of_baal', arena:'seat_of_the_gods', rescue:'micaiah',
+    objectives:[{id:'gods_altar_a',flag:'gods_altar_a',room:'groves_of_baal',name:'Altar of Baal'},{id:'gods_altar_b',flag:'gods_altar_b',room:'house_of_dagon',name:'Altar of Dagon'}],
+    rewards:['idolbreaker','oath_of_carmel'], optional:'micaiahs_scroll', caches:['gods_grove_cache','gods_hinnom_cache','gods_highplace_cache'], record:'gods_testament',
+    intro:['Past the storm coast the land climbs to the high places. Every hill wears an altar, every grove a carved pole, and the smoke never stops rising. The people here bow to whatever answered last.', 'These are not princes over a kingdom. They call themselves gods: Dagon of the sea, Molech of the fire, Baal of the storm. Two altars hold the veil around their seat. Cast down the Altar of Baal and the Altar of Dagon, and the way to their throne opens.', 'Micaiah would not bow, so they took him to the Valley of Hinnom, where the furnace burns. Bring him back. And Elior: they are stronger than you. Do not stand still in front of them.'],
+    challenge:['A watchman. You broke a prince of Persia and a prince of Grecia, and now you climb to us. Princes serve. We are served.', 'You are not gods. You are only old, and loud, and hungry.', 'Kneel, and the storm will spare your camp. Stand, and you will meet all three of us, one after another, until you fall.', 'Then I will stand. And when you cannot answer, I will still be standing.', 'Dagon. Rise.'],
+    ending:['Baal calls out, and there is no voice, nor any that answered. The storm breaks apart over the high places. Fire comes down out of a clear sky and takes the altar to the stones and the dust.', 'They were never gods. Tell the people on the hills.', 'All the gods of the nations are idols. But the powers behind them are not finished, and somewhere a greater throne is waiting for them to fail. Tonight the smoke has stopped rising.'],
+    tips:'The gods are stronger than you: never trade blows. Dagon\'s tide sweeps the floor from both walls: jump it. Molech marks the ground under you for fire: leave each mark before it erupts, and jump his flame waves. Baal calls lightning in chains and steps behind you: keep moving and dodge through. Each god calls servants; cut them down fast or they bury you.',
+    voices:{tobiah:['The smoke from the hills turns the noon sky brown. Nobody here looks up anymore.','Look. You can see the sky from the camp now.'],rescued:['They wanted me to say the gods would win. I said I would speak only what the LORD gave me to speak. So they took me to the fire.','I have seen the gods of the nations fall on their faces. I would like to see a quiet week now.']},
+    places:['The Camp below Carmel','The Groves of Baal','The House of Dagon','The Valley of Hinnom','The Heights of Baal','The Seat of the Gods'],
+    foes:{lead:'knight',signature:'undying',rear:'priest',guard:'bulwark',side:['stalker','golem']},
+    cacheItems:['highplace_gauntlets','ashlar_mail'],
+    words:{sideQuest:'The Prophet in the Fire',sidePlace:'the Valley of Hinnom below the House of Dagon',guardWarn:'Clear the altar\'s guards before you cast it down.',rescueBlock:'They are still between us and the path. Clear them, and I will walk out on my own feet.',rescueThanks:'I kept my record in my sleeve the whole time. Take it to Mara. Tell her the gods are only as strong as the fear they are fed.',maraReward:'Micaiah wrote every word in a steady hand, even here. Take his scroll; it was written by someone who would not bow.',recordPlace:'valley',theme:'All the gods of the nations are idols. What made the heavens does not need your fear to stand.',stay:'Return to Carmel'},
   },
 ];
 export const chapterForRoom = (id: string) => FALLEN_CHAPTERS.find(c => [c.hub,c.trail,c.depths,c.side,c.ridge,c.arena].includes(id));
@@ -170,10 +183,10 @@ function dress(r: RoomDef) {
 }
 
 function makeRooms(c:FallenChapter):RoomDef[] {
-  const theme=c.biome, floor=24, width=104;
+  const theme=c.biome, floor=24, width=104, mapY=c.n===11?26:c.n*2;
   const room=(id:string,name:string,w=width,f=floor,interior=false):RoomDef=>{
     const b=new MapBuilder(w,f+4).rect(0,f,w,4);if(interior)b.rect(0,0,w,2);
-    return {id,name,region:c.title,biome:theme,music:theme,dark:interior?.36:.23,interior,weather:c.n===10?(interior?'drips':'rain'):c.n===9?'embers':c.n===7&&!interior?'ash':'motes',seed:c.n*100+[c.hub,c.trail,c.depths,c.side,c.ridge,c.arena].indexOf(id),map:{x:0,y:c.n*2},w,h:b.h,rows:b.rows(),spawns:{start:{x:6,y:f},left:{x:4,y:f},right:{x:w-4,y:f,face:-1}},exits:[],ents:[]};
+    return {id,name,region:c.title,biome:theme,music:theme,dark:interior?.36:.23,interior,weather:c.n===10?(interior?'drips':'rain'):c.n===9||c.n===11?'embers':c.n===7&&!interior?'ash':'motes',seed:c.n*100+[c.hub,c.trail,c.depths,c.side,c.ridge,c.arena].indexOf(id),map:{x:0,y:mapY},w,h:b.h,rows:b.rows(),spawns:{start:{x:6,y:f},left:{x:4,y:f},right:{x:w-4,y:f,face:-1}},exits:[],ents:[]};
   };
   const P=c.places;
   const hub=room(c.hub,P?P[0]:c.n===9?'Ashwatch Refuge':c.n===7?'Thawgate Outpost':'Lantern Quarantine',76,20);
@@ -187,8 +200,8 @@ function makeRooms(c:FallenChapter):RoomDef[] {
   const ridge=room(c.ridge,P?P[4]:c.n===9?'The Ember Aqueduct':c.n===7?'Clawscar Ridge':'The Pestilent Causeway',110,25);
   const arena=room(c.arena,P?P[5]:c.n===9?'The Throne of Cinders':c.n===7?'The Throne of Fangs':'The Throne of the Swarm',80,23,c.n!==10);
   const route=[hub,trail,depths,ridge,arena];
-  let mapX=0;for(const r of route){r.map={x:mapX,y:c.n*2};mapX+=r.w/16+.3;}
-  side.map={x:depths.map.x+2.5,y:c.n*2-2.2};
+  let mapX=0;for(const r of route){r.map={x:mapX,y:mapY};mapX+=r.w/16+.3;}
+  side.map={x:depths.map.x+2.5,y:mapY-2.2};
   for(let i=0;i<route.length-1;i++){
     const a=route[i],b=route[i+1],fa=a.h-4,fb=b.h-4;
     a.exits.push({x:a.w-1,y:fa-7,w:1,h:7,to:b.id,spawn:'left',cond:b===arena?`ch${c.n}_boundary_open`:undefined});
@@ -218,6 +231,7 @@ function makeRooms(c:FallenChapter):RoomDef[] {
   arena.ents.push({t:'boss',k:c.boss,x:50,y:23},{t:'trigger',id:c.boss+'_start',x:23,y:14,w:10,h:9});
   const rooms=[hub,trail,depths,side,ridge,arena];
   if(c.n===10)tide(c,depths,side,trail,ridge);
+  if(c.n===11)horde(trail,depths,side,ridge);
   for(const r of rooms)dress(r);
   return rooms;
 }
@@ -237,6 +251,21 @@ function tide(c:FallenChapter,depths:RoomDef,side:RoomDef,trail:RoomDef,ridge:Ro
   trail.ents.push({t:'lore',id:'dan85',x:48,y:18});
   depths.ents.push({t:'lore',id:'dan88',x:68,y:21});
   ridge.ents.push({t:'lore',id:'dan821',x:64,y:16});
+}
+/**
+ * Chapter XI: the high places are crowded with the gods' servants. Every route room holds a second rank of foes and
+ * two elites, and the Valley of Hinnom twice its guards; the scripture of the chapter is cut along the way.
+ */
+function horde(trail:RoomDef,depths:RoomDef,side:RoomDef,ridge:RoomDef){
+  for(const [i,r] of [trail,depths,ridge].entries()){
+    const f=r.h-4;
+    r.ents.push(foe('undying',36,f),foe('bulwark',47,f),foe('priest',66,f),foe('knight',86,f),foe(i===1?'golem':'brute',40,f,`gods_elite_${i}a`),foe(i===2?'stalker':'knight',72,f,`gods_elite_${i}b`));
+  }
+  side.ents.push(foe('undying',16,24),foe('priest',36,24),foe('bulwark',56,24,'gods_elite_side'));
+  trail.ents.push({t:'lore',id:'ps965',x:12,y:trail.h-4});
+  depths.ents.push({t:'lore',id:'sam53',x:30,y:depths.h-4});
+  side.ents.push({t:'lore',id:'lev1821',x:30,y:24});
+  ridge.ents.push({t:'lore',id:'kgs1821',x:64,y:16});
 }
 export const FALLEN_ROOMS=FALLEN_CHAPTERS.flatMap(makeRooms);
 
