@@ -43,6 +43,7 @@ Paint hidden overlaps fully, so joints rotate without holes.
 | C08 | **Uri parts:** the third hero, a calm human flame-caller (his fire answers prayer). An adult man with warm brown skin, short black hair and a short black beard; a tailored charcoal long coat with ember-orange edging, a crimson scarf, dark trousers and boots. No weapon: part 10 is a cupped hand-flame (white-gold core, orange edge), vertical. Same 10-part layout. |
 | C09 | **Uri, Crown of Flame parts:** Uri merged with his orc shaman: broader, bronze-ember skin, a crown of fire, a dark-red hide coat with bone-and-gold plates and glowing ember runes, and the shaman's burning staff as part 10. Face still Uri's (he stays human). |
 | C10 | **The orc shaman parts:** Uri's summoned ally, a cleansed battle-imprint of a great orc shaman. Green skin, small tusks, a hide hood, bone plates over a hide robe, ember runes; a tall wooden staff crowned with fire as part 10. Broad and heavy. Same 10-part layout. |
+| C11–C16 | **The Unshorn** (Elior's third form; delivered by the owner on 5 November 2026, see `manifest.json`): C11 parts in the 10-part layout (part 9 a sash knot, part 10 a tail of fire), C12 the mane and tail in four frames each, C13 and C14 whole-body action and movement poses (reference), C15 the awakening in eight frames, C16 a reference board. |
 | C07 | **Reference boards (design reference only, not shipped):** one image per hero, 2048×1024, transparent. Front, side and back turnarounds, plus the transformed form beside the normal form. Elior first (`-elior`), then Tirzah (`-tirzah`). |
 
 ## Effects (P1) → `incoming/vfx/`
@@ -60,6 +61,7 @@ Each row is one effect, played left to right.
 | V05 | 8×6, 256 px | **Archer effects:** dawn blink-out (a light burst with feathers); dawn blink-in; backshot (a point-blank arrow burst with feathers); hunter's mark sigil over a target (looping); arrow rain falling from above; bow charge glow growing on the string. |
 | V06 | 8×4, 256 px | **Transformations:** rows 1–2, Shadow Mantle forming (smoke wraps in, then a violet burst); rows 3–4, Wings of the Morning forming (light gathers, then the wings unfold in a dawn flash). |
 | V07 | 8×6, 128 px | **Status overlays** (looping): burning, frozen, shocked, bleeding, holy-marked, shadow-bound. |
+| V09 | 6×4, 128 px | **The Unshorn's impacts** (delivered 5 November 2026): punch spark, heavy-blow burst, dust kicked up, rising flame. |
 | V08 | 8×4, 128 px | **World effects:** dust puff, water splash, lava ember burst, wood-splinter burst. |
 
 ## Retries after drop P1 (do these before P2)
@@ -171,4 +173,5 @@ subject and a soft rim light.
 | I02 | **Armour and relics,** 8×4: helm, armour, gauntlets, boots, ring, relic, amulet, quiver; four rarity rows. |
 | I03 | **Materials and salvage,** 8×4: iron scrap, steel ingot, bronze, leather strap, linen, gold thread, cedar wood, relic shard, ember core, frost crystal, storm glass, holy oil, shadow silk, lion's mane, locust chitin, slag iron, eel scale, feather of dawn, and similar crafting goods. |
 | I04 | **Ability icons,** 6×3, 96 px: the twelve Covenant abilities, then the six archer abilities from `../POLISH_PLAN.md` §4. |
+| U01 | **Key art** (delivered 5 November 2026, `incoming/ui/`): the Unshorn facing the King of the North in the rain. Not shipped yet. |
 | I05 | **Shop backdrops** (`incoming/ui/`), two opaque illustrations at 1280×720: Ilan's market stall (lamps, crates, cloth awning) and Dov's forge (anvil, bellows, glowing hearth). |

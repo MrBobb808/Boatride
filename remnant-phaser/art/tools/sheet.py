@@ -22,11 +22,15 @@ ap.add_argument('out')
 ap.add_argument('--grid', required=True, help='COLSxROWS of the source sheet')
 ap.add_argument('--cell', required=True, help='output cell size in pixels: N, or WxH')
 ap.add_argument('--floor', type=int, default=24, help='alpha at or below this becomes fully clear')
+ap.add_argument('--matte-red', action='store_true', help='clear the generator\'s semi-transparent pure-red matte halo')
 a = ap.parse_args()
 
 cols, rows = (int(n) for n in a.grid.lower().split('x'))
 out_w, out_h = (int(n) for n in a.cell.lower().split('x')) if 'x' in a.cell.lower() else (int(a.cell), int(a.cell))
 src = np.asarray(Image.open(a.src).convert('RGBA')).astype(np.float32)
+if a.matte_red:
+    halo = (src[..., 3] < 235) & (src[..., 0] > 150) & (src[..., 1] < 80) & (src[..., 2] < 80)
+    src[halo] = 0
 h, w = src.shape[:2]
 cw, ch = w // cols, h // rows
 out = np.zeros((rows * out_h, cols * out_w, 4), np.float32)

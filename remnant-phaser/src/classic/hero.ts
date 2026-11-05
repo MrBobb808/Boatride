@@ -239,7 +239,7 @@ export class HeroPowers {
       const s = this.ghostSprites[i], v = this.ghosts[i]; s.setVisible(!!v);
       if (v) s.setPosition(v.x, v.y).setTexture(p.sprite.texture.key,p.sprite.frame.name).setOrigin(p.sprite.originX,p.sprite.originY).setScale(p.sprite.scaleX,p.sprite.scaleY).setFlipX(v.face < 0).setAlpha(v.a * 0.55).setTint(color);
     }
-    p.sprite.setVisible(!this.fin?.hidden);
+    p.sprite.setVisible(!this.fin?.hidden && !p.staged);
   }
   destroy() { this.g.destroy(); this.aura.destroy(); for (const s of this.ghostSprites) s.destroy(); }
 }

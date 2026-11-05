@@ -194,19 +194,24 @@ export class Visuals {
 
   impact(x: number, y: number, heavy: boolean, crit: boolean) {
     if (this.paused) return;
-    this.burst(x, y, crit ? 1 : 0, heavy);
+    // The Unshorn's punches throw their own bursts (Player.punchImpact).
+    if (this.w.player.formT <= 0) this.burst(x, y, crit ? 1 : 0, heavy);
     this.sparks.setParticleTint(this.element ? COLORS[this.element] : 0xffd27a);
     this.sparks.emitParticleAt(x, y, this.tier === 0 ? 2 : heavy || crit ? 12 : 5);
   }
 
-  /** One burst: 0 hit, 1 crit, 2 guard break, 3 parry. Light hits are smaller; low quality keeps only the big ones. */
-  burst(x: number, y: number, row: number, heavy = false) {
+  /**
+   * One burst: 0 hit, 1 crit, 2 guard break, 3 parry. Light hits are smaller; low quality keeps only the big ones.
+   * `sheet` 'vfx-unshorn' (V09) is the Unshorn's: 0 a punch, 1 a heavy blow, 2 dust kicked up, 3 rising flame.
+   */
+  burst(x: number, y: number, row: number, heavy = false, sheet: 'vfx-impacts' | 'vfx-unshorn' = 'vfx-impacts') {
     if (this.tier === 0 && row === 0 && !heavy) return;
     const b = this.bursts.find((o) => o.t < 0) ?? this.bursts.reduce((a, o) => (o.t > a.t ? o : a));
-    const size = row === 0 ? (heavy ? 0.48 : 0.34) : row === 3 ? 0.5 : 0.46;
+    const fists = sheet === 'vfx-unshorn', upright = fists ? row >= 2 : row === 3;
+    const size = fists ? (row === 0 ? (heavy ? 0.4 : 0.3) : row === 1 ? 0.46 : 0.5) : row === 0 ? (heavy ? 0.48 : 0.34) : row === 3 ? 0.5 : 0.46;
     b.t = 0; b.row = row;
-    b.img.setFrame(row * 6).setPosition(x, y).setScale(size).setAngle(row === 3 ? 0 : Math.random() * 360).setAlpha(settings.reduceFlashes ? 0.55 : 1)
-      .setTint(this.element && row === 0 ? COLORS[this.element] : 0xffffff).setVisible(true);
+    b.img.setTexture(sheet, row * 6).setOrigin(0.5, upright && fists ? 0.85 : 0.5).setPosition(x, y).setScale(size).setAngle(upright ? 0 : Math.random() * 360).setAlpha(settings.reduceFlashes ? 0.55 : 1)
+      .setTint(this.element && row === 0 && !fists ? COLORS[this.element] : 0xffffff).setVisible(true);
   }
 
   /** Play an ability's art: at Elior, at his feet, or riding the projectile it made. */

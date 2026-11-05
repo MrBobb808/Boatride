@@ -32,6 +32,31 @@ const PARTS: readonly Part[] = [
   // The string is drawn from the pulling hand; crop only the bow's limbs.
   [1278,801,77,298,1301,952,1301,815,70],
 ];
+// C11 (art/manifest.json): the Unshorn's own parts, in Elior's order; 8 is the sash knot, 9 a still tail with its cuff
+// (the animated C12 tail is drawn instead). They keep their own colours.
+const UNSHORN_PARTS: readonly Part[] = [
+  [68,52,144,175,140,206,140,75,124],
+  [314,33,212,214,433,63,431,217,178],
+  [592,47,216,185,702,75,702,221,190],
+  [923,37,113,206,982,62,980,218,90],
+  [1216,38,87,204,1260,54,1260,211,54],
+  [77,312,126,216,134,338,146,502,93],
+  [356,310,127,220,394,332,416,521,76],
+  [584,325,232,190,788,344,688,492,202],
+  [894,382,171,76,904,420,1055,420,72],
+  [1142,323,236,194,1354,339,1166,478,130],
+];
+// C12: four frames of the mane (root at the crown, locks streaming back), then four of the tail (root at the sash).
+const LOCKS: readonly Part[] = [
+  [33,37,213,206,216,58,71,214,166],
+  [311,36,218,208,498,57,350,215,170],
+  [591,37,218,205,778,58,630,213,170],
+  [871,27,218,225,1058,50,910,220,170],
+  [31,362,217,115,239,433,44,408,113],
+  [312,361,216,118,519,434,325,408,112],
+  [591,362,218,116,800,434,604,408,113],
+  [870,362,219,115,1080,433,883,408,114],
+];
 export const FIGHTER_DIMS = {torso:14.5,head:5.8,neck:1.4,upperArm:8,foreArm:7.2,thigh:10,shin:10,shoulderSpread:1.5,hipSpread:1.4};
 const WEAPON = {weaponColor:'#e3dfdb',outline:'#09080d',weaponGlow:null,weaponGlowAmt:0} as HumanStyle;
 
@@ -53,6 +78,8 @@ function dyeCape(g:CanvasRenderingContext2D,w:number,h:number,look:CapeLook){
 
 export class FighterRig {
   private parts: HTMLCanvasElement[];
+  private table: readonly Part[];
+  private locks: HTMLCanvasElement[] = [];
   private offset: number;
   private weapon: HumanStyle;
   /** `unshorn`: the third transformation's look (crimson and gold, a long mane, a tail of fire, bare fists). */
@@ -61,25 +88,20 @@ export class FighterRig {
     this.weapon = {...WEAPON,weapon:family,weaponColor:mantle?'#d5a1ff':'#e3dfdb',weaponGlow:mantle?'#b45cff':null,weaponGlowAmt:mantle?0.65:0};
     const look=cape&&!mantle?CAPES[cape]:null;
     const key=`fighter-parts-${hero}${unshorn?'-unshorn':mantle?'-mantle':''}${look?'-cape-'+cape:''}`;
+    this.table=unshorn?UNSHORN_PARTS:PARTS.slice(this.offset,this.offset+10);
+    const crop=(source:HTMLImageElement,[x,y,w,h]:Part)=>{const c=document.createElement('canvas');c.width=w;c.height=h;c.getContext('2d')!.drawImage(source,x,y,w,h,0,0,w,h);return c;};
+    if(unshorn){
+      const locks=sc.registry.get('unshorn-locks') as HTMLCanvasElement[] | undefined;
+      this.locks=locks??LOCKS.map((part)=>crop(sc.textures.get('unshorn-mane').getSourceImage() as HTMLImageElement,part));
+      if(!locks)sc.registry.set('unshorn-locks',this.locks);
+    }
     // The source crops are small and shared across every weapon/clip bake.
     const cached=sc.registry.get(key) as HTMLCanvasElement[] | undefined;
     if(cached){this.parts=cached;return;}
-    const source=sc.textures.get('fighter-parts').getSourceImage() as HTMLImageElement;
-    this.parts=PARTS.slice(this.offset,this.offset+10).map((part,i)=>{
-      const [x,y,w,h]=part,c=document.createElement('canvas');c.width=w;c.height=h;
-      const g=c.getContext('2d')!;g.drawImage(source,x,y,w,h,0,0,w,h);
-      if(unshorn&&i!==4&&i!==9){
-        // Cloth and leather turn deep crimson, the gold fittings brighten, and the hair on the head part turns to fire.
-        const image=g.getImageData(0,0,w,h),d=image.data;
-        for(let n=0;n<d.length;n+=4)if(d[n+3]){
-          const r=d[n],gr=d[n+1],b=d[n+2],l=r*.22+gr*.58+b*.2;
-          if(r>gr*1.12&&gr>b*1.25&&gr>65){d[n]=Math.min(255,r*1.15+20);d[n+1]=Math.min(255,gr*1.1+16);continue;}
-          if(i===0&&!(r>gr*1.05&&r>b*1.2&&l>80)){d[n]=Math.min(255,l*1.6+70);d[n+1]=Math.min(255,l*.7+20);d[n+2]=l*.25;continue;}
-          if(i===0)continue;
-          d[n]=Math.min(255,l*1.5+28);d[n+1]=l*.32;d[n+2]=l*.28;
-        }
-        g.putImageData(image,0,0);
-      }else if(mantle&&i!==0&&i!==4&&i!==9){
+    const source=sc.textures.get(unshorn?'fighter-parts-unshorn':'fighter-parts').getSourceImage() as HTMLImageElement;
+    this.parts=this.table.map((part,i)=>{
+      const c=crop(source,part),g=c.getContext('2d')!,w=c.width,h=c.height;
+      if(!unshorn&&mantle&&i!==0&&i!==4&&i!==9){
         const image=g.getImageData(0,0,w,h),d=image.data;
         for(let n=0;n<d.length;n+=4)if(d[n+3]){
           const r=d[n],gr=d[n+1],b=d[n+2];
@@ -96,10 +118,14 @@ export class FighterRig {
     });sc.registry.set(key,this.parts);
   }
   private bone(c:CanvasRenderingContext2D,n:number,ax:number,ay:number,bx:number,by:number,width:number,alpha=1){
-    const p=PARTS[this.offset+n],sx=p[6]-p[4],sy=p[7]-p[5];
+    this.put(c,this.parts[n],this.table[n],ax,ay,bx,by,width,alpha);
+  }
+  /** Lay a part's proximal joint on (ax,ay) and its distal joint on (bx,by), `width` across. */
+  private put(c:CanvasRenderingContext2D,img:HTMLCanvasElement,p:Part,ax:number,ay:number,bx:number,by:number,width:number,alpha=1){
+    const sx=p[6]-p[4],sy=p[7]-p[5];
     c.save();c.globalAlpha*=alpha;c.translate(ax,ay);c.rotate(Math.atan2(by-ay,bx-ax));
     c.scale(Math.hypot(bx-ax,by-ay)/Math.hypot(sx,sy),width/p[8]);c.rotate(-Math.atan2(sy,sx));
-    c.drawImage(this.parts[n],p[0]-p[4],p[1]-p[5]);c.restore();
+    c.drawImage(img,p[0]-p[4],p[1]-p[5]);c.restore();
   }
   draw(c:CanvasRenderingContext2D,j:Joints,p:Pose,time:number,clip:string,u:number,armed=true){
     const archer=this.hero==='tirzah',drawing=clip==='bowDraw',release=clip==='bowRelease';
@@ -115,8 +141,9 @@ export class FighterRig {
     const running=clip==='run'||clip==='swim',flow=running?3:0;
     const flutter=Math.sin(time*7)*.7;
     // Cloth lags the torso and gait, rather than rotating rigidly with a limb.
-    if(this.unshorn)this.tail(c,j,time,running);
     this.bone(c,7,j.neckX-2,j.neckY+1,j.neckX-12-flow,j.neckY+18-flow+flutter,archer?23:25);
+    // The tail of fire burns over the cape, so the cloth never hides it.
+    if(this.unshorn)this.tail(c,j,time,running);
     if(archer)this.bone(c,8,j.headX-3,j.headY-3,j.headX-8-flow,j.headY+12-flow+flutter,4.4);
     this.limb(c,j,false,.84);
     this.bone(c,3,j.shBX,j.shBY,j.elBX,j.elBY,5.3,.84);
@@ -124,10 +151,12 @@ export class FighterRig {
     this.limb(c,j,true,1);
     this.bone(c,2,j.hipX,j.hipY-1,j.hipX+Math.sin(p.lean)*3,j.hipY+11,archer?17:18);
     this.bone(c,1,j.neckX,j.neckY,j.hipX,j.hipY,12.8);
-    if(!archer)this.bone(c,8,j.neckX,j.neckY,j.neckX-1,j.neckY+4,11);
+    if(!archer&&!this.unshorn)this.bone(c,8,j.neckX,j.neckY,j.neckX-1,j.neckY+4,11);
+    // The sash's knot sits at the back of his waist; the mane falls over his back, under the head.
+    if(this.unshorn){this.bone(c,8,j.hipX-6,j.hipY-3,j.hipX+1,j.hipY-3,3.2);this.mane(c,j,time,clip);}
     this.bone(c,0,j.neckX,j.neckY,j.neckX+Math.sin(j.headA)*12.8,j.neckY-Math.cos(j.headA)*12.8,archer?11:10.8);
     if(this.mantle){c.fillStyle=archer?'#fff6dc':'#edc7ff';c.fillRect(j.headX+2.8,j.headY-1.8,1.6,.65);}
-    if(this.unshorn){c.fillStyle='#ffe08a';c.fillRect(j.headX+2.8,j.headY-1.8,1.6,.65);this.mane(c,j,time,clip);}
+    if(this.unshorn){c.fillStyle='#ffe08a';c.fillRect(j.headX+2.8,j.headY-1.8,1.6,.65);}
     const dagger=archer&&clip.startsWith('dagger');
     if(armed&&dagger){
       // The bow rides slung across her back while the dagger works.
@@ -149,48 +178,20 @@ export class FighterRig {
     }
     this.bone(c,3,j.shFX,j.shFY,j.elFX,j.elFY,5.7);
     this.bone(c,4,j.elFX,j.elFY,j.haFX,j.haFY,4.6);
-    if(this.unshorn){this.fist(c,j.haBX,j.haBY,.8);this.fist(c,j.haFX,j.haFY,1);}
     // Drawing hand belongs in front of the string, including at full charge.
     if(bowAction){this.bone(c,3,j.shBX,j.shBY,j.elBX,j.elBY,5.3);this.bone(c,4,j.elBX,j.elBY,j.haBX,j.haBY,4.3);}
     c.restore();
   }
-  /** The Unshorn's mane: long locks of crimson fire from the crown of the head, streaming back past the shoulders. */
+  /** The Unshorn's mane (C12): long locks from the crown of the head, streaming back past the shoulders, lifting in a run. */
   private mane(c:CanvasRenderingContext2D,j:Joints,time:number,clip:string){
-    const hx=j.headX-1,hy=j.headY-3,run=clip==='run'||clip==='airdash'||clip==='roll'?1:0;
-    c.save();c.lineCap='round';
-    for(let i=0;i<7;i++){
-      // Seven locks (Judges 16:13), each its own length and wave.
-      const len=15+i*1.6+(i%2)*3,lift=(i-3)*1.3,ph=time*5+i*.9;
-      const ex=hx-len*(.75+run*.2),ey=hy+len*(.45-run*.25)+lift+Math.sin(ph)*1.6;
-      const mx=hx-len*.4,my=hy-2+lift*.5+Math.sin(ph+1)*2.2;
-      c.strokeStyle='#5a0c08';c.lineWidth=3.6-i*.25;c.beginPath();c.moveTo(hx,hy+i*.5);c.quadraticCurveTo(mx,my,ex,ey);c.stroke();
-      c.strokeStyle=i%2?'#ff5a2a':'#e8361c';c.lineWidth=2.4-i*.18;c.beginPath();c.moveTo(hx,hy+i*.5);c.quadraticCurveTo(mx,my,ex,ey);c.stroke();
-      c.strokeStyle='#ffd27a';c.lineWidth=.7;c.beginPath();c.moveTo(hx,hy+i*.5);c.quadraticCurveTo(mx,my-.6,ex+1,ey-.6);c.stroke();
-    }
-    // A crown of fire standing up from the brow.
-    c.fillStyle='#ff6a2a';c.beginPath();c.moveTo(hx+5,hy-1);c.lineTo(hx+2,hy-7);c.lineTo(hx,hy-2);c.lineTo(hx-3,hy-8);c.lineTo(hx-4,hy-1);c.closePath();c.fill();
-    c.fillStyle='#ffd27a';c.beginPath();c.moveTo(hx+3,hy-1.5);c.lineTo(hx+1.5,hy-5);c.lineTo(hx,hy-2);c.closePath();c.fill();
-    c.restore();
+    const run=clip==='run'||clip==='airdash'||clip==='roll'?1:0,f=Math.floor(time*8)%4;
+    const hx=j.headX-1.5,hy=j.headY-4,sway=Math.sin(time*5)*1.2;
+    this.put(c,this.locks[f],LOCKS[f],hx,hy,hx-14-run*4,hy+15-run*6+sway,15);
   }
-  /** A tail of living fire from the sash: the power showing, not a beast's limb. */
+  /** A tail of living fire from the sash (C12): the power showing, not a beast's limb. */
   private tail(c:CanvasRenderingContext2D,j:Joints,time:number,running:boolean){
-    const x0=j.hipX-3,y0=j.hipY-1,sway=Math.sin(time*3.2)*3,lag=running?5:0;
-    const x1=x0-10-lag,y1=y0+6+sway*.5,x2=x0-17-lag,y2=y0-6+sway,x3=x0-12-lag*.6,y3=y0-15+sway*1.4;
-    c.save();c.lineCap='round';
-    for(const [w,col] of [[4.2,'#5a0c08'],[3,'#e8361c'],[1.6,'#ffb347'],[.6,'#fff1c4']] as const){
-      c.strokeStyle=col;c.lineWidth=w;c.beginPath();c.moveTo(x0,y0);c.bezierCurveTo(x1,y1,x2,y2,x3,y3);c.stroke();
-    }
-    // The tip flickers like a flame.
-    c.fillStyle='#ffd27a';c.beginPath();c.arc(x3,y3,1.6+Math.abs(Math.sin(time*9))*.6,0,Math.PI*2);c.fill();
-    c.restore();
-  }
-  /** A bare fist, wrapped in gold, glowing a little at the knuckles. */
-  private fist(c:CanvasRenderingContext2D,x:number,y:number,alpha:number){
-    c.save();c.globalAlpha*=alpha;
-    c.fillStyle='#09080d';c.beginPath();c.arc(x,y,2.6,0,Math.PI*2);c.fill();
-    c.fillStyle='#c98a5a';c.beginPath();c.arc(x,y,1.9,0,Math.PI*2);c.fill();
-    c.strokeStyle='#ffd27a';c.lineWidth=.7;c.beginPath();c.arc(x,y,2.1,-1.2,1.2);c.stroke();
-    c.restore();
+    const f=4+Math.floor(time*8)%4,x0=j.hipX-3,y0=j.hipY-1,lag=running?4:0,sway=Math.sin(time*3.2)*3;
+    this.put(c,this.locks[f],LOCKS[f],x0,y0,x0-21-lag,y0+1+sway,11);
   }
   private limb(c:CanvasRenderingContext2D,j:Joints,front:boolean,alpha:number){
     const [hx,hy,kx,ky,fx,fy]=front?[j.hpFX,j.hpFY,j.knFX,j.knFY,j.ftFX,j.ftFY]:[j.hpBX,j.hpBY,j.knBX,j.knBY,j.ftBX,j.ftBY];

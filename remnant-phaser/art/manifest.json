@@ -823,6 +823,328 @@
       ],
       "generated_source_name": "exec-fdda8f02-7012-412a-aa42-1e05e2cf74d6.png",
       "review": "Claude, 2026-10-29: Grid lines are baked into the image. See V08 retry."
+    },
+    {
+      "id": "C11",
+      "file": "incoming/characters/C11-unshorn-parts.png",
+      "request": "The Unshorn parts",
+      "grid": [
+        5,
+        2
+      ],
+      "cell": null,
+      "baseline": null,
+      "facing": "right",
+      "background": "transparent",
+      "prompt": "Supplied by the owner from ChatGPT on 5 November 2026 (prompt not recorded).",
+      "status": "integrated",
+      "notes": "Elior's third form in his 10-part layout: head, torso with sash, skirt, upper arm, forearm ending in a bare fist, thigh, boot, cape, sash knot, tail of fire with a gold cuff. A semi-transparent pure-red matte halo was cleared with parts.py --matte-red. Worn on the skeleton by fighterRig.ts (UNSHORN_PARTS); the sash knot sits at the back of the waist; the animated C12 tail is used instead of part 10.",
+      "actual_size": [
+        1983,
+        793
+      ],
+      "bytes": 1382813,
+      "sha256": "a777c5227d4402ff7e0531d99d6b5dd74a26a4c51a217aa84ae317e9da04e4c8",
+      "git_blob_sha": "b2ff6bf5e7166cee7222140a3ef9e48ab70e747c",
+      "validation": {
+        "alpha_present": true,
+        "fully_transparent_pixel_fraction": 0.717202,
+        "semi_transparent_pixel_fraction": 0.282575,
+        "under_4_mb": true,
+        "unaltered_generator_output": true,
+        "visual_review": "Elior's third form in his 10-part layout: head, torso with sash, skirt, upper arm, forearm ending in a bare fist, thigh, boot, cape, sash knot, tail of fire with a gold cuff. A semi-transparent pure-red matte halo was cleared with parts.py --matte-red. Worn on the skeleton by fighterRig.ts (UNSHORN_PARTS); the sash knot sits at the back of the waist; the animated C12 tail is used instead of part 10."
+      },
+      "integrated_as": [
+        "src/assets/fighter-parts-unshorn.png (parts.py --anchors unshorn --matte-red)"
+      ]
+    },
+    {
+      "id": "C12",
+      "file": "incoming/characters/C12-unshorn-mane-tail.png",
+      "request": "The Unshorn mane and tail frames",
+      "grid": [
+        4,
+        2
+      ],
+      "cell": null,
+      "baseline": null,
+      "facing": "right",
+      "background": "transparent",
+      "prompt": "Supplied by the owner from ChatGPT on 5 November 2026 (prompt not recorded).",
+      "status": "integrated",
+      "notes": "Row 1: four frames of the long braided mane with fire at the tips; row 2: four frames of the tail of fire. Red matte halo cleared. Cycled at 8 frames a second from the crown of the head and the back of the sash (fighterRig.ts LOCKS).",
+      "actual_size": [
+        1774,
+        887
+      ],
+      "bytes": 1195034,
+      "sha256": "7890c01ed587a52105c3ddf2de689ec6dfe9635e8f527dc8fc0b00513799716e",
+      "git_blob_sha": "58e20eae2fd48104f99330615a8b47f228776014",
+      "validation": {
+        "alpha_present": true,
+        "fully_transparent_pixel_fraction": 0.768937,
+        "semi_transparent_pixel_fraction": 0.230762,
+        "under_4_mb": true,
+        "unaltered_generator_output": true,
+        "visual_review": "Row 1: four frames of the long braided mane with fire at the tips; row 2: four frames of the tail of fire. Red matte halo cleared. Cycled at 8 frames a second from the crown of the head and the back of the sash (fighterRig.ts LOCKS)."
+      },
+      "integrated_as": [
+        "src/assets/unshorn-mane.png (parts.py --grid 4x2 --anchors mane --matte-red)"
+      ]
+    },
+    {
+      "id": "C13",
+      "file": "incoming/characters/C13-unshorn-actions.png",
+      "request": "The Unshorn action poses",
+      "grid": [
+        4,
+        4
+      ],
+      "cell": null,
+      "baseline": null,
+      "facing": "right",
+      "background": "transparent",
+      "prompt": "Supplied by the owner from ChatGPT on 5 November 2026 (prompt not recorded).",
+      "status": "delivered",
+      "notes": "Whole-body poses (guard, punches, palms, uppercut, jump, low). Not shipped: the game animates the Unshorn from the C11 parts on the skeleton, so every punch clip stays in step with its hitbox. Kept as pose reference for the fist clips.",
+      "actual_size": [
+        1254,
+        1254
+      ],
+      "bytes": 1433664,
+      "sha256": "b318b71a0bae85c3e8eb2c7f3118cbe1c0346593b3852228a43434303e1c7bb5",
+      "git_blob_sha": "d2385db5df73878e0e9fbfb6a3a1226f48ef2fbb",
+      "validation": {
+        "alpha_present": true,
+        "fully_transparent_pixel_fraction": 0.716702,
+        "semi_transparent_pixel_fraction": 0.28282,
+        "under_4_mb": true,
+        "unaltered_generator_output": true,
+        "visual_review": "Whole-body poses (guard, punches, palms, uppercut, jump, low). Not shipped: the game animates the Unshorn from the C11 parts on the skeleton, so every punch clip stays in step with its hitbox. Kept as pose reference for the fist clips."
+      }
+    },
+    {
+      "id": "C13-b",
+      "file": "incoming/characters/C13-unshorn-actions-b.png",
+      "request": "The Unshorn action poses",
+      "grid": [
+        4,
+        4
+      ],
+      "cell": null,
+      "baseline": null,
+      "facing": "right",
+      "background": "transparent",
+      "prompt": "Supplied by the owner from ChatGPT on 5 November 2026 (prompt not recorded).",
+      "status": "delivered",
+      "notes": "A larger second take of C13; reference only, for the same reason.",
+      "actual_size": [
+        1254,
+        1254
+      ],
+      "bytes": 2368221,
+      "sha256": "a7b9fea613bfea4cc5eedad2e6281732fda6f8c1cf3f7fe8dd49bc248a8f42c5",
+      "git_blob_sha": "40d980dcb1d1040b29145b0d11c8ac81f3d215aa",
+      "validation": {
+        "alpha_present": true,
+        "fully_transparent_pixel_fraction": 0.528595,
+        "semi_transparent_pixel_fraction": 0.470493,
+        "under_4_mb": true,
+        "unaltered_generator_output": true,
+        "visual_review": "A larger second take of C13; reference only, for the same reason."
+      }
+    },
+    {
+      "id": "C14",
+      "file": "incoming/characters/C14-unshorn-movement.png",
+      "request": "The Unshorn movement poses",
+      "grid": [
+        4,
+        3
+      ],
+      "cell": null,
+      "baseline": null,
+      "facing": "right",
+      "background": "transparent",
+      "prompt": "Supplied by the owner from ChatGPT on 5 November 2026 (prompt not recorded).",
+      "status": "delivered",
+      "notes": "Whole-body idle, run, crouch, jump, block, knocked and low poses; reference only (the rig animates movement from the C11 parts).",
+      "actual_size": [
+        1448,
+        1086
+      ],
+      "bytes": 1986201,
+      "sha256": "fd1e3b9344a3c981639e92b9aa583d59bb3303e1e06de1c85d215420949b1c09",
+      "git_blob_sha": "e161ea94643b1fa0bf73d202baf79268a4d4c029",
+      "validation": {
+        "alpha_present": true,
+        "fully_transparent_pixel_fraction": 0.593956,
+        "semi_transparent_pixel_fraction": 0.404876,
+        "under_4_mb": true,
+        "unaltered_generator_output": true,
+        "visual_review": "Whole-body idle, run, crouch, jump, block, knocked and low poses; reference only (the rig animates movement from the C11 parts)."
+      }
+    },
+    {
+      "id": "C15",
+      "file": "incoming/characters/C15-unshorn-awakening.png",
+      "request": "The Unshorn awakening sequence",
+      "grid": [
+        4,
+        2
+      ],
+      "cell": null,
+      "baseline": null,
+      "facing": "right",
+      "background": "transparent",
+      "prompt": "Supplied by the owner from ChatGPT on 5 November 2026 (prompt not recorded).",
+      "status": "integrated",
+      "notes": "Eight frames: Elior in the Shadow Mantle standing, kneeling, praying, the hair growing again, then rising into the Unshorn guard. Feet already share one baseline (94.8% of a cell). Played over Elior in the King of the North fight while he prays (game/awakening.ts).",
+      "actual_size": [
+        1774,
+        887
+      ],
+      "bytes": 1618712,
+      "sha256": "3fccb0ec691edc1e10556e170be84965751873b0c2e6d881b9cf1ae199e700fd",
+      "git_blob_sha": "eda2d8ac1ddcb0af92d216df1a5a800762c4caa2",
+      "validation": {
+        "alpha_present": true,
+        "fully_transparent_pixel_fraction": 0.671586,
+        "semi_transparent_pixel_fraction": 0.327989,
+        "under_4_mb": true,
+        "unaltered_generator_output": true,
+        "visual_review": "Eight frames: Elior in the Shadow Mantle standing, kneeling, praying, the hair growing again, then rising into the Unshorn guard. Feet already share one baseline (94.8% of a cell). Played over Elior in the King of the North fight while he prays (game/awakening.ts)."
+      },
+      "integrated_as": [
+        "src/assets/unshorn-awakening.png (sheet.py --grid 4x2 --cell 64 --matte-red)"
+      ]
+    },
+    {
+      "id": "C16",
+      "file": "incoming/characters/C16-reference-board-unshorn.png",
+      "request": "Reference board: the Unshorn",
+      "grid": [
+        1,
+        1
+      ],
+      "cell": null,
+      "baseline": null,
+      "facing": "right",
+      "background": "transparent",
+      "prompt": "Supplied by the owner from ChatGPT on 5 November 2026 (prompt not recorded).",
+      "status": "delivered",
+      "notes": "Front, side, back and punch views. Design reference only, not shipped.",
+      "actual_size": [
+        1254,
+        1254
+      ],
+      "bytes": 1410834,
+      "sha256": "5b1750c8e051ef0c753a2e7a6af74ee4b97e613ad3e5eccab6630fe61127efdd",
+      "git_blob_sha": "d2c2aa100edba0b8164301576b602aeb80d2b1a6",
+      "validation": {
+        "alpha_present": true,
+        "fully_transparent_pixel_fraction": 0.650119,
+        "semi_transparent_pixel_fraction": 0.349245,
+        "under_4_mb": true,
+        "unaltered_generator_output": true,
+        "visual_review": "Front, side, back and punch views. Design reference only, not shipped."
+      }
+    },
+    {
+      "id": "V09",
+      "file": "incoming/vfx/V09-unshorn-impacts.png",
+      "request": "The Unshorn impacts",
+      "grid": [
+        6,
+        4
+      ],
+      "cell": null,
+      "baseline": null,
+      "facing": "right where directional",
+      "background": "transparent",
+      "prompt": "Supplied by the owner from ChatGPT on 5 November 2026 (prompt not recorded).",
+      "status": "integrated",
+      "notes": "Rows: punch spark, heavy-blow burst, dust kicked up, rising flame. About 28% of pixels were semi-transparent red matte; cleared with --matte-red and an alpha floor of 100. Used by Player.punchImpact (rows 0-2) and the uppercuts and the awakening (row 3).",
+      "actual_size": [
+        1536,
+        1024
+      ],
+      "bytes": 769400,
+      "sha256": "9567072daa6d8c8d5e3c6ddc1c89688cbb08b68175c79dd848227f213cdd8e0a",
+      "git_blob_sha": "9c69c692048748200d5ef0b5b080036935b28025",
+      "validation": {
+        "alpha_present": true,
+        "fully_transparent_pixel_fraction": 0.682299,
+        "semi_transparent_pixel_fraction": 0.317701,
+        "under_4_mb": true,
+        "unaltered_generator_output": true,
+        "visual_review": "Rows: punch spark, heavy-blow burst, dust kicked up, rising flame. About 28% of pixels were semi-transparent red matte; cleared with --matte-red and an alpha floor of 100. Used by Player.punchImpact (rows 0-2) and the uppercuts and the awakening (row 3)."
+      },
+      "integrated_as": [
+        "src/assets/vfx-unshorn.png (sheet.py --grid 6x4 --cell 128 --matte-red --floor 100)"
+      ]
+    },
+    {
+      "id": "V09-b",
+      "file": "incoming/vfx/V09-unshorn-impacts-b.png",
+      "request": "The Unshorn impacts",
+      "grid": [
+        6,
+        4
+      ],
+      "cell": null,
+      "baseline": null,
+      "facing": "right where directional",
+      "background": "transparent",
+      "prompt": "Supplied by the owner from ChatGPT on 5 November 2026 (prompt not recorded).",
+      "status": "rejected",
+      "notes": "Second take: about three quarters of the sheet is a semi-transparent haze that cannot be separated from the effects. V09 is used instead.",
+      "actual_size": [
+        1536,
+        1024
+      ],
+      "bytes": 1219259,
+      "sha256": "f250f7357b7540bddfe826510bcfb154377fd409038044f833f83f7b035f1919",
+      "git_blob_sha": "dcbbf878b5913f05101a1f54eec96b2f8ea01cb4",
+      "validation": {
+        "alpha_present": true,
+        "fully_transparent_pixel_fraction": 0.178989,
+        "semi_transparent_pixel_fraction": 0.821011,
+        "under_4_mb": true,
+        "unaltered_generator_output": true,
+        "visual_review": "Second take: about three quarters of the sheet is a semi-transparent haze that cannot be separated from the effects. V09 is used instead."
+      }
+    },
+    {
+      "id": "U01",
+      "file": "incoming/ui/U01-key-art-unshorn-vs-king.png",
+      "request": "Key art: the Unshorn against the King of the North",
+      "grid": [
+        1,
+        1
+      ],
+      "cell": null,
+      "baseline": null,
+      "facing": "right",
+      "background": "opaque",
+      "prompt": "Supplied by the owner from ChatGPT on 5 November 2026 (prompt not recorded).",
+      "status": "delivered",
+      "notes": "Opaque key art (the Unshorn facing the King in the rain). Not shipped yet: kept for a title or chapter card.",
+      "actual_size": [
+        1672,
+        941
+      ],
+      "bytes": 3370018,
+      "sha256": "45d4e92af136240d26007656555cd02d19e50117f75b6c8d4f6a20c5f4afc309",
+      "git_blob_sha": "587576c1e4cb457f2eb520a9472485588c4f4d2f",
+      "validation": {
+        "alpha_present": false,
+        "fully_transparent_pixel_fraction": 0.0,
+        "semi_transparent_pixel_fraction": 0.0,
+        "under_4_mb": true,
+        "unaltered_generator_output": true,
+        "visual_review": "Opaque key art (the Unshorn facing the King in the rain). Not shipped yet: kept for a title or chapter card."
+      }
     }
   ]
 }
