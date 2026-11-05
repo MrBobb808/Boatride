@@ -40,6 +40,8 @@ export interface Loot {
   rarity?: number;
   /** Gear Power (ItemInst.lootPower): Tirzah's drops scale with her level. */
   power?: number;
+  /** A Legendary Power for the piece (game/legendary.ts). */
+  legend?: string;
   mat?: string;
   n?: number;
   silver?: number;

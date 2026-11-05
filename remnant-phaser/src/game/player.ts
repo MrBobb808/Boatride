@@ -304,7 +304,7 @@ export class Player {
     // Dawnstep: Dodge while an arrow's mark is fresh blinks her behind that foe.
     if (this.hero === 'tirzah' && !G.inCutscene && (this.state === 'free' || this.state === 'bow') && c.pressed('dodge') && this.dawn.ready()) {
       this.bow.cancel(); if (this.state === 'bow') this.releaseState();
-      this.dawn.step(); this.draw(dt); return;
+      this.dawn.step(); this.w.legends?.onDodge(); this.draw(dt); return;
     }
     if (this.hero === 'tirzah' && !G.inCutscene && this.bow.control(dt * ACTION_RATE)) {
       if (c.pressed('dodge') || c.pressed('parry')) { this.bow.cancel(); this.releaseState(); this.defence(); }
@@ -656,6 +656,7 @@ export class Player {
 
   private startDodge() {
     this.w.playEffect('dash');
+    this.w.legends?.onDodge();
     this.state = 'dodge';
     this.st = 0;
     this.dodgeCd = 0.45;
@@ -686,6 +687,7 @@ export class Player {
     this.w.spark(this.x, this.feet - 2, 0xffd27a, 20);
     this.startMove({ ...this.moves.plunge, id: 'slam', dur: 0.3, hit: [0, 0.35], box: { x: -40, y: -28, w: 80, h: 32 }, dmg: 1.6, finisher: true });
     this.strike();
+    this.w.legends?.onSlam(this.x, this.feet);
   }
 
   /** Safe destinations and a clear line prevent every blink from crossing walls. */
@@ -846,6 +848,7 @@ export class Player {
         // a combo finisher when it fells its foe. Ordinary hits stay steady.
         const id = this.atk.id, ender = this.atk.finisher || this.combo === 2 || id === 'storm' || id === 'comet';
         if (id === 'cross' || (id === 'pstrike' && this.phantomN >= 3) || (ender && !f.alive)) this.w.finale(f.x, f.box.centerY, id === 'cross' ? 1.4 : id === 'pstrike' ? 0.8 : 1);
+        this.w.legends?.onHit(f, { crit, heavy: !!this.atk.heavy, ender });
       }
     }
     return landed;
@@ -875,6 +878,7 @@ export class Player {
       this.w.burst(this.x + this.face * 10, this.y - 6, 3);
       this.w.floatText(this.x, this.body.top - 10, 'PARRY', '#fff1c4');
       this.powers?.onParry();
+      this.w.legends?.onParry();
       if (this.w.d.parryHeal) this.hp = Math.min(this.maxHp, this.hp + this.maxHp * this.w.d.parryHeal);
       // Psalms: the Furnace heals, the Hunt marks the attacker, the Refiner readies three critical blows.
       const ps = this.w.save;

@@ -173,6 +173,11 @@ Never ship files from `art/incoming/` directly.
   - Capes show on Elior in the Phaser build: `fighterRig.ts` dyes the cape when it bakes the sprite sheet.
   - Tirzah's gear (bows, quivers, daggers, hoods, garbs, amulets, charms) lives in the same `ITEMS` table with her own `ArcherSlot`s; Elior's `SLOTS` never take it. Her level, points, tree and gear are the optional `SaveData.archer`, used only by the Phaser build (`remnant-phaser/src/game/archer.ts`); `isWorn` covers both heroes.
   - Verified by `remnant-phaser/scripts/economy.mjs`.
+- **Legendary Powers:** `game/legendary.ts` holds thirteen powers carried one per gear piece (`ItemInst.legend`):
+  seven for Elior, five for Tirzah, Brimstone for either. Bosses always drop a legendary piece, elites often,
+  chests sometimes, foes rarely; the Horde's monarchs and every fifth Trial wave too. Breaking one down writes its
+  power into the Codex (`SaveData.codex`); Dov's Imprint tab puts a learned power on other gear. The effects are the
+  Phaser build's (`remnant-phaser/src/game/legends.ts`). Verified by `remnant-phaser/scripts/legends.mjs`.
 - **Trials of Valor and the daily challenge:** `game/valor.ts` holds the
   trophies (a boss trophy and a flawless title/cape per boss) and
   `game/daily.ts` one seeded ten-wave Trial run per day with its own board.

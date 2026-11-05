@@ -18,6 +18,7 @@ import { dayKey, daySeed } from './daily';
 import { ELIXIRS, drinkElixir, type ElixirId } from './elixirs';
 import { CAPES } from './valor';
 import { travelBlocked } from './travel';
+import { learnLegend } from './legendary';
 
 export interface StoreSave {
   /** The local day the purchases below belong to; a new day clears them. */
@@ -117,6 +118,7 @@ export function sellItem(s: SaveData, it: ItemInst): Sale | null {
   if (keepReason(s, it)) return null;
   const sale = { it, silver: sellPrice(it), mats: salvageOf(it) };
   s.silver += sale.silver;
+  learnLegend(s, it);
   for (const [k, n] of Object.entries(sale.mats)) addMaterial(s, k, n);
   removeItem(s, it);
   buyback.unshift(sale);
@@ -127,6 +129,7 @@ export function sellItem(s: SaveData, it: ItemInst): Sale | null {
 export function dismantleItem(s: SaveData, it: ItemInst): Record<string, number> | null {
   if (keepReason(s, it)) return null;
   const mats = salvageOf(it, true);
+  learnLegend(s, it);
   for (const [k, n] of Object.entries(mats)) addMaterial(s, k, n);
   removeItem(s, it);
   return mats;

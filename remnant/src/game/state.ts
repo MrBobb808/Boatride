@@ -9,6 +9,7 @@ import {
 } from './data';
 import { uid, randInt, rand } from '../core/math';
 import { runBlessings } from './blessings';
+import { rollLegend, gearHero } from './legendary';
 import { ASCENDANT_LOOT, lootScale, waveLootPower, sovereignDamage, softGrowth, trainingBonus } from './balance';
 import { masteryRank, migrateProgression, contractPrize, contractWins, type GearSetId, type ContractId, type ProgressionData } from './progression';
 import { migrateValor, type ValorSave } from './valor';
@@ -61,6 +62,8 @@ export interface SaveData extends ProgressionData, ValorSave, DailySave, ElixirS
   rally: number;
   /** Coaching cards seen on this journey: 1 shown or skipped, 2 tried (ui/coach.ts). */
   coached?: Record<string, number>;
+  /** Legendary Powers learned by breaking legendary gear down; Dov imprints them (game/legendary.ts). */
+  codex?: string[];
   /** Shadow Mantle gauge, 0–100 (from level 25). */
   mantle?: number;
   /** Hearts (sub-weapon ammunition) and the sub-weapon carried. */
@@ -390,6 +393,8 @@ export function grantWaveLoot(s: SaveData, wave: number, random = Math.random): 
     const a = affixes.splice(index, 1)[0];
     item.affixes.push({ key: a.key, v: Math.round(a.min + (a.max - a.min) * Math.min(1, Math.max(0, random()))) });
   }
+  // Every fifth wave (a boss wave) the piece carries a Legendary Power; now and then another does too.
+  if (wave % 5 === 0 || random() < 0.15) item.legend = rollLegend(s, gearHero(item.id), random);
   s.inventory.push(item);
   return item;
 }

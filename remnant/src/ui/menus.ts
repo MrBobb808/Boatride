@@ -41,6 +41,7 @@ import { progressionTab } from './progression';
 import { valorTab } from './valor';
 import { titleOf } from '../game/valor';
 import { GEAR_SETS } from '../game/progression';
+import { LEGENDS, legendOf, imprintCost, imprintable, imprint } from '../game/legendary';
 import { bestiaryPanes, bestiaryCount } from './bestiary';
 import { controllerBox, cancelPadCapture } from './controller';
 import { openTouchEditor } from './touchEditor';
@@ -374,7 +375,13 @@ function rarityStyle(r: number) {
 }
 
 function itemName(it: ItemInst) {
-  return ITEMS[it.id].name + (it.lootPower ? ` · Power ${it.lootPower}` : '') + (it.trialTier ? ` · Ascension ${it.trialTier}` : '') + (it.plus ? ` +${it.plus}` : '');
+  return ITEMS[it.id].name + (it.lootPower ? ` · Power ${it.lootPower}` : '') + (it.trialTier ? ` · Ascension ${it.trialTier}` : '') + (it.plus ? ` +${it.plus}` : '') + (it.legend && LEGENDS[it.legend] ? ` ✦ ${LEGENDS[it.legend].name}` : '');
+}
+
+/** A piece's Legendary Power, as the item cards show it. */
+export function legendLine(it: ItemInst) {
+  const l = legendOf(it);
+  return l ? h('p', { class: 'legend-line', style: `color:${l.color}`, 'data-k': 'legend_line' }, h('b', null, `✦ ${l.name}: `), l.desc) : null;
 }
 
 function modLines(m: Partial<Record<ModKey, number>>, cmp?: Partial<Record<ModKey, number>>) {
@@ -422,6 +429,7 @@ function equipmentTab() {
       h('hr', { class: 'rule' }),
       h('div', null, modLines(mods, !isEq && eq ? itemMods(eq) : undefined)),
       isEq ? null : ifEquipped(sel.uid),
+      legendLine(sel),
       h('p', { class: 'muted', style: 'margin:8px 0 0' }, base.desc),
       base.set ? h('div', { class: 'set-detail' },
         h('b', { style: `color:${GEAR_SETS[base.set].color}` }, `${GEAR_SETS[base.set].name} · ${G.d.sets[base.set]}/3 equipped`),
@@ -1217,7 +1225,7 @@ function renderAny() {
 let shopEl: HTMLElement | null = null;
 let shopBody: HTMLElement;
 let shopKind: 'merchant' | 'smith' = 'merchant';
-let shopTab: 'store' | 'sell' | 'temper' | 'dismantle' | 'forge' = 'store';
+let shopTab: 'store' | 'sell' | 'temper' | 'dismantle' | 'forge' | 'imprint' = 'store';
 
 export function openShop(kind: 'merchant' | 'smith') {
   if (shopEl) return;
@@ -1253,7 +1261,7 @@ function closeShop() {
 }
 
 function shopTabs(): [typeof shopTab, string][] {
-  return shopKind === 'merchant' ? [['store', 'Store'], ['sell', 'Sell']] : [['temper', 'Temper'], ['dismantle', 'Dismantle'], ['forge', 'Forge']];
+  return shopKind === 'merchant' ? [['store', 'Store'], ['sell', 'Sell']] : [['temper', 'Temper'], ['dismantle', 'Dismantle'], ['imprint', 'Imprint'], ['forge', 'Forge']];
 }
 
 function renderShop() {
@@ -1274,6 +1282,7 @@ function renderShop() {
   if (shopTab === 'store') content = storePane(true);
   else if (shopTab === 'sell') content = sellPane(false);
   else if (shopTab === 'dismantle') content = sellPane(true);
+  else if (shopTab === 'imprint') content = imprintPane();
   else if (shopTab === 'temper') {
     const gear = s.inventory.filter((i) => ITEMS[i.id].slot !== 'material' && ITEMS[i.id].slot !== 'key');
     gear.sort((a, b) => Number(isWorn(s, b.uid)) - Number(isWorn(s, a.uid)));
@@ -1376,10 +1385,12 @@ function sellPane(dismantle: boolean) {
     const key = (dismantle ? 'dis_' : 'sell_') + it.uid;
     if ((dismantle || needsConfirm(it)) && confirmKey !== key) { confirmKey = key; sfx('ui'); renderAny(); return; }
     confirmKey = null;
+    const learns = !!it.legend && !s.codex?.includes(it.legend);
     const got = dismantle ? dismantleItem(s, it) : sellItem(s, it)?.mats;
     if (!got) return;
     sfx(dismantle ? 'hitMetal' : 'pickup');
     G.ui.toast(Object.entries(got).map(([k, n]) => `${ITEMS[k].name} ×${n}`).join(' · '), 'loot');
+    if (learns) { sfx('loot'); G.ui.toast(`✦ ${LEGENDS[it.legend!].name} is written in the Codex · Dov can imprint it (Dov → Imprint)`, 'good'); }
     renderAny();
   };
   const rows = gear.map((it) => {
@@ -1388,7 +1399,8 @@ function sellPane(dismantle: boolean) {
       h('div', null,
         h('div', { class: 'nm', style: rarityStyle(it.rarity) }, itemName(it)),
         h('div', { class: 'sub' }, `${RARITY_NAMES[it.rarity]} ${SLOT_NAMES[ITEMS[it.id].slot as Slot]}` + (reason ? ` · ${reason}` : '')),
-        reason ? null : h('div', { style: 'font-size:0.85em' }, dismantle ? null : h('span', { class: 'price' }, `${sellPrice(it)} silver`), matsView(salvageOf(it, dismantle)))),
+        reason ? null : h('div', { style: 'font-size:0.85em' }, dismantle ? null : h('span', { class: 'price' }, `${sellPrice(it)} silver`), matsView(salvageOf(it, dismantle))),
+        !reason && it.legend && LEGENDS[it.legend] ? h('div', { class: s.codex?.includes(it.legend) ? 'muted' : 'up', style: 'font-size:0.82em' }, s.codex?.includes(it.legend) ? `✦ ${LEGENDS[it.legend].name} is already in your Codex` : `✦ Teaches ${LEGENDS[it.legend].name} to your Codex`) : null),
       h('div', { style: 'display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end' },
         ITEMS[it.id].unique || isWorn(s, it.uid) ? null : lockButton(it),
         reason ? null : btn(arm ? (dismantle ? 'Break it down' : 'Confirm sale') : dismantle ? 'Dismantle' : 'Sell', () => act(it), 'btn small' + (arm ? ' primary' : ''), { 'data-k': key })));
@@ -1408,6 +1420,36 @@ function sellPane(dismantle: boolean) {
     }, 'btn small', { 'data-k': 'sell_junk', style: 'margin:6px 0', title: 'Common and Uncommon gear, untempered and unlocked, where you already wear something at least as rare.' }) : null,
     rows.length ? h('div', { class: 'list' }, rows) : h('div', { class: 'muted' }, 'Nothing to part with. Equipped gear and keepsakes stay with you.'),
     ...backs);
+}
+
+/** Dov's Imprint: a power learned in the Codex goes onto another piece (it replaces any power the piece had). */
+let imprintSel: string | null = null;
+function imprintPane() {
+  const s = G.save, codex = (s.codex ?? []).filter((k) => LEGENDS[k]);
+  const head = h('div', { class: 'muted', style: 'font-size:0.88em' }, 'Break a legendary piece down (sell it, or dismantle it here) and its power is written in your Codex for good. Dov can then imprint it onto any piece of the right hero\'s gear, for silver and Relic Shards. One power per piece; a new one replaces the old.');
+  if (!codex.length) return h('div', { class: 'col', style: 'flex:1' }, head, h('div', { class: 'box muted', 'data-k': 'codex_empty' }, 'Your Codex is empty. Bosses always drop a legendary piece; elites often do.'));
+  if (!imprintSel || !codex.includes(imprintSel)) imprintSel = codex[0];
+  const sel = imprintSel, l = LEGENDS[sel];
+  const powers = h('div', { class: 'modes', style: 'margin:6px 0;flex-wrap:wrap' }, codex.map((k) => btn(`✦ ${LEGENDS[k].name}`, () => { imprintSel = k; confirmKey = null; renderAny(); }, 'btn small' + (k === sel ? ' primary' : ''), { 'data-k': 'codex_' + k, style: `color:${k === sel ? '' : LEGENDS[k].color}` })));
+  const who = l.hero === 'both' ? 'Elior\'s or Tirzah\'s gear' : l.hero === 'tirzah' ? 'Tirzah\'s gear' : 'Elior\'s gear';
+  const pieces = imprintable(s, sel).sort((a, b) => Number(isWorn(s, b.uid)) - Number(isWorn(s, a.uid)) || b.rarity - a.rarity);
+  const rows = pieces.map((it) => {
+    const c = imprintCost(it), key = 'imp_' + it.uid, arm = confirmKey === key;
+    const ok = s.silver >= c.silver && (s.materials[SHARD] ?? 0) >= c.shards;
+    return h('div', { class: 'row-item', style: 'cursor:default' }, itemIcon(it),
+      h('div', null, h('div', { class: 'nm', style: rarityStyle(it.rarity) }, itemName(it) + (isWorn(s, it.uid) ? ' · equipped' : '')),
+        it.legend && LEGENDS[it.legend] ? h('div', { class: 'sub' }, `Replaces ✦ ${LEGENDS[it.legend].name}`) : null,
+        costView({ silver: c.silver, [SHARD]: c.shards })),
+      btn(arm ? 'Imprint it' : 'Imprint', () => {
+        if (!arm) { confirmKey = key; sfx('ui'); renderAny(); return; }
+        confirmKey = null;
+        if (imprint(s, it, sel, SHARD)) { sfx('hitMetal'); sfx('loot'); G.ui.toast(`✦ ${l.name} is imprinted on ${ITEMS[it.id].name}`, 'good'); G.d = derive(s); }
+        renderAny();
+      }, 'btn small' + (arm ? ' primary' : ''), { disabled: !ok, 'data-k': key }));
+  });
+  return h('div', { class: 'col', style: 'flex:1' }, head, powers,
+    h('div', { class: 'box', style: `border-color:${l.color}` }, h('b', { style: `color:${l.color}` }, `✦ ${l.name}`), h('p', { style: 'margin:4px 0 0' }, l.desc), h('div', { class: 'muted', style: 'font-size:0.85em' }, `Goes on ${who}.`)),
+    rows.length ? h('div', { class: 'list' }, rows) : h('div', { class: 'muted' }, `No piece of ${who} to take it.`));
 }
 
 /** The pause menu's Store: buy and sell anywhere outside a fight. */
