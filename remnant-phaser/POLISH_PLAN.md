@@ -558,6 +558,34 @@ hits and 15–21 of their blows to fell Elior from VII to XII; every boss fells 
   arrival level is 68.
 - **Hit-stop with weight:** light 22 ms, finisher 40, heavy 60, crit 75, parry 100 (`player.ts`).
 
+## 16. The Unshorn: Elior's third transformation (owner's request, 5 November 2026)
+The owner asked for a third transformation for Elior, introduced in Chapter XII, for a fight hard enough to need it:
+long hair, bare-handed punches in a centre-line, Wing Chun-like style (no blasts, no slashes) where every punch lands
+with weight, a tail, and a cinematic unlock in the boss fight. The project's rule that Elior stays human holds: the
+mane is his own hair grown again, and the tail is living fire from his sash, the power showing, not a beast's limb.
+Its root is Samson, whose strength was in his unshorn hair and who fought with his bare hands (Judges 14:6, 16:17,
+16:22, 16:28).
+
+- **The awakening** (`src/game/awakening.ts`): the first time Elior fights the King of the North, when the fight
+  turns (the king's second movement, or half of Elior's health gone) the Shadow Mantle is offered (its gauge filled,
+  and it rises on its own if he waits). He takes it up; the king presses without rest and holds his last movement
+  back, and Elior cannot fall (`Player.deathless`). On the edge of falling everything stops: the camera comes to him,
+  he prays ("O Lord GOD, remember me, I pray thee, and strengthen me, I pray thee, only this once." Judges 16:28,
+  KJV), "the hair of his head began to grow again" (16:22), and he rises as the Unshorn for 32 seconds at
+  three-quarters health. Journeys that beat the king before the form existed receive it on load.
+- **Ascending afterwards** (`classic/hero.ts` `ascend`): in the Shadow Mantle, Transform again. The Mantle burns
+  off, a pillar of fire throws back everything near, and the form lasts 14 seconds plus half the Mantle's time
+  that was left.
+- **The fists** (`FISTS` and `fistClips` in `remnant/src/game/weapons.ts`): a centre-line guard, straight punches
+  hand over hand and a third that drives the body behind it, a double-palm launcher, a ten-punch chain, a short
+  guard-breaking strike, an uppercut, hammer fist and diving fist. No blade arcs are drawn.
+- **Every punch lands** (`Player.punchImpact`): a hold of 55–110 ms, a shock ring where the fist meets, the air
+  driven out behind the foe, dust off its feet, a low thud; the heavy blows shake the frame and boom.
+- **The form:** a third harder than the Mantle's tier (×2.2 at level 68 against ×1.7), faster on foot and in hand,
+  blows taken at 45%, no stagger. The look (`fighterRig.ts`): crimson and gold, seven long locks of fire and a
+  crown of flame, a tail of fire, bare fists wrapped in gold.
+- Verified by `scripts/unshorn.mjs`.
+
 ## 10. Questions for the owner
 
 Answered: the archer stays **Tirzah**, and Wings of the Morning **shares** the Mantle's gauge.

@@ -588,3 +588,7 @@ POLISH_PLAN §14a. The table, drops and Codex rules are shared (`remnant/src/gam
 - **Codex:** `sellItem` and `dismantleItem` call `learnLegend`; Dov's Imprint tab is `imprintPane` in the shared menus.
 
 Verified by `scripts/legends.mjs`: a boss's drop and its moment, the elite and foe rates, each of Elior's eight and Tirzah's six powers firing from its hook and wounding foes, his powers asleep while she fights, dismantling into the Codex, Dov's imprint for silver and shards, and the save keeping both.
+
+## The Unshorn
+
+POLISH_PLAN §16. Elior's third transformation, Phaser build only. `Player.formT`/`formMax` hold it; `Player.moves` returns `FISTS` (shared `weapons.ts`) while it lasts, and the atlas bakes a `fists` family (`actionArt.ts` `ArtFamily`) with `FighterRig`'s `unshorn` look (recoloured parts, `mane`, `tail`, `fist`). `HeroPowers.tryTransform` ascends from the Shadow Mantle once `flags.unshorn` is set; `HeroPowers.ascend(seconds)` is the burst; `multiplier` is the Mantle tier's ×1.3. `Player.punchImpact` is every blow's weight, and the slash arc is hidden in the form. `game/awakening.ts` stages the unlock in the King of the North's fight (`Player.deathless` keeps him on 1 health through the beating) and grants it to journeys that already beat the king. Verified by `scripts/unshorn.mjs`.

@@ -295,6 +295,10 @@ Never ship files from `art/incoming/` directly.
 - **Psalms (Phaser build):** `remnant-phaser/src/game/psalms.ts`: one per boss,
   worn in 3–7 slots (Psalter Pages), changing combat, movement and the
   Echoes; `PhaserSave.psalms`. See PORTING.md.
+- **The Unshorn (Phaser build):** Elior's third transformation, after Samson (Judges 16:22, 16:28): a long mane and
+  a tail of living fire (he stays human), bare-handed centre-line punches where every blow lands with weight
+  (`FISTS` in `game/weapons.ts`; `Player.punchImpact`). It awakens in the King of the North's fight
+  (`remnant-phaser/src/game/awakening.ts`); afterwards Transform in the Shadow Mantle ascends. See POLISH_PLAN §16.
 - **The Horde (Phaser build):** a top-down survival mode in endless stages
   (`remnant-phaser/src/scenes/Horde.ts`, `src/game/horde/`): auto-weapons, a
   1-of-3 upgrade per level, a Fallen Crown monarch per stage, Elior, Tirzah and

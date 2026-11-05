@@ -55,11 +55,12 @@ export class FighterRig {
   private parts: HTMLCanvasElement[];
   private offset: number;
   private weapon: HumanStyle;
-  constructor(sc: Phaser.Scene, readonly hero: PlayableHero, family: WeaponFamily, readonly mantle: boolean, cape: string | null = null) {
+  /** `unshorn`: the third transformation's look (crimson and gold, a long mane, a tail of fire, bare fists). */
+  constructor(sc: Phaser.Scene, readonly hero: PlayableHero, family: WeaponFamily, readonly mantle: boolean, cape: string | null = null, readonly unshorn = false) {
     this.offset = hero === 'tirzah' ? 10 : 0;
     this.weapon = {...WEAPON,weapon:family,weaponColor:mantle?'#d5a1ff':'#e3dfdb',weaponGlow:mantle?'#b45cff':null,weaponGlowAmt:mantle?0.65:0};
     const look=cape&&!mantle?CAPES[cape]:null;
-    const key=`fighter-parts-${hero}${mantle?'-mantle':''}${look?'-cape-'+cape:''}`;
+    const key=`fighter-parts-${hero}${unshorn?'-unshorn':mantle?'-mantle':''}${look?'-cape-'+cape:''}`;
     // The source crops are small and shared across every weapon/clip bake.
     const cached=sc.registry.get(key) as HTMLCanvasElement[] | undefined;
     if(cached){this.parts=cached;return;}
@@ -67,7 +68,18 @@ export class FighterRig {
     this.parts=PARTS.slice(this.offset,this.offset+10).map((part,i)=>{
       const [x,y,w,h]=part,c=document.createElement('canvas');c.width=w;c.height=h;
       const g=c.getContext('2d')!;g.drawImage(source,x,y,w,h,0,0,w,h);
-      if(mantle&&i!==0&&i!==4&&i!==9){
+      if(unshorn&&i!==4&&i!==9){
+        // Cloth and leather turn deep crimson, the gold fittings brighten, and the hair on the head part turns to fire.
+        const image=g.getImageData(0,0,w,h),d=image.data;
+        for(let n=0;n<d.length;n+=4)if(d[n+3]){
+          const r=d[n],gr=d[n+1],b=d[n+2],l=r*.22+gr*.58+b*.2;
+          if(r>gr*1.12&&gr>b*1.25&&gr>65){d[n]=Math.min(255,r*1.15+20);d[n+1]=Math.min(255,gr*1.1+16);continue;}
+          if(i===0&&!(r>gr*1.05&&r>b*1.2&&l>80)){d[n]=Math.min(255,l*1.6+70);d[n+1]=Math.min(255,l*.7+20);d[n+2]=l*.25;continue;}
+          if(i===0)continue;
+          d[n]=Math.min(255,l*1.5+28);d[n+1]=l*.32;d[n+2]=l*.28;
+        }
+        g.putImageData(image,0,0);
+      }else if(mantle&&i!==0&&i!==4&&i!==9){
         const image=g.getImageData(0,0,w,h),d=image.data;
         for(let n=0;n<d.length;n+=4)if(d[n+3]){
           const r=d[n],gr=d[n+1],b=d[n+2];
@@ -103,6 +115,7 @@ export class FighterRig {
     const running=clip==='run'||clip==='swim',flow=running?3:0;
     const flutter=Math.sin(time*7)*.7;
     // Cloth lags the torso and gait, rather than rotating rigidly with a limb.
+    if(this.unshorn)this.tail(c,j,time,running);
     this.bone(c,7,j.neckX-2,j.neckY+1,j.neckX-12-flow,j.neckY+18-flow+flutter,archer?23:25);
     if(archer)this.bone(c,8,j.headX-3,j.headY-3,j.headX-8-flow,j.headY+12-flow+flutter,4.4);
     this.limb(c,j,false,.84);
@@ -114,6 +127,7 @@ export class FighterRig {
     if(!archer)this.bone(c,8,j.neckX,j.neckY,j.neckX-1,j.neckY+4,11);
     this.bone(c,0,j.neckX,j.neckY,j.neckX+Math.sin(j.headA)*12.8,j.neckY-Math.cos(j.headA)*12.8,archer?11:10.8);
     if(this.mantle){c.fillStyle=archer?'#fff6dc':'#edc7ff';c.fillRect(j.headX+2.8,j.headY-1.8,1.6,.65);}
+    if(this.unshorn){c.fillStyle='#ffe08a';c.fillRect(j.headX+2.8,j.headY-1.8,1.6,.65);this.mane(c,j,time,clip);}
     const dagger=archer&&clip.startsWith('dagger');
     if(armed&&dagger){
       // The bow rides slung across her back while the dagger works.
@@ -135,8 +149,47 @@ export class FighterRig {
     }
     this.bone(c,3,j.shFX,j.shFY,j.elFX,j.elFY,5.7);
     this.bone(c,4,j.elFX,j.elFY,j.haFX,j.haFY,4.6);
+    if(this.unshorn){this.fist(c,j.haBX,j.haBY,.8);this.fist(c,j.haFX,j.haFY,1);}
     // Drawing hand belongs in front of the string, including at full charge.
     if(bowAction){this.bone(c,3,j.shBX,j.shBY,j.elBX,j.elBY,5.3);this.bone(c,4,j.elBX,j.elBY,j.haBX,j.haBY,4.3);}
+    c.restore();
+  }
+  /** The Unshorn's mane: long locks of crimson fire from the crown of the head, streaming back past the shoulders. */
+  private mane(c:CanvasRenderingContext2D,j:Joints,time:number,clip:string){
+    const hx=j.headX-1,hy=j.headY-3,run=clip==='run'||clip==='airdash'||clip==='roll'?1:0;
+    c.save();c.lineCap='round';
+    for(let i=0;i<7;i++){
+      // Seven locks (Judges 16:13), each its own length and wave.
+      const len=15+i*1.6+(i%2)*3,lift=(i-3)*1.3,ph=time*5+i*.9;
+      const ex=hx-len*(.75+run*.2),ey=hy+len*(.45-run*.25)+lift+Math.sin(ph)*1.6;
+      const mx=hx-len*.4,my=hy-2+lift*.5+Math.sin(ph+1)*2.2;
+      c.strokeStyle='#5a0c08';c.lineWidth=3.6-i*.25;c.beginPath();c.moveTo(hx,hy+i*.5);c.quadraticCurveTo(mx,my,ex,ey);c.stroke();
+      c.strokeStyle=i%2?'#ff5a2a':'#e8361c';c.lineWidth=2.4-i*.18;c.beginPath();c.moveTo(hx,hy+i*.5);c.quadraticCurveTo(mx,my,ex,ey);c.stroke();
+      c.strokeStyle='#ffd27a';c.lineWidth=.7;c.beginPath();c.moveTo(hx,hy+i*.5);c.quadraticCurveTo(mx,my-.6,ex+1,ey-.6);c.stroke();
+    }
+    // A crown of fire standing up from the brow.
+    c.fillStyle='#ff6a2a';c.beginPath();c.moveTo(hx+5,hy-1);c.lineTo(hx+2,hy-7);c.lineTo(hx,hy-2);c.lineTo(hx-3,hy-8);c.lineTo(hx-4,hy-1);c.closePath();c.fill();
+    c.fillStyle='#ffd27a';c.beginPath();c.moveTo(hx+3,hy-1.5);c.lineTo(hx+1.5,hy-5);c.lineTo(hx,hy-2);c.closePath();c.fill();
+    c.restore();
+  }
+  /** A tail of living fire from the sash: the power showing, not a beast's limb. */
+  private tail(c:CanvasRenderingContext2D,j:Joints,time:number,running:boolean){
+    const x0=j.hipX-3,y0=j.hipY-1,sway=Math.sin(time*3.2)*3,lag=running?5:0;
+    const x1=x0-10-lag,y1=y0+6+sway*.5,x2=x0-17-lag,y2=y0-6+sway,x3=x0-12-lag*.6,y3=y0-15+sway*1.4;
+    c.save();c.lineCap='round';
+    for(const [w,col] of [[4.2,'#5a0c08'],[3,'#e8361c'],[1.6,'#ffb347'],[.6,'#fff1c4']] as const){
+      c.strokeStyle=col;c.lineWidth=w;c.beginPath();c.moveTo(x0,y0);c.bezierCurveTo(x1,y1,x2,y2,x3,y3);c.stroke();
+    }
+    // The tip flickers like a flame.
+    c.fillStyle='#ffd27a';c.beginPath();c.arc(x3,y3,1.6+Math.abs(Math.sin(time*9))*.6,0,Math.PI*2);c.fill();
+    c.restore();
+  }
+  /** A bare fist, wrapped in gold, glowing a little at the knuckles. */
+  private fist(c:CanvasRenderingContext2D,x:number,y:number,alpha:number){
+    c.save();c.globalAlpha*=alpha;
+    c.fillStyle='#09080d';c.beginPath();c.arc(x,y,2.6,0,Math.PI*2);c.fill();
+    c.fillStyle='#c98a5a';c.beginPath();c.arc(x,y,1.9,0,Math.PI*2);c.fill();
+    c.strokeStyle='#ffd27a';c.lineWidth=.7;c.beginPath();c.arc(x,y,2.1,-1.2,1.2);c.stroke();
     c.restore();
   }
   private limb(c:CanvasRenderingContext2D,j:Joints,front:boolean,alpha:number){

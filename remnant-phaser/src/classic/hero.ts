@@ -58,7 +58,10 @@ export class HeroPowers {
     this.ghostSprites = Array.from({ length: 16 }, () => L.host.sc.add.sprite(0, 0, 'elior', 0).setOrigin(0.5, 120 / 128).setScale(56 / 128).setDepth(8).setVisible(false));
   }
   private get actor() { return this.L.playerView as unknown as OriginalPlayer; }
-  get multiplier() { return this.p.mantleT > 0 ? [1, 1.5, 1.7, 1.9, 2.2][mantleTier()] : 1; }
+  /** The Mantle's tier multiplier; the Unshorn hits a third harder again. */
+  get multiplier() { const t = [1, 1.5, 1.7, 1.9, 2.2][mantleTier()]; return this.p.formT > 0 ? Math.max(1.5, t) * 1.3 : this.p.mantleT > 0 ? t : 1; }
+  /** True while the transformation under way is the ascent into the Unshorn. */
+  ascending = false;
   get frame() {
     if (!this.clip) return null;
     return /Leap|launch/.test(this.clip) ? 8 : /invoke|cast|charge/.test(this.clip) ? 15 : /dash/.test(this.clip) ? 12 : 11;
@@ -84,6 +87,15 @@ export class HeroPowers {
       }
       if (!p.mantleT) { sfx('mantleEnd'); if (p.hero === 'tirzah') fx.holyBurst(p.x, p.y - 20, 16, 1); else fx.veilBurst(p.x, p.y, 18, 1); }
     }
+    if (p.formT > 0 && p.state !== 'transform' && !G.inCutscene) {
+      p.formT = Math.max(0, p.formT - dt);
+      this.shadeT -= dt;
+      if (this.shadeT <= 0 && settings.quality !== 'low' && !settings.reduceFlashes && (Math.abs(p.body.velocity.x) > 20 || p.state === 'attack')) {
+        this.shadeT = 0.05; this.ghosts.push({ x: p.x, y: p.feet, face: p.face, a: 0.55 });
+      }
+      if (Math.random() < dt * 20) fx.spawn(PK.Ember, p.x + (Math.random() - 0.5) * 20, p.feet - Math.random() * 40, (Math.random() - 0.5) * 20, -40 - Math.random() * 50, 0.6, 1.8, 0.3, Math.random() < 0.5 ? '#ff5a2a' : '#ffd27a', -30, 1);
+      if (!p.formT) { sfx('mantleEnd'); fx.embers(p.x, p.y - 20, 24, '#ff7a3a', 20); w.toast('The Unshorn fades. Fill the gauge, take up the Mantle, and ascend again.'); }
+    }
     for (let i = this.ghosts.length - 1; i >= 0; i--) { this.ghosts[i].a -= dt * 1.8; if (this.ghosts[i].a <= 0 || settings.quality === 'low' || settings.reduceFlashes || p.dead) this.ghosts.splice(i, 1); }
     if (this.ghosts.length > 16) this.ghosts.splice(0, this.ghosts.length - 16);
     if (p.dead) { this.fin = null; this.superT = -1; this.render(); return false; }
@@ -94,7 +106,8 @@ export class HeroPowers {
     }
     if (p.state === 'transform') {
       this.transformT += dt; p.body.setGravityY(0).setVelocity(0, this.transformT < 0.72 ? -12 : 0);
-      if (this.transformT >= 0.72 && !this.transformed) {
+      if (this.transformT >= 0.72 && !this.transformed && this.ascending) { this.transformed = true; this.ascend(14 + p.mantleT * 0.5); }
+      else if (this.transformT >= 0.72 && !this.transformed) {
         this.transformed = true; p.mantleT = this.mantleMax = mantleDuration() + (p.hero === 'tirzah' ? trank(this.L.host.save, 't_wings') * 1.5 : 0);
         // Tirzah takes the Wings of the Morning from the same gauge: dawn light instead of shadow.
         const dawn = p.hero === 'tirzah';
@@ -108,7 +121,7 @@ export class HeroPowers {
           if (!s.flags.wings_seen) { s.flags.wings_seen = true; w.toast('"If I take the wings of the morning, and dwell in the uttermost parts of the sea;" — Psalm 139:9 (KJV)'); }
         }
       }
-      if (this.transformT >= 1.15) { this.clip = ''; p.releaseState(); }
+      if (this.transformT >= 1.15) { this.clip = ''; this.ascending = false; p.releaseState(); }
       this.render(); return true;
     }
     if (this.superT >= 0) {
@@ -136,10 +149,28 @@ export class HeroPowers {
     }
     this.render(); return false;
   }
+  /** Into the Unshorn (POLISH_PLAN §16): the hair of his head grows again, the Mantle burns off, the fists remain. */
+  ascend(seconds: number) {
+    const p = this.p, w = this.L.host;
+    p.formT = p.formMax = seconds;
+    p.mantleT = 0;
+    fx.flash('#ffb347', 0.45);
+    fx.column(p.x, p.feet, 60, 480, '#ff5a2a', 1.2);
+    fx.column(p.x, p.feet, 26, 520, '#fff1c4', 0.9);
+    fx.ring(p.x, p.y, 8, 190, '#ffd27a', 0.8, 6);
+    fx.ring(p.x, p.feet - 2, 10, 170, '#ff5a2a', 0.9, 4, 0.3);
+    fx.embers(p.x, p.y - 20, 60, '#ff7a3a', 50);
+    this.L.hitEnemies({ x: p.x - 160, y: p.feet - 110, w: 320, h: 130 }, { dmg: w.d.atk * 3 * this.multiplier, poise: 140, kx: p.face * 420, ky: -280, dir: p.face, kind: 'ability', src: this.actor, guardBreak: true }, new Set());
+    sfx('transform'); sfx('bossSlam', { vol: 0.7 }); w.shake(0.016, 500); this.L.slowmo(0.5, 0.35);
+    w.banner('THE UNSHORN', `${Math.round(p.formT)} seconds · bare hands: every blow lands with its full weight`);
+  }
   tryTransform() {
     const s = this.L.host.save;
+    // In the Shadow Mantle, Transform again ascends into the Unshorn once it has been awakened.
+    if (this.p.mantleT > 0 && this.p.hero === 'elior' && s.flags.unshorn) { this.ascending = true; this.transformT = 0; this.transformed = false; this.clip = 'charge'; this.p.state = 'transform'; sfx('transform'); return true; }
     const form = this.p.hero === 'tirzah' ? 'Wings of the Morning' : 'Shadow Mantle';
     if (heroLevel(s) < 25) { this.L.host.toast(`${form} awakens at level 25.`); return false; }
+    if (this.p.formT > 0) return false;
     if (this.p.mantleT > 0 || (s.mantle ?? 0) < 100) { this.L.host.toast(`Fill the transformation gauge through battle (${form}).`); return false; }
     s.mantle = 0; this.transformT = 0; this.transformed = false; this.clip = 'charge'; this.p.state = 'transform'; sfx(this.p.hero === 'tirzah' ? 'wingsForm' : 'transform'); return true;
   }
@@ -195,13 +226,13 @@ export class HeroPowers {
   }
   private render() {
     const p = this.p, g = this.g.clear(), tier = powerTier(), el = weaponElement();
-    const color = p.mantleT > 0 ? (p.hero === 'tirzah' ? 0xffe6a8 : 0xb45cff) : el ? ELEMENT_COLORS[el] : 0xffd27a;
+    const color = p.formT > 0 ? 0xff6a2a : p.mantleT > 0 ? (p.hero === 'tirzah' ? 0xffe6a8 : 0xb45cff) : el ? ELEMENT_COLORS[el] : 0xffd27a;
     void g;
-    const shown = (tier >= 2 || p.mantleT > 0 || p.state === 'transform') && !p.dead && p.sprite.visible;
+    const shown = (tier >= 2 || p.mantleT > 0 || p.formT > 0 || p.state === 'transform') && !p.dead && p.sprite.visible;
     this.aura.setVisible(shown);
     if (shown) {
       // Stronger tiers glow a little wider and brighter; the Mantle's own light comes from Visuals.
-      const a = (p.mantleT > 0 ? 0.1 : 0.05 + tier * 0.012) * (settings.reduceFlashes ? 0.6 : 1 + Math.sin(G.time * 2.2) * 0.12);
+      const a = (p.formT > 0 ? 0.16 : p.mantleT > 0 ? 0.1 : 0.05 + tier * 0.012) * (settings.reduceFlashes ? 0.6 : 1 + Math.sin(G.time * 2.2) * 0.12);
       this.aura.setTint(color).setPosition(p.x, p.feet - 20).setDisplaySize(40 + tier * 5, 58 + tier * 4).setAlpha(a);
     }
     for (let i = 0; i < this.ghostSprites.length; i++) {

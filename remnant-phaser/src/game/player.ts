@@ -14,7 +14,8 @@ import { ACTION_RATE } from './pace';
 import { settings } from '../classic/shim/settings';
 import { T, TILE, isSolid } from '../shared';
 import { sovereignDamage } from '../../../remnant/src/game/balance';
-import { MOVESETS, extraFor, type AttackDef } from '../../../remnant/src/game/weapons';
+import { MOVESETS, FISTS, extraFor, type AttackDef } from '../../../remnant/src/game/weapons';
+import { fx } from '../../../remnant/src/render/fx';
 import { skillRank } from '../../../remnant/src/game/state';
 import { SKILLS, skillSlots, castSkill, isArcherSkill, archerUnlocked, ARCHER, type AnySkillId } from './abilities';
 import type { WorldApi, Blow, FoeLike } from './types';
@@ -73,6 +74,11 @@ export class Player {
   face = 1;
   powers?: HeroPowers;
   mantleT = 0;
+  /** The Unshorn, the third transformation (classic/hero.ts ascend): seconds left, and its length. */
+  formT = 0;
+  formMax = 0;
+  /** Set by a scripted beat-down: blows still land, but cannot take the last of his health. */
+  deathless = false;
   scriptX: number | null = null;
   scriptSpeed = 70;
   water = makeSwim();
@@ -206,7 +212,7 @@ export class Player {
   get onGround() { return this.body.blocked.down || this.body.touching.down; }
   get vulnerable() { return !(this.water.swimming && this.water.dashT > 0.06 && this.water.dashT < 0.28) && this.invuln <= 0 && this.untouchable <= 0 && !['dead', 'phantom', 'execute', 'transform'].includes(this.state) && !(this.state === 'attack' && ['pstrike', 'cross'].includes(this.atk.id) && this.st < 0.12) && !(this.state === 'dodge' && this.st < DODGE_T - 0.04) && !(this.state === 'airdash' && this.st < 0.15); }
   get ce() { return this.w.save.ce; }
-  get moves() { return MOVESETS[this.w.d.family]; }
+  get moves() { return this.formT > 0 ? FISTS : MOVESETS[this.w.d.family]; }
   /** A blow's base: the original's attack from stats and gear, its melee multiplier and the level's power tier. */
   power() { const d = this.w.d; return d.atk * d.meleeMult * sovereignDamage(heroLevel(this.w.save)) * (this.lion > 0 ? 1.35 : 1) * (this.powers?.multiplier ?? 1); }
   /** A Covenant skill's base: attack times the original's ability power. */
@@ -326,7 +332,7 @@ export class Player {
       case 'free': {
         const ax = c.axis;
         const accel = this.onGround ? 1400 : 900;
-        b.setVelocityX(Phaser.Math.Linear(b.velocity.x, ax * RUN * this.w.d.speed * (this.mantleT > 0 ? 1.25 : 1), Math.min(1, (accel * dt) / RUN)));
+        b.setVelocityX(Phaser.Math.Linear(b.velocity.x, ax * RUN * this.w.d.speed * (this.formT > 0 ? 1.3 : this.mantleT > 0 ? 1.25 : 1), Math.min(1, (accel * dt) / RUN)));
         if (Math.abs(ax) > 0.2) this.face = Math.sign(ax);
         if (this.jumpBuf > 0 && c.down('down') && this.onGround && this.standingOnOneWay()) {
           this.dropT = 0.25;
@@ -489,7 +495,7 @@ export class Player {
   }
 
   private startMove(a: AttackDef) {
-    const speed = this.w.d.aspd * this.moves.speed * (this.lion > 0 ? 1.1 : 1) * (this.mantleT > 0 ? 1.2 : 1);
+    const speed = this.w.d.aspd * this.moves.speed * (this.lion > 0 ? 1.1 : 1) * (this.formT > 0 ? 1.25 : this.mantleT > 0 ? 1.2 : 1);
     this.atk = swing(a, speed);
     this.atkMult = 1;
     this.combo = this.moves.combo.findIndex((v) => v.id === a.id);
@@ -851,9 +857,26 @@ export class Player {
         const id = this.atk.id, ender = this.atk.finisher || this.combo === 2 || id === 'storm' || id === 'comet';
         if (id === 'cross' || (id === 'pstrike' && this.phantomN >= 3) || (ender && !f.alive)) this.w.finale(f.x, f.box.centerY, id === 'cross' ? 1.4 : id === 'pstrike' ? 0.8 : 1);
         this.w.legends?.onHit(f, { crit, heavy: !!this.atk.heavy, ender });
+        if (this.formT > 0) this.punchImpact(f, crit, ender || !!this.atk.heavy);
       }
     }
     return landed;
+  }
+
+  /**
+   * Every one of the Unshorn's blows lands with its weight: a longer hold, a shock ring where the fist meets, the air
+   * driven out behind the foe, dust off its feet and a low thud; the heavier blows shake the frame and boom.
+   */
+  private punchImpact(f: FoeLike, crit: boolean, big: boolean) {
+    const x = this.face > 0 ? f.box.left + 2 : f.box.right - 2, y = f.box.centerY - 4, d = this.face;
+    this.w.hitstop(big ? 0.11 : crit ? 0.08 : 0.055);
+    this.w.burst(x, y, big ? 2 : crit ? 1 : 0);
+    fx.ring(x, y, 3, big ? 70 : 34, big ? '#ffd27a' : '#fff1c4', big ? 0.3 : 0.18, 3);
+    fx.streak(x, y, x + d * (big ? 90 : 46), y, '#ffe6a8', big ? 0.22 : 0.14, big ? 4 : 2);
+    fx.dust(f.x, f.box.bottom, big ? 10 : 4, big ? 2 : 1);
+    this.w.flashLight?.(x, y, big ? 130 : 70, '#ffb347', big ? 0.25 : 0.12);
+    this.w.playEffect('hitHeavy', { x, pitch: big ? 0.6 : 0.78 + Math.random() * 0.1, vol: big ? 1 : 0.85 });
+    if (big) { this.w.playEffect('bossSlam', { x, vol: 0.45, pitch: 1.3 }); this.w.shake(0.01, 140); input.rumble(0.9, 0.7, 120); }
   }
 
   /**
@@ -895,12 +918,12 @@ export class Player {
     }
     // The original's armour: damage reduction from Endurance and gear (half of it against hazards).
     const dr = this.w.d.dr * (h.hazard ? 0.5 : 1);
-    const protection = h.hazard ? 1 : (this.armorLight > 0 ? 0.6 : 1) * (this.mantleT > 0 ? 0.5 : 1) * (this.powers?.guardAura ?? 1);
+    const protection = h.hazard ? 1 : (this.armorLight > 0 ? 0.6 : 1) * (this.formT > 0 ? 0.45 : this.mantleT > 0 ? 0.5 : 1) * (this.powers?.guardAura ?? 1);
     const dmgBeforeGuard = h.dmg * runBlessings.incoming * (1 - dr) * protection;
     let dmg = dmgBeforeGuard;
     if (!h.hazard && !h.unblockable && (this.state === 'block' || this.state === 'parry') && facing) {
       dmg = Math.max(1, Math.round(dmg * (this.combatStyle === 'sentinel' ? 0.2 : 0.25)));
-      this.hp = Math.max(0, this.hp - dmg); this.sinceHurt = 0; if (this.hp <= 0) this.die();
+      this.hp = Math.max(this.deathless ? 1 : 0, this.hp - dmg); this.sinceHurt = 0; if (this.hp <= 0) this.die();
       this.w.floatText(this.x, this.body.top - 6, String(dmg), '#e8c8a0');
       this.w.spark(this.x + this.face * 8, this.y - 4, 0xffe6a8, 6);
       this.body.setVelocityX(-this.face * 80);
@@ -911,7 +934,7 @@ export class Player {
     this.styleMeter.hurt();
     this.bow.cancel();
     this.w.playEffect('hurt');
-    this.hp = Math.max(0, this.hp - dmg);
+    this.hp = Math.max(this.deathless ? 1 : 0, this.hp - dmg);
     this.sinceHurt = 0;
     this.w.floatText(this.x, this.body.top - 6, String(dmg), '#ff6a6a');
     this.invuln = 0.9;
@@ -924,7 +947,7 @@ export class Player {
       this.body.setVelocity(dir * 120, -200);
       return true;
     }
-    if (this.lion > 0 || this.mantleT > 0) return true;
+    if (this.lion > 0 || this.mantleT > 0 || this.formT > 0) return true;
     this.state = 'hurt';
     this.st = 0;
     this.body.setVelocity(dir * 170, -170);
@@ -952,7 +975,8 @@ export class Player {
     if((this.state==='dodge'||this.state==='airdash')&&this.st<dt*1.5)this.sqV-=2.4;
     this.wasGrounded=ground;this.lastVy=b.velocity.y;
     if(ground&&moving&&this.state==='free')this.stride=(this.stride+travel/64)%1;
-    const mantle = !this.dead && (this.mantleT > 0 || this.state === 'transform');
+    const form = !this.dead && this.formT > 0;
+    const mantle = !this.dead && !form && (this.mantleT > 0 || this.state === 'transform');
     let clip='idle',uArt=0;
     if(this.dead){clip='death';uArt=this.st/1.2;}
     else if(this.state==='hurt'){clip='hurt';uArt=this.st/.3;}
@@ -976,7 +1000,7 @@ export class Player {
     else if(clip==='swim')uArt=(this.visualTime/1.1)%1;
     else if(clip==='jump'||clip==='fall')uArt=this.visualTime/(clip==='jump'?.25:.35);
     else if(this.state==='transform'||this.state==='execute'||this.state==='scripted')uArt=this.state==='transform'?this.visualTime/1.15:this.powers?.clipProgress??0;
-    const key=actionAtlas(this.w.sc,this.hero,this.w.d.family,mantle,this.hero==='tirzah'||!this.powers?.weaponFlight,this.hero==='elior'?this.w.save.valor?.cape??null:null);
+    const key=actionAtlas(this.w.sc,this.hero,form?'fists':this.w.d.family,mantle,this.hero==='tirzah'||!this.powers?.weaponFlight,this.hero==='elior'?this.w.save.valor?.cape??null:null);
     const frame=actionFrame(this.w.sc,key,clip,Phaser.Math.Clamp(uArt,0,.999));
     // The spring settles the squash; the lean follows ground speed, and a rise or fall tips her a little.
     if(dt>0){this.sqV+=(-420*this.sq-20*this.sqV)*dt;this.sq=Phaser.Math.Clamp(this.sq+this.sqV*dt,-.16,.16);}
@@ -994,7 +1018,8 @@ export class Player {
     if(streak&&this.trailT<=0){const ghost=this.trail.find(g=>g.life<=0);if(ghost){ghost.life=0.18;ghost.sprite.setTexture(this.sprite.texture.key,this.sprite.frame.name).setPosition(this.sprite.x,this.sprite.y).setOrigin(this.sprite.originX,this.sprite.originY).setScale(this.sprite.scaleX,this.sprite.scaleY).setFlipX(this.sprite.flipX).setAngle(this.sprite.angle);}this.trailT=0.055;}
     // The blade's arc shows from the moment it lands until the swing ends.
     const u = this.state === 'attack' ? this.st / this.atk.t : 0;
-    const show = this.state === 'attack' && u >= this.atk.hit[0] && u <= this.atk.hit[1] + 0.15;
+    // Bare fists draw no blade arcs: the impact is the effect.
+    const show = !form && this.state === 'attack' && u >= this.atk.hit[0] && u <= this.atk.hit[1] + 0.15;
     this.slash.setVisible(show);
     if (show) {
       const k = (u - this.atk.hit[0]) / (this.atk.hit[1] + 0.15 - this.atk.hit[0]);
