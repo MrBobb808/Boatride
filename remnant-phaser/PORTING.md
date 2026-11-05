@@ -578,3 +578,13 @@ POLISH_PLAN §13a. A scene of its own (`src/scenes/Horde.ts`), entered from the 
 
 Verified by `scripts/horde.mjs`: upright touch (stick, DASH, buttons on screen), auto-weapons, a level-up card, a reroll and a banish, a tag combo, the Trinity, an evolution, the skill, transformation and switch, Uri, his shaman, his prayer and the Crown, a monarch's arrival and fall, stage 2, the landscape reflow, a fall banking the run, and both ways in.
 
+## Legendary Powers
+
+POLISH_PLAN §14a. The table, drops and Codex rules are shared (`remnant/src/game/legendary.ts`); the effects are this build's (`src/game/legends.ts`, `World.legends`).
+
+- **Data:** `ItemInst.legend` (one power per piece), `Loot.legend`, `SaveData.codex`; all optional. Item names end in `✦ <power>`, and the item cards (`legendLine` in the shared menus, Tirzah's gear page) say what it does.
+- **Drops:** `World.gearDrop` (elites `LEGEND_CHANCE.elite`, foes `.foe`), chests (`.chest`), `World.bossSpoils` (always, before its once-per-boss rewards), the Horde's monarch spoil (`Horde.bossFell`, banked with the run) and the Trial's wave prize (`grantWaveLoot`: every fifth wave, and 15% of the others). A dropped one calls `World.legendDropped` from the classic layer's `spawnLoot`.
+- **Effects:** `Legends.onHit` (his blows, her dagger), `onArrow` (her arrows), `onParry`, `onDodge` (and her Dawnstep), `onSlam` (a plunge's landing), `kill` (Brimstone, also for foes the powers fell). `Legends.refresh` reads the fighting hero's worn gear (`wornLegends`) on every stat refresh and twice a second. Pools: 24 queued strikes, 18 fire patches, 14 seeking bolts, three swords; `clear()` on leaving a room.
+- **Codex:** `sellItem` and `dismantleItem` call `learnLegend`; Dov's Imprint tab is `imprintPane` in the shared menus.
+
+Verified by `scripts/legends.mjs`: a boss's drop and its moment, the elite and foe rates, each of Elior's eight and Tirzah's six powers firing from its hook and wounding foes, his powers asleep while she fights, dismantling into the Codex, Dov's imprint for silver and shards, and the save keeping both.

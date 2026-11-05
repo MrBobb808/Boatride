@@ -22,6 +22,8 @@ import { addPsalmsMenu } from '../game/psalmsMenu';
 import { addHordeMode } from '../game/horde/entry';
 import { rollGear } from '../../../remnant/src/game/loot';
 import type { Loot } from '../../../remnant/src/game/tiles';
+import { haptic } from '../../../remnant/src/core/haptics';
+import { LEGENDS, LEGEND_CHANCE, legendary } from '../../../remnant/src/game/legendary';
 import { catchUpXp } from '../../../remnant/src/game/curve';
 import { tickElixir, keepReason } from '../../../remnant/src/game/economy';
 import { FINISHERS } from '../../../remnant/src/game/finishers';
@@ -59,6 +61,7 @@ import { music } from '../classic/shim/music';
 import { songs } from '../../../remnant/src/audio/songs';
 import { settings, shakeScale } from '../classic/shim/settings';
 import { GuideTrail } from '../game/guideTrail';
+import { Legends } from '../game/legends';
 import { guidePoint } from '../../../remnant/src/game/guide';
 import { showHint } from '../game/guideHint';
 import { offlineReady, updatePending, checkForUpdates } from '../game/update';
@@ -108,6 +111,8 @@ export class World extends Phaser.Scene implements WorldApi {
   visuals!: Visuals;
   /** The guide's trail of light toward the objective. */
   guideTrail!: GuideTrail;
+  /** The Legendary Powers on the fighting hero's gear (game/legends.ts). */
+  legends!: Legends;
   feedback!: Feedback;
   /** The room's classic boss, while it stands. */
   cboss: ClassicBoss | null = null;
@@ -159,12 +164,13 @@ export class World extends Phaser.Scene implements WorldApi {
     this.art = new RoomArt(this);
     this.visuals = new Visuals(this);
     this.guideTrail = new GuideTrail(this);
+    this.legends = new Legends(this, () => this.player);
     // ?fixedstep (tests only): the physics too advances exactly 1/60 s a frame, so jumps and dashes measure as on a
     // 60 fps phone however slow the frames are.
     if (FIXED_STEP) { const pw = this.physics.world, step = pw.update.bind(pw); pw.update = (time: number) => step(time, 1000 / 60); }
     this.feedback = new Feedback(this);
     this.partner = new Partner(this);
-    this.events.once('shutdown', () => { this.feedback.destroy(); this.visuals.destroy(); this.art.destroy(); this.classic.destroy(); this.partner.destroy(); });
+    this.events.once('shutdown', () => { this.feedback.destroy(); this.visuals.destroy(); this.art.destroy(); this.classic.destroy(); this.partner.destroy(); this.legends.destroy(); });
     // The HUD scene starts on the next step; the first room waits for it.
     this.ready = false;
     this.scene.launch('hud');
@@ -233,6 +239,7 @@ export class World extends Phaser.Scene implements WorldApi {
 
   private clearRoom() {
     this.visuals.clear();
+    this.legends.clear();
     this.feedback.clear();
     for (const c of this.colliders) c.destroy();
     this.colliders = [];
@@ -430,6 +437,8 @@ export class World extends Phaser.Scene implements WorldApi {
           x: x + 8, y, label: 'Open', use: () => {
             this.save.opened.push(e.id);
             for (const l of e.loot) this.collect(l);
+            // Sometimes a chest holds a legendary piece as well.
+            if (Math.random() < LEGEND_CHANCE.chest) { const l = legendary(this.save, this.gearDrop(true)); this.legendDropped(x + 8, y - 12, l); this.collect(l); }
             g.destroy();
             this.interactables = this.interactables.filter((i) => i !== it);
             this.persist();
@@ -542,6 +551,7 @@ export class World extends Phaser.Scene implements WorldApi {
     if (this.controls.pressed('switch') && !G.inCutscene && !this.player.dead) this.classic.squad.switchSupport();
     this.controls.locked = G.inCutscene;
     this.player.update(dt);
+    this.legends.update(dt);
     this.leadCamera(rawDt);
     for (const f of this.foeList) if (!f.removed) f.update(dt * this.classic.nativeScale(f));
     this.foeList = this.foeList.filter((f) => !f.removed);
@@ -863,6 +873,7 @@ export class World extends Phaser.Scene implements WorldApi {
     if (wears(this.save, 'cleansing')) d.echoHp *= 1.3;
     if (wears(this.save, 'high_places')) d.dr = Math.min(0.85, d.dr + 0.08);
     this.setEliorStats(d);
+    this.legends?.refresh();
   }
   /** New stats for Elior (G.d's setter); the player takes the fighting hero's limits. */
   setEliorStats(d: Derived) {
@@ -872,7 +883,7 @@ export class World extends Phaser.Scene implements WorldApi {
   }
 
   /** A chest's loot, as the original's world.collect gives it. */
-  collect(l: { silver?: number; mat?: string; n?: number; item?: string; rarity?: number; power?: number }) {
+  collect(l: Loot) {
     const s = this.save;
     if (l.silver) {
       s.silver += l.silver;
@@ -886,7 +897,9 @@ export class World extends Phaser.Scene implements WorldApi {
       const it = makeItem(l.item, (l.rarity ?? base.rarity) as Rarity);
       it.isNew = true;
       if (l.power) it.lootPower = l.power;
+      if (l.legend && LEGENDS[l.legend]) it.legend = l.legend;
       s.inventory.push(it);
+      this.legends?.refresh();
       const hers = (ARCHER_SLOTS as string[]).includes(base.slot);
       this.toast(`${base.name}${hers ? ' for Tirzah' : ''} · in your pack (Menu → ${hers ? 'Tirzah' : 'Elior'} → Equipment)`);
     }
@@ -1113,9 +1126,38 @@ export class World extends Phaser.Scene implements WorldApi {
   gearDrop(elite: boolean): Loot {
     // Her share leans toward whoever is fighting.
     const share = this.player.hero === 'tirzah' ? 0.55 : 0.3;
-    return Math.random() < share ? archerDrop(this.save, chapterOf(this.room.id), elite ? 'elite' : 'foe') : rollGear(elite ? 2 : 0);
+    const l = Math.random() < share ? archerDrop(this.save, chapterOf(this.room.id), elite ? 'elite' : 'foe') : rollGear(elite ? 2 : 0);
+    // Elites often leave a legendary piece; an ordinary foe's piece rarely is one.
+    return Math.random() < (elite ? LEGEND_CHANCE.elite : LEGEND_CHANCE.foe) ? legendary(this.save, l) : l;
   }
+
+  /** A legendary piece falls: a pillar of light where it lies, a chime, a slow beat and its name. */
+  legendDropped(x: number, y: number, l: Loot) {
+    const lg = l.legend ? LEGENDS[l.legend] : undefined;
+    if (!lg || !l.item || !ITEMS[l.item]) return;
+    const feet = y + 20;
+    fx.column(x, feet, 60, 280, lg.color, 2.4);
+    fx.column(x, feet, 24, 320, '#ffffff', 1.8);
+    fx.ring(x, feet, 6, 110, lg.color, 0.9, 3, 0.3);
+    fx.holyBurst(x, y, 26, 1.5);
+    this.flashLight(x, feet - 60, 280, lg.color, 1.6);
+    this.playEffect('lootRare', { x });
+    this.classic.after(0.3, () => this.playEffect('perfectChime', { x, pitch: 0.75 }));
+    this.slowTime(0.9, 0.3);
+    haptic('heavy');
+    islandRipple(lg.color);
+    this.banner(`✦ ${lg.name.toUpperCase()}`, `${ITEMS[l.item].name} · ${lg.desc}`);
+  }
+
   bossSpoils(key = this.room.id) {
+    // Every boss always leaves a legendary piece, for whoever is fighting (now and then the other hero's); the
+    // boss rush leaves no loot.
+    if (!this.classic.rushing) {
+      const hers = this.player.hero === 'tirzah' ? Math.random() < 0.7 : Math.random() < 0.3;
+      const l = legendary(this.save, hers ? archerDrop(this.save, chapterOf(this.room.id), 'boss') : rollGear(3));
+      this.collect(l);
+      this.time.delayedCall(3400, () => { if (this.player) this.legendDropped(this.player.x, this.player.feet - 20, l); });
+    }
     // Once a boss, like its other rewards.
     const flag = `tz_spoils_${key}`;
     if (this.save.flags[flag]) return;

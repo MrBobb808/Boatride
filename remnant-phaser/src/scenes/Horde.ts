@@ -8,6 +8,7 @@ import { archerStats, archerGainXp, archerDrop, newArcher } from '../game/archer
 import { makeItem, type Derived } from '../../../remnant/src/game/state';
 import { ITEMS, type Rarity } from '../../../remnant/src/game/data';
 import { rollGear } from '../../../remnant/src/game/loot';
+import { legendary, LEGENDS } from '../../../remnant/src/game/legendary';
 import type { Loot } from '../../../remnant/src/game/tiles';
 import { dpr } from '../game/screen';
 import { music } from '../classic/shim/music';
@@ -277,13 +278,15 @@ export class Horde extends Phaser.Scene {
     this.swarm.clearShots(b.x, b.y, 1e5);
     this.pickups.gather();
     const tier = Math.min(4, 1 + Math.floor(this.stage / 2));
-    const spoil = Math.random() < (this.heroId === 'tirzah' ? 0.6 : 0.35) ? archerDrop(this.save, Math.min(10, this.stage + 1), 'boss') : rollGear(tier);
+    // A monarch's spoil always carries a Legendary Power (game/legendary.ts), banked with the run.
+    const spoil = legendary(this.save, Math.random() < (this.heroId === 'tirzah' ? 0.6 : 0.35) ? archerDrop(this.save, Math.min(10, this.stage + 1), 'boss') : rollGear(tier));
     this.loot.push(spoil);
     this.silver += Math.round(40 * this.stage * this.fortune);
     // A broken crown evolves a ready weapon too, and grants a redraw and a banish.
     this.evolve();
     this.rerolls++; this.banishes++;
     this.ui.banners(`${b.name} FALLS`, 'Its crown is broken', 2.2);
+    if (spoil.legend && LEGENDS[spoil.legend]) { const l = LEGENDS[spoil.legend]; this.time.delayedCall(1300, () => { sfx('lootRare'); this.ui.banners(`✦ ${l.name.toUpperCase()}`, `${ITEMS[spoil.item!].name} · a Legendary Power, banked with the run`, 2.4); }); }
     b.destroy();
     this.boss = null;
     music.play('victory');
@@ -775,7 +778,7 @@ export class Horde extends Phaser.Scene {
     return g;
   }
 
-  private lootName(l: Loot) { return l.item && ITEMS[l.item] ? ITEMS[l.item].name : l.silver ? `${l.silver} silver` : 'a keepsake'; }
+  private lootName(l: Loot) { return l.item && ITEMS[l.item] ? ITEMS[l.item].name + (l.legend && LEGENDS[l.legend] ? ` ✦ ${LEGENDS[l.legend].name}` : '') : l.silver ? `${l.silver} silver` : 'a keepsake'; }
   /** The run's gems are worth more to the journey the deeper it went. */
   private bankXp() { return Math.round(this.gemXp * (2 + this.stage * 0.25)); }
 
@@ -793,6 +796,7 @@ export class Horde extends Phaser.Scene {
       const it = makeItem(l.item, (l.rarity ?? ITEMS[l.item].rarity) as Rarity);
       it.isNew = true;
       if (l.power) it.lootPower = l.power;
+      if (l.legend) it.legend = l.legend;
       s.inventory.push(it);
     }
     const rec = (s.horde ??= { best: 0, runs: 0, kills: 0, bestKills: 0 }), fresh = this.stage > rec.best;

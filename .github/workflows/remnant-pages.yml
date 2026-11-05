@@ -127,6 +127,7 @@ jobs:
       - run: node scripts/bosses.mjs
       - run: node scripts/classic-bosses.mjs
       - run: node scripts/gods.mjs
+      - run: node scripts/legends.mjs
       - run: node scripts/install-audio.mjs
       - uses: actions/upload-artifact@v4
         if: always()

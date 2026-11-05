@@ -252,6 +252,7 @@ export class Bow {
           this.w.spark(hx,hy,GLOW[this.frameOf(a)],crit?9:5);
           this.w.playEffect('arrowPierce',{x:hx,pitch:0.9+Math.random()*0.2,vol:crit?1:0.8});
           this.dawn?.onArrowHit(nearest);
+          this.w.legends?.onArrow(nearest,{crit,charged:a.pierce>1||a.perfect||a.move==='bow_pierce'||a.move==='bow_perfect',x:hx,y:hy,dir:Math.sign(a.vx)||1});
           if(precise){this.tally.precise++;this.w.spark(hx,hy,0xffffff,6);}
           if(trueAim){this.tally.trueAim++;this.w.spark(hx,hy,0xffd27a,4);}
           // Her answer to a parry: an arrow into a foe's wind-up breaks the attack.
@@ -392,6 +393,7 @@ export class Bow {
       const dmg=p.power()*h.mul*(1+this.r('t_blade')*0.1)*(crit?d.critDmg:1);
       if(f.hit(Math.round(dmg),p.face,h.stagger,crit,{kind:'melee',kx:p.face*h.kx,ky:h.ky,poise:h.poise})){
         this.w.heroHit(f,hp!==undefined&&f.hp!==undefined?Math.max(0,hp-f.hp):0,kick,crit);
+        this.w.legends?.onHit(f,{crit,heavy:kick,ender:kick});
         this.p.noteStyle(kick?'dagger_kick':'dagger');
         this.p.comboHits++;this.w.save.bestCombo=Math.max(this.w.save.bestCombo??0,this.p.comboHits);
         this.w.save.ce=Math.min(this.p.maxCe,this.w.save.ce+2);

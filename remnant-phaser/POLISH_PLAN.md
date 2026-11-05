@@ -489,6 +489,36 @@ The three gameplay recommendations the owner chose to build.
 - **Rerolls and banishes:** three of each per run, one more of each per monarch broken. A reroll draws the three
   cards again; a banish strikes a card's upgrade from the run.
 
+## 14. Legendary Powers: build-changing loot (owner's answers, 5 November 2026)
+The owner asked what would make the game more compelling to keep playing. After a look at what the most replayed
+action RPGs do (build-changing legendaries, a codex of learned powers, a big drop moment), they chose: build-changing
+loot; the loop in every mode, lightly; 20–30 minute sessions; generous rewards and no penalties; drops plus a Codex
+(break a legendary down to learn its power, then Dov imprints it on other gear); over-the-top effects; Elior and
+Tirzah first; a big drop moment (a pillar of light, a chime, slow motion, a name card); one power per piece, up to
+seven worn; bosses always drop one, elites often, chests sometimes, foes rarely; the Horde and the Trial too.
+
+### 14a. Legendary Powers (shipped: `scripts/legends.mjs`)
+- **The table** (shared, `remnant/src/game/legendary.ts`): thirteen powers. Elior's are the Chariot of Fire (a road
+  of fire behind a dodge), Voice of Thunder (crits chain lightning to four foes), Trumpet of Jericho (a perfect parry's
+  shockwave), Swords of Gideon (a combo finisher calls three orbiting swords for six seconds), Samson's Fall (a plunge
+  brings down six falling stars), Pillar of Fire (heavy blows) and Whirlwind (every eighth blow in a chain).
+  Tirzah's are the Quiver of the Hawk (a killing arrow splits into three seeking bolts), Falling Star (charged and
+  perfect arrows burst), Rain of Arrows (every sixth arrow that lands), Spirit of the Hawk (crits loose a hawk that
+  strikes three foes) and Wind Volley (a dodge looses five arrows behind her). Brimstone (slain foes burst into
+  spreading fire) goes on either hero's gear. A piece carries one (`ItemInst.legend`); only the fighting hero's
+  worn gear counts.
+- **Drops:** every boss leaves one (`World.bossSpoils`), elites 35% of the time, a foe's gear drop 1.2%, a chest 20%
+  (`LEGEND_CHANCE`). A legendary piece is at least Legendary rarity and its power suits whose gear it is, leaning
+  toward powers not yet learned. A Horde monarch's spoil always carries one; so does every fifth Trial wave's prize,
+  and now and then another.
+- **The drop moment** (`World.legendDropped`): a pillar of light in the power's colour, a chime, a slow beat, a ripple
+  round the island and a name card with what it does.
+- **The Codex:** selling or dismantling a legendary piece writes its power into `SaveData.codex`; Dov's Imprint tab
+  puts a learned power on any piece of the right hero's gear for silver and Relic Shards (`imprint`).
+- **The effects** (`src/game/legends.ts`): hooked from Elior's blows, parry, dodge and plunge (`player.ts`) and her
+  arrows and dagger (`bow.ts`); pooled strikes, fire patches, seeking bolts and the swords; all damage goes through
+  `FoeLike.hit` so it lands on every kind of foe and boss.
+
 ## 10. Questions for the owner
 
 Answered: the archer stays **Tirzah**, and Wings of the Morning **shares** the Mantle's gauge.

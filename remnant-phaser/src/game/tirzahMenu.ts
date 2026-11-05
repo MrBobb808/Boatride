@@ -3,7 +3,7 @@
 // tree and her ability loadout. Added to the shared menu through
 // addMenuSection; the original edition's menu has no such section.
 
-import { addMenuSection, type MenuPageKit } from '../../../remnant/src/ui/menus';
+import { addMenuSection, legendLine, type MenuPageKit } from '../../../remnant/src/ui/menus';
 import { h, btn } from '../../../remnant/src/ui/dom';
 import { img } from '../../../remnant/src/ui/icons';
 import { DERIVED_TIPS, derivedRows } from '../../../remnant/src/ui/statTips';
@@ -73,6 +73,7 @@ export function addTirzahMenu(host: Host) {
         h('hr', { class: 'rule' }),
         h('div', null, kit.modLines(itemMods(it), !isEq && eq ? itemMods(eq) : undefined)),
         isEq ? null : ifEquipped(it.uid),
+        legendLine(it),
         h('p', { class: 'muted', style: 'margin:8px 0 0' }, base.desc),
         it.lootPower ? h('p', { class: 'up' }, `Power ${it.lootPower}: her drops grow with her level. Greater Power, greater stats.`) : null,
         base.lore ? h('p', { style: 'font-style:italic;margin:6px 0 0;font-size:0.92em' }, base.lore) : null,

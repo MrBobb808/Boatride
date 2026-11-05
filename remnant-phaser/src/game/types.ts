@@ -58,6 +58,8 @@ export interface WorldApi {
   tileAt(tx: number, ty: number): number;
   player: { x: number; y: number; feet: number; dead: boolean; hp: number; maxHp: number; hurt(h: Blow): boolean };
   foes(): FoeLike[];
+  /** The Legendary Powers on the fighting hero's gear (game/legends.ts). */
+  legends?: import('./legends').Legends;
   /** Hostile projectiles in flight (classic `Proj`s): centre x/y, size, and `remove` to destroy one. */
   enemyShots(): readonly { x: number; y: number; w: number; h: number; remove: boolean }[];
   castCovenant(id: SkillId): void;

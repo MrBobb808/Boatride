@@ -110,11 +110,13 @@ try {
     const low = R.archer.archerDrop(s, 1, 'foe', () => 0.01), boss = R.archer.archerDrop(s, 9, 'boss', () => 0.01);
     s.archer.level = 50;
     const late = R.archer.archerDrop(s, 9, 'boss', () => 0.01);
+    // Her boss piece comes once a boss; a legendary piece (game/legendary.ts) comes with every defeat.
     const n = s.inventory.length; w.bossSpoils('idol'); w.bossSpoils('idol');
-    return { mine, kinds: slots.size, low, boss, late, got: s.inventory.length - n, tag: s.inventory.at(-1).lootPower };
+    const fresh = s.inventory.slice(n), once = fresh.filter((i) => !i.legend);
+    return { mine, kinds: slots.size, low, boss, late, got: once.length, legends: fresh.length - once.length, tag: once.at(-1)?.lootPower };
   });
   assert.ok(drops.mine > 100 && drops.mine < 230 && drops.kinds >= 5, `about half of a foe's gear is hers while she fights (${JSON.stringify(drops)})`);
-  assert.ok(drops.boss.rarity > drops.low.rarity && drops.late.power > drops.boss.power && drops.got === 1 && drops.tag > 0, `bosses and later chapters drop finer pieces, and Power climbs with her level (${JSON.stringify(drops)})`);
+  assert.ok(drops.boss.rarity > drops.low.rarity && drops.late.power > drops.boss.power && drops.got === 1 && drops.legends === 2 && drops.tag > 0, `bosses and later chapters drop finer pieces, and Power climbs with her level (${JSON.stringify(drops)})`);
   console.log(`Drops: ${drops.mine}/300 foe pieces were hers (${drops.kinds} kinds); boss rarity ${drops.boss.rarity} vs foe ${drops.low.rarity}; Power ${drops.boss.power} → ${drops.late.power} from her level 10 to 50`);
 
   const keeps = await E(page, () => { const w = window.__remnant.world, n = (id) => w.save.inventory.filter((i) => i.id === id).length; w.bossSpoils('marshal'); w.bossSpoils('marshal'); w.bossSpoils('persia_prince'); return [n('ehuds_blade'), n('bow_of_jonathan')]; });

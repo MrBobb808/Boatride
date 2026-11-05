@@ -278,6 +278,8 @@ export interface ItemInst {
   trialTier?: number;
   lootPower?: number;
   lootWave?: number;
+  /** A Legendary Power (game/legendary.ts LEGENDS), one per piece. */
+  legend?: string;
 }
 
 // ---------- Abilities ----------

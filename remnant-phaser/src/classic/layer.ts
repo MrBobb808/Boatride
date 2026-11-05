@@ -77,6 +77,8 @@ export interface ClassicHost extends WorldApi {
   gearDrop(elite: boolean): Loot;
   /** A boss always leaves Tirzah something fine. */
   bossSpoils(key?: string): void;
+  /** A legendary piece falls: its pillar of light, chime and name card. */
+  legendDropped(x: number, y: number, l: Loot): void;
   /** Lights beyond the room's and Elior's: heroes, forms, arrows, partner, Echoes, flashes. */
   gatherLights(dt: number): void;
   /** The AI partner hero, when it exists (game/partner.ts). */
@@ -557,7 +559,7 @@ export class ClassicLayer {
   trigger(id: string) { if (this.fired.has(id)) return; this.fired.add(id); this.story.onTrigger(id); }
   giveXp(xp: number) { if (!this.rushing) this.host.giveXp(xp); }
   collect(l: Loot) { if (!this.rushing) this.host.collect(l); }
-  spawnLoot(x: number, y: number, loot: Loot[], _burst = true) { if (!this.rushing) for (const l of loot) this.add(new Drop(x, y, l)); }
+  spawnLoot(x: number, y: number, loot: Loot[], _burst = true) { if (!this.rushing) for (const l of loot) { this.add(new Drop(x, y, l)); if (l.legend) this.host.legendDropped(x, y, l); } }
   absorb(id: string, _manual = false) { const e = absorbEcho(G.save, id, G.d); this.host.refreshStats(); return e; }
   rest() { this.host.rest(); }
   restAtAltar(a: Altar) { if (!G.save.altarsLit.includes(a.idKey)) G.save.altarsLit.push(a.idKey); G.save.altar = { room: this.room.id, spawn: 'altar' }; this.host.markRest(); this.rest(); G.ui.openAltar(a.idKey); }
