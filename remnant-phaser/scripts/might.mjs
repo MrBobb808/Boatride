@@ -49,6 +49,11 @@ try {
   let waves = 0;
   for (let i = 0; i < 6; i++) { await page.keyboard.press('KeyJ'); await page.waitForTimeout(110); waves = Math.max(waves, await E(page, () => window.__remnant.world.classic.ents.filter((e) => e.kind === 'lightwave').length)); }
   assert.equal(waves, 0, 'no light wave rides a plain strike');
+  // Nor under the Armor of Light: it sears what the blade touches instead.
+  await E(page, () => { window.__remnant.world.player.armorLight = 10; });
+  for (let i = 0; i < 4; i++) { await page.keyboard.press('KeyJ'); await page.waitForTimeout(110); waves = Math.max(waves, await E(page, () => window.__remnant.world.classic.ents.filter((e) => e.kind === 'lightwave').length)); }
+  await E(page, () => { window.__remnant.world.player.armorLight = 0; });
+  assert.equal(waves, 0, 'no light wave rides a strike under the Armor of Light');
 
   // ---- the Unshorn: Transform twice, then the Cloud Step
   await look(68, 'palace_tents');

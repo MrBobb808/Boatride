@@ -604,8 +604,13 @@ The owner's Elior passed level 400: foes fell in a blow, levels came too fast, a
 - **Levels cost more as he rises** (`xpToNext`): the same curve through 70, then `XP70 × (lv / 70)^2.2`: 18k at 100,
   83k at 200, 382k at 400. The Trial's waves pay in `trialXpUnit` (the square root of that growth), so a wave at 400
   is worth a fifth of a level, not one and a third.
-- **No wave on every strike:** the Sovereign tier's light wave on each swing is gone (`HeroPowers.onSwing`); the Armor
-  of Light and the Psalm of the Swarm keep theirs.
+- **No wave on any strike:** the sword and the fists hit what they touch. The Sovereign tier's light wave on each
+  swing is gone (`HeroPowers.onSwing`); the Armor of Light now sears each blow that lands (+40%) and the Psalm of the
+  Swarm makes a combo's third blow strike the same foe twice, neither sending anything down the room.
+- **Impact frames** (`Visuals.impactFrame`): when the Unshorn's fist lands, for the blow's hit-stop the room drops to
+  near-black behind radial speed lines, the foe goes to silhouette, Elior stays lit, and a hard white star marks the
+  point of contact; then it snaps back. Heavy blows, crits and combo enders always; quick jabs at most one in 0.18 s,
+  so the ten-punch chain never strobes. Reduce flashes keeps only a faint version.
 - **Punches sound deep** (`punch` in `remnant/src/audio/audio.ts`): a knuckle crack over a body thump and a sub-drop,
   doubled on heavy blows. The shock ring and the air streak are gone from punches.
 - **The Unshorn moves like the monkey king's art, not his look:** Dodge is the Cloud Step (`Player.cloudStep`): gone

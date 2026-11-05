@@ -1131,6 +1131,7 @@ export class World extends Phaser.Scene implements WorldApi {
   }
 
   burst(x: number, y: number, kind: number, heavy = false, sheet?: 'vfx-impacts' | 'vfx-unshorn') { this.visuals.burst(x, y, kind, heavy, sheet); }
+  impactFrame(x: number, y: number, big: boolean) { this.visuals.impactFrame(x, y, big); }
   spark(x: number, y: number, color: number, n = 6) {
     this.feedback.spark(x, y, color, n);
   }

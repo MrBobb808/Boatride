@@ -311,7 +311,8 @@ Never ship files from `art/incoming/` directly.
   (`FISTS` in `game/weapons.ts`; `Player.punchImpact`). It awakens in the King of the North's fight
   (`remnant-phaser/src/game/awakening.ts`); afterwards Transform in the Shadow Mantle ascends, or Transform pressed
   twice goes straight in. No cape in the form; Dodge is the Cloud Step (`Player.cloudStep`: behind the foe, two
-  striking clones). No light wave rides a plain strike at any level. See POLISH_PLAN §16–17.
+  striking clones). Each landing fist throws an impact frame (`Visuals.impactFrame`). No wave rides a strike at any
+  level (the Armor of Light and the Psalm of the Swarm hit on contact in this build). See POLISH_PLAN §16–17.
 - **The Horde (Phaser build):** a top-down survival mode in endless stages
   (`remnant-phaser/src/scenes/Horde.ts`, `src/game/horde/`): auto-weapons, a
   1-of-3 upgrade per level, a Fallen Crown monarch per stage, Elior, Tirzah and

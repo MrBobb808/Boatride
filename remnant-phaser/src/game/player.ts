@@ -137,6 +137,8 @@ export class Player {
   private dodgeCd = 0;
   /** The Unshorn's Cloud Step: its cooldown and the two clones it leaves striking. */
   private cloudCd = 0;
+  /** When the last impact frame flashed (the playtime clock). */
+  private impactFrameAt = -1;
   private clones: { sprite: Phaser.GameObjects.Sprite; t: number; foe: FoeLike | null; struck: boolean }[] = [];
   private parryT = 0;
   private parryCd = 0;
@@ -578,7 +580,6 @@ export class Player {
         }
         this.hitSeg = last;
       } else this.strike();
-      if (!this.swung && this.armorLight > 0 && !a.air) this.w.lightWave();
       this.swung = true;
       if (a.pull) for (const f of this.w.foes()) if (f.alive && Math.abs(f.x - this.x) < a.pull) {
         const e = (f as FoeLike & { e?: { isBoss: boolean; body: { vx: number } } }).e;
@@ -895,6 +896,8 @@ export class Player {
       // The Psalm of the Hunt: a parried foe takes half again as much for a while.
       const marked = (f as { e?: { psalmMarkT?: number } }).e ?? (f as { psalmMarkT?: number });
       if ((marked.psalmMarkT ?? 0) > this.clock) dmg *= 1.5;
+      // The Armor of Light sears into what the blade touches, rather than sending a wave down the room.
+      if (this.armorLight > 0) dmg *= 1.4;
       // Arriving from a swap: the first blow carries the momentum.
       const swap = this.swapStrikeT > 0 ? 1.5 : 1;
       const force = this.atk.force * this.atkMult * (counter ? 1.5 : 1) * swap;
@@ -904,12 +907,16 @@ export class Player {
         landed = true;
         const dealt = beforeHp !== undefined && f.hp !== undefined ? Math.max(0, beforeHp - f.hp) : Math.round(dmg * swap);
         this.w.heroHit(f, dealt, this.atk.heavy, crit);
+        if (this.armorLight > 0) this.w.spark(f.x, f.box.centerY, 0xffe6a8, 6);
         this.counterT = 0;
         this.swapStrikeT = 0;
         if (crit && this.psalmCrits > 0) this.psalmCrits--;
         if (crit && wears(ps, 'balance')) this.w.save.ce = Math.min(this.maxCe, this.w.save.ce + 6);
-        // The Psalm of the Swarm: a combo's third blow looses the Sword of the Word's wave, once a swing.
-        if (this.combo === 2 && !waved && wears(ps, 'swarm')) { waved = true; this.w.lightWave(); }
+        // The Psalm of the Swarm: a combo's third blow strikes the same foe twice, the light following the blade in.
+        if (this.combo === 2 && !waved && wears(ps, 'swarm')) {
+          waved = true;
+          if (f.alive && !f.removed) { f.hit(Math.round(dmg * 0.8), this.face, 0, false, { poise: 10 }); this.w.burst(f.x, f.box.centerY, 1); }
+        }
         this.recentHit = 0.65;
         this.noteStyle(this.atk.id);
         this.comboHits++; this.comboT = 1.7;
@@ -936,6 +943,8 @@ export class Player {
   private punchImpact(f: FoeLike, crit: boolean, big: boolean) {
     const x = this.face > 0 ? f.box.left + 2 : f.box.right - 2, y = f.box.centerY - 4;
     this.w.hitstop(big ? 0.11 : crit ? 0.08 : 0.055);
+    // The impact frame: every heavy blow, crit and combo ender; quick jabs at most one in 0.18 s, so a chain never strobes.
+    if (big || crit || this.clock - this.impactFrameAt >= 0.18) { this.impactFrameAt = this.clock; this.w.impactFrame(x, y, big || crit); }
     this.w.burst(x, y, big || crit ? 1 : 0, big, 'vfx-unshorn');
     if (big) this.w.burst(f.x, f.box.bottom, 2, true, 'vfx-unshorn');
     if (this.atk.id === 'urise' || this.atk.id === 'ucomet') this.w.burst(x, f.box.bottom, 3, true, 'vfx-unshorn');

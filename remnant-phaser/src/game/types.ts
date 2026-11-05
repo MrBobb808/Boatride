@@ -93,5 +93,7 @@ export interface WorldApi {
   spark(x: number, y: number, color: number, n?: number): void;
   /** An impact burst from the V02 sheet: 0 hit, 1 crit, 2 heavy, 3 parry. */
   burst(x: number, y: number, kind: number, heavy?: boolean, sheet?: 'vfx-impacts' | 'vfx-unshorn'): void;
+  /** The Unshorn's impact frame at the point a fist lands (Visuals.impactFrame). */
+  impactFrame(x: number, y: number, big: boolean): void;
   onFoeDied(xp: number, silver: number, x: number, y: number, eliteId?: string): void;
 }

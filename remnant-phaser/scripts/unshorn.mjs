@@ -78,6 +78,7 @@ try {
   await until(page, () => window.__foe.hp < 1e8);
   const hit = await E(page, () => ({ stop: Math.max(...window.__stops), arc: window.__remnant.world.player.slash.visible, dealt: 1e8 - window.__foe.hp }));
   assert.ok(hit.stop >= 0.05 && !hit.arc && hit.dealt > 0, `every punch lands with weight and no arc (${JSON.stringify(hit)})`);
+  assert.ok(await E(page, () => !!window.__remnant.world.visuals.impactBack), 'a punch throws an impact frame');
   await page.screenshot({ path: 'qa/unshorn-punch.png' });
   // It wears off.
   await E(page, () => { window.__remnant.world.player.formT = 0.05; });

@@ -61,6 +61,15 @@ export class Visuals {
   private smoke: Phaser.GameObjects.Particles.ParticleEmitter;
   private smokeFront: Phaser.GameObjects.Particles.ParticleEmitter;
   private crown: Phaser.GameObjects.Graphics;
+  /**
+   * The Unshorn's impact frames: for the instant a fist lands, the room drops to near-black behind stark speed lines
+   * (the foe a dark silhouette, Elior drawn above it still lit) and a white-gold star blooms at the point of contact.
+   * Held for the blow's hit-stop, then gone; timed on the wall clock, since the hit-stop freezes the fight.
+   */
+  private impactBack?: Phaser.GameObjects.Graphics;
+  private impactFront?: Phaser.GameObjects.Graphics;
+  private impactAt = -1;
+  private impactHold = 0;
   /** Impact bursts (V02 sheet), pooled and stepped here so they freeze with the fight. */
   private bursts: { img: Phaser.GameObjects.Image; t: number; row: number }[];
   /** Ability effects in flight (V03/V04 sheets). */
@@ -200,6 +209,40 @@ export class Visuals {
     this.sparks.emitParticleAt(x, y, this.tier === 0 ? 2 : heavy || crit ? 12 : 5);
   }
 
+  impactFrame(x: number, y: number, big: boolean) {
+    if (this.paused) return;
+    const w = this.w, v = w.cameras.main.worldView, calm = settings.reduceFlashes;
+    const back = (this.impactBack ??= w.add.graphics().setDepth(9.5)), front = (this.impactFront ??= w.add.graphics().setDepth(15.6).setBlendMode(Phaser.BlendModes.ADD));
+    back.clear(); front.clear();
+    // The room and the foe go dark (over the classic layer at 7, under Elior at 10); lines rush in toward the fist.
+    back.fillStyle(0x07040a, calm ? 0.25 : big ? 0.78 : 0.62).fillRect(v.x - 40, v.y - 40, v.width + 80, v.height + 80);
+    const n = this.tier === 0 ? 10 : big ? 22 : 14, far = Math.hypot(v.width, v.height);
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2 + Math.random() * 0.22, r0 = (big ? 46 : 36) + Math.random() * 60, c = Math.cos(a), s = Math.sin(a);
+      back.lineStyle(0.6 + Math.random() * (big ? 1.4 : 0.9), i % 3 ? 0xfff1c4 : 0xff9a50, calm ? 0.2 : 0.35 + Math.random() * 0.3);
+      back.lineBetween(x + c * r0, y + s * r0, x + c * far, y + s * far);
+    }
+    // The point of contact: a hard white star over a hot core.
+    const r = big ? 11 : 7;
+    front.fillStyle(0xff9a50, 0.7).fillCircle(x, y, r * 0.6);
+    front.fillStyle(0xffffff, 1);
+    for (let i = 0; i < 4; i++) {
+      const a = (i / 4) * Math.PI + (big ? 0.2 : 0.6), c = Math.cos(a), s = Math.sin(a);
+      front.fillTriangle(x + c * r * 1.9, y + s * r * 1.9, x - s * r * 0.18, y + c * r * 0.18, x + s * r * 0.18, y - c * r * 0.18);
+      front.fillTriangle(x - c * r * 1.9, y - s * r * 1.9, x - s * r * 0.18, y + c * r * 0.18, x + s * r * 0.18, y - c * r * 0.18);
+    }
+    front.fillCircle(x, y, r * 0.38);
+    back.setAlpha(1).setVisible(true); front.setAlpha(1).setVisible(true);
+    this.impactAt = performance.now(); this.impactHold = big ? 110 : 60;
+  }
+
+  private stepImpact() {
+    if (this.impactAt < 0) return;
+    const e = performance.now() - this.impactAt - this.impactHold, a = e <= 0 ? 1 : Math.max(0, 1 - e / 70);
+    this.impactBack!.setAlpha(a); this.impactFront!.setAlpha(a);
+    if (a <= 0) { this.impactAt = -1; this.impactBack!.setVisible(false); this.impactFront!.setVisible(false); }
+  }
+
   /**
    * One burst: 0 hit, 1 crit, 2 guard break, 3 parry. Light hits are smaller; low quality keeps only the big ones.
    * `sheet` 'vfx-unshorn' (V09) is the Unshorn's: 0 a punch, 1 a heavy blow, 2 dust kicked up, 3 rising flame.
@@ -280,6 +323,7 @@ export class Visuals {
       this.atmosphere.pause(held);
     }
     if (held) { this.budget.reset(); return; }
+    this.stepImpact();
     const dt = Math.min(delta / 1000, 0.05);
     this.stepBursts(dt);
     this.stepCasts(dt);
@@ -362,6 +406,7 @@ export class Visuals {
     if (this.displacement && cam) cam.filters.internal.remove(this.displacement);
     for (const o of [this.light, this.weaponLight, this.sparks, this.wisps, this.smoke, this.smokeFront, this.crown, this.bubbles]) o.destroy();
     for (const b of this.bursts) b.img.destroy();
+    this.impactBack?.destroy(); this.impactFront?.destroy();
     for (const c of this.casts) c.img.destroy();
     this.forming.destroy();
     if (this.map) this.w.textures.remove(this.key);
