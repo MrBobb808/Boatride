@@ -52,7 +52,7 @@ import { Proj } from '../../../remnant/src/game/projectiles';
 const SHOOTABLE = new Set(['arrow', 'orb', 'drop', 'flame', 'arcbolt', 'star', 'debris']);
 import type { Player as OriginalPlayer } from '../../../remnant/src/game/player';
 import { syncArcher, ARCHER, ARCHER_IDS, type SkillId } from '../game/abilities';
-import { archerStats, archerLevel, archerGainXp, archerDrop, learnArcher, allocateArcher, trank, newArcher, ARCHER_KEEPSAKES } from '../game/archer';
+import { archerStats, archerLevel, heroLevel, archerGainXp, archerDrop, learnArcher, allocateArcher, trank, newArcher, ARCHER_KEEPSAKES } from '../game/archer';
 import { addTirzahMenu, useAbilityTextures } from '../game/tirzahMenu';
 import { Partner } from '../game/partner';
 import { lighting } from '../classic/shim/lighting';
@@ -63,6 +63,7 @@ import { settings, shakeScale } from '../classic/shim/settings';
 import { GuideTrail } from '../game/guideTrail';
 import { Legends } from '../game/legends';
 import { Awakening } from '../game/awakening';
+import { setMightLevel } from '../../../remnant/src/game/might';
 import { guidePoint } from '../../../remnant/src/game/guide';
 import { showHint } from '../game/guideHint';
 import { offlineReady, updatePending, checkForUpdates } from '../game/update';
@@ -169,6 +170,8 @@ export class World extends Phaser.Scene implements WorldApi {
     this.guideTrail = new GuideTrail(this);
     this.legends = new Legends(this, () => this.player);
     this.awakening = new Awakening(this);
+    // Foes answer the hero in play (game/might.ts): Tirzah's level while she fights.
+    setMightLevel(() => heroLevel(this.save));
     // ?fixedstep (tests only): the physics too advances exactly 1/60 s a frame, so jumps and dashes measure as on a
     // 60 fps phone however slow the frames are.
     if (FIXED_STEP) { const pw = this.physics.world, step = pw.update.bind(pw); pw.update = (time: number) => step(time, 1000 / 60); }

@@ -564,7 +564,16 @@ export const ECHO_LEVEL_CAP = 100;
 export const echoXpToNext = (lv: number) => Math.round(lv <= 30 ? 30 + lv * lv * 14 : 12630 + (lv - 30) * 220);
 export const TRIAL_REWARDS = ["trial_reaver", "trial_tempest", "trial_plate", "trial_grasp", "trial_sovereign", "trial_crown", "trial_stride", "trial_worldbreaker", "trial_bastion", "trial_ascendancy"];
 /** XP for the next level. Past level 30 the climb is linear, so level 100 and beyond is within reach. */
-export const xpToNext = (lv: number) => (lv <= 30 ? Math.round(30 * Math.pow(lv, 1.55) + 6) : Math.round(30 * Math.pow(30, 1.55) + 6) + (lv - 30) * 60);
+const XP30 = Math.round(30 * Math.pow(30, 1.55) + 6), XP70 = XP30 + 40 * 60;
+/**
+ * Experience to the next level. Through level 70 (the story's end) it is the curve the chapters are tuned on; past it
+ * each level asks more than the last, steeply (×2.2 at 100, ×10 at 200, ×46 at 400), so the endless modes stop
+ * handing out levels faster than foes can answer them.
+ */
+export const xpToNext = (lv: number) => (lv <= 30 ? Math.round(30 * Math.pow(lv, 1.55) + 6) : lv <= 70 ? XP30 + (lv - 30) * 60 : Math.round(XP70 * Math.pow(lv / 70, 2.2)));
+/** What the Trial counts a level as when it pays: the full requirement through 70, then only the square root of how
+ * much it has grown, so a wave is worth less and less of a level the higher the hero is. */
+export const trialXpUnit = (lv: number) => (lv <= 70 ? xpToNext(lv) : Math.round(Math.sqrt(XP70 * xpToNext(lv))));
 
 // ---------- Lore: inscriptions found in the world ----------
 

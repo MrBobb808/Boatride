@@ -113,6 +113,12 @@ Never ship files from `art/incoming/` directly.
     player arrives at, foe health/damage/XP and the Fallen Crown bosses'
     health and blow. Below the arrival level XP comes faster (catch-up).
     `scripts/curve-onboarding.mjs` fights VII–IX on Hard at those levels.
+  - `game/might.ts`: foes and bosses answer the hero in play. Past the level
+    a player leaves a chapter with (the Trial: past 70), their health follows
+    a balanced build's blow and their damage its toughness (×0.9 in log).
+    `xpToNext` (game/data.ts) is the story's curve through level 70, then
+    steepens (×46 at 400); the Trial pays by `trialXpUnit`, which grows only
+    as the square root of that.
 - **Combat:**
   - `game/player.ts`: the player.
   - `game/weapons.ts`: movesets and animation clips.
@@ -298,7 +304,9 @@ Never ship files from `art/incoming/` directly.
 - **The Unshorn (Phaser build):** Elior's third transformation, after Samson (Judges 16:22, 16:28): a long mane and
   a tail of living fire (he stays human), bare-handed centre-line punches where every blow lands with weight
   (`FISTS` in `game/weapons.ts`; `Player.punchImpact`). It awakens in the King of the North's fight
-  (`remnant-phaser/src/game/awakening.ts`); afterwards Transform in the Shadow Mantle ascends. See POLISH_PLAN §16.
+  (`remnant-phaser/src/game/awakening.ts`); afterwards Transform in the Shadow Mantle ascends, or Transform pressed
+  twice goes straight in. No cape in the form; Dodge is the Cloud Step (`Player.cloudStep`: behind the foe, two
+  striking clones). No light wave rides a plain strike at any level. See POLISH_PLAN §16–17.
 - **The Horde (Phaser build):** a top-down survival mode in endless stages
   (`remnant-phaser/src/scenes/Horde.ts`, `src/game/horde/`): auto-weapons, a
   1-of-3 upgrade per level, a Fallen Crown monarch per stage, Elior, Tirzah and

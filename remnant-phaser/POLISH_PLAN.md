@@ -590,6 +590,29 @@ Its root is Samson, whose strength was in his unshorn hair and who fought with h
   to guard.
 - Verified by `scripts/unshorn.mjs`.
 
+## 17. Power that matches the hero (owner's request, 5 November 2026)
+
+The owner's Elior passed level 400: foes fell in a blow, levels came too fast, and a wave rode every strike.
+
+- **Foes answer the hero** (`remnant/src/game/might.ts`): past the level a straight-through player leaves a chapter
+  with (the next chapter's arrival; the Trial from 70), a foe's health follows a balanced build's blow and its damage
+  that build's toughness, a little behind both (×0.9 in log), so levels still help. Applied to every foe (`Enemy`),
+  every classic boss (`BossBase`, the Idol) and the Fallen Crowns (`bosses.ts`), against the hero in play (Tirzah's
+  level while she fights). Chapter XII at level 400: ×33 health, ×25 damage. Straight-through play is unchanged.
+- **Levels cost more as he rises** (`xpToNext`): the same curve through 70, then `XP70 × (lv / 70)^2.2`: 18k at 100,
+  83k at 200, 382k at 400. The Trial's waves pay in `trialXpUnit` (the square root of that growth), so a wave at 400
+  is worth a fifth of a level, not one and a third.
+- **No wave on every strike:** the Sovereign tier's light wave on each swing is gone (`HeroPowers.onSwing`); the Armor
+  of Light and the Psalm of the Swarm keep theirs.
+- **Punches sound deep** (`punch` in `remnant/src/audio/audio.ts`): a knuckle crack over a body thump and a sub-drop,
+  doubled on heavy blows. The shock ring and the air streak are gone from punches.
+- **The Unshorn moves like the monkey king's art, not his look:** Dodge is the Cloud Step (`Player.cloudStep`): gone
+  in a puff of golden cloud, he lands behind the nearest foe within 280 px while two fire-gold clones strike it, and
+  his next punch is already thrown. A swing at a foe out of reach blinks him to it, as the Mantle does. Transform
+  pressed twice goes straight into the Unshorn (once awakened). He wears no cape, so the tail of fire leads.
+- **The title** is one measured column (`scenes/Title.ts`): on a short screen (a phone in landscape with Safari's
+  bars) the whole column shrinks to fit, so the buttons never ride over the subtitle or the version line.
+
 ## 10. Questions for the owner
 
 Answered: the archer stays **Tirzah**, and Wings of the Morning **shares** the Mantle's gauge.

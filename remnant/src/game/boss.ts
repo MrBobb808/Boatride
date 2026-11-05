@@ -3,6 +3,7 @@
 // kneeling execution window, a cinematic awakening and a shattering death.
 
 import { bossScale } from './difficulty';
+import { might } from './might';
 import { Entity, type HitInfo } from './entity';
 import { solve, newJoints, BASE_POSE, type Joints, type Pose, type RigDims } from '../render/skeleton';
 import { glow, rgba, poly, circle, ellipse, limbShaded, limbStroke, rGrad, type Ctx } from '../render/draw';
@@ -22,6 +23,8 @@ const KNEEL: Pose = { ...REST, lean: 0.5, head: 0.45, fTh: 1.35, fSh: -2.3, bTh:
 type Atk = 'sweep' | 'sweepHigh' | 'slam' | 'pillars' | 'step' | 'rain' | 'gaze' | 'double';
 
 export class Idol extends Entity {
+  /** Raised to meet a hero past Chapter I (game/might.ts). */
+  private mightDmg = 1;
   /** Shaded into pixel art by render/bossPixel.ts in the pixel style. */
   pixelShade = true;
   pixelBox: readonly [number, number, number, number] = [-250, -215, 250, 18];
@@ -61,10 +64,11 @@ export class Idol extends Entity {
     this.heavyBody = true;
     this.collide = true;
     const ng = 1 + (G.save?.ng ?? 0) * 0.6;
-    this.maxHp = this.hp = Math.round(2100 * ng * bossScale().hp);
+    this.maxHp = this.hp = Math.round(2100 * ng * bossScale().hp * might().hp);
     this.face = 1;
     this.layer = 4;
     this.invuln = 999;
+    this.mightDmg = might().dmg;
   }
 
   executable() {
@@ -84,7 +88,7 @@ export class Idol extends Entity {
   }
 
   get dmg() {
-    return 22 * (1 + (G.save?.ng ?? 0) * 0.6) * (this.phase >= 3 ? 1.15 : 1) * bossScale().dmg * this.encounterDamage;
+    return 22 * (1 + (G.save?.ng ?? 0) * 0.6) * (this.phase >= 3 ? 1.15 : 1) * bossScale().dmg * this.encounterDamage * this.mightDmg;
   }
 
   // ---------------------------------------------------------------- lifecycle

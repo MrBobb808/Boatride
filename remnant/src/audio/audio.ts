@@ -357,6 +357,15 @@ export const SFX: Record<string, SfxFn> = {
     a.osc('triangle', 240 * p, t, 0.12, d, 0.25 * v, 0.002, 80);
     a.noiseHit(t, 0.22, d, 'lowpass', 1800 * p, 0.7, 0.6 * v, 200);
   },
+  /** A bare-fisted blow (the Unshorn): a short knuckle crack over a deep body thump and a sub-drop that is felt. */
+  punch(a, t, v, p, pan) {
+    const d = a.out(pan, 0.35);
+    a.osc('sine', 95 * p, t, 0.34, d, 0.95 * v, 0.001, 32);
+    a.osc('sine', 52 * p, t + 0.01, 0.42, d, 0.7 * v, 0.004, 28);
+    a.osc('triangle', 180 * p, t, 0.07, d, 0.3 * v, 0.001, 70);
+    a.noiseHit(t, 0.16, d, 'lowpass', 900 * p, 0.9, 0.75 * v, 120);
+    a.noiseHit(t, 0.03, d, 'bandpass', 2600 * p, 1.4, 0.35 * v);
+  },
   crit(a, t, v, p, pan) {
     const d = a.out(pan, 0.6);
     bell(a, t, 1320 * p, 0.7 * v, d, 0.6);
