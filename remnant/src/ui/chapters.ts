@@ -48,11 +48,11 @@ export function chaptersTab(close: () => void): HTMLElement {
     const open = chapterOpen(c);
     const status = c.done() ? 'Complete' : c.reached() ? (here === c.n ? 'You are here' : 'In progress') : open ? 'Ready to begin' : `Locked: finish Chapter ${CHAPTERS[c.n - 2].roman} first`;
     const replay = chapterReplay.start;
-    const action = open && !busy
-      ? h('div', { class: 'ch-actions' },
-        btn(c.reached() ? 'Travel' : 'Begin', () => { close(); travelToChapter(c); }, 'btn small', { 'data-k': 'ch_' + c.n }),
-        c.done() && replay ? btn('Replay', () => { close(); replay(c); }, 'btn small', { 'data-k': 'ch_replay_' + c.n }) : null)
-      : null;
+    const travel = open && !busy ? btn(c.reached() ? 'Travel' : 'Begin', () => { close(); travelToChapter(c); }, 'btn small', { 'data-k': 'ch_' + c.n }) : null;
+    // Replay stacks under Travel only where the host can replay; otherwise the row keeps its single button.
+    const action = travel && c.done() && replay
+      ? h('div', { class: 'ch-actions' }, travel, btn('Replay', () => { close(); replay(c); }, 'btn small', { 'data-k': 'ch_replay_' + c.n }))
+      : travel;
     return h('div', { class: 'row-item ch-row', style: open ? '' : 'opacity:0.5' },
       h('div', { class: 'ch-num' }, c.roman),
       h('div', { class: 'ch-text' },
