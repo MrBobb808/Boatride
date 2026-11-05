@@ -24,7 +24,8 @@ try{
  await page.keyboard.press('KeyJ');await until(()=>window.target.hp<1e7);
  await until(()=>window.__remnant.world.player.sprite.texture.key.startsWith('action-elior'));
  assert.ok(await E(()=>window.__remnant.world.player.styleMeter.score>0),'landed melee earns style');
- await page.keyboard.down('Space');await until(()=>window.__remnant.world.player.body.velocity.y<0&&!window.__remnant.world.player.onGround);
+ // The jump-cancel's hop is short: catch it rising or airborne, whichever frame a slow runner samples.
+ await page.keyboard.down('Space');await until(()=>window.__remnant.world.player.body.velocity.y<0||!window.__remnant.world.player.onGround);
  await page.keyboard.up('Space');
  assert.ok(await E(()=>window.__remnant.world.player.styleMeter.score>12),'confirmed hit jump-cancel extends the combo');
  console.log('Elior: animated attack atlas, real hit, style and Vanguard jump-cancel');
