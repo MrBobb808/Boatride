@@ -385,13 +385,13 @@ export class World extends Phaser.Scene implements WorldApi {
       case 'shrine': {
         const o = fallenObjective(e.grants);
         if (!o || this.save.flags[o.flag]) return;
-        const col = e.grants.startsWith('cinder_') ? 0xffd090 : e.grants.startsWith('grecia_') ? 0xffb060 : e.grants.startsWith('gods_') ? 0xff8a5a : 0xbadc8b;
+        const col = e.grants.startsWith('cinder_') ? 0xffd090 : e.grants.startsWith('grecia_') ? 0xffb060 : e.grants.startsWith('gods_') ? 0xff8a5a : e.grants.startsWith('north_') ? 0xff5a5a : 0xbadc8b;
         const glow = this.add.image(x, y - 24, 'glow').setTint(col).setBlendMode(Phaser.BlendModes.ADD).setScale(1.2).setDepth(-2);
         const mark = this.add.graphics().setDepth(2);
         mark.lineStyle(2, col, 1).strokeCircle(x, y - 24, 9).lineBetween(x - 9, y - 24, x + 9, y - 24).lineBetween(x, y - 33, x, y - 15);
         this.tweens.add({ targets: [glow], alpha: 0.5, yoyo: true, repeat: -1, duration: 700 });
         this.roomObjs.push(glow, mark);
-        const label = e.grants.startsWith('cinder_') ? 'Release' : e.grants.startsWith('grecia_') ? 'Relight' : e.grants.startsWith('gods_') ? 'Cast down' : 'Cleanse';
+        const label = e.grants.startsWith('cinder_') ? 'Release' : e.grants.startsWith('grecia_') ? 'Relight' : e.grants.startsWith('gods_') ? 'Cast down' : e.grants.startsWith('north_') ? 'Overturn' : 'Cleanse';
         const it: Interactable = {
           x, y, label, use: () => {
             // The original's rule: clear the guards near it first.
@@ -872,6 +872,7 @@ export class World extends Phaser.Scene implements WorldApi {
     if (wears(this.save, 'banner')) d.echoDmg *= 1.25;
     if (wears(this.save, 'cleansing')) d.echoHp *= 1.3;
     if (wears(this.save, 'high_places')) d.dr = Math.min(0.85, d.dr + 0.08);
+    if (wears(this.save, 'firmament')) d.critDmg *= 1.15;
     this.setEliorStats(d);
     this.legends?.refresh();
   }

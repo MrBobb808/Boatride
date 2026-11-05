@@ -13,10 +13,11 @@ import { Weigher } from '../../../remnant/src/game/bosses5';
 import { StormPrince, PersiaPrince } from '../../../remnant/src/game/bosses6';
 import { GreciaPrince } from '../../../remnant/src/game/bosses10';
 import { NationGods } from '../../../remnant/src/game/bosses11';
+import { NorthKing } from '../../../remnant/src/game/bosses12';
 import type { Entity } from '../../../remnant/src/game/entity';
 import type { EnemyKind } from '../shared';
 
-export type ClassicBossKey = 'idol' | 'gatekeeper' | 'marshal' | 'locust_king' | 'golden_image' | 'weigher' | 'storm_prince' | 'persia_prince' | 'grecia_prince' | 'nation_gods';
+export type ClassicBossKey = 'idol' | 'gatekeeper' | 'marshal' | 'locust_king' | 'golden_image' | 'weigher' | 'storm_prince' | 'persia_prince' | 'grecia_prince' | 'nation_gods' | 'north_king';
 
 export interface ClassicBoss extends Entity {
   key?: string;
@@ -61,6 +62,7 @@ export const CLASSIC_BOSSES: Record<ClassicBossKey, Def> = {
   persia_prince: { make: (x, y) => new PersiaPrince(x, y), chapter: 6, trigger: 'persia_start', flags: ['ch6_prince_done'] },
   grecia_prince: { make: (x, y) => new GreciaPrince(x, y), chapter: 10, trigger: 'grecia_prince_start', flags: ['ch10_done'], boundary: true },
   nation_gods: { make: (x, y) => new NationGods(x, y), chapter: 11, trigger: 'nation_gods_start', flags: ['ch11_done'], boundary: true },
+  north_king: { make: (x, y) => new NorthKing(x, y), chapter: 12, trigger: 'north_king_start', flags: ['ch12_done'], boundary: true },
 };
 
 export const isClassicBoss = (k: string): k is ClassicBossKey => k in CLASSIC_BOSSES;

@@ -53,6 +53,7 @@ const GREAT: { id: string; name: string; ch: number; boss: boolean }[] = [
   { id: 'persia_prince', name: 'The Prince of the Kingdom of Persia', ch: 6, boss: true },
   { id: 'grecia_prince', name: 'The Prince of Grecia', ch: 10, boss: true },
   { id: 'nation_gods', name: 'The Gods of the Nations', ch: 11, boss: true },
+  { id: 'north_king', name: 'The King of the North', ch: 12, boss: true },
 ];
 
 const ROMAN = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'];

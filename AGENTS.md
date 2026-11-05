@@ -77,6 +77,12 @@ Never ship files from `art/incoming/` directly.
     rank of foes and elites (`horde()`), its curve row is a third harder than
     X's, and two altars (Baal's, Dagon's) seal the throne. Micaiah is rescued
     from the Valley of Hinnom.
+  - XII, *The Time of Trouble* (Daniel 11:36–12:13): the same builder and
+    story (`n: 12`), on Chapter X's coast art under rain. Its rooms hold a
+    fuller host (`trouble()`), its curve row is about a quarter harder than
+    XI's, and two standards (the Chariots', the Horsemen's) seal the palace.
+    Shira, keeper of the book of names, is rescued from the Field of the
+    Sleepers.
   - `game/chapters.ts` lists the chapters for chapter select (`ui/chapters.ts`)
     and starts training (the Trial of the Remnant from the menu).
 - **Bosses:**
@@ -95,6 +101,12 @@ Never ship files from `art/incoming/` directly.
     Baal (storm spear, chained lightning, steps behind Elior). Fire from
     heaven ends it (1 Kings 18:38); Elior only withstands. Verified by
     `remnant-phaser/scripts/gods.mjs`.
+  - `game/bosses12.ts`: the King of the North, one king in three movements
+    with his horsemen: the Whirlwind (a low spin across the floor, combos, a
+    slam), the Overflow (floods; the tidings out of the north and the east:
+    marked arrows and a low volley) and the Fury (he grows; three dashes).
+    At his end none helps him (Daniel 11:45) and Michael stands up (12:1);
+    Elior only withstands. Verified by `remnant-phaser/scripts/north.mjs`.
   - `game/difficulty.ts`: Settings → Challenge → Boss difficulty (Normal,
     Hard by default, Merciless) scales every boss's health, damage and tempo.
   - `game/curve.ts`: one table per chapter of the level a straight-through
@@ -304,7 +316,7 @@ Never ship files from `art/incoming/` directly.
 
 ## Where the story stands
 
-Chapters I–X are implemented, each with a chapter-end screen. Chapter X, The
+Chapters I–XII are implemented, each with a chapter-end screen; XII, The Time of Trouble, closes the Daniel arc. Chapter X, The
 Prince of Grecia, pays off Daniel 10:20 on the storm coast of Chittim. Chapter VI
 continues into the original Fallen Crown campaigns: VII, The Crown of the Hunt
 (Varkhos), and VIII, The Crown of Pestilence (Morvane). Their room definitions,

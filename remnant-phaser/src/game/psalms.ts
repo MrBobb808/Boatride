@@ -6,7 +6,7 @@ import { ITEMS } from '../../../remnant/src/game/data';
 import { ROOMS } from '../shared';
 import type { PhaserSave } from './save';
 
-export type PsalmId = 'broken_idol' | 'open_gate' | 'banner' | 'swarm' | 'furnace' | 'balance' | 'wind' | 'watch' | 'four_winds' | 'hunt' | 'cleansing' | 'refiner' | 'high_places';
+export type PsalmId = 'broken_idol' | 'open_gate' | 'banner' | 'swarm' | 'furnace' | 'balance' | 'wind' | 'watch' | 'four_winds' | 'hunt' | 'cleansing' | 'refiner' | 'high_places' | 'firmament';
 export interface Psalm { id: PsalmId; name: string; cost: number; boss: string; bossName: string; kind: 'Combat' | 'Movement' | 'Echoes'; desc: string }
 
 const P = (id: PsalmId, name: string, cost: number, boss: string, bossName: string, kind: Psalm['kind'], desc: string): Psalm => ({ id, name, cost, boss, bossName, kind, desc });
@@ -24,6 +24,7 @@ export const PSALMS: Psalm[] = [
   P('cleansing', 'Psalm of the Cleansing', 2, 'plague_monarch', 'Morvane', 'Echoes', 'Your Echoes have 30% more health.'),
   P('refiner', 'Psalm of the Refiner', 2, 'cinder_monarch', 'Azkar', 'Combat', 'A perfect parry makes your next three blows critical.'),
   P('high_places', 'Psalm of the High Places', 2, 'nation_gods', 'the Gods of the Nations', 'Combat', 'Every blow you take lands 8% lighter.'),
+  P('firmament', 'Psalm of the Firmament', 2, 'north_king', 'the King of the North', 'Combat', 'Critical blows land 15% harder.'),
 ];
 export const PSALM = Object.fromEntries(PSALMS.map((p) => [p.id, p])) as Record<PsalmId, Psalm>;
 
@@ -33,7 +34,7 @@ export const PAGE_BOSSES: Record<string, string> = { marshal: 'psalter_3', storm
 export const BASE_SLOTS = 3, MAX_SLOTS = 7;
 
 /** Story flags that mark a boss beaten in saves from before Psalms (the rewards flag came later). */
-const BEATEN: Record<string, string> = { idol: 'idol_defeated', gatekeeper: 'gate_open', marshal: 'marshal_raised', locust_king: 'ch3_king_done', golden_image: 'ch4_image_done', weigher: 'ch5_weigher_done', storm_prince: 'ch6_storm_done', persia_prince: 'ch6_prince_done', grecia_prince: 'ch10_done', nation_gods: 'ch11_done' };
+const BEATEN: Record<string, string> = { idol: 'idol_defeated', gatekeeper: 'gate_open', marshal: 'marshal_raised', locust_king: 'ch3_king_done', golden_image: 'ch4_image_done', weigher: 'ch5_weigher_done', storm_prince: 'ch6_storm_done', persia_prince: 'ch6_prince_done', grecia_prince: 'ch10_done', nation_gods: 'ch11_done', north_king: 'ch12_done' };
 
 let ready = false;
 /** The Psalter Pages are key items, and the two chests hold one each. Once, at startup. */

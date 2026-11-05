@@ -1,7 +1,7 @@
 // Original fiction: each Fallen Crown commands a distinct domain.
 import { MapBuilder, type RoomDef, type EntDef, type EnemyKind, type NpcKind } from './tiles';
 export interface FallenChapter {
-  n: 7 | 8 | 9 | 10 | 11; roman: string; title: string; name: string; boss: 'beast_monarch' | 'plague_monarch' | 'cinder_monarch' | 'grecia_prince' | 'nation_gods'; biome: 'hunt' | 'plague' | 'cinders' | 'grecia';
+  n: 7 | 8 | 9 | 10 | 11 | 12; roman: string; title: string; name: string; boss: 'beast_monarch' | 'plague_monarch' | 'cinder_monarch' | 'grecia_prince' | 'nation_gods' | 'north_king'; biome: 'hunt' | 'plague' | 'cinders' | 'grecia';
   hub: string; trail: string; depths: string; side: string; ridge: string; arena: string; rescue: NpcKind;
   objectives: {id: string; flag: string; room: string; name: string}[];
   rewards: string[]; optional: string; caches: string[]; record: string; intro: string[]; challenge: string[]; ending: string[]; tips: string;
@@ -66,6 +66,19 @@ export const FALLEN_CHAPTERS: FallenChapter[] = [
     foes:{lead:'knight',signature:'undying',rear:'priest',guard:'bulwark',side:['stalker','golem']},
     cacheItems:['highplace_gauntlets','ashlar_mail'],
     words:{sideQuest:'The Prophet in the Fire',sidePlace:'the Valley of Hinnom below the House of Dagon',guardWarn:'Clear the altar\'s guards before you cast it down.',rescueBlock:'They are still between us and the path. Clear them, and I will walk out on my own feet.',rescueThanks:'I kept my record in my sleeve the whole time. Take it to Mara. Tell her the gods are only as strong as the fear they are fed.',maraReward:'Micaiah wrote every word in a steady hand, even here. Take his scroll; it was written by someone who would not bow.',recordPlace:'valley',theme:'All the gods of the nations are idols. What made the heavens does not need your fear to stand.',stay:'Return to Carmel'},
+  },
+  { n:12, roman:'XII', title:'The Time of Trouble', name:'The King of the North', boss:'north_king', biome:'grecia', hub:'river_camp', trail:'palace_tents', depths:'sealed_vault', side:'field_of_sleepers', ridge:'holy_mountain', arena:'palace_between_seas', rescue:'shira',
+    objectives:[{id:'north_standard_a',flag:'north_standard_a',room:'palace_tents',name:'Standard of the Chariots'},{id:'north_standard_b',flag:'north_standard_b',room:'sealed_vault',name:'Standard of the Horsemen'}],
+    rewards:['firmament_blade','lot_of_the_end'], optional:'shiras_copy', caches:['north_tent_cache','north_field_cache','north_mount_cache'], record:'north_testament',
+    intro:['The gods fell, and a man stood up in their place. He calls himself the King of the North. He bows to no god, because he has made himself greater than all of them, and his army comes over the land like a whirlwind: chariots, horsemen, and more ships than the harbour can count.', 'He has pitched the tents of his palace on the holy mountain between the seas. Two standards, the Chariots\' and the Horsemen\'s, hold his host together. Overturn both, and the way to his palace opens.', 'Shira kept the book of names in the old vault. His soldiers dragged her out to the field where they are digging up the dead. Bring her home. And Elior: this is a time of trouble such as never was. Nobody is coming to help him. That may be the only thing he has not counted on.'],
+    challenge:['The watchman of the Remnant. You broke the princes, and you saw the gods fall. Did you think the world would be empty after them? I filled it.', 'You filled it with tents and horses. The mountain is still not yours.', 'I do according to my will. I magnify myself above every god, and every god has fallen. Who is left to stop me? You?', 'Not me. I only have to stand until the end.', 'Then stand. My chariots will go over you like a whirlwind.'],
+    ending:['The King of the North comes to his end, and none helps him. His horsemen are gone, his chariots are scattered, and the tents on the mountain are empty in the wind. Then a great light stands up over the seas, and the time of trouble breaks.', 'It was never mine to take him down. It was only mine to be standing when he fell.', 'Every name in Shira\'s book is still there. "They that be wise shall shine as the brightness of the firmament" (Daniel 12:3, KJV). Rest now, watchman. You will stand in your lot at the end of the days.'],
+    tips:'He is a whirlwind: when he lowers his shoulder he spins across the whole floor; jump it or dodge through it. Parry the sword. When he overflows, the flood runs the length of the floor: jump each wave. Tidings from the north and the east come as arrows: leave the marked ground and duck the volley from the wall. In his fury he dashes through you three times; dodge each one. His horsemen come with him: cut them down fast.',
+    voices:{tobiah:['The ground shakes every time his chariots go by. The children have stopped asking what it is.','It is so quiet. I keep listening for the wheels, and they do not come.'],rescued:['They wanted the book so they could burn every name in it. I hid it in my coat and let them take me instead.','I went back and read every name in the book to the river. All of them are still there.']},
+    places:['The Camp by the Great River','The Tents of His Palace','The Vault of the Sealed Book','The Field of the Sleepers','The Glorious Holy Mountain','The Palace Between the Seas'],
+    foes:{lead:'knight',signature:'lion',rear:'archer',guard:'bulwark',side:['undying','gale']},
+    cacheItems:['seas_gauntlets','linen_mantle'],
+    words:{sideQuest:'The Book of Names',sidePlace:'the Field of the Sleepers beyond the Vault of the Sealed Book',guardWarn:'Clear the standard\'s guards before you overturn it.',rescueBlock:'They are still digging. Clear them, and I will walk out of this field with you.',rescueThanks:'The book is here, under my coat. Take my copy of the names to Mara. Tell her none of them were lost.',maraReward:'Shira copied every name by lamplight in a vault with no door. Take her copy; it remembers the people the king tried to forget.',recordPlace:'field',theme:'Every throne that magnifies itself comes to its end alone. Those who are written in the book are not forgotten.',stay:'Return to the River'},
   },
 ];
 export const chapterForRoom = (id: string) => FALLEN_CHAPTERS.find(c => [c.hub,c.trail,c.depths,c.side,c.ridge,c.arena].includes(id));
@@ -183,10 +196,10 @@ function dress(r: RoomDef) {
 }
 
 function makeRooms(c:FallenChapter):RoomDef[] {
-  const theme=c.biome, floor=24, width=104, mapY=c.n===11?26:c.n*2;
+  const theme=c.biome, floor=24, width=104, mapY=c.n===12?33:c.n===11?26:c.n*2;
   const room=(id:string,name:string,w=width,f=floor,interior=false):RoomDef=>{
     const b=new MapBuilder(w,f+4).rect(0,f,w,4);if(interior)b.rect(0,0,w,2);
-    return {id,name,region:c.title,biome:theme,music:theme,dark:interior?.36:.23,interior,weather:c.n===10?(interior?'drips':'rain'):c.n===9||c.n===11?'embers':c.n===7&&!interior?'ash':'motes',seed:c.n*100+[c.hub,c.trail,c.depths,c.side,c.ridge,c.arena].indexOf(id),map:{x:0,y:mapY},w,h:b.h,rows:b.rows(),spawns:{start:{x:6,y:f},left:{x:4,y:f},right:{x:w-4,y:f,face:-1}},exits:[],ents:[]};
+    return {id,name,region:c.title,biome:theme,music:theme,dark:interior?.36:.23,interior,weather:c.n===10||c.n===12?(interior?'drips':'rain'):c.n===9||c.n===11?'embers':c.n===7&&!interior?'ash':'motes',seed:c.n*100+[c.hub,c.trail,c.depths,c.side,c.ridge,c.arena].indexOf(id),map:{x:0,y:mapY},w,h:b.h,rows:b.rows(),spawns:{start:{x:6,y:f},left:{x:4,y:f},right:{x:w-4,y:f,face:-1}},exits:[],ents:[]};
   };
   const P=c.places;
   const hub=room(c.hub,P?P[0]:c.n===9?'Ashwatch Refuge':c.n===7?'Thawgate Outpost':'Lantern Quarantine',76,20);
@@ -232,6 +245,7 @@ function makeRooms(c:FallenChapter):RoomDef[] {
   const rooms=[hub,trail,depths,side,ridge,arena];
   if(c.n===10)tide(c,depths,side,trail,ridge);
   if(c.n===11)horde(trail,depths,side,ridge);
+  if(c.n===12)trouble(trail,depths,side,ridge);
   for(const r of rooms)dress(r);
   return rooms;
 }
@@ -272,4 +286,20 @@ export const FALLEN_ROOMS=FALLEN_CHAPTERS.flatMap(makeRooms);
 /** Shelter is reachable on foot, even at maximum gauntlet tempo, without a particular skill loadout. */
 export function cleansingBeacon(playerX:number,bossX:number,width:number){
   const side=playerX<bossX?-1:1;return Math.max(160,Math.min(width-160,playerX+side*140));
+}
+/**
+ * Chapter XII: a time of trouble such as never was. The king's host fills every route room in two ranks with two
+ * elites, the Field of the Sleepers is crowded with the Undying they dig up, and the chapter's scripture is cut
+ * along the way.
+ */
+function trouble(trail:RoomDef,depths:RoomDef,side:RoomDef,ridge:RoomDef){
+  for(const [i,r] of [trail,depths,ridge].entries()){
+    const f=r.h-4;
+    r.ents.push(foe('lion',34,f),foe('soldier',44,f),foe('knight',64,f),foe('priest',70,f),foe('archer',86,f),foe(i===1?'golem':'brute',40,f,`north_elite_${i}a`),foe(i===2?'stalker':'knight',74,f,`north_elite_${i}b`));
+  }
+  side.ents.push(foe('undying',14,24),foe('undying',34,24),foe('archer',40,24),foe('knight',56,24,'north_elite_side'));
+  trail.ents.push({t:'lore',id:'dan1136',x:12,y:trail.h-4});
+  depths.ents.push({t:'lore',id:'dan124',x:30,y:depths.h-4});
+  side.ents.push({t:'lore',id:'dan122',x:30,y:24});
+  ridge.ents.push({t:'lore',id:'dan1145',x:64,y:16});
 }

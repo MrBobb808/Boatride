@@ -15,7 +15,7 @@ import { G } from '../classic/shim/ctx';
 /** Each chapter's main quests, in story order. */
 const MAIN: Record<number, string[]> = {
   1: ['m_expedition', 'm_dark', 'm_return'], 2: ['m_tower'], 3: ['m_valley'], 4: ['m_dura'], 5: ['m_feast'], 6: ['m_persia'],
-  7: ['m_crown7'], 8: ['m_crown8'], 9: ['m_crown9'], 10: ['m_crown10'], 11: ['m_crown11'],
+  7: ['m_crown7'], 8: ['m_crown8'], 9: ['m_crown9'], 10: ['m_crown10'], 11: ['m_crown11'], 12: ['m_crown12'],
 };
 
 export interface Brief {
@@ -50,7 +50,7 @@ export function brief(): Brief {
 function crownSteps(n: number) {
   const c = FALLEN_CHAPTERS.find((x) => x.n === n);
   if (!c) return [];
-  const verb = n === 7 ? 'Defeat' : n === 8 ? 'Cleanse' : n === 9 ? 'Release' : n === 11 ? 'Cast down' : 'Relight';
+  const verb = n === 7 ? 'Defeat' : n === 8 ? 'Cleanse' : n === 9 ? 'Release' : n === 11 ? 'Cast down' : n === 12 ? 'Overturn' : 'Relight';
   const left = c.objectives.filter((o) => !G.save.flags[o.flag]);
   return [
     ...left.slice(1).map((o) => `${verb} the ${o.name} in ${ROOMS[o.room]?.name ?? o.room}${n === 7 ? '' : ' (clear its guards first)'}.`),

@@ -19,6 +19,16 @@ Progress uses optional flags, existing quest records, opened chests and ordinary
 
 The art reuses Chapter X's temple set with ember weather; dedicated sprites and backgrounds for the gods are a follow-up.
 
+**XII — The Time of Trouble**, recommended level 68+, continues from XI's ending or Chapters. It follows Daniel 11:36–12:13: after the gods fall, a man stands up in their place, the King of the North, who "shall exalt himself, and magnify himself above every god" (Daniel 11:36, KJV). Elior withstands him; the victory is not his to take ("yet he shall come to his end, and none shall help him", Daniel 11:45, KJV; then Michael stands up, Daniel 12:1). Six places: the Camp by the Great River, the Tents of His Palace, the Vault of the Sealed Book, the Field of the Sleepers (optional; Shira, keeper of the book of names, is rescued there), the Glorious Holy Mountain and the Palace Between the Seas.
+
+- **A fuller host:** each route room holds two ranks (Brazen Lion, locust soldier, knight, fire-priest, archer) and two elites (`trouble()` in `fallenChapters.ts`), ten or eleven foes, and the Field of the Sleepers is crowded with the Undying. The curve row (level 68) is about a quarter harder than XI's.
+- **Two standards** (the Standard of the Chariots in the tents, the Standard of the Horsemen in the vault) seal the palace; their guards must fall before each is overturned.
+- **The boss** (`game/bosses12.ts`, `NorthKing`) is one king in three movements, always with his horsemen (two at a time, three at the last). The Whirlwind (Daniel 11:40): greatsword combos, a spin across the whole floor with the blade low (jump it or dodge through), a leaping slam whose shock runs both ways. The Overflow (two thirds): floods that pass over the floor one after another, from his side and then the far wall, and the tidings out of the north and the east (Daniel 11:44): arrows on marked ground and a low volley from the east wall. The Fury (one third): he magnifies himself and grows, and dashes straight through Elior three times. At his end his host melts away, and Michael's light stands up over the seas.
+- **Rewards:** the Firmament Blade (a holy greatsword) and the Lot of the Last Days; Shira's Copy of the Names from Mara; Gauntlets Between the Seas and the Mantle of Fine Linen in the caches; the Psalm of the Firmament in the Phaser build.
+- **Verified by** `remnant-phaser/scripts/north.mjs`.
+
+The art reuses Chapter X's coast and temple set under rain; dedicated sprites and backgrounds are a follow-up (art requests B12, E14).
+
 ## Art
 
 Built-in image-generation mode, transparent background, no references. Assets are copied into the repository and consumed by `src/render/fallenArt.ts`, using authored crops and pivots.
