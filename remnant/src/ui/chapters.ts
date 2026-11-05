@@ -11,6 +11,9 @@ import { loadBoard, rushClock } from '../game/board';
 import { contractBoard } from './progression';
 import { dailyBox } from './daily';
 
+/** A host build that can play a finished chapter again (the Phaser build) sets this; the row then offers Replay. */
+export const chapterReplay: { start: ((c: (typeof CHAPTERS)[number]) => void) | null } = { start: null };
+
 /** Modes a host build adds to the list (the Phaser build's Horde). */
 export const extraModes: ((close: () => void, busy: boolean) => HTMLElement)[] = [];
 
@@ -44,8 +47,11 @@ export function chaptersTab(close: () => void): HTMLElement {
   const rows = CHAPTERS.map((c) => {
     const open = chapterOpen(c);
     const status = c.done() ? 'Complete' : c.reached() ? (here === c.n ? 'You are here' : 'In progress') : open ? 'Ready to begin' : `Locked: finish Chapter ${CHAPTERS[c.n - 2].roman} first`;
+    const replay = chapterReplay.start;
     const action = open && !busy
-      ? btn(c.reached() ? 'Travel' : 'Begin', () => { close(); travelToChapter(c); }, 'btn small', { 'data-k': 'ch_' + c.n })
+      ? h('div', { class: 'ch-actions' },
+        btn(c.reached() ? 'Travel' : 'Begin', () => { close(); travelToChapter(c); }, 'btn small', { 'data-k': 'ch_' + c.n }),
+        c.done() && replay ? btn('Replay', () => { close(); replay(c); }, 'btn small', { 'data-k': 'ch_replay_' + c.n }) : null)
       : null;
     return h('div', { class: 'row-item ch-row', style: open ? '' : 'opacity:0.5' },
       h('div', { class: 'ch-num' }, c.roman),

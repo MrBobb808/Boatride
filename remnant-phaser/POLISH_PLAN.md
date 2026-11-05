@@ -612,6 +612,10 @@ The owner's Elior passed level 400: foes fell in a blow, levels came too fast, a
   in a puff of golden cloud, he lands behind the nearest foe within 280 px while two fire-gold clones strike it, and
   his next punch is already thrown. A swing at a foe out of reach blinks him to it, as the Mantle does. Transform
   pressed twice goes straight into the Unshorn (once awakened). He wears no cape, so the tail of fire leads.
+- **Replay any finished chapter** (Pause → Chapters → Replay; `chapterReplay` in `ui/chapters.ts`, `World.replaying`):
+  the chapter's bosses and commanders stand again, matched to his strength, and the boss wakes when he steps in even
+  though the story has told that fight. Rewards already won (legendaries, keepsakes, chapter gear) are not paid
+  twice. Leaving the chapter ends the replay. Verified by `scripts/replay.mjs`.
 - **The title** is one measured column (`scenes/Title.ts`): on a short screen (a phone in landscape with Safari's
   bars) the whole column shrinks to fit, so the buttons never ride over the subtitle or the version line.
 

@@ -18,6 +18,8 @@ export type PhaserSave = SaveData & {
   quiver?: ArrowType[]; arrowType?: ArrowType;
   /** The other hero is out as an AI partner (game/partner.ts). */
   partnerOut?: boolean;
+  /** A finished chapter being played again (Chapters → Replay): its bosses and commanders stand again there. */
+  replay?: number;
   /** Silver left where the hero fell, one shade per death (game/shade.ts). */
   shades?: import('./shade').ShadeSave[];
   /** Where the hero last rested at an altar: a fall in that chapter rises there. */

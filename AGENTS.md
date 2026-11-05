@@ -83,7 +83,11 @@ Never ship files from `art/incoming/` directly.
     XI's, and two standards (the Chariots', the Horsemen's) seal the palace.
     Shira, keeper of the book of names, is rescued from the Field of the
     Sleepers.
-  - `game/chapters.ts` lists the chapters for chapter select (`ui/chapters.ts`)
+  - `game/chapters.ts` lists the chapters for chapter select (`ui/chapters.ts`). In
+    the Phaser build a finished chapter can be replayed (`chapterReplay`,
+    `PhaserSave.replay`): its bosses and commanders stand again, matched to
+    the hero, and once-only rewards stay once-only. Verified by
+    `remnant-phaser/scripts/replay.mjs`.
     and starts training (the Trial of the Remnant from the menu).
 - **Bosses:**
   - `game/boss.ts`: the Gilded Idol.

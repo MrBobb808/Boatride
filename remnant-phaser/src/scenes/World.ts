@@ -64,6 +64,8 @@ import { GuideTrail } from '../game/guideTrail';
 import { Legends } from '../game/legends';
 import { Awakening } from '../game/awakening';
 import { setMightLevel } from '../../../remnant/src/game/might';
+import { chapterReplay } from '../../../remnant/src/ui/chapters';
+import { travelToChapter } from '../../../remnant/src/game/chapters';
 import { guidePoint } from '../../../remnant/src/game/guide';
 import { showHint } from '../game/guideHint';
 import { offlineReady, updatePending, checkForUpdates } from '../game/update';
@@ -172,6 +174,13 @@ export class World extends Phaser.Scene implements WorldApi {
     this.awakening = new Awakening(this);
     // Foes answer the hero in play (game/might.ts): Tirzah's level while she fights.
     setMightLevel(() => heroLevel(this.save));
+    // Chapters → Replay: a finished chapter's bosses and commanders stand again; rewards already won stay won.
+    chapterReplay.start = (c) => {
+      this.save.replay = c.n;
+      travelToChapter(c);
+      this.time.delayedCall(1200, () => this.toast(`Replaying Chapter ${c.roman}: its bosses and commanders stand again, matched to your strength. Rewards already won are not given twice.`));
+      this.persist();
+    };
     // ?fixedstep (tests only): the physics too advances exactly 1/60 s a frame, so jumps and dashes measure as on a
     // 60 fps phone however slow the frames are.
     if (FIXED_STEP) { const pw = this.physics.world, step = pw.update.bind(pw); pw.update = (time: number) => step(time, 1000 / 60); }
@@ -281,6 +290,8 @@ export class World extends Phaser.Scene implements WorldApi {
     this.clearRoom();
     this.refreshStats();
     const r = (this.room = ROOMS[id]);
+    // A replay lasts while the hero is in its chapter (the Trial and the Rest belong to no chapter's story).
+    if (this.save.replay !== undefined && id !== 'trial_arena' && id !== 'remnant_rest' && chapterOf(id) !== this.save.replay) delete this.save.replay;
     if (r.music) music.play(r.music);
     this.entrySpawn = r.spawns[spawnName] ? spawnName : r.spawns.start ? 'start' : Object.keys(r.spawns)[0];
     this.save.room = id;
@@ -372,7 +383,7 @@ export class World extends Phaser.Scene implements WorldApi {
         // The original's foe, with its own moves and art. An elite once purified, or an
         // objective commander once fallen, stays gone.
         const obj = e.elite ? fallenObjective(e.elite) : undefined;
-        if (e.elite && (this.save.defeated?.includes(e.elite) || (obj && this.save.flags[obj.flag]))) return;
+        if (e.elite && !this.replaying && (this.save.defeated?.includes(e.elite) || (obj && this.save.flags[obj.flag]))) return;
         const en = makeEnemy(e.k, x, y, e.elite ?? null);
         if (e.face) en.face = e.face;
         this.classic.add(en);
@@ -381,7 +392,7 @@ export class World extends Phaser.Scene implements WorldApi {
       case 'boss': {
         if (isClassicBoss(e.k)) { this.spawnClassicBoss(e.k, e.x * TILE, e.y * TILE); return; }
         // A broken crown stays broken: the story keeps its wins in `defeated`, the story-less checks in the flag.
-        if (!bossPorted(e.k) || this.save.flags[`defeated_${e.k}`] || this.save.defeated?.includes(e.k)) return;
+        if (!bossPorted(e.k) || (!this.replaying && (this.save.flags[`defeated_${e.k}`] || this.save.defeated?.includes(e.k)))) return;
         this.boss = makeBoss(this, e.k, x + 8, y);
         this.addFoe(this.boss);
         return;
@@ -634,6 +645,11 @@ export class World extends Phaser.Scene implements WorldApi {
     const p = this.player;
     for (const t of this.triggers) {
       if (!t.r.contains(p.x, p.feet - 4)) continue;
+      // A replay wakes the boss itself: the story has already told this fight and would let it sleep.
+      if (this.replaying && !G.inCutscene) {
+        if (this.boss && t.id === `${this.boss.key}_start` && this.boss.state === 'dormant') { this.boss.awaken(); this.closeGate(true); continue; }
+        if (this.cboss && this.cbossKey && t.id === CLASSIC_BOSSES[this.cbossKey].trigger && this.cboss.state === 'dormant' && !this.brood) { this.wakeClassic(); continue; }
+      }
       if (this.classic.storyEnabled) { if (!G.inCutscene) this.classic.trigger(t.id); continue; }
       if (this.boss && t.id === `${this.boss.key}_start` && this.boss.state === 'dormant') { this.boss.awaken(); this.closeGate(true); }
       if (this.cboss && this.cbossKey && t.id === CLASSIC_BOSSES[this.cbossKey].trigger && this.cboss.state === 'dormant' && !this.brood) this.wakeClassic();
@@ -963,10 +979,13 @@ export class World extends Phaser.Scene implements WorldApi {
 
   // ---------------------------------------------------------------- classic bosses
 
+  /** Playing a finished chapter again (Chapters → Replay), in one of its rooms. */
+  get replaying() { return this.save.replay !== undefined && this.save.replay === chapterOf(this.room.id); }
+
   /** A classic boss on its mark, with the original's own health on Hard. */
   private spawnClassicBoss(k: ClassicBossKey, x: number, y: number) {
     const finishing = this.classic.storyEnabled && ({ golden_image: 'ch4_image_done', weigher: 'ch5_weigher_done', storm_prince: 'ch6_storm_done', persia_prince: 'ch6_prince_done' } as Record<string, string>)[k];
-    if (this.save.defeated?.includes(k) && (!finishing || this.save.flags[finishing])) return;
+    if (!this.replaying && this.save.defeated?.includes(k) && (!finishing || this.save.flags[finishing])) return;
     const def = CLASSIC_BOSSES[k], b = def.make(x, y);
     this.classic.add(b);
     this.classic.boss = b;
