@@ -62,6 +62,7 @@ import { songs } from '../../../remnant/src/audio/songs';
 import { settings, shakeScale } from '../classic/shim/settings';
 import { GuideTrail } from '../game/guideTrail';
 import { Legends } from '../game/legends';
+import { Awakening } from '../game/awakening';
 import { guidePoint } from '../../../remnant/src/game/guide';
 import { showHint } from '../game/guideHint';
 import { offlineReady, updatePending, checkForUpdates } from '../game/update';
@@ -113,6 +114,8 @@ export class World extends Phaser.Scene implements WorldApi {
   guideTrail!: GuideTrail;
   /** The Legendary Powers on the fighting hero's gear (game/legends.ts). */
   legends!: Legends;
+  /** The Unshorn's awakening in the King of the North's fight (game/awakening.ts). */
+  awakening!: Awakening;
   feedback!: Feedback;
   /** The room's classic boss, while it stands. */
   cboss: ClassicBoss | null = null;
@@ -165,6 +168,7 @@ export class World extends Phaser.Scene implements WorldApi {
     this.visuals = new Visuals(this);
     this.guideTrail = new GuideTrail(this);
     this.legends = new Legends(this, () => this.player);
+    this.awakening = new Awakening(this);
     // ?fixedstep (tests only): the physics too advances exactly 1/60 s a frame, so jumps and dashes measure as on a
     // 60 fps phone however slow the frames are.
     if (FIXED_STEP) { const pw = this.physics.world, step = pw.update.bind(pw); pw.update = (time: number) => step(time, 1000 / 60); }
@@ -385,13 +389,13 @@ export class World extends Phaser.Scene implements WorldApi {
       case 'shrine': {
         const o = fallenObjective(e.grants);
         if (!o || this.save.flags[o.flag]) return;
-        const col = e.grants.startsWith('cinder_') ? 0xffd090 : e.grants.startsWith('grecia_') ? 0xffb060 : e.grants.startsWith('gods_') ? 0xff8a5a : 0xbadc8b;
+        const col = e.grants.startsWith('cinder_') ? 0xffd090 : e.grants.startsWith('grecia_') ? 0xffb060 : e.grants.startsWith('gods_') ? 0xff8a5a : e.grants.startsWith('north_') ? 0xff5a5a : 0xbadc8b;
         const glow = this.add.image(x, y - 24, 'glow').setTint(col).setBlendMode(Phaser.BlendModes.ADD).setScale(1.2).setDepth(-2);
         const mark = this.add.graphics().setDepth(2);
         mark.lineStyle(2, col, 1).strokeCircle(x, y - 24, 9).lineBetween(x - 9, y - 24, x + 9, y - 24).lineBetween(x, y - 33, x, y - 15);
         this.tweens.add({ targets: [glow], alpha: 0.5, yoyo: true, repeat: -1, duration: 700 });
         this.roomObjs.push(glow, mark);
-        const label = e.grants.startsWith('cinder_') ? 'Release' : e.grants.startsWith('grecia_') ? 'Relight' : e.grants.startsWith('gods_') ? 'Cast down' : 'Cleanse';
+        const label = e.grants.startsWith('cinder_') ? 'Release' : e.grants.startsWith('grecia_') ? 'Relight' : e.grants.startsWith('gods_') ? 'Cast down' : e.grants.startsWith('north_') ? 'Overturn' : 'Cleanse';
         const it: Interactable = {
           x, y, label, use: () => {
             // The original's rule: clear the guards near it first.
@@ -552,6 +556,7 @@ export class World extends Phaser.Scene implements WorldApi {
     this.controls.locked = G.inCutscene;
     this.player.update(dt);
     this.legends.update(dt);
+    this.awakening.update(rawDt);
     this.leadCamera(rawDt);
     for (const f of this.foeList) if (!f.removed) f.update(dt * this.classic.nativeScale(f));
     this.foeList = this.foeList.filter((f) => !f.removed);
@@ -872,6 +877,7 @@ export class World extends Phaser.Scene implements WorldApi {
     if (wears(this.save, 'banner')) d.echoDmg *= 1.25;
     if (wears(this.save, 'cleansing')) d.echoHp *= 1.3;
     if (wears(this.save, 'high_places')) d.dr = Math.min(0.85, d.dr + 0.08);
+    if (wears(this.save, 'firmament')) d.critDmg *= 1.15;
     this.setEliorStats(d);
     this.legends?.refresh();
   }

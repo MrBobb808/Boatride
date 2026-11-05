@@ -241,7 +241,7 @@ export class GreciaPrince extends BossBase {
   private tip = { told: false, wall: false, ram: false, ward: false };
 
   constructor(x: number, y: number) {
-    super('grecia_prince', x, y, 40, 116, 1250000);
+    super('grecia_prince', x, y, 40, 116, 410000);
     this.name = 'The Prince of Grecia';
     this.sub = 'I · The He-Goat from the West';
     this.floorY = y;

@@ -31,10 +31,17 @@ const EXTRA: Record<string, HumanStyle> = {
     helm: 'crown', helmColor: '#e2c86a', helmTrim: '#fff3c4', eye: '#eef4ff', eyeGlow: 1, iris: '#9ab8ff', outline: '#06040a',
     weapon: 'none', offhand: 'none', bulk: 1.4, crest: '#9ab8ff',
   },
+  // Chapter XII's king, in his own colours (game/bosses12.ts).
+  'The King of the North': {
+    skin: '#8a6a52', hair: '#1a1210', hairKind: 'short', beard: '#1a1210', coat: '#5a1010', coatDark: '#2e0808', skirt: 16, trim: '#e8c25a',
+    pants: '#2e0808', boots: '#140c08', glove: '#2a1a10', belt: '#e8c25a', plate: { c: '#5a5e6a', dark: '#2a2c34', hi: '#d8dce8', tier: 3 },
+    helm: 'crown', helmColor: '#e8c25a', helmTrim: '#fff1c4', eye: '#ffe0c0', eyeGlow: 1, iris: '#ff5a3a', outline: '#060408',
+    weapon: 'none', offhand: 'none', bulk: 1.4, crest: '#c82a2a',
+  },
 };
 
 /** Who glowers by default. */
-const VILLAINS = new Set(['regent', 'satrap', 'feastlord', 'marshal', 'storm_prince', 'persia_prince', 'The Prince of Grecia', 'Baal', 'Varkhos', 'Morvane', 'Azkar']);
+const VILLAINS = new Set(['regent', 'satrap', 'feastlord', 'marshal', 'storm_prince', 'persia_prince', 'The Prince of Grecia', 'Baal', 'The King of the North', 'Varkhos', 'Morvane', 'Azkar']);
 
 function styleOf(who: string): HumanStyle | null {
   if (who === 'elior') return G.world?.player?.style ?? NPC_DEFS.tobiah.style;

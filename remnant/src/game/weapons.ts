@@ -390,6 +390,113 @@ const greatsword: Moveset = {
 
 export const MOVESETS: Record<WeaponFamily, Moveset> = { blade, spear, greatsword };
 
+// ---------- the Unshorn's fists (the Phaser build's third transformation) ----------
+
+/** A centre-line guard: both hands up in front, the lead hand forward, the rear hand guarding behind it. */
+const IDLE_FISTS: Pose = {
+  ...IDLE_BLADE,
+  fUA: 1.05, fFA: 0.95, bUA: 1.15, bFA: 1.25, wpn: 0, lean: 0.14, head: -0.02,
+  fTh: 0.32, fSh: -0.4, bTh: -0.24, bSh: -0.3,
+};
+const GUARD = { fUA: 1.05, fFA: 0.95, bUA: 1.15, bFA: 1.25 };
+/** A straight punch along the centre line: the striking arm drives out level, the other snaps back to guard. */
+const punch = (front: boolean, lean: number, step = 0, x = 2): Clip => ({ dur: 1, keys: [
+  k(0, front ? { fUA: 0.95, fFA: 1.25, bUA: 1.2, bFA: 1.05, lean: lean - 0.12 } : { fUA: 1.2, fFA: 1.05, bUA: 0.95, bFA: 1.35, lean: lean - 0.12 }),
+  k(0.22, front ? { fUA: 0.9, fFA: 1.35, lean: lean - 0.14, sq: 0.97 } : { bUA: 0.9, bFA: 1.45, lean: lean - 0.14, sq: 0.97 }),
+  k(0.34, front
+    ? { fUA: 1.6, fFA: 0.0, bUA: 0.75, bFA: 1.75, lean, fTh: 0.42 + step, fSh: -0.45 - step * 0.4, bTh: -0.32 - step * 0.6, x, sq: 1.02 }
+    : { bUA: 1.62, bFA: 0.0, fUA: 0.72, fFA: 1.8, lean, fTh: 0.42 + step, fSh: -0.45 - step * 0.4, bTh: -0.32 - step * 0.6, x, sq: 1.02 }, easeOutCubic),
+  k(0.6, front ? { fUA: 1.55, fFA: 0.05, bUA: 0.8, bFA: 1.7, lean: lean - 0.03, x } : { bUA: 1.57, bFA: 0.05, fUA: 0.78, fFA: 1.75, lean: lean - 0.03, x }),
+  k(1, { ...GUARD }, easeInOutSine),
+] });
+const FIST_CLIPS: Record<string, Clip> = {
+  u1: punch(true, 0.3), u2: punch(false, 0.32),
+  // The third drives the whole body behind the fist: a step and a lower stance.
+  u3: punch(true, 0.48, 0.5, 4),
+  // Both palms at once (a launching push).
+  u4: { dur: 1, keys: [
+    k(0, { fUA: 0.6, fFA: 1.7, bUA: 0.7, bFA: 1.8, lean: 0.05, fTh: 0.5, fSh: -0.9, bTh: -0.3, bSh: -0.8, sq: 0.93 }),
+    k(0.3, { fUA: 0.5, fFA: 1.8, bUA: 0.6, bFA: 1.9, lean: 0.0, sq: 0.9 }),
+    k(0.42, { fUA: 1.9, fFA: 0.05, bUA: 1.85, bFA: 0.1, lean: 0.4, fTh: 0.9, fSh: -0.6, bTh: -0.8, x: 3, sq: 1.06 }, easeOutBack),
+    k(0.7, { fUA: 1.85, fFA: 0.1, bUA: 1.8, bFA: 0.15, lean: 0.36, x: 3 }),
+    k(1, { ...GUARD }, easeInOutSine),
+  ] },
+  // The chain: straight punches, hand over hand, as fast as breath.
+  uchain: { dur: 1, fn: (u) => {
+    const a = 0.5 + 0.5 * Math.sin(u * Math.PI * 2 * 5);
+    return { fUA: 0.85 + 0.75 * a, fFA: 1.6 * (1 - a), bUA: 0.85 + 0.75 * (1 - a), bFA: 1.6 * a, lean: 0.34, fTh: 0.5, fSh: -0.5, bTh: -0.42, bSh: -0.3, x: 2 + Math.sin(u * Math.PI) * 2 };
+  } },
+  // The short strike: no wind-up to speak of, then everything at once.
+  uheavy: { dur: 1, keys: [
+    k(0, { fUA: 1.2, fFA: 0.6, bUA: 1.1, bFA: 1.3, lean: 0.06, sq: 0.96 }),
+    k(0.32, { fUA: 1.3, fFA: 0.45, lean: 0.02, fTh: 0.4, sq: 0.94 }),
+    k(0.4, { fUA: 1.6, fFA: 0.0, bUA: 0.6, bFA: 1.8, lean: 0.52, fTh: 1.0, fSh: -0.8, bTh: -0.9, bSh: -0.1, x: 5, sq: 1.05 }, easeOutBack),
+    k(0.75, { fUA: 1.55, fFA: 0.05, bUA: 0.65, bFA: 1.75, lean: 0.48, fTh: 0.95, fSh: -0.8, bTh: -0.85, x: 5 }),
+    k(1, { ...GUARD }, easeInOutSine),
+  ] },
+  // A rising uppercut from a crouch.
+  urise: { dur: 1, keys: [
+    k(0, { fUA: 0.4, fFA: 1.9, bUA: 1.1, bFA: 1.3, lean: 0.38, fTh: 0.9, fSh: -1.5, bTh: -0.3, bSh: -1.0, sq: 0.9 }),
+    k(0.24, { fUA: 0.3, fFA: 2.0, lean: 0.42, sq: 0.88 }),
+    k(0.42, { fUA: 2.9, fFA: 0.5, bUA: 0.8, bFA: 1.6, lean: -0.15, fTh: 0.2, fSh: -0.3, bTh: -0.2, bSh: -0.3, sq: 1.1 }, easeOutCubic),
+    k(1, { fUA: 2.7, fFA: 0.6, lean: -0.05, fTh: 0.6, fSh: -1.0, bTh: 0.1, bSh: -0.6 }),
+  ] },
+  uair1: { ...punch(true, 0.25), keys: punch(true, 0.25).keys!.map((q) => ({ ...q, p: { ...q.p, fTh: 0.9, fSh: -1.3, bTh: 0.2, bSh: -0.8 } })) },
+  uair2: { ...punch(false, 0.25), keys: punch(false, 0.25).keys!.map((q) => ({ ...q, p: { ...q.p, fTh: 0.9, fSh: -1.3, bTh: 0.2, bSh: -0.8 } })) },
+  // A hammer fist brought straight down.
+  uair3: { dur: 1, keys: [
+    k(0, { fUA: 3.1, fFA: 0.4, bUA: 2.6, bFA: 0.6, lean: -0.15, fTh: 1.2, fSh: -1.8, bTh: 0.8, bSh: -1.6 }),
+    k(0.34, { fUA: 1.0, fFA: 0.0, bUA: 0.9, bFA: 1.4, lean: 0.5 }, easeInQuad),
+    k(0.5, { fUA: 0.5, fFA: 0.0, lean: 0.6 }, easeOutCubic),
+    k(1, { fUA: 0.7, fFA: 0.6, lean: 0.25, fTh: 0.7, fSh: -1.1, bTh: 0.1, bSh: -0.7 }),
+  ] },
+  // A diving fist.
+  uplunge: { dur: 1, keys: [
+    k(0, { fUA: 3.0, fFA: 0.4, lean: -0.1, fTh: 1.2, fSh: -1.8, bTh: 0.9, bSh: -1.7 }),
+    k(0.3, { fUA: 0.35, fFA: 0.0, bUA: 1.6, bFA: 1.2, lean: 0.45, fTh: 0.5, fSh: -1.0, bTh: 0.2, bSh: -0.9 }, easeOutCubic),
+    k(1, { fUA: 0.35, fFA: 0.0, bUA: 1.6, bFA: 1.2, lean: 0.45, fTh: 0.4, fSh: -0.8, bTh: 0.1, bSh: -0.8 }),
+  ] },
+};
+/** The Unshorn's clips: the common movement on the centre-line guard, and the fist techniques. */
+export function fistClips(): Record<string, Clip> {
+  const base = IDLE_FISTS, all: Record<string, Clip> = { ...common(base) };
+  for (const [n, c] of Object.entries(FIST_CLIPS)) all[n] = { ...c, base };
+  // The blade clips the moveset does not replace still resolve (finisher leaps and the like).
+  for (const [n, c] of Object.entries(BLADE_CLIPS)) all[n] ??= { ...c, base };
+  return all;
+}
+
+/** Bare hands: short reach, quick, and every blow lands with weight. No arcs: there is no blade to draw them. */
+const fp = (o: Partial<AttackDef> & Pick<AttackDef, 'id' | 'clip' | 'dur' | 'dmg' | 'poise'>): AttackDef => ({
+  hit: [0.3, 0.52], box: { x: 2, y: -46, w: 30, h: 28 }, kx: 70, ky: -40, cancel: 0.5, stop: 0.05, shake: 0.12, sfx: 'swing', ...o,
+});
+export const FISTS: Moveset = {
+  speed: 1.15, reach: 0.85, weight: 1.2,
+  combo: [
+    fp({ id: 'u1', clip: 'u1', dur: 0.22, dmg: 0.9, poise: 12, lunge: 60, lungeT: [0.2, 0.45] }),
+    fp({ id: 'u2', clip: 'u2', dur: 0.22, dmg: 0.9, poise: 12, lunge: 60, lungeT: [0.2, 0.45] }),
+    fp({ id: 'u3', clip: 'u3', dur: 0.34, dmg: 1.7, poise: 34, kx: 280, ky: -120, cancel: 0.66, lunge: 170, lungeT: [0.28, 0.5], stop: 0.09, shake: 0.3, sfx: 'swingHeavy', finisher: true }),
+  ],
+  extra: fp({ id: 'u4', clip: 'u4', dur: 0.4, dmg: 1.6, poise: 30, box: { x: 0, y: -56, w: 34, h: 58 }, kx: 60, ky: -420, launch: true, cancel: 0.6, rise: -240, stop: 0.08, shake: 0.24, sfx: 'swingHeavy', finisher: true }),
+  air: [
+    fp({ id: 'uair1', clip: 'uair1', dur: 0.24, dmg: 0.9, poise: 10, air: true, hang: -150 }),
+    fp({ id: 'uair2', clip: 'uair2', dur: 0.24, dmg: 0.9, poise: 10, air: true, hang: -150 }),
+    fp({ id: 'uair3', clip: 'uair3', dur: 0.36, dmg: 1.5, poise: 22, box: { x: -2, y: -40, w: 36, h: 50 }, kx: 160, ky: 300, cancel: 0.7, stop: 0.08, shake: 0.26, sfx: 'swingHeavy', air: true, hang: -60, finisher: true }),
+  ],
+  launch: fp({ id: 'urise', clip: 'urise', dur: 0.42, dmg: 1.4, poise: 22, box: { x: 0, y: -62, w: 30, h: 64 }, kx: 30, ky: -460, launch: true, rise: -300, stop: 0.07, shake: 0.2, sfx: 'swingHeavy' }),
+  plunge: fp({ id: 'uplunge', clip: 'uplunge', dur: 2, hit: [0, 1], dmg: 1.6, poise: 24, box: { x: -10, y: -20, w: 28, h: 30 }, kx: 120, ky: -150, cancel: 1, stop: 0.09, shake: 0.4, sfx: 'swingHeavy' }),
+  dash: fp({ id: 'udash', clip: 'u3', dur: 0.34, dmg: 1.5, poise: 20, kx: 220, ky: -60, cancel: 0.6, lunge: 320, lungeT: [0.2, 0.5], stop: 0.07, shake: 0.2 }),
+  heavy: fp({ id: 'uheavy', clip: 'uheavy', dur: 0.5, hit: [0.36, 0.52], dmg: 2.6, poise: 80, box: { x: 0, y: -48, w: 34, h: 34 }, kx: 380, ky: -160, cancel: 0.72, guardBreak: true, stop: 0.12, shake: 0.45, sfx: 'swingHeavy', finisher: true }),
+  counter: fp({ id: 'ucounter', clip: 'uheavy', dur: 0.44, hit: [0.36, 0.52], dmg: 3.0, poise: 90, box: { x: 0, y: -48, w: 40, h: 34 }, kx: 400, ky: -160, cancel: 0.66, lunge: 260, lungeT: [0.2, 0.4], guardBreak: true, stop: 0.13, shake: 0.45, sfx: 'swingHeavy', finisher: true }),
+  flurry: fp({ id: 'uchain', clip: 'uchain', dur: 0.7, hit: [0.06, 0.94], dmg: 0.4, poise: 6, multi: 10, kx: 24, ky: -20, cancel: 0.95, lunge: 40, lungeT: [0.05, 0.9], stop: 0.022, shake: 0.06, auto: 'flurryEnd' }),
+  flurryEnd: fp({ id: 'uchainEnd', clip: 'u3', dur: 0.36, dmg: 2.0, poise: 40, kx: 320, ky: -100, cancel: 0.6, lunge: 140, lungeT: [0.2, 0.45], stop: 0.1, shake: 0.35, sfx: 'swingHeavy', finisher: true }),
+  storm: fp({ id: 'ustorm', clip: 'uchain', dur: 0.6, hit: [0.08, 0.9], dmg: 0.6, poise: 10, multi: 7, box: { x: -4, y: -48, w: 44, h: 34 }, cancel: 0.86, pull: 60, stop: 0.03, shake: 0.12, finisher: true }),
+  comet: fp({ id: 'ucomet', clip: 'urise', dur: 0.42, dmg: 1.5, poise: 26, box: { x: -4, y: -66, w: 36, h: 70 }, kx: 20, ky: -480, launch: true, multi: 2, rise: -400, forceRise: true, stop: 0.07, shake: 0.2, sfx: 'swingHeavy' }),
+  rend: fp({ id: 'urend', clip: 'uair3', dur: 0.5, hit: [0.12, 1], dmg: 0.8, poise: 14, box: { x: -4, y: -30, w: 36, h: 42 }, kx: 60, ky: 160, cancel: 1, multi: 4, dive: true, air: true, stop: 0.035, shake: 0.12 }),
+  pstrike: fp({ id: 'upstrike', clip: 'u1', dur: 0.22, hit: [0.14, 0.55], dmg: 1.2, poise: 20, box: { x: -4, y: -46, w: 36, h: 30 }, kx: 60, ky: -120, cancel: 0.42 }),
+  cross: fp({ id: 'ucross', clip: 'uheavy', dur: 0.6, hit: [0.36, 0.6], dmg: 3.2, poise: 100, box: { x: -20, y: -58, w: 60, h: 62 }, kx: 260, ky: -340, launch: true, guardBreak: true, cancel: 0.85, multi: 2, stop: 0.13, shake: 0.55, sfx: 'swingHeavy', finisher: true }),
+};
+
 /** Rising Verdict (Relentless skill) per family. */
 export function extraFor(f: WeaponFamily): AttackDef {
   const base = MOVESETS[f].extra;

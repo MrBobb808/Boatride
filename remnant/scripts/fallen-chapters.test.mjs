@@ -20,6 +20,11 @@ test('upper side-room returns cannot immediately re-enter their door',()=>{
  for(const c of FALLEN_CHAPTERS){const r=FALLEN_ROOMS.find(r=>r.id===c.depths),p=r.spawns.side,e=r.exits.find(e=>e.to===c.side);assert.ok(p.x<e.x||p.x>e.x+e.w||p.y<e.y||p.y>e.y+e.h);}
 });
 
+test('no Crown chapter room reuses the id of a room in Chapters I–VI',()=>{
+ // A clash would replace the earlier chapter's room (and strand any save standing in it).
+ const earlier=['rooms','rooms2','rooms3','rooms4','rooms5','rooms6'].map(f=>readFileSync(new URL('../src/game/'+f+'.ts',import.meta.url),'utf8')).join('\n');
+ for(const r of FALLEN_ROOMS)assert.ok(!new RegExp(`['"]${r.id}['"]|^\\s*${r.id}\\s*:`,'m').test(earlier),r.id+' is already a room in Chapters I–VI');
+});
 test('chapter maps keep the hub, route, side room and arena from overlapping',()=>{
  for(const c of FALLEN_CHAPTERS){const rooms=FALLEN_ROOMS.filter(r=>r.biome===c.biome);for(let i=0;i<rooms.length;i++)for(let j=i+1;j<rooms.length;j++){const a=rooms[i],b=rooms[j];assert.ok(a.map.x+a.w/16<=b.map.x||b.map.x+b.w/16<=a.map.x||a.map.y+a.h/16<=b.map.y||b.map.y+b.h/16<=a.map.y,a.id+' overlaps '+b.id);}}
 });

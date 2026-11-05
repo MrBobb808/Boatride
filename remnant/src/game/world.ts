@@ -3,6 +3,7 @@ import { CinderMonarch } from './cinderBoss';
 import { syncRest } from './settlement';
 import { GreciaPrince } from './bosses10';
 import { NationGods } from './bosses11';
+import { NorthKing } from './bosses12';
 import { BeastMonarch, PlagueMonarch, FallenMonarch } from './fallenBosses';
 // The World: loads rooms, runs every entity, resolves combat, handles exits,
 // triggers, loot, altars, the Echo army, Rally the Remnant, and draws the
@@ -308,7 +309,7 @@ export class World {
       case 'boss':
         // The beaten Image stays on its dais until the stone falls (the story finishes it).
         if (s.defeated.includes(e.k) && !(e.k === 'golden_image' && !flag('ch4_image_done')) && !(e.k === 'weigher' && !flag('ch5_weigher_done')) && !(e.k === 'storm_prince' && !flag('ch6_storm_done')) && !(e.k === 'persia_prince' && !flag('ch6_prince_done')) && !(e.k === 'storm_prince' && !flag('ch6_storm_done')) && !(e.k === 'persia_prince' && !flag('ch6_prince_done'))) return;
-        this.boss = e.k === 'gatekeeper' ? new Gatekeeper(x, y) : e.k === 'marshal' ? new Marshal(x, y) : e.k === 'locust_king' ? new LocustKing(x, y) : e.k === 'golden_image' ? new GoldenImage(x, y) : e.k === 'weigher' ? new Weigher(x, y) : e.k === 'storm_prince' ? new StormPrince(x, y) : e.k === 'persia_prince' ? new PersiaPrince(x, y) : e.k === 'beast_monarch' ? new BeastMonarch(x,y) : e.k === 'plague_monarch' ? new PlagueMonarch(x,y) : e.k === 'cinder_monarch' ? new CinderMonarch(x,y) : e.k === 'nation_gods' ? new NationGods(x, y) : e.k === 'grecia_prince' ? new GreciaPrince(x, y) : new Idol(x, y);
+        this.boss = e.k === 'gatekeeper' ? new Gatekeeper(x, y) : e.k === 'marshal' ? new Marshal(x, y) : e.k === 'locust_king' ? new LocustKing(x, y) : e.k === 'golden_image' ? new GoldenImage(x, y) : e.k === 'weigher' ? new Weigher(x, y) : e.k === 'storm_prince' ? new StormPrince(x, y) : e.k === 'persia_prince' ? new PersiaPrince(x, y) : e.k === 'beast_monarch' ? new BeastMonarch(x,y) : e.k === 'plague_monarch' ? new PlagueMonarch(x,y) : e.k === 'cinder_monarch' ? new CinderMonarch(x,y) : e.k === 'nation_gods' ? new NationGods(x, y) : e.k === 'north_king' ? new NorthKing(x, y) : e.k === 'grecia_prince' ? new GreciaPrince(x, y) : new Idol(x, y);
         this.add(this.boss);
         return;
     }
@@ -666,7 +667,7 @@ export class World {
       if (!e.executable()) continue;
       if (!los(this.grid, this.solid, p.cx, p.cy, e.cx, e.cy)) continue;
       if (e.isBoss) {
-        if (Math.abs(e.x - p.x) < (e instanceof Gatekeeper ? 120 : e instanceof GoldenImage || e instanceof Weigher ? 96 : e instanceof Marshal || e instanceof LocustKing ? 56 : e instanceof NationGods ? 90 : 80) && Math.abs(e.y - p.y) < 60) return e;
+        if (Math.abs(e.x - p.x) < (e instanceof Gatekeeper ? 120 : e instanceof GoldenImage || e instanceof Weigher ? 96 : e instanceof Marshal || e instanceof LocustKing ? 56 : e instanceof NationGods || e instanceof NorthKing ? 90 : 80) && Math.abs(e.y - p.y) < 60) return e;
       } else if (Math.abs(e.x - p.x) < 36 && Math.abs(e.y - p.y) < 30) return e;
     }
     return null;
@@ -1555,7 +1556,7 @@ export class World {
     else if (b instanceof Weigher) this.story.ch5.weigherDefeated(b);
     else if (b instanceof StormPrince) this.story.ch6.stormDefeated(b);
     else if (b instanceof PersiaPrince) this.story.ch6.princeDefeated(b);
-    else if (b instanceof FallenMonarch || b instanceof CinderMonarch || b instanceof GreciaPrince || b instanceof NationGods) this.story.fallen.bossDefeated(b);
+    else if (b instanceof FallenMonarch || b instanceof CinderMonarch || b instanceof GreciaPrince || b instanceof NationGods || b instanceof NorthKing) this.story.fallen.bossDefeated(b);
     else if (b instanceof Idol) {
       this.closeGate(false);
       this.story.bossDefeated(b);

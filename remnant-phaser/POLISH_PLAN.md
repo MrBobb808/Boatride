@@ -519,6 +519,73 @@ seven worn; bosses always drop one, elites often, chests sometimes, foes rarely;
   arrows and dagger (`bow.ts`); pooled strikes, fire patches, seeking bolts and the swords; all damage goes through
   `FoeLike.hit` so it lands on every kind of foe and boss.
 
+## 15. Design pass: pacing, threat and impact (5 November 2026)
+The owner asked for a world-class designer's look at the gameplay, the pacing and the speed, and for whatever it
+needs tuned. Everything below was measured in the Phaser build first (a balanced build: every stat point spread
+evenly, the weapon the previous chapter hands out, at each chapter's arrival level, on Hard), then changed.
+
+**What the measurements showed**
+- **The weapon curve breaks after Chapter VII.** Weapon attack climbs smoothly from Chapter I to VI (10 → 118). The
+  Crown chapters' reward weapons then jumped to 360, 420, 470, 520, 640 and 720: three to six times the curve every
+  other number in the game was sized against.
+- **So late-game rooms carried no threat.** From VIII on, an ordinary foe fell to less than one opening blow, and
+  even a knight or a shield-bearer to one or two. Chapter I's foes take three to four.
+- **And boss fights were all over the place.** The curve sizes a Crown at about 200–230 blows. Varkhos took 235,
+  but Morvane 55 and Azkar 81 (the new weapons), while the Prince of Grecia took 331, the Gods 710 and the King 369
+  (their health had been inflated to keep up with the weapons).
+- **Late foes barely hurt.** A mid-rank foe in I–VI fells Elior in 14–17 of its blows; in VII–XII it took 23–48.
+- **Chapter XI broke the level curve.** Every chapter is worth about six levels; XI, with two and a half times the
+  foes at full XP each, was worth sixteen, so Chapter XII would have been met at level 75.
+- **Light blows had no impact frame.** Hit-stop for a light blow was 12 ms, under one frame at 60 Hz.
+- What is already right and was left alone: run speed (about 9 tiles a second), the jump (3.9 tiles high, coyote
+  time and a jump buffer, short hops), dodge and parry windows, buffered combo inputs and the cancel into dodge or
+  parry, the armour curve (late armour adds about a fifth to Elior's health), and the boss blows (6–9 to fell him).
+
+**What changed**
+- **Weapons back on the curve:** the six Crown reward weapons now run 150, 175, 205, 235, 270 and 310 attack
+  (`data.ts`), continuing the I–VI climb. Owned copies change with them.
+- **Late foes hurt like early ones:** VII–XII foe damage ×1.5–1.6 (`curve.ts`), so a mid-rank foe fells a balanced
+  Elior in about 15 blows again.
+- **Late foes take real hits again:** VIII–XII foe health re-sized to the reworked weapons, so a knight or a
+  shield-bearer takes three to five opening blows and fodder one or two.
+- **Bosses back in the band:** the Prince of Grecia 1,250,000 → 410,000 health (240 blows), the Gods 2,100,000 →
+  580,000 (about 420 quick spear blows, the long three-god climax), the King of the North 2,600,000 → 925,000 (300).
+  Varkhos, Morvane and Azkar are unchanged (235, 125 and 187 greatsword blows, which land slower and heavier).
+
+**Measured after** (`scripts/balance-report.mjs`, a designer's tool kept for the next pass): mid-rank foes 2.4–5
+hits and 15–21 of their blows to fell Elior from VII to XII; every boss fells him in 6.5–9 blows.
+- **XI pays like a chapter:** its per-foe XP and clear reward come down, so it is worth about nine levels; XII's
+  arrival level is 68.
+- **Hit-stop with weight:** light 22 ms, finisher 40, heavy 60, crit 75, parry 100 (`player.ts`).
+
+## 16. The Unshorn: Elior's third transformation (owner's request, 5 November 2026)
+The owner asked for a third transformation for Elior, introduced in Chapter XII, for a fight hard enough to need it:
+long hair, bare-handed punches in a centre-line, Wing Chun-like style (no blasts, no slashes) where every punch lands
+with weight, a tail, and a cinematic unlock in the boss fight. The project's rule that Elior stays human holds: the
+mane is his own hair grown again, and the tail is living fire from his sash, the power showing, not a beast's limb.
+Its root is Samson, whose strength was in his unshorn hair and who fought with his bare hands (Judges 14:6, 16:17,
+16:22, 16:28).
+
+- **The awakening** (`src/game/awakening.ts`): the first time Elior fights the King of the North, when the fight
+  turns (the king's second movement, or half of Elior's health gone) the Shadow Mantle is offered (its gauge filled,
+  and it rises on its own if he waits). He takes it up; the king presses without rest and holds his last movement
+  back, and Elior cannot fall (`Player.deathless`). On the edge of falling everything stops: the camera comes to him,
+  he prays ("O Lord GOD, remember me, I pray thee, and strengthen me, I pray thee, only this once." Judges 16:28,
+  KJV), "the hair of his head began to grow again" (16:22), and he rises as the Unshorn for 32 seconds at
+  three-quarters health. Journeys that beat the king before the form existed receive it on load.
+- **Ascending afterwards** (`classic/hero.ts` `ascend`): in the Shadow Mantle, Transform again. The Mantle burns
+  off, a pillar of fire throws back everything near, and the form lasts 14 seconds plus half the Mantle's time
+  that was left.
+- **The fists** (`FISTS` and `fistClips` in `remnant/src/game/weapons.ts`): a centre-line guard, straight punches
+  hand over hand and a third that drives the body behind it, a double-palm launcher, a ten-punch chain, a short
+  guard-breaking strike, an uppercut, hammer fist and diving fist. No blade arcs are drawn.
+- **Every punch lands** (`Player.punchImpact`): a hold of 55–110 ms, a shock ring where the fist meets, the air
+  driven out behind the foe, dust off its feet, a low thud; the heavy blows shake the frame and boom.
+- **The form:** a third harder than the Mantle's tier (×2.2 at level 68 against ×1.7), faster on foot and in hand,
+  blows taken at 45%, no stagger. The look (`fighterRig.ts`): crimson and gold, seven long locks of fire and a
+  crown of flame, a tail of fire, bare fists wrapped in gold.
+- Verified by `scripts/unshorn.mjs`.
+
 ## 10. Questions for the owner
 
 Answered: the archer stays **Tirzah**, and Wings of the Morning **shares** the Mantle's gauge.
