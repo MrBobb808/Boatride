@@ -8,6 +8,10 @@ import { loadCreatureSprites } from '../../../remnant/src/render/creatureSprites
 import fighterPartsUrl from '../assets/fighter-parts-v1.png';
 import slashesUrl from '../assets/vfx-slashes.png';
 import impactsUrl from '../assets/vfx-impacts.png';
+import unshornPartsUrl from '../assets/fighter-parts-unshorn.png';
+import unshornManeUrl from '../assets/unshorn-mane.png';
+import unshornImpactsUrl from '../assets/vfx-unshorn.png';
+import unshornAwakeningUrl from '../assets/unshorn-awakening.png';
 import abilities1Url from '../assets/vfx-abilities-1.png';
 import abilities2Url from '../assets/vfx-abilities-2.png';
 import transformUrl from '../assets/vfx-transform.png';
@@ -26,6 +30,12 @@ export class Boot extends Phaser.Scene {
   preload() {
     this.load.spritesheet('elior', eliorUrl, { frameWidth: 128, frameHeight: 128 });
     this.load.image('fighter-parts',fighterPartsUrl);
+    // C11/C12/V09: the Unshorn's parts, his mane and tail (four frames each) and his punches' bursts.
+    this.load.image('fighter-parts-unshorn',unshornPartsUrl);
+    this.load.image('unshorn-mane',unshornManeUrl);
+    this.load.spritesheet('vfx-unshorn', unshornImpactsUrl, { frameWidth: 128, frameHeight: 128 });
+    // C15: the awakening, eight frames from the Mantle's last stand to the Unshorn's guard (feet at 94.8% of a cell).
+    this.load.spritesheet('unshorn-awakening', unshornAwakeningUrl, { frameWidth: 64, frameHeight: 64 });
     // Art drop V01/V02: rows of six frames (art/manifest.json).
     this.load.spritesheet('vfx-slashes', slashesUrl, { frameWidth: 128, frameHeight: 128 });
     this.load.spritesheet('vfx-impacts', impactsUrl, { frameWidth: 128, frameHeight: 128 });

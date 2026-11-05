@@ -1108,7 +1108,7 @@ export class World extends Phaser.Scene implements WorldApi {
     this.feedback.number(x, y, text, color, crit);
   }
 
-  burst(x: number, y: number, kind: number) { this.visuals.burst(x, y, kind); }
+  burst(x: number, y: number, kind: number, heavy = false, sheet?: 'vfx-impacts' | 'vfx-unshorn') { this.visuals.burst(x, y, kind, heavy, sheet); }
   spark(x: number, y: number, color: number, n = 6) {
     this.feedback.spark(x, y, color, n);
   }

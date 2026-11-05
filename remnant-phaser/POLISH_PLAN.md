@@ -579,11 +579,15 @@ Its root is Samson, whose strength was in his unshorn hair and who fought with h
 - **The fists** (`FISTS` and `fistClips` in `remnant/src/game/weapons.ts`): a centre-line guard, straight punches
   hand over hand and a third that drives the body behind it, a double-palm launcher, a ten-punch chain, a short
   guard-breaking strike, an uppercut, hammer fist and diving fist. No blade arcs are drawn.
-- **Every punch lands** (`Player.punchImpact`): a hold of 55–110 ms, a shock ring where the fist meets, the air
-  driven out behind the foe, dust off its feet, a low thud; the heavy blows shake the frame and boom.
+- **Every punch lands** (`Player.punchImpact`): a hold of 55–110 ms, a punch spark or a heavy burst from the
+  V09 sheet (`vfx-unshorn`), a shock ring where the fist meets, the air driven out behind the foe, dust kicked up
+  off its feet, a low thud; the heavy blows shake the frame and boom, and the uppercuts throw up rising flame.
 - **The form:** a third harder than the Mantle's tier (×2.2 at level 68 against ×1.7), faster on foot and in hand,
-  blows taken at 45%, no stagger. The look (`fighterRig.ts`): crimson and gold, seven long locks of fire and a
-  crown of flame, a tail of fire, bare fists wrapped in gold.
+  blows taken at 45%, no stagger. The look (`fighterRig.ts`) is the owner's ChatGPT art (5 November 2026): his own
+  parts (C11, crimson and gold, bare fists) on the skeleton, so every punch clip stays in step with its hitbox, a
+  long braided mane with fire at the tips and a tail of fire over the cape (C12, four frames each). In the
+  awakening, the drawn sequence (C15) plays over him: kneeling in the Mantle, praying, the hair growing, rising
+  to guard.
 - Verified by `scripts/unshorn.mjs`.
 
 ## 10. Questions for the owner

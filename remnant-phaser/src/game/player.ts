@@ -79,6 +79,8 @@ export class Player {
   formMax = 0;
   /** Set by a scripted beat-down: blows still land, but cannot take the last of his health. */
   deathless = false;
+  /** A cutscene draws him itself (the Unshorn's awakening): the sprite steps aside. */
+  staged = false;
   scriptX: number | null = null;
   scriptSpeed = 70;
   water = makeSwim();
@@ -870,7 +872,9 @@ export class Player {
   private punchImpact(f: FoeLike, crit: boolean, big: boolean) {
     const x = this.face > 0 ? f.box.left + 2 : f.box.right - 2, y = f.box.centerY - 4, d = this.face;
     this.w.hitstop(big ? 0.11 : crit ? 0.08 : 0.055);
-    this.w.burst(x, y, big ? 2 : crit ? 1 : 0);
+    this.w.burst(x, y, big || crit ? 1 : 0, big, 'vfx-unshorn');
+    if (big) this.w.burst(f.x, f.box.bottom, 2, true, 'vfx-unshorn');
+    if (this.atk.id === 'urise' || this.atk.id === 'ucomet') this.w.burst(x, f.box.bottom, 3, true, 'vfx-unshorn');
     fx.ring(x, y, 3, big ? 70 : 34, big ? '#ffd27a' : '#fff1c4', big ? 0.3 : 0.18, 3);
     fx.streak(x, y, x + d * (big ? 90 : 46), y, '#ffe6a8', big ? 0.22 : 0.14, big ? 4 : 2);
     fx.dust(f.x, f.box.bottom, big ? 10 : 4, big ? 2 : 1);

@@ -2,6 +2,7 @@
 // strong. When the fight turns against him, the Shadow Mantle is offered; he takes it up, and the king beats him down
 // anyway. On the edge of falling he prays as Samson prayed (Judges 16:28), the hair of his head grows again (16:22),
 // and he rises bare-handed as the Unshorn. From then on, in the Shadow Mantle, Transform again ascends.
+import type Phaser from 'phaser';
 import type { World } from '../scenes/World';
 import { G } from '../classic/shim/ctx';
 import { sfx } from '../classic/shim/audio';
@@ -14,8 +15,21 @@ export class Awakening {
   stage: Stage = 'idle';
   private t = 0;
   private struck = false;
+  /** C15: the drawn sequence of the prayer and the rise, played over Elior while the sprite steps aside. */
+  private art: Phaser.GameObjects.Image;
 
-  constructor(private w: World) {}
+  constructor(private w: World) {
+    this.art = w.add.image(0, 0, 'unshorn-awakening', 0).setDepth(10).setVisible(false);
+  }
+
+  /** Eight frames over the prayer: standing in the Mantle, kneeling, praying, the hair growing, rising to guard. */
+  private showArt(on: boolean) {
+    const p = this.w.player;
+    p.staged = on;
+    if (!on) { this.art.setVisible(false); return; }
+    const f = this.t >= 4.2 ? 7 : Math.min(6, Math.floor((this.t / 4.2) * 7));
+    this.art.setFrame(f).setFlipX(p.face < 0).setOrigin(p.face < 0 ? 0.53 : 0.47, 0.948).setPosition(p.x, p.feet).setVisible(true);
+  }
 
   /** Journeys that beat the king before the form existed receive it on load. */
   sync() {
@@ -27,7 +41,7 @@ export class Awakening {
   }
 
   private reset() {
-    if (this.stage === 'rising') { G.inCutscene = false; this.w.hud.cinematicBars(false); this.w.hud.caption(null); G.camera.focus = null; G.camera.zoomTarget = 1; }
+    if (this.stage === 'rising') { this.showArt(false); G.inCutscene = false; this.w.hud.cinematicBars(false); this.w.hud.caption(null); G.camera.focus = null; G.camera.zoomTarget = 1; }
     if (this.w.player) this.w.player.deathless = false;
     this.stage = 'idle';
     this.t = 0;
@@ -78,6 +92,7 @@ export class Awakening {
         break;
       case 'rising': {
         // The cinematic: the prayer, the hair growing again, and the rise.
+        this.showArt(this.t < 4.5);
         if (this.t >= 2.6 && this.t - dt < 2.6) {
           w.hud.caption('“Howbeit the hair of his head began to grow again after he was shaven.” · Judges 16:22 (KJV)');
           sfx('chant'); sfx('bell', { vol: 0.6 });
@@ -85,6 +100,7 @@ export class Awakening {
         }
         if (this.t < 4.2 && Math.random() < dt * 40) fx.spawn(PK.Ember, p.x + (Math.random() - 0.5) * 50, p.feet - Math.random() * 10, 0, -60 - Math.random() * 80, 0.8, 2, 0.4, Math.random() < 0.5 ? '#ff5a2a' : '#ffd27a', -20, 1);
         if (this.t >= 4.2 && this.t - dt < 4.2) {
+          w.burst(p.x, p.feet, 3, true, 'vfx-unshorn');
           s.flags.unshorn = true;
           p.deathless = false;
           p.releaseState();
