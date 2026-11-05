@@ -44,7 +44,9 @@ type Swing = AttackDef & { t: number; force: number; reach: number; heavy: boole
 const swing = (a: AttackDef, speed = 1): Swing => ({ ...a, t: a.dur / speed, force: a.poise / 14, reach: a.box.w, heavy: !!a.finisher || a.id === 'heavy' });
 /** Charge levels: the hold needed, and the original's damage and poise scales. */
 // Hit-stop by weight, shortest first: light, combo ender, heavy, crit, parry.
-const STOP = { light: 0.012, ender: 0.022, heavy: 0.04, crit: 0.055, parry: 0.08 };
+// Hit-stop by weight. A light blow holds about one 60 Hz frame (12 ms was under one, so it never showed); the
+// heavier tiers climb from there to the parry's tenth of a second.
+const STOP = { light: 0.022, ender: 0.04, heavy: 0.06, crit: 0.075, parry: 0.1 };
 const CHARGE_AT = [0, 0.35, 0.85, 1.4];
 const CHARGE_MULT = [1, 1.35, 1.8, 2.5];
 

@@ -102,7 +102,7 @@ export class NationGods extends BossBase {
   calledDown = false;
 
   constructor(x: number, y: number) {
-    super('nation_gods', x, y, 34, 76, 2100000);
+    super('nation_gods', x, y, 34, 76, 580000);
     this.name = 'Dagon';
     this.sub = GODS.dagon.sub;
     this.maxPoise = this.poise = 1200;

@@ -38,12 +38,19 @@ export const CURVE: readonly ChapterCurve[] = [
   { level: 28, foeHp: 8.4, foeDmg: 3.4, xp: 6.0 }, // VI · Storm Prince, Prince of Persia (~200 blows on Hard)
   // The Fallen Crowns: bosses sized to ~200–230 average blows of a balanced
   // build at the arrival level on Hard, and ~6 heavy blows to fell Elior.
-  { level: 34, foeHp: 10.5, foeDmg: 3.9, xp: 7.4, clearXp: 22000, bossHp: 96000, bossDmg: 190 }, // VII · Varkhos
-  { level: 40, foeHp: 13, foeDmg: 4.4, xp: 9.0, clearXp: 29000, bossHp: 120000, bossDmg: 205 }, // VIII · Morvane
-  { level: 46, foeHp: 15.5, foeDmg: 4.9, xp: 10.8, clearXp: 32000, bossHp: 150000, bossDmg: 290 }, // IX · Azkar
-  { level: 52, foeHp: 18, foeDmg: 5.4, xp: 12.6, clearXp: 34000, bossHp: 180000, bossDmg: 330 }, // X · the Prince of Grecia
+  // Ordinary foes fell a balanced build in about 15 of their blows, as in I–VI
+  // (a mid-rank foe there: 14–17); before the design pass VII–XII foes took 23–48. Their health is sized so a
+  // knight or a shield-bearer takes three to five opening blows of the chapter's weapon.
+  { level: 34, foeHp: 10.5, foeDmg: 5.9, xp: 7.4, clearXp: 22000, bossHp: 96000, bossDmg: 190 }, // VII · Varkhos
+  { level: 40, foeHp: 16, foeDmg: 6.6, xp: 9.0, clearXp: 29000, bossHp: 120000, bossDmg: 205 }, // VIII · Morvane
+  { level: 46, foeHp: 17, foeDmg: 7.4, xp: 10.8, clearXp: 32000, bossHp: 150000, bossDmg: 290 }, // IX · Azkar
+  { level: 52, foeHp: 24, foeDmg: 8.6, xp: 12.6, clearXp: 34000, bossHp: 180000, bossDmg: 330 }, // X · the Prince of Grecia
   // XI is meant to overmatch: the rooms hold more foes, a third harder and nearly half again as deadly as X's.
-  { level: 58, foeHp: 24, foeDmg: 7.6, xp: 15.5, clearXp: 46000, bossHp: 240000, bossDmg: 470 }, // XI · the Gods of the Nations
+  // Its rooms hold two and a half times the foes, so each pays less: the chapter as a whole is worth about as many
+  // levels as any other, not sixteen.
+  { level: 58, foeHp: 32, foeDmg: 11.4, xp: 8, clearXp: 30000, bossHp: 240000, bossDmg: 470 }, // XI · the Gods of the Nations
+  // XII: the time of trouble, harder again: a fuller host, and the king himself hits harder than any god.
+  { level: 68, foeHp: 60, foeDmg: 13.8, xp: 9, clearXp: 36000, bossHp: 300000, bossDmg: 540 }, // XII · the King of the North
 ];
 
 /** A chapter's row; a chapter past the end of the table takes the last one. */
