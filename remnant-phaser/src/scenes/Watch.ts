@@ -20,6 +20,8 @@ import { haptic } from '../../../remnant/src/core/haptics';
 import { safe, measureSafe } from '../../../remnant/src/ui/safe';
 import * as D from '../game/watch/defs';
 import { WatchUI } from '../game/watch/ui';
+import { ShadowBand, ESSENCE_OF, BOSS_ESSENCE, UNLOCK_COST, SHADOW_MAX, levelCost, owned, shadowName, type ShadowId } from '../game/watch/shadows';
+import type { EchoRole } from '../../../remnant/src/game/data';
 
 /** The wall's world: 300 × 176 units (narrow, so the fighters read large on a phone), the ground at 146; Elior stands
  * at 82 and reaches 30 ahead. */
@@ -35,8 +37,6 @@ const LAYER_URLS = Object.fromEntries(Object.entries(import.meta.glob('../assets
   .map(([path, url]) => [path.replace(/^.*\/(.*)\.png$/, '$1'), url]));
 /** The bosses' atlases (game/bosses.ts cuts their frames) and how many frames each has. */
 const BOSS_TEX: Record<BossId, [string, number]> = { beast_monarch: ['varkhos', 8], plague_monarch: ['morvane', 8], cinder_monarch: ['azkar', 4] };
-/** The kinds a shadow takes, one per slot, in the order they join. */
-const SHADOW_KINDS = ['husk', 'hound', 'sentinel', 'soldier', 'knight', 'lion'];
 
 interface WFoe {
   img: Phaser.GameObjects.Image; kind: FoeKind; id: string;
@@ -44,8 +44,10 @@ interface WFoe {
   alive: boolean; dying: number; atkT: number; animT: number; flash: number; strikeT: number;
   /** The gate's holder (a key of WATCH_BOSSES), or none. */
   boss: string | null;
+  /** A major foe (gold, tougher, leaves essence), and a mage's chill on its blows. */
+  elite: boolean;
+  chill: number;
 }
-interface Shadow { img: Phaser.GameObjects.Image; kind: FoeKind; cd: number; strikeT: number }
 /** One swing: its clip and timing, what it hits (a foe, every foe within `aoe` ahead, or the one before him), and
  * what follows it (the Comet's fall). */
 interface Shot { clip: string; t: number; dur: number; hitAt: number; hit: boolean; mult: number; target?: WFoe | null; aoe?: number; then?: Shot; heal?: number }
@@ -69,7 +71,9 @@ export class Watch extends Phaser.Scene {
   private loopT = 0;
   private flip = false;
   private foes: WFoe[] = [];
-  private shadows: Shadow[] = [];
+  /** The shadows fighting beside him (game/watch/shadows.ts), and this stage's spawn count (the sixth is a major foe). */
+  band!: ShadowBand;
+  private spawned = 0;
   /** Each ability's wait, in seconds. */
   abilT: Partial<Record<D.AbilityId, number>> = {};
   /** Where he stands (he steps up to meet a foe, and runs on rush stages), which way he faces, and whether he runs. */
@@ -130,12 +134,17 @@ export class Watch extends Phaser.Scene {
     this.aura = this.add.image(HOME, GROUND - 22, 'glow').setTint(0xb48cff).setBlendMode(Phaser.BlendModes.ADD).setScale(1.4).setAlpha(0).setDepth(4);
     this.hpBar = this.add.graphics().setDepth(8);
     this.foes = [];
-    for (let i = 0; i < 6; i++) this.foes.push({ img: this.add.image(0, GROUND, 'foes-ashen', 0).setVisible(false).setDepth(4), kind: FOES.husk, id: 'husk', x: 0, hp: 0, max: 1, dmg: 0, speed: 0, alive: false, dying: 0, atkT: 0, animT: 0, flash: 0, strikeT: 0, boss: null });
-    this.shadows = [];
-    for (let i = 0; i < D.SHADOW_LEVELS.length; i++) {
-      const k = FOES[SHADOW_KINDS[i]];
-      this.shadows.push({ img: this.add.image(HOME - 26 - i * 17, GROUND, k.sheet, k.row * 4).setOrigin(k.ox / (k.cell ?? 96), k.oy / (k.cell ?? 96)).setScale(k.scale * 0.92).setTint(0x7a5aa8).setAlpha(0.88).setVisible(false).setDepth(3 - i * 0.01), kind: k, cd: 0.6 + i * 0.25, strikeT: 0 });
-    }
+    for (let i = 0; i < 6; i++) this.foes.push({ img: this.add.image(0, GROUND, 'foes-ashen', 0).setVisible(false).setDepth(4), kind: FOES.husk, id: 'husk', x: 0, hp: 0, max: 1, dmg: 0, speed: 0, alive: false, dying: 0, atkT: 0, animT: 0, flash: 0, strikeT: 0, boss: null, elite: false, chill: 0 });
+    const host = this;
+    this.band = new ShadowBand(this, {
+      get hx() { return host.hx; },
+      foesAlive: () => this.foes.filter((f) => f.alive),
+      hit: (f, dmg, big) => this.damage(f as WFoe, dmg, big, true),
+      heal: (frac) => { const max = D.watchStats(this.w).maxHp; this.hp = Math.min(max, this.hp + max * frac); },
+      flare: (x, y, tint, scale) => this.burst(x, y, 0, scale, tint),
+    }, GROUND);
+    this.band.rebuild(this.w);
+    this.events.once('shutdown', () => this.band.destroy());
     this.nums = [];
     for (let i = 0; i < 20; i++) this.nums.push({ t: this.add.text(0, 0, '', { fontFamily: 'Georgia, serif', fontSize: '22px', color: '#ffffff', stroke: '#07060a', strokeThickness: 4 }).setOrigin(0.5).setScale(0.4).setDepth(20).setVisible(false), life: 0, vy: 0 });
     this.bursts = [];
@@ -189,7 +198,7 @@ export class Watch extends Phaser.Scene {
 
   private startStage(n: number) {
     this.w.stage = n;
-    this.kills = 0;
+    this.kills = 0; this.spawned = 0;
     for (const f of this.foes) { f.alive = false; f.dying = 0; f.img.setVisible(false); }
     const gate = D.gateOf(n);
     if (gate !== this.gate) {
@@ -262,13 +271,17 @@ export class Watch extends Phaser.Scene {
       // The place's common foes first, its heavies rarely.
       const r = Math.random(), id = sc.foes[r < 0.35 ? 0 : r < 0.6 ? 1 : r < 0.8 ? 2 : r < 0.93 ? 3 : 4];
       f.id = id; f.kind = FOES[id];
-      f.img.setTexture(f.kind.sheet, f.kind.row * 4).setOrigin(f.kind.ox / (f.kind.cell ?? 96), f.kind.oy / (f.kind.cell ?? 96)).setScale(f.kind.scale * 0.95);
       f.speed = 26 + f.kind.speed * 0.5;
     }
+    // From stage 3, the sixth foe of every stage is a major one: gold, larger, tougher, and it leaves essence.
+    f.elite = !boss && s >= 3 && this.spawned === 5;
+    this.spawned++;
+    if (!boss) f.img.setTexture(f.kind.sheet, f.kind.row * 4).setOrigin(f.kind.ox / (f.kind.cell ?? 96), f.kind.oy / (f.kind.cell ?? 96)).setScale(f.kind.scale * (f.elite ? 1.3 : 0.95));
     f.boss = boss;
-    f.x = x; f.max = f.hp = D.foeHp(s); f.dmg = D.foeDmg(s);
-    f.alive = true; f.dying = 0; f.atkT = D.FOE_RATE * 0.6; f.animT = Math.random(); f.flash = 0; f.strikeT = 0;
+    f.x = x; f.max = f.hp = D.foeHp(s) * (f.elite ? 5 : 1); f.dmg = D.foeDmg(s) * (f.elite ? 1.6 : 1);
+    f.alive = true; f.dying = 0; f.atkT = D.FOE_RATE * 0.6; f.animT = Math.random(); f.flash = 0; f.strikeT = 0; f.chill = 0;
     f.img.setPosition(x, GROUND).setVisible(true).setAlpha(1).clearTint().setFlipX(true);
+    if (f.elite) f.img.setTint(0xffd27a);
   }
 
   private front(): WFoe | null {
@@ -316,7 +329,8 @@ export class Watch extends Phaser.Scene {
       f.animT += wdt;
       // At his reach, they strike on their own clock (a runner is past them before they can).
       if (this.fallen <= 0 && !this.running && !this.cine && f === first && f.x <= this.hx + REACH + (f.boss ? 18 : 0)) {
-        f.atkT -= wdt;
+        f.chill = Math.max(0, f.chill - wdt);
+        f.atkT -= wdt * (f.chill > 0 ? 0.6 : 1);
         if (f.atkT <= 0) {
           f.atkT = D.FOE_RATE * (f.boss ? 0.8 : 1);
           f.strikeT = 0.25;
@@ -363,21 +377,8 @@ export class Watch extends Phaser.Scene {
     }
     if (this.shot) this.stepShot(dt);
     this.tapCd -= dt;
-    // The shadows strike beside him (and run with him).
-    const n = D.shadowsAt(w.level);
-    for (let i = 0; i < this.shadows.length; i++) {
-      const s = this.shadows[i];
-      s.img.setVisible(i < n && !this.cine);
-      if (i >= n) continue;
-      s.cd -= wdt; s.strikeT = Math.max(0, s.strikeT - wdt);
-      const f = this.front();
-      if (s.cd <= 0 && f && this.fallen <= 0 && !this.cine && f.x <= this.hx + REACH + 20) {
-        s.cd = 1.6 + i * 0.12; s.strikeT = 0.25;
-        this.damage(f, st.atk * 0.25 * (mantle ? D.MANTLE.dmg : 1), false, true);
-      }
-      const moving = scroll > 0;
-      s.img.setFrame(s.kind.row * 4 + (s.strikeT > 0 ? 3 : moving ? 1 + (Math.floor(this.loopT * 8 + i) % 2) : Math.floor((this.loopT * 3 + i) % 2))).setPosition(this.hx - 26 - i * 17 + (s.strikeT > 0 ? 6 : 0), GROUND);
-    }
+    // The shadows fight beside him, each in its role (and run with him).
+    this.band.tick(wdt, st.atk * (mantle ? D.MANTLE.dmg : 1), scroll > 0, this.fallen <= 0 && !this.cine, REACH);
     // The Shadow Mantle.
     if (this.mantleT > 0) { this.mantleT -= dt; if (this.mantleT <= 0) this.ui.toast('The Mantle falls away'); }
     else if (w.level >= D.MANTLE.level && w.gauge >= 100 && w.auto) this.transformNow();
@@ -423,12 +424,14 @@ export class Watch extends Phaser.Scene {
   private kill(f: WFoe) {
     const w = this.w, st = D.watchStats(w);
     f.alive = false; f.dying = 0.35;
-    const coins = D.foeCoins(w.stage) * st.coinMult;
+    const coins = D.foeCoins(w.stage) * st.coinMult * (f.elite ? 5 : 1);
     w.coins += coins; this.earned += coins;
     this.coinText(f.x, GROUND - 30, coins);
     this.gainXp(D.foeXp(w.stage));
     if (w.level >= D.MANTLE.level && this.mantleT <= 0) w.gauge = Math.min(100, w.gauge + D.MANTLE.perKill);
-    if (f.boss) { this.bossDown(); return; }
+    // Major foes leave essence of a shadow: an elite one of its own kind, a gate's holder three and one of the Marshal's.
+    if (f.elite) this.gainEssence(ESSENCE_OF[f.id] ?? 'sentinel', 1, f.x);
+    if (f.boss) { this.gainEssence(BOSS_ESSENCE[f.boss] ?? 'knight', 3, f.x); this.gainEssence('marshal', 1, f.x); this.bossDown(); return; }
     this.kills++;
     if (this.kills >= D.KILLS_PER_STAGE) {
       // Cleared: on to the next stage, or (holding back after a lost fight) once more here, to grow.
@@ -473,7 +476,8 @@ export class Watch extends Phaser.Scene {
   challenge() { this.w.auto = true; this.ui.refresh(); }
 
   private hurt(dmg: number) {
-    this.hp -= dmg;
+    // The guardians take their share (Aegis).
+    this.hp -= dmg * (1 - this.band.aegis());
     this.hero.setTint(0xff7a7a);
     this.time.delayedCall(90, () => this.hero.clearTint());
     if (this.hp <= 0) {
@@ -649,6 +653,57 @@ export class Watch extends Phaser.Scene {
       if (lo.length >= D.slotsAt(w.level)) { this.ui.toast(`All ${D.slotsAt(w.level)} slots are taken: leave one out first`); return; }
       lo.push(id);
     }
+    this.persist();
+  }
+
+  // ---------------------------------------------------------------- shadows (the Shadows tab)
+
+  /** Essence of a shadow, with a mark where it fell. */
+  gainEssence(id: ShadowId, n: number, x = this.hx + 40) {
+    const w = this.w;
+    (w.essence ??= {})[id] = (w.essence[id] ?? 0) + n;
+    const t = this.nums.find((o) => o.life <= 0);
+    if (t) { t.life = 1.1; t.vy = -18; t.t.setText(`+${n} essence`).setPosition(x, GROUND - 52).setColor('#c9a8ff').setScale(0.34).setVisible(true).setAlpha(1); }
+    this.burst(x, GROUND - 30, 0, 0.4, 0xb48cff);
+    // Enough to raise one he has not: say so once.
+    const now = w.essence[id] ?? 0;
+    if (!owned(w, id) && now >= UNLOCK_COST[id] && now - n < UNLOCK_COST[id]) this.ui.toast(`Enough essence to raise ${shadowName(id, 1)} · Shadows`, 3);
+  }
+
+  /** Raise a shadow with its essence, or take it a level further. */
+  raiseShadow(id: ShadowId) {
+    const w = this.w, have = w.essence?.[id] ?? 0, cur = w.shadows?.[id]?.lv ?? 0;
+    const cost = cur ? levelCost(cur) : UNLOCK_COST[id];
+    if (cur >= SHADOW_MAX || have < cost) return false;
+    (w.essence ??= {})[id] = have - cost;
+    (w.shadows ??= {})[id] = { ...(w.shadows[id] ?? {}), lv: cur + 1 };
+    // A new shadow takes a free slot.
+    const team = (w.team ??= []);
+    if (!cur && team.length < D.shadowsAt(w.level)) team.push(id);
+    this.band.rebuild(w);
+    this.persist();
+    return true;
+  }
+
+  /** Set a raised shadow beside him, or stand it down. */
+  toggleTeam(id: ShadowId) {
+    const w = this.w, team = (w.team ??= []);
+    if (team.includes(id)) team.splice(team.indexOf(id), 1);
+    else if (owned(w, id)) {
+      const slots = D.shadowsAt(w.level);
+      if (team.length >= slots) { this.ui.toast(slots ? `All ${slots} shadow slots are taken: stand one down first` : `The first shadow slot opens at Watch level ${D.SHADOW_LEVELS[0]}`); return; }
+      team.push(id);
+    }
+    this.band.rebuild(w);
+    this.persist();
+  }
+
+  /** Give a shadow another of the main game's roles. */
+  setShadowRole(id: ShadowId, role: EchoRole) {
+    const s = this.w.shadows?.[id];
+    if (!s) return;
+    s.role = role;
+    this.band.rebuild(this.w);
     this.persist();
   }
 

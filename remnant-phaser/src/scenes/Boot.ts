@@ -23,6 +23,8 @@ import foesShinar from '../../../remnant/src/assets/foes-shinar.png';
 import foesBeasts from '../../../remnant/src/assets/foes-beasts.png';
 import foesVeil from '../../../remnant/src/assets/foes-veil.png';
 import foesGothic from '../assets/cc0/foes-gothic.png';
+import echoVanguard from '../../../remnant/src/assets/echo-vanguard.png';
+import echoSovereign from '../../../remnant/src/assets/echo-sovereign.png';
 import foesGothicBig from '../assets/cc0/foes-gothic-big.png';
 
 /** Loads the sprite sheets and makes the generated textures every scene shares. */
@@ -54,6 +56,9 @@ export class Boot extends Phaser.Scene {
     // The CC0 foes (art/incoming/cc0/CREDITS.md), cut to the same four keyframes a row by art/tools/cc0.py.
     this.load.spritesheet('foes-gothic', foesGothic, { frameWidth: 96, frameHeight: 96 });
     this.load.spritesheet('foes-gothic-big', foesGothicBig, { frameWidth: 160, frameHeight: 160 });
+    // The main game's Echo sheets, for the Watch's shadows (same four keyframes a row).
+    this.load.spritesheet('echo-vanguard', echoVanguard, { frameWidth: 96, frameHeight: 96 });
+    this.load.spritesheet('echo-sovereign', echoSovereign, { frameWidth: 96, frameHeight: 96 });
     this.load.image('varkhos', varkhosUrl);
     this.load.image('morvane', morvaneUrl);
     this.load.image('azkar', azkarUrl);

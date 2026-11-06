@@ -3,6 +3,9 @@
 // milestones (Pecorella, "The Math of Idle Games"); foes and their pay grow ×1.10 a stage, which a greedy player
 // outruns for about a hundred stages before the Ascension is the way on.
 
+import type { EchoRole } from '../../../../remnant/src/game/data';
+import type { ShadowId } from './shadows';
+
 /** What the Watch keeps in the journey's save (`PhaserSave.watch`, optional, so saves stay compatible). */
 export interface WatchSave {
   v: 1;
@@ -37,10 +40,23 @@ export interface WatchSave {
   autoSkills?: boolean;
   /** How fast the wall runs: ×1, ×2, or ×3 once he reaches SPEEDS' level. */
   speed?: 1 | 2 | 3;
+  /** Essence of each shadow from major foes; the shadows raised (level, and a role if changed); who fights beside him. */
+  essence?: Partial<Record<ShadowId, number>>;
+  shadows?: Partial<Record<ShadowId, { lv: number; role?: EchoRole }>>;
+  team?: ShadowId[];
 }
 
 /** Older Watch saves knew Covenant Strike and the Pillar by level alone: they keep them, bought and equipped. */
 export function migrateWatch(w: WatchSave) {
+  // Shadows used to join by level alone: an older watch keeps as many as it had, raised and in the team.
+  if (!w.shadows) {
+    w.shadows = {};
+    const had = (['sentinel', 'knight', 'archer', 'lion', 'brute', 'bulwark'] as ShadowId[]).slice(0, shadowsAt(w.level));
+    for (const id of had) w.shadows[id] = { lv: 1 };
+    w.team = had;
+  }
+  w.essence ??= {};
+  w.team = (w.team ?? []).filter((id) => (w.shadows![id]?.lv ?? 0) > 0).slice(0, shadowsAt(w.level));
   if (!w.skills) {
     w.skills = {};
     for (const a of ABILITIES) if (a.id === 'strike' || a.id === 'pillar') { if (w.level >= a.level) w.skills[a.id] = 1; }
@@ -159,22 +175,22 @@ export function watchStats(w: WatchSave): WatchStats {
 /** The Watch level's milestones (POLISH_PLAN §18d): what each opens, for the Hero card and the level-up toast. */
 export const UNLOCKS: [number, string][] = [
   [5, 'Covenant Strike (Skills): a heavy blow with all his weight'],
-  [8, 'The first shadow joins him on the wall'],
+  [8, 'A shadow slot: raise a shadow with essence and set it beside him (Shadows)'],
   [10, 'Pillar of Fire (Skills): white fire on the furthest foes'],
   [15, 'Phantom Step (Skills): a slowed, cinematic cut through every foe'],
-  [20, 'A second shadow'],
+  [20, 'A second shadow slot'],
   [22, 'Whirlwind (Skills): a sweep through every foe near him'],
   [25, 'The Shadow Mantle: kills fill the gauge; transform for heavier, faster blows · a third ability slot'],
   [30, 'Rising Comet (Skills): up, and down like a falling star'],
-  [40, 'A third shadow · Balm (Skills) · the wall at ×3 speed'],
+  [40, 'A third shadow slot · Balm (Skills) · the wall at ×3 speed'],
   [60, 'Last Watch (Skills): a slowed flurry and a closing blow · a fourth ability slot'],
-  [70, 'A fourth shadow'],
+  [70, 'A fourth shadow slot'],
   [100, 'A fifth ability slot'],
-  [110, 'A fifth shadow'],
-  [150, 'A sixth shadow · Tirzah comes to the wall (a later update)'],
+  [110, 'A fifth shadow slot'],
+  [150, 'A sixth shadow slot · Tirzah comes to the wall (a later update)'],
   [300, 'Uri the flame-caller (a later update)'],
 ];
-/** Shadow allies (foes he has cleansed, fighting beside him) open at these levels. */
+/** The shadows' team slots open at these levels (the shadows themselves are raised with essence: game/watch/shadows.ts). */
 export const SHADOW_LEVELS = [8, 20, 40, 70, 110, 150];
 export const shadowsAt = (level: number) => SHADOW_LEVELS.filter((l) => level >= l).length;
 // ---------------------------------------------------------------- abilities (the Skills tab)
