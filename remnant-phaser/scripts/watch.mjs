@@ -1,6 +1,6 @@
 // The Watch, the idle game inside the game (POLISH_PLAN §18): the title offers it; each gate a new CC0 place; rush stages, ×2/×3 speed and abilities; costs grow by their curves; Elior
 // fights on his own and every kill pays; coins buy upgrades that open the next ones; ten foes to a stage and a gate's
-// boss on a timer (lose it and he holds back until Challenged); levels open his skills, his shadows and the Mantle;
+// boss on a timer (lose it and he holds back until Challenged); levels open his skills, shadow slots and the Mantle; major foes leave essence that raises shadows;
 // away, the wall pays half its recent rate (eight hours at most) on a welcome card; a gate's first fall pays the
 // journey silver (and a cape at Gate 10); the Ascension trades a run for Seals; and all of it survives a reload.
 // Run after `npm run build`.
@@ -87,9 +87,45 @@ try {
     sc.transformNow();
     const mantle = sc.mantleT > 0;
     for (let i = 0; i < 30 * 5; i++) sc.tick(1 / 30);
-    return { mantle, shadows: sc.shadows.filter((s) => s.img.visible).length };
+    return { mantle, shadows: sc.band.members.length };
   });
-  assert.ok(powers.mantle && powers.shadows === 2, `at level 26 two shadows stand with him and the Mantle can be taken up (${JSON.stringify(powers)})`);
+  assert.ok(powers.mantle && powers.shadows === 0, `at level 26 the Mantle can be taken up, and no shadow stands with him unearned (${JSON.stringify(powers)})`);
+
+  // ---- shadows: major foes leave essence; essence raises and levels the main game's Echoes; a team in their roles
+  const sh = await E(page, () => {
+    const sc = window.__remnant.watch, w = sc.w, out = {};
+    w.up = { attack: 400, health: 300 }; w.essence = {};
+    sc.startStage(25);
+    for (let i = 0; i < 30 * 20 && !sc.foes.some((f) => f.alive && f.elite); i++) sc.tick(1 / 30);
+    const elite = sc.foes.find((f) => f.alive && f.elite);
+    out.elite = !!elite && elite.max > sc.foes.find((f) => f.alive && !f.elite)?.max * 3;
+    const before = { ...w.essence };
+    if (elite) { sc.damage(elite, 1e12, true, false); }
+    out.eliteEssence = Object.values(w.essence).reduce((a, b) => a + b, 0) - Object.values(before).reduce((a, b) => a + b, 0);
+    out.early = sc.raiseShadow('sentinel');
+    sc.gainEssence('sentinel', 9); sc.gainEssence('archer', 5); sc.gainEssence('knight', 5);
+    out.raised = [sc.raiseShadow('sentinel'), sc.raiseShadow('archer'), sc.raiseShadow('knight')];
+    out.team = [...w.team];
+    out.levelled = sc.raiseShadow('sentinel') && w.shadows.sentinel.lv === 2;
+    sc.toggleTeam('knight');
+    out.full = [...w.team];
+    sc.setShadowRole('archer', 'mage');
+    out.roles = sc.band.members.map((m) => `${m.id}:${m.role}`);
+    out.aegis = sc.band.aegis();
+    // A gate's holder leaves three of its own essence and one of the Marshal's.
+    const m0 = w.essence.marshal ?? 0; sc.startStage(30);
+    for (let i = 0; i < 30 * 20 && sc.w.stage === 30; i++) sc.tick(1 / 30);
+    out.marshal = (w.essence.marshal ?? 0) - m0;
+    return out;
+  });
+  assert.ok(sh.elite && sh.eliteEssence === 1, `a gold elite is tougher and leaves one essence (${JSON.stringify(sh)})`);
+  assert.ok(!sh.early && sh.raised.every(Boolean) && sh.levelled, `essence raises a shadow and levels it (${JSON.stringify(sh)})`);
+  assert.ok(sh.team.join() === 'sentinel,archer' && sh.full.join() === 'sentinel,archer', `the team holds as many as his slots (two at 26) (${JSON.stringify(sh)})`);
+  assert.ok(sh.roles.join() === 'sentinel:guardian,archer:mage' && sh.aegis > 0, `roles from the main game; a guardian takes a share of his blows (${JSON.stringify(sh)})`);
+  assert.equal(sh.marshal, 1, 'a gate\'s holder leaves a measure of the Marshal\'s essence');
+  await page.click('[data-k=wt_tab_shadows]');
+  await page.waitForSelector('[data-k=wt_raise_locust]');
+  await page.screenshot({ path: 'qa/watch-shadows.png' });
 
   // ---- movement: on a rush stage he runs and cuts through; on a holding stage he stands and they come to him
   const tempo = await E(page, () => {
@@ -164,6 +200,8 @@ try {
     sessionStorage.setItem('watch-away', '1');
     const raw = JSON.parse(localStorage.getItem('remnant-phaser.save.v2'));
     raw.watch.last = Date.now() - 3 * 3600 * 1000;
+    // An older watch, from before shadows were earned: it keeps as many as its level gave it.
+    delete raw.watch.shadows; delete raw.watch.team;
     localStorage.setItem('remnant-phaser.save.v2', JSON.stringify(raw));
   });
   await page.goto(base + '?debug');
@@ -171,10 +209,11 @@ try {
   await page.waitForSelector('[data-k=wt_collect]', { timeout: 10000 });
   await page.screenshot({ path: 'qa/watch-welcome.png' });
   await page.click('[data-k=wt_collect]');
-  const back = await E(page, () => { const w = window.__remnant.watch.w; return { coins: w.coins, seals: w.seals, level: w.level }; });
+  const back = await E(page, () => { const w = window.__remnant.watch.w; return { coins: w.coins, seals: w.seals, level: w.level, team: (w.team ?? []).join() }; });
   assert.ok(back.coins >= 215000 && back.coins <= 217000 && back.seals === 9 && back.level === 26, `three hours away pay 40 × ½ × 10,800 coins, and the Watch was kept (${JSON.stringify(back)})`);
+  assert.equal(back.team, 'sentinel,knight', 'an older watch keeps the shadows its level gave it, raised and beside him');
   await page.screenshot({ path: 'qa/watch.png' });
-  console.log(`Watch: a fresh Elior; ${fight.stage - 1} stages in 2½ minutes; the boss's timer; Gate 1 paid once; shadows and the Mantle at 26; Ascension for 9 Seals; ${back.coins} coins for 3 h away; new scenery each gate; the demon at Gate 1; its blade wielded; rush and holding stages; ×2 and ×3; abilities learned, levelled and staged`);
+  console.log(`Watch: a fresh Elior; ${fight.stage - 1} stages in 2½ minutes; the boss's timer; Gate 1 paid once; the Mantle at 26; shadows raised with essence; Ascension for 9 Seals; ${back.coins} coins for 3 h away; new scenery each gate; the demon at Gate 1; its blade wielded; rush and holding stages; ×2 and ×3; abilities learned, levelled and staged`);
 
   assert.deepEqual(errors, [], 'no page errors');
   console.log('phaser watch: all checks passed');

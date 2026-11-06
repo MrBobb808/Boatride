@@ -5,6 +5,11 @@
 import { sfx } from '../../../../remnant/src/audio/audio';
 import * as D from './defs';
 import bladesUrl from '../../assets/cc0/blades.png';
+import vanguardUrl from '../../../../remnant/src/assets/echo-vanguard.png';
+import sovereignUrl from '../../../../remnant/src/assets/echo-sovereign.png';
+import veilUrl from '../../../../remnant/src/assets/foes-veil.png';
+import { ECHO_SPECIES, ECHO_ROLES } from '../../../../remnant/src/game/data';
+import { SHADOW_ORDER, SHADOW_ART, ROLE_ORDER, UNLOCK_COST, SHADOW_MAX, levelCost, tierOf, shadowName, shadowRole, owned } from './shadows';
 import type { Watch } from '../../scenes/Watch';
 
 const CSS = `
@@ -25,7 +30,7 @@ const CSS = `
 .wt-panel{position:fixed;left:0;right:0;bottom:0;z-index:14;display:flex;flex-direction:column;background:#0d0a12;border-top:1px solid rgba(226,184,90,.35);font-family:Georgia,serif;color:#ddd4c6;padding-bottom:env(safe-area-inset-bottom)}
 .wt-body{flex:1;overflow:auto;padding:8px 10px;-webkit-overflow-scrolling:touch}
 .wt-tabs{display:flex;border-top:1px solid rgba(226,184,90,.25)}
-.wt-tab{flex:1;padding:10px 4px;font-family:Cinzel,Georgia,serif;font-size:13px;letter-spacing:.06em;background:#120e18;color:#9b92a6;border:0;border-right:1px solid rgba(226,184,90,.15);cursor:pointer}
+.wt-tab{flex:1;padding:10px 2px;font-family:Cinzel,Georgia,serif;font-size:12px;letter-spacing:.06em;background:#120e18;color:#9b92a6;border:0;border-right:1px solid rgba(226,184,90,.15);cursor:pointer}
 .wt-tab.on{color:#f6dea0;background:#1d1424}
 .wt-amt{display:flex;gap:6px;justify-content:flex-end;margin-bottom:6px}
 .wt-amt button{font-family:Cinzel,Georgia,serif;font-size:11px;padding:4px 8px;border-radius:5px;border:1px solid rgba(226,184,90,.35);background:#120e18;color:#9b92a6;cursor:pointer}
@@ -79,6 +84,22 @@ const CSS = `
 .wt-ab .act button.eq{background:#1a1424;color:#f6dea0}
 .wt-ab .act button.eq.on{background:#3a2c14}
 .wt-ab .act button:disabled{background:#2a2230;color:#8a8094;cursor:default}
+.wt-sh{display:grid;grid-template-columns:64px 1fr auto;gap:8px;align-items:center;padding:8px;border:1px solid rgba(226,184,90,.22);border-radius:8px;background:#140f1a;margin-bottom:6px}
+.wt-sh.on{border-color:#f6dea0;background:#1d1526}
+.wt-sh.locked .pic{filter:brightness(.25) grayscale(1)}
+.wt-sh .pic{width:64px;height:64px;background-repeat:no-repeat;background-size:384px 384px;image-rendering:pixelated;border-radius:6px;background-color:#0c0910}
+.wt-sh b{font-family:Cinzel,Georgia,serif;font-weight:normal;color:#f6dea0;font-size:13px}
+.wt-sh small{display:block;color:#9b92a6;font-size:11px;margin-top:1px}
+.wt-sh p{margin:3px 0 0;font-size:12px;color:#cfc6b6;line-height:1.3}
+.wt-sh .ess{height:4px;border-radius:2px;background:#0a070d;margin-top:4px;overflow:hidden}
+.wt-sh .ess i{display:block;height:100%;background:linear-gradient(90deg,#7a5aa8,#c9a8ff)}
+.wt-sh .act{display:flex;flex-direction:column;gap:4px;min-width:92px}
+.wt-sh .act button,.wt-sh select{font-family:Cinzel,Georgia,serif;font-size:11px;padding:6px 4px;border-radius:6px;border:1px solid rgba(226,184,90,.5);background:#3d2a5a;color:#f0e6ff;cursor:pointer}
+.wt-sh .act button.tm{background:#1a1424;color:#f6dea0}
+.wt-sh .act button.tm.on{background:#3a2c14}
+.wt-sh select{background:#120e18;color:#ddd4c6}
+.wt-sh .act button:disabled{background:#2a2230;color:#8a8094;cursor:default}
+.wt-role{display:inline-block;font-size:10px;letter-spacing:.06em;padding:1px 6px;border-radius:8px;border:1px solid currentColor;margin-left:4px}
 .wt-card-layer{position:fixed;inset:0;z-index:30;display:flex;align-items:center;justify-content:center;background:rgba(7,6,11,.78);padding:16px}
 .wt-welcome{width:min(380px,100%);background:#150f1b;border:1px solid rgba(226,184,90,.55);border-radius:8px;padding:16px;text-align:center;font-family:Georgia,serif;color:#ddd4c6}
 .wt-welcome b{display:block;font-family:Cinzel,Georgia,serif;color:#f6dea0;font-size:22px;margin:6px 0}
@@ -86,7 +107,8 @@ const CSS = `
 
 const el = <K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', text = '') => { const e = document.createElement(tag); if (cls) e.className = cls; if (text) e.textContent = text; return e; };
 
-type Tab = 'up' | 'skills' | 'hero' | 'ascend';
+type Tab = 'up' | 'skills' | 'shadows' | 'hero' | 'ascend';
+const SHEET_URL: Record<string, string> = { 'echo-vanguard': vanguardUrl, 'echo-sovereign': sovereignUrl, 'foes-veil': veilUrl };
 
 /** The abilities' marks, drawn as strokes. */
 const ICON: Record<D.AbilityId, string> = {
@@ -119,7 +141,7 @@ export class WatchUI {
   private barSig = '';
   private abCards = new Map<D.AbilityId, { root: HTMLElement; buy: HTMLButtonElement; eq: HTMLButtonElement; lv: HTMLElement }>();
   private tab: Tab = 'up';
-  private tabs: Record<Tab, HTMLButtonElement> = { up: el('button', 'wt-tab on', 'Upgrades'), skills: el('button', 'wt-tab', 'Skills'), hero: el('button', 'wt-tab', 'Hero'), ascend: el('button', 'wt-tab', 'Ascend') };
+  private tabs: Record<Tab, HTMLButtonElement> = { up: el('button', 'wt-tab on', 'Upgrades'), skills: el('button', 'wt-tab', 'Skills'), shadows: el('button', 'wt-tab', 'Shadows'), hero: el('button', 'wt-tab', 'Hero'), ascend: el('button', 'wt-tab', 'Ascend') };
   /** Buy one, ten, or as many as the coins allow. */
   amount: 1 | 10 | 0 = 1;
   private cards = new Map<D.TrackId, { root: HTMLButtonElement; lvl: HTMLElement; eff: HTMLElement; cost: HTMLElement; n: HTMLElement }>();
@@ -203,6 +225,7 @@ export class WatchUI {
     this.abCards.clear();
     if (tab === 'up') this.buildUpgrades();
     else if (tab === 'skills') this.buildSkills();
+    else if (tab === 'shadows') this.buildShadows();
     else if (tab === 'hero') this.buildHero();
     else this.buildAscend();
     this.refresh();
@@ -239,7 +262,7 @@ export class WatchUI {
     st.style.marginTop = '8px';
     const row = (k: string, v: string) => { const d = el('div'); d.append(document.createTextNode(k + ' '), el('b', '', v)); st.appendChild(d); };
     row('Damage', D.fmt(s.atk)); row('Health', D.fmt(s.maxHp)); row('Swings', `×${s.aspd.toFixed(2)}`); row('Critical', `${Math.round(s.crit * 100)}% · ×${s.critDmg.toFixed(2)}`);
-    row('Regen', `${(s.regen * 100).toFixed(1)}%/s`); row('Blows softened', `${Math.round(s.dr * 100)}%`); row('Coins', `×${s.coinMult.toFixed(2)}`); row('Shadows', String(D.shadowsAt(w.level)));
+    row('Regen', `${(s.regen * 100).toFixed(1)}%/s`); row('Blows softened', `${Math.round(s.dr * 100)}%`); row('Coins', `×${s.coinMult.toFixed(2)}`); row('Shadows', `${(w.team ?? []).length} of ${D.shadowsAt(w.level)}`);
     this.body.appendChild(st);
     // The armoury: a blade for each of the first eight gates.
     this.body.appendChild(el('div', 'wt-h', 'The armoury'));
@@ -282,6 +305,50 @@ export class WatchUI {
       root.append(icon, mid, act);
       this.body.appendChild(root);
       this.abCards.set(a.id, { root, buy, eq, lv });
+    }
+  }
+
+  /** The shadows: raise each with its essence, level it, choose its role, and set the team beside him. */
+  private buildShadows() {
+    const w = this.sc.w, slots = D.shadowsAt(w.level), team = w.team ?? [];
+    this.body.appendChild(el('div', 'wt-h', `Shadows · ${team.length} of ${slots} beside him`));
+    this.body.appendChild(el('p', 'wt-p', `The Echoes of the journey, earned here. Gold elite foes and the gates' holders leave essence of a shadow; enough raises it, and more takes it a level further (its second and third stage at levels 10 and 20). Choose each one's role, and who stands beside him: ${slots ? `${slots} slot${slots > 1 ? 's' : ''} now, ` : ''}more at Watch levels ${D.SHADOW_LEVELS.filter((l) => l > w.level).slice(0, 3).join(', ') || 'none left'}.`));
+    for (const id of SHADOW_ORDER) {
+      const raised = owned(w, id), lv = w.shadows?.[id]?.lv ?? 0, role = shadowRole(w, id), sp = ECHO_SPECIES[id];
+      const root = el('div', 'wt-sh' + (team.includes(id) ? ' on' : '') + (raised ? '' : ' locked'));
+      const a = SHADOW_ART[id], pic = el('div', 'pic');
+      pic.style.backgroundImage = `url(${SHEET_URL[a.sheet]})`;
+      // The ready pose, its feet on the box's floor and its body centred.
+      pic.style.backgroundPosition = `${32 - a.ox}px ${60 - 88 - a.row * 96}px`;
+      const mid = el('div');
+      const name = el('b', '', raised ? shadowName(id, lv) : sp.stages[0].name);
+      const chip = el('span', 'wt-role', ECHO_ROLES[role].name); chip.style.color = ECHO_ROLES[role].color;
+      name.appendChild(chip);
+      const have = w.essence?.[id] ?? 0, need = raised ? levelCost(lv) : UNLOCK_COST[id];
+      const line = el('small', '', raised ? `Level ${lv}/${SHADOW_MAX} · ${sp.stages[tierOf(lv) - 1].title} · ${lv >= SHADOW_MAX ? `${have} essence` : `${have} of ${need} essence to level`}` : `${have} of ${need} essence to raise · ${sp.cls}`);
+      const bar = el('div', 'ess'), fill = el('i'); fill.style.width = `${Math.min(100, (have / need) * 100)}%`; bar.appendChild(fill);
+      const ability = el('p', '', `${ECHO_ROLES[role].signature[tierOf(Math.max(1, lv)) - 1]} ${sp.stages[tierOf(Math.max(1, lv)) - 1].ability}`);
+      mid.append(name, line, bar, ability);
+      const act = el('div', 'act');
+      const up = el('button') as HTMLButtonElement;
+      up.dataset.k = 'wt_raise_' + id;
+      up.textContent = lv >= SHADOW_MAX ? 'MAX' : raised ? `Level up · ${need}` : `Raise · ${need}`;
+      up.disabled = lv >= SHADOW_MAX || have < need;
+      up.onclick = () => { if (this.sc.raiseShadow(id)) { sfx('lootRare', { vol: 0.5 }); this.show('shadows'); } };
+      act.appendChild(up);
+      if (raised) {
+        const tm = el('button', 'tm' + (team.includes(id) ? ' on' : '')) as HTMLButtonElement;
+        tm.dataset.k = 'wt_team_' + id;
+        tm.textContent = team.includes(id) ? 'Beside him' : 'Set beside him';
+        tm.onclick = () => { sfx('ui'); this.sc.toggleTeam(id); this.show('shadows'); };
+        const sel = el('select') as HTMLSelectElement;
+        sel.dataset.k = 'wt_role_' + id;
+        for (const r of ROLE_ORDER) { const o = el('option', '', ECHO_ROLES[r].name) as HTMLOptionElement; o.value = r; o.selected = r === role; sel.appendChild(o); }
+        sel.onchange = () => { sfx('ui'); this.sc.setShadowRole(id, sel.value as typeof role); this.show('shadows'); };
+        act.append(tm, sel);
+      }
+      root.append(pic, mid, act);
+      this.body.appendChild(root);
     }
   }
 

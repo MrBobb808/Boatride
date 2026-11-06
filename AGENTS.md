@@ -346,6 +346,14 @@ Never ship files from `art/incoming/` directly.
   (AUTO) or tapped on the skill bar; Phantom Step and the Last Watch are
   staged combos (`Watch.startCine`: the world slows, the view darkens and
   draws in). The wall runs at ×1, ×2, or ×3 from Watch level 40 (`speed`).
+  Shadows are earned, never given (`src/game/watch/shadows.ts`): gold elite
+  foes (the sixth of each stage from stage 3) and gates' holders leave essence
+  of one of the main game's nine Echo species (`ESSENCE_OF`, `BOSS_ESSENCE`);
+  essence raises and levels each (to 30; its stages II and III at 10 and 20).
+  The Shadows tab sets the team (slots by `SHADOW_LEVELS`) and each one's role
+  (the main game's `ECHO_ROLES`: guardian, fighter, ninja, ranger, mage,
+  healer), which drives its part in the fight (`ShadowBand`). Save fields
+  `essence`, `shadows`, `team` (older watches keep the shadows their level gave).
 - **CC0 art (Phaser build):** free public-domain packs (Gothicvania by ansimuz,
   Swords and Staffs by SnoopethDuckDuck) live raw in
   `remnant-phaser/art/incoming/cc0/` with `CREDITS.md`; `art/tools/cc0.py`

@@ -764,6 +764,8 @@ gated on the quality tier, and the strip simulated at a fixed step so offline an
    uses too (its lands 7–9).
 1c. **Movement, speed and abilities** (BUILT, the owner's ask of 6 November 2026): rush and holding stages, ×2/×3 speed,
    the Skills tab (seven abilities bought, levelled and equipped), and staged slow-motion combos (Phantom Step, Last Watch).
+1d. **Shadows earned** (BUILT, the owner's ask of 6 November 2026): essence from elite foes and gate bosses raises and levels
+   the main game's nine Echoes; the Shadows tab sets the team and each one's role, and each role fights its own way.
 2. **Phase 2, the forms:** Phantom Step, the Unshorn and the Sovereign in the Watch; the Skills tab.
 3. **Phase 3, the long game:** the Seals' perk tree; Allies; gear.
 4. **Phase 4, the side roads:** Trials, Expeditions, daily tasks; Tirzah at level 150, Uri at 300.
