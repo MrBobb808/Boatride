@@ -7,6 +7,7 @@ import type { WeaponFamily } from '../../../remnant/src/game/data';
 import type { PlayableHero } from './style';
 import { FighterRig, FIGHTER_DIMS } from './fighterRig';
 import { easeOutCubic, easeInQuad } from '../../../remnant/src/core/math';
+import BLADE_GRIPS from '../assets/cc0/blades.json';
 export const ACTION_CELL=192,ACTION_FOOT=120,ACTION_STEPS=16;
 /** Clips baked as loops (sampled at i/STEPS); the rest are one-shots sampled at i/(STEPS-1). */
 const LOOPS=new Set<string>();
@@ -47,12 +48,22 @@ function fighterClips(family:ArtFamily,hero:PlayableHero){
   }
   return clips;
 }
+/** One sword of the CC0 sheet (32x64 cells, src/assets/cc0/blades.png) cut out with its grip (blades.json). */
+function bladeSprite(sc:Phaser.Scene,i:number){
+  if(!sc.textures.exists('watch-blades'))return null;
+  const src=sc.textures.get('watch-blades').getSourceImage() as HTMLImageElement,g=BLADE_GRIPS[i];
+  if(!g)return null;
+  const img=document.createElement('canvas');img.width=32;img.height=64;img.getContext('2d')!.drawImage(src,i*32,0,32,64,0,0,32,64);
+  return {img,gx:g.x,gy:g.y,h:g.h};
+}
 /** `cape` is a Valor cape key (game/valor.ts CAPES); each worn colour bakes its own atlas once. */
-export function actionAtlas(sc:Phaser.Scene,hero:PlayableHero,family:ArtFamily,mantle=false,armed=true,cape:string|null=null){
+/** `blade`: the index of a sprite sword in the 'watch-blades' sheet (the Watch's armoury), drawn in his hand. */
+export function actionAtlas(sc:Phaser.Scene,hero:PlayableHero,family:ArtFamily,mantle=false,armed=true,cape:string|null=null,blade=-1){
   const fists=family==='fists';
-  const key=`action-${hero}-${hero==='tirzah'?'bow':family}${mantle&&!fists?'-mantle':''}${armed&&!fists?'':'-unarmed'}${cape&&!fists?'-cape-'+cape:''}`;
+  const sprite=blade>=0&&!fists&&hero==='elior'?bladeSprite(sc,blade):null;
+  const key=`action-${hero}-${hero==='tirzah'?'bow':family}${mantle&&!fists?'-mantle':''}${armed&&!fists?'':'-unarmed'}${cape&&!fists?'-cape-'+cape:''}${sprite?'-blade'+blade:''}`;
   if(sc.textures.exists(key))return key;
-  const clips=fighterClips(hero==='tirzah'?'blade':family,hero),anim=new Animator(clips),rig=new FighterRig(sc,hero,fists?'blade':family,mantle&&!fists,fists?null:cape,fists);
+  const clips=fighterClips(hero==='tirzah'?'blade':family,hero),anim=new Animator(clips),rig=new FighterRig(sc,hero,fists?'blade':family,mantle&&!fists,fists?null:cape,fists,sprite);
   const moves=Object.values(fists?FISTS:MOVESETS[family]).flatMap(v=>Array.isArray(v)?v:typeof v==='object'?[v as AttackDef]:[]);
   const attacks=new Set(moves.map(m=>m.clip));
   const names=hero==='tirzah'?[...COMMON,'bowDraw','bowRelease','dagger1','dagger2','dagger3']:[...new Set([...COMMON,...attacks,'b1','b2','b4','heavy','dash','launch','storm','plunge'])];

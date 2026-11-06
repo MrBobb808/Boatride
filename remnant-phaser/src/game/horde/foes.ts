@@ -64,7 +64,7 @@ export class Swarm {
     f.atkT = 1 + Math.random() * 2; f.state = 0; f.st = 0; f.face = 1; f.animT = Math.random();
     f.hitBy.fill(0);
     const scale = k.scale * (elite ? 1.6 : 1);
-    f.img.setTexture(k.sheet, k.row * 4).setOrigin(k.ox / 96, k.oy / 96).setScale(scale).setVisible(true).setAlpha(1).clearTint().setTintMode(Phaser.TintModes.MULTIPLY);
+    f.img.setTexture(k.sheet, k.row * 4).setOrigin(k.ox / (k.cell ?? 96), k.oy / (k.cell ?? 96)).setScale(scale).setVisible(true).setAlpha(1).clearTint().setTintMode(Phaser.TintModes.MULTIPLY);
     if (elite) f.img.setTint(0xffe2a0).setTintMode(Phaser.TintModes.MULTIPLY);
     f.shadow.setVisible(true).setScale(scale * 1.2 * (k.r / 9), scale * 1.1);
     this.count++;

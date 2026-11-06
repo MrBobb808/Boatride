@@ -6,7 +6,12 @@
 import Phaser from 'phaser';
 import { loadSave, newSave, writeSave, type PhaserSave } from '../game/save';
 import { actionAtlas, actionFrame, ACTION_FOOT, ACTION_CELL } from '../game/actionArt';
-import { FOES, BIOMES, BOSS_NAMES, type BossId, type FoeKind } from '../game/horde/defs';
+import { FOES, type BossId, type FoeKind } from '../game/horde/defs';
+import { sceneOf, LAYER_KEYS, WATCH_BOSSES, type Layer } from '../game/watch/scenes';
+import propsUrl from '../assets/cc0/props.png';
+import propsJson from '../assets/cc0/props.json?url';
+import demonUrl from '../assets/cc0/watch-demon.png';
+import bladesUrl from '../assets/cc0/blades.png';
 import { bossScale } from '../game/bosses';
 import { music } from '../classic/shim/music';
 import { shakeScale, settings } from '../classic/shim/settings';
@@ -19,6 +24,11 @@ import { WatchUI } from '../game/watch/ui';
 /** The wall's world: 300 × 176 units (narrow, so the fighters read large on a phone), the ground at 146; Elior stands
  * at 82 and reaches 30 ahead. */
 const SW = 300, SH = 176, GROUND = 146, HERO_X = 82, REACH = 30;
+/** The scenes' painted floor sits a little below the fighters' feet; under it, the ground band. */
+const FLOOR = GROUND + 4;
+/** The CC0 scene layers (src/assets/cc0/scenes), by key. */
+const LAYER_URLS = Object.fromEntries(Object.entries(import.meta.glob('../assets/cc0/scenes/*.png', { eager: true, query: '?url', import: 'default' }) as Record<string, string>)
+  .map(([path, url]) => [path.replace(/^.*\/(.*)\.png$/, '$1'), url]));
 /** The bosses' atlases (game/bosses.ts cuts their frames) and how many frames each has. */
 const BOSS_TEX: Record<BossId, [string, number]> = { beast_monarch: ['varkhos', 8], plague_monarch: ['morvane', 8], cinder_monarch: ['azkar', 4] };
 /** The kinds a shadow takes, one per slot, in the order they join. */
@@ -28,7 +38,8 @@ interface WFoe {
   img: Phaser.GameObjects.Image; kind: FoeKind; id: string;
   x: number; hp: number; max: number; dmg: number; speed: number;
   alive: boolean; dying: number; atkT: number; animT: number; flash: number; strikeT: number;
-  boss: BossId | null;
+  /** The gate's holder (a key of WATCH_BOSSES), or none. */
+  boss: string | null;
 }
 interface Shadow { img: Phaser.GameObjects.Image; kind: FoeKind; cd: number; strikeT: number }
 
@@ -60,6 +71,10 @@ export class Watch extends Phaser.Scene {
   private bg!: Phaser.GameObjects.Graphics;
   private hpBar!: Phaser.GameObjects.Graphics;
   private gate = 0;
+  /** The scene's painted layers and set pieces (rebuilt at each gate), and the walk on to the next stage. */
+  private layers: { ts: Phaser.GameObjects.TileSprite; l: Layer }[] = [];
+  private props: Phaser.GameObjects.Image[] = [];
+  private walkT = 0;
   private earned = 0;
   private rateT = 0;
   private saveT = 0;
@@ -70,13 +85,21 @@ export class Watch extends Phaser.Scene {
 
   init(data: { from?: 'title' | 'world' }) { this.from = data?.from ?? 'title'; }
 
+  /** The places' art (CC0, art/incoming/cc0/CREDITS.md), loaded the first time the Watch opens. */
+  preload() {
+    for (const key of LAYER_KEYS) if (!this.textures.exists('cc0-' + key)) this.load.image('cc0-' + key, LAYER_URLS[key]);
+    if (!this.textures.exists('cc0-church-column')) this.load.image('cc0-church-column', LAYER_URLS['church-column']);
+    if (!this.textures.exists('watch-props')) this.load.atlas('watch-props', propsUrl, propsJson);
+    if (!this.textures.exists('watch-demon')) this.load.spritesheet('watch-demon', demonUrl, { frameWidth: 192, frameHeight: 176 });
+    if (!this.textures.exists('watch-blades')) this.load.image('watch-blades', bladesUrl);
+  }
+
   create() {
     this.save = (loadSave() as PhaserSave | null) ?? (newSave(false) as PhaserSave);
     this.w = this.save.watch ??= D.newWatch();
     this.cameras.main.setBackgroundColor('#07060a');
     this.bg = this.add.graphics().setDepth(-10);
-    this.keys.base = actionAtlas(this, 'elior', 'blade');
-    this.keys.mantle = actionAtlas(this, 'elior', 'blade', true);
+    this.arm();
     this.hero = this.add.sprite(HERO_X, GROUND, this.keys.base, 'idle:0').setOrigin(0.5, ACTION_FOOT / ACTION_CELL).setScale(0.78).setDepth(5);
     this.aura = this.add.image(HERO_X, GROUND - 22, 'glow').setTint(0xb48cff).setBlendMode(Phaser.BlendModes.ADD).setScale(1.4).setAlpha(0).setDepth(4);
     this.hpBar = this.add.graphics().setDepth(8);
@@ -85,7 +108,7 @@ export class Watch extends Phaser.Scene {
     this.shadows = [];
     for (let i = 0; i < D.SHADOW_LEVELS.length; i++) {
       const k = FOES[SHADOW_KINDS[i]];
-      this.shadows.push({ img: this.add.image(HERO_X - 26 - i * 17, GROUND, k.sheet, k.row * 4).setOrigin(k.ox / 96, k.oy / 96).setScale(k.scale * 0.92).setTint(0x7a5aa8).setAlpha(0.88).setVisible(false).setDepth(3 - i * 0.01), kind: k, cd: 0.6 + i * 0.25, strikeT: 0 });
+      this.shadows.push({ img: this.add.image(HERO_X - 26 - i * 17, GROUND, k.sheet, k.row * 4).setOrigin(k.ox / (k.cell ?? 96), k.oy / (k.cell ?? 96)).setScale(k.scale * 0.92).setTint(0x7a5aa8).setAlpha(0.88).setVisible(false).setDepth(3 - i * 0.01), kind: k, cd: 0.6 + i * 0.25, strikeT: 0 });
     }
     this.nums = [];
     for (let i = 0; i < 20; i++) this.nums.push({ t: this.add.text(0, 0, '', { fontFamily: 'Georgia, serif', fontSize: '22px', color: '#ffffff', stroke: '#07060a', strokeThickness: 4 }).setOrigin(0.5).setScale(0.4).setDepth(20).setVisible(false), life: 0, vy: 0 });
@@ -108,7 +131,7 @@ export class Watch extends Phaser.Scene {
       document.removeEventListener('visibilitychange', onHide);
       this.ui.destroy();
     });
-    music.play(BIOMES[(D.gateOf(this.w.stage) - 1) % BIOMES.length].music);
+    music.play(sceneOf(D.gateOf(this.w.stage)).music);
     // Away: the wall paid half its recent rate while the player was gone (eight hours at most).
     const away = D.offlinePay(this.w);
     this.w.last = Date.now();
@@ -136,11 +159,15 @@ export class Watch extends Phaser.Scene {
     this.kills = 0;
     for (const f of this.foes) { f.alive = false; f.dying = 0; f.img.setVisible(false); }
     const gate = D.gateOf(n);
-    if (gate !== this.gate) { this.gate = gate; this.drawWall(); }
+    if (gate !== this.gate) {
+      const first = this.gate === 0;
+      this.gate = gate; this.buildScene();
+      if (!first) { this.ui.toast(`Gate ${gate} · ${sceneOf(gate).name}`, 2.6); music.play(sceneOf(gate).music); }
+    }
     this.bossName = null;
     if (D.isBoss(n)) {
-      const biome = BIOMES[(gate - 1) % BIOMES.length], id = biome.boss as BossId;
-      this.bossName = BOSS_NAMES[id];
+      const id = sceneOf(gate).boss;
+      this.bossName = WATCH_BOSSES[id].name;
       this.bossTimeLeft = D.BOSS_TIME;
       this.spawn(SW + 30, id);
       this.ui.toast(`${this.bossName[0]} · ${this.bossName[1]} holds Gate ${gate}`);
@@ -148,47 +175,61 @@ export class Watch extends Phaser.Scene {
     }
   }
 
-  /** A gate's place: the sky, the broken wall behind, the road, in the colours of one of the Horde's lands. */
-  private drawWall() {
-    const b = BIOMES[(this.gate - 1) % BIOMES.length], c = (s: string) => Phaser.Display.Color.HexStringToColor(s).color;
+  /** A gate's place (game/watch/scenes.ts): its painted layers scaled to stand on the floor, its set pieces, and the
+   * ground band below them. Built once a gate; the layers then only scroll. */
+  private buildScene() {
+    const sc = sceneOf(this.gate), k = FLOOR / sc.h;
+    for (const { ts } of this.layers) ts.destroy();
+    for (const p of this.props) p.destroy();
+    this.layers = []; this.props = [];
+    sc.layers.forEach((l, i) => {
+      const tex = this.textures.get('cc0-' + l.key).getSourceImage() as HTMLImageElement;
+      const ts = this.add.tileSprite(0, FLOOR, SW, Math.ceil(tex.height * k), 'cc0-' + l.key).setOrigin(0, 1).setTileScale(k, k).setDepth(-9 + i * 0.1);
+      this.layers.push({ ts, l });
+    });
+    const atlas = this.textures.get('watch-props');
+    for (const p of sc.props) {
+      const img = atlas.has(p.frame) ? this.add.image(p.x, FLOOR, 'watch-props', p.frame) : this.add.image(p.x, FLOOR, 'cc0-' + p.frame);
+      this.props.push(img.setOrigin(0.5, 1).setScale(p.s).setDepth(p.front ? 6 : 2));
+    }
     const g = this.bg.clear();
-    // A night sky in bands, deepening upward, with the moon over the wall and the land's haze along it.
-    const sky = Phaser.Display.Color.ValueToColor(c(b.ground[2]));
-    for (let i = 0; i < 8; i++) {
-      const k = 0.18 + i * 0.07;
-      g.fillStyle(Phaser.Display.Color.GetColor(Math.round(sky.red * k), Math.round(sky.green * k), Math.round(sky.blue * k + 10)), 1).fillRect(0, i * (GROUND / 8), SW, GROUND / 8 + 1);
-    }
-    g.fillStyle(0xfff1c4, 0.12).fillCircle(SW * 0.78, 34, 16);
-    g.fillStyle(0xfff1c4, 0.85).fillCircle(SW * 0.78, 34, 9);
-    g.fillStyle(0xffffff, 0.5);
-    for (let i = 0; i < 22; i++) g.fillRect((i * 97) % SW, (i * 41) % 70, 1, 1);
-    g.fillStyle(c(b.ground[3]), 0.1).fillRect(0, GROUND - 40, SW, 40);
-    // The ruined city wall: towers and broken crenels.
-    g.fillStyle(0x15111c, 1);
-    for (let x = -10, i = 0; x < SW + 20; x += 46, i++) {
-      const h = 54 + ((i * 37) % 26);
-      g.fillRect(x, GROUND - h, 34, h);
-      for (let k = 0; k < 3; k++) if ((i + k) % 3) g.fillRect(x + k * 12, GROUND - h - 7, 8, 7);
-    }
-    g.fillStyle(c(b.ground[0]), 1).fillRect(0, GROUND, SW, SH - GROUND);
-    g.fillStyle(c(b.ground[1]), 1).fillRect(0, GROUND, SW, 3);
-    g.fillStyle(c(b.ground[3]), 0.5);
-    for (let i = 0; i < 26; i++) g.fillRect((i * 53) % SW, GROUND + 6 + ((i * 17) % 24), 2, 2);
+    g.fillStyle(sc.ground[0], 1).fillRect(0, FLOOR, SW, SH - FLOOR);
+    g.fillStyle(sc.ground[1], 1).fillRect(0, FLOOR, SW, 1);
+    g.fillStyle(sc.ground[1], 0.35);
+    for (let i = 0; i < 24; i++) g.fillRect((i * 53) % SW, FLOOR + 5 + ((i * 17) % 20), 2, 1);
   }
 
-  private spawn(x: number, boss: BossId | null = null) {
+  /** His sword: the blade he wields from the armoury, baked into his atlas (and the Mantle's). */
+  arm() {
+    const b = D.bladeOf(this.w);
+    this.keys.base = actionAtlas(this, 'elior', 'blade', false, true, null, b);
+    this.keys.mantle = actionAtlas(this, 'elior', 'blade', true, true, null, b);
+  }
+
+  /** Wield a blade won at a gate (or -1, his own sword). */
+  wield(i: number) {
+    if (i >= 0 && !D.bladesWon(this.w)[i]) return;
+    this.w.blade = i;
+    this.arm();
+    this.ui.toast(i >= 0 ? `${D.BLADES[i].name} in hand · blows ×${D.BLADES[i].atk}` : 'His own sword in hand');
+    this.persist();
+  }
+
+  private spawn(x: number, boss: string | null = null) {
     const f = this.foes.find((o) => !o.alive && o.dying <= 0);
     if (!f) return;
-    const biome = BIOMES[(this.gate - 1) % BIOMES.length], s = this.w.stage;
+    const sc = sceneOf(this.gate), s = this.w.stage;
     if (boss) {
-      const [tex] = BOSS_TEX[boss];
-      f.img.setTexture(tex, `${boss}-0`).setOrigin(0.5, 1).setScale(bossScale(this, boss) * 0.62);
+      const b = WATCH_BOSSES[boss];
+      if (b.kind === 'crown') f.img.setTexture(BOSS_TEX[b.id][0], `${b.id}-0`).setOrigin(0.5, 1).setScale(bossScale(this, b.id) * 0.62);
+      else if (b.kind === 'demon') f.img.setTexture('watch-demon', 0).setOrigin(0.5, 1).setScale(0.82);
+      else { f.kind = FOES[b.foe]; f.id = b.foe; f.img.setTexture(f.kind.sheet, f.kind.row * 4).setOrigin(f.kind.ox / (f.kind.cell ?? 96), f.kind.oy / (f.kind.cell ?? 96)).setScale(f.kind.scale * b.scale); }
       f.speed = 30;
     } else {
-      // The land's common foes first, its heavies rarely.
-      const r = Math.random(), id = biome.foes[r < 0.35 ? 0 : r < 0.6 ? 1 : r < 0.8 ? 2 : r < 0.93 ? 3 : 4];
+      // The place's common foes first, its heavies rarely.
+      const r = Math.random(), id = sc.foes[r < 0.35 ? 0 : r < 0.6 ? 1 : r < 0.8 ? 2 : r < 0.93 ? 3 : 4];
       f.id = id; f.kind = FOES[id];
-      f.img.setTexture(f.kind.sheet, f.kind.row * 4).setOrigin(f.kind.ox / 96, f.kind.oy / 96).setScale(f.kind.scale * 0.95);
+      f.img.setTexture(f.kind.sheet, f.kind.row * 4).setOrigin(f.kind.ox / (f.kind.cell ?? 96), f.kind.oy / (f.kind.cell ?? 96)).setScale(f.kind.scale * 0.95);
       f.speed = 26 + f.kind.speed * 0.5;
     }
     f.boss = boss;
@@ -215,7 +256,7 @@ export class Watch extends Phaser.Scene {
     if (!D.isBoss(w.stage)) {
       const alive = this.foes.filter((f) => f.alive).length;
       if (alive < 3 && this.kills + alive < D.KILLS_PER_STAGE) this.spawn(SW + 20 + alive * 26);
-    } else if (!this.foes.some((f) => f.alive) && this.bossTimeLeft > 0 && !this.foes.some((f) => f.dying > 0)) this.spawn(SW + 30, BIOMES[(this.gate - 1) % BIOMES.length].boss as BossId);
+    } else if (!this.foes.some((f) => f.alive) && this.bossTimeLeft > 0 && !this.foes.some((f) => f.dying > 0)) this.spawn(SW + 30, sceneOf(this.gate).boss);
     // Walking in: each stops a body's length behind the one ahead, the first at Elior's reach.
     const order = this.foes.filter((f) => f.alive).sort((a, b) => a.x - b.x);
     let limit = HERO_X + REACH - 4;
@@ -287,6 +328,10 @@ export class Watch extends Phaser.Scene {
     // The Shadow Mantle.
     if (this.mantleT > 0) { this.mantleT -= dt; if (this.mantleT <= 0) this.ui.toast('The Mantle falls away'); }
     else if (w.level >= D.MANTLE.level && w.gauge >= 100 && w.auto) this.transformNow();
+    // The place scrolls: clouds drift, and between stages he walks on (the near layers pass faster).
+    this.walkT = Math.max(0, this.walkT - dt);
+    const walk = this.walkT > 0 ? 50 * Math.sin((this.walkT / 0.8) * Math.PI) : 0;
+    for (const { ts, l } of this.layers) ts.tilePositionX += (((l.drift ?? 0) + walk * l.par) * dt) / ts.tileScaleX;
     this.drawHero(dt);
     this.stepFx(dt);
     // Coins a second (for the welcome-back pay), the save, the panel.
@@ -344,6 +389,7 @@ export class Watch extends Phaser.Scene {
 
   private next() {
     const w = this.w;
+    this.walkT = 0.8;
     const n = w.stage + 1;
     w.best = Math.max(w.best, n); w.bestEver = Math.max(w.bestEver, n);
     this.startStage(n);
@@ -360,7 +406,8 @@ export class Watch extends Phaser.Scene {
       this.save.silver += silver;
       const cape = D.CAPE_AT[gate];
       if (cape) { const st = (this.save.store ??= {}); (st.capes ??= []).includes(cape) || st.capes.push(cape); }
-      this.ui.toast(`Gate ${gate} holds · +${silver} silver for the journey${cape ? ' · and a cape' : ''}`, 3.2);
+      const blade = D.BLADES[gate - 1];
+      this.ui.toast(`Gate ${gate} holds · +${silver} silver for the journey${cape ? ' · and a cape' : ''}${blade ? ` · a new blade: ${blade.name} (Hero → armoury)` : ''}`, 3.6);
     } else this.ui.toast(`Gate ${gate} holds`);
     this.bossName = null;
     this.next();
@@ -488,10 +535,12 @@ export class Watch extends Phaser.Scene {
       return;
     }
     f.strikeT = Math.max(0, f.strikeT - dt); f.flash = Math.max(0, f.flash - dt);
-    if (f.boss) {
-      const [tex, n] = BOSS_TEX[f.boss];
-      f.img.setTexture(tex, `${f.boss}-${f.strikeT > 0 ? Math.min(n - 1, 3) : Math.floor(f.animT * 4) % 2}`);
-    } else f.img.setFrame(f.kind.row * 4 + (f.strikeT > 0 ? 3 : f.x > HERO_X + REACH + 2 ? 1 + (Math.floor(f.animT * 6) % 2) : 0));
+    const b = f.boss ? WATCH_BOSSES[f.boss] : null;
+    if (b?.kind === 'crown') {
+      const [tex, n] = BOSS_TEX[b.id];
+      f.img.setTexture(tex, `${b.id}-${f.strikeT > 0 ? Math.min(n - 1, 3) : Math.floor(f.animT * 4) % 2}`);
+    } else if (b?.kind === 'demon') f.img.setFrame(f.strikeT > 0 ? 6 + Math.min(7, Math.floor((0.25 - f.strikeT) * 32)) : Math.floor(f.animT * 8) % 6);
+    else f.img.setFrame(f.kind.row * 4 + (f.strikeT > 0 ? 3 : f.x > HERO_X + REACH + 2 ? 1 + (Math.floor(f.animT * 6) % 2) : 0));
     f.img.setPosition(Math.round(f.x), GROUND).setFlipX(true);
     if (f.flash > 0) f.img.setTint(0xffffff).setTintMode(Phaser.TintModes.FILL); else f.img.clearTint().setTintMode(Phaser.TintModes.MULTIPLY);
   }

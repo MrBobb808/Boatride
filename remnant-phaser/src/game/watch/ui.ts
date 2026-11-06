@@ -3,6 +3,7 @@
 // updated (text and classes) a few times a second, never rebuilt per frame.
 import { sfx } from '../../../../remnant/src/audio/audio';
 import * as D from './defs';
+import bladesUrl from '../../assets/cc0/blades.png';
 import type { Watch } from '../../scenes/Watch';
 
 const CSS = `
@@ -47,6 +48,12 @@ const CSS = `
 .wt-list{font-size:12.5px;margin:0;padding:0;list-style:none}
 .wt-list li{display:grid;grid-template-columns:54px 1fr;padding:4px 0;border-bottom:1px solid rgba(226,184,90,.1);color:#9b92a6}
 .wt-list li.got{color:#ddd4c6}
+.wt-arm{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin-bottom:10px}
+.wt-blade{display:flex;gap:8px;align-items:center;padding:6px 8px;border:1px solid rgba(226,184,90,.22);border-radius:8px;background:#120e18;color:#ddd4c6;font-family:Georgia,serif;font-size:12px;text-align:left;cursor:pointer;line-height:1.25}
+.wt-blade i{flex:none;width:24px;height:48px;background-size:192px 48px;background-repeat:no-repeat;image-rendering:pixelated}
+.wt-blade b{display:block;font-family:Cinzel,Georgia,serif;font-weight:normal;color:#f6dea0;font-size:12.5px}
+.wt-blade.on{border-color:#f6dea0;background:#1f1726}
+.wt-blade:disabled{opacity:.45;cursor:default}
 .wt-list li b{color:#f6dea0;font-weight:normal}
 .wt-big{width:100%;margin-top:6px;font-size:14px;padding:10px}
 .wt-card-layer{position:fixed;inset:0;z-index:30;display:flex;align-items:center;justify-content:center;background:rgba(7,6,11,.78);padding:16px}
@@ -158,6 +165,23 @@ export class WatchUI {
     row('Damage', D.fmt(s.atk)); row('Health', D.fmt(s.maxHp)); row('Swings', `×${s.aspd.toFixed(2)}`); row('Critical', `${Math.round(s.crit * 100)}% · ×${s.critDmg.toFixed(2)}`);
     row('Regen', `${(s.regen * 100).toFixed(1)}%/s`); row('Blows softened', `${Math.round(s.dr * 100)}%`); row('Coins', `×${s.coinMult.toFixed(2)}`); row('Shadows', String(D.shadowsAt(w.level)));
     this.body.appendChild(st);
+    // The armoury: a blade for each of the first eight gates.
+    this.body.appendChild(el('div', 'wt-h', 'The armoury'));
+    const arm = el('div', 'wt-arm'), won = D.bladesWon(w), held = D.bladeOf(w);
+    const card = (i: number, name: string, line: string) => {
+      const b = el('button', 'wt-blade' + (held === i ? ' on' : '')) as HTMLButtonElement;
+      b.dataset.k = i < 0 ? 'wt_blade_none' : `wt_blade_${i}`;
+      const icon = el('i');
+      if (i >= 0) { icon.style.backgroundImage = `url(${bladesUrl})`; icon.style.backgroundPosition = `${-i * 24}px 0`; }
+      const text = el('span'); text.append(el('b', '', name), document.createTextNode(line));
+      b.append(icon, text);
+      b.disabled = i >= 0 && !won[i];
+      b.addEventListener('click', () => { this.sc.wield(i); this.show('hero'); });
+      arm.appendChild(b);
+    };
+    card(-1, 'His own sword', held === -1 ? 'In hand' : 'Wield');
+    D.BLADES.forEach((bl, i) => card(i, won[i] ? bl.name : 'Locked', won[i] ? `Blows ×${bl.atk}${held === i ? ' · in hand' : ''}` : `Gate ${i + 1}'s boss`));
+    this.body.appendChild(arm);
     this.body.appendChild(el('div', 'wt-h', 'What his levels open'));
     const ul = el('ul', 'wt-list');
     for (const [lv, text] of D.UNLOCKS) { const li = el('li', w.level >= lv ? 'got' : ''); li.append(el('b', '', `Lv ${lv}`), document.createTextNode(text)); ul.appendChild(li); }

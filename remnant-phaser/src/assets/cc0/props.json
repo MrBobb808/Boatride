@@ -1,0 +1,412 @@
+{
+ "frames": {
+  "graves-0": {
+   "frame": {
+    "x": 1,
+    "y": 1,
+    "w": 21,
+    "h": 37
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 21,
+    "h": 37
+   },
+   "sourceSize": {
+    "w": 21,
+    "h": 37
+   }
+  },
+  "graves-1": {
+   "frame": {
+    "x": 23,
+    "y": 1,
+    "w": 27,
+    "h": 40
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 27,
+    "h": 40
+   },
+   "sourceSize": {
+    "w": 27,
+    "h": 40
+   }
+  },
+  "graves-2": {
+   "frame": {
+    "x": 51,
+    "y": 1,
+    "w": 27,
+    "h": 33
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 27,
+    "h": 33
+   },
+   "sourceSize": {
+    "w": 27,
+    "h": 33
+   }
+  },
+  "graves-3": {
+   "frame": {
+    "x": 79,
+    "y": 1,
+    "w": 19,
+    "h": 38
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 19,
+    "h": 38
+   },
+   "sourceSize": {
+    "w": 19,
+    "h": 38
+   }
+  },
+  "graves-4": {
+   "frame": {
+    "x": 99,
+    "y": 1,
+    "w": 166,
+    "h": 117
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 166,
+    "h": 117
+   },
+   "sourceSize": {
+    "w": 166,
+    "h": 117
+   }
+  },
+  "graves-5": {
+   "frame": {
+    "x": 266,
+    "y": 1,
+    "w": 77,
+    "h": 65
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 77,
+    "h": 65
+   },
+   "sourceSize": {
+    "w": 77,
+    "h": 65
+   }
+  },
+  "graves-6": {
+   "frame": {
+    "x": 344,
+    "y": 1,
+    "w": 34,
+    "h": 29
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 34,
+    "h": 29
+   },
+   "sourceSize": {
+    "w": 34,
+    "h": 29
+   }
+  },
+  "graves-7": {
+   "frame": {
+    "x": 379,
+    "y": 1,
+    "w": 63,
+    "h": 75
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 63,
+    "h": 75
+   },
+   "sourceSize": {
+    "w": 63,
+    "h": 75
+   }
+  },
+  "graves-8": {
+   "frame": {
+    "x": 443,
+    "y": 1,
+    "w": 166,
+    "h": 117
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 166,
+    "h": 117
+   },
+   "sourceSize": {
+    "w": 166,
+    "h": 117
+   }
+  },
+  "graves-9": {
+   "frame": {
+    "x": 610,
+    "y": 1,
+    "w": 176,
+    "h": 170
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 176,
+    "h": 170
+   },
+   "sourceSize": {
+    "w": 176,
+    "h": 170
+   }
+  },
+  "town-0": {
+   "frame": {
+    "x": 787,
+    "y": 1,
+    "w": 73,
+    "h": 68
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 73,
+    "h": 68
+   },
+   "sourceSize": {
+    "w": 73,
+    "h": 68
+   }
+  },
+  "town-1": {
+   "frame": {
+    "x": 861,
+    "y": 1,
+    "w": 39,
+    "h": 35
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 39,
+    "h": 35
+   },
+   "sourceSize": {
+    "w": 39,
+    "h": 35
+   }
+  },
+  "town-2": {
+   "frame": {
+    "x": 901,
+    "y": 1,
+    "w": 93,
+    "h": 75
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 93,
+    "h": 75
+   },
+   "sourceSize": {
+    "w": 93,
+    "h": 75
+   }
+  },
+  "town-3": {
+   "frame": {
+    "x": 1,
+    "y": 172,
+    "w": 35,
+    "h": 44
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 35,
+    "h": 44
+   },
+   "sourceSize": {
+    "w": 35,
+    "h": 44
+   }
+  },
+  "town-4": {
+   "frame": {
+    "x": 37,
+    "y": 172,
+    "w": 24,
+    "h": 30
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 24,
+    "h": 30
+   },
+   "sourceSize": {
+    "w": 24,
+    "h": 30
+   }
+  },
+  "town-5": {
+   "frame": {
+    "x": 62,
+    "y": 172,
+    "w": 35,
+    "h": 108
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 35,
+    "h": 108
+   },
+   "sourceSize": {
+    "w": 35,
+    "h": 108
+   }
+  },
+  "town-6": {
+   "frame": {
+    "x": 98,
+    "y": 172,
+    "w": 65,
+    "h": 65
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 65,
+    "h": 65
+   },
+   "sourceSize": {
+    "w": 65,
+    "h": 65
+   }
+  },
+  "swamp-0": {
+   "frame": {
+    "x": 164,
+    "y": 172,
+    "w": 38,
+    "h": 35
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 38,
+    "h": 35
+   },
+   "sourceSize": {
+    "w": 38,
+    "h": 35
+   }
+  },
+  "swamp-1": {
+   "frame": {
+    "x": 203,
+    "y": 172,
+    "w": 55,
+    "h": 21
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 55,
+    "h": 21
+   },
+   "sourceSize": {
+    "w": 55,
+    "h": 21
+   }
+  },
+  "swamp-2": {
+   "frame": {
+    "x": 259,
+    "y": 172,
+    "w": 45,
+    "h": 32
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 45,
+    "h": 32
+   },
+   "sourceSize": {
+    "w": 45,
+    "h": 32
+   }
+  }
+ },
+ "meta": {
+  "image": "props.png",
+  "size": {
+   "w": 1024,
+   "h": 281
+  },
+  "scale": "1"
+ }
+}

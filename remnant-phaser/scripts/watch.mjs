@@ -1,4 +1,4 @@
-// The Watch, the idle game inside the game (POLISH_PLAN §18): the title offers it; costs grow by their curves; Elior
+// The Watch, the idle game inside the game (POLISH_PLAN §18): the title offers it; each gate a new CC0 place; costs grow by their curves; Elior
 // fights on his own and every kill pays; coins buy upgrades that open the next ones; ten foes to a stage and a gate's
 // boss on a timer (lose it and he holds back until Challenged); levels open his skills, his shadows and the Mantle;
 // away, the wall pays half its recent rate (eight hours at most) on a welcome card; a gate's first fall pays the
@@ -57,6 +57,29 @@ try {
   assert.ok(boss.lost.stage === 9 && !boss.lost.auto, `the boss holds the gate when time runs out: back a stage, holding (${JSON.stringify(boss.lost)})`);
   assert.ok(boss.won.stage === 11 && boss.won.silver === 25 && boss.again === 25, `Gate 1's first fall pays the journey 25 silver, once (${JSON.stringify(boss)})`);
 
+  // ---- each gate is a new place (the CC0 scenes): its layers, its foes and its holder; Gate 1's fall won a blade
+  const places = await E(page, () => {
+    const sc = window.__remnant.watch, w = sc.w, seen = [];
+    for (const g of [1, 2, 3, 5]) {
+      sc.startStage(g * 10 - 9);
+      for (let i = 0; i < 30 * 3; i++) sc.tick(1 / 30);
+      seen.push({ layers: sc.layers.map((l) => l.ts.texture.key), foes: [...new Set(sc.foes.filter((f) => f.alive).map((f) => f.id))], tex: [...new Set(sc.foes.filter((f) => f.alive).map((f) => f.img.texture.key))] });
+    }
+    sc.startStage(10);
+    const shade = sc.foes.find((f) => f.alive && f.boss)?.img.texture.key;
+    return { seen, shade, won: w.paid.includes(1) };
+  });
+  assert.deepEqual(places.seen.map((p) => p.layers[0]), ['cc0-cemetery-sky', 'cc0-wood-back', 'cc0-swamp-sky', 'cc0-church-wall'], `every ten stages the scenery changes (${JSON.stringify(places.seen.map((p) => p.layers))})`);
+  assert.ok(places.seen[0].tex.includes('foes-gothic') && places.seen.every((p) => p.foes.length > 0), `the new foes walk in (${JSON.stringify(places.seen)})`);
+  assert.equal(places.shade, 'watch-demon', 'the winged demon holds the graves\' gate');
+  const arm = await E(page, () => {
+    const sc = window.__remnant.watch, before = sc.keys.base;
+    sc.wield(0);
+    return { key: sc.keys.base, before, blade: sc.w.blade, locked: (sc.wield(5), sc.w.blade) };
+  });
+  assert.ok(arm.key.endsWith('-blade0') && arm.before !== arm.key && arm.blade === 0 && arm.locked === 0, `Gate 1's blade is won, wielded and drawn in his hand; a locked one is not (${JSON.stringify(arm)})`);
+  await E(page, () => { const sc = window.__remnant.watch; sc.wield(-1); });
+
   // ---- his levels open the skills, the shadows and the Mantle
   const powers = await E(page, () => {
     const sc = window.__remnant.watch, w = sc.w;
@@ -95,7 +118,7 @@ try {
   const back = await E(page, () => { const w = window.__remnant.watch.w; return { coins: w.coins, seals: w.seals, level: w.level }; });
   assert.ok(back.coins >= 215000 && back.coins <= 217000 && back.seals === 9 && back.level === 26, `three hours away pay 40 × ½ × 10,800 coins, and the Watch was kept (${JSON.stringify(back)})`);
   await page.screenshot({ path: 'qa/watch.png' });
-  console.log(`Watch: a fresh Elior; ${fight.stage - 1} stages in 2½ minutes; the boss's timer; Gate 1 paid once; shadows and the Mantle at 26; Ascension for 9 Seals; ${back.coins} coins for 3 h away`);
+  console.log(`Watch: a fresh Elior; ${fight.stage - 1} stages in 2½ minutes; the boss's timer; Gate 1 paid once; shadows and the Mantle at 26; Ascension for 9 Seals; ${back.coins} coins for 3 h away; new scenery each gate; the demon at Gate 1; its blade wielded`);
 
   assert.deepEqual(errors, [], 'no page errors');
   console.log('phaser watch: all checks passed');
