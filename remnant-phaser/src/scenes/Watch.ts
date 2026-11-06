@@ -23,7 +23,11 @@ import { WatchUI } from '../game/watch/ui';
 
 /** The wall's world: 300 × 176 units (narrow, so the fighters read large on a phone), the ground at 146; Elior stands
  * at 82 and reaches 30 ahead. */
-const SW = 300, SH = 176, GROUND = 146, HERO_X = 82, REACH = 30;
+const SW = 300, SH = 176, GROUND = 146, HOME = 82, REACH = 30;
+/** On a rush he runs this fast (world units a second) and stands this far up the road. */
+const RUN = 74, RUSH_X = 108;
+/** A staged combo's step, in seconds; the world runs at CINE_SLOW of its pace while one plays. */
+const STEP = 0.42, CINE_SLOW = 0.25;
 /** The scenes' painted floor sits a little below the fighters' feet; under it, the ground band. */
 const FLOOR = GROUND + 4;
 /** The CC0 scene layers (src/assets/cc0/scenes), by key. */
@@ -42,6 +46,11 @@ interface WFoe {
   boss: string | null;
 }
 interface Shadow { img: Phaser.GameObjects.Image; kind: FoeKind; cd: number; strikeT: number }
+/** One swing: its clip and timing, what it hits (a foe, every foe within `aoe` ahead, or the one before him), and
+ * what follows it (the Comet's fall). */
+interface Shot { clip: string; t: number; dur: number; hitAt: number; hit: boolean; mult: number; target?: WFoe | null; aoe?: number; then?: Shot; heal?: number }
+/** A staged combo: he steps through the dark from mark to mark, a cut on each, while the world all but stops. */
+interface Cine { name: string; steps: { foe: WFoe; x: number; face: 1 | -1; clip: string; mult: number }[]; i: number; t: number; home: number }
 
 export class Watch extends Phaser.Scene {
   save!: PhaserSave;
@@ -56,12 +65,28 @@ export class Watch extends Phaser.Scene {
   private hp = 100;
   private fallen = 0;
   private swingCd = 0;
-  private shot: { clip: string; t: number; dur: number; hitAt: number; hit: boolean; mult: number } | null = null;
+  private shot: Shot | null = null;
   private loopT = 0;
   private flip = false;
   private foes: WFoe[] = [];
   private shadows: Shadow[] = [];
-  private skillT = { strike: 4, pillar: 6 };
+  /** Each ability's wait, in seconds. */
+  abilT: Partial<Record<D.AbilityId, number>> = {};
+  /** Where he stands (he steps up to meet a foe, and runs on rush stages), which way he faces, and whether he runs. */
+  hx = HOME;
+  private face: 1 | -1 = 1;
+  running = false;
+  /** On a rush, a foe that took his running cut and stood: he stops to finish it. */
+  private engaged: WFoe | null = null;
+  /** A staged combo (Phantom Step, Last Watch) under way. */
+  cine: Cine | null = null;
+  private combo = 0;
+  private ghosts: { img: Phaser.GameObjects.Image; life: number }[] = [];
+  private cuts: { img: Phaser.GameObjects.Image; t: number; base: number }[] = [];
+  private dim!: Phaser.GameObjects.Rectangle;
+  private baseZoom = 1;
+  /** Balm's softening, in seconds left. */
+  private balmT = 0;
   private tapCd = 0;
   private nums: { t: Phaser.GameObjects.Text; life: number; vy: number }[] = [];
   private bursts: { img: Phaser.GameObjects.Image; t: number; base: number; n: number; dur: number }[] = [];
@@ -96,24 +121,31 @@ export class Watch extends Phaser.Scene {
 
   create() {
     this.save = (loadSave() as PhaserSave | null) ?? (newSave(false) as PhaserSave);
-    this.w = this.save.watch ??= D.newWatch();
+    this.w = D.migrateWatch(this.save.watch ??= D.newWatch());
     this.cameras.main.setBackgroundColor('#07060a');
     this.bg = this.add.graphics().setDepth(-10);
     this.arm();
-    this.hero = this.add.sprite(HERO_X, GROUND, this.keys.base, 'idle:0').setOrigin(0.5, ACTION_FOOT / ACTION_CELL).setScale(0.78).setDepth(5);
-    this.aura = this.add.image(HERO_X, GROUND - 22, 'glow').setTint(0xb48cff).setBlendMode(Phaser.BlendModes.ADD).setScale(1.4).setAlpha(0).setDepth(4);
+    this.hx = HOME; this.cine = null; this.engaged = null; this.running = false; this.abilT = {};
+    this.hero = this.add.sprite(HOME, GROUND, this.keys.base, 'idle:0').setOrigin(0.5, ACTION_FOOT / ACTION_CELL).setScale(0.78).setDepth(5);
+    this.aura = this.add.image(HOME, GROUND - 22, 'glow').setTint(0xb48cff).setBlendMode(Phaser.BlendModes.ADD).setScale(1.4).setAlpha(0).setDepth(4);
     this.hpBar = this.add.graphics().setDepth(8);
     this.foes = [];
     for (let i = 0; i < 6; i++) this.foes.push({ img: this.add.image(0, GROUND, 'foes-ashen', 0).setVisible(false).setDepth(4), kind: FOES.husk, id: 'husk', x: 0, hp: 0, max: 1, dmg: 0, speed: 0, alive: false, dying: 0, atkT: 0, animT: 0, flash: 0, strikeT: 0, boss: null });
     this.shadows = [];
     for (let i = 0; i < D.SHADOW_LEVELS.length; i++) {
       const k = FOES[SHADOW_KINDS[i]];
-      this.shadows.push({ img: this.add.image(HERO_X - 26 - i * 17, GROUND, k.sheet, k.row * 4).setOrigin(k.ox / (k.cell ?? 96), k.oy / (k.cell ?? 96)).setScale(k.scale * 0.92).setTint(0x7a5aa8).setAlpha(0.88).setVisible(false).setDepth(3 - i * 0.01), kind: k, cd: 0.6 + i * 0.25, strikeT: 0 });
+      this.shadows.push({ img: this.add.image(HOME - 26 - i * 17, GROUND, k.sheet, k.row * 4).setOrigin(k.ox / (k.cell ?? 96), k.oy / (k.cell ?? 96)).setScale(k.scale * 0.92).setTint(0x7a5aa8).setAlpha(0.88).setVisible(false).setDepth(3 - i * 0.01), kind: k, cd: 0.6 + i * 0.25, strikeT: 0 });
     }
     this.nums = [];
     for (let i = 0; i < 20; i++) this.nums.push({ t: this.add.text(0, 0, '', { fontFamily: 'Georgia, serif', fontSize: '22px', color: '#ffffff', stroke: '#07060a', strokeThickness: 4 }).setOrigin(0.5).setScale(0.4).setDepth(20).setVisible(false), life: 0, vy: 0 });
     this.bursts = [];
     for (let i = 0; i < 8; i++) this.bursts.push({ img: this.add.image(0, 0, 'vfx-impacts', 0).setBlendMode(Phaser.BlendModes.ADD).setVisible(false).setDepth(9), t: -1, base: 0, n: 6, dur: 0.27 });
+    // Afterimages left where he stepped from, and the cuts on the foes.
+    this.ghosts = [];
+    for (let i = 0; i < 10; i++) this.ghosts.push({ img: this.add.image(0, GROUND, this.keys.base, 'idle:0').setOrigin(0.5, ACTION_FOOT / ACTION_CELL).setScale(0.78).setTint(0xb48cff).setTintMode(Phaser.TintModes.FILL).setBlendMode(Phaser.BlendModes.ADD).setVisible(false).setDepth(4.5), life: 0 });
+    this.cuts = [];
+    for (let i = 0; i < 6; i++) this.cuts.push({ img: this.add.image(0, 0, 'vfx-slashes', 0).setBlendMode(Phaser.BlendModes.ADD).setVisible(false).setDepth(9), t: -1, base: 0 });
+    this.dim = this.add.rectangle(SW / 2, SH / 2, SW * 2, SH * 2, 0x05040a, 1).setAlpha(0).setDepth(3.5);
     this.pillar = this.add.image(0, GROUND, 'vfx-abilities-1', 40).setOrigin(0.5, 0.82).setBlendMode(Phaser.BlendModes.ADD).setVisible(false).setDepth(9);
     this.ui = new WatchUI(this);
     this.hp = D.watchStats(this.w).maxHp;
@@ -148,7 +180,8 @@ export class Watch extends Phaser.Scene {
     const cssScale = W / window.innerWidth;
     // Upright, the bar of coins and the stage sits just above the wall (about 64 CSS px).
     const y = landscape ? Math.max(0, Math.round((H - vh) / 2)) : Math.round((top + 64) * cssScale);
-    this.cameras.main.setViewport(0, y, vw, vh).setZoom(vw / SW).centerOn(SW / 2, SH / 2);
+    this.baseZoom = vw / SW;
+    this.cameras.main.setViewport(0, y, vw, vh).setZoom(this.baseZoom * (this.cine ? 1.14 : 1)).centerOn(SW / 2, SH / 2);
     this.ui.layout(landscape ? y / cssScale : top, (y + vh) / cssScale, landscape, vw / cssScale);
   }
 
@@ -246,7 +279,11 @@ export class Watch extends Phaser.Scene {
 
   // ---------------------------------------------------------------- the fight
 
-  update(_t: number, delta: number) { this.tick(Math.min(delta / 1000, 0.05)); }
+  /** ×2 and ×3 run the wall two or three steps a frame; a staged combo always plays at its own, slowed pace. */
+  update(_t: number, delta: number) {
+    const dt = Math.min(delta / 1000, 0.05), n = this.cine ? 1 : this.w.speed ?? 1;
+    for (let i = 0; i < n; i++) this.tick(dt);
+  }
 
   /** One step of the wall (tests call it directly to fast-forward). */
   tick(dt: number) {
@@ -257,81 +294,93 @@ export class Watch extends Phaser.Scene {
       const alive = this.foes.filter((f) => f.alive).length;
       if (alive < 3 && this.kills + alive < D.KILLS_PER_STAGE) this.spawn(SW + 20 + alive * 26);
     } else if (!this.foes.some((f) => f.alive) && this.bossTimeLeft > 0 && !this.foes.some((f) => f.dying > 0)) this.spawn(SW + 30, sceneOf(this.gate).boss);
-    // Walking in: each stops a body's length behind the one ahead, the first at Elior's reach.
-    const order = this.foes.filter((f) => f.alive).sort((a, b) => a.x - b.x);
-    let limit = HERO_X + REACH - 4;
+    // A staged combo slows the world to a crawl; he moves at full pace through it.
+    const wdt = this.cine ? dt * CINE_SLOW : dt;
+    if (this.engaged && !this.engaged.alive) this.engaged = null;
+    const order = this.foes.filter((f) => f.alive).sort((a, b) => a.x - b.x), first = order[0] ?? null;
+    // On a rush stage he runs at them and cuts through; elsewhere he holds and steps up to meet the first.
+    this.running = D.isRush(w.stage) && !this.cine && this.fallen <= 0 && !this.engaged;
+    this.walkT = Math.max(0, this.walkT - dt);
+    const scroll = this.running ? RUN : this.walkT > 0 ? 50 * Math.sin((this.walkT / 0.8) * Math.PI) : 0;
+    if (!this.cine) {
+      const want = this.running ? RUSH_X : first && this.fallen <= 0 ? Phaser.Math.Clamp(first.x - REACH + 2, HOME, HOME + 34) : HOME;
+      this.hx += Phaser.Math.Clamp(want - this.hx, -70 * dt, 70 * dt);
+      this.face = 1;
+    }
+    // The foes come on: each stops a body's length behind the one ahead, the first at his reach.
+    let limit = this.hx + REACH - 4;
     for (const f of order) {
       const stop = limit + (f.boss ? 18 : 0);
-      if (f.x > stop) f.x = Math.max(stop, f.x - f.speed * dt);
+      if (f.x > stop) f.x = Math.max(stop, f.x - (f.speed + scroll) * wdt);
       limit = f.x + (f.boss ? 40 : 22);
-      f.animT += dt;
-      // At his reach, they strike on their own clock.
-      if (this.fallen <= 0 && f === order[0] && f.x <= HERO_X + REACH + (f.boss ? 18 : 0)) {
-        f.atkT -= dt;
+      f.animT += wdt;
+      // At his reach, they strike on their own clock (a runner is past them before they can).
+      if (this.fallen <= 0 && !this.running && !this.cine && f === first && f.x <= this.hx + REACH + (f.boss ? 18 : 0)) {
+        f.atkT -= wdt;
         if (f.atkT <= 0) {
           f.atkT = D.FOE_RATE * (f.boss ? 0.8 : 1);
           f.strikeT = 0.25;
-          this.hurt(f.dmg * (1 - st.dr));
+          this.hurt(f.dmg * (1 - st.dr) * (this.balmT > 0 ? 0.7 : 1));
         }
       }
     }
-    for (const f of this.foes) this.drawFoe(f, dt);
-    // The boss's timer.
-    if (D.isBoss(w.stage) && this.fallen <= 0) {
+    for (const f of this.foes) this.drawFoe(f, wdt);
+    // The place passes by as he runs (or walks on between stages): the near layers and the set pieces faster.
+    for (const { ts, l } of this.layers) ts.tilePositionX += (((l.drift ?? 0) + scroll * l.par) * wdt) / ts.tileScaleX;
+    for (const p of this.props) { p.x -= scroll * 0.6 * wdt; if (p.x < -60) p.x += SW + 120; }
+    // The boss's timer (it waits while a combo plays).
+    if (D.isBoss(w.stage) && this.fallen <= 0 && !this.cine) {
       this.bossTimeLeft -= dt;
       if (this.bossTimeLeft <= 0) this.bossFled();
     }
-    // Elior: fallen, or striking.
+    // Elior: fallen, in a combo, or fighting.
+    this.balmT = Math.max(0, this.balmT - wdt);
     if (this.fallen > 0) {
       this.fallen -= dt;
       if (this.fallen <= 0) { this.hp = st.maxHp; this.startStage(Math.max(1, w.stage - 1)); }
-    } else {
+    } else if (this.cine) this.stepCine(dt);
+    else {
       this.hp = Math.min(st.maxHp, this.hp + st.maxHp * st.regen * dt);
-      const f = this.front(), inReach = !!f && f.x <= HERO_X + REACH + (f.boss ? 22 : 4);
+      const f = this.front(), inReach = !!f && f.x <= this.hx + REACH + (f.boss ? 22 : 4);
       this.swingCd -= dt;
-      if (inReach && this.swingCd <= 0 && !this.shot) {
+      if (this.running && f && f.x <= this.hx + REACH + 10 && !this.shot) {
+        // A cut on the run: if it does not fell the foe he stops and finishes it.
+        this.flip = !this.flip;
+        this.shot = { clip: this.flip ? 'dash' : 'b4', t: 0, dur: 0.26, hitAt: 0.35, hit: false, mult: 1.5, target: f };
+        sfx('dash', { vol: 0.35 });
+      } else if (!this.running && inReach && this.swingCd <= 0 && !this.shot) {
+        // A three-cut chain, the last heavier.
         const interval = 1 / (st.aspd * (mantle ? D.MANTLE.speed : 1));
         this.swingCd = interval;
-        this.flip = !this.flip;
-        this.shot = { clip: this.flip ? 'b1' : 'b2', t: 0, dur: Math.min(0.42, interval * 0.9), hitAt: 0.4, hit: false, mult: 1 };
+        this.combo = (this.combo + 1) % 3;
+        this.shot = { clip: ['b1', 'b2', 'b4'][this.combo], t: 0, dur: Math.min(0.42, interval * 0.9), hitAt: 0.4, hit: false, mult: this.combo === 2 ? 1.3 : 1 };
       }
-      // Covenant Strike and the Pillar of Fire, on their own clocks.
-      if (w.level >= D.SKILLS.strike.level) {
-        this.skillT.strike -= dt;
-        if (this.skillT.strike <= 0 && inReach && !this.shot) { this.skillT.strike = D.SKILLS.strike.cd; this.shot = { clip: 'heavy', t: 0, dur: 0.5, hitAt: 0.55, hit: false, mult: D.SKILLS.strike.mult }; }
-      }
-      if (w.level >= D.SKILLS.pillar.level) {
-        this.skillT.pillar -= dt;
-        if (this.skillT.pillar <= 0 && f) { this.skillT.pillar = D.SKILLS.pillar.cd; this.castPillar(); }
+      // His abilities, on their own clocks: by themselves, or when tapped.
+      for (const id of w.loadout ?? []) {
+        this.abilT[id] = Math.max(0, (this.abilT[id] ?? 2) - dt);
+        if (w.autoSkills && this.abilT[id] === 0 && !this.shot && !this.cine) this.cast(id, false);
       }
     }
-    if (this.shot) {
-      this.shot.t += dt;
-      if (!this.shot.hit && this.shot.t >= this.shot.dur * this.shot.hitAt) { this.shot.hit = true; const f = this.front(); if (f) this.strike(f, this.shot.mult); }
-      if (this.shot.t >= this.shot.dur) this.shot = null;
-    }
+    if (this.shot) this.stepShot(dt);
     this.tapCd -= dt;
-    // The shadows strike beside him.
+    // The shadows strike beside him (and run with him).
     const n = D.shadowsAt(w.level);
     for (let i = 0; i < this.shadows.length; i++) {
       const s = this.shadows[i];
-      s.img.setVisible(i < n);
+      s.img.setVisible(i < n && !this.cine);
       if (i >= n) continue;
-      s.cd -= dt; s.strikeT = Math.max(0, s.strikeT - dt);
+      s.cd -= wdt; s.strikeT = Math.max(0, s.strikeT - wdt);
       const f = this.front();
-      if (s.cd <= 0 && f && this.fallen <= 0 && f.x <= HERO_X + REACH + 20) {
+      if (s.cd <= 0 && f && this.fallen <= 0 && !this.cine && f.x <= this.hx + REACH + 20) {
         s.cd = 1.6 + i * 0.12; s.strikeT = 0.25;
         this.damage(f, st.atk * 0.25 * (mantle ? D.MANTLE.dmg : 1), false, true);
       }
-      s.img.setFrame(s.kind.row * 4 + (s.strikeT > 0 ? 3 : Math.floor((this.loopT * 3 + i) % 2))).setPosition(HERO_X - 26 - i * 17 + (s.strikeT > 0 ? 6 : 0), GROUND);
+      const moving = scroll > 0;
+      s.img.setFrame(s.kind.row * 4 + (s.strikeT > 0 ? 3 : moving ? 1 + (Math.floor(this.loopT * 8 + i) % 2) : Math.floor((this.loopT * 3 + i) % 2))).setPosition(this.hx - 26 - i * 17 + (s.strikeT > 0 ? 6 : 0), GROUND);
     }
     // The Shadow Mantle.
     if (this.mantleT > 0) { this.mantleT -= dt; if (this.mantleT <= 0) this.ui.toast('The Mantle falls away'); }
     else if (w.level >= D.MANTLE.level && w.gauge >= 100 && w.auto) this.transformNow();
-    // The place scrolls: clouds drift, and between stages he walks on (the near layers pass faster).
-    this.walkT = Math.max(0, this.walkT - dt);
-    const walk = this.walkT > 0 ? 50 * Math.sin((this.walkT / 0.8) * Math.PI) : 0;
-    for (const { ts, l } of this.layers) ts.tilePositionX += (((l.drift ?? 0) + walk * l.par) * dt) / ts.tileScaleX;
     this.drawHero(dt);
     this.stepFx(dt);
     // Coins a second (for the welcome-back pay), the save, the panel.
@@ -356,7 +405,7 @@ export class Watch extends Phaser.Scene {
   private tap() {
     if (this.tapCd > 0 || this.fallen > 0) return;
     const f = this.front();
-    if (!f || f.x > HERO_X + REACH + 30) return;
+    if (!f || f.x > this.hx + REACH + 30) return;
     this.tapCd = 0.15;
     const st = D.watchStats(this.w);
     this.damage(f, st.atk * 0.5 * (this.mantleT > 0 ? D.MANTLE.dmg : 1), false, false);
@@ -456,15 +505,158 @@ export class Watch extends Phaser.Scene {
     this.ui.toast('THE SHADOW MANTLE · heavier, faster blows');
   }
 
-  private castPillar() {
+  private castPillar(mult: number) {
     let far: WFoe | null = null;
     for (const f of this.foes) if (f.alive && (!far || f.x > far.x)) far = f;
     if (!far) return;
     this.pillar.setPosition(far.x, GROUND + 4).setScale(0.55).setVisible(true).setFrame(40);
     this.pillarT = 0;
-    const st = D.watchStats(this.w);
-    this.damage(far, st.atk * D.SKILLS.pillar.mult * (this.mantleT > 0 ? D.MANTLE.dmg : 1), true, false);
+    const st = D.watchStats(this.w), x = far.x;
+    // The fire takes the furthest foe, and any standing within a stride of it.
+    for (const f of this.foes) if (f.alive && Math.abs(f.x - x) <= 26) this.damage(f, st.atk * mult * (f === far ? 1 : 0.5) * (this.mantleT > 0 ? D.MANTLE.dmg : 1), true, false);
     sfx('pillarFire', { vol: 0.5 });
+  }
+
+  // ---------------------------------------------------------------- swings, abilities and the staged combos
+
+  /** A swing plays out; at its moment it lands on its foe, on every foe in its reach, or on the one before him. */
+  private stepShot(dt: number) {
+    const sh = this.shot!;
+    sh.t += dt;
+    if (!sh.hit && sh.t >= sh.dur * sh.hitAt) {
+      sh.hit = true;
+      if (sh.heal) { const st = D.watchStats(this.w); this.hp = Math.min(st.maxHp, this.hp + st.maxHp * sh.heal); this.balmT = 6; this.burst(this.hx, GROUND - 26, 0, 0.6, 0x9effc0); sfx('heal', { vol: 0.5 }); }
+      else if (sh.aoe) { for (const f of this.foes) if (f.alive && f.x <= this.hx + sh.aoe) { this.strike(f, sh.mult); this.cut(f); } }
+      else {
+        const f = sh.target && sh.target.alive ? sh.target : sh.target === undefined ? this.front() : null;
+        if (f) {
+          this.strike(f, sh.mult);
+          if (sh.mult > 1.2) this.cut(f);
+          // A running cut that leaves the foe standing: he stops and finishes it.
+          if (this.running && f.alive) this.engaged = f;
+        }
+      }
+    }
+    if (sh.t >= sh.dur) this.shot = sh.then ?? null;
+  }
+
+  /** Use an ability now if it is ready and has something to strike; `manual` from the skill bar asks less. */
+  cast(id: D.AbilityId, manual: boolean): boolean {
+    const w = this.w, lv = D.skillLvl(w, id);
+    if (lv <= 0 || (this.abilT[id] ?? 0) > 0 || this.cine || this.fallen > 0) return false;
+    const m = D.abilityMult(id, lv), st = D.watchStats(w);
+    const f = this.front(), alive = this.foes.filter((o) => o.alive);
+    const near = alive.filter((o) => o.x <= this.hx + REACH + 44).length, inReach = !!f && f.x <= this.hx + REACH + (f.boss ? 22 : 8);
+    switch (id) {
+      case 'strike': if (!inReach) return false; this.shot = { clip: 'heavy', t: 0, dur: 0.5, hitAt: 0.55, hit: false, mult: m, target: f }; sfx('swingHeavy', { vol: 0.5 }); break;
+      case 'pillar': if (!f) return false; this.castPillar(m); break;
+      case 'phantom': if (!alive.length || (!manual && alive.length < 2 && !f?.boss)) return false; this.startCine('PHANTOM STEP', alive.slice(0, 6), m, false); break;
+      case 'storm': if (!near || (!manual && near < 2 && !f?.boss)) return false; this.shot = { clip: 'storm', t: 0, dur: 0.6, hitAt: 0.5, hit: false, mult: m, aoe: REACH + 44 }; sfx('stormGust', { vol: 0.45 }); break;
+      case 'comet':
+        if (!inReach) return false;
+        this.shot = { clip: 'launch', t: 0, dur: 0.32, hitAt: 0.5, hit: false, mult: m * 0.25, target: f, then: { clip: 'plunge', t: 0, dur: 0.4, hitAt: 0.6, hit: false, mult: m, target: f } };
+        sfx('whoosh', { vol: 0.5 });
+        break;
+      case 'balm': if (!manual && this.hp > st.maxHp * 0.55) return false; this.shot = { clip: 'heal', t: 0, dur: 0.5, hitAt: 0.5, hit: false, mult: 0, heal: m }; break;
+      case 'judgment': if (!f || (!manual && !f.boss && alive.length < 3)) return false; this.startCine('LAST WATCH', [f], m, true); break;
+    }
+    this.abilT[id] = D.abilityCd(id, lv);
+    if (!manual) this.ui.flashSkill(id);
+    return true;
+  }
+
+  /** Stage a combo: Phantom Step cuts through every foe in turn; the Last Watch circles one with seven cuts and a
+   * closing blow. The world slows and darkens and the view draws in, so each blow can be seen. */
+  private startCine(name: string, targets: WFoe[], mult: number, flurry: boolean) {
+    const steps: Cine['steps'] = [];
+    if (flurry) {
+      const t = targets[0];
+      for (let i = 0; i < 7; i++) { const side = i % 2 ? -1 : 1; steps.push({ foe: t, x: t.x - side * (REACH - 6), face: side as 1 | -1, clip: ['b1', 'b2', 'b4', 'dash'][i % 4], mult }); }
+      steps.push({ foe: t, x: t.x - REACH + 6, face: 1, clip: 'heavy', mult: mult * 3 });
+    } else {
+      const sorted = [...targets].sort((a, b) => a.x - b.x);
+      sorted.forEach((t, i) => steps.push({ foe: t, x: Math.min(SW - 20, t.x + REACH - 8), face: -1, clip: ['b1', 'b2', 'b4', 'dash'][i % 4], mult }));
+      // The last cut is the heaviest, from behind the line.
+      const last = sorted[sorted.length - 1];
+      steps.push({ foe: last, x: Math.min(SW - 20, last.x + REACH - 8), face: -1, clip: 'heavy', mult: mult * 1.6 });
+    }
+    this.cine = { name, steps, i: -1, t: STEP, home: this.hx };
+    this.shot = null;
+    this.dim.setPosition(SW / 2, SH / 2);
+    this.tweens.add({ targets: this.dim, alpha: 0.5, duration: 180 });
+    this.cameras.main.zoomTo(this.baseZoom * 1.14, 220, 'Sine.easeOut');
+    this.ui.toast(name, 1.2);
+    sfx('teleport', { vol: 0.5 });
+  }
+
+  private stepCine(dt: number) {
+    const c = this.cine!;
+    c.t += dt;
+    if (c.t < STEP) return;
+    c.t -= STEP;
+    c.i++;
+    this.ghost();
+    const s = c.steps[c.i];
+    if (!s) {
+      // Back to his place, and the world resumes.
+      this.hx = c.home; this.face = 1; this.cine = null; this.shot = null;
+      this.tweens.add({ targets: this.dim, alpha: 0, duration: 260 });
+      this.cameras.main.zoomTo(this.baseZoom, 260, 'Sine.easeInOut');
+      this.cameras.main.pan(SW / 2, SH / 2, 260, 'Sine.easeInOut', true);
+      sfx('finisher', { vol: 0.5 });
+      return;
+    }
+    this.hx = s.x; this.face = s.face;
+    // The drawn-in view follows him from mark to mark (kept inside the place).
+    const half = SW / 2 / 1.14;
+    this.cameras.main.pan(Phaser.Math.Clamp(s.x, half, SW - half), SH / 2, 140, 'Sine.easeOut', true);
+    this.shot = { clip: s.clip, t: 0, dur: STEP * 0.95, hitAt: 0.42, hit: false, mult: s.mult, target: s.foe.alive ? s.foe : null };
+    sfx(s.clip === 'heavy' ? 'execute' : 'slice', { vol: 0.45, pitch: 0.9 + c.i * 0.04 });
+    if (s.clip === 'heavy') { this.shakeIt(0.01, 200); haptic('heavy'); }
+  }
+
+  /** An afterimage where he stood. */
+  private ghost() {
+    const g = this.ghosts.find((o) => o.life <= 0) ?? this.ghosts[0];
+    g.life = 0.4;
+    g.img.setTexture(this.hero.texture.key, this.hero.frame.name).setPosition(this.hx, GROUND).setFlipX(this.hero.flipX).setAlpha(0.6).setVisible(true);
+  }
+
+  /** A slash's arc across a foe. */
+  private cut(f: WFoe) {
+    const c = this.cuts.find((o) => o.t < 0) ?? this.cuts[0];
+    c.t = 0; c.base = (Math.floor(Math.random() * 4)) * 6;
+    c.img.setFrame(c.base).setPosition(f.x - 2, GROUND - (f.boss ? 36 : 20)).setScale(f.boss ? 0.6 : 0.42).setFlipX(Math.random() < 0.5).setAngle((Math.random() - 0.5) * 40).setVisible(true).setTint(this.mantleT > 0 ? 0xc59bff : 0xffffff);
+  }
+
+  /** Buy an ability, or its next level; a newly bought one goes into a free slot. */
+  buySkill(id: D.AbilityId) {
+    const w = this.w, lv = D.skillLvl(w, id), cost = D.abilityCost(id, lv);
+    if (w.level < D.ABILITY[id].level || lv >= D.ABILITY_MAX || w.coins < cost) return false;
+    w.coins -= cost;
+    (w.skills ??= {})[id] = lv + 1;
+    const lo = (w.loadout ??= []);
+    if (lv === 0 && !lo.includes(id) && lo.length < D.slotsAt(w.level)) lo.push(id);
+    this.persist();
+    return true;
+  }
+
+  /** Take an ability into the fight, or leave it out. */
+  toggleSkill(id: D.AbilityId) {
+    const w = this.w, lo = (w.loadout ??= []);
+    if (lo.includes(id)) lo.splice(lo.indexOf(id), 1);
+    else if (D.skillLvl(w, id) > 0) {
+      if (lo.length >= D.slotsAt(w.level)) { this.ui.toast(`All ${D.slotsAt(w.level)} slots are taken: leave one out first`); return; }
+      lo.push(id);
+    }
+    this.persist();
+  }
+
+  /** ×1, ×2, or ×3 once he reaches its level. */
+  setSpeed(x: 1 | 2 | 3) {
+    if (this.w.level < D.SPEEDS[x]) { this.ui.toast(`×${x} opens at Watch level ${D.SPEEDS[x]}`); return; }
+    this.w.speed = x;
+    this.persist();
   }
 
   buy(id: D.TrackId, amount: 1 | 10 | 0) {
@@ -510,15 +702,18 @@ export class Watch extends Phaser.Scene {
     this.loopT += dt;
     const key = this.mantleT > 0 ? this.keys.mantle : this.keys.base;
     let clip = 'idle', u = (this.loopT % 1.6) / 1.6;
+    // Running on a rush, walking on between stages, or stepping up to meet a foe: the run cycle.
+    const stepping = !this.cine && Math.abs(this.hero.x - this.hx) > 0.05;
     if (this.fallen > 0) { clip = 'hurt'; u = 0.6; }
     else if (this.shot) { clip = this.shot.clip; u = this.shot.t / this.shot.dur; }
-    this.hero.setTexture(key, actionFrame(this, key, clip, u)).setAlpha(this.fallen > 0 ? 0.5 : 1);
-    this.aura.setAlpha(this.mantleT > 0 ? 0.35 + Math.sin(this.loopT * 6) * 0.1 : 0);
+    else if (this.running || this.walkT > 0 || stepping) { clip = 'run'; u = (this.loopT * 1.7) % 1; }
+    this.hero.setTexture(key, actionFrame(this, key, clip, u)).setAlpha(this.fallen > 0 ? 0.5 : 1).setPosition(this.hx, GROUND).setFlipX(this.face < 0);
+    this.aura.setAlpha(this.mantleT > 0 ? 0.35 + Math.sin(this.loopT * 6) * 0.1 : 0).setX(this.hx);
     // His health over his head, and a boss's along the top of the wall.
     const st = D.watchStats(this.w), g = this.hpBar.clear();
-    g.fillStyle(0x000000, 0.6).fillRect(HERO_X - 16, GROUND - 58, 32, 3);
-    g.fillStyle(0x6ad16a, 1).fillRect(HERO_X - 16, GROUND - 58, 32 * Math.max(0, this.hp / st.maxHp), 3);
-    if (this.w.level >= D.MANTLE.level) { g.fillStyle(0x000000, 0.6).fillRect(HERO_X - 16, GROUND - 54, 32, 2); g.fillStyle(0xb48cff, 1).fillRect(HERO_X - 16, GROUND - 54, 32 * (this.mantleT > 0 ? this.mantleT / D.MANTLE.time : this.w.gauge / 100), 2); }
+    g.fillStyle(0x000000, 0.6).fillRect(this.hx - 16, GROUND - 58, 32, 3);
+    g.fillStyle(0x6ad16a, 1).fillRect(this.hx - 16, GROUND - 58, 32 * Math.max(0, this.hp / st.maxHp), 3);
+    if (this.w.level >= D.MANTLE.level) { g.fillStyle(0x000000, 0.6).fillRect(this.hx - 16, GROUND - 54, 32, 2); g.fillStyle(0xb48cff, 1).fillRect(this.hx - 16, GROUND - 54, 32 * (this.mantleT > 0 ? this.mantleT / D.MANTLE.time : this.w.gauge / 100), 2); }
     for (const f of this.foes) {
       if (!f.alive) continue;
       if (f.boss) { g.fillStyle(0x000000, 0.6).fillRect(60, 12, SW - 120, 5); g.fillStyle(0xff5a3a, 1).fillRect(60, 12, (SW - 120) * Math.max(0, f.hp / f.max), 5); }
@@ -540,7 +735,7 @@ export class Watch extends Phaser.Scene {
       const [tex, n] = BOSS_TEX[b.id];
       f.img.setTexture(tex, `${b.id}-${f.strikeT > 0 ? Math.min(n - 1, 3) : Math.floor(f.animT * 4) % 2}`);
     } else if (b?.kind === 'demon') f.img.setFrame(f.strikeT > 0 ? 6 + Math.min(7, Math.floor((0.25 - f.strikeT) * 32)) : Math.floor(f.animT * 8) % 6);
-    else f.img.setFrame(f.kind.row * 4 + (f.strikeT > 0 ? 3 : f.x > HERO_X + REACH + 2 ? 1 + (Math.floor(f.animT * 6) % 2) : 0));
+    else f.img.setFrame(f.kind.row * 4 + (f.strikeT > 0 ? 3 : f.x > this.hx + REACH + 2 ? 1 + (Math.floor(f.animT * 6) % 2) : 0));
     f.img.setPosition(Math.round(f.x), GROUND).setFlipX(true);
     if (f.flash > 0) f.img.setTint(0xffffff).setTintMode(Phaser.TintModes.FILL); else f.img.clearTint().setTintMode(Phaser.TintModes.MULTIPLY);
   }
@@ -567,6 +762,8 @@ export class Watch extends Phaser.Scene {
     for (const n of this.nums) { if (n.life <= 0) continue; n.life -= dt; n.t.y += n.vy * dt; n.vy *= 0.92; n.t.setAlpha(Math.min(1, n.life * 3)); if (n.life <= 0) n.t.setVisible(false); }
     for (const b of this.bursts) { if (b.t < 0) continue; b.t += dt; const f = Math.floor(b.t / 0.045); if (f >= b.n) { b.t = -1; b.img.setVisible(false); } else b.img.setFrame(b.base + f); }
     if (this.pillarT >= 0) { this.pillarT += dt; const f = Math.floor(this.pillarT / 0.08); if (f >= 8) { this.pillarT = -1; this.pillar.setVisible(false); } else this.pillar.setFrame(40 + f); }
+    for (const g of this.ghosts) { if (g.life <= 0) continue; g.life -= dt; g.img.setAlpha(Math.max(0, g.life * 1.5)); if (g.life <= 0) g.img.setVisible(false); }
+    for (const c of this.cuts) { if (c.t < 0) continue; c.t += dt; const f = Math.floor(c.t / 0.04); if (f >= 6) { c.t = -1; c.img.setVisible(false); } else c.img.setFrame(c.base + f); }
   }
   private shakeIt(i: number, ms: number) { const k = shakeScale(); if (k > 0) this.cameras.main.shake(ms, i * k); }
 }
