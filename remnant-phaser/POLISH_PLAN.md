@@ -590,6 +590,40 @@ Its root is Samson, whose strength was in his unshorn hair and who fought with h
   to guard.
 - Verified by `scripts/unshorn.mjs`.
 
+## 17. Power that matches the hero (owner's request, 5 November 2026)
+
+The owner's Elior passed level 400: foes fell in a blow, levels came too fast, and a wave rode every strike.
+
+- **Foes answer the hero** (`remnant/src/game/might.ts`): past the level a straight-through player leaves a chapter
+  with (the next chapter's arrival), a foe's health follows a balanced build's blow and its damage
+  that build's toughness, a little behind both (×0.9 in log), so levels still help. Applied to every foe (`Enemy`),
+  every classic boss (`BossBase`, the Idol) and the Fallen Crowns (`bosses.ts`), against the hero in play (Tirzah's
+  level while she fights). Chapter XII at level 400: ×28 health, ×22 damage. Straight-through play is unchanged. The
+  Trial stays as it was ("survival belongs to the wave, not the level"): its rounds grow on their own, and only its
+  pay slows.
+- **Levels cost more as he rises** (`xpToNext`): the same curve through 70, then `XP70 × (lv / 70)^2.2`: 18k at 100,
+  83k at 200, 382k at 400. The Trial's waves pay in `trialXpUnit` (the square root of that growth), so a wave at 400
+  is worth a fifth of a level, not one and a third.
+- **No wave on any strike:** the sword and the fists hit what they touch. The Sovereign tier's light wave on each
+  swing is gone (`HeroPowers.onSwing`); the Armor of Light now sears each blow that lands (+40%) and the Psalm of the
+  Swarm makes a combo's third blow strike the same foe twice, neither sending anything down the room.
+- **Impact frames** (`Visuals.impactFrame`): when the Unshorn's fist lands, for the blow's hit-stop the room drops to
+  near-black behind radial speed lines, the foe goes to silhouette, Elior stays lit, and a hard white star marks the
+  point of contact; then it snaps back. Heavy blows, crits and combo enders always; quick jabs at most one in 0.18 s,
+  so the ten-punch chain never strobes. Reduce flashes keeps only a faint version.
+- **Punches sound deep** (`punch` in `remnant/src/audio/audio.ts`): a knuckle crack over a body thump and a sub-drop,
+  doubled on heavy blows. The shock ring and the air streak are gone from punches.
+- **The Unshorn moves like the monkey king's art, not his look:** Dodge is the Cloud Step (`Player.cloudStep`): gone
+  in a puff of golden cloud, he lands behind the nearest foe within 280 px while two fire-gold clones strike it, and
+  his next punch is already thrown. A swing at a foe out of reach blinks him to it, as the Mantle does. Transform
+  pressed twice goes straight into the Unshorn (once awakened). He wears no cape, so the tail of fire leads.
+- **Replay any finished chapter** (Pause → Chapters → Replay; `chapterReplay` in `ui/chapters.ts`, `World.replaying`):
+  the chapter's bosses and commanders stand again, matched to his strength, and the boss wakes when he steps in even
+  though the story has told that fight. Rewards already won (legendaries, keepsakes, chapter gear) are not paid
+  twice. Leaving the chapter ends the replay. Verified by `scripts/replay.mjs`.
+- **The title** is one measured column (`scenes/Title.ts`): on a short screen (a phone in landscape with Safari's
+  bars) the whole column shrinks to fit, so the buttons never ride over the subtitle or the version line.
+
 ## 10. Questions for the owner
 
 Answered: the archer stays **Tirzah**, and Wings of the Morning **shares** the Mantle's gauge.

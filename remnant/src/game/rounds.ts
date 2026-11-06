@@ -13,7 +13,7 @@ import { G } from './ctx';
 import { Entity } from './entity';
 import { Enemy } from './enemies';
 import { TILE, type EnemyKind } from './tiles';
-import { xpToNext, ECHO_SPECIES, ITEMS, RARITY_NAMES, type ItemInst } from './data';
+import { xpToNext, trialXpUnit, ECHO_SPECIES, ITEMS, RARITY_NAMES, type ItemInst } from './data';
 import { claimTrialMilestone, claimContractReward, derive, grantWaveLoot } from './state';
 import { trialStrength, trialXpLevels } from './balance';
 import { CONTRACTS, contractTier, isContract, type ContractId } from './progression';
@@ -340,7 +340,7 @@ export class Rounds {
     this.boonsThisRound = 0;
     this.changeT = 0;
     if (this.champ) this.total += 1; // the Champion
-    this.waveXp = xpToNext(G.save.level) * trialXpLevels(n) * (this.extreme ? EXTREME.xp : 1);
+    this.waveXp = trialXpUnit(G.save.level) * trialXpLevels(n) * (this.extreme ? EXTREME.xp : 1);
     sfx(this.pack ? 'horn' : 'bell', { pitch: this.pack ? 0.8 : 0.55 + Math.min(0.5, n * 0.015) });
     input.rumble(0.5, 0.5, 280);
     islandNotify(`ROUND ${n}`, this.pack ? '#ff6a5a' : '#ffe6a8', 'rally', 2);
@@ -425,7 +425,7 @@ export class Rounds {
     }
     if (!this.rematchSpecies) s.flags.boss_trial_best = Math.max(Number(s.flags.boss_trial_best ?? 0), this.completed);
     this.releaseBoss(b);
-    W.giveXp(Math.round(xpToNext(s.level) * (0.18 + Math.min(0.4, this.round * 0.02))));
+    W.giveXp(Math.round(trialXpUnit(s.level) * (0.18 + Math.min(0.4, this.round * 0.02))));
     s.hp = Math.min(G.d.maxHp, s.hp + G.d.maxHp * 0.2);
     s.ce = G.d.maxCe;
     if (this.round % gauntletCount() === 0) { s.balm = Math.min(s.balmMax, s.balm + 1); this.reward(this.round); }

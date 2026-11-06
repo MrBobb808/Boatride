@@ -141,9 +141,9 @@ export class FighterRig {
     const running=clip==='run'||clip==='swim',flow=running?3:0;
     const flutter=Math.sin(time*7)*.7;
     // Cloth lags the torso and gait, rather than rotating rigidly with a limb.
-    this.bone(c,7,j.neckX-2,j.neckY+1,j.neckX-12-flow,j.neckY+18-flow+flutter,archer?23:25);
-    // The tail of fire burns over the cape, so the cloth never hides it.
+    // The Unshorn wears no cape (the owner's call): the tail of fire is what streams behind him.
     if(this.unshorn)this.tail(c,j,time,running);
+    else this.bone(c,7,j.neckX-2,j.neckY+1,j.neckX-12-flow,j.neckY+18-flow+flutter,archer?23:25);
     if(archer)this.bone(c,8,j.headX-3,j.headY-3,j.headX-8-flow,j.headY+12-flow+flutter,4.4);
     this.limb(c,j,false,.84);
     this.bone(c,3,j.shBX,j.shBY,j.elBX,j.elBY,5.3,.84);
@@ -191,7 +191,7 @@ export class FighterRig {
   /** A tail of living fire from the sash (C12): the power showing, not a beast's limb. */
   private tail(c:CanvasRenderingContext2D,j:Joints,time:number,running:boolean){
     const f=4+Math.floor(time*8)%4,x0=j.hipX-3,y0=j.hipY-1,lag=running?4:0,sway=Math.sin(time*3.2)*3;
-    this.put(c,this.locks[f],LOCKS[f],x0,y0,x0-21-lag,y0+1+sway,11);
+    this.put(c,this.locks[f],LOCKS[f],x0,y0,x0-26-lag,y0-1+sway,13);
   }
   private limb(c:CanvasRenderingContext2D,j:Joints,front:boolean,alpha:number){
     const [hx,hy,kx,ky,fx,fy]=front?[j.hpFX,j.hpFY,j.knFX,j.knFY,j.ftFX,j.ftFY]:[j.hpBX,j.hpBY,j.knBX,j.knBY,j.ftBX,j.ftBY];

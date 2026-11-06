@@ -100,9 +100,11 @@ try {
         W.load(arena, 'left');
         res[n] = { foeHp: foe ? foe.maxHp / foe.stats.hp : null, foeDmg: foe ? foe.dmg / foe.stats.dmg : null, boss: W.boss ? W.boss.maxHp : null };
       }
-      // Boss health never follows the player's level.
-      W.load('plague_throne', 'left'); const hp = W.boss.maxHp; s.level = 150; W.load('plague_throne', 'left');
+      // Boss health is fixed across the levels a straight-through player has in the chapter (40 to 46 for VIII), and
+      // answers a hero far past it (game/might.ts).
+      s.level = 40; W.load('plague_throne', 'left'); const hp = W.boss.maxHp; s.level = 46; W.load('plague_throne', 'left');
       res.fixed = W.boss.maxHp === hp;
+      s.level = 150; W.load('plague_throne', 'left'); res.answers = W.boss.maxHp > hp * 3;
       s.level = 1; W.load('thaw_outpost', 'altar');
       return res;
     });
@@ -111,7 +113,8 @@ try {
       if (r.foeHp !== null) { assert.ok(Math.abs(r.foeHp - c.foeHp) < 0.01, `Ch ${n} foe health ×${r.foeHp}`); assert.ok(Math.abs(r.foeDmg - c.foeDmg) < 0.01, `Ch ${n} foe damage ×${r.foeDmg}`); }
       if (r.boss !== null && c.bossHp && n <= 9) assert.equal(r.boss, Math.round(c.bossHp * 1.3), `Ch ${n} boss health on Hard`);
     }
-    assert.ok(out.fixed, 'boss health independent of level');
+    assert.ok(out.fixed, 'boss health fixed across the chapter\'s own levels');
+    assert.ok(out.answers, 'boss health answers a hero far past the chapter');
     // Chapter select shows the table's arrival levels.
     await page.evaluate(() => { const { G } = window.__remnant; G.save.flags.ch6_done = G.save.flags.ch7_intro = true; G.ui.openMenu('chapters'); });
     assert.match(await page.locator('[data-k=ch_7]').locator('xpath=..').innerText(), new RegExp(`level ${C.chapterCurve(7).level}\\+`));

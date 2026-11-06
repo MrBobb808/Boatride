@@ -12,6 +12,7 @@
 
 import Phaser from 'phaser';
 import { G } from '../classic/shim/ctx';
+import { might } from '../../../remnant/src/game/might';
 import { chapterCurve, cleansingBeacon } from '../shared';
 import { GRAV } from './player';
 import type { WorldApi, FoeLike } from './types';
@@ -68,9 +69,9 @@ export abstract class Boss implements FoeLike {
     this.chapter = BOSS_CHAPTER[key];
     // The original's health and blow for the chapter (game/curve.ts), on Hard.
     const cv = chapterCurve(this.chapter);
-    const ng = 1 + w.save.ng * 0.6;
-    this.maxHp = this.hp = Math.round(cv.bossHp! * ng * challengeScale().hp);
-    this.base = cv.bossDmg! * ng * challengeScale().dmg;
+    const ng = 1 + w.save.ng * 0.6, m = might(this.chapter);
+    this.maxHp = this.hp = Math.round(cv.bossHp! * ng * challengeScale().hp * m.hp);
+    this.base = cv.bossDmg! * ng * challengeScale().dmg * m.dmg;
     this.floorY = feet;
     this.rect = sc.add.rectangle(x, feet - bh / 2, bw, bh, 0xffffff, 0);
     sc.physics.add.existing(this.rect);

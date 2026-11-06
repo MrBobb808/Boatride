@@ -3,6 +3,9 @@
 // Tirzah's six abilities exist only in this build: their catalog is below, and
 // their effects are in archerKit.ts.
 import { ABILITIES, type AbilityId } from '../../../remnant/src/game/data';
+
+// In this build the Armor of Light sears what each blow touches; no wave rides a swing (POLISH_PLAN §17).
+ABILITIES.armor_light.desc = 'Transform for 12s: take 40% less damage, and every blow that lands sears with light (+40%).';
 import { ARROW_LEVELS, type PhaserSave, type ArrowType } from './save';
 import type { WorldApi } from './types';
 import { archerLevel } from './archer';

@@ -71,7 +71,7 @@ try {
   for(const e of W.ents)if(e.isFoe)e.remove=true;await W.story.talk(npc);await W.story.readLore('hunt_plague');
   W.ents.find(e=>e.idKey==='hunt_grove_cache').interact();check(s.secrets.includes('hunt_grove_cache'),'cache saved');
   W.load('thaw_outpost','altar');const mara=W.ents.find(e=>e.kind==='mara');await W.story.talk(mara);await W.story.talk(mara);check(s.inventory.filter(i=>i.id==='grove_lantern').length===1&&s.quests.s_crown7.done,'optional reward once');
-  W.load('hunt_throne','left');const hp=W.boss.maxHp;s.level=150;W.load('hunt_throne','left');check(W.boss.maxHp===hp,'fixed boss HP across levels');
+  s.level=34;W.load('hunt_throne','left');const hp=W.boss.maxHp;s.level=40;W.load('hunt_throne','left');check(W.boss.maxHp===hp,'fixed boss HP across the chapter\'s levels');s.level=150;W.load('hunt_throne','left');check(W.boss.maxHp>hp*3,'the boss answers a hero far past the chapter (game/might.ts)');s.level=40;W.load('hunt_throne','left');
   W.story.onTrigger('beast_monarch_start');return{commanders:2,rescue:!!s.flags.ch7_rescued,fixedHp:hp};
  });
  await page.waitForFunction(()=>window.__remnant.G.world.boss.state==='intro');
@@ -137,7 +137,7 @@ try {
   check(W.room.id==='cinder_throne'&&W.boss?.key==='cinder_monarch'&&W.boss.state==='dormant','walked from the Ember Aqueduct to Azkar: '+W.room.id);
   // Render every new room, including the ridge, and exercise real enemy constructors.
   for(const room of ['ashwatch_refuge','slag_procession','bellows_foundry','last_smithy','ember_aqueduct','cinder_throne']){W.load(room,'left');for(const e of W.ents)e.update(1/120);W.draw(G.renderer.wctx);for(const e of W.ents)check(Number.isFinite(e.hp)&&Number.isFinite(e.x),'finite stats');}
-  W.load('cinder_throne','left');const hp=W.boss.maxHp;s.level=200;W.load('cinder_throne','left');check(W.boss.maxHp===hp,'Azkar fixed HP');W.story.onTrigger('cinder_monarch_start');return{wheels:2,rescue:!!s.flags.ch9_rescued,fixedHp:hp};
+  s.level=46;W.load('cinder_throne','left');const hp=W.boss.maxHp;s.level=52;W.load('cinder_throne','left');check(W.boss.maxHp===hp,'Azkar fixed HP across the chapter\'s levels');s.level=200;W.load('cinder_throne','left');check(W.boss.maxHp>hp*3,'Azkar answers a hero far past the chapter');s.level=52;W.load('cinder_throne','left');W.story.onTrigger('cinder_monarch_start');return{wheels:2,rescue:!!s.flags.ch9_rescued,fixedHp:hp};
  });
  await page.waitForFunction(()=>window.__remnant.G.world.boss.state==='intro');
  const cinder=await page.evaluate(()=>{

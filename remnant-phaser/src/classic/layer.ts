@@ -278,7 +278,7 @@ class PlayerView {
     if (!spot) return false;
     const x = this.x, y = this.cy;
     this.p.placeAt(spot.x, spot.y, Math.sign(t.x - spot.x) || this.face);
-    fx.streak(x, y, this.x, this.cy, '#ad9aff', 0.3, 3);
+    fx.streak(x, y, this.x, this.cy, this.p.formT > 0 ? '#ffd27a' : '#ad9aff', 0.3, 3);
     return true;
   }
   hurtbox(): Rect {

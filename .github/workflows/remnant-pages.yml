@@ -129,6 +129,8 @@ jobs:
       - run: node scripts/gods.mjs
       - run: node scripts/north.mjs
       - run: node scripts/unshorn.mjs
+      - run: node scripts/might.mjs
+      - run: node scripts/replay.mjs
       - run: node scripts/legends.mjs
       - run: node scripts/install-audio.mjs
       - uses: actions/upload-artifact@v4

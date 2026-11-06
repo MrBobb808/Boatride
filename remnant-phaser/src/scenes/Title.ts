@@ -9,21 +9,36 @@ import { input } from '../../../remnant/src/core/input';
 /** The title: continue the Phaser save, begin again, or bring a journey over from the live game. */
 export class Title extends Phaser.Scene {
   constructor() { super('title'); }
+  /** The column's layout, measured in create(): the shrink to fit, where the buttons start and their spacing. */
+  private fit = 1;
+  private buttonsTop = 0;
+  private step = 44;
 
   create() {
     music.play('title');
     const { width: W, height: H } = this.scale;
     const k = dpr();
-    const save = loadSave(), liveList = liveSlots(), count = (save ? 3 : 2) + liveList.length, ty = count > 3 ? H * 0.15 : H * 0.27;
+    const save = loadSave(), liveList = liveSlots(), count = (save ? 3 : 2) + liveList.length;
     this.cameras.main.setBackgroundColor('#07060a');
     const glow = this.add.image(W / 2, H * 0.38, 'glow').setTint(0xe2b85a).setScale(10 * k, 4 * k).setAlpha(0.25).setBlendMode(Phaser.BlendModes.ADD);
     this.tweens.add({ targets: glow, alpha: 0.4, yoyo: true, repeat: -1, duration: 2400, ease: 'Sine.inOut' });
-    const big = Math.max(26, Math.min(56, W / k / 16)) * k;
+    // One column, measured before it is drawn: the title block, a gap, the buttons, and the version line kept clear at
+    // the foot. On a short screen (a phone in landscape, Safari's bars showing) the whole column shrinks to fit rather
+    // than letting the buttons ride up over the subtitle.
+    const foot = 30 * k, top = 10 * k, avail = H - foot - top;
+    let big = Math.min(Math.max(26, Math.min(56, W / k / 16)) * k, avail * 0.14), step = (count > 4 ? 38 : 44) * k, gap = 22 * k, sub = 14 * k;
+    const column = () => big * 2.1 + sub * 0.7 + gap + count * step;
+    const fit = Math.max(0.55, Math.min(1, avail / column()));
+    big *= fit; step *= fit; gap *= fit; sub *= Math.max(0.75, fit);
+    this.fit = fit;
+    const ty = top + Math.max(0, (avail - column()) * 0.4) + big * 0.5;
     this.add.text(W / 2, ty, 'REMNANT', { fontFamily: 'Cinzel, Georgia, serif', fontSize: `${big}px`, color: '#f6dea0', fontStyle: 'bold' }).setOrigin(0.5).setLetterSpacing(big * 0.3);
     this.add.text(W / 2, ty + big * 0.95, 'ASCENSION', { fontFamily: 'Cinzel, Georgia, serif', fontSize: `${big * 0.42}px`, color: '#e2b85a' }).setOrigin(0.5).setLetterSpacing(big * 0.3);
-    this.add.text(W / 2, ty + big * 1.6, 'Ten chapters · One covenant', { fontFamily: 'Georgia, serif', fontStyle: 'italic', fontSize: `${14 * k}px`, color: '#9b92a6' }).setOrigin(0.5);
+    this.add.text(W / 2, ty + big * 1.6, 'Twelve chapters · One covenant', { fontFamily: 'Georgia, serif', fontStyle: 'italic', fontSize: `${sub}px`, color: '#9b92a6' }).setOrigin(0.5).setName('title_subtitle');
+    this.buttonsTop = ty + big * 1.6 + sub * 0.7 + gap;
+    this.step = step;
     // The version, and whether it is the newest the site serves.
-    const ver = this.add.text(W / 2, H - 8 * k, `Version ${installedVersion()} · checking for updates…`, { fontFamily: 'Georgia, serif', fontSize: `${11 * k}px`, color: '#9b92a6' }).setOrigin(0.5, 1).setName('title_version');
+    const ver = this.add.text(W / 2, H - 8 * k, `Version ${installedVersion()} · checking for updates…`, { fontFamily: 'Georgia, serif', fontSize: `${11 * k}px`, color: '#9b92a6', align: 'center', wordWrap: { width: W - 24 * k } }).setOrigin(0.5, 1).setName('title_version');
     void latestRelease().then((r) => {
       if (!ver.active) return;
       const fresh = !r || r.build === installedBuild();
@@ -53,10 +68,10 @@ export class Title extends Phaser.Scene {
     const best = (save as PhaserSave | null)?.horde?.best;
     const hordeAt = opts.length;
     opts.push([best ? `The Horde · best stage ${best}` : 'The Horde · endless stages', () => this.scene.start('horde')]);
-    const step = (count > 4 ? 38 : 44) * k, y0 = Math.min(H * (count > 3 ? 0.48 : 0.62), H - opts.length * step - 12 * k);
+    const y0 = this.buttonsTop + step / 2, f = this.fit;
     const texts: Phaser.GameObjects.Text[] = [];
     opts.forEach(([label, go], i) => {
-      const t = this.add.text(W / 2, y0 + i * step, label, { fontFamily: 'Cinzel, Georgia, serif', fontSize: `${(i < 2 ? 18 : 13) * k}px`, color: i === 0 ? '#f6dea0' : '#ddd4c6', backgroundColor: 'rgba(20,14,24,0.7)', padding: { x: 18 * k, y: 8 * k } })
+      const t = this.add.text(W / 2, y0 + i * step, label, { fontFamily: 'Cinzel, Georgia, serif', fontSize: `${(i < 2 ? 18 : 13) * k * Math.max(0.7, f)}px`, color: i === 0 ? '#f6dea0' : '#ddd4c6', backgroundColor: 'rgba(20,14,24,0.7)', padding: { x: 18 * k * f, y: 8 * k * f } })
         .setOrigin(0.5).setInteractive({ useHandCursor: true });
       t.on('pointerover', () => t.setColor('#ffffff'));
       t.on('pointerout', () => t.setColor(i === 0 ? '#f6dea0' : '#ddd4c6'));

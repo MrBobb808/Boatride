@@ -14,7 +14,7 @@ export const PSALMS: Psalm[] = [
   P('broken_idol', 'Psalm of the Broken Idol', 1, 'idol', 'the Gilded Idol', 'Combat', 'Heavy blows break a foe\'s guard 40% faster.'),
   P('open_gate', 'Psalm of the Open Gate', 2, 'gatekeeper', 'the Gatekeeper', 'Movement', 'A second air dash before you land.'),
   P('banner', 'Psalm of the Banner', 2, 'marshal', 'the Crimson Marshal', 'Echoes', 'Your Echoes strike 25% harder.'),
-  P('swarm', 'Psalm of the Swarm', 2, 'locust_king', 'the Locust King', 'Combat', 'The third blow of a combo looses a wave of light.'),
+  P('swarm', 'Psalm of the Swarm', 2, 'locust_king', 'the Locust King', 'Combat', 'The third blow of a combo strikes twice: light follows the blade into the foe.'),
   P('furnace', 'Psalm of the Furnace', 1, 'golden_image', 'the Image of Gold', 'Combat', 'A perfect parry heals 8% of your health.'),
   P('balance', 'Psalm of the Balance', 1, 'weigher', 'the Weigher', 'Combat', 'Critical blows return 6 Covenant Energy.'),
   P('wind', 'Psalm of the Wind', 2, 'storm_prince', 'the Prince of the Storm', 'Movement', 'The air dash carries 40% further.'),

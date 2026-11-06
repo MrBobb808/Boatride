@@ -10,6 +10,7 @@
 //   parry that punishes careless swings. Beaten, he kneels and offers his sword.
 
 import { bossScale } from './difficulty';
+import { might } from './might';
 import { Entity, type HitInfo } from './entity';
 import { solve, newJoints, Chain, drawRibbon, type Joints, type Pose } from '../render/skeleton';
 import { glow, rgba, poly, circle, ellipse, limbShaded, limbStroke, lineGrad, type Ctx } from '../render/draw';
@@ -66,11 +67,11 @@ export abstract class BossBase extends Entity {
     this.heavyBody = true;
     this.layer = 4;
     this.invuln = 999;
-    const diff = bossScale();
+    const diff = bossScale(), m = might();
     this.ngMul = 1 + (G.save?.ng ?? 0) * 0.6;
-    this.maxHp = this.hp = Math.round(hp * this.ngMul * diff.hp);
-    // Every boss's attacks scale with ngMul, so difficulty rides on it too.
-    this.ngMul *= diff.dmg;
+    this.maxHp = this.hp = Math.round(hp * this.ngMul * diff.hp * m.hp);
+    // Every boss's attacks scale with ngMul, so difficulty (and a hero past the chapter, game/might.ts) rides on it.
+    this.ngMul *= diff.dmg * m.dmg;
   }
 
   get fighting() {

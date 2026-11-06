@@ -135,6 +135,11 @@ export class Player {
   private hitDone = new Set<object>();
   private invuln = 0;
   private dodgeCd = 0;
+  /** The Unshorn's Cloud Step: its cooldown and the two clones it leaves striking. */
+  private cloudCd = 0;
+  /** When the last impact frame flashed (the playtime clock). */
+  private impactFrameAt = -1;
+  private clones: { sprite: Phaser.GameObjects.Sprite; t: number; foe: FoeLike | null; struck: boolean }[] = [];
   private parryT = 0;
   private parryCd = 0;
   private healDone = false;
@@ -273,6 +278,8 @@ export class Player {
     this.vigilParryCd = Math.max(0, this.vigilParryCd - dt);
     this.invuln = Math.max(0, this.invuln - dt);
     this.dodgeCd = Math.max(0, this.dodgeCd - dt);
+    this.cloudCd = Math.max(0, this.cloudCd - dt);
+    this.stepClones(dt);
     this.parryT = Math.max(0, this.parryT - dt);
     this.parryCd = Math.max(0, this.parryCd - dt);
     this.swapStrikeT = Math.max(0, this.swapStrikeT - dt);
@@ -445,6 +452,7 @@ export class Player {
   private defence() {
     const c = this.w.controls;
     if (c.pressed('dodge')) {
+      if (this.formT > 0 && this.cloudStep()) return true;
       if (this.canPhantom()) { this.startPhantom(); return true; }
       if (!this.onGround && this.airDash > 0) { this.airDash--; this.state = 'airdash'; this.st = 0; return true; }
       if (this.onGround && this.dodgeCd <= 0) { this.startDodge(); return true; }
@@ -572,7 +580,6 @@ export class Player {
         }
         this.hitSeg = last;
       } else this.strike();
-      if (!this.swung && this.armorLight > 0 && !a.air) this.w.lightWave();
       this.swung = true;
       if (a.pull) for (const f of this.w.foes()) if (f.alive && Math.abs(f.x - this.x) < a.pull) {
         const e = (f as FoeLike & { e?: { isBoss: boolean; body: { vx: number } } }).e;
@@ -584,6 +591,7 @@ export class Player {
       this.jumpBuf = 0; this.recentHit = 0; this.airAttacks = 0; this.airDash = this.airDashes();
       this.toFree(); this.body.setVelocityY(-JUMP_V * 0.78); this.noteStyle('jump_cancel',true); return;
     }
+    if (c.pressed('dodge') && this.formT > 0 && this.cloudStep()) return;
     if (c.pressed('dodge') && this.recentHit > 0 && this.canPhantom()) { this.startPhantom(); return; }
     if (u >= a.cancel && this.defence()) return;
     if (u >= a.cancel) {
@@ -722,6 +730,63 @@ export class Player {
     for (let i = 1; i <= n; i++) if (isSolid(this.w.tileAt(Math.floor((this.x + dx * i / n) / TILE), Math.floor((this.y + dy * i / n) / TILE)))) return false;
     return true;
   }
+  /**
+   * The Unshorn's Cloud Step: he is gone in a puff of golden cloud and lands behind the nearest foe (within 280 px,
+   * the way he faces first), turned to strike, while two fire-gold clones of him, left where he passed, throw a
+   * punch of their own. Then the next blow is already on its way.
+   */
+  cloudStep() {
+    if (this.cloudCd > 0) return false;
+    const f = this.target(280, true) ?? this.target(280);
+    const spot = f ? this.blinkSpotAt(f.x, f.box.bottom, f.box.width / 2) : null;
+    if (!f || !spot) return false;
+    const x0 = this.x, y0 = this.feet;
+    this.cloud(x0, y0);
+    this.placeAt(spot.x, spot.y, Math.sign(f.x - spot.x) || this.face);
+    this.cloud(this.x, this.feet);
+    fx.streak(x0, y0 - 24, this.x, this.feet - 24, '#ffd27a', 0.22, 3);
+    this.grantInvuln(0.35);
+    this.cloudCd = 0.45;
+    this.w.playEffect('dash', { x: this.x, pitch: 1.35 }); this.w.playEffect('whoosh', { x: this.x, pitch: 0.8, vol: 0.7 });
+    // Two clones: one where he stood, one on the foe's near side.
+    for (const [cx, face] of [[x0, Math.sign(f.x - x0) || 1], [f.x - (this.x - f.x), Math.sign(this.x - f.x) || -1]] as const) this.clone(cx, this.feet, face, f);
+    this.releaseState();
+    this.startMove(this.moves.combo[1]);
+    return true;
+  }
+  /** A puff of the cloud he rides: gold-white smoke and sparks at his feet. */
+  private cloud(x: number, feet: number) {
+    fx.dust(x, feet, 12, 2);
+    fx.embers(x, feet - 12, 10, '#ffe6a8', 30);
+    this.w.burst(x, feet, 2, true, 'vfx-unshorn');
+  }
+  private clone(x: number, feet: number, face: number, foe: FoeLike) {
+    let c = this.clones.find((o) => o.t < 0);
+    if (!c) { c = { sprite: this.sprite.scene.add.sprite(0, 0, this.sprite.texture.key).setBlendMode(Phaser.BlendModes.ADD).setDepth(9.5), t: -1, foe: null, struck: false }; this.clones.push(c); }
+    c.t = 0; c.foe = foe; c.struck = false;
+    c.sprite.setTexture(this.sprite.texture.key, this.sprite.frame.name).setOrigin(this.sprite.originX, this.sprite.originY)
+      .setPosition(x, feet).setFlipX(face < 0).setTint(0xffa040).setAlpha(0.8).setVisible(true);
+  }
+  /** The clones lunge, strike once (a third of a blow each) and burn away. */
+  private stepClones(dt: number) {
+    for (const c of this.clones) {
+      if (c.t < 0) continue;
+      c.t += dt;
+      const f = c.foe;
+      if (f && !c.struck && c.t >= 0.12) {
+        c.struck = true;
+        const dir = c.sprite.flipX ? -1 : 1;
+        if (f.alive && !f.removed) {
+          f.hit(Math.round(this.power() * 0.35), dir, 90, false, { poise: 12, kx: dir * 60, ky: -40 });
+          this.w.burst(f.x - dir * 6, f.box.centerY, 0, false, 'vfx-unshorn');
+          this.w.playEffect('punch', { x: f.x, pitch: 1.15, vol: 0.55 });
+        }
+        c.sprite.x += dir * 10;
+      }
+      c.sprite.setAlpha(Math.max(0, 0.8 - c.t * 2));
+      if (c.t >= 0.4) { c.t = -1; c.foe = null; c.sprite.setVisible(false); }
+    }
+  }
   blinkSpotAt(x: number, feet: number, halfWidth: number, side = Math.sign(x - this.x) || this.face) {
     if (!this.lineOfSight(x, feet - 20)) return null;
     for (const sign of [side, -side]) for (const lift of [0, -16, -32]) {
@@ -831,6 +896,8 @@ export class Player {
       // The Psalm of the Hunt: a parried foe takes half again as much for a while.
       const marked = (f as { e?: { psalmMarkT?: number } }).e ?? (f as { psalmMarkT?: number });
       if ((marked.psalmMarkT ?? 0) > this.clock) dmg *= 1.5;
+      // The Armor of Light sears into what the blade touches, rather than sending a wave down the room.
+      if (this.armorLight > 0) dmg *= 1.4;
       // Arriving from a swap: the first blow carries the momentum.
       const swap = this.swapStrikeT > 0 ? 1.5 : 1;
       const force = this.atk.force * this.atkMult * (counter ? 1.5 : 1) * swap;
@@ -840,12 +907,16 @@ export class Player {
         landed = true;
         const dealt = beforeHp !== undefined && f.hp !== undefined ? Math.max(0, beforeHp - f.hp) : Math.round(dmg * swap);
         this.w.heroHit(f, dealt, this.atk.heavy, crit);
+        if (this.armorLight > 0) this.w.spark(f.x, f.box.centerY, 0xffe6a8, 6);
         this.counterT = 0;
         this.swapStrikeT = 0;
         if (crit && this.psalmCrits > 0) this.psalmCrits--;
         if (crit && wears(ps, 'balance')) this.w.save.ce = Math.min(this.maxCe, this.w.save.ce + 6);
-        // The Psalm of the Swarm: a combo's third blow looses the Sword of the Word's wave, once a swing.
-        if (this.combo === 2 && !waved && wears(ps, 'swarm')) { waved = true; this.w.lightWave(); }
+        // The Psalm of the Swarm: a combo's third blow strikes the same foe twice, the light following the blade in.
+        if (this.combo === 2 && !waved && wears(ps, 'swarm')) {
+          waved = true;
+          if (f.alive && !f.removed) { f.hit(Math.round(dmg * 0.8), this.face, 0, false, { poise: 10 }); this.w.burst(f.x, f.box.centerY, 1); }
+        }
         this.recentHit = 0.65;
         this.noteStyle(this.atk.id);
         this.comboHits++; this.comboT = 1.7;
@@ -866,21 +937,23 @@ export class Player {
   }
 
   /**
-   * Every one of the Unshorn's blows lands with its weight: a longer hold, a shock ring where the fist meets, the air
-   * driven out behind the foe, dust off its feet and a low thud; the heavier blows shake the frame and boom.
+   * Every one of the Unshorn's blows lands with its weight: a longer hold, the burst where the fist meets, dust off the
+   * foe's feet and a deep thump; the heavier blows shake the frame and boom. No ring or wave rides a punch.
    */
   private punchImpact(f: FoeLike, crit: boolean, big: boolean) {
-    const x = this.face > 0 ? f.box.left + 2 : f.box.right - 2, y = f.box.centerY - 4, d = this.face;
+    const x = this.face > 0 ? f.box.left + 2 : f.box.right - 2, y = f.box.centerY - 4;
     this.w.hitstop(big ? 0.11 : crit ? 0.08 : 0.055);
+    // The impact frame: every heavy blow, crit and combo ender; quick jabs at most one in 0.18 s, so a chain never strobes.
+    if (big || crit || this.clock - this.impactFrameAt >= 0.18) { this.impactFrameAt = this.clock; this.w.impactFrame(x, y, big || crit); }
     this.w.burst(x, y, big || crit ? 1 : 0, big, 'vfx-unshorn');
     if (big) this.w.burst(f.x, f.box.bottom, 2, true, 'vfx-unshorn');
     if (this.atk.id === 'urise' || this.atk.id === 'ucomet') this.w.burst(x, f.box.bottom, 3, true, 'vfx-unshorn');
-    fx.ring(x, y, 3, big ? 70 : 34, big ? '#ffd27a' : '#fff1c4', big ? 0.3 : 0.18, 3);
-    fx.streak(x, y, x + d * (big ? 90 : 46), y, '#ffe6a8', big ? 0.22 : 0.14, big ? 4 : 2);
     fx.dust(f.x, f.box.bottom, big ? 10 : 4, big ? 2 : 1);
     this.w.flashLight?.(x, y, big ? 130 : 70, '#ffb347', big ? 0.25 : 0.12);
-    this.w.playEffect('hitHeavy', { x, pitch: big ? 0.6 : 0.78 + Math.random() * 0.1, vol: big ? 1 : 0.85 });
-    if (big) { this.w.playEffect('bossSlam', { x, vol: 0.45, pitch: 1.3 }); this.w.shake(0.01, 140); input.rumble(0.9, 0.7, 120); }
+    // The weight is in the sound: a deep thump on every fist, lower and doubled for the heavy blows.
+    this.w.playEffect('punch', { x, pitch: big ? 0.72 : 0.9 + Math.random() * 0.12, vol: big ? 1 : 0.9 });
+    if (big) { this.w.playEffect('punch', { x, pitch: 0.55, vol: 0.8 }); this.w.playEffect('bossSlam', { x, vol: 0.35, pitch: 1.2 }); this.w.shake(0.01, 140); input.rumble(0.9, 0.7, 120); }
+    else input.rumble(0.45, 0.3, 50);
   }
 
   /**

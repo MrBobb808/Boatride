@@ -1,9 +1,9 @@
-import { chapterForRoom } from './fallenChapters';
 // The corrupted: Husks, Gloom Hounds, Hollow Archers, Fallen Sentinels and
 // Veil Wisps. Each has a readable telegraph, a stagger state that opens an
 // execution, and its own sound signature.
 
 import { chapterCurve } from './curve';
+import { might, roomChapter } from './might';
 import { Entity, type HitInfo } from './entity';
 import { moveBody, groundAhead, wallAhead, hazardAhead, los } from './physics';
 import { Animator, solve, newJoints, BASE_POSE, Chain, drawRibbon, type Clip, type Joints, type Pose, type RigDims } from '../render/skeleton';
@@ -18,11 +18,6 @@ import { waterRoom, landFoeWater } from './water';
 import type { EnemyKind } from './tiles';
 import { lighting } from '../render/lighting';
 import { shakeScale } from '../core/settings';
-import { CH2_ROOM_IDS } from './rooms2';
-import { CH3_ROOM_IDS } from './rooms3';
-import { CH4_ROOM_IDS } from './rooms4';
-import { CH5_ROOM_IDS } from './rooms5';
-import { CH6_ROOM_IDS } from './rooms6';
 
 export interface EnemyStats {
   hp: number;
@@ -262,12 +257,12 @@ export abstract class Enemy extends Entity {
     this.stats = ENEMY_STATS[kind];
     const ng = 1 + (G.save?.ng ?? 0) * 0.6;
     const em = elite ? 2.0 : 1;
-    const rid = G.world?.room?.id ?? '';
-    this.tier = chapterForRoom(rid)?.n ?? (CH6_ROOM_IDS.has(rid) ? 6 : CH5_ROOM_IDS.has(rid) ? 5 : CH4_ROOM_IDS.has(rid) ? 4 : CH3_ROOM_IDS.has(rid) ? 3 : CH2_ROOM_IDS.has(rid) ? 2 : 1);
-    // Per-chapter health and damage come from the difficulty curve (game/curve.ts).
-    const { foeHp: th, foeDmg: td } = chapterCurve(this.tier);
-    this.maxHp = this.hp = Math.round(this.stats.hp * ng * em * th);
-    this.dmg = this.stats.dmg * ng * (elite ? 1.15 : 1) * td;
+    this.tier = roomChapter(G.world?.room?.id ?? '');
+    // Per-chapter health and damage come from the difficulty curve (game/curve.ts), raised to meet a hero past
+    // the chapter's level (game/might.ts).
+    const { foeHp: th, foeDmg: td } = chapterCurve(this.tier), m = might();
+    this.maxHp = this.hp = Math.round(this.stats.hp * ng * em * th * m.hp);
+    this.dmg = this.stats.dmg * ng * (elite ? 1.15 : 1) * td * m.dmg;
     this.maxPoise = this.poise = this.stats.poise * (elite ? 1.6 : 1);
     this.elite = elite;
     this.purifiable = !!elite;

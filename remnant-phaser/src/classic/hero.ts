@@ -36,7 +36,6 @@ export class HeroPowers {
   private superT = -1;
   private superId = 'rally' as keyof typeof SUPER_MOVES;
   private superFoe: Entity | null = null;
-  private waveN = 0;
   private shadeT = 0;
   clip = '';
   private clipTime = 0;
@@ -62,6 +61,8 @@ export class HeroPowers {
   get multiplier() { const t = [1, 1.5, 1.7, 1.9, 2.2][mantleTier()]; return this.p.formT > 0 ? Math.max(1.5, t) * 1.3 : this.p.mantleT > 0 ? t : 1; }
   /** True while the transformation under way is the ascent into the Unshorn. */
   ascending = false;
+  /** Transform pressed twice: the gauge goes straight into the Unshorn. */
+  private doubled = false;
   get frame() {
     if (!this.clip) return null;
     return /Leap|launch/.test(this.clip) ? 8 : /invoke|cast|charge/.test(this.clip) ? 15 : /dash/.test(this.clip) ? 12 : 11;
@@ -105,8 +106,10 @@ export class HeroPowers {
       this.render(); return true;
     }
     if (p.state === 'transform') {
+      // Transform pressed again while the Mantle gathers: straight on into the Unshorn, once he is awakened.
+      if (c.pressed('transform') && !this.ascending && !this.transformed && p.hero === 'elior' && s.flags.unshorn) { this.ascending = true; this.doubled = true; sfx('mantleReady'); }
       this.transformT += dt; p.body.setGravityY(0).setVelocity(0, this.transformT < 0.72 ? -12 : 0);
-      if (this.transformT >= 0.72 && !this.transformed && this.ascending) { this.transformed = true; this.ascend(14 + p.mantleT * 0.5); }
+      if (this.transformT >= 0.72 && !this.transformed && this.ascending) { this.transformed = true; this.ascend(14 + (this.doubled ? mantleDuration() : p.mantleT) * 0.5); this.doubled = false; }
       else if (this.transformT >= 0.72 && !this.transformed) {
         this.transformed = true; p.mantleT = this.mantleMax = mantleDuration() + (p.hero === 'tirzah' ? trank(this.L.host.save, 't_wings') * 1.5 : 0);
         // Tirzah takes the Wings of the Morning from the same gauge: dawn light instead of shadow.
@@ -167,6 +170,7 @@ export class HeroPowers {
   tryTransform() {
     const s = this.L.host.save;
     // In the Shadow Mantle, Transform again ascends into the Unshorn once it has been awakened.
+    if (this.p.mantleT > 0 && this.p.hero === 'elior' && !s.flags.unshorn) { this.L.host.toast('A third form waits for Elior: it awakens in the King of the North\'s fight (Chapter XII).'); return false; }
     if (this.p.mantleT > 0 && this.p.hero === 'elior' && s.flags.unshorn) { this.ascending = true; this.transformT = 0; this.transformed = false; this.clip = 'charge'; this.p.state = 'transform'; sfx('transform'); return true; }
     const form = this.p.hero === 'tirzah' ? 'Wings of the Morning' : 'Shadow Mantle';
     if (heroLevel(s) < 25) { this.L.host.toast(`${form} awakens at level 25.`); return false; }
@@ -207,13 +211,14 @@ export class HeroPowers {
   }
   onSwing(heavy: boolean, air: boolean) {
     if (this.p.water.swimming) return;
-    this.waveN++;
-    const tier = powerTier(), p = this.p;
-    if (p.mantleT > 0 && this.pursuitCd <= 0) {
+    const p = this.p;
+    // The Mantle's pursuit, and the Unshorn's: a swing at a foe out of reach closes the distance in a blink.
+    if ((p.mantleT > 0 || p.formT > 0) && this.pursuitCd <= 0) {
       const t = this.L.nearestEnemy(p.x, p.y, 245, p.face);
       if (t && Math.abs(t.x - p.x) > t.body.w / 2 + 28 && this.L.playerView.blinkToFoe(t)) this.pursuitCd = 0.55;
     }
-    if (!air && p.mantleT <= 0 && (tier >= 6 || tier >= 5 && this.waveN % 3 === 0 || tier >= 3 && heavy)) this.L.spawnLightWave(p.x + p.face * 16, p.feet - 22, p.face, tier >= 6 ? 1.6 : 1);
+    // No light wave rides a plain strike any more (the owner's call, 5 November 2026): the Armor of Light and the
+    // Psalm of the Swarm still send one, as their own choice.
   }
   throwWeapon() {
     if (this.throwCd > 0 || this.weaponFlight) return false;
