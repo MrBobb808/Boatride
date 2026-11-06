@@ -65,6 +65,8 @@ export class Watch extends Phaser.Scene {
   private hero!: Phaser.GameObjects.Sprite;
   private keys = { base: '', mantle: '' };
   private hp = 100;
+  /** His health now (the panel shows it). */
+  get heroHp() { return this.hp; }
   private fallen = 0;
   private swingCd = 0;
   private shot: Shot | null = null;
@@ -187,8 +189,8 @@ export class Watch extends Phaser.Scene {
     const top = Math.max(safe.top, 6);
     const vw = landscape ? Math.round(W * 0.52) : W, vh = Math.round((vw * SH) / SW);
     const cssScale = W / window.innerWidth;
-    // Upright, the bar of coins and the stage sits just above the wall (about 64 CSS px).
-    const y = landscape ? Math.max(0, Math.round((H - vh) / 2)) : Math.round((top + 64) * cssScale);
+    // Upright, the bar of coins, the stage and his numbers sits just above the wall (about 84 CSS px).
+    const y = landscape ? Math.max(0, Math.round((H - vh) / 2)) : Math.round((top + 84) * cssScale);
     this.baseZoom = vw / SW;
     this.cameras.main.setViewport(0, y, vw, vh).setZoom(this.baseZoom * (this.cine ? 1.14 : 1)).centerOn(SW / 2, SH / 2);
     this.ui.layout(landscape ? y / cssScale : top, (y + vh) / cssScale, landscape, vw / cssScale);
