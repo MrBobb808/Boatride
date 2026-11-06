@@ -108,10 +108,10 @@ export function elementHit(e: Entity, el: Element, dmg: number, dir: number, fin
       p.leechHeal(dealt, 0.03);
       fx.veilBurst(x, y, 4, 0.6);
       if (finisher || Math.random() < 0.18) {
-        // A shadow blade answers the strike a moment later.
+        // The shadow bites again a moment later, where the blow landed: a burst on the foe, never a flying crescent.
         G.world.after(0.18, () => {
           if (e.dying || e.remove) return;
-          fx.slash(e.cx - dir * 6, e.cy, 26, dir > 0 ? -2.6 : 2.6, dir > 0 ? 0.6 : -0.6, 9, 1, E.core, E.c, 0.2);
+          fx.veilBurst(e.cx - dir * 4, e.cy, 8, 0.7);
           e.takeHit({ dmg: dmg * 0.5, poise: 10, kx: dir * 60, ky: -60, dir, kind: 'ability', src: p });
         });
       }

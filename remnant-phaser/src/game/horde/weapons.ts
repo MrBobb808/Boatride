@@ -116,16 +116,17 @@ export class Arsenal {
       h.hero.look(f.x - x);
       h.hero.play(this.bladeFlip > 0 ? 'b1' : 'b2', 0.3);
       const dmg = 12 * (lv >= 2 ? 1.25 : 1) * (lv >= 4 ? 1.25 : 1);
-      const cut = (ang: number, delay: number) => this.later(delay, () => {
-        this.arc(h.hero.x, h.hero.y - 12, ang, R, lv >= 3 ? 1.9 : 1.5, dmg);
+      const cut = (ang: number, delay: number, weight = 1) => this.later(delay, () => {
+        this.arc(h.hero.x, h.hero.y - 12, ang, R, lv >= 3 ? 1.9 : 1.5, dmg * weight);
         this.anim('vfx-slashes', h.hero.form ? 6 : 0, 6, h.hero.x + Math.cos(ang) * R * 0.45, h.hero.y - 12 + Math.sin(ang) * R * 0.45, 0.2, R / 46, { rot: ang, tint: h.hero.form ? 0xc59bff : undefined, follow: true, flipY: this.bladeFlip < 0 });
         h.sfx('swing', 0.5);
       });
       cut(a, 0.06);
       if (lv >= 5) cut(a + Math.PI, 0.2);
-      if (lv >= 6) this.later(0.1, () => this.launch('crescent', h.hero.x, h.hero.y - 12, Math.cos(a), Math.sin(a), 260, dmg * (evo ? 1.4 : 0.8), 99, 0.7, false, evo ? 1.5 : 1));
-      // The Sword of the Spirit: every cut also sends a wave of light the other way.
-      if (evo) this.later(0.16, () => this.launch('crescent', h.hero.x, h.hero.y - 12, -Math.cos(a), -Math.sin(a), 260, dmg * 1.2, 99, 0.7, false, 1.3));
+      // Nothing flies from the blade (the owner's call): the last upgrade is a third, heavier cut, and the Sword of the
+      // Spirit a heavy cut behind him as well.
+      if (lv >= 6) cut(a, 0.32, evo ? 1.8 : 1.4);
+      if (evo) cut(a + Math.PI, 0.4, 1.6);
     } else if (id === 'bow') {
       const evo = this.evolved.has('bow'), n = 1 + (lv >= 2 ? 1 : 0) + (lv >= 5 ? 1 : 0) + h.plenty + (h.hero.form ? 2 : 0) + (evo ? 2 : 0);
       const targets: Foe[] = [];

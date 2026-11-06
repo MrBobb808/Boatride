@@ -312,7 +312,9 @@ Never ship files from `art/incoming/` directly.
   (`remnant-phaser/src/game/awakening.ts`); afterwards Transform in the Shadow Mantle ascends, or Transform pressed
   twice goes straight in. No cape in the form; Dodge is the Cloud Step (`Player.cloudStep`: behind the foe, two
   striking clones). Each landing fist throws an impact frame (`Visuals.impactFrame`). No wave rides a strike at any
-  level (the Armor of Light and the Psalm of the Swarm hit on contact in this build). See POLISH_PLAN §16–17.
+  level (the Armor of Light and the Psalm of the Swarm hit on contact in this build), and no crescent: the shadow
+  element bites with a burst, and the Horde's blade only cuts. His run and swing speed are capped (`MAX_RUN`,
+  `MAX_ASPD` in `player.ts`). See POLISH_PLAN §16–17.
 - **The Horde (Phaser build):** a top-down survival mode in endless stages
   (`remnant-phaser/src/scenes/Horde.ts`, `src/game/horde/`): auto-weapons, a
   1-of-3 upgrade per level, a Fallen Crown monarch per stage, Elior, Tirzah and

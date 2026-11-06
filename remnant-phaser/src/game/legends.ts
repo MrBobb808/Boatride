@@ -341,7 +341,6 @@ export class Legends {
       if (wd.tick <= 0) {
         wd.tick = 0.2;
         fx.ring(wd.x, wd.y + 10, 10, 90, '#9fd8ff', 0.3, 3, 0.35);
-        fx.slash(wd.x, wd.y, 40, -2.4, 0.8, 3, 1, '#ffffff', '#9fd8ff', 0.18, Math.random() * 3);
         this.blast(wd.x, wd.y, 110, 0.3, { kx: 140, ky: -60, poise: 8, pull: true });
       }
     }

@@ -607,6 +607,12 @@ The owner's Elior passed level 400: foes fell in a blow, levels came too fast, a
 - **No wave on any strike:** the sword and the fists hit what they touch. The Sovereign tier's light wave on each
   swing is gone (`HeroPowers.onSwing`); the Armor of Light now sears each blow that lands (+40%) and the Psalm of the
   Swarm makes a combo's third blow strike the same foe twice, neither sending anything down the room.
+- **No crescents at all** (the owner, 6 November 2026): the shadow element's second bite (gear, and always in the
+  Mantle) is a burst on the foe instead of a crescent (`elementHit` in `remnant/src/game/power.ts`); the whirlwind
+  legend spins dust, not crescents; in the Horde the Covenant Blade's last upgrade is a third, heavier cut, the Sword
+  of the Spirit a heavy cut behind him, and the Crescent of Light relic is no longer offered.
+- **A speed cap** (`MAX_RUN`, `MAX_ASPD` in `player.ts`): levels, gear and the forms together move him at most ×1.35
+  and swing at most ×1.5 (the weapon's own tempo still applies), so a level-400 fight stays readable.
 - **Impact frames** (`Visuals.impactFrame`): when the Unshorn's fist lands, for the blow's hit-stop the room drops to
   near-black behind radial speed lines, the foe goes to silhouette, Elior stays lit, and a hard white star marks the
   point of contact; then it snaps back. Heavy blows, crits and combo enders always; quick jabs at most one in 0.18 s,

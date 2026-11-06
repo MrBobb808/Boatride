@@ -54,6 +54,13 @@ try {
   for (let i = 0; i < 4; i++) { await page.keyboard.press('KeyJ'); await page.waitForTimeout(110); waves = Math.max(waves, await E(page, () => window.__remnant.world.classic.ents.filter((e) => e.kind === 'lightwave').length)); }
   await E(page, () => { window.__remnant.world.player.armorLight = 0; });
   assert.equal(waves, 0, 'no light wave rides a strike under the Armor of Light');
+  // However fast his stats grow, his run is capped so the fight stays readable.
+  await E(page, () => { const w = window.__remnant.world; w.d.speed = 3; w.d.aspd = 3; w.player.mantleT = 10; });
+  await page.keyboard.down('KeyD'); await page.waitForTimeout(900);
+  const run = await E(page, () => Math.abs(window.__remnant.world.player.body.velocity.x));
+  await page.keyboard.up('KeyD');
+  await E(page, () => { const w = window.__remnant.world; w.player.mantleT = 0; w.refreshStats(); });
+  assert.ok(run > 100 && run <= 142 * 1.35 + 1, `his run is capped (${run.toFixed(0)} px/s with triple speed in the Mantle)`);
 
   // ---- the Unshorn: Transform twice, then the Cloud Step
   await look(68, 'palace_tents');

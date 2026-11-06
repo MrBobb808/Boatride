@@ -64,7 +64,7 @@ export const FOE_SHEETS = ['foes-ashen', 'foes-shinar', 'foes-beasts', 'foes-vei
 export type WeaponId = 'blade' | 'bow' | 'flame' | 'seraphs' | 'pillar' | 'lion' | 'chains' | 'hallowed' | 'crescent' | 'frost';
 export interface WeaponDef { id: WeaponId; name: string; desc: string; hero?: HeroId; levels: string[] }
 export const WEAPONS: Record<WeaponId, WeaponDef> = {
-  blade: { id: 'blade', name: 'Covenant Blade', hero: 'elior', desc: 'Elior cuts a wide arc toward the nearest foe.', levels: ['+25% damage', 'Wider arc', '+25% damage', 'A second, backhand cut', 'Every cut sends a crescent'] },
+  blade: { id: 'blade', name: 'Covenant Blade', hero: 'elior', desc: 'Elior cuts a wide arc toward the nearest foe.', levels: ['+25% damage', 'Wider arc', '+25% damage', 'A second, backhand cut', 'A third, heavier cut'] },
   bow: { id: 'bow', name: 'Dawn Bow', hero: 'tirzah', desc: 'Tirzah looses arrows at the nearest foes.', levels: ['+1 arrow', 'Arrows pierce one more', '+25% damage', '+1 arrow', 'Arrows split on a kill'] },
   flame: { id: 'flame', name: 'Hand of Flame', hero: 'uri', desc: 'Uri hurls fire at the nearest foes; it bursts where it lands.', levels: ['+1 fireball', '+25% damage', 'Wider burst', '+1 fireball', 'Leaves the ground burning'] },
   seraphs: { id: 'seraphs', name: 'Ring of Light', desc: 'Orbs of light circle you and burn what they touch.', levels: ['+1 orb', '+25% damage', '+1 orb', 'Faster orbit', '+1 orb'] },
@@ -75,7 +75,8 @@ export const WEAPONS: Record<WeaponId, WeaponDef> = {
   crescent: { id: 'crescent', name: 'Crescent of Light', desc: 'A crescent flies out and back through the horde.', levels: ['+1 crescent', '+25% damage', 'Larger', '+1 crescent', 'Faster, and 30% stronger'] },
   frost: { id: 'frost', name: 'Crown of Frost', desc: 'Ice bursts around you, slowing all it touches.', levels: ['Wider burst', '+30% damage', 'Holds foes still', 'Bursts more often', '+40% damage'] },
 };
-export const RELICS: WeaponId[] = ['seraphs', 'pillar', 'lion', 'chains', 'hallowed', 'crescent', 'frost'];
+// The Crescent of Light is no longer offered: nothing crescent-shaped flies from the heroes (the owner's call).
+export const RELICS: WeaponId[] = ['seraphs', 'pillar', 'lion', 'chains', 'hallowed', 'frost'];
 /** Relic slots beside each hero's own weapon. */
 export const RELIC_SLOTS = 4;
 
@@ -99,7 +100,7 @@ export const PASSIVES: Record<PassiveId, { name: string; desc: string; max: numb
  * monarch into a stronger form of itself.
  */
 export const EVOLUTIONS: Record<WeaponId, { with: PassiveId; name: string; desc: string; verse?: string }> = {
-  blade: { with: 'might', name: 'Sword of the Spirit', desc: 'Every cut looses a wave of light; the Phantom chain comes every other cut', verse: '“the sword of the Spirit, which is the word of God” · Ephesians 6:17 (KJV)' },
+  blade: { with: 'might', name: 'Sword of the Spirit', desc: 'Every third cut lands heavier still, a heavy cut sweeps behind him, and the Phantom chain comes every other cut', verse: '“the sword of the Spirit, which is the word of God” · Ephesians 6:17 (KJV)' },
   bow: { with: 'precision', name: 'Bow of the Dawn', desc: 'Two more arrows; every arrow pierces all and splits on a kill' },
   flame: { with: 'reach', name: 'Fire of the Altar', desc: 'One more fireball; every burst is wider and leaves the ground burning' },
   seraphs: { with: 'vigor', name: 'Halo of Seraphs', desc: 'Eight orbs in two rings turning both ways, at double strength' },

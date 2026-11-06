@@ -33,6 +33,11 @@ import { wears } from './psalms';
 export const GRAV = 1500;
 const MAX_FALL = 560;
 const RUN = 142;
+/**
+ * Caps on how fast levels, gear and the forms can make him (the owner's call: past level 400 the fights blurred).
+ * The weapon's own tempo (a greatsword's weight, a blade's quickness) still applies on top of the attack cap.
+ */
+const MAX_RUN = 1.35, MAX_ASPD = 1.5;
 const JUMP_V = 430;
 const COYOTE = 0.1;
 const BUFFER = 0.16;
@@ -341,7 +346,7 @@ export class Player {
       case 'free': {
         const ax = c.axis;
         const accel = this.onGround ? 1400 : 900;
-        b.setVelocityX(Phaser.Math.Linear(b.velocity.x, ax * RUN * this.w.d.speed * (this.formT > 0 ? 1.3 : this.mantleT > 0 ? 1.25 : 1), Math.min(1, (accel * dt) / RUN)));
+        b.setVelocityX(Phaser.Math.Linear(b.velocity.x, ax * RUN * Math.min(MAX_RUN, this.w.d.speed * (this.formT > 0 ? 1.3 : this.mantleT > 0 ? 1.25 : 1)), Math.min(1, (accel * dt) / RUN)));
         if (Math.abs(ax) > 0.2) this.face = Math.sign(ax);
         if (this.jumpBuf > 0 && c.down('down') && this.onGround && this.standingOnOneWay()) {
           this.dropT = 0.25;
@@ -505,7 +510,7 @@ export class Player {
   }
 
   private startMove(a: AttackDef) {
-    const speed = this.w.d.aspd * this.moves.speed * (this.lion > 0 ? 1.1 : 1) * (this.formT > 0 ? 1.25 : this.mantleT > 0 ? 1.2 : 1);
+    const speed = Math.min(MAX_ASPD, this.w.d.aspd * (this.lion > 0 ? 1.1 : 1) * (this.formT > 0 ? 1.25 : this.mantleT > 0 ? 1.2 : 1)) * this.moves.speed;
     this.atk = swing(a, speed);
     this.atkMult = 1;
     this.combo = this.moves.combo.findIndex((v) => v.id === a.id);
@@ -862,7 +867,7 @@ export class Player {
     if (len < 0.2) mx = my = 0; else if (len > 1) { mx /= len; my /= len; }
     if (mx) this.face = Math.sign(mx);
     if (w.dashT > 0) { w.dashT = Math.max(0, w.dashT - dt); const k = 0.45 + 0.55 * w.dashT / DASH_T; b.setVelocity(w.dirX * DASH_V * k + w.flowX, w.dirY * DASH_V * k + w.flowY); }
-    else { const speed = SWIM_SPEED * this.w.d.speed, rest = w.surface + FLOAT_DEPTH;
+    else { const speed = SWIM_SPEED * Math.min(MAX_RUN, this.w.d.speed), rest = w.surface + FLOAT_DEPTH;
       const vy = (Math.abs(my) > 0.25 ? my * speed : w.air ? Phaser.Math.Clamp((rest - this.feet) * 3, -26, 80) : -26) + w.flowY;
       const approach = (n: number, target: number) => n + Phaser.Math.Clamp(target - n, -SWIM_ACCEL * dt, SWIM_ACCEL * dt);
       b.setVelocity(approach(b.velocity.x, mx * speed + w.flowX), approach(b.velocity.y, w.air && vy < 0 ? Math.max(vy, (rest - this.feet) * 4) : vy)); }
