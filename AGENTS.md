@@ -339,6 +339,13 @@ Never ship files from `art/incoming/` directly.
   scenes with their own parallax layers, set pieces, foes and gate boss), and
   the first eight gates each win a blade for the Hero tab's armoury (drawn in
   his hand: `FighterRig`'s sprite blade, `actionAtlas(..., blade)`).
+  It moves: even stages are rushes (he runs at them and cuts through,
+  stopping only for one that stands), odd ones hold (they come; he steps up
+  to meet them). The Skills tab buys and levels seven abilities with coins
+  (`D.ABILITIES`), 2–5 taken into the fight (`loadout`), used by themselves
+  (AUTO) or tapped on the skill bar; Phantom Step and the Last Watch are
+  staged combos (`Watch.startCine`: the world slows, the view darkens and
+  draws in). The wall runs at ×1, ×2, or ×3 from Watch level 40 (`speed`).
 - **CC0 art (Phaser build):** free public-domain packs (Gothicvania by ansimuz,
   Swords and Staffs by SnoopethDuckDuck) live raw in
   `remnant-phaser/art/incoming/cc0/` with `CREDITS.md`; `art/tools/cc0.py`

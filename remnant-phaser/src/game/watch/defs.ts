@@ -31,6 +31,25 @@ export interface WatchSave {
   paid: number[];
   /** The blade in his hand (an index into BLADES; none for his own sword). Blades are won by gates (paid). */
   blade?: number;
+  /** Abilities bought (their levels), the ones he takes into the fight, and whether he uses them by himself. */
+  skills?: Partial<Record<AbilityId, number>>;
+  loadout?: AbilityId[];
+  autoSkills?: boolean;
+  /** How fast the wall runs: ×1, ×2, or ×3 once he reaches SPEEDS' level. */
+  speed?: 1 | 2 | 3;
+}
+
+/** Older Watch saves knew Covenant Strike and the Pillar by level alone: they keep them, bought and equipped. */
+export function migrateWatch(w: WatchSave) {
+  if (!w.skills) {
+    w.skills = {};
+    for (const a of ABILITIES) if (a.id === 'strike' || a.id === 'pillar') { if (w.level >= a.level) w.skills[a.id] = 1; }
+  }
+  w.loadout = (w.loadout ?? (Object.keys(w.skills) as AbilityId[])).filter((id) => (w.skills![id] ?? 0) > 0).slice(0, slotsAt(w.level));
+  w.autoSkills ??= true;
+  if (w.speed !== 1 && w.speed !== 2 && w.speed !== 3) w.speed = 1;
+  if (w.speed > 1 && w.level < SPEEDS[w.speed]) w.speed = 1;
+  return w;
 }
 
 export const newWatch = (): WatchSave => ({ v: 1, stage: 1, best: 1, bestEver: 1, coins: 0, level: 1, xp: 0, up: {}, seals: 0, ascensions: 0, auto: true, last: Date.now(), rate: 0, gauge: 0, paid: [] });
@@ -139,13 +158,18 @@ export function watchStats(w: WatchSave): WatchStats {
 
 /** The Watch level's milestones (POLISH_PLAN §18d): what each opens, for the Hero card and the level-up toast. */
 export const UNLOCKS: [number, string][] = [
-  [5, 'Covenant Strike: every few seconds, a heavy blow with all his weight'],
+  [5, 'Covenant Strike (Skills): a heavy blow with all his weight'],
   [8, 'The first shadow joins him on the wall'],
-  [10, 'Pillar of Fire: a column of white fire on the furthest foe'],
+  [10, 'Pillar of Fire (Skills): white fire on the furthest foes'],
+  [15, 'Phantom Step (Skills): a slowed, cinematic cut through every foe'],
   [20, 'A second shadow'],
-  [25, 'The Shadow Mantle: kills fill the gauge; transform for heavier, faster blows'],
-  [40, 'A third shadow'],
+  [22, 'Whirlwind (Skills): a sweep through every foe near him'],
+  [25, 'The Shadow Mantle: kills fill the gauge; transform for heavier, faster blows · a third ability slot'],
+  [30, 'Rising Comet (Skills): up, and down like a falling star'],
+  [40, 'A third shadow · Balm (Skills) · the wall at ×3 speed'],
+  [60, 'Last Watch (Skills): a slowed flurry and a closing blow · a fourth ability slot'],
   [70, 'A fourth shadow'],
+  [100, 'A fifth ability slot'],
   [110, 'A fifth shadow'],
   [150, 'A sixth shadow · Tirzah comes to the wall (a later update)'],
   [300, 'Uri the flame-caller (a later update)'],
@@ -153,10 +177,41 @@ export const UNLOCKS: [number, string][] = [
 /** Shadow allies (foes he has cleansed, fighting beside him) open at these levels. */
 export const SHADOW_LEVELS = [8, 20, 40, 70, 110, 150];
 export const shadowsAt = (level: number) => SHADOW_LEVELS.filter((l) => level >= l).length;
-export const SKILLS = {
-  strike: { level: 5, cd: 9, mult: 6, name: 'Covenant Strike' },
-  pillar: { level: 10, cd: 14, mult: 4, name: 'Pillar of Fire' },
-} as const;
+// ---------------------------------------------------------------- abilities (the Skills tab)
+
+export type AbilityId = 'strike' | 'pillar' | 'phantom' | 'storm' | 'comet' | 'balm' | 'judgment';
+export interface Ability {
+  id: AbilityId; name: string;
+  /** The Watch level that opens it, and the coins the first level costs (each level after costs ×2.1). */
+  level: number; cost: number;
+  /** Seconds between uses, and how many of his blows each hit is worth, at level 1. */
+  cd: number; mult: number;
+  desc: string;
+}
+export const ABILITIES: Ability[] = [
+  { id: 'strike', name: 'Covenant Strike', level: 5, cost: 60, cd: 9, mult: 6, desc: 'A heavy blow with all his weight on the foe before him.' },
+  { id: 'pillar', name: 'Pillar of Fire', level: 10, cost: 300, cd: 14, mult: 4, desc: 'A column of white fire on the furthest foe, and those beside it.' },
+  { id: 'phantom', name: 'Phantom Step', level: 15, cost: 1500, cd: 20, mult: 3, desc: 'He steps through the dark from foe to foe, a cut on each, slowed so every blow is seen.' },
+  { id: 'storm', name: 'Whirlwind', level: 22, cost: 6000, cd: 16, mult: 2.5, desc: 'A spinning sweep that cuts every foe near him.' },
+  { id: 'comet', name: 'Rising Comet', level: 30, cost: 30000, cd: 18, mult: 10, desc: 'He throws the foe up and comes down on it like a falling star.' },
+  { id: 'balm', name: 'Balm', level: 40, cost: 150000, cd: 30, mult: 0.35, desc: 'Heals a part of his health and softens blows for six seconds.' },
+  { id: 'judgment', name: 'Last Watch', level: 60, cost: 2e6, cd: 36, mult: 2.4, desc: 'A slowed flurry of seven cuts and a closing blow on the foe before him.' },
+];
+export const ABILITY: Record<AbilityId, Ability> = Object.fromEntries(ABILITIES.map((a) => [a.id, a])) as Record<AbilityId, Ability>;
+export const ABILITY_MAX = 25;
+export const skillLvl = (w: WatchSave, id: AbilityId) => w.skills?.[id] ?? 0;
+/** The coins for the next level (from `lv`; 0 buys it). */
+export const abilityCost = (id: AbilityId, lv: number) => Math.ceil(ABILITY[id].cost * Math.pow(2.1, lv));
+/** Each level adds a fifth of its blows (Balm: a twentieth more healing) and takes 2% off its wait (to 60%). */
+export const abilityMult = (id: AbilityId, lv: number) => ABILITY[id].mult * (1 + (id === 'balm' ? 0.05 : 0.2) * Math.max(0, lv - 1));
+export const abilityCd = (id: AbilityId, lv: number) => ABILITY[id].cd * Math.max(0.6, 1 - 0.02 * Math.max(0, lv - 1));
+/** How many abilities he takes into the fight. */
+export const slotsAt = (level: number) => 2 + (level >= 25 ? 1 : 0) + (level >= 60 ? 1 : 0) + (level >= 100 ? 1 : 0);
+/** The wall's speeds and the Watch level each opens at. */
+export const SPEEDS: Record<1 | 2 | 3, number> = { 1: 1, 2: 1, 3: 40 };
+
+/** Rush stages: on every even stage (not a gate's boss) he runs at them, cutting through as he goes. */
+export const isRush = (stage: number) => !isBoss(stage) && stage % 2 === 0;
 export const MANTLE = { level: 25, time: 15, dmg: 1.7, speed: 1.2, perKill: 4 };
 
 // ---------------------------------------------------------------- away, and the Ascension
