@@ -578,6 +578,20 @@ POLISH_PLAN §13a. A scene of its own (`src/scenes/Horde.ts`), entered from the 
 
 Verified by `scripts/horde.mjs`: upright touch (stick, DASH, buttons on screen), auto-weapons, a level-up card, a reroll and a banish, a tag combo, the Trinity, an evolution, the skill, transformation and switch, Uri, his shaman, his prayer and the Crown, a monarch's arrival and fall, stage 2, the landscape reflow, a fall banking the run, and both ways in.
 
+## The Watch
+
+POLISH_PLAN §18. An idle game of its own (`src/scenes/Watch.ts`, scene key `watch`), entered from the title (`title_watch`) and from Settings → Game modes (`addWatchMode` in `src/game/watch/entry.ts`). A fresh Elior at Watch level 1 keeps a ruined wall: foes walk in from the right, he strikes on his own, every kill pays coins, and coins buy upgrades.
+
+- **Numbers** (`src/game/watch/defs.ts`, free of the scene so the test and offline pay read the same curves): eight tracks (`TRACKS`, cost `base · rate^level`, ×2 at 25, 50, 100…), foes ×1.10 a stage, ten kills a stage, a gate's boss every tenth stage on a 30 s timer (fail it and he falls back a stage with auto-push off until Challenge). `watchStats` folds the tracks, the Watch level (+3% each) and the Seals (+5% each).
+- **His levels** (`UNLOCKS`): Covenant Strike at 5, the Pillar of Fire at 10, a shadow at 8, 20, 40, 70, 110 and 150 (`SHADOW_LEVELS`), the Shadow Mantle at 25 (a gauge from kills; ×1.7 blows, ×1.2 swings for 15 s). Tirzah (150) and Uri (300) are listed for later phases.
+- **The view:** the wall is a 300 × 176 world shown through a camera viewport (`fit`): upright, a strip under the coin bar; sideways, the left half. The panel, tabs (Upgrades, Hero, Ascend), toasts and the welcome card are DOM (`src/game/watch/ui.ts`, classes `wt-`, `data-k` hooks `wt_*`). Art is the main game's: Elior's action atlas (and its Mantle bake), the Horde's lands and foe sheets, the Fallen Crowns as gate bosses, the shared impact and ability sheets.
+- **Away:** `offlinePay` pays half the recent coin rate (an average kept every 10 s) for up to eight hours, on a welcome card when the player was gone a minute or more. The scene saves on hide and on leaving.
+- **Ascension:** from stage 60, two taps trade the run (stage, coins, upgrades) for Seals (`sealsFor`); his level stays.
+- **The journey:** a gate's first fall pays 25 silver × the gate, once ever (`WatchSave.paid`), and Gates 10 and 25 add the Midnight and Lamp capes to `store.capes`. Nothing else crosses over.
+- **Save:** the optional `PhaserSave.watch` (`WatchSave`, `newWatch`).
+
+Verified by `scripts/watch.mjs`: the title entry, a fresh Elior, the cost curve and a locked track, stages and levels from two and a half minutes on the wall, a boss lost to the timer and won (silver paid once), shadows and the Mantle at level 26, an Ascension for Seals, and three hours away paid on the welcome card after a reload.
+
 ## Legendary Powers
 
 POLISH_PLAN §14a. The table, drops and Codex rules are shared (`remnant/src/game/legendary.ts`); the effects are this build's (`src/game/legends.ts`, `World.legends`).

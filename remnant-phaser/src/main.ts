@@ -12,6 +12,7 @@ import { Boot } from './scenes/Boot';
 import { Title } from './scenes/Title';
 import { World } from './scenes/World';
 import { Horde } from './scenes/Horde';
+import { Watch } from './scenes/Watch';
 import { patchChapterOne } from './game/pilot';
 import { registerPsalms } from './game/psalms';
 // The Chapter I pilot reshapes the shared rooms for this build only (POLISH_PLAN §12c).
@@ -45,7 +46,7 @@ const game = new Phaser.Game({
   physics: { default: 'arcade', arcade: { gravity: { x: 0, y: 0 }, fps: 120, debug: new URLSearchParams(location.search).has('boxes') } },
   // Real frame times: a target here clamps each step, and slow frames would play in slow motion.
   fps: { smoothStep: false, limit: settings.fps === '60' ? 60 : 0 },
-  scene: [Boot, Title, World, Hud, Horde],
+  scene: [Boot, Title, World, Hud, Horde, Watch],
 });
 
 // Apply the phone's frame-pacing preference without restarting its journey.

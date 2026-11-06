@@ -18,7 +18,7 @@ export class Title extends Phaser.Scene {
     music.play('title');
     const { width: W, height: H } = this.scale;
     const k = dpr();
-    const save = loadSave(), liveList = liveSlots(), count = (save ? 3 : 2) + liveList.length;
+    const save = loadSave(), liveList = liveSlots(), count = (save ? 4 : 3) + liveList.length;
     this.cameras.main.setBackgroundColor('#07060a');
     const glow = this.add.image(W / 2, H * 0.38, 'glow').setTint(0xe2b85a).setScale(10 * k, 4 * k).setAlpha(0.25).setBlendMode(Phaser.BlendModes.ADD);
     this.tweens.add({ targets: glow, alpha: 0.4, yoyo: true, repeat: -1, duration: 2400, ease: 'Sine.inOut' });
@@ -66,6 +66,9 @@ export class Title extends Phaser.Scene {
     }
     // The Horde: the top-down endless stages (scenes/Horde.ts), on whatever journey is open.
     const best = (save as PhaserSave | null)?.horde?.best;
+    // The Watch: the idle game on the wall (scenes/Watch.ts), a fresh Elior of its own.
+    const watch = (save as PhaserSave | null)?.watch, watchAt = opts.length;
+    opts.push([watch ? `The Watch · stage ${watch.stage} · level ${watch.level}` : 'The Watch · an idle game', () => this.scene.start('watch', { from: 'title' })]);
     const hordeAt = opts.length;
     opts.push([best ? `The Horde · best stage ${best}` : 'The Horde · endless stages', () => this.scene.start('horde')]);
     const y0 = this.buttonsTop + step / 2, f = this.fit;
@@ -76,7 +79,7 @@ export class Title extends Phaser.Scene {
       t.on('pointerover', () => t.setColor('#ffffff'));
       t.on('pointerout', () => t.setColor(i === 0 ? '#f6dea0' : '#ddd4c6'));
       t.on('pointerup', go);
-      t.setData('k', i === hordeAt ? 'title_horde' : i === 0 ? 'title_first' : i === 1 ? 'title_second' : `title_live_${i - 2}`);
+      t.setData('k', i === watchAt ? 'title_watch' : i === hordeAt ? 'title_horde' : i === 0 ? 'title_first' : i === 1 ? 'title_second' : `title_live_${i - 2}`);
       texts.push(t);
     });
     // The shared input service already consumes Enter/Space before Phaser's keys.

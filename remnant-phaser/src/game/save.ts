@@ -20,6 +20,8 @@ export type PhaserSave = SaveData & {
   partnerOut?: boolean;
   /** A finished chapter being played again (Chapters → Replay): its bosses and commanders stand again there. */
   replay?: number;
+  /** The Watch, the idle mode (POLISH_PLAN §18; game/watch/defs.ts). */
+  watch?: import('./watch/defs').WatchSave;
   /** Silver left where the hero fell, one shade per death (game/shade.ts). */
   shades?: import('./shade').ShadeSave[];
   /** Where the hero last rested at an altar: a fall in that chapter rises there. */

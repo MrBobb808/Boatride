@@ -630,6 +630,147 @@ The owner's Elior passed level 400: foes fell in a blow, levels came too fast, a
 - **The title** is one measured column (`scenes/Title.ts`): on a short screen (a phone in landscape with Safari's
   bars) the whole column shrinks to fit, so the buttons never ride over the subtitle or the version line.
 
+## 18. The Watch: an idle game inside the game (owner's request, 6 November 2026) · Phase 1 BUILT
+
+The owner wants a whole second game in the menu: an idle auto-battler, the genre of the screenshot they sent (a hero
+on a strip of road fighting what walks in, coins from every kill, coins spent on Attack, Health, Attack Speed and
+more, stages with a boss at the end). It is built from the genre's mechanics only, with our own characters, names, art
+and world; nothing is copied from any one game. Elior starts it at level 1 and grows, in this mode, into everything he
+is in the full game: the Covenant abilities, the Shadow Mantle, the Unshorn, the Sovereign.
+
+**Name:** *The Watch*, after "I have set watchmen upon thy walls, O Jerusalem, which shall never hold their peace day
+nor night" (Isaiah 62:6 (KJV)). Elior keeps the wall of a ruined city while the player is away; the foes never stop
+coming and neither does he.
+
+### 18a. What the research says (and how it shapes the plan)
+
+- **Costs grow exponentially, power grows polynomially; multipliers bridge the gap.** Pecorella's *The Math of Idle
+  Games* (Kongregate; parts I–III) is the reference model: each upgrade's price multiplies by a growth rate (1.07–1.15
+  in shipped games) while its effect is linear, so every track slows down on its own; milestone multipliers (×2 at
+  levels 25, 50, 100…) and a prestige loop let the player push further each time. We use exactly that shape.
+- **Prestige is the long game.** Resetting for a permanent currency whose amount grows with the log or square root of
+  the run's best is what lets an idle game last months (Pecorella part III). Our version is the Ascension (18e).
+- **Upgrades must change how you play, not only a number.** Practitioner notes on idle design agree that "+10%" alone
+  goes unnoticed; the upgrades that keep players are the ones that unlock a behaviour. So every milestone in the Watch
+  unlocks something: a skill, a form, an ally, a new kind of stage.
+- **Coming back must feel good, but active play must still matter.** Offline earnings are the main return hook (the
+  "welcome back" card), but they are capped and paid at a fraction of active income; being there adds taps, skills and
+  boss pushes that idling cannot.
+- **Walls made only of timers drive players away.** When the boss is too strong the player always has something to do:
+  farm the last stage, spend on the cheapest track, run a dungeon, or Ascend.
+
+### 18b. The screen (portrait, the phone held upright)
+
+- **Top third, the wall:** a side-on strip of road at the city's broken gate, drawn with the existing Phaser art. Elior
+  (his real action atlas: sword clips, the Mantle's violet, the Unshorn's mane and tail) stands left of centre; foes
+  walk in from the right in waves; damage numbers, coin bursts and the impact frames fly as in the main game. A stage
+  bar ("Gate 1 · 3/10") with the boss skull at its end; a boss timer when one is up.
+- **Middle strip:** coins and gems, the skill bar (auto-cast, or tap to cast), the Transform button once earned.
+- **Bottom half, the upgrades:** a 2-column grid of upgrade cards (name, icon, level, effect, cost; hold to buy in a
+  run; ×1 / ×10 / ×max). Locked cards show what opens them ("Health level 40 opens Critical Chance").
+- **Bottom bar, the tabs:** Hero · Skills · Allies · Trials · Ascend · Shop (the Shop sells for coins and gems earned
+  in play; there is no real money anywhere).
+
+### 18c. The core loop and its numbers
+
+- **Foes** walk in, Elior strikes the nearest automatically at his attack speed; each kill pays **coins**. Ten kills
+  advance the stage; every tenth stage is a **boss** with a 30 s timer. Fail the timer and the stage before it loops
+  as a farm until the player chooses to push again (an auto-push toggle opens later).
+- **Foe health** at stage *s*: `12 · 1.10^(s−1)`; **foe blow** `3 · 1.095^(s−1)`; **coins per kill**
+  `2 · 1.10^(s−1)`; bosses have ×9 health, a ×2.5 blow and pay ×12. (Built: a simulated greedy player outruns these
+  for about a hundred stages and then plateaus whatever the curve, so the Ascension opens at stage 60 and is the way
+  on. The numbers live in `src/game/watch/defs.ts`.)
+- **Upgrade tracks** (cost `base · rate^level`; effect linear; ×2 at levels 25, 50, 100, 200, 400…):
+  | Track | Base cost | Rate | Effect per level | Opens at |
+  |---|---|---|---|---|
+  | Attack | 10 | 1.07 | +4 damage | start |
+  | Health | 10 | 1.07 | +20 health | start |
+  | Attack Speed | 25 | 1.12 | +1% swings (cap ×2) | start |
+  | Critical Chance | 200 | 1.15 | +0.5% (cap 60%) | Health 40 |
+  | Health Regen | 300 | 1.10 | +0.2%/s | Critical Chance 20 |
+  | Critical Damage | 500 | 1.10 | +5% | Critical Chance 100 |
+  | Defense | 800 | 1.10 | softens blows toward 75% | stage 20 |
+  | Coin Find | 1,000 | 1.11 | +2% coins | stage 30 |
+- **Damage numbers** use short forms past a million (K, M, B, T, then aa, ab…), formatted once per change, not per
+  frame.
+- **Offline:** the welcome-back card pays what the last 10 minutes of active play earned per second × the time away ×
+  50%, capped at 8 hours (both raised by Ascension perks). Computed from the save's timestamp, never simulated.
+
+### 18d. Elior grows into who he is (the main game's milestones, in this mode)
+
+Elior has his own level here (`watchXpNext = 20 · L^1.6`), from **XP** for kills and bosses; each level adds 3% to
+his blows and health. The owner's answers set the arc: shadows join him one by one from level 1 to 150, the Mantle and
+later the Unshorn come as he grows, **Tirzah fights beside him from level 150** and **Uri the flame-caller from level
+300**.
+
+| Watch level | Opens | Status |
+|---|---|---|
+| 5 | Covenant Strike: a heavy blow with all his weight every 9 s (×6) | built |
+| 8, 20, 40, 70, 110, 150 | A shadow joins him each time (cleansed foes in violet; each strikes for 25% of his blow) | built |
+| 10 | Pillar of Fire on the furthest foe every 14 s (×4) | built |
+| 25 | **The Shadow Mantle**: kills fill the gauge; transform (auto, or the Transform button) for ×1.7 blows, ×1.2 swings, 15 s | built |
+| 40+ | Phantom Step; the Skills tab | Phase 2 |
+| 80 | **The Unshorn**: in the Mantle, Transform again: fists, impact frames, the Cloud Step | Phase 2 |
+| 100 | **The Sovereign** | Phase 2 |
+| 150 | **Tirzah** on the wall, her own track and arrows | Phase 4 |
+| 300 | **Uri** the flame-caller and his orc shaman | Phase 4 |
+
+### 18e. Ascension (the prestige loop)
+
+- Built: from **stage 60** on, Elior can **Ascend** (two taps): the stage, coins and upgrade levels reset; his Watch
+  level stays. He receives **Seals** = `floor(sqrt(best stage − 59) × 3)` (the square root keeps each Ascension worth
+  roughly the same effort); each Seal adds 5% to every blow and every coin.
+- Later, Seals also buy permanent **perks** in a small tree: +10% coins, +10% damage, offline cap +1 h, offline rate +10%,
+  auto-push, start at Gate N, boss timer +3 s, Mantle gauge +20%.
+- The first Ascension is designed for about day two to three of casual play; each later one is faster.
+
+### 18f. The other tabs (later phases)
+
+- **Allies (Echoes):** foes Elior purifies here join as allies who strike on their own, levelled with coins; three can
+  stand on the wall. Their kits and art are the main game's Echoes.
+- **Trials (dungeons):** three daily keys each for a Coin Trial (a 60 s rush of coin carriers), a Gem Trial (a boss
+  ladder) and a Relic Trial (gear). Fixed, short, and replayable, so a wall always has something beside it.
+- **Gear:** six slots (blade, helm, armour, gauntlets, boots, relic) with rarities; pieces drop from bosses and Relic
+  Trials, merge three-of-a-kind into the next rarity, and add % bonuses. No paid summons.
+- **Expeditions (late):** send an ally away for 1–8 hours for gems and materials (an idle timer that runs beside the
+  wall, never instead of it).
+- **Daily tasks and a login calendar:** small gem rewards for things the player does anyway.
+
+### 18g. How it touches the main game
+
+The Watch is its own journey: its own Elior level, coins and stages, stored in an optional `PhaserSave.watch` (saves
+stay compatible). Crossing over is one-way and small, so neither game breaks the other's balance: Watch milestones
+pay main-game **silver** and **cosmetics**, never main-game levels or stats (the owner's choice). Built: a gate's boss
+falling the first time pays 25 silver × the gate, once ever (`WatchSave.paid`), and Gates 10 and 25 give capes
+(Midnight, Lamp) to the main game's wardrobe.
+
+### 18h. Feel
+
+The main game's impact work carries over: hit-stop on bosses and crits, the impact frames in the Unshorn, the deep
+punch sound, coin fountains that arc into the counter, a shake when a boss falls. Big numbers stay readable (outlined,
+stacked, faded). Portrait at 120 Hz: pooled sprites and text, no per-frame allocation, no `shadowBlur`, fine detail
+gated on the quality tier, and the strip simulated at a fixed step so offline and online agree.
+
+### 18i. Build order
+
+1. **Phase 1, the wall** (BUILT): the `Watch` scene (`remnant-phaser/src/scenes/Watch.ts`; `src/game/watch/defs.ts`
+   the numbers, `ui.ts` the DOM panel, `entry.ts` the Game modes row), the eight upgrade tracks with gating (×1, ×10,
+   Max), stages and gate bosses (the Horde's lands and monarchs) on a 30 s timer with Challenge, coins, taps, the
+   Watch level with Covenant Strike and the Pillar, the shadows, the Shadow Mantle, the Ascension and Seals, offline
+   earnings and the welcome-back card, silver and capes for the journey, `PhaserSave.watch`, a title-screen and
+   Settings → Game modes entry, and `scripts/watch.mjs`.
+2. **Phase 2, the forms:** Phantom Step, the Unshorn and the Sovereign in the Watch; the Skills tab.
+3. **Phase 3, the long game:** the Seals' perk tree; Allies; gear.
+4. **Phase 4, the side roads:** Trials, Expeditions, daily tasks; Tirzah at level 150, Uri at 300.
+
+### 18j. The owner's answers
+
+A fresh Elior at level 1; portrait; the name stays *The Watch*; silver and cosmetics only back to the journey; his
+transformations come as he levels; Tirzah joins at level 150 and Uri at 300; shadows join him from level 1 to 150.
+
+Sources: Anthony Pecorella, *The Math of Idle Games*, parts I–III (Kongregate, on Game Developer); practitioner notes
+on idle retention, offline earnings and upgrade design (Pocket Gamer.biz on Gold & Goblins; DEV Community posts).
+
 ## 10. Questions for the owner
 
 Answered: the archer stays **Tirzah**, and Wings of the Morning **shares** the Mantle's gauge.

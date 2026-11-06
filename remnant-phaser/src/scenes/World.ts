@@ -20,6 +20,7 @@ import { grantForBoss, syncPsalms, wears, wear, takeOff, slots, used } from '../
 const psalmApi = { wear, takeOff, slots, used };
 import { addPsalmsMenu } from '../game/psalmsMenu';
 import { addHordeMode } from '../game/horde/entry';
+import { addWatchMode } from '../game/watch/entry';
 import { rollGear } from '../../../remnant/src/game/loot';
 import type { Loot } from '../../../remnant/src/game/tiles';
 import { haptic } from '../../../remnant/src/core/haptics';
@@ -164,6 +165,7 @@ export class World extends Phaser.Scene implements WorldApi {
     this.refreshStats();
     addTirzahMenu(this); useAbilityTextures(this.textures); addPsalmsMenu(this);
     addHordeMode(() => this.save, () => this.enterHorde());
+    addWatchMode(() => this.save, () => { this.persist(); this.scene.stop('hud'); this.scene.start('watch', { from: 'world' }); });
     if (late.length) this.time.delayedCall(2500, () => this.toast(`${late.length === 1 ? 'A Psalm' : `${late.length} Psalms`} from bosses you have beaten · Menu → Psalms`));
     this.controls = new Controls(this);
     this.classic = new ClassicLayer(this);
