@@ -13,6 +13,9 @@ remnant-phaser/art/
     characters/  bosses/  foes/  vfx/  environments/  icons/  ui/
 ```
 
+Free assets from elsewhere go in `incoming/cc0/` (CC0 only, or a licence that allows a public repo), listed in
+`incoming/cc0/CREDITS.md`, kept exactly as downloaded, and built by `tools/cc0.py`.
+
 ## Rules for ChatGPT (making and storing images)
 
 1. **One request at a time, in `REQUESTS.md` order.**

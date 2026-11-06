@@ -29,6 +29,8 @@ export interface WatchSave {
   gauge: number;
   /** Main-game rewards already paid: gate numbers. */
   paid: number[];
+  /** The blade in his hand (an index into BLADES; none for his own sword). Blades are won by gates (paid). */
+  blade?: number;
 }
 
 export const newWatch = (): WatchSave => ({ v: 1, stage: 1, best: 1, bestEver: 1, coins: 0, level: 1, xp: 0, up: {}, seals: 0, ascensions: 0, auto: true, last: Date.now(), rate: 0, gauge: 0, paid: [] });
@@ -104,11 +106,26 @@ export const watchXpNext = (level: number) => Math.ceil(20 * Math.pow(level, 1.6
 export const levelBonus = (level: number) => 1 + 0.03 * (level - 1);
 export const sealBonus = (seals: number) => 1 + 0.05 * seals;
 
+/** The armoury: a blade for each of the first eight gates' first fall (CC0 swords, art/incoming/cc0), each heavier. */
+export const BLADES: { name: string; atk: number }[] = [
+  { name: "Pilgrim's Blade", atk: 1.1 },
+  { name: 'Cedar Sword', atk: 1.2 },
+  { name: 'Nightsteel', atk: 1.32 },
+  { name: 'Gilded Edge', atk: 1.46 },
+  { name: 'Ember Rune', atk: 1.62 },
+  { name: 'Frostwake', atk: 1.8 },
+  { name: 'Sunbrand', atk: 2 },
+  { name: 'Covenant Cross', atk: 2.25 },
+];
+/** The blades won: the first eight gates whose boss has fallen. */
+export const bladesWon = (w: WatchSave) => BLADES.map((_, i) => w.paid.includes(i + 1));
+export const bladeOf = (w: WatchSave) => (w.blade !== undefined && w.blade >= 0 && bladesWon(w)[w.blade] ? w.blade : -1);
+
 export interface WatchStats { atk: number; maxHp: number; aspd: number; crit: number; critDmg: number; regen: number; dr: number; coinMult: number }
 export function watchStats(w: WatchSave): WatchStats {
   const L = (id: TrackId) => lvlOf(w, id), lb = levelBonus(w.level), sb = sealBonus(w.seals);
   return {
-    atk: (10 + 4 * L('attack')) * milestones(L('attack')) * lb * sb,
+    atk: (10 + 4 * L('attack')) * milestones(L('attack')) * lb * sb * (bladeOf(w) >= 0 ? BLADES[bladeOf(w)].atk : 1),
     maxHp: (100 + 20 * L('health')) * milestones(L('health')) * lb,
     aspd: Math.min(2, 1 + 0.01 * L('speed')),
     crit: Math.min(0.6, 0.005 * L('crit')),

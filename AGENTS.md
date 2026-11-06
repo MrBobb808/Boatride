@@ -335,6 +335,18 @@ Never ship files from `art/incoming/` directly.
   skills, shadows (8–150) and the Mantle (25); Ascension from stage 60 pays
   Seals; offline pay on a welcome card. Back to the journey only silver and
   capes. `PhaserSave.watch`. Verified by `scripts/watch.mjs`. See POLISH_PLAN §18.
+  Each gate (ten stages) is a new place (`src/game/watch/scenes.ts`: eight
+  scenes with their own parallax layers, set pieces, foes and gate boss), and
+  the first eight gates each win a blade for the Hero tab's armoury (drawn in
+  his hand: `FighterRig`'s sprite blade, `actionAtlas(..., blade)`).
+- **CC0 art (Phaser build):** free public-domain packs (Gothicvania by ansimuz,
+  Swords and Staffs by SnoopethDuckDuck) live raw in
+  `remnant-phaser/art/incoming/cc0/` with `CREDITS.md`; `art/tools/cc0.py`
+  builds `src/assets/cc0/` (the `foes-gothic` sheets in the game's four-pose
+  foe format, the winged demon, props, scene layers, blades). Fourteen new foes
+  in `FOES` (game/horde/defs.ts); the Horde's lands 7–9 use them. Only add
+  art whose licence allows a public repo (CC0 preferred); record it in
+  `CREDITS.md` and `art/manifest.json`.
 - **iPhone performance:** the game targets 120 Hz.
   - Do not use `shadowBlur`.
   - Cache gradients and avoid allocating in per-frame paths.

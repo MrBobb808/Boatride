@@ -566,6 +566,7 @@ POLISH_PLAN §13a. A scene of its own (`src/scenes/Horde.ts`), entered from the 
   - **Tag combos:** `Horde.tagWindow` opens after a skill (1.6 s), a transformation (2 s) and a Phantom chain's last cut. `switchHero` inside it calls `tagCombo` for the arriving hero (+0.15 to their gauge, the switch cooldown 3 s instead of 5).
   - **Per-hero gauges:** `Horde.gauges`; `gauge` reads and writes the hero in play's. `trinity()` fires when all three are full (`trinityReady`, the form button's TRINITY): `HordeHero.trinity` ghosts the other two, `Arsenal.echoCuts`, `rain` and `heaven`.
   - **Rerolls and banishes:** `rerolls`, `banishes` (3 each, +1 per monarch) and `banned` (`weapon:id` / `passive:id` / `boon:id`, which `choices` leaves out). The level-up card redraws itself in place; R and B on a keyboard.
+- **Lands 7–9** (`BIOMES`): the Restless Graves, the Drowned Mire and the Burning Pit, peopled by the CC0 foes (`foes-gothic`, `foes-gothic-big`; a `FoeKind` may name its `cell` size).
 - **Rewards** (`Horde.bank`, once a run): the run's silver, XP worth `gemXp × (2 + stage/4)` to both heroes, the monarchs' gear into the pack, and `PhaserSave.horde` (best stage, runs, kills; optional).
 
 - **Uri** (POLISH_PLAN §13b), the third hero, Horde only for now. The switch cycles Elior → Tirzah → Uri (`HEROES`); each hero's part is `KIT` in `Horde.ts`.
@@ -592,9 +593,11 @@ POLISH_PLAN §18. An idle game of its own (`src/scenes/Watch.ts`, scene key `wat
 - **Away:** `offlinePay` pays half the recent coin rate (an average kept every 10 s) for up to eight hours, on a welcome card when the player was gone a minute or more. The scene saves on hide and on leaving.
 - **Ascension:** from stage 60, two taps trade the run (stage, coins, upgrades) for Seals (`sealsFor`); his level stays.
 - **The journey:** a gate's first fall pays 25 silver × the gate, once ever (`WatchSave.paid`), and Gates 10 and 25 add the Midnight and Lamp capes to `store.capes`. Nothing else crosses over.
-- **Save:** the optional `PhaserSave.watch` (`WatchSave`, `newWatch`).
+- **Save:** the optional `PhaserSave.watch` (`WatchSave`, `newWatch`; `blade` is optional).
+- **Places** (`src/game/watch/scenes.ts`): each gate (ten stages) stands in one of eight CC0 scenes (graves, autumn wood, mire, town at dusk, nave, sleeping town, broken quarter, castle depths), then round again. `buildScene` scales a scene's layers to stand on the floor (`FLOOR`, a little below the fighters' feet) as tile sprites, sets its props from the `watch-props` atlas and paints the ground band; clouds drift and, between stages, the layers pass by their `par` (he walks on). Each scene has its own five foes and gate holder (`WATCH_BOSSES`: a Fallen Crown, the winged demon `watch-demon`, or a great one of a foe sheet). The layers load in `Watch.preload`, the first time the Watch opens.
+- **Armoury:** the first fall of gates 1–8 wins a blade (`D.BLADES`, ×1.1 to ×2.25 blows); Hero → The armoury wields one (`Watch.wield`). `actionAtlas(sc, 'elior', 'blade', mantle, true, null, blade)` bakes him holding that sprite (`FighterRig.drawBlade` turns it onto the weapon's line).
 
-Verified by `scripts/watch.mjs`: the title entry, a fresh Elior, the cost curve and a locked track, stages and levels from two and a half minutes on the wall, a boss lost to the timer and won (silver paid once), shadows and the Mantle at level 26, an Ascension for Seals, and three hours away paid on the welcome card after a reload.
+Verified by `scripts/watch.mjs`: the title entry, the scenery changing with the gate, the new foes, the demon at Gate 1, its blade wielded, a fresh Elior, the cost curve and a locked track, stages and levels from two and a half minutes on the wall, a boss lost to the timer and won (silver paid once), shadows and the Mantle at level 26, an Ascension for Seals, and three hours away paid on the welcome card after a reload.
 
 ## Legendary Powers
 

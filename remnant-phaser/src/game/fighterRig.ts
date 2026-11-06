@@ -83,7 +83,8 @@ export class FighterRig {
   private offset: number;
   private weapon: HumanStyle;
   /** `unshorn`: the third transformation's look (crimson and gold, a long mane, a tail of fire, bare fists). */
-  constructor(sc: Phaser.Scene, readonly hero: PlayableHero, family: WeaponFamily, readonly mantle: boolean, cape: string | null = null, readonly unshorn = false) {
+  /** `blade`: a sword sprite (upright, pommel down) drawn in his hand in place of the drawn blade, with its grip point and height. */
+  constructor(sc: Phaser.Scene, readonly hero: PlayableHero, family: WeaponFamily, readonly mantle: boolean, cape: string | null = null, readonly unshorn = false, private blade: { img: HTMLCanvasElement; gx: number; gy: number; h: number } | null = null) {
     this.offset = hero === 'tirzah' ? 10 : 0;
     this.weapon = {...WEAPON,weapon:family,weaponColor:mantle?'#d5a1ff':'#e3dfdb',weaponGlow:mantle?'#b45cff':null,weaponGlowAmt:mantle?0.65:0};
     const look=cape&&!mantle?CAPES[cape]:null;
@@ -174,12 +175,21 @@ export class FighterRig {
         this.bone(c,9,x,y,x,top,8.5);
         c.strokeStyle=this.mantle?'#fff1c4':'#e8d4a1';c.lineWidth=.65;c.beginPath();c.moveTo(x-2,top);c.lineTo(x-2-pull*11,y);c.lineTo(x-2,bottom);c.stroke();
         if(drawing){c.strokeStyle='#ead9ae';c.lineWidth=.9;c.beginPath();c.moveTo(x-2-pull*11,y);c.lineTo(x+14-pull*3,y);c.stroke();c.fillStyle='#f6e7c8';c.fillRect(x+12-pull*3,y-.8,3,1.6);}
-      }else drawWeapon(c,j,this.weapon,time);
+      }else if(this.blade)this.drawBlade(c,j);
+      else drawWeapon(c,j,this.weapon,time);
     }
     this.bone(c,3,j.shFX,j.shFY,j.elFX,j.elFY,5.7);
     this.bone(c,4,j.elFX,j.elFY,j.haFX,j.haFY,4.6);
     // Drawing hand belongs in front of the string, including at full charge.
     if(bowAction){this.bone(c,3,j.shBX,j.shBY,j.elBX,j.elBY,5.3);this.bone(c,4,j.elBX,j.elBY,j.haBX,j.haBY,4.3);}
+    c.restore();
+  }
+  /** A sprite blade on the weapon's line: the sprite points up, the line runs (sin a, cos a), so it turns by π − a; it is
+   * sized to the drawn sword's reach (about 27 units from the hand). */
+  private drawBlade(c:CanvasRenderingContext2D,j:Joints){
+    const b=this.blade!,s=31/b.h;
+    c.save();c.translate(j.haFX,j.haFY);c.rotate(Math.PI-j.wpnA);c.scale(s,s);
+    const smooth=c.imageSmoothingEnabled;c.imageSmoothingEnabled=false;c.drawImage(b.img,-b.gx,-b.gy);c.imageSmoothingEnabled=smooth;
     c.restore();
   }
   /** The Unshorn's mane (C12): long locks from the crown of the head, streaming back past the shoulders, lifting in a run. */

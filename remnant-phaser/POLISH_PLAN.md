@@ -759,6 +759,9 @@ gated on the quality tier, and the strip simulated at a fixed step so offline an
    Watch level with Covenant Strike and the Pillar, the shadows, the Shadow Mantle, the Ascension and Seals, offline
    earnings and the welcome-back card, silver and capes for the journey, `PhaserSave.watch`, a title-screen and
    Settings → Game modes entry, and `scripts/watch.mjs`.
+1b. **Places and the armoury** (BUILT, the owner's ask of 6 November 2026): free CC0 art (art/incoming/cc0/CREDITS.md) gives
+   each gate a new place with its own foes and holder, eight blades won by gates 1–8, and fourteen new foes the Horde
+   uses too (its lands 7–9).
 2. **Phase 2, the forms:** Phantom Step, the Unshorn and the Sovereign in the Watch; the Skills tab.
 3. **Phase 3, the long game:** the Seals' perk tree; Allies; gear.
 4. **Phase 4, the side roads:** Trials, Expeditions, daily tasks; Tirzah at level 150, Uri at 300.

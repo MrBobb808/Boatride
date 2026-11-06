@@ -27,6 +27,10 @@ export const BIOMES: Biome[] = [
   { id: 'hunt', name: 'The Frozen Wood', ground: ['#4c5a66', '#7d8d99', '#33404a', '#bfe2ff'], decor: ['shrub', 'rock', 'crystal'], foes: ['hound', 'lion', 'archer', 'sentinel', 'brute'], boss: 'beast_monarch', music: 'hunt', motes: 0xeaf6ff },
   { id: 'plague', name: 'The Blighted Marsh', ground: ['#34402a', '#4f5e38', '#232c1c', '#9ed15a'], decor: ['pool', 'shrub', 'bones'], foes: ['vessel', 'wisp', 'drone', 'husk', 'bulwark'], boss: 'plague_monarch', music: 'plague', motes: 0xb8ff7a },
   { id: 'cinders', name: 'The Foundry Waste', ground: ['#2e2624', '#4a3b35', '#1c1716', '#ff5a1f'], decor: ['ember', 'rock', 'pillar', 'crystal'], foes: ['lion', 'priest', 'knight', 'brute', 'soldier'], boss: 'cinder_monarch', music: 'cinders', motes: 0xff8040 },
+  // Three lands of the CC0 foes (foes-gothic): stages 7 to 9, then round again.
+  { id: 'graves', name: 'The Restless Graves', ground: ['#2a2431', '#463c52', '#1b1622', '#9b7cff'], decor: ['bones', 'rock', 'pillar'], foes: ['skeleton', 'wraith', 'hellcat', 'lantern', 'ghoul'], boss: 'beast_monarch', music: 'valley', motes: 0xb89cff },
+  { id: 'mire', name: 'The Drowned Mire', ground: ['#24322b', '#3a4d40', '#17211b', '#6fd38a'], decor: ['pool', 'shrub', 'bones'], foes: ['spider', 'swampthing', 'bogghost', 'wolf', 'hellhound'], boss: 'plague_monarch', music: 'plague', motes: 0x9effc0 },
+  { id: 'pit', name: 'The Burning Pit', ground: ['#2b1d1c', '#4a2c26', '#1a1110', '#ff6a2a'], decor: ['ember', 'rock', 'crystal'], foes: ['hellhound', 'fireskull', 'wizard', 'hellbeast', 'nightmare'], boss: 'cinder_monarch', music: 'cinders', motes: 0xff7a3a },
 ];
 
 export const BOSS_NAMES: Record<BossId, [string, string]> = {
@@ -37,11 +41,16 @@ export const BOSS_NAMES: Record<BossId, [string, string]> = {
 
 /** How a foe moves: straight at the hero, heavy and slow, keeping its distance to shoot, lunging, or drifting. */
 export type FoeMode = 'chase' | 'tank' | 'ranged' | 'lunge' | 'drift';
-export interface FoeKind { sheet: string; row: number; ox: number; oy: number; hp: number; speed: number; dmg: number; xp: number; scale: number; mode: FoeMode; r: number; mass: number }
+export interface FoeKind { sheet: string; row: number; ox: number; oy: number; hp: number; speed: number; dmg: number; xp: number; scale: number; mode: FoeMode; r: number; mass: number;
+  /** The sheet's cell size (96 unless the sheet says otherwise). */
+  cell?: number }
 
 /** The original's sheets (render/creatureSprites.ts): four keyframes a row (ready, stride, wind-up, strike). */
 const K = (sheet: string, row: number, ox: number, hp: number, speed: number, dmg: number, xp: number, mode: FoeMode, scale = 0.72, r = 9, mass = 1): FoeKind =>
   ({ sheet, row, ox, oy: 88, hp, speed, dmg, xp, scale, mode, r, mass });
+/** The CC0 sheet: centred in 96 px cells, feet on 88. */
+const G = (row: number, hp: number, speed: number, dmg: number, xp: number, mode: FoeMode, scale: number, r = 9, mass = 1): FoeKind =>
+  ({ sheet: 'foes-gothic', row, ox: 48, oy: 88, hp, speed, dmg, xp, scale, mode, r, mass });
 export const FOES: Record<string, FoeKind> = {
   husk: K('foes-ashen', 0, 38, 9, 33, 6, 1, 'chase'),
   sentinel: K('foes-ashen', 1, 32, 26, 26, 9, 2, 'tank', 0.8, 10, 2),
@@ -57,6 +66,21 @@ export const FOES: Record<string, FoeKind> = {
   soldier: K('foes-beasts', 3, 29, 16, 36, 8, 2, 'chase', 0.74),
   wisp: K('foes-veil', 0, 36, 8, 38, 6, 1, 'drift', 0.68, 8),
   vessel: K('foes-veil', 1, 33, 22, 30, 10, 2, 'chase', 0.76, 10, 2),
+  // The CC0 packs (art/incoming/cc0, built by art/tools/cc0.py): their sprites are drawn small, so they scale up more.
+  skeleton: G(0, 9, 30, 6, 1, 'chase', 1.1),
+  hellcat: G(1, 14, 44, 8, 2, 'lunge', 0.95, 10),
+  lantern: G(2, 10, 30, 7, 2, 'drift', 0.9, 9),
+  wraith: G(3, 12, 34, 8, 2, 'drift', 1.1, 9),
+  hellhound: G(4, 11, 48, 8, 2, 'lunge', 1.25, 10),
+  hellbeast: G(5, 50, 22, 13, 4, 'tank', 0.95, 13, 4),
+  wizard: G(6, 14, 26, 9, 2, 'ranged', 0.9),
+  ghoul: G(7, 16, 32, 9, 2, 'chase', 0.95),
+  spider: G(8, 8, 46, 6, 1, 'chase', 0.9, 9),
+  swampthing: G(9, 30, 24, 11, 3, 'tank', 1.25, 11, 3),
+  bogghost: G(10, 8, 38, 6, 1, 'drift', 1.2, 8),
+  wolf: G(11, 12, 50, 8, 2, 'lunge', 1.15, 10),
+  nightmare: { ...G(0, 70, 44, 15, 5, 'lunge', 0.75, 14, 5), sheet: 'foes-gothic-big', ox: 80, oy: 150, cell: 160 },
+  fireskull: { ...G(1, 10, 40, 9, 2, 'drift', 0.5, 9), sheet: 'foes-gothic-big', ox: 80, oy: 150, cell: 160 },
 };
 export const FOE_SHEETS = ['foes-ashen', 'foes-shinar', 'foes-beasts', 'foes-veil'];
 

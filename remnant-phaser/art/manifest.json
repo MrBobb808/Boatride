@@ -1145,6 +1145,19 @@
         "unaltered_generator_output": true,
         "visual_review": "Opaque key art (the Unshorn facing the King in the rain). Not shipped yet: kept for a title or chapter card."
       }
+    },
+    {
+      "id": "CC0-01",
+      "file": "incoming/cc0/",
+      "request": "Free CC0 packs: foes, set pieces, scene layers and swords (art/incoming/cc0/CREDITS.md)",
+      "grid": null,
+      "cell": null,
+      "baseline": null,
+      "facing": "mixed (cc0.py faces every foe right)",
+      "background": "transparent sprites; opaque sky layers",
+      "prompt": "Not generated: CC0 packs by Luis Zuno (ansimuz) and SnoopethDuckDuck from OpenGameArt, downloaded 6 November 2026.",
+      "status": "integrated",
+      "notes": "art/tools/cc0.py builds src/assets/cc0/: foes-gothic(.png, -big), watch-demon, blades(.png/.json), props(.png/.json) and scenes/. Used by the Watch's eight places, its gate bosses and armoury, and the Horde's lands 7-9."
     }
   ]
 }
