@@ -66,7 +66,8 @@ import { Legends } from '../game/legends';
 import { Awakening } from '../game/awakening';
 import { setMightLevel } from '../../../remnant/src/game/might';
 import { chapterReplay } from '../../../remnant/src/ui/chapters';
-import { travelToChapter } from '../../../remnant/src/game/chapters';
+import { travelToChapter, trainingOpen, startTraining, startExtreme, startBossRush, rushOpen } from '../../../remnant/src/game/chapters';
+import type { HomeMode } from '../game/home';
 import { guidePoint } from '../../../remnant/src/game/guide';
 import { showHint } from '../game/guideHint';
 import { offlineReady, updatePending, checkForUpdates } from '../game/update';
@@ -145,13 +146,16 @@ export class World extends Phaser.Scene implements WorldApi {
   private deathCounted = false;
   private fresh = false;
   private ready = false;
+  /** A game mode picked on the home screen, started once the journey has loaded. */
+  private mode: HomeMode | null = null;
 
   constructor() { super('world'); }
 
   get sc(): Phaser.Scene { return this; }
 
-  init(data: { fresh?: boolean }) {
+  init(data: { fresh?: boolean; mode?: HomeMode }) {
     this.fresh = !!data?.fresh;
+    this.mode = data?.mode ?? null;
   }
 
   get hud() { return this.scene.get('hud') as Hud; }
@@ -196,7 +200,8 @@ export class World extends Phaser.Scene implements WorldApi {
       this.loadRoom(ROOMS[this.save.room] ? this.save.room : 'sanctuary', this.save.spawn);
       this.cameras.main.fadeIn(400, 7, 6, 10);
       this.ready = true;
-      if (!this.fresh && this.classic.storyEnabled) maybeRecap(away);
+      if (this.mode) this.startMode(this.mode);
+      else if (!this.fresh && this.classic.storyEnabled) maybeRecap(away);
     });
     this.scale.on('resize', this.fitCamera, this);
     this.events.once('shutdown', () => this.scale.off('resize', this.fitCamera, this));
@@ -874,6 +879,24 @@ export class World extends Phaser.Scene implements WorldApi {
 
   /** Save and go back to the title. */
   /** Leave the journey (saved where it stands) for the Horde. */
+  /** A mode card on the home screen: once the room has settled, enter it (or open the page that holds it). */
+  private startMode(mode: HomeMode) {
+    this.mode = null;
+    const tryStart = (left: number) => {
+      if (!this.scene.isActive()) return;
+      if ((this.transitioning || G.inCutscene || !G.world) && left > 0) { this.time.delayedCall(150, () => tryStart(left - 1)); return; }
+      const page = () => G.ui?.openMenu?.('chapters');
+      switch (mode) {
+        case 'chapters': case 'daily': page(); break;
+        case 'trial': if (trainingOpen()) startTraining(1); else page(); break;
+        case 'gauntlet': if (trainingOpen()) startTraining(1, true); else page(); break;
+        case 'extreme': if (trainingOpen()) startExtreme(); else page(); break;
+        case 'rush': if (rushOpen()) startBossRush(); else page(); break;
+      }
+    };
+    this.time.delayedCall(450, () => tryStart(40));
+  }
+
   enterHorde() {
     this.persist();
     this.scene.stop('hud');

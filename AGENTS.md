@@ -323,6 +323,12 @@ Never ship files from `art/incoming/` directly.
   after a big move is a tag combo, three full gauges the Trinity; level-ups
   can be rerolled or banished (§13d). A run banks silver, XP and gear into the
   save (`PhaserSave.horde` keeps the best stage). See POLISH_PLAN §13.
+- **Home screen (Phaser build):** `remnant-phaser/src/scenes/Title.ts` and
+  `src/game/home.ts`: the journey card (Continue / New journey / Begin) and a
+  card per game mode (Chapters, the Watch, the Horde, the Trial, Extreme
+  Survival, the Boss Gauntlet, the Boss Rush, the Daily Challenge) that starts
+  it straight away (`World.init`'s `mode`), or says what opens it. Verified by
+  `scripts/home.mjs`.
 - **The Watch (Phaser build):** an idle game in portrait (`remnant-phaser/src/scenes/Watch.ts`,
   `src/game/watch/`): a fresh Elior keeps a wall, kills pay coins, coins buy
   eight upgrade tracks; gates end in a boss on a timer; his Watch level opens

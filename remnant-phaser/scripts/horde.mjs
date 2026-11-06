@@ -217,8 +217,8 @@ try {
   t2.on('pageerror', (e) => errors.push(e.message));
   await t2.goto(base + '?debug');
   await t2.waitForFunction(() => window.__remnant?.game?.scene?.isActive('title'), null, { timeout: 60000 });
-  const label = await t2.evaluate(() => window.__remnant.game.scene.getScene('title').children.list.find((c) => c.getData?.('k') === 'title_horde')?.text);
-  assert.ok(label?.startsWith('The Horde'), `the title offers the Horde (${label})`);
+  const label = await t2.evaluate(() => document.querySelector('[data-k=title_horde]')?.textContent);
+  assert.ok(label?.startsWith('The Horde'), `the home offers the Horde (${label})`);
   console.log(`Ways in: the journey enters the Horde; the title offers "${label}"`);
 
   assert.deepEqual(errors, [], 'no page errors');
