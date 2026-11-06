@@ -97,14 +97,14 @@ export interface Track {
   max?: number;
 }
 export const TRACKS: Track[] = [
-  { id: 'attack', name: 'Attack', base: 10, rate: 1.07, per: '+4 damage, doubled at 25, 50, 100…' },
-  { id: 'health', name: 'Health', base: 10, rate: 1.07, per: '+20 health, doubled at 25, 50, 100…' },
-  { id: 'speed', name: 'Attack Speed', base: 25, rate: 1.12, per: '+1% swings (up to ×2)', max: 100 },
-  { id: 'crit', name: 'Critical Chance', base: 200, rate: 1.15, per: '+0.5% (up to 60%)', opens: { track: 'health', level: 40 }, max: 120 },
-  { id: 'regen', name: 'Health Regen', base: 300, rate: 1.1, per: '+0.2% health a second (up to 5%)', opens: { track: 'crit', level: 20 }, max: 25 },
-  { id: 'critDmg', name: 'Critical Damage', base: 500, rate: 1.1, per: '+5% critical damage', opens: { track: 'crit', level: 100 } },
-  { id: 'defense', name: 'Defense', base: 800, rate: 1.1, per: '−1% from every blow (softening)', opens: { stage: 20 } },
-  { id: 'coins', name: 'Coin Find', base: 1000, rate: 1.11, per: '+2% coins', opens: { stage: 30 } },
+  { id: 'attack', name: 'Attack', base: 10, rate: 1.07, per: '+4 damage a level' },
+  { id: 'health', name: 'Health', base: 10, rate: 1.07, per: '+20 health a level' },
+  { id: 'speed', name: 'Attack Speed', base: 25, rate: 1.12, per: '+1% swings a level, to ×2', max: 100 },
+  { id: 'crit', name: 'Critical Chance', base: 200, rate: 1.15, per: '+0.5% a level, to 60%', opens: { track: 'health', level: 40 }, max: 120 },
+  { id: 'regen', name: 'Health Regen', base: 300, rate: 1.1, per: '+0.2%/s a level, to 5%', opens: { track: 'crit', level: 20 }, max: 25 },
+  { id: 'critDmg', name: 'Critical Damage', base: 500, rate: 1.1, per: '+5% a level', opens: { track: 'crit', level: 100 } },
+  { id: 'defense', name: 'Defense', base: 800, rate: 1.1, per: 'softens every blow more', opens: { stage: 20 } },
+  { id: 'coins', name: 'Coin Find', base: 1000, rate: 1.11, per: '+2% coins a level', opens: { stage: 30 } },
 ];
 export const TRACK: Record<TrackId, Track> = Object.fromEntries(TRACKS.map((t) => [t.id, t])) as Record<TrackId, Track>;
 
