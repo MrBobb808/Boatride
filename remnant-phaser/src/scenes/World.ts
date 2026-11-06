@@ -1242,7 +1242,7 @@ export class World extends Phaser.Scene implements WorldApi {
       fins.forEach((f, i) => this.classic.after(2.2 + i * 1.2, () => G.ui.toast(`New finisher: ${f.name} — ${f.desc}`, 'good')));
       if (lvBefore < SOVEREIGN_LV && s.level >= SOVEREIGN_LV) {
         this.classic.after(3.4, () => {
-          G.ui.banner('SOVEREIGN OF THE REMNANT', 'Every swing looses a crescent · Phantom Step costs nothing · ordinary blows cannot stagger you · the fallen rise to serve', 'ability');
+          G.ui.banner('SOVEREIGN OF THE REMNANT', 'Phantom Step costs nothing · ordinary blows cannot stagger you · the fallen rise to serve', 'ability');
           sfx('arise');
           fx.column(this.player.x, this.player.y, 60, 420, '#9a6aff', 2);
           fx.flash('#c9a8ff', 0.5);
