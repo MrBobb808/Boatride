@@ -31,6 +31,10 @@ try {
   assert.deepEqual(fresh, { level: 1, stage: 1, coins: 0 }, 'a fresh Elior starts the Watch at level 1');
   const curve = await E(page, () => { const sc = window.__remnant.watch; sc.w.coins = 1000; const a = sc.buy('attack', 10); const crit = sc.buy('crit', 1); return { a, lvl: sc.w.up.attack, left: sc.w.coins, crit }; });
   assert.ok(curve.a && curve.lvl === 10 && curve.left === 1000 - 139 && !curve.crit, `ten Attack levels cost their geometric sum, and Critical Chance waits for Health 40 (${JSON.stringify(curve)})`);
+  // The cards show the stat itself, now and after the purchase; his numbers sit under the stage bar.
+  await page.waitForTimeout(300);
+  const shown = await E(page, () => ({ atk: document.querySelector('[data-k=wt_val_attack]')?.textContent, hp: document.querySelector('[data-k=wt_val_health]')?.textContent, line: document.querySelector('[data-k=wt_stats]')?.textContent }));
+  assert.ok(/^\S+ → \S+$/.test(shown.atk) && /^100 → 120$/.test(shown.hp) && /ATK .*HP .*SPD .*DPS .*COINS/.test(shown.line), `upgrade cards show the value now and after; the stat line shows his numbers (${JSON.stringify(shown)})`);
 
   // ---- he fights on his own, kills pay, stages pass, levels come
   const fight = await E(page, () => {

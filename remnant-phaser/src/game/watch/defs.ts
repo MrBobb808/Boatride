@@ -132,6 +132,8 @@ export function opensText(t: Track) {
 }
 /** ×2 at levels 25, 50, 100, 200, 400… */
 export const milestones = (level: number) => { let m = 1; for (let at = 25; at <= level; at = at === 25 ? 50 : at * 2) m *= 2; return m; };
+/** The next level that doubles a track. */
+export const nextMilestone = (level: number) => { let at = 25; while (at <= level) at = at === 25 ? 50 : at * 2; return at; };
 
 // ---------------------------------------------------------------- Elior here
 
@@ -171,6 +173,23 @@ export function watchStats(w: WatchSave): WatchStats {
     coinMult: (1 + 0.02 * L('coins')) * sb,
   };
 }
+
+/** A track's stat as its card shows it: what he has now, or with `more` levels bought. */
+export function trackStat(w: WatchSave, id: TrackId, more = 0): string {
+  const st = watchStats(more ? { ...w, up: { ...w.up, [id]: lvlOf(w, id) + more } } : w);
+  switch (id) {
+    case 'attack': return fmt(st.atk);
+    case 'health': return fmt(st.maxHp);
+    case 'speed': return `${st.aspd.toFixed(2)}/s`;
+    case 'crit': return `${(st.crit * 100).toFixed(1)}%`;
+    case 'regen': return `${fmt(st.maxHp * st.regen)}/s`;
+    case 'critDmg': return `×${st.critDmg.toFixed(2)}`;
+    case 'defense': return `${(st.dr * 100).toFixed(1)}%`;
+    case 'coins': return `×${st.coinMult.toFixed(2)}`;
+  }
+}
+/** His damage a second, on average, from his swings alone (crits counted). */
+export const dpsOf = (st: WatchStats) => st.atk * st.aspd * (1 + st.crit * (st.critDmg - 1));
 
 /** The Watch level's milestones (POLISH_PLAN §18d): what each opens, for the Hero card and the level-up toast. */
 export const UNLOCKS: [number, string][] = [

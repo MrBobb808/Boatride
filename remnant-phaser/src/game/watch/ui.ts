@@ -18,6 +18,9 @@ const CSS = `
 .wt-coins{font-family:Cinzel,Georgia,serif;color:#f6dea0;font-size:18px;text-shadow:0 1px 2px #000;white-space:nowrap}
 .wt-coins i{display:inline-block;width:14px;height:14px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#fff1c4,#e2b85a 55%,#8a6a34);margin-right:6px;vertical-align:-1px}
 .wt-stage{font-family:Cinzel,Georgia,serif;font-size:13px;letter-spacing:.06em;text-align:center;text-shadow:0 1px 2px #000}
+.wt-statline{display:flex;flex-wrap:wrap;gap:2px 10px;justify-content:center;font-size:11px;margin-top:4px;color:#cfc6b6;text-shadow:0 1px 2px #000}
+.wt-statline b{color:#f6dea0;font-weight:normal}
+.wt-statline b.low{color:#ff8a7a}
 .wt-bar{height:5px;background:rgba(0,0,0,.55);border-radius:3px;overflow:hidden;margin-top:3px}
 .wt-bar b{display:block;height:100%;background:linear-gradient(90deg,#e2b85a,#fff1c4);width:0}
 .wt-bar.boss b{background:linear-gradient(90deg,#ff5a3a,#ffb08a)}
@@ -40,7 +43,10 @@ const CSS = `
 .wt-card .n{flex:1;display:flex;flex-direction:column;justify-content:center;min-width:0}
 .wt-card .n b{font-family:Cinzel,Georgia,serif;font-size:12px;color:#f6dea0;font-weight:normal}
 .wt-card .n small{font-size:11px;color:#9b92a6}
-.wt-card .n span{font-size:12px}
+.wt-card .n span{font-size:13px;color:#f6dea0;font-family:Cinzel,Georgia,serif;margin-top:2px}
+.wt-card .n span i{font-style:normal;color:#9be07a}
+.wt-card .n em{font-style:normal;font-size:10.5px;color:#9b92a6;line-height:1.25}
+.wt-card.bought{box-shadow:0 0 0 2px #9be07a inset}
 .wt-card .c{min-width:62px;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:5px;background:#2c5a2a;color:#eaffd8;font-family:Cinzel,Georgia,serif;font-size:12px;padding:2px 6px}
 .wt-card .c small{font-family:Georgia,serif;font-size:11px;color:#fff1c4}
 .wt-card.poor .c{background:#3a2c2c;color:#c9a9a0}
@@ -120,6 +126,7 @@ const ICON: Record<D.AbilityId, string> = {
   balm: 'M12 21s-7-4.5-7-10a4 4 0 0 1 7-2.5A4 4 0 0 1 19 11c0 5.5-7 10-7 10zM12 9v6M9 12h6',
   judgment: 'M12 2l2.4 6.6L21 9l-5 4.6L17.6 21 12 17.3 6.4 21 8 13.6 3 9l6.6-.4z',
 };
+const fmt1 = (n: number) => D.fmt(n);
 const svg = (d: string) => `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${d}"/></svg>`;
 
 export class WatchUI {
@@ -144,7 +151,10 @@ export class WatchUI {
   private tabs: Record<Tab, HTMLButtonElement> = { up: el('button', 'wt-tab on', 'Upgrades'), skills: el('button', 'wt-tab', 'Skills'), shadows: el('button', 'wt-tab', 'Shadows'), hero: el('button', 'wt-tab', 'Hero'), ascend: el('button', 'wt-tab', 'Ascend') };
   /** Buy one, ten, or as many as the coins allow. */
   amount: 1 | 10 | 0 = 1;
-  private cards = new Map<D.TrackId, { root: HTMLButtonElement; lvl: HTMLElement; eff: HTMLElement; cost: HTMLElement; n: HTMLElement }>();
+  private cards = new Map<D.TrackId, { root: HTMLButtonElement; lvl: HTMLElement; now: Text; next: HTMLElement; per: HTMLElement; cost: HTMLElement; n: HTMLElement }>();
+  /** His numbers under the stage bar: blow, health, swings, damage a second, coins a second. */
+  private statline = el('div', 'wt-statline');
+  private sl = { atk: el('b'), hp: el('b'), spd: el('b'), dps: el('b'), coins: el('b') };
   private toastT = 0;
   private overlayEl: HTMLElement | null = null;
 
@@ -164,7 +174,11 @@ export class WatchUI {
     const right = el('div', 'wt-row');
     right.append(this.transform, this.challenge);
     mid.append(this.stage, right);
-    this.hud.append(top, mid, this.bar);
+    for (const [label, b] of [['ATK', this.sl.atk], ['HP', this.sl.hp], ['SPD', this.sl.spd], ['DPS', this.sl.dps], ['COINS', this.sl.coins]] as const) {
+      const span = el('span', '', label + ' '); span.appendChild(b); this.statline.appendChild(span);
+    }
+    this.statline.dataset.k = 'wt_stats';
+    this.hud.append(top, mid, this.bar, this.statline);
     this.challenge.dataset.k = 'wt_challenge'; this.transform.dataset.k = 'wt_transform'; this.leave.dataset.k = 'wt_leave';
     this.challenge.onclick = () => { sfx('uiConfirm'); sc.challenge(); };
     this.transform.onclick = () => { sfx('uiConfirm'); sc.transformNow(); };
@@ -242,13 +256,28 @@ export class WatchUI {
     const grid = el('div', 'wt-grid');
     for (const t of D.TRACKS) {
       const root = el('button', 'wt-card'), n = el('div', 'n'), c = el('div', 'c');
-      const name = el('b', '', t.name), lvl = el('small'), eff = el('span'), cst = el('small'), num = el('div');
+      // The stat itself, now and after this purchase, over what each level adds.
+      const name = el('b', '', t.name), lvl = el('small'), val = el('span'), now = document.createTextNode(''), next = el('i'), per = el('em'), cst = el('small'), num = el('div');
+      val.append(now, next);
+      val.dataset.k = 'wt_val_' + t.id;
       root.dataset.k = 'wt_up_' + t.id;
-      n.append(name, lvl, eff); c.append(num, cst);
+      n.append(name, lvl, val, per); c.append(num, cst);
       root.append(n, c);
-      root.onclick = () => { if (this.sc.buy(t.id, this.amount)) { sfx('pickup', { vol: 0.6 }); this.refresh(); } };
+      const buy = () => {
+        if (!this.sc.buy(t.id, this.amount)) return false;
+        sfx('pickup', { vol: 0.6 });
+        root.classList.add('bought'); setTimeout(() => root.classList.remove('bought'), 220);
+        this.refresh();
+        return true;
+      };
+      // A tap buys once; held, it keeps buying (after a short pause) until the coins or the finger run out.
+      let hold = 0, held = false;
+      const stop = () => { clearTimeout(hold); clearInterval(hold); hold = 0; };
+      root.onpointerdown = () => { held = false; stop(); hold = window.setTimeout(() => { held = true; hold = window.setInterval(() => { if (!buy()) stop(); }, 110); }, 380); };
+      root.onpointerup = root.onpointerleave = root.onpointercancel = stop;
+      root.onclick = () => { if (!held) buy(); held = false; };
       grid.appendChild(root);
-      this.cards.set(t.id, { root, lvl, eff, cost: cst, n: num });
+      this.cards.set(t.id, { root, lvl, now, next, per, cost: cst, n: num });
     }
     this.body.append(amt, grid);
   }
@@ -262,7 +291,8 @@ export class WatchUI {
     st.style.marginTop = '8px';
     const row = (k: string, v: string) => { const d = el('div'); d.append(document.createTextNode(k + ' '), el('b', '', v)); st.appendChild(d); };
     row('Damage', D.fmt(s.atk)); row('Health', D.fmt(s.maxHp)); row('Swings', `×${s.aspd.toFixed(2)}`); row('Critical', `${Math.round(s.crit * 100)}% · ×${s.critDmg.toFixed(2)}`);
-    row('Regen', `${(s.regen * 100).toFixed(1)}%/s`); row('Blows softened', `${Math.round(s.dr * 100)}%`); row('Coins', `×${s.coinMult.toFixed(2)}`); row('Shadows', `${(w.team ?? []).length} of ${D.shadowsAt(w.level)}`);
+    row('Regen', `${fmt1(s.maxHp * s.regen)}/s (${(s.regen * 100).toFixed(1)}%)`); row('Blows softened', `${Math.round(s.dr * 100)}%${this.sc.band.aegis() ? ` · guardians ${Math.round(this.sc.band.aegis() * 100)}%` : ''}`);
+    row('Damage a second', D.fmt(D.dpsOf(s))); row('Coins a second', D.fmt(w.rate)); row('Coins', `×${s.coinMult.toFixed(2)}`); row('Shadows', `${(w.team ?? []).length} of ${D.shadowsAt(w.level)}`);
     this.body.appendChild(st);
     // The armoury: a blade for each of the first eight gates.
     this.body.appendChild(el('div', 'wt-h', 'The armoury'));
@@ -381,6 +411,13 @@ export class WatchUI {
     this.bar.classList.toggle('boss', boss);
     this.barFill.style.width = `${Math.max(0, Math.min(1, boss ? sc.bossTimeLeft / D.BOSS_TIME : sc.kills / D.KILLS_PER_STAGE)) * 100}%`;
     this.challenge.hidden = w.auto;
+    const st = D.watchStats(w);
+    this.sl.atk.textContent = D.fmt(st.atk);
+    this.sl.hp.textContent = `${D.fmt(Math.max(0, sc.heroHp))}/${D.fmt(st.maxHp)}`;
+    this.sl.hp.classList.toggle('low', sc.heroHp < st.maxHp * 0.35);
+    this.sl.spd.textContent = `${st.aspd.toFixed(2)}/s`;
+    this.sl.dps.textContent = D.fmt(D.dpsOf(st));
+    this.sl.coins.textContent = `${D.fmt(w.rate)}/s`;
     this.speed.textContent = `×${w.speed ?? 1}`;
     this.auto.classList.toggle('on', !!w.autoSkills);
     if (this.barSig !== `${D.slotsAt(w.level)}:${(w.loadout ?? []).join()}`) this.buildBar();
@@ -412,8 +449,11 @@ export class WatchUI {
       const n = this.amount === 0 ? Math.max(1, D.affordable(t.id, lv, w.coins)) : this.amount;
       const take = t.max !== undefined ? Math.min(n, Math.max(0, t.max - lv)) : n;
       const price = D.costN(t.id, lv, Math.max(1, take));
-      c.lvl.textContent = open ? `Lv ${lv}` : 'Locked';
-      c.eff.textContent = open ? t.per : D.opensText(t);
+      const doubles = t.id === 'attack' || t.id === 'health' ? ` · ×2 at ${D.nextMilestone(lv)}` : '';
+      c.lvl.textContent = open ? `Lv ${lv}${maxed ? ' (max)' : doubles}` : 'Locked';
+      c.now.textContent = open ? D.trackStat(w, t.id) : '';
+      c.next.textContent = open && !maxed ? ` → ${D.trackStat(w, t.id, take)}` : '';
+      c.per.textContent = open ? t.per : D.opensText(t);
       c.n.textContent = maxed ? 'MAX' : `+${take}`;
       c.cost.textContent = maxed || !open ? '' : D.fmt(price);
       c.root.classList.toggle('locked', !open);
