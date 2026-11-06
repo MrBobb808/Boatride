@@ -75,17 +75,14 @@ try {
   });
   await page.goto(base + '?debug');
   await page.waitForFunction(() => window.__remnant?.game?.scene.isActive('title'));
-  const btn = () => E(page, () => {
-    const t = window.__remnant.game.scene.getScene('title').children.list.find((o) => o.getData?.('k') === 'title_live_0');
-    return t && { x: t.x / devicePixelRatio, y: t.y / devicePixelRatio, text: t.text };
-  });
+  const btn = () => E(page, () => document.querySelector('[data-k=title_live_0]')?.textContent);
   let b = await btn();
-  assert.ok(b && /live slot 2 · level 12/.test(b.text), `the title offers the live slot (${b?.text})`);
-  await page.mouse.click(b.x, b.y);
+  assert.ok(b && /live slot 2 · level 12/.test(b), `the title offers the live slot (${b})`);
+  await page.click('[data-k=title_live_0]');
   b = await btn();
-  assert.ok(/Tap again/.test(b.text), 'replacing a Phaser journey asks for a second tap');
+  assert.ok(/Tap again/.test(b), 'replacing a Phaser journey asks for a second tap');
   await page.screenshot({ path: 'qa/saves-title.png' });
-  await page.mouse.click(b.x, b.y);
+  await page.click('[data-k=title_live_0]');
   await inWorld(page);
   const got = await E(page, () => { const s = window.__remnant.world.save; return { level: s.level, room: s.room, silver: s.silver }; });
   assert.deepEqual(got, { level: 12, room: 'kiln_yard', silver: 4242 }, 'the live journey continues here');

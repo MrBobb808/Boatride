@@ -20,8 +20,7 @@ try {
   page.on('console', (m) => { if (m.type() === 'error' && !m.text().includes('404')) errors.push(m.text()); });
   const enter = async () => {
     await page.waitForFunction(() => window.__remnant?.game?.scene?.isActive('title'), null, { timeout: 60000 });
-    assert.ok(await E(page, () => window.__remnant.game.scene.getScene('title').children.list.some((o) => o.getData?.('k') === 'title_watch')), 'the title offers the Watch');
-    await E(page, () => { const g = window.__remnant.game; g.scene.stop('title'); g.scene.start('watch', { from: 'title' }); });
+    await page.click('[data-k=title_watch]');
     await page.waitForFunction(() => window.__remnant?.watch?.w, null, { timeout: 30000 });
   };
   await page.goto(base + '?debug');

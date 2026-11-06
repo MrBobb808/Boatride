@@ -578,6 +578,10 @@ POLISH_PLAN §13a. A scene of its own (`src/scenes/Horde.ts`), entered from the 
 
 Verified by `scripts/horde.mjs`: upright touch (stick, DASH, buttons on screen), auto-weapons, a level-up card, a reroll and a banish, a tag combo, the Trinity, an evolution, the skill, transformation and switch, Uri, his shaman, his prayer and the Crown, a monarch's arrival and fall, stage 2, the landscape reflow, a fall banking the run, and both ways in.
 
+## The home screen
+
+`src/scenes/Title.ts` with `src/game/home.ts`. The canvas keeps the glow, rising embers and Elior idling behind the wordmark (his action atlas, placed on the DOM's `.hm-stage` box); the rest is DOM (`hm-` classes). The journey card shows the chapter, room, level, silver and chapters complete, with Continue and New journey (a second tap when every slot is full), or Begin, plus any live-game slots to bring over. Under it, **Game modes**: a card each for Chapters, the Watch, the Horde, the Trial of the Remnant, Extreme Survival, the Boss Gauntlet, the Boss Rush and the Daily Challenge, with its record, or, when locked, what opens it (the shared checks run against the save through `withSave`). A card for a journey mode starts the world with `{ mode }`; `World.startMode` waits for the room to settle, then enters the Trial, the Gauntlet, Extreme Survival or the Rush, or opens the Chapters page (Chapters, the Daily Challenge). Upright the cards sit two to a row under the journey; sideways the journey takes a left column and the cards four to a row, without their sentences, so all eight fit. `data-k` hooks: `title_first`, `title_second`, `title_live_<i>`, `title_<mode>`. Verified by `scripts/home.mjs`.
+
 ## The Watch
 
 POLISH_PLAN §18. An idle game of its own (`src/scenes/Watch.ts`, scene key `watch`), entered from the title (`title_watch`) and from Settings → Game modes (`addWatchMode` in `src/game/watch/entry.ts`). A fresh Elior at Watch level 1 keeps a ruined wall: foes walk in from the right, he strikes on his own, every kill pays coins, and coins buy upgrades.
