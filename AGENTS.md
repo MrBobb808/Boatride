@@ -323,6 +323,12 @@ Never ship files from `art/incoming/` directly.
   after a big move is a tag combo, three full gauges the Trinity; level-ups
   can be rerolled or banished (§13d). A run banks silver, XP and gear into the
   save (`PhaserSave.horde` keeps the best stage). See POLISH_PLAN §13.
+- **The Watch (Phaser build):** an idle game in portrait (`remnant-phaser/src/scenes/Watch.ts`,
+  `src/game/watch/`): a fresh Elior keeps a wall, kills pay coins, coins buy
+  eight upgrade tracks; gates end in a boss on a timer; his Watch level opens
+  skills, shadows (8–150) and the Mantle (25); Ascension from stage 60 pays
+  Seals; offline pay on a welcome card. Back to the journey only silver and
+  capes. `PhaserSave.watch`. Verified by `scripts/watch.mjs`. See POLISH_PLAN §18.
 - **iPhone performance:** the game targets 120 Hz.
   - Do not use `shadowBlur`.
   - Cache gradients and avoid allocating in per-frame paths.
