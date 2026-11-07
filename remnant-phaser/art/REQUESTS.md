@@ -17,9 +17,20 @@ below followed by the request's own lines. Record the exact prompt you used in
 Priority: **P1** is needed first (combat, abilities, archer), **P2** next
 (bosses and foes), **P3** last (environments and UI).
 
+**Families.** Make art in families, as `ART_DIRECTION.md` describes: each
+section below is a family, and its **seed** is the approved image that sets
+its look. Attach the seed to every prompt in that family and say "match this
+image's palette, outline, light from the front and above, proportions and
+scale". Make two or three siblings at a time, record them, and wait for the
+review before the next batch. A family whose seed is "none yet" makes one piece
+first; the rest wait until Claude and the owner approve it (its `approval` in
+`manifest.json` reads `approved`).
+
 ---
 
 ## Characters (P1) → `incoming/characters/`
+
+**Seed:** `../src/assets/fighter-parts-v1.png` (Elior rows 1–2, Tirzah rows 3–4); for the Unshorn, `../src/assets/fighter-parts-unshorn.png`.
 
 The live heroes are cut-out rigs: one painted image per body part, rotated at
 the joints (see `../src/assets/FIGHTER_ANIMATION.md`). Every parts sheet uses
@@ -47,6 +58,8 @@ Paint hidden overlaps fully, so joints rotate without holes.
 | C07 | **Reference boards (design reference only, not shipped):** one image per hero, 2048×1024, transparent. Front, side and back turnarounds, plus the transformed form beside the normal form. Elior first (`-elior`), then Tirzah (`-tirzah`). |
 
 ## Effects (P1) → `incoming/vfx/`
+
+**Seed:** `../src/assets/vfx-slashes.png` (V01) and `vfx-impacts.png` (V02) for blows; `vfx-abilities-1.png` (V03) for abilities.
 
 Effects sheets are **bright shapes on a transparent background**, built to be
 added onto the scene as light: no black background and no baked character.
@@ -83,6 +96,8 @@ and no lines drawn.
 
 ## Bosses (P2) → `incoming/bosses/`
 
+**Seed:** `../../remnant/src/assets/varkhos-hunt-atlas.png`. Make B10 (the three Fallen Crowns' extra frames) first, against their own atlases; then one boss at a time.
+
 Each boss is a 4×4 sheet, 384 px cells, feet baseline at y=360, facing right:
 - **Row 1:** idle A, idle B, move A, move B.
 - **Row 2:** attack-1 wind-up, attack-1 strike, attack-2 wind-up, attack-2 strike.
@@ -108,6 +123,8 @@ Keep the silhouette identical across cells.
 
 ## Foes (P2) → `incoming/foes/`
 
+**Seed:** `../../remnant/src/assets/foes-ashen.png`. F01 first; F02–F05 against it.
+
 Each foe sheet is 8 columns, 128 px cells, baseline y=116, facing right. The
 columns are: idle A, idle B, walk A, walk B, wind-up, attack, hurt, death.
 There is one row per foe.
@@ -121,6 +138,8 @@ There is one row per foe.
 | F05 | **Fallen Crowns:** Antlered Stalker, Swarm Carrier, Slag Golem, eel (swimming; frames read left to right as a swim cycle). |
 
 ## Environments (P3) → `incoming/environments/`
+
+**Seed:** none yet. Make E01's three layers first, using the chapter's own colours (`BIOMES` in `remnant/src/render/environment.ts`); the rest follow once it is approved.
 
 Parallax sets: three layers per place, each 2048×640 and seamless left to
 right:
@@ -163,6 +182,8 @@ Placeholders made in code ship until these arrive.
 | L03 | **Weather sprites.** 8×4, 64 px cells, transparent: ash flakes, embers, raindrops and splashes, fog wisps (wide), dust motes, falling leaves. |
 
 ## Icons and UI (P3) → `incoming/icons/`, `incoming/ui/`
+
+**Seed:** none yet. Make I04 (the ability icons) first; I01–I03 follow its outline, light and rim once it is approved.
 
 Icon sheets are 64 px cells on a transparent background, with a centred
 subject and a soft rim light.
