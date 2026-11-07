@@ -250,7 +250,8 @@ Never ship files from `art/incoming/` directly.
   Menus are layers (`pushLayer`, `ui/dom.ts`) that a controller or the keys work: a
   focused control, the d-pad, ✕/○; a layer may name its own controls (`nav`). The
   Phaser build's home screen and Watch are layers too, and Settings → Text size
-  scales their text (`--fs-k`; POLISH_PLAN §19 phase 5, `scripts/pad-menus.mjs`).
+  scales their text (`--fs-k`; Normal, Large, Extra large, Largest ×1.5; POLISH_PLAN §19 phases 5 and 8,
+  `scripts/pad-menus.mjs`, `scripts/text-size.mjs`: every page must fit an iPhone SE at Largest).
   `ui/coach.ts` shows optional one-time coaching cards (`SaveData.coached`)
   and `ui/statTips.ts` explains every stat on hover or long-press.
 - **Guidance:** `game/guide.ts` maps quest stages to targets and draws the

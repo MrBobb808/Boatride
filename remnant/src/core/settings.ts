@@ -21,7 +21,7 @@ export interface Settings {
   lighting: 'dramatic' | 'balanced' | 'subtle';
   dmgNumbers: boolean;
   zoom: 'close' | 'normal' | 'wide';
-  textSize: 'normal' | 'large' | 'xl';
+  textSize: 'normal' | 'large' | 'xl' | 'xxl';
   touchScale: number;
   touchOpacity: number;
   leftHanded: boolean;

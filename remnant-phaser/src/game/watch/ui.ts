@@ -16,6 +16,7 @@ import * as Q from './daily';
 import { pushLayer, popLayer } from '../../../../remnant/src/ui/dom';
 
 const CSS = `
+.wt-root button:focus-visible,.wt-root select:focus-visible,.wt-card-layer button:focus-visible{outline:2px solid #f6dea0;outline-offset:2px}
 .wt-hud{position:fixed;left:0;right:0;z-index:15;pointer-events:none;font-family:Georgia,serif;color:#ddd4c6;padding:0 10px}
 .wt-row{display:flex;align-items:center;gap:8px;justify-content:space-between}
 .wt-row.mid{min-height:28px}

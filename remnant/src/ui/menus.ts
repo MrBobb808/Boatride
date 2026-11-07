@@ -1113,7 +1113,7 @@ function settingsTab() {
       G.save ? row('Replay tutorials', 'Show every tip again on this journey.', btn('Replay', () => { replayCoach(); st.coach = true; saveSettings(); G.ui.toast('Tutorial tips will play again as you go.', 'good'); renderAny(); }, 'btn small', { 'data-k': 'coach_replay' })) : null,
     ),
     h('div', { class: 'box' }, h('h3', null, 'Accessibility'),
-      row('Text size', '', seg(st.textSize, [['normal', 'Normal'], ['large', 'Large'], ['xl', 'Extra large']], (v) => { st.textSize = v; applyTextSize(); }, 'ts')),
+      row('Text size', '', seg(st.textSize, [['normal', 'Normal'], ['large', 'Large'], ['xl', 'Extra large'], ['xxl', 'Largest']], (v) => { st.textSize = v; applyTextSize(); }, 'ts')),
       row('Screen shake', '', seg(st.shake, [['full', 'Full'], ['reduced', 'Reduced'], ['off', 'Off']], (v) => (st.shake = v), 'sh')),
       row('Reduce flashes', 'Softens bright full-screen flashes.', toggle(st.reduceFlashes, (v) => (st.reduceFlashes = v), 'rf')),
       row('Lighting', 'Dramatic: dark rooms go properly dark, lit by torches, your weapon, arrows and spells. Balanced: as before. Subtle: lighter rooms.', seg(st.lighting, [['dramatic', 'Dramatic'], ['balanced', 'Balanced'], ['subtle', 'Subtle']], (v) => (st.lighting = v), 'lighting')),
@@ -1170,6 +1170,7 @@ function editControls() {
 export function applyTextSize() {
   document.documentElement.classList.toggle('text-large', settings.textSize === 'large');
   document.documentElement.classList.toggle('text-xl', settings.textSize === 'xl');
+  document.documentElement.classList.toggle('text-xxl', settings.textSize === 'xxl');
 }
 
 // ---------------------------------------------------------------- system
