@@ -77,7 +77,7 @@ try {
     await page.click('[data-k=title_watch]');
     await page.waitForFunction(() => window.__remnant?.watch?.w && document.querySelector('.wt-card'), null, { timeout: 30000 });
     await page.waitForTimeout(400);
-    for (const tab of ['up', 'skills', 'shadows', 'daily', 'hero', 'ascend']) {
+    for (const tab of ['up', 'skills', 'shadows', 'daily', 'feats', 'hero', 'ascend']) {
       await page.click(`[data-k=wt_tab_${tab}]`);
       await page.waitForTimeout(150);
       const r = await E(page, (o) => new Function(`return (${o})`)()('.wt-root'), OVERFLOW.toString());
