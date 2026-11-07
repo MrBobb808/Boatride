@@ -169,7 +169,8 @@ export class WatchUI {
   private statline = el('div', 'wt-statline');
   private sl = { atk: el('b'), hp: el('b'), spd: el('b'), dps: el('b'), coins: el('b') };
   private toastT = 0;
-  private hudH = 0;
+  /** Where the bar over the wall ends (CSS px), as last placed. */
+  private hudB = 0;
   private overlayEl: HTMLElement | null = null;
 
   constructor(private sc: Watch) {
@@ -207,10 +208,12 @@ export class WatchUI {
 
   /** Place the bar at `top` and say where it ends (CSS pixels): the wall starts under it, however it wraps. */
   placeHud(top: number, landscape: boolean, split: number): number {
-    this.hud.style.top = `${top + 4}px`;
+    // Below the status bar and the Dynamic Island: the inset comes from CSS itself (as the home screen's does), so a
+    // value the phone reports late, or a measurement taken too early, never tucks the bar under them.
+    this.hud.style.top = `calc(max(env(safe-area-inset-top, 0px), ${top}px) + 10px)`;
     this.hud.style.right = landscape ? `${window.innerWidth - split}px` : '0px';
-    this.hudH = this.hud.offsetHeight;
-    return top + 4 + this.hudH;
+    this.hudB = this.hud.getBoundingClientRect().bottom;
+    return this.hudB;
   }
 
   /** Place the panel below the wall (`wallTop` and `stripBottom` in CSS pixels). */
@@ -425,8 +428,8 @@ export class WatchUI {
 
   /** Numbers and states, a few times a second. */
   refresh() {
-    // The bar grew or shrank (a button came or went): the wall moves to stay just under it.
-    if (this.hudH && this.hud.offsetHeight !== this.hudH) this.sc.refit();
+    // The bar moved or changed height (a button came or went, the safe area settled): the wall stays just under it.
+    if (this.hudB && Math.abs(this.hud.getBoundingClientRect().bottom - this.hudB) > 0.5) this.sc.refit();
     const sc = this.sc, w = sc.w;
     this.coins.innerHTML = '';
     this.coins.append(el('i'), document.createTextNode(D.fmt(w.coins)));
