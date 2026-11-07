@@ -132,6 +132,8 @@ jobs:
       - run: node scripts/might.mjs
       - run: node scripts/replay.mjs
       - run: node scripts/watch.mjs
+      - run: node scripts/feel.mjs
+      - run: node scripts/watch-pace.mjs
       - run: node scripts/home.mjs
       - run: node scripts/legends.mjs
       - run: node scripts/install-audio.mjs

@@ -16,6 +16,7 @@ import { sfx } from '../../../remnant/src/audio/audio';
 import { haptic } from '../../../remnant/src/core/haptics';
 import { input } from '../../../remnant/src/core/input';
 import { shakeScale } from '../classic/shim/settings';
+import { smoothShake, frameFreeFollow, impact, type Tier } from '../game/feel';
 import { BIOMES, HEROES, WEAPONS, EVOLUTIONS, PASSIVES, RELICS, RELIC_SLOTS, stageTime, stageHp, stageDmg, type Biome, type HeroId, type PassiveId, type WeaponId } from '../game/horde/defs';
 import { Terrain, hordeTextures } from '../game/horde/ground';
 import { Swarm, MAX_FOES, type Foe } from '../game/horde/foes';
@@ -170,6 +171,9 @@ export class Horde extends Phaser.Scene {
     for (let i = 0; i < 28; i++) this.nums.push({ t: this.wl(this.add.text(0, 0, '', { fontFamily: 'Georgia, serif', fontSize: '22px', color: '#ffffff', stroke: '#07060a', strokeThickness: 4 }).setOrigin(0.5).setScale(0.36).setVisible(false)), life: 0, vy: 0 });
     this.ui = new HordeUI(this);
     this.cameras.main.startFollow(this.hero.sprite, true, 0.18, 0.18, 0, 12);
+    // The same follow at 60 and 120 Hz, and a shake that rolls and settles (game/feel.ts).
+    frameFreeFollow(this, 0.18, 0.18);
+    smoothShake(this);
     this.fit();
     this.scale.on('resize', this.fit, this);
     this.input.on('pointerdown', () => { this.touch = true; });
@@ -271,7 +275,7 @@ export class Horde extends Phaser.Scene {
     const b = this.boss!;
     this.cleared = true;
     this.arsenal.boom('vfx-transform', 8, 8, b.x, b.y - 30, 0.9, 1.4);
-    this.shake(0.014, 500); sfx('finisher'); haptic('heavy');
+    this.land('huge'); sfx('finisher');
     this.slowMo(0.25, 1.2);
     // Every foe on the field falls with it, and every gem flies home.
     for (const f of this.swarm.list) if (f.alive) this.kill(f, false);
@@ -558,7 +562,7 @@ export class Horde extends Phaser.Scene {
     if (this.invuln > 0 || this.dead || this.overlay) return;
     this.hp -= dmg * (1 - this.armor);
     this.invuln = 0.55; this.hero.hurtT = 0.2;
-    sfx('hurt', { vol: 0.5 }); haptic('hurt'); this.shake(0.005, 120);
+    sfx('hurt', { vol: 0.5 }); haptic('hurt'); this.land('small');
     if (this.hp <= 0) this.fall();
   }
 
@@ -826,6 +830,8 @@ export class Horde extends Phaser.Scene {
   }
 
   shake(intensity: number, ms: number) { const k = shakeScale(); if (k > 0) this.cameras.main.shake(ms, intensity * k); }
+  /** A blow of a shared weight (game/feel.ts TIERS); the Horde has no hit-stop, so only the shake and the vibration. */
+  land(tier: Tier) { impact(this.cameras.main, tier); }
   slowMo(scale: number, sec: number) { this.slow = scale; this.slowT = sec; }
   sfx(name: string, vol = 1) { sfx(name, { vol }); }
 }

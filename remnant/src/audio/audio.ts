@@ -132,12 +132,14 @@ export class AudioEngine {
   applyVolumes() {
     if (!this.ctx) return;
     const t = this.ctx.currentTime;
-    this.master.gain.setTargetAtTime(settings.master, t, 0.05);
-    this.musicBus.gain.setTargetAtTime(settings.music * 0.9, t, 0.05);
-    this.sfxBus.gain.setTargetAtTime(settings.sfx, t, 0.05);
+    // Squared on the way in: an even feel along the slider's whole travel (settings v5 kept everyone's loudness).
+    const master = settings.master ** 2, music = settings.music ** 2, sfx = settings.sfx ** 2;
+    this.master.gain.setTargetAtTime(master, t, 0.05);
+    this.musicBus.gain.setTargetAtTime(music * 0.9, t, 0.05);
+    this.sfxBus.gain.setTargetAtTime(sfx, t, 0.05);
     // The reverb sends bypass the dry buses, so they must follow the same sliders.
-    this.musicVerb.gain.setTargetAtTime(settings.music * 0.9 * 0.55, t, 0.05);
-    this.sfxVerb.gain.setTargetAtTime(settings.sfx * 0.28, t, 0.05);
+    this.musicVerb.gain.setTargetAtTime(music * 0.9 * 0.55, t, 0.05);
+    this.sfxVerb.gain.setTargetAtTime(sfx * 0.28, t, 0.05);
   }
 
   setMuffled(on: boolean) {

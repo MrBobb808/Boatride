@@ -49,7 +49,7 @@ try {
     if (mobile) await page.touchscreen.tap(440, 180); else await page.mouse.click(440, 180);
     await page.waitForFunction(() => window.__audio.contexts[0]?.state === 'running');
     assert.deepEqual(await page.evaluate(() => ({ constructed: window.__audio.trace.filter(t => t.startsWith('construct:')), playback: window.__audio.trace.includes('playback') })), { constructed: ['construct:ambient'], playback: false });
-    assert.deepEqual(await page.evaluate(() => { const s = JSON.parse(localStorage.getItem('remnant-settings-v1')); return { mix: s.mixAudio, music: s.music, sfx: s.sfx, v: s.v }; }), { mix: true, music: 0.35, sfx: 0.75, v: 4 });
+    assert.deepEqual(await page.evaluate(() => { const s = JSON.parse(localStorage.getItem('remnant-settings-v1')); return { mix: s.mixAudio, music: s.music, sfx: s.sfx, v: s.v }; }), { mix: true, music: Math.sqrt(0.35), sfx: Math.sqrt(0.75), v: 5 }); // v5: perceptual sliders, the same loudness
     await page.evaluate(() => { const { G } = window.__remnant; G.inCutscene = false; G.ui.openMenu('settings'); });
     const on = page.locator('[data-k=mix_audioon]'), off = page.locator('[data-k=mix_audiooff]');
     await on.scrollIntoViewIfNeeded(); assert.ok((await on.getAttribute('class')).includes('on'));

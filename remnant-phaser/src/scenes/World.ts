@@ -61,6 +61,7 @@ import { audio, sfx } from '../classic/shim/audio';
 import { music } from '../classic/shim/music';
 import { songs } from '../../../remnant/src/audio/songs';
 import { settings, shakeScale } from '../classic/shim/settings';
+import { smoothShake, frameFreeFollow } from '../game/feel';
 import { GuideTrail } from '../game/guideTrail';
 import { Legends } from '../game/legends';
 import { Awakening } from '../game/awakening';
@@ -172,6 +173,10 @@ export class World extends Phaser.Scene implements WorldApi {
     addWatchMode(() => this.save, () => { this.persist(); this.scene.stop('hud'); this.scene.start('watch', { from: 'world' }); });
     if (late.length) this.time.delayedCall(2500, () => this.toast(`${late.length === 1 ? 'A Psalm' : `${late.length} Psalms`} from bosses you have beaten · Menu → Psalms`));
     this.controls = new Controls(this);
+    // The follow below (0.14, 0.12) blends the same at 60 and 120 Hz, and a shake rolls and settles instead of
+    // jittering; the steady camera's rules in shake() are unchanged (game/feel.ts).
+    frameFreeFollow(this, 0.14, 0.12);
+    smoothShake(this);
     this.classic = new ClassicLayer(this);
     this.art = new RoomArt(this);
     this.visuals = new Visuals(this);

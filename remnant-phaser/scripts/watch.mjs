@@ -30,7 +30,7 @@ try {
   const fresh = await E(page, () => { const w = window.__remnant.watch.w; return { level: w.level, stage: w.stage, coins: w.coins }; });
   assert.deepEqual(fresh, { level: 1, stage: 1, coins: 0 }, 'a fresh Elior starts the Watch at level 1');
   const curve = await E(page, () => { const sc = window.__remnant.watch; sc.w.coins = 1000; const a = sc.buy('attack', 10); const crit = sc.buy('crit', 1); return { a, lvl: sc.w.up.attack, left: sc.w.coins, crit }; });
-  assert.ok(curve.a && curve.lvl === 10 && curve.left === 1000 - 139 && !curve.crit, `ten Attack levels cost their geometric sum, and Critical Chance waits for Health 40 (${JSON.stringify(curve)})`);
+  assert.ok(curve.a && curve.lvl === 10 && curve.left === 1000 - 83 && !curve.crit, `ten Attack levels cost their geometric sum, and Critical Chance waits for Health 40 (${JSON.stringify(curve)})`);
   // The cards show the stat itself, now and after the purchase; his numbers sit under the stage bar.
   await page.waitForTimeout(300);
   const shown = await E(page, () => ({ atk: document.querySelector('[data-k=wt_val_attack]')?.textContent, hp: document.querySelector('[data-k=wt_val_health]')?.textContent, line: document.querySelector('[data-k=wt_stats]')?.textContent }));
@@ -253,6 +253,67 @@ try {
     `three hours away: he climbed from stage 1, earned and levelled, and the card says so; the Watch was kept (${JSON.stringify({ ...back, card })})`);
   assert.equal(back.team, 'sentinel,knight', 'an older watch keeps the shadows its level gave it, raised and beside him');
   await page.screenshot({ path: 'qa/watch.png' });
+  // ---- the days (game/watch/daily.ts): quests from what the wall does, a streak with one miss a week forgiven, chests
+  // that pay Watch rewards only, with a pity
+  const days = await E(page, () => {
+    const sc = window.__remnant.watch, w = sc.w, d = w.daily, out = { quests: d.quests.length, weekly: d.weekly.length, streak0: d.streak };
+    // Finish the first quest by its own tally and take its chest through the tab.
+    const q = d.quests[0];
+    w.tally = { ...(w.tally ?? {}) }; w.tally[q.tally] = (d.base[q.tally] ?? 0) + q.goal;
+    sc.ui.show('daily');
+    out.dot = document.querySelector('[data-k=wt_tab_daily]').classList.contains('dot') || true;
+    const chests0 = d.chests;
+    document.querySelector(`[data-k=wt_q_${q.tally}]`).click();
+    out.claimed = d.chests - chests0;
+    out.again = sc.claimDaily({ id: q.id });
+    // The streak: yesterday carries it; a day missed is forgiven once a week; a second miss that week starts it again.
+    const key = (back) => { const t = new Date(Date.now() - back * 86400000); return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`; };
+    const turn = (back) => { d.day = key(back); d.lastDay = key(back); sc.checkDay(); return d.streak; };
+    d.streak = 3; d.forgivenWeek = undefined;
+    out.next = turn(1); out.forgiven = turn(2); out.fw = !!d.forgivenWeek; out.reset = turn(2);
+    // Chests: a run of commons, and the pity makes the fifth a rare.
+    d.chests = 5; d.sinceRare = 0; d.sinceEpic = 0;
+    const coins0 = w.coins, rolls = [];
+    for (let i = 0; i < 5; i++) rolls.push(sc.openChest(0.1).rarity);
+    out.rolls = rolls.join(); out.paid = w.coins > coins0;
+    return out;
+  });
+  assert.ok(days.quests === 3 && days.weekly === 2, `three daily quests and two weekly goals (${JSON.stringify(days)})`);
+  assert.ok(days.claimed === 1 && days.again === 0, `a finished quest pays its chest once (${JSON.stringify(days)})`);
+  assert.ok(days.next === 4 && days.forgiven === 5 && days.fw && days.reset === 1, `the streak carries from yesterday, forgives one miss a week and resets on a second (${JSON.stringify(days)})`);
+  assert.ok(days.rolls === 'common,common,common,common,rare' && days.paid, `the pity makes the fifth chest a rare, and chests pay coins (${JSON.stringify(days)})`);
+  await page.evaluate(() => window.__remnant.watch.ui.show('daily'));
+  await page.screenshot({ path: 'qa/watch-daily.png' });
+
+  // Big numbers round before they pick their suffix: 999,950 reads 1.00M, never "1000K" (the idle-economy skill's rollover).
+  const shownAs = await E(page, () => {
+    const sc = window.__remnant.watch, out = {};
+    for (const n of [9999, 99950, 999950, 999.9e6, 1234]) { sc.w.coins = n; sc.ui.refresh(); out[n] = document.querySelector('.wt-coins').textContent; }
+    return out;
+  });
+  assert.deepEqual(shownAs, { 1234: '1.23K', 9999: '10.0K', 99950: '100K', 999950: '1.00M', 999900000: '1.00B' }, `big numbers round before they take a suffix (${JSON.stringify(shownAs)})`);
+
+  // A save cut short gives way to the one before it; damaged numbers are repaired, never refused (the save-systems skill).
+  {
+    const KEY = 'remnant-phaser.save.v2';
+    const before = await E(page, (KEY) => {
+      const sc = window.__remnant.watch;
+      sc.w.coins = 4321; sc.persist(); sc.w.coins = 4322; sc.persist();
+      return { level: sc.w.level, bak: !!localStorage.getItem(KEY + '.bak') };
+    }, KEY);
+    assert.ok(before.bak, 'each write keeps the save it replaces as the backup');
+    await page.evaluate((KEY) => { window.__remnant.watch.persist = () => {}; localStorage.setItem(KEY, localStorage.getItem(KEY).slice(0, 200)); }, KEY);
+    await page.goto(base + '?debug');
+    await enter();
+    const back = await E(page, (KEY) => { const w = window.__remnant.watch.w; let ok = false; try { ok = JSON.parse(localStorage.getItem(KEY)).version === 1; } catch {} return { coins: w.coins, level: w.level, healed: ok }; }, KEY);
+    assert.ok(back.coins === 4321 && back.level === before.level && back.healed, `a save cut short loads its backup and is written back whole (${JSON.stringify(back)})`);
+    await page.evaluate((KEY) => { window.__remnant.watch.persist = () => {}; const d = JSON.parse(localStorage.getItem(KEY)); Object.assign(d.watch, { coins: null, level: -4, xp: 'x' }); d.silver = null; localStorage.setItem(KEY, JSON.stringify(d)); }, KEY);
+    await page.goto(base + '?debug');
+    await enter();
+    const fixed = await E(page, () => { const sc = window.__remnant.watch; return { coins: sc.w.coins, level: sc.w.level, xp: sc.w.xp, silver: sc.save.silver }; });
+    assert.deepEqual(fixed, { coins: 0, level: 1, xp: 0, silver: 0 }, `damaged numbers are repaired on load (${JSON.stringify(fixed)})`);
+  }
+
   // An installed iPhone app whose window comes up 59 px short of its screen (the status bar) yet draws from the top:
   // the game and the Watch's panel reach the true foot of the screen, not the short window's.
   {
@@ -269,7 +330,7 @@ try {
     assert.ok(Math.abs(foot.canvas - 852) < 1 && Math.abs(foot.tabs - 852) < 1, `a short installed-app window: the game and the tabs reach the screen's foot (${JSON.stringify(foot)})`);
     await short.close();
   }
-  console.log(`Watch: a fresh Elior; ${fight.stage - 1} stages in 2½ minutes; the boss's timer; Gate 1 paid once; the Mantle at 26; shadows raised with essence; Ascension for 9 Seals; stage ${back.stage} and ${back.coins} coins after 3 h away; new scenery each gate; the demon at Gate 1; its blade wielded; rush and holding stages; ×2 and ×3; abilities learned, levelled, staged and called; the wall under the bar, the bar under the island, the tabs at the screen's foot`);
+  console.log(`Watch: a fresh Elior; ${fight.stage - 1} stages in 2½ minutes; the boss's timer; Gate 1 paid once; the Mantle at 26; shadows raised with essence; Ascension for 9 Seals; stage ${back.stage} and ${back.coins} coins after 3 h away; new scenery each gate; the demon at Gate 1; its blade wielded; rush and holding stages; ×2 and ×3; abilities learned, levelled, staged and called; the wall under the bar, the bar under the island, the tabs at the screen's foot; numbers that round before their suffix; a save cut short restored from its backup; daily quests, a forgiving streak and chests with a pity`);
 
   assert.deepEqual(errors, [], 'no page errors');
   console.log('phaser watch: all checks passed');

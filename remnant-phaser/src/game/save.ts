@@ -8,6 +8,7 @@
 import { newGame, migrateSave, derive, gainXp as stateGainXp, absorbEcho, type SaveData, type Derived } from '../../../remnant/src/game/state';
 import { ROOMS } from '../shared';
 import { settleArcher } from './archer';
+import { guardedRead, guardedWrite } from './saveGuard';
 
 export type ArrowType = 'standard' | 'fire' | 'frost' | 'storm' | 'holy';
 /** Phaser-only fields, all optional: the fighter in play, Elior's style, and Tirzah's loadout (her three ability slots,
@@ -69,6 +70,15 @@ function settle(d: SaveData): SaveData {
   d.equippedSkills ??= [null, null, null];
   migrateSave(d);
   settleArcher(d);
+  // Repair, never refuse (save-systems skill): an amount that is not a finite number, or is negative, becomes 0, and
+  // the level at least 1, so one bad value never stops a journey from loading.
+  const num = d as unknown as Record<string, unknown>;
+  for (const k of ['silver', 'xp', 'ce', 'kills', 'statPoints', 'skillPoints', 'balm'] as const) {
+    const v = num[k];
+    if (typeof v !== 'number' || !Number.isFinite(v) || v < 0) num[k] = 0;
+  }
+  if (!Number.isFinite(d.level) || d.level < 1) d.level = 1;
+  if (!Number.isFinite(d.hp)) d.hp = 9999;
   const kit=d as PhaserSave;
   if(kit.playableHero!==undefined&&kit.playableHero!=='tirzah'&&kit.playableHero!=='elior')delete kit.playableHero;
   if(kit.combatStyle!==undefined&&!['vanguard','wraith','sentinel'].includes(kit.combatStyle))delete kit.combatStyle;
@@ -123,7 +133,7 @@ function fromV1(raw: string): SaveData | null {
 }
 
 export function loadSave(): SaveData | null {
-  const v2 = parse(read(activeKey()));
+  const v2 = parse(guardedRead(activeKey()));
   if (v2) return earlyLoadout(v2);
   const v1 = read(KEY_V1);
   return v1 ? fromV1(v1) : null;
@@ -131,7 +141,8 @@ export function loadSave(): SaveData | null {
 
 export function writeSave(s: SaveData) {
   s.updated = Date.now();
-  try { localStorage.setItem(activeKey(), JSON.stringify(s)); } catch { /* private mode: this session only */ }
+  // The save it replaces becomes the backup (game/saveGuard.ts); private mode keeps this session only.
+  guardedWrite(activeKey(), JSON.stringify(s));
 }
 
 /** The live game's slots, for the title's import (read-only). */

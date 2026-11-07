@@ -5,6 +5,7 @@
 
 import type { EchoRole } from '../../../../remnant/src/game/data';
 import type { ShadowId } from './shadows';
+import type { DailySave, TallyId } from './daily';
 
 /** What the Watch keeps in the journey's save (`PhaserSave.watch`, optional, so saves stay compatible). */
 export interface WatchSave {
@@ -44,10 +45,28 @@ export interface WatchSave {
   essence?: Partial<Record<ShadowId, number>>;
   shadows?: Partial<Record<ShadowId, { lv: number; role?: EchoRole }>>;
   team?: ShadowId[];
+  /** What the wall has done, for ever (the quests count from their day's or week's start), and the days' quests, streak
+   * and chests (game/watch/daily.ts). */
+  tally?: Partial<Record<TallyId, number>>;
+  daily?: DailySave;
 }
 
 /** Older Watch saves knew Covenant Strike and the Pillar by level alone: they keep them, bought and equipped. */
 export function migrateWatch(w: WatchSave) {
+  // Repair, never refuse (the save-systems and idle-economy skills): an amount that is not a finite number, or is
+  // negative, becomes 0 (a level or a stage 1), so one bad value never stops the Watch from opening or reaches a price.
+  const n = (v: unknown, min = 0) => (typeof v === 'number' && Number.isFinite(v) ? Math.max(min, v) : min);
+  w.coins = n(w.coins); w.xp = n(w.xp); w.rate = n(w.rate); w.gauge = Math.min(100, n(w.gauge));
+  w.seals = Math.floor(n(w.seals)); w.ascensions = Math.floor(n(w.ascensions));
+  w.level = Math.floor(n(w.level, 1)); w.stage = Math.floor(n(w.stage, 1));
+  w.best = Math.max(w.stage, Math.floor(n(w.best, 1))); w.bestEver = Math.max(w.best, Math.floor(n(w.bestEver, 1)));
+  if (typeof w.last !== 'number' || !Number.isFinite(w.last)) w.last = Date.now();
+  w.up = w.up && typeof w.up === 'object' ? w.up : {};
+  for (const k of Object.keys(w.up) as TrackId[]) w.up[k] = Math.floor(n(w.up[k]));
+  w.paid = Array.isArray(w.paid) ? w.paid.filter((g) => Number.isFinite(g)) : [];
+  if (w.essence) for (const k of Object.keys(w.essence) as ShadowId[]) w.essence[k] = Math.floor(n(w.essence[k]));
+  if (w.tally) for (const k of Object.keys(w.tally) as TallyId[]) w.tally[k] = Math.floor(n(w.tally[k]));
+  if (w.daily) { w.daily.chests = Math.floor(n(w.daily.chests)); w.daily.streak = Math.max(1, Math.floor(n(w.daily.streak))); }
   // Shadows used to join by level alone: an older watch keeps as many as it had, raised and in the team.
   if (!w.shadows) {
     w.shadows = {};
@@ -97,8 +116,8 @@ export interface Track {
   max?: number;
 }
 export const TRACKS: Track[] = [
-  { id: 'attack', name: 'Attack', base: 10, rate: 1.07, per: '+4 damage a level' },
-  { id: 'health', name: 'Health', base: 10, rate: 1.07, per: '+20 health a level' },
+  { id: 'attack', name: 'Attack', base: 6, rate: 1.07, per: '+4 damage a level' },
+  { id: 'health', name: 'Health', base: 6, rate: 1.07, per: '+20 health a level' },
   { id: 'speed', name: 'Attack Speed', base: 25, rate: 1.12, per: '+1% swings a level, to ×2', max: 100 },
   { id: 'crit', name: 'Critical Chance', base: 200, rate: 1.15, per: '+0.5% a level, to 60%', opens: { track: 'health', level: 40 }, max: 120 },
   { id: 'regen', name: 'Health Regen', base: 300, rate: 1.1, per: '+0.2%/s a level, to 5%', opens: { track: 'crit', level: 20 }, max: 25 },
@@ -141,7 +160,9 @@ export const nextMilestone = (level: number) => { let at = 25; while (at <= leve
 export const watchXpNext = (level: number) => Math.ceil(20 * Math.pow(level, 1.6));
 /** What each Watch level adds to his blows and health, and what the Seals add to blows and coins. */
 export const levelBonus = (level: number) => 1 + 0.03 * (level - 1);
-export const sealBonus = (seals: number) => 1 + 0.05 * seals;
+// Seals grow on each other (×1.02 each over the 5% each adds), so every Ascension carries the wall further than the last
+// (POLISH_PLAN §19 G12: with 5% alone the best stage stalled near 130 from the fourth on). Never weaker than before.
+export const sealBonus = (seals: number) => (1 + 0.05 * seals) * Math.pow(1.02, seals);
 
 /** The armoury: a blade for each of the first eight gates' first fall (CC0 swords, art/incoming/cc0), each heavier. */
 export const BLADES: { name: string; atk: number }[] = [
@@ -263,14 +284,20 @@ export const CAPE_AT: Record<number, string> = { 10: 'midnight', 25: 'lamp' };
 // ---------------------------------------------------------------- numbers
 
 const SUFFIX = ['', 'K', 'M', 'B', 'T'];
-/** 999, 1.2K, 34M, 5.6T, then aa, ab… for the idle game's big numbers. */
+/** 999, 1.20K, 34.5M, 567T, then aa, ab… for the idle game's big numbers: three significant figures. It rounds
+ * first and only then picks the digits and the suffix, so 999,950 reads 1.00M (not "1000K") and 9,999 reads 10.0K (not
+ * "10.00K"): the rollover the idle-economy skill warns of (.claude/skills/roblox-simulator-economy). */
 export function fmt(n: number) {
   if (!isFinite(n)) return '∞';
   if (n < 1000) return String(Math.floor(n));
   let e = Math.floor(Math.log10(n) / 3);
-  const v = n / Math.pow(1000, e);
-  const s = v >= 100 ? v.toFixed(0) : v >= 10 ? v.toFixed(1) : v.toFixed(2);
-  if (e < SUFFIX.length) return s + SUFFIX[e];
-  e -= SUFFIX.length;
-  return s + String.fromCharCode(97 + Math.floor(e / 26)) + String.fromCharCode(97 + (e % 26));
+  for (;;) {
+    const v = n / Math.pow(1000, e), r = Number(v.toFixed(v >= 100 ? 0 : v >= 10 ? 1 : 2));
+    // Rounded up to the next thousand: the next suffix says it.
+    if (r >= 1000) { e++; continue; }
+    const s = r.toFixed(r >= 100 ? 0 : r >= 10 ? 1 : 2);
+    if (e < SUFFIX.length) return s + SUFFIX[e];
+    const k = e - SUFFIX.length;
+    return s + String.fromCharCode(97 + Math.floor(k / 26)) + String.fromCharCode(97 + (k % 26));
+  }
 }

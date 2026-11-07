@@ -786,8 +786,11 @@ chose:
   outlast his health. Holding back, he never drops lower, and tries again every three levels he gains. A welcome-back
   card lists it all. `src/game/watch/offline.ts` (`simulateAway`, `applyAway`), calibrated against the live wall in
   `scripts/watch.mjs`. Perks may lengthen the cap (`awayCap`).
-- **Daily quests and a login streak:** three to five daily tasks (foes felled, abilities used, a gate won), weekly goals,
-  and a streak calendar; rewards come in chests.
+- **Daily quests and a login streak** (BUILT, `src/game/watch/daily.ts`, the Daily tab): three daily quests and two
+  weekly goals drawn (seeded by the day or week) from what the wall counts anyway (`WatchSave.tally`: foes, stages, gates,
+  elites, abilities, upgrades; away counts too); a seven-day streak calendar (1, 1, 2, 1, 2, 2, 4 chests) where one
+  missed day a week is forgiven (the owner's choice); chests pay Watch rewards only (the owner's choice): coins, essence
+  and rarely a Seal, with the odds shown (62/28/9/1%) and a pity (a rare within 5 opens, an epic within 20).
 - **Achievements and titles:** many milestones, each a small permanent bonus and a title or badge.
 - **Relics and an Ascension tree:** Seals buy relics and talents that outlast an Ascension (the long chase).
 - **A boss tower and daily dungeons:** a tower of holders, one floor per try with milestone rewards; daily dungeons
@@ -799,6 +802,176 @@ the Ascension tree, then the tower and dungeons.
 
 Sources: Anthony Pecorella, *The Math of Idle Games*, parts I–III (Kongregate, on Game Developer); practitioner notes
 on idle retention, offline earnings and upgrade design (Pocket Gamer.biz on Gold & Goblins; DEV Community posts).
+
+## 19. Agent skills: checking the game against awesome-gamedev-agent-skills (owner's request, 7 November 2026)
+
+The owner asked how the [awesome-gamedev-agent-skills](https://github.com/gamedev-skills/awesome-gamedev-agent-skills)
+repository could improve the game. It is a library of 77 *Agent Skills* (Apache-2.0): short playbooks an AI coding
+assistant loads before it works on a topic. It holds no code or art for the game itself. Its value here is twofold:
+the assistants that work on this repo (Claude Code, Codex) follow tested practice, and each skill is a checklist the
+game can be measured against. This section is that measurement and the plan that follows from it.
+
+### 19a. What we take, and what we leave
+
+Most skills are for other engines (Godot, Unity, Unreal, Roblox, Bevy). Ten fit this game; its Phaser skill is
+pinned to Phaser 4.2, the version we run (4.2.1).
+
+| Skill | Why it fits |
+|---|---|
+| `phaser-core` | Our engine and version: scene lifecycle, loader, cameras, the Phaser 3 → 4 renames. |
+| `game-feel` | Screen shake by decaying trauma, hit-stop, easing, feedback tiers. |
+| `camera-systems` | Frame-rate-independent follow, deadzone, look-ahead, bounds. |
+| `save-systems` | Versioned saves, migration, validation, a last-good backup. |
+| `game-ui-ux` | Safe areas, scaling, controller focus, text size, menu stacks. |
+| `audio-design` | Buses, slider curves, ducking, SFX variation, beat sync. |
+| `performance-optimization` | Frame budget, profile first, pooling, no per-frame allocation. |
+| `ai-behavior-trees-utility-ai` | Utility scoring with hysteresis for Echoes, shadows and the AI partner. |
+| `create-game-assets` | Art direction brief, asset manifest, families, deterministic QA (scripts included). |
+| `roblox-simulator-economy` | Written for Roblox, but its idle-economy formulas, pacing targets, offline rules and big-number display apply to the Watch as they stand. |
+
+Left out: the router (it only picks among engines we do not use), every other engine's skills, and the genres and
+workflows that do not match (FPS, card game, Steam). `rpg`, `procedural-gen` and `level-design` are kept in mind for
+the Watch's tower and dungeons (§18k) but not installed until that phase.
+
+**Installing them:** the ten folders go into `.claude/skills/` (Claude Code) and `.agents/skills/` (Codex and the
+others that read the shared path), copied from a pinned commit with the licence and `NOTICE` beside them, and named in
+AGENTS.md so every assistant knows they are there. Updating them is a deliberate copy, never automatic.
+
+### 19b. What the check found
+
+Measured against the code as it stands on 7 November 2026.
+
+**Already in line** (keep as is):
+- Hit-stop holds the longest pending stop and resumes on real time (`World.hitstop`), which avoids the skill's
+  overlapping-freeze bug; the Watch's `stopT` does the same.
+- Offline progress earns about half the live rate with a 12-hour cap (§18k), inside the skill's 0.25–0.5 and
+  8–12 h targets; a clock set back pays nothing.
+- Effects, numbers and foes are pooled in the Watch and the Horde; `shadowBlur` is banned; quality steps down on load
+  (`core/frameBudget.ts`).
+- Safe areas: the Watch and the Horde now follow the inset and the true screen height (PR #112).
+- Phaser 4 renames: tint fill, filters and `pixelArt` are already used the Phaser 4 way.
+
+**Gaps**, each with the skill that names it:
+
+| # | Gap | Skill | Where |
+|---|---|---|---|
+| G1 | **Big numbers roll over wrongly:** 999,950 shows "1000K" (should be "1.00M"), 999.9M shows "1000M", and 9,999 shows "10.00K". | simulator-economy | `src/game/watch/defs.ts` `fmt` |
+| G2 | **Saves have no last-good copy.** `writeSave` overwrites the only copy; a failed write or a damaged save has nothing to fall back to, and nothing repairs NaN, Infinity or negative amounts on load. | save-systems, simulator-economy | `src/game/save.ts`, `migrateWatch` |
+| G3 | **The camera's follow is frame-rate dependent.** `startFollow(…, 0.14, 0.12)` blends a fixed fraction each frame, so at 120 Hz it catches up about twice as fast as at 60 Hz: the feel changes with the phone's frame rate. | camera-systems | `src/scenes/World.ts` |
+| G4 | **Volume sliders are linear amplitude.** Most of a slider's travel barely changes loudness; the drop is all at the bottom. | audio-design | `remnant/src/audio/audio.ts` `applyVolumes` |
+| G5 | **Screen shake is random per frame** (Phaser's built-in shake, 32 calls), which buzzes rather than rolls, and each call site picks its own strength. | game-feel | World, Horde, Watch, bosses, classic layer |
+| G6 | **No shared feedback tiers.** Hits, crits, kills, boss blows and abilities each choose their own shake, flash, pause and sparks, so the three modes feel different for the same weight of blow. | game-feel | same |
+| G7 | **DOM menus cannot be driven by the controller.** The home screen and the Watch's and Horde's panels need a touch; the PS5 pad works only in the canvas game. | game-ui-ux | `src/game/home.ts`, `src/game/watch/ui.ts`, Horde cards |
+| G8 | **No text-size option** for the small panel text (10–12 px in places). | game-ui-ux | Settings |
+| G9 | **Per-tick allocation in the Watch:** `foes.filter(...)` and `sort` three times a tick and `watchStats` objects each tick, times three at ×3 speed. | performance-optimization | `src/scenes/Watch.ts` `tick` |
+| G10 | **Echo, shadow and partner targeting is a chain of rules.** It works, but near-ties flip targets, and adding a consideration means another branch. | ai-behavior-trees-utility-ai | `remnant/src/game/echoes.ts` `chooseTarget`, `src/game/watch/shadows.ts`, `src/game/partner.ts` |
+| G11 | **The art pipeline has no written art-direction brief or automatic QA.** `art/REQUESTS.md` and `manifest.json` exist, but nothing checks sizes, transparency, pivots and palette before art leaves `art/incoming/`. | create-game-assets | `remnant-phaser/art/` |
+| G12 | **The Watch's pacing is unmeasured** against the skill's targets: early upgrades in seconds, and each Ascension only ×1.2–1.5 longer than the last. | simulator-economy | `src/game/watch/defs.ts` |
+
+### 19c. The build order
+
+One pull request per phase, each verified as the repo verifies everything (headless Chromium through `?debug`, a
+production build, `tsc` clean). Phases 1–2 change how the game feels everywhere, so they come first.
+
+1. **Phase 1: install the skills and fix what is plainly wrong** (small, safe). **BUILT** (G1, G2, G4; the skills in
+   `.claude/skills/` and `.agents/skills/`).
+   - Copy the ten skills into `.claude/skills/` and `.agents/skills/` with the licence and `NOTICE`; name them in
+     AGENTS.md.
+   - G1: `fmt` rounds first and steps up a suffix when the rounded value reaches 1000; a table of cases in
+     `scripts/watch.mjs`.
+   - G2: keep the previous save under a `.bak` key before each write; on load, fall back to it when the save does not
+     parse; clean NaN, Infinity and negative amounts in `migrate` and `migrateWatch`. A test damages a save and
+     checks the backup returns.
+   - G4: square each volume slider before it becomes gain (the saved slider values stay as they are).
+2. **Phase 2: one feel for every mode.** **BUILT** (`src/game/feel.ts`, `scripts/feel.mjs`): the trauma shake replaces
+   Phaser's random one inside every camera that shakes (the World, the Horde, the Watch), so the existing calls keep
+   their strengths and the steady camera's rule (ordinary blows never shake it) holds; the follow blends by real
+   frame time; the Watch and the Horde land their blows through `TIERS`. The main game's call sites keep their own
+   numbers, which the owner tuned (PR #57).
+   - G5: a trauma shake (0–1, shake = trauma², sampled noise, decays on its own) on a camera offset, respecting
+     Settings → Screen shake; every `.shake()` call becomes `addTrauma(n)`.
+   - G6: `feedback(tier, x, y)` with small, medium, large and huge tiers (shake, hit-stop, flash, sparks, haptics,
+     sound) used by the main game, the Horde and the Watch alike; the per-site numbers move into one table.
+   - G3: the camera follows with `1 − exp(−rate·dt)` smoothing, so 60 Hz and 120 Hz feel the same (a test measures
+     the catch-up at both rates with `?fixedstep`).
+3. **Phase 3: the Watch's economy, measured** (before §18k's daily quests build on it). **BUILT.** Measured
+   (`src/game/watch/balance.ts`, `scripts/watch-pace.mjs`, a plain player with no shadows or abilities, buying the
+   cheapest upgrade): the first ten upgrades took 20–26 s each and the best stage stalled near 130 from the fourth
+   Ascension (each Seal added a flat 5%). Tuned: Attack and Health start at 6 coins (was 10), and Seals compound
+   (`(1 + 0.05·s)·1.02^s`, never weaker than before). Now the first ten average 6.8 s; the Ascensions take 56, 57,
+   62, 82, 67 and 91 minutes (each at most ×1.35 the one before) and reach stages 90, 110, 130, 160, 170 and 190.
+   Daily quests, the streak and chests: `src/game/watch/daily.ts`, the Daily tab (§18k).
+   - G12: a balance script after the skill's calculator prints the time to each upgrade level, gate and Ascension at
+     the live rates; tune toward early upgrades in 3–10 s and Ascensions ×1.2–1.5 apart, and record the numbers here.
+   - Then §18k's daily quests, streak and pity chests, built on the skill's rules (rewards from the save's own clock,
+     odds shown for any random roll, nothing paid).
+4. **Phase 4: allies that choose well.**
+   - G10: utility scoring for Echoes, Watch shadows and the AI partner. Each consideration is 0–1 (distance, threat,
+     the foe's health, the order given, the role), the current target gets a small bonus so it does not flip on a
+     near-tie, and cooldowns survive a change of mind. Orders (Guard, Hunt, Flank, Hold, Focus) become weights, not
+     branches.
+5. **Phase 5: menus for every hand.**
+   - G7: controller focus in the DOM menus (one focused control on open, the d-pad moves between neighbours, ✕ to press,
+     ○ to go back), with a visible focus ring.
+   - G8: Settings → Text size (100–150%) for the panels and cards.
+6. **Phase 6: performance, measured first.** **BUILT.** `scripts/perf.mjs` plays the three busiest scenes as an
+   iPhone 15 Pro in headless Chromium for six seconds each and records Phaser's step time, the CPU profile, texture
+   uploads and canvas read-backs by caller, and sampled allocation (`npx vite build --minify false && node
+   scripts/perf.mjs [horde|watch|north] [--json file]`; it only reports, so it is not in CI). Measured on 7 November
+   2026, script time per step against the 8.3 ms a frame has at 120 Hz:
+
+   | Scene | Step p50 | p99 | Sampled allocation | Largest named cost |
+   |---|---|---|---|---|
+   | The Horde, 120 foes | 4.4 ms | 13.6 ms | 52 KB/s | Phaser's batching, 0.3% |
+   | The Watch at ×3, stage 95, full kit | 1.8 ms | 5.1 ms | 42 KB/s | the Watch's `tick`, 0.2% |
+   | The King of the North | 7.2–8.3 ms | 13–20 ms | 60–70 KB/s | texture uploads, 2% (about 3 ms a frame) |
+
+   The headless browser draws with a software GPU (about 95% of the samples are inside it), so it cannot say what
+   the iPhone's GPU spends; the game's own code is never more than half a percent of a sample, and the garbage
+   collector 0.1–0.3%. Nothing in the profile called for a change:
+   - The main game uploads three view-sized canvases a frame (the room's back and front, the classic actors).
+     Redrawing the classic actors every other frame under load halved their uploads and moved the step time by
+     nothing measurable, so it was taken out again (the skill's rule: keep a change only when the number moves).
+   - The boss shading's read-back (`render/bossPixel.ts`) already uses a CPU-side canvas (`willReadFrequently`), so
+     it does not stall the GPU: 0.25 ms a frame, throttled by the quality tier.
+   - G9, the Watch's per-tick lists: the whole `tick` is 0.2% at ×3, so reusing the lists would add code for no
+     measurable gain. Left as it is.
+   - What the device itself shows: Settings → Show frame rate now works in this build (`src/game/perfMeter.ts`). It
+     reads the frame, its worst in the last 240, and the script's share (Phaser's step from `prestep` to `postrender`)
+     with the quality tier: a frame much longer than its script is the GPU's, a script near the frame is the CPU's.
+     Read it on the iPhone in a busy fight before the next performance change. `scripts/smoke.mjs` checks it.
+   - Budgets to hold (rerun `perf.mjs` after a change to a busy scene): step p50 under 5 ms in the Horde and 3 ms in
+     the Watch, under 8.3 ms in a boss fight; sampled allocation under 150 KB/s (a short run reads 40–110).
+
+   The plan as written:
+   - Profile a production build at 120 Hz on the busiest scenes (a full Horde stage, the Watch at ×3, a Chapter XII
+     boss), record the frame split, then fix what the profile shows. G9 is the first known case: reuse the Watch's
+     lists instead of filtering and sorting each tick.
+7. **Phase 7: art that holds together.** **BUILT.**
+   - `art/ART_DIRECTION.md`: the brief, measured from the shipping sheets (palette roles with their swatches, the warm
+     near-black outline, light from the front and above on every sheet, 54 world-pixel figures, pivots and baselines
+     per asset type, what never to do, from the reviews) and the families with their seeds.
+   - `manifest.json`: every entry now has `pivot`, `licence` and `approval` (state, seen at native scale, seen in the
+     game, by whom); `status` and `actual_size` already held the state and size.
+   - `art/tools/`: the skill's `asset_report.py`, `build_preview_sheet.py` and `requirements.txt`, unchanged, and
+     `review.py`, which checks the manifest's entries with them (it reads, under 4 MB, the right background, nothing
+     solid on an inner cell edge) and makes the contact sheet. Run over every entry, it fails exactly the three sheets
+     the reviews rejected for crossing cells or drawn lines (C03, C05, V08) and passes everything delivered.
+   - `art/REQUESTS.md` and `art/README.md`: art is made in families, each section with its seed; siblings carry the
+     seed image and wait for its approval.
+
+   The plan as written:
+   - G11: `art/ART_DIRECTION.md`, a brief written from the art the game already has (palette roles, outline, light
+     direction, pixel density per asset type, pivots). Extend `manifest.json` entries with the skill's fields (state,
+     size, pivot, licence, approval), and add its `asset_report.py` and `build_preview_sheet.py` to `art/tools/`, so
+     every piece from `art/incoming/` is checked and seen on a contact sheet before it is used.
+   - `art/REQUESTS.md` asks ChatGPT for families (one approved hero piece, then its siblings) rather than one-offs.
+
+### 19d. What stays the same
+
+Saves stay compatible: new fields are optional, and the backup key is new rather than a change to the old one. No
+new runtime dependencies: the skills are documentation, and their two Python QA scripts run only in `art/tools/`.
+Scripture, the story and the art style are untouched.
 
 ## 10. Questions for the owner
 

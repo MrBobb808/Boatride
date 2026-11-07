@@ -21,13 +21,23 @@ up next starts from the latest version.
    Explicit update navigations wait for the fresh document on slow connections;
    failed refreshes retry after a cooldown.
 
+## Agent skills
+
+Ten playbooks from [awesome-gamedev-agent-skills](https://github.com/gamedev-skills/awesome-gamedev-agent-skills)
+(Apache-2.0) are vendored in `.claude/skills/` (Claude Code) and `.agents/skills/` (Codex and other assistants): Phaser
+core, game feel, camera, saves, UI/UX, audio, performance, utility AI, asset production, and an idle economy (for the
+Watch). Load the matching one before working on its topic; this file and the rules below win where they differ. Why
+these ten and what the game was checked against: `remnant-phaser/POLISH_PLAN.md` §19; how to update them: the
+`README.md` beside them.
+
 ## Current polish work and art
 
 Claude Code does the game changes, following `remnant-phaser/POLISH_PLAN.md`.
 That plan covers combat, sound, abilities, the archer's kit and
 transformation, and selling, salvage, the store and crafting. ChatGPT
-generates art into `remnant-phaser/art/`. `art/REQUESTS.md` says what to make,
-and `art/README.md` how to store it and record it in `art/manifest.json`.
+generates art into `remnant-phaser/art/`. `art/ART_DIRECTION.md` says what it must look
+like (made in families, each from an approved seed), `art/REQUESTS.md` what to make, and `art/README.md` how to store
+it and record it in `art/manifest.json`; `art/tools/review.py` checks it before use.
 Never ship files from `art/incoming/` directly.
 
 ## What is in the repository
@@ -283,6 +293,20 @@ Never ship files from `art/incoming/` directly.
   - Never break `SaveData` compatibility.
   - Add new fields as optional and fill them in `migrateSave` (`game/state.ts`)
     or `migrate` (`game/save.ts`).
+  - Phaser build: every write keeps the save it replaces under `<key>.bak`, and a save that will not read is
+    replaced by it on load (`remnant-phaser/src/game/saveGuard.ts`); damaged amounts are repaired, never refused
+    (`settle` in `src/game/save.ts`, `migrateWatch`).
+- **Volume sliders** (settings v5): the mixer squares each slider (`applyVolumes` in `audio/audio.ts`) so its travel
+  sounds even; v5 moved saved sliders to their square roots once, keeping everyone's loudness. Change both settings
+  files together (`remnant/src/core/settings.ts` and the Phaser build's `src/classic/shim/settings.ts`).
+- **Feel (Phaser build):** `remnant-phaser/src/game/feel.ts` gives each scene's camera a smooth trauma shake (call
+  `camera.shake(ms, intensity)` as before), a follow that blends the same at 60 and 120 Hz, and shared blow
+  weights (`TIERS`, `impact`) for the Watch and the Horde. The main game keeps its steady camera: ordinary blows
+  never shake it (`World.shake`). Verified by `scripts/feel.mjs`.
+- **Performance (Phaser build):** measure before changing anything (POLISH_PLAN §19 phase 6): `scripts/perf.mjs`
+  profiles the busiest scenes headless, and Settings → Show frame rate (`src/game/perfMeter.ts`) reads the frame and
+  the script's share of it on the iPhone itself (headless Chromium's GPU is software, so only the device can say
+  what its GPU costs).
 - **Lighting:** Settings → Lighting (`settings.lighting`, dramatic by
   default) scales a dim room's darkness in `render/lighting.ts`
   (`lightingLevel`); daylight is untouched.
@@ -334,7 +358,9 @@ Never ship files from `art/incoming/` directly.
   eight upgrade tracks; gates end in a boss on a timer; his Watch level opens
   skills, shadows (8–150) and the Mantle (25); Ascension from stage 60 pays
   Seals; away, the wall climbs on at half speed for up to 12 hours
-  (`src/game/watch/offline.ts`) and a welcome card reports it. Back to the journey only silver and
+  (`src/game/watch/offline.ts`) and a welcome card reports it. The Daily tab (`src/game/watch/daily.ts`): three
+  daily quests, two weekly goals, a seven-day streak (one miss a week forgiven) and chests with shown odds and a
+  pity, Watch rewards only. Seals compound; `scripts/watch-pace.mjs` holds the pacing to the idle-economy skill's targets. Back to the journey only silver and
   capes. `PhaserSave.watch`. Verified by `scripts/watch.mjs`. See POLISH_PLAN §18.
   Each gate (ten stages) is a new place (`src/game/watch/scenes.ts`: eight
   scenes with their own parallax layers, set pieces, foes and gate boss), and

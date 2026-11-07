@@ -14,14 +14,16 @@ import demonUrl from '../assets/cc0/watch-demon.png';
 import bladesUrl from '../assets/cc0/blades.png';
 import { bossScale } from '../game/bosses';
 import { music } from '../classic/shim/music';
-import { shakeScale, settings } from '../classic/shim/settings';
+import { settings } from '../classic/shim/settings';
 import { sfx } from '../../../remnant/src/audio/audio';
-import { haptic } from '../../../remnant/src/core/haptics';
 import { safe, measureSafe } from '../../../remnant/src/ui/safe';
 import * as D from '../game/watch/defs';
 import { WatchUI } from '../game/watch/ui';
 import { simulateAway, applyAway } from '../game/watch/offline';
-import { ShadowBand, ESSENCE_OF, BOSS_ESSENCE, UNLOCK_COST, SHADOW_MAX, levelCost, owned, shadowName, type ShadowId } from '../game/watch/shadows';
+import { pace } from '../game/watch/balance';
+import { tally, rollDays, openChest, claim, type ChestPrize } from '../game/watch/daily';
+import { smoothShake, impact, type Tier } from '../game/feel';
+import { ShadowBand, SHADOW_ORDER, ESSENCE_OF, BOSS_ESSENCE, UNLOCK_COST, SHADOW_MAX, levelCost, owned, shadowName, type ShadowId } from '../game/watch/shadows';
 import type { EchoRole } from '../../../remnant/src/game/data';
 
 /** The wall's world: 300 × 176 units (narrow, so the fighters read large on a phone), the ground at 146; Elior stands
@@ -143,6 +145,7 @@ export class Watch extends Phaser.Scene {
     this.save = (loadSave() as PhaserSave | null) ?? (newSave(false) as PhaserSave);
     this.w = D.migrateWatch(this.save.watch ??= D.newWatch());
     this.cameras.main.setBackgroundColor('#07060a');
+    smoothShake(this);
     this.bg = this.add.graphics().setDepth(-10);
     this.arm();
     this.hx = HOME; this.cine = null; this.engaged = null; this.running = false; this.abilT = {};
@@ -183,7 +186,12 @@ export class Watch extends Phaser.Scene {
     // saved at once, so the card only reports what is already his.
     const awaySecs = (Date.now() - this.w.last) / 1000;
     const away = awaySecs >= 60 ? simulateAway(this.w, awaySecs) : null;
-    if (away) { applyAway(this.w, away); for (const g of away.gates) this.payGate(g, true); }
+    if (away) {
+      applyAway(this.w, away); for (const g of away.gates) this.payGate(g, true);
+      // What the wall did away counts toward the days' quests too.
+      tally(this.w, 'kills', away.kills); tally(this.w, 'stages', Math.floor(away.kills / D.KILLS_PER_STAGE)); tally(this.w, 'gates', away.gates.length);
+    }
+    this.dayTurned(rollDays(this.w), true);
     this.w.last = Date.now();
     if (away) this.persist();
     this.hp = D.watchStats(this.w).maxHp;
@@ -203,7 +211,7 @@ export class Watch extends Phaser.Scene {
     });
     music.play(sceneOf(D.gateOf(this.w.stage)).music);
     if (away && (away.coins > 0 || away.to !== away.from)) this.ui.welcome(away, awaySecs);
-    if (new URLSearchParams(location.search).has('debug')) (window as unknown as { __remnant: Record<string, unknown> }).__remnant = { ...((window as unknown as { __remnant?: Record<string, unknown> }).__remnant ?? {}), game: this.game, watch: this };
+    if (new URLSearchParams(location.search).has('debug')) (window as unknown as { __remnant: Record<string, unknown> }).__remnant = { ...((window as unknown as { __remnant?: Record<string, unknown> }).__remnant ?? {}), game: this.game, watch: this, watchPace: pace };
   }
 
   /** The wall fills the top of an upright phone (the panel below); sideways, the left half. */
@@ -433,7 +441,7 @@ export class Watch extends Phaser.Scene {
     const dmg = st.atk * mult * (crit ? st.critDmg : 1) * (this.mantleT > 0 ? D.MANTLE.dmg : 1);
     this.damage(f, dmg, crit || mult > 1, false, mult >= 2);
     sfx(mult > 1 || crit ? 'hitHeavy' : 'hit', { vol: 0.5, pitch: 0.95 + Math.random() * 0.1 });
-    if (mult > 1) { this.shakeIt(0.006, 120); haptic('heavy'); }
+    if (mult > 1) this.land('small');
   }
 
   /** A tap on the wall: one more quick blow. */
@@ -465,9 +473,12 @@ export class Watch extends Phaser.Scene {
     if (w.level >= D.MANTLE.level && this.mantleT <= 0) w.gauge = Math.min(100, w.gauge + D.MANTLE.perKill);
     // Major foes leave essence of a shadow: an elite one of its own kind, a gate's holder three and one of the Marshal's.
     if (f.elite) this.gainEssence(ESSENCE_OF[f.id] ?? 'sentinel', 1, f.x);
+    // The days' quests count what the wall does (game/watch/daily.ts).
+    tally(w, 'kills'); if (f.elite) tally(w, 'elites');
     if (f.boss) { this.gainEssence(BOSS_ESSENCE[f.boss] ?? 'knight', 3, f.x); this.gainEssence('marshal', 1, f.x); this.bossDown(); return; }
     this.kills++;
     if (this.kills >= D.KILLS_PER_STAGE) {
+      tally(w, 'stages');
       // Cleared: on to the next stage, or (holding back after a lost fight) once more here, to grow.
       if (w.auto) this.next(); else this.startStage(w.stage);
     }
@@ -483,7 +494,8 @@ export class Watch extends Phaser.Scene {
 
   private bossDown() {
     const w = this.w, gate = D.gateOf(w.stage);
-    this.shakeIt(0.012, 260); haptic('heavy');
+    this.land('large');
+    tally(w, 'gates'); tally(w, 'stages');
     sfx('bossSlam', { vol: 0.5 }); sfx('lootRare', { vol: 0.6 });
     this.payGate(gate, false);
     this.bossName = null;
@@ -501,6 +513,35 @@ export class Watch extends Phaser.Scene {
     if (cape) { const st = (this.save.store ??= {}); (st.capes ??= []).includes(cape) || st.capes.push(cape); }
     const blade = D.BLADES[gate - 1];
     if (!quiet) this.ui.toast(`Gate ${gate} holds · +${silver} silver for the journey${cape ? ' · and a cape' : ''}${blade ? ` · a new blade: ${blade.name} (Hero → armoury)` : ''}`, 3.6);
+  }
+
+  /** A new day (or the first): the streak's news, as a toast. `quiet` on opening (the welcome card speaks first). */
+  private dayTurned(r: ReturnType<typeof rollDays>, quiet = false) {
+    if (!r.newDay) return;
+    const msg = r.forgiven ? `Day ${r.streak} of your streak · a missed day forgiven (once a week)` : r.reset ? 'A new streak begins · Daily' : `Day ${r.streak} of your streak · Daily`;
+    if (!quiet) this.ui.toast(msg, 3); else this.time.delayedCall(1200, () => this.ui.toast(msg, 3));
+    this.ui.refresh();
+  }
+
+  /** Midnight passed while the wall ran: draw the new day. */
+  checkDay() { if (this.ui) this.dayTurned(rollDays(this.w)); }
+
+  /** Take a quest's, the streak's or the all-three chests (the Daily tab). */
+  claimDaily(what: Parameters<typeof claim>[1]) {
+    const n = claim(this.w, what);
+    if (n) { sfx('lootRare', { vol: 0.5 }); this.ui.toast(`+${n} chest${n > 1 ? 's' : ''}`, 1.6); this.persist(); }
+    return n;
+  }
+
+  /** Open a chest: Watch rewards only (game/watch/daily.ts ODDS, with its pity). */
+  openChest(rnd = Math.random()): ChestPrize | null {
+    const owned = SHADOW_ORDER.filter((id) => (this.w.shadows?.[id]?.lv ?? 0) > 0), pool = owned.length ? owned : SHADOW_ORDER;
+    const prize = openChest(this.w, rnd, (r) => pool[Math.floor(r * pool.length) % pool.length]);
+    if (!prize) return null;
+    sfx(prize.rarity === 'common' ? 'pickup' : 'lootRare', { vol: 0.6 });
+    if (prize.seals) this.land('medium');
+    this.persist();
+    return prize;
   }
 
   /** What `secs` away would bring now (tests set it beside the live wall). */
@@ -545,7 +586,7 @@ export class Watch extends Phaser.Scene {
     const w = this.w;
     if (w.level < D.MANTLE.level || w.gauge < 100 || this.mantleT > 0 || this.fallen > 0) return;
     w.gauge = 0; this.mantleT = D.MANTLE.time;
-    sfx('transform', { vol: 0.6 }); this.shakeIt(0.008, 200);
+    sfx('transform', { vol: 0.6 }); this.land('medium');
     this.flash(180, 120, 70, 200);
     this.play('vfx-abilities-1', 24, 8, this.hx, GROUND - 24, { s: 0.75, fd: 0.06, tint: 0xc59bff });
     this.ui.callout('THE SHADOW MANTLE', '#b48cff');
@@ -564,7 +605,7 @@ export class Watch extends Phaser.Scene {
     this.play('vfx-impacts', 12, 6, far.x, GROUND - 6, { s: 0.7, fd: 0.05, tint: 0xffb070 });
     this.play('vfx-impacts', 18, 6, far.x, GROUND - 1, { sx: 1.1, sy: 0.3, fd: 0.06, grow: 1.4, tint: 0xffb070 });
     this.sparks.setParticleTint(0xffa040).explode(22, far.x, GROUND - 20);
-    this.flash(120, 255, 150, 60); this.shakeIt(0.012, 220); this.stopT = 0.05;
+    this.flash(120, 255, 150, 60); this.land('medium');
     const st = D.watchStats(this.w), x = far.x;
     // The fire takes the furthest foe, and any standing within a stride of it.
     for (const f of this.foes) if (f.alive && Math.abs(f.x - x) <= 26) this.damage(f, st.atk * mult * (f === far ? 1 : 0.5) * (this.mantleT > 0 ? D.MANTLE.dmg : 1), true, false, f === far);
@@ -638,6 +679,7 @@ export class Watch extends Phaser.Scene {
       case 'judgment': if (!f || (!manual && !f.boss && alive.length < 3)) return false; this.startCine('LAST WATCH', [f], m, true); break;
     }
     this.abilT[id] = D.abilityCd(id, lv);
+    tally(w, 'casts');
     if (!manual) this.ui.flashSkill(id);
     this.ui.callout(D.ABILITY[id].name.toUpperCase(), CALL_GLOW[id]);
     return true;
@@ -693,7 +735,7 @@ export class Watch extends Phaser.Scene {
     this.cameras.main.pan(Phaser.Math.Clamp(s.x, half, SW - half), SH / 2, 140, 'Sine.easeOut', true);
     this.shot = { clip: s.clip, t: 0, dur: STEP * 0.95, hitAt: 0.42, hit: false, mult: s.mult, target: s.foe.alive ? s.foe : null };
     sfx(s.clip === 'heavy' ? 'execute' : 'slice', { vol: 0.45, pitch: 0.9 + c.i * 0.04 });
-    if (s.clip === 'heavy') { this.shakeIt(0.01, 200); haptic('heavy'); }
+    if (s.clip === 'heavy') this.land('medium');
   }
 
   /** An afterimage where he stood. */
@@ -731,7 +773,7 @@ export class Watch extends Phaser.Scene {
         this.play('vfx-impacts', 12, 6, x, y, { s: f?.boss ? 0.95 : 0.75, fd: 0.05 });
         this.play('vfx-impacts', 18, 6, x, GROUND - 1, { sx: 1.2, sy: 0.32, fd: 0.05, grow: 1.6, tint: 0xffe2a0 });
         this.sparks.setParticleTint(0xffd27a).explode(18, x, y);
-        this.flash(90, 255, 225, 160); this.shakeIt(0.016, 200); this.stopT = 0.08;
+        this.flash(90, 255, 225, 160); this.land('large');
         break;
       case 'launch':
         // Up it goes; the comet falls on it as it comes down.
@@ -743,13 +785,13 @@ export class Watch extends Phaser.Scene {
         this.play('vfx-impacts', 18, 6, x, GROUND - 1, { sx: 1.5, sy: 0.38, fd: 0.06, grow: 1.8 });
         this.play('vfx-impacts', 0, 6, x, GROUND - 20, { s: 0.8, fd: 0.05, tint: 0xfff1c4 });
         this.sparks.setParticleTint(0xfff1c4).explode(26, x, GROUND - 8);
-        this.flash(140, 255, 245, 210); this.shakeIt(0.02, 260); this.stopT = 0.1; haptic('heavy');
+        this.flash(140, 255, 245, 210); this.land('huge');
         break;
       case 'storm':
         // Three arcs round him as the sweep goes out.
         for (let i = 0; i < 3; i++) this.play('vfx-slashes', (i % 4) * 6, 6, this.hx + 16 + i * 12, GROUND - 20, { s: 0.6, angle: i * 120, fd: 0.04, spin: 360, tint: 0xd8f0ff });
         this.play('vfx-impacts', 18, 6, this.hx + 24, GROUND - 2, { sx: 1.6, sy: 0.3, fd: 0.05, grow: 1.2, tint: 0xd8f0ff });
-        this.shakeIt(0.01, 160); this.stopT = 0.05;
+        this.land('medium');
         break;
     }
   }
@@ -856,6 +898,7 @@ export class Watch extends Phaser.Scene {
     if (price > w.coins) return false;
     w.coins -= price;
     w.up[id] = lv + n;
+    tally(w, 'buys', n);
     if (id === 'health') this.hp = Math.min(D.watchStats(w).maxHp, this.hp + 20 * n);
     return true;
   }
@@ -968,5 +1011,6 @@ export class Watch extends Phaser.Scene {
     for (const g of this.ghosts) { if (g.life <= 0) continue; g.life -= dt; g.img.setAlpha(Math.max(0, g.life * 1.5)); if (g.life <= 0) g.img.setVisible(false); }
     for (const c of this.cuts) { if (c.t < 0) continue; c.t += dt; const f = Math.floor(c.t / 0.04); if (f >= 6) { c.t = -1; c.img.setVisible(false); } else c.img.setFrame(c.base + f); }
   }
-  private shakeIt(i: number, ms: number) { const k = shakeScale(); if (k > 0) this.cameras.main.shake(ms, i * k); }
+  /** A blow of this weight (game/feel.ts TIERS): the shake, the pause on the blow, the vibration. */
+  private land(tier: Tier) { impact(this.cameras.main, tier, (s) => { this.stopT = Math.max(this.stopT, s); }); }
 }
