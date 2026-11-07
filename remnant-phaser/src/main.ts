@@ -27,6 +27,7 @@ import { music } from './classic/shim/music';
 import { songs } from '../../remnant/src/audio/songs';
 import { registerOffline, checkForUpdates } from './game/update';
 import { settings, onSettingsChange } from './classic/shim/settings';
+import { perfMeter } from './game/perfMeter';
 
 // The page's height is the screen's own on an installed iPhone app whose window comes up short (game/screen.ts).
 const size = () => { applyAppHeight(); return { w: Math.round(innerWidth * dpr()), h: Math.round(appHeight() * dpr()) }; };
@@ -49,6 +50,9 @@ const game = new Phaser.Game({
   fps: { smoothStep: false, limit: settings.fps === '60' ? 60 : 0 },
   scene: [Boot, Title, World, Hud, Horde, Watch],
 });
+
+// Settings → Show frame rate: the frame and the script's share of it, measured on the device (game/perfMeter.ts).
+perfMeter(game, () => { const w = game.scene.getScene('world') as unknown as { visuals?: { tier: number } } | null; return game.scene.isActive('world') ? w?.visuals?.tier ?? null : null; });
 
 // Apply the phone's frame-pacing preference without restarting its journey.
 onSettingsChange(() => {

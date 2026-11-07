@@ -35,8 +35,9 @@ these ten and what the game was checked against: `remnant-phaser/POLISH_PLAN.md`
 Claude Code does the game changes, following `remnant-phaser/POLISH_PLAN.md`.
 That plan covers combat, sound, abilities, the archer's kit and
 transformation, and selling, salvage, the store and crafting. ChatGPT
-generates art into `remnant-phaser/art/`. `art/REQUESTS.md` says what to make,
-and `art/README.md` how to store it and record it in `art/manifest.json`.
+generates art into `remnant-phaser/art/`. `art/ART_DIRECTION.md` says what it must look
+like (made in families, each from an approved seed), `art/REQUESTS.md` what to make, and `art/README.md` how to store
+it and record it in `art/manifest.json`; `art/tools/review.py` checks it before use.
 Never ship files from `art/incoming/` directly.
 
 ## What is in the repository
@@ -302,6 +303,10 @@ Never ship files from `art/incoming/` directly.
   `camera.shake(ms, intensity)` as before), a follow that blends the same at 60 and 120 Hz, and shared blow
   weights (`TIERS`, `impact`) for the Watch and the Horde. The main game keeps its steady camera: ordinary blows
   never shake it (`World.shake`). Verified by `scripts/feel.mjs`.
+- **Performance (Phaser build):** measure before changing anything (POLISH_PLAN §19 phase 6): `scripts/perf.mjs`
+  profiles the busiest scenes headless, and Settings → Show frame rate (`src/game/perfMeter.ts`) reads the frame and
+  the script's share of it on the iPhone itself (headless Chromium's GPU is software, so only the device can say
+  what its GPU costs).
 - **Lighting:** Settings → Lighting (`settings.lighting`, dramatic by
   default) scales a dim room's darkness in `render/lighting.ts`
   (`lightingLevel`); daylight is untouched.
