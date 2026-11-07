@@ -5,6 +5,7 @@
 
 import type { EchoRole } from '../../../../remnant/src/game/data';
 import type { ShadowId } from './shadows';
+import type { DailySave, TallyId } from './daily';
 
 /** What the Watch keeps in the journey's save (`PhaserSave.watch`, optional, so saves stay compatible). */
 export interface WatchSave {
@@ -44,6 +45,10 @@ export interface WatchSave {
   essence?: Partial<Record<ShadowId, number>>;
   shadows?: Partial<Record<ShadowId, { lv: number; role?: EchoRole }>>;
   team?: ShadowId[];
+  /** What the wall has done, for ever (the quests count from their day's or week's start), and the days' quests, streak
+   * and chests (game/watch/daily.ts). */
+  tally?: Partial<Record<TallyId, number>>;
+  daily?: DailySave;
 }
 
 /** Older Watch saves knew Covenant Strike and the Pillar by level alone: they keep them, bought and equipped. */
@@ -60,6 +65,8 @@ export function migrateWatch(w: WatchSave) {
   for (const k of Object.keys(w.up) as TrackId[]) w.up[k] = Math.floor(n(w.up[k]));
   w.paid = Array.isArray(w.paid) ? w.paid.filter((g) => Number.isFinite(g)) : [];
   if (w.essence) for (const k of Object.keys(w.essence) as ShadowId[]) w.essence[k] = Math.floor(n(w.essence[k]));
+  if (w.tally) for (const k of Object.keys(w.tally) as TallyId[]) w.tally[k] = Math.floor(n(w.tally[k]));
+  if (w.daily) { w.daily.chests = Math.floor(n(w.daily.chests)); w.daily.streak = Math.max(1, Math.floor(n(w.daily.streak))); }
   // Shadows used to join by level alone: an older watch keeps as many as it had, raised and in the team.
   if (!w.shadows) {
     w.shadows = {};
@@ -109,8 +116,8 @@ export interface Track {
   max?: number;
 }
 export const TRACKS: Track[] = [
-  { id: 'attack', name: 'Attack', base: 10, rate: 1.07, per: '+4 damage a level' },
-  { id: 'health', name: 'Health', base: 10, rate: 1.07, per: '+20 health a level' },
+  { id: 'attack', name: 'Attack', base: 6, rate: 1.07, per: '+4 damage a level' },
+  { id: 'health', name: 'Health', base: 6, rate: 1.07, per: '+20 health a level' },
   { id: 'speed', name: 'Attack Speed', base: 25, rate: 1.12, per: '+1% swings a level, to ×2', max: 100 },
   { id: 'crit', name: 'Critical Chance', base: 200, rate: 1.15, per: '+0.5% a level, to 60%', opens: { track: 'health', level: 40 }, max: 120 },
   { id: 'regen', name: 'Health Regen', base: 300, rate: 1.1, per: '+0.2%/s a level, to 5%', opens: { track: 'crit', level: 20 }, max: 25 },
@@ -153,7 +160,9 @@ export const nextMilestone = (level: number) => { let at = 25; while (at <= leve
 export const watchXpNext = (level: number) => Math.ceil(20 * Math.pow(level, 1.6));
 /** What each Watch level adds to his blows and health, and what the Seals add to blows and coins. */
 export const levelBonus = (level: number) => 1 + 0.03 * (level - 1);
-export const sealBonus = (seals: number) => 1 + 0.05 * seals;
+// Seals grow on each other (×1.02 each over the 5% each adds), so every Ascension carries the wall further than the last
+// (POLISH_PLAN §19 G12: with 5% alone the best stage stalled near 130 from the fourth on). Never weaker than before.
+export const sealBonus = (seals: number) => (1 + 0.05 * seals) * Math.pow(1.02, seals);
 
 /** The armoury: a blade for each of the first eight gates' first fall (CC0 swords, art/incoming/cc0), each heavier. */
 export const BLADES: { name: string; atk: number }[] = [

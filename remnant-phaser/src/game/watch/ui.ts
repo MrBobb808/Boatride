@@ -12,6 +12,7 @@ import { ECHO_SPECIES, ECHO_ROLES } from '../../../../remnant/src/game/data';
 import { SHADOW_ORDER, SHADOW_ART, ROLE_ORDER, UNLOCK_COST, SHADOW_MAX, levelCost, tierOf, shadowName, shadowRole, owned, type ShadowId } from './shadows';
 import type { Watch } from '../../scenes/Watch';
 import { awayCap, type AwayReport } from './offline';
+import * as Q from './daily';
 
 const CSS = `
 .wt-hud{position:fixed;left:0;right:0;z-index:15;pointer-events:none;font-family:Georgia,serif;color:#ddd4c6;padding:0 10px}
@@ -39,8 +40,23 @@ const CSS = `
 .wt-panel{position:fixed;left:0;right:0;z-index:14;display:flex;flex-direction:column;background:#0d0a12;border-top:1px solid rgba(226,184,90,.35);font-family:Georgia,serif;color:#ddd4c6;padding-bottom:env(safe-area-inset-bottom)}
 .wt-body{flex:1;overflow:auto;padding:8px 10px;-webkit-overflow-scrolling:touch}
 .wt-tabs{display:flex;border-top:1px solid rgba(226,184,90,.25)}
-.wt-tab{flex:1;padding:10px 2px;font-family:Cinzel,Georgia,serif;font-size:12px;letter-spacing:.06em;background:#120e18;color:#9b92a6;border:0;border-right:1px solid rgba(226,184,90,.15);cursor:pointer}
+.wt-tab{flex:1;position:relative;padding:10px 1px;font-family:Cinzel,Georgia,serif;font-size:min(12px,3.3vw);letter-spacing:.03em;background:#120e18;color:#9b92a6;border:0;border-right:1px solid rgba(226,184,90,.15);cursor:pointer}
 .wt-tab.on{color:#f6dea0;background:#1d1424}
+.wt-tab.dot::after{content:'';position:absolute;top:6px;right:6px;width:7px;height:7px;border-radius:50%;background:#ffb347;box-shadow:0 0 0 2px #120e18}
+.wt-q{display:grid;grid-template-columns:1fr auto;gap:4px 10px;align-items:center;padding:8px 10px;margin-bottom:6px;border:1px solid rgba(226,184,90,.25);border-radius:7px;background:#1a1220}
+.wt-q b{font-family:Cinzel,Georgia,serif;font-weight:normal;color:#f6dea0;font-size:12.5px}
+.wt-q small{grid-column:1/-1;font-size:11px;color:#9b92a6}
+.wt-q .wt-bar{grid-column:1/-1;margin:0}
+.wt-q.done{border-color:#9be07a}
+.wt-q.claimed{opacity:.55}
+.wt-cal{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin:6px 0 10px}
+.wt-cal div{text-align:center;padding:6px 0;border-radius:6px;background:#120e18;border:1px solid rgba(226,184,90,.2);font-size:11px;color:#9b92a6;line-height:1.3}
+.wt-cal div b{display:block;font-family:Cinzel,Georgia,serif;font-weight:normal;color:#f6dea0;font-size:13px}
+.wt-cal div.past{opacity:.45}
+.wt-cal div.today{border-color:#f6dea0;background:#2a1f12}
+.wt-odds{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;font-size:11px;color:#9b92a6;text-align:center;margin:6px 0}
+.wt-odds b{display:block;font-weight:normal;font-family:Cinzel,Georgia,serif;font-size:12px}
+.wt-prize{text-align:center;padding:10px;border-radius:7px;margin:6px 0;background:#150f1b;border:1px solid currentColor;font-size:13px}
 .wt-amt{display:flex;gap:6px;justify-content:flex-end;margin-bottom:6px}
 .wt-amt button{font-family:Cinzel,Georgia,serif;font-size:11px;padding:4px 8px;border-radius:5px;border:1px solid rgba(226,184,90,.35);background:#120e18;color:#9b92a6;cursor:pointer}
 .wt-amt button.on{color:#f6dea0;border-color:#f6dea0}
@@ -125,7 +141,7 @@ const CSS = `
 
 const el = <K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', text = '') => { const e = document.createElement(tag); if (cls) e.className = cls; if (text) e.textContent = text; return e; };
 
-type Tab = 'up' | 'skills' | 'shadows' | 'hero' | 'ascend';
+type Tab = 'up' | 'skills' | 'shadows' | 'daily' | 'hero' | 'ascend';
 const SHEET_URL: Record<string, string> = { 'echo-vanguard': vanguardUrl, 'echo-sovereign': sovereignUrl, 'foes-veil': veilUrl };
 
 /** The abilities' marks, drawn as strokes. */
@@ -161,7 +177,7 @@ export class WatchUI {
   private barSig = '';
   private abCards = new Map<D.AbilityId, { root: HTMLElement; buy: HTMLButtonElement; eq: HTMLButtonElement; lv: HTMLElement }>();
   private tab: Tab = 'up';
-  private tabs: Record<Tab, HTMLButtonElement> = { up: el('button', 'wt-tab on', 'Upgrades'), skills: el('button', 'wt-tab', 'Skills'), shadows: el('button', 'wt-tab', 'Shadows'), hero: el('button', 'wt-tab', 'Hero'), ascend: el('button', 'wt-tab', 'Ascend') };
+  private tabs: Record<Tab, HTMLButtonElement> = { up: el('button', 'wt-tab on', 'Upgrades'), skills: el('button', 'wt-tab', 'Skills'), shadows: el('button', 'wt-tab', 'Shadows'), daily: el('button', 'wt-tab', 'Daily'), hero: el('button', 'wt-tab', 'Hero'), ascend: el('button', 'wt-tab', 'Ascend') };
   /** Buy one, ten, or as many as the coins allow. */
   amount: 1 | 10 | 0 = 1;
   private cards = new Map<D.TrackId, { root: HTMLButtonElement; lvl: HTMLElement; now: Text; next: HTMLElement; per: HTMLElement; cost: HTMLElement; n: HTMLElement }>();
@@ -262,9 +278,11 @@ export class WatchUI {
     this.body.textContent = '';
     this.cards.clear();
     this.abCards.clear();
+    this.qBars = [];
     if (tab === 'up') this.buildUpgrades();
     else if (tab === 'skills') this.buildSkills();
     else if (tab === 'shadows') this.buildShadows();
+    else if (tab === 'daily') this.buildDaily();
     else if (tab === 'hero') this.buildHero();
     else this.buildAscend();
     this.refresh();
@@ -408,13 +426,69 @@ export class WatchUI {
     }
   }
 
+  /** The Daily tab (game/watch/daily.ts): the streak's calendar, three daily quests, two weekly goals, and the chests
+   * with their odds and pity shown in full. Rebuilt when something is claimed or opened; the bars move in refresh(). */
+  private qBars: { q: Q.Quest; weekly: boolean; fill: HTMLElement; label: HTMLElement; root: HTMLElement; btn: HTMLButtonElement }[] = [];
+  private lastPrize: Q.ChestPrize | null = null;
+  private buildDaily() {
+    const sc = this.sc, w = sc.w, d = w.daily;
+    this.qBars = [];
+    if (!d) return;
+    const RCOL: Record<Q.Rarity, string> = { common: '#cfc6b6', rare: '#7ab8ff', epic: '#c59bff', legendary: '#ffb347' };
+    // The streak: a seven-day calendar that repeats, and today's chests.
+    this.body.appendChild(el('div', 'wt-h', `Streak · day ${d.streak}`));
+    this.body.appendChild(el('p', 'wt-p', `Come back each day to keep it. One missed day a week is forgiven${d.forgivenWeek === d.week ? ' (used this week)' : ''}; a second starts it again.`));
+    const cal = el('div', 'wt-cal'), at = (d.streak - 1) % Q.CALENDAR.length;
+    Q.CALENDAR.forEach((n, i) => { const c = el('div', i < at ? 'past' : i === at ? 'today' : ''); c.append(el('b', '', `${n}`), document.createTextNode(i === at ? 'today' : `day ${i + 1}`)); cal.appendChild(c); });
+    this.body.appendChild(cal);
+    const sb = el('button', 'wt-btn hot wt-big', d.streakClaimed ? "Today's chests taken" : `Take today's ${Q.calendarChests(d.streak)} chest${Q.calendarChests(d.streak) > 1 ? 's' : ''}`) as HTMLButtonElement;
+    sb.dataset.k = 'wt_streak'; sb.disabled = d.streakClaimed;
+    sb.onclick = () => { if (sc.claimDaily('streak')) this.show('daily'); };
+    this.body.appendChild(sb);
+    // Quests: today's three, and the week's two.
+    const quest = (q: Q.Quest, weekly: boolean) => {
+      const r = el('div', 'wt-q'), fill = el('b'), bar = el('div', 'wt-bar'), label = el('small');
+      bar.appendChild(fill);
+      const btn = el('button', 'wt-btn', `+${weekly ? Q.PAY.weekly : Q.PAY.quest} chest${(weekly ? Q.PAY.weekly : Q.PAY.quest) > 1 ? 's' : ''}`) as HTMLButtonElement;
+      btn.dataset.k = 'wt_q_' + q.tally + (weekly ? '_w' : '');
+      btn.onclick = () => { if (sc.claimDaily({ id: q.id })) this.show('daily'); };
+      r.append(el('b', '', q.text), btn, bar, label);
+      this.qBars.push({ q, weekly, fill, label, root: r, btn });
+      return r;
+    };
+    this.body.appendChild(el('div', 'wt-h', "Today's quests"));
+    for (const q of d.quests) this.body.appendChild(quest(q, false));
+    const all = el('button', 'wt-btn wt-big', d.allClaimed ? 'All three: chest taken' : `All three done: +${Q.PAY.all} chest`) as HTMLButtonElement;
+    all.dataset.k = 'wt_q_all'; all.disabled = d.allClaimed || !d.quests.every((q) => q.claimed);
+    all.onclick = () => { if (sc.claimDaily('all')) this.show('daily'); };
+    this.body.appendChild(all);
+    this.body.appendChild(el('div', 'wt-h', "This week's goals"));
+    for (const q of d.weekly) this.body.appendChild(quest(q, true));
+    // Chests: Watch rewards only; the odds and the pity in full.
+    this.body.appendChild(el('div', 'wt-h', `Chests · ${d.chests}`));
+    const odds = el('div', 'wt-odds');
+    for (const [r, p] of Q.ODDS) { const o = el('div'); const b = el('b', '', `${(p * 100).toFixed(0)}%`); b.style.color = RCOL[r]; o.append(b, document.createTextNode(r)); odds.appendChild(o); }
+    this.body.appendChild(odds);
+    this.body.appendChild(el('p', 'wt-p', `A rare or better within ${Q.PITY_RARE} opens (${Math.max(1, Q.PITY_RARE - d.sinceRare)} to go), an epic or better within ${Q.PITY_EPIC} (${Math.max(1, Q.PITY_EPIC - d.sinceEpic)} to go). Chests pay coins, shadows' essence and, rarely, a Seal: Watch rewards only.`));
+    if (this.lastPrize) {
+      const p = this.lastPrize, box = el('div', 'wt-prize');
+      box.style.color = RCOL[p.rarity];
+      box.textContent = `${p.rarity[0].toUpperCase() + p.rarity.slice(1)} · +${D.fmt(p.coins)} coins${p.essence ? ` · ${shadowName(p.essence[0], 1)} essence ×${p.essence[1]}` : ''}${p.seals ? ` · +${p.seals} Seal` : ''}`;
+      this.body.appendChild(box);
+    }
+    const ob = el('button', 'wt-btn hot wt-big', d.chests ? 'Open a chest' : 'No chests yet') as HTMLButtonElement;
+    ob.dataset.k = 'wt_open'; ob.disabled = d.chests <= 0;
+    ob.onclick = () => { this.lastPrize = sc.openChest(); this.show('daily'); };
+    this.body.appendChild(ob);
+  }
+
   private buildAscend() {
     const w = this.sc.w, seals = D.sealsFor(w.best);
     this.body.appendChild(el('div', 'wt-h', 'The Ascension'));
-    this.body.appendChild(el('p', 'wt-p', `Leave the wall to a new watch and begin again from stage 1, stronger. Your stage, coins and upgrades reset; Elior's level, his shadows and his Seals stay. Each Seal adds 5% to every blow and every coin. The Ascension opens at stage ${D.ASCEND_AT}; the further past it you go, the more Seals it gives.`));
+    this.body.appendChild(el('p', 'wt-p', `Leave the wall to a new watch and begin again from stage 1, stronger. Your stage, coins and upgrades reset; Elior's level, his shadows and his Seals stay. Each Seal adds 5% to every blow and every coin, and makes the whole 2% stronger again, so Seals grow on each other. The Ascension opens at stage ${D.ASCEND_AT}; the further past it you go, the more Seals it gives.`));
     const st = el('div', 'wt-stats');
     const row = (k: string, v: string) => { const d = el('div'); d.append(document.createTextNode(k + ' '), el('b', '', v)); st.appendChild(d); };
-    row('Best this watch', `stage ${w.best}`); row('Seals now', String(w.seals)); row('Ascending gives', `${seals} Seals`); row('Ascensions', String(w.ascensions));
+    row('Best this watch', `stage ${w.best}`); row('Seals now', String(w.seals)); row("Seals' strength", `×${D.sealBonus(w.seals).toFixed(2)} blows and coins`); row('Ascending gives', `${seals} Seals`); row('Ascensions', String(w.ascensions));
     this.body.appendChild(st);
     const b = el('button', 'wt-btn hot wt-big', seals > 0 ? `Ascend for ${seals} Seals` : `Reach stage ${D.ASCEND_AT} to Ascend`);
     b.dataset.k = 'wt_ascend';
@@ -439,6 +513,16 @@ export class WatchUI {
     this.bar.classList.toggle('boss', boss);
     this.barFill.style.width = `${Math.max(0, Math.min(1, boss ? sc.bossTimeLeft / D.BOSS_TIME : sc.kills / D.KILLS_PER_STAGE)) * 100}%`;
     this.challenge.hidden = w.auto;
+    // A day may turn while the wall runs; the Daily tab's dot says something waits there.
+    sc.checkDay();
+    this.tabs.daily.classList.toggle('dot', Q.claimable(w) > 0);
+    for (const b of this.qBars) {
+      const have = Q.progress(w, b.q, b.weekly), ok = have >= b.q.goal;
+      b.fill.style.width = `${(have / b.q.goal) * 100}%`;
+      b.label.textContent = b.q.claimed ? 'Taken' : `${D.fmt(have)} / ${D.fmt(b.q.goal)}`;
+      b.root.classList.toggle('done', ok && !b.q.claimed); b.root.classList.toggle('claimed', !!b.q.claimed);
+      b.btn.disabled = !ok || !!b.q.claimed;
+    }
     const st = D.watchStats(w);
     this.sl.atk.textContent = D.fmt(st.atk);
     this.sl.hp.textContent = `${D.fmt(Math.max(0, sc.heroHp))}/${D.fmt(st.maxHp)}`;

@@ -41,10 +41,10 @@ function eliteOf(stage: number) {
   return foes[r < 0.35 ? 0 : r < 0.6 ? 1 : r < 0.8 ? 2 : r < 0.93 ? 3 : 4];
 }
 
-interface StageRun { ok: boolean; time: number; loss: number; heal: number; max: number; coins: number; xp: number; kills: number; essence: [ShadowId, number][] }
+export interface StageRun { ok: boolean; time: number; loss: number; heal: number; max: number; coins: number; xp: number; kills: number; essence: [ShadowId, number][] }
 
 /** One stage on the wall at his strength now: whether he clears it, how long it takes, and what it pays. */
-function runStage(w: D.WatchSave, stage: number): StageRun {
+export function runStage(w: D.WatchSave, stage: number): StageRun {
   const st = D.watchStats(w), boss = D.isBoss(stage);
   const dps = D.dpsOf(st) * (1 + PER_SHADOW * (w.team?.length ?? 0) + PER_ABILITY * (w.loadout?.length ?? 0));
   const kills = boss ? 1 : D.KILLS_PER_STAGE, kill = D.foeHp(stage) / dps;

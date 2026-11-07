@@ -20,8 +20,10 @@ import { safe, measureSafe } from '../../../remnant/src/ui/safe';
 import * as D from '../game/watch/defs';
 import { WatchUI } from '../game/watch/ui';
 import { simulateAway, applyAway } from '../game/watch/offline';
+import { pace } from '../game/watch/balance';
+import { tally, rollDays, openChest, claim, type ChestPrize } from '../game/watch/daily';
 import { smoothShake, impact, type Tier } from '../game/feel';
-import { ShadowBand, ESSENCE_OF, BOSS_ESSENCE, UNLOCK_COST, SHADOW_MAX, levelCost, owned, shadowName, type ShadowId } from '../game/watch/shadows';
+import { ShadowBand, SHADOW_ORDER, ESSENCE_OF, BOSS_ESSENCE, UNLOCK_COST, SHADOW_MAX, levelCost, owned, shadowName, type ShadowId } from '../game/watch/shadows';
 import type { EchoRole } from '../../../remnant/src/game/data';
 
 /** The wall's world: 300 × 176 units (narrow, so the fighters read large on a phone), the ground at 146; Elior stands
@@ -184,7 +186,12 @@ export class Watch extends Phaser.Scene {
     // saved at once, so the card only reports what is already his.
     const awaySecs = (Date.now() - this.w.last) / 1000;
     const away = awaySecs >= 60 ? simulateAway(this.w, awaySecs) : null;
-    if (away) { applyAway(this.w, away); for (const g of away.gates) this.payGate(g, true); }
+    if (away) {
+      applyAway(this.w, away); for (const g of away.gates) this.payGate(g, true);
+      // What the wall did away counts toward the days' quests too.
+      tally(this.w, 'kills', away.kills); tally(this.w, 'stages', Math.floor(away.kills / D.KILLS_PER_STAGE)); tally(this.w, 'gates', away.gates.length);
+    }
+    this.dayTurned(rollDays(this.w), true);
     this.w.last = Date.now();
     if (away) this.persist();
     this.hp = D.watchStats(this.w).maxHp;
@@ -204,7 +211,7 @@ export class Watch extends Phaser.Scene {
     });
     music.play(sceneOf(D.gateOf(this.w.stage)).music);
     if (away && (away.coins > 0 || away.to !== away.from)) this.ui.welcome(away, awaySecs);
-    if (new URLSearchParams(location.search).has('debug')) (window as unknown as { __remnant: Record<string, unknown> }).__remnant = { ...((window as unknown as { __remnant?: Record<string, unknown> }).__remnant ?? {}), game: this.game, watch: this };
+    if (new URLSearchParams(location.search).has('debug')) (window as unknown as { __remnant: Record<string, unknown> }).__remnant = { ...((window as unknown as { __remnant?: Record<string, unknown> }).__remnant ?? {}), game: this.game, watch: this, watchPace: pace };
   }
 
   /** The wall fills the top of an upright phone (the panel below); sideways, the left half. */
@@ -466,9 +473,12 @@ export class Watch extends Phaser.Scene {
     if (w.level >= D.MANTLE.level && this.mantleT <= 0) w.gauge = Math.min(100, w.gauge + D.MANTLE.perKill);
     // Major foes leave essence of a shadow: an elite one of its own kind, a gate's holder three and one of the Marshal's.
     if (f.elite) this.gainEssence(ESSENCE_OF[f.id] ?? 'sentinel', 1, f.x);
+    // The days' quests count what the wall does (game/watch/daily.ts).
+    tally(w, 'kills'); if (f.elite) tally(w, 'elites');
     if (f.boss) { this.gainEssence(BOSS_ESSENCE[f.boss] ?? 'knight', 3, f.x); this.gainEssence('marshal', 1, f.x); this.bossDown(); return; }
     this.kills++;
     if (this.kills >= D.KILLS_PER_STAGE) {
+      tally(w, 'stages');
       // Cleared: on to the next stage, or (holding back after a lost fight) once more here, to grow.
       if (w.auto) this.next(); else this.startStage(w.stage);
     }
@@ -485,6 +495,7 @@ export class Watch extends Phaser.Scene {
   private bossDown() {
     const w = this.w, gate = D.gateOf(w.stage);
     this.land('large');
+    tally(w, 'gates'); tally(w, 'stages');
     sfx('bossSlam', { vol: 0.5 }); sfx('lootRare', { vol: 0.6 });
     this.payGate(gate, false);
     this.bossName = null;
@@ -502,6 +513,35 @@ export class Watch extends Phaser.Scene {
     if (cape) { const st = (this.save.store ??= {}); (st.capes ??= []).includes(cape) || st.capes.push(cape); }
     const blade = D.BLADES[gate - 1];
     if (!quiet) this.ui.toast(`Gate ${gate} holds · +${silver} silver for the journey${cape ? ' · and a cape' : ''}${blade ? ` · a new blade: ${blade.name} (Hero → armoury)` : ''}`, 3.6);
+  }
+
+  /** A new day (or the first): the streak's news, as a toast. `quiet` on opening (the welcome card speaks first). */
+  private dayTurned(r: ReturnType<typeof rollDays>, quiet = false) {
+    if (!r.newDay) return;
+    const msg = r.forgiven ? `Day ${r.streak} of your streak · a missed day forgiven (once a week)` : r.reset ? 'A new streak begins · Daily' : `Day ${r.streak} of your streak · Daily`;
+    if (!quiet) this.ui.toast(msg, 3); else this.time.delayedCall(1200, () => this.ui.toast(msg, 3));
+    this.ui.refresh();
+  }
+
+  /** Midnight passed while the wall ran: draw the new day. */
+  checkDay() { if (this.ui) this.dayTurned(rollDays(this.w)); }
+
+  /** Take a quest's, the streak's or the all-three chests (the Daily tab). */
+  claimDaily(what: Parameters<typeof claim>[1]) {
+    const n = claim(this.w, what);
+    if (n) { sfx('lootRare', { vol: 0.5 }); this.ui.toast(`+${n} chest${n > 1 ? 's' : ''}`, 1.6); this.persist(); }
+    return n;
+  }
+
+  /** Open a chest: Watch rewards only (game/watch/daily.ts ODDS, with its pity). */
+  openChest(rnd = Math.random()): ChestPrize | null {
+    const owned = SHADOW_ORDER.filter((id) => (this.w.shadows?.[id]?.lv ?? 0) > 0), pool = owned.length ? owned : SHADOW_ORDER;
+    const prize = openChest(this.w, rnd, (r) => pool[Math.floor(r * pool.length) % pool.length]);
+    if (!prize) return null;
+    sfx(prize.rarity === 'common' ? 'pickup' : 'lootRare', { vol: 0.6 });
+    if (prize.seals) this.land('medium');
+    this.persist();
+    return prize;
   }
 
   /** What `secs` away would bring now (tests set it beside the live wall). */
@@ -639,6 +679,7 @@ export class Watch extends Phaser.Scene {
       case 'judgment': if (!f || (!manual && !f.boss && alive.length < 3)) return false; this.startCine('LAST WATCH', [f], m, true); break;
     }
     this.abilT[id] = D.abilityCd(id, lv);
+    tally(w, 'casts');
     if (!manual) this.ui.flashSkill(id);
     this.ui.callout(D.ABILITY[id].name.toUpperCase(), CALL_GLOW[id]);
     return true;
@@ -857,6 +898,7 @@ export class Watch extends Phaser.Scene {
     if (price > w.coins) return false;
     w.coins -= price;
     w.up[id] = lv + n;
+    tally(w, 'buys', n);
     if (id === 'health') this.hp = Math.min(D.watchStats(w).maxHp, this.hp + 20 * n);
     return true;
   }

@@ -786,8 +786,11 @@ chose:
   outlast his health. Holding back, he never drops lower, and tries again every three levels he gains. A welcome-back
   card lists it all. `src/game/watch/offline.ts` (`simulateAway`, `applyAway`), calibrated against the live wall in
   `scripts/watch.mjs`. Perks may lengthen the cap (`awayCap`).
-- **Daily quests and a login streak:** three to five daily tasks (foes felled, abilities used, a gate won), weekly goals,
-  and a streak calendar; rewards come in chests.
+- **Daily quests and a login streak** (BUILT, `src/game/watch/daily.ts`, the Daily tab): three daily quests and two
+  weekly goals drawn (seeded by the day or week) from what the wall counts anyway (`WatchSave.tally`: foes, stages, gates,
+  elites, abilities, upgrades; away counts too); a seven-day streak calendar (1, 1, 2, 1, 2, 2, 4 chests) where one
+  missed day a week is forgiven (the owner's choice); chests pay Watch rewards only (the owner's choice): coins, essence
+  and rarely a Seal, with the odds shown (62/28/9/1%) and a pity (a rare within 5 opens, an epic within 20).
 - **Achievements and titles:** many milestones, each a small permanent bonus and a title or badge.
 - **Relics and an Ascension tree:** Seals buy relics and talents that outlast an Ascension (the long chase).
 - **A boss tower and daily dungeons:** a tower of holders, one floor per try with milestone rewards; daily dungeons
@@ -891,7 +894,13 @@ production build, `tsc` clean). Phases 1–2 change how the game feels everywher
      sound) used by the main game, the Horde and the Watch alike; the per-site numbers move into one table.
    - G3: the camera follows with `1 − exp(−rate·dt)` smoothing, so 60 Hz and 120 Hz feel the same (a test measures
      the catch-up at both rates with `?fixedstep`).
-3. **Phase 3: the Watch's economy, measured** (before §18k's daily quests build on it).
+3. **Phase 3: the Watch's economy, measured** (before §18k's daily quests build on it). **BUILT.** Measured
+   (`src/game/watch/balance.ts`, `scripts/watch-pace.mjs`, a plain player with no shadows or abilities, buying the
+   cheapest upgrade): the first ten upgrades took 20–26 s each and the best stage stalled near 130 from the fourth
+   Ascension (each Seal added a flat 5%). Tuned: Attack and Health start at 6 coins (was 10), and Seals compound
+   (`(1 + 0.05·s)·1.02^s`, never weaker than before). Now the first ten average 6.8 s; the Ascensions take 56, 57,
+   62, 82, 67 and 91 minutes (each at most ×1.35 the one before) and reach stages 90, 110, 130, 160, 170 and 190.
+   Daily quests, the streak and chests: `src/game/watch/daily.ts`, the Daily tab (§18k).
    - G12: a balance script after the skill's calculator prints the time to each upgrade level, gate and Ascension at
      the live rates; tune toward early upgrades in 3–10 s and Ascensions ×1.2–1.5 apart, and record the numbers here.
    - Then §18k's daily quests, streak and pity chests, built on the skill's rules (rewards from the save's own clock,

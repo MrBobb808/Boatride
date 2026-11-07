@@ -353,7 +353,9 @@ Never ship files from `art/incoming/` directly.
   eight upgrade tracks; gates end in a boss on a timer; his Watch level opens
   skills, shadows (8–150) and the Mantle (25); Ascension from stage 60 pays
   Seals; away, the wall climbs on at half speed for up to 12 hours
-  (`src/game/watch/offline.ts`) and a welcome card reports it. Back to the journey only silver and
+  (`src/game/watch/offline.ts`) and a welcome card reports it. The Daily tab (`src/game/watch/daily.ts`): three
+  daily quests, two weekly goals, a seven-day streak (one miss a week forgiven) and chests with shown odds and a
+  pity, Watch rewards only. Seals compound; `scripts/watch-pace.mjs` holds the pacing to the idle-economy skill's targets. Back to the journey only silver and
   capes. `PhaserSave.watch`. Verified by `scripts/watch.mjs`. See POLISH_PLAN §18.
   Each gate (ten stages) is a new place (`src/game/watch/scenes.ts`: eight
   scenes with their own parallax layers, set pieces, foes and gate boss), and
