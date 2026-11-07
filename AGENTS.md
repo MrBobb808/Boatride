@@ -333,7 +333,8 @@ Never ship files from `art/incoming/` directly.
   `src/game/watch/`): a fresh Elior keeps a wall, kills pay coins, coins buy
   eight upgrade tracks; gates end in a boss on a timer; his Watch level opens
   skills, shadows (8–150) and the Mantle (25); Ascension from stage 60 pays
-  Seals; offline pay on a welcome card. Back to the journey only silver and
+  Seals; away, the wall climbs on at half speed for up to 12 hours
+  (`src/game/watch/offline.ts`) and a welcome card reports it. Back to the journey only silver and
   capes. `PhaserSave.watch`. Verified by `scripts/watch.mjs`. See POLISH_PLAN §18.
   Each gate (ten stages) is a new place (`src/game/watch/scenes.ts`: eight
   scenes with their own parallax layers, set pieces, foes and gate boss), and

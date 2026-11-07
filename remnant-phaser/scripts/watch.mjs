@@ -1,7 +1,7 @@
 // The Watch, the idle game inside the game (POLISH_PLAN §18): the title offers it; each gate a new CC0 place; rush stages, ×2/×3 speed and abilities; costs grow by their curves; Elior
 // fights on his own and every kill pays; coins buy upgrades that open the next ones; ten foes to a stage and a gate's
 // boss on a timer (lose it and he holds back until Challenged); levels open his skills, shadow slots and the Mantle; major foes leave essence that raises shadows;
-// away, the wall pays half its recent rate (eight hours at most) on a welcome card; a gate's first fall pays the
+// away, the wall climbs on at half speed (twelve hours at most) and a welcome card reports it; a gate's first fall pays the
 // journey silver (and a cape at Gate 10); the Ascension trades a run for Seals; and all of it survives a reload.
 // Run after `npm run build`.
 import { chromium, devices } from '@playwright/test';
@@ -203,9 +203,26 @@ try {
   });
   assert.ok(asc.stage === 1 && asc.seals === 9 && asc.up === 0 && asc.level, `Ascending from stage 70 gives 9 Seals, resets the run and keeps his level (${JSON.stringify(asc)})`);
 
-  // ---- away for three hours: the welcome card pays half the recent rate; everything survived the reload
+  // ---- away, the wall goes on at half speed: set beside the live wall over the same time, it climbs about as far
+  const pace = await E(page, () => {
+    const sc = window.__remnant.watch, w = sc.w, snap = JSON.parse(JSON.stringify(w));
+    Object.assign(w, { level: 12, xp: 0, up: { attack: 40, health: 40, speed: 20 }, coins: 0, auto: true });
+    sc.startStage(15);
+    const sim = sc.awayReport(240 / 0.5);
+    for (let i = 0; i < 30 * 240; i++) sc.tick(1 / 30);
+    const live = { to: w.stage, coins: w.coins };
+    const day = sc.awayReport(30 * 3600);
+    Object.assign(w, snap); sc.startStage(w.stage);
+    return { live, sim: { to: sim.to, coins: sim.coins, level: sim.level }, capped: day.secs };
+  });
+  const climbed = (pace.sim.to - 15) / Math.max(1, pace.live.to - 15);
+  assert.ok(climbed > 0.6 && climbed < 1.3 && pace.sim.coins > pace.live.coins * 0.4 && pace.sim.coins < pace.live.coins * 1.3,
+    `four minutes away at half pace match about two live minutes' climb and pay (${JSON.stringify(pace)})`);
+  assert.equal(pace.capped, 12 * 3600, 'the Watch counts twelve hours away at most');
+
+  // ---- away for three hours: he climbed, levelled and earned while gone; everything survived the reload
   // (Leaving the page saves the Watch as seen now, so the three hours are set as the next page starts.)
-  await E(page, () => { const sc = window.__remnant.watch; sc.w.rate = 40; sc.w.coins = 0; sc.persist(); });
+  await E(page, () => { const sc = window.__remnant.watch; sc.w.coins = 0; sc.w.auto = true; sc.w.up = { attack: 60, health: 60, speed: 30 }; sc.startStage(1); sc.persist(); });
   await page.addInitScript(() => {
     if (sessionStorage.getItem('watch-away')) return;
     sessionStorage.setItem('watch-away', '1');
@@ -219,12 +236,14 @@ try {
   await enter();
   await page.waitForSelector('[data-k=wt_collect]', { timeout: 10000 });
   await page.screenshot({ path: 'qa/watch-welcome.png' });
+  const card = await E(page, () => document.querySelector('.wt-away')?.textContent ?? '');
   await page.click('[data-k=wt_collect]');
-  const back = await E(page, () => { const w = window.__remnant.watch.w; return { coins: w.coins, seals: w.seals, level: w.level, team: (w.team ?? []).join() }; });
-  assert.ok(back.coins >= 215000 && back.coins <= 217000 && back.seals === 9 && back.level === 26, `three hours away pay 40 × ½ × 10,800 coins, and the Watch was kept (${JSON.stringify(back)})`);
+  const back = await E(page, () => { const w = window.__remnant.watch.w; return { coins: w.coins, stage: w.stage, seals: w.seals, level: w.level, essence: Object.values(w.essence ?? {}).reduce((a, b) => a + b, 0), team: (w.team ?? []).join() }; });
+  assert.ok(back.stage > 20 && back.coins > 1000 && back.level >= 26 && back.seals === 9 && /Stages.*1 →.*Foes felled/.test(card),
+    `three hours away: he climbed from stage 1, earned and levelled, and the card says so; the Watch was kept (${JSON.stringify({ ...back, card })})`);
   assert.equal(back.team, 'sentinel,knight', 'an older watch keeps the shadows its level gave it, raised and beside him');
   await page.screenshot({ path: 'qa/watch.png' });
-  console.log(`Watch: a fresh Elior; ${fight.stage - 1} stages in 2½ minutes; the boss's timer; Gate 1 paid once; the Mantle at 26; shadows raised with essence; Ascension for 9 Seals; ${back.coins} coins for 3 h away; new scenery each gate; the demon at Gate 1; its blade wielded; rush and holding stages; ×2 and ×3; abilities learned, levelled, staged and called; the wall under the bar`);
+  console.log(`Watch: a fresh Elior; ${fight.stage - 1} stages in 2½ minutes; the boss's timer; Gate 1 paid once; the Mantle at 26; shadows raised with essence; Ascension for 9 Seals; stage ${back.stage} and ${back.coins} coins after 3 h away; new scenery each gate; the demon at Gate 1; its blade wielded; rush and holding stages; ×2 and ×3; abilities learned, levelled, staged and called; the wall under the bar`);
 
   assert.deepEqual(errors, [], 'no page errors');
   console.log('phaser watch: all checks passed');
