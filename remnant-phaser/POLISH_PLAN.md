@@ -880,7 +880,11 @@ production build, `tsc` clean). Phases 1–2 change how the game feels everywher
      parse; clean NaN, Infinity and negative amounts in `migrate` and `migrateWatch`. A test damages a save and
      checks the backup returns.
    - G4: square each volume slider before it becomes gain (the saved slider values stay as they are).
-2. **Phase 2: one feel for every mode.**
+2. **Phase 2: one feel for every mode.** **BUILT** (`src/game/feel.ts`, `scripts/feel.mjs`): the trauma shake replaces
+   Phaser's random one inside every camera that shakes (the World, the Horde, the Watch), so the existing calls keep
+   their strengths and the steady camera's rule (ordinary blows never shake it) holds; the follow blends by real
+   frame time; the Watch and the Horde land their blows through `TIERS`. The main game's call sites keep their own
+   numbers, which the owner tuned (PR #57).
    - G5: a trauma shake (0–1, shake = trauma², sampled noise, decays on its own) on a camera offset, respecting
      Settings → Screen shake; every `.shake()` call becomes `addTrauma(n)`.
    - G6: `feedback(tier, x, y)` with small, medium, large and huge tiers (shake, hit-stop, flash, sparks, haptics,

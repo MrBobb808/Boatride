@@ -298,6 +298,10 @@ Never ship files from `art/incoming/` directly.
 - **Volume sliders** (settings v5): the mixer squares each slider (`applyVolumes` in `audio/audio.ts`) so its travel
   sounds even; v5 moved saved sliders to their square roots once, keeping everyone's loudness. Change both settings
   files together (`remnant/src/core/settings.ts` and the Phaser build's `src/classic/shim/settings.ts`).
+- **Feel (Phaser build):** `remnant-phaser/src/game/feel.ts` gives each scene's camera a smooth trauma shake (call
+  `camera.shake(ms, intensity)` as before), a follow that blends the same at 60 and 120 Hz, and shared blow
+  weights (`TIERS`, `impact`) for the Watch and the Horde. The main game keeps its steady camera: ordinary blows
+  never shake it (`World.shake`). Verified by `scripts/feel.mjs`.
 - **Lighting:** Settings → Lighting (`settings.lighting`, dramatic by
   default) scales a dim room's darkness in `render/lighting.ts`
   (`lightingLevel`); daylight is untouched.

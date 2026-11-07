@@ -110,7 +110,7 @@ export class HordeBoss {
         h.arsenal.boom('vfx-impacts', 12, 6, s.x, s.y, 0.4, 0.9);
         if (((h.hero.x - s.x) / 60) ** 2 + ((h.hero.y - s.y) / 48) ** 2 < 1) h.hurtHero(this.dmg * 1.4);
       }
-      h.shake(0.01, 220); h.sfx('bossSlam', 0.7);
+      h.land('large'); h.sfx('bossSlam', 0.7);
     } else if (this.move === 'summon') {
       const n = this.phase2 ? 8 : 6;
       for (let i = 0; i < n; i++) { const a = (i / n) * Math.PI * 2; h.spawnFoe(this.x + Math.cos(a) * 50, this.y + Math.sin(a) * 40); }
