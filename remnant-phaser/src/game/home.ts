@@ -7,6 +7,7 @@ import { rushRoster } from '../../../remnant/src/game/gauntlet';
 import { dailyFor, rankedUsed } from '../../../remnant/src/game/daily';
 import { chapterOf } from '../../../remnant/src/game/rooms';
 import { G } from '../classic/shim/ctx';
+import { pushLayer, popLayer } from '../../../remnant/src/ui/dom';
 import { ROOMS } from '../shared';
 import type { PhaserSave } from './save';
 
@@ -20,38 +21,38 @@ const CSS = `
 .hm-head{text-align:center;padding-top:4px}
 .hm-word{font-family:Cinzel,Georgia,serif;font-weight:bold;color:#f6dea0;font-size:clamp(30px,10vw,56px);letter-spacing:.3em;margin-right:-.3em;line-height:1;text-shadow:0 2px 12px rgba(226,184,90,.35)}
 .hm-asc{font-family:Cinzel,Georgia,serif;color:#e2b85a;font-size:clamp(12px,4vw,22px);letter-spacing:.3em;margin:6px -.3em 0 0}
-.hm-sub{font-style:italic;color:#9b92a6;font-size:13px;margin-top:6px}
+.hm-sub{font-style:italic;color:#9b92a6;font-size:calc(13px*var(--fs-k,1));margin-top:6px}
 .hm-stage{height:clamp(84px,17vh,150px)}
 .hm-side{display:flex;flex-direction:column;gap:14px}
 .hm-modes{display:flex;flex-direction:column;gap:12px}
 .hm-journey{border:1px solid rgba(226,184,90,.55);border-radius:12px;padding:14px;background:linear-gradient(160deg,rgba(43,30,18,.92),rgba(18,13,22,.92));box-shadow:0 6px 24px rgba(0,0,0,.45)}
-.hm-kicker{font-family:Cinzel,Georgia,serif;font-size:11px;letter-spacing:.18em;color:#e2b85a;text-transform:uppercase}
-.hm-where{font-family:Cinzel,Georgia,serif;font-size:19px;color:#f6dea0;margin:4px 0 2px}
-.hm-meta{font-size:13px;color:#b9afc4}
+.hm-kicker{font-family:Cinzel,Georgia,serif;font-size:calc(11px*var(--fs-k,1));letter-spacing:.18em;color:#e2b85a;text-transform:uppercase}
+.hm-where{font-family:Cinzel,Georgia,serif;font-size:calc(19px*var(--fs-k,1));color:#f6dea0;margin:4px 0 2px}
+.hm-meta{font-size:calc(13px*var(--fs-k,1));color:#b9afc4}
 .hm-prog{height:4px;border-radius:2px;background:rgba(0,0,0,.5);margin:10px 0 12px;overflow:hidden}
 .hm-prog b{display:block;height:100%;background:linear-gradient(90deg,#e2b85a,#fff1c4)}
 .hm-btns{display:flex;gap:8px;flex-wrap:wrap}
-.hm-btn{flex:1;min-width:120px;min-height:46px;font-family:Cinzel,Georgia,serif;font-size:15px;letter-spacing:.06em;border-radius:8px;border:1px solid rgba(226,184,90,.55);background:rgba(20,14,24,.9);color:#ddd4c6;cursor:pointer;padding:8px 12px;touch-action:manipulation}
-.hm-btn.primary{flex:2;background:linear-gradient(#8a6424,#4e3511);color:#fff6dc;border-color:#f6dea0;font-size:17px;box-shadow:0 0 18px rgba(226,184,90,.25)}
+.hm-btn{flex:1;min-width:120px;min-height:46px;font-family:Cinzel,Georgia,serif;font-size:calc(15px*var(--fs-k,1));letter-spacing:.06em;border-radius:8px;border:1px solid rgba(226,184,90,.55);background:rgba(20,14,24,.9);color:#ddd4c6;cursor:pointer;padding:8px 12px;touch-action:manipulation}
+.hm-btn.primary{flex:2;background:linear-gradient(#8a6424,#4e3511);color:#fff6dc;border-color:#f6dea0;font-size:calc(17px*var(--fs-k,1));box-shadow:0 0 18px rgba(226,184,90,.25)}
 .hm-btn.warn{color:#ffb08a;border-color:#ff8a5a}
 .hm-btn:active{transform:translateY(1px)}
 .hm-btn:focus-visible,.hm-card:focus-visible{outline:2px solid #fff1c4;outline-offset:2px}
-.hm-h{font-family:Cinzel,Georgia,serif;font-size:13px;letter-spacing:.18em;color:#e2b85a;text-transform:uppercase;display:flex;align-items:center;gap:10px;margin:2px 0 -4px}
+.hm-h{font-family:Cinzel,Georgia,serif;font-size:calc(13px*var(--fs-k,1));letter-spacing:.18em;color:#e2b85a;text-transform:uppercase;display:flex;align-items:center;gap:10px;margin:2px 0 -4px}
 .hm-h::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,rgba(226,184,90,.45),transparent)}
 .hm-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
 .hm-card{position:relative;text-align:left;display:flex;flex-direction:column;gap:3px;min-height:112px;padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,.08);border-left:3px solid var(--a);
   background:linear-gradient(150deg,color-mix(in srgb,var(--a) 16%,#130f19),#100c15 70%);color:#ddd4c6;font-family:Georgia,serif;cursor:pointer;touch-action:manipulation;overflow:hidden}
 .hm-card svg{width:26px;height:26px;stroke:var(--a);fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;margin-bottom:2px}
-.hm-card b{font-family:Cinzel,Georgia,serif;font-weight:normal;font-size:15px;color:#f6dea0;letter-spacing:.03em}
-.hm-card span{font-size:12px;color:#a79db2;line-height:1.3}
-.hm-card em{font-style:normal;font-size:12px;color:var(--a);margin-top:auto;padding-top:4px}
-.hm-card.new::before{content:'NEW';position:absolute;top:9px;right:9px;font-family:Cinzel,Georgia,serif;font-size:9px;letter-spacing:.12em;color:#140e04;background:#f6dea0;border-radius:3px;padding:2px 5px}
+.hm-card b{font-family:Cinzel,Georgia,serif;font-weight:normal;font-size:calc(15px*var(--fs-k,1));color:#f6dea0;letter-spacing:.03em}
+.hm-card span{font-size:calc(12px*var(--fs-k,1));color:#a79db2;line-height:1.3}
+.hm-card em{font-style:normal;font-size:calc(12px*var(--fs-k,1));color:var(--a);margin-top:auto;padding-top:4px}
+.hm-card.new::before{content:'NEW';position:absolute;top:9px;right:9px;font-family:Cinzel,Georgia,serif;font-size:calc(9px*var(--fs-k,1));letter-spacing:.12em;color:#140e04;background:#f6dea0;border-radius:3px;padding:2px 5px}
 .hm-card.locked{cursor:default;filter:saturate(.25);opacity:.62}
 .hm-card.locked em{color:#9b92a6}
 .hm-card:not(.locked):active{transform:scale(.98)}
 .hm-more{display:flex;flex-direction:column;gap:8px}
-.hm-more .hm-btn{font-size:13px;min-height:40px;text-align:left}
-.hm-foot{margin-top:auto;text-align:center;font-size:11px;color:#9b92a6;padding-top:6px}
+.hm-more .hm-btn{font-size:calc(13px*var(--fs-k,1));min-height:40px;text-align:left}
+.hm-foot{margin-top:auto;text-align:center;font-size:calc(11px*var(--fs-k,1));color:#9b92a6;padding-top:6px}
 .hm-foot.fresh{color:#f6dea0}
 @media (min-width:720px){
   .hm-wrap{display:grid;grid-template-columns:minmax(270px,340px) 1fr;grid-template-rows:auto 1fr auto;align-items:start;column-gap:18px}
@@ -63,9 +64,9 @@ const CSS = `
 }
 /* A phone held sideways: the cards drop their sentence so all eight sit on screen at once. */
 @media (min-width:720px) and (max-height:520px){
-  .hm-side{gap:8px}.hm-stage{height:clamp(48px,14vh,80px)}.hm-sub{display:none}.hm-word{font-size:30px}.hm-asc{font-size:13px}
+  .hm-side{gap:8px}.hm-stage{height:clamp(48px,14vh,80px)}.hm-sub{display:none}.hm-word{font-size:calc(30px*var(--fs-k,1))}.hm-asc{font-size:calc(13px*var(--fs-k,1))}
   .hm-card{min-height:0;padding:9px 10px}.hm-card span{display:none}.hm-card svg{width:22px;height:22px}
-  .hm-journey{padding:11px}.hm-where{font-size:16px}.hm-prog{margin:7px 0 9px}.hm-btn{min-height:40px}
+  .hm-journey{padding:11px}.hm-where{font-size:calc(16px*var(--fs-k,1))}.hm-prog{margin:7px 0 9px}.hm-btn{min-height:40px}
 }
 `;
 
@@ -125,12 +126,14 @@ export class Home {
     wrap.append(side, this.modes(), this.foot);
     this.root.appendChild(wrap);
     document.body.appendChild(this.root);
+    // A controller moves between every button here (✕ presses; the first is focused: Continue or Begin).
+    pushLayer({ el: this.root, nav: 'button' });
   }
 
   /** The version line under everything. */
   version(text: string, fresh: boolean) { this.foot.textContent = text; this.foot.classList.toggle('fresh', !fresh); this.foot.dataset.k = 'title_version'; }
 
-  destroy() { this.root.remove(); this.style.remove(); }
+  destroy() { popLayer(this.root); this.style.remove(); }
 
   // ---------------------------------------------------------------- the journey
 

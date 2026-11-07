@@ -133,8 +133,10 @@ jobs:
       - run: node scripts/replay.mjs
       - run: node scripts/watch.mjs
       - run: node scripts/feel.mjs
+      - run: node scripts/allies.mjs
       - run: node scripts/watch-pace.mjs
       - run: node scripts/home.mjs
+      - run: node scripts/pad-menus.mjs
       - run: node scripts/legends.mjs
       - run: node scripts/install-audio.mjs
       - uses: actions/upload-artifact@v4

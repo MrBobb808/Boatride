@@ -249,23 +249,23 @@ const CSS = `
   padding:max(14px,env(safe-area-inset-top)) max(12px,env(safe-area-inset-right)) max(14px,env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left));
   background:radial-gradient(ellipse at center,rgba(7,6,11,.62),rgba(7,6,11,.9));font-family:Georgia,serif;color:#ddd4c6}
 .hz-panel{width:min(440px,100%);max-height:100%;overflow:auto;text-align:center}
-.hz-title{font-family:Cinzel,Georgia,serif;color:#f6dea0;font-size:22px;letter-spacing:.2em;margin:4px 0 2px}
-.hz-sub{color:#9b92a6;font-style:italic;margin:0 0 12px;font-size:14px}
+.hz-title{font-family:Cinzel,Georgia,serif;color:#f6dea0;font-size:calc(22px*var(--fs-k,1));letter-spacing:.2em;margin:4px 0 2px}
+.hz-sub{color:#9b92a6;font-style:italic;margin:0 0 12px;font-size:calc(14px*var(--fs-k,1))}
 .hz-cards{display:flex;flex-direction:column;gap:10px}
 @media (orientation:landscape){.hz-panel{width:min(760px,100%)}.hz-cards{flex-direction:row}.hz-card{flex:1}}
 .hz-card{background:rgba(20,14,24,.92);border:1px solid rgba(226,184,90,.45);border-radius:6px;padding:12px 14px;text-align:left;cursor:pointer;color:#ddd4c6;font:inherit}
 .hz-card:active,.hz-card:hover,.hz-card:focus{border-color:#f6dea0;background:rgba(40,28,34,.95)}
-.hz-card b{font-family:Cinzel,Georgia,serif;color:#f6dea0;font-size:15px;display:block}
+.hz-card b{font-family:Cinzel,Georgia,serif;color:#f6dea0;font-size:calc(15px*var(--fs-k,1));display:block}
 .hz-card small{color:#c59bff;display:block;margin:2px 0 4px;letter-spacing:.06em}
-.hz-card span{font-size:13px;color:#cfc6b6}
-.hz-stats{display:grid;grid-template-columns:1fr 1fr;gap:6px 14px;margin:10px 0 14px;text-align:left;font-size:14px}
+.hz-card span{font-size:calc(13px*var(--fs-k,1));color:#cfc6b6}
+.hz-stats{display:grid;grid-template-columns:1fr 1fr;gap:6px 14px;margin:10px 0 14px;text-align:left;font-size:calc(14px*var(--fs-k,1))}
 .hz-stats b{color:#f6dea0;font-weight:normal}
 .hz-btns{display:flex;flex-direction:column;gap:8px}
-.hz-btn{font-family:Cinzel,Georgia,serif;font-size:15px;padding:11px 14px;border-radius:6px;border:1px solid rgba(226,184,90,.55);background:rgba(20,14,24,.92);color:#ddd4c6;cursor:pointer}
+.hz-btn{font-family:Cinzel,Georgia,serif;font-size:calc(15px*var(--fs-k,1));padding:11px 14px;border-radius:6px;border:1px solid rgba(226,184,90,.55);background:rgba(20,14,24,.92);color:#ddd4c6;cursor:pointer}
 .hz-btn:focus{outline:2px solid #f6dea0}
 .hz-btn.primary{background:linear-gradient(#6b4a1c,#3e2a10);color:#fff1c4;border-color:#f6dea0}
 .hz-row{display:flex;gap:8px;justify-content:center;margin-top:10px}
-.hz-btn.small{font-size:13px;padding:8px 12px;flex:1;max-width:180px}
+.hz-btn.small{font-size:calc(13px*var(--fs-k,1));padding:8px 12px;flex:1;max-width:180px}
 .hz-btn.on{border-color:#ff8a7a;color:#ffd2c8}
 .hz-btn[disabled]{opacity:.4;cursor:default}
 .hz-card.hz-banish{border-color:rgba(255,120,100,.6)}

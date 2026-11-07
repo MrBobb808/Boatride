@@ -161,7 +161,10 @@ Never ship files from `art/incoming/` directly.
     `summonList`; save fields `summonPreset`, `squadPick`) and an Orders page
     (Guard / Hunt / Flank / Hold / Focus for every Echo out, or "Each Echo…"
     for one at a time and the squad picks). Orders live on `EchoInst.order`
-    and drive targeting and movement in `EchoUnit.chooseTarget` / `standX`.
+    and drive targeting and movement in `EchoUnit.chooseTarget` / `standX`:
+    each order is a row of weights over scored foes (`ORDER_WEIGHTS`, `scoreFoe`,
+    `game/utility.ts`, `World.bestEnemy`), with a bonus for the foe it is on so
+    near-ties do not flip it (POLISH_PLAN §19 phase 4).
     Flank blows to a foe's back hit harder; guards earn XP from blows taken.
   - **Called, never automatic:** Echoes appear only when called (the wheel,
     the ECHOES button, a summon preset); `flags.army_out === true` then keeps
@@ -244,6 +247,10 @@ Never ship files from `art/incoming/` directly.
   sub-tabs (`ui/menus.ts`, `SECTIONS`; old page names still open). A host
   build can add its own through `addMenuSection` (the Phaser build adds
   Tirzah's, and opens it while she fights).
+  Menus are layers (`pushLayer`, `ui/dom.ts`) that a controller or the keys work: a
+  focused control, the d-pad, ✕/○; a layer may name its own controls (`nav`). The
+  Phaser build's home screen and Watch are layers too, and Settings → Text size
+  scales their text (`--fs-k`; POLISH_PLAN §19 phase 5, `scripts/pad-menus.mjs`).
   `ui/coach.ts` shows optional one-time coaching cards (`SaveData.coached`)
   and `ui/statTips.ts` explains every stat on hover or long-press.
 - **Guidance:** `game/guide.ts` maps quest stages to targets and draws the

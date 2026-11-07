@@ -16,6 +16,7 @@ import { bossScale } from '../game/bosses';
 import { music } from '../classic/shim/music';
 import { settings } from '../classic/shim/settings';
 import { sfx } from '../../../remnant/src/audio/audio';
+import { input } from '../../../remnant/src/core/input';
 import { safe, measureSafe } from '../../../remnant/src/ui/safe';
 import * as D from '../game/watch/defs';
 import { WatchUI } from '../game/watch/ui';
@@ -23,7 +24,7 @@ import { simulateAway, applyAway } from '../game/watch/offline';
 import { pace } from '../game/watch/balance';
 import { tally, rollDays, openChest, claim, type ChestPrize } from '../game/watch/daily';
 import { smoothShake, impact, type Tier } from '../game/feel';
-import { ShadowBand, SHADOW_ORDER, ESSENCE_OF, BOSS_ESSENCE, UNLOCK_COST, SHADOW_MAX, levelCost, owned, shadowName, type ShadowId } from '../game/watch/shadows';
+import { ShadowBand, pickFoe, SHADOW_ORDER, ESSENCE_OF, BOSS_ESSENCE, UNLOCK_COST, SHADOW_MAX, levelCost, owned, shadowName, type ShadowId } from '../game/watch/shadows';
 import type { EchoRole } from '../../../remnant/src/game/data';
 
 /** The wall's world: 300 × 176 units (narrow, so the fighters read large on a phone), the ground at 146; Elior stands
@@ -211,7 +212,7 @@ export class Watch extends Phaser.Scene {
     });
     music.play(sceneOf(D.gateOf(this.w.stage)).music);
     if (away && (away.coins > 0 || away.to !== away.from)) this.ui.welcome(away, awaySecs);
-    if (new URLSearchParams(location.search).has('debug')) (window as unknown as { __remnant: Record<string, unknown> }).__remnant = { ...((window as unknown as { __remnant?: Record<string, unknown> }).__remnant ?? {}), game: this.game, watch: this, watchPace: pace };
+    if (new URLSearchParams(location.search).has('debug')) (window as unknown as { __remnant: Record<string, unknown> }).__remnant = { ...((window as unknown as { __remnant?: Record<string, unknown> }).__remnant ?? {}), game: this.game, watch: this, watchPace: pace, watchPick: pickFoe };
   }
 
   /** The wall fills the top of an upright phone (the panel below); sideways, the left half. */
@@ -334,6 +335,8 @@ export class Watch extends Phaser.Scene {
 
   /** ×2 and ×3 run the wall two or three steps a frame; a staged combo always plays at its own, slowed pace. */
   update(_t: number, delta: number) {
+    // A controller's buttons drive the panel (the shared menu navigation; game/watch/ui.ts).
+    input.poll(); input.flush();
     const dt = Math.min(delta / 1000, 0.05), n = this.cine ? 1 : this.w.speed ?? 1;
     // A heavy ability's blow holds the world a moment (its light plays on).
     if (this.stopT > 0) { this.stopT -= dt; this.stepFx(dt); return; }

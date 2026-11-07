@@ -905,12 +905,45 @@ production build, `tsc` clean). Phases 1–2 change how the game feels everywher
      the live rates; tune toward early upgrades in 3–10 s and Ascensions ×1.2–1.5 apart, and record the numbers here.
    - Then §18k's daily quests, streak and pity chests, built on the skill's rules (rewards from the save's own clock,
      odds shown for any random roll, nothing paid).
-4. **Phase 4: allies that choose well.**
+4. **Phase 4: allies that choose well.** **BUILT.** `remnant/src/game/utility.ts` (response curves, the skill's
+   compensation, `STICK` for hysteresis) and `World.bestEnemy` (the same foes as `nearestEnemy`, scored) in both builds.
+   - An Echo, and the AI partner underneath, scores each foe in its order's reach (`EchoUnit.scoreFoe`) on five
+     considerations: nearness to where it fights from, the foe's nearness to Elior, its wounds, being Elior's own foe,
+     and how many other Echoes are on it. Each order is a row of weights (`ORDER_WEIGHTS`): guarding counts the foe on
+     Elior most, hunting the wounded, holding its post, flanking Elior's foe. The foe it is on gets ×1.25, so a
+     near-tie does not flip it. The commands stay commands: a swap's handoff, a focused foe, a chosen kind, Elior's
+     marked foe, and Elior's own foe when flanking. Reaches are as before (150/260/420), and a change of target never
+     resets a cooldown.
+   - The Watch's shadows (`pickFoe` in `src/game/watch/shadows.ts`): the ranger shoots the foe whose blow is about to
+     fall, the mage chills a near foe its frost is not on yet, the ninja (once a coin toss between the front and the
+     back) leaves the foe before him to Elior and takes a wounded one or an elite. The guardian and the fighter keep to
+     the front.
+   - Verified by `scripts/allies.mjs` (in CI): hunting takes a wounded foe over a nearer fresh one; it keeps its foe
+     through a near-tie; two hunters take two foes; guarding takes the foe on Elior; flanking Elior's foe; holding
+     nothing past its post; the Watch's three choices; and the Echoes still fight a room.
+
+   The plan as written:
    - G10: utility scoring for Echoes, Watch shadows and the AI partner. Each consideration is 0–1 (distance, threat,
      the foe's health, the order given, the role), the current target gets a small bonus so it does not flip on a
      near-tie, and cooldowns survive a change of mind. Orders (Guard, Hunt, Flank, Hold, Focus) become weights, not
      branches.
-5. **Phase 5: menus for every hand.**
+5. **Phase 5: menus for every hand.** **BUILT.** The original already had the skill's pattern for its own menus (a layer
+   stack in `remnant/src/ui/dom.ts`: a focused control on open, the d-pad moving to the nearest control that way,
+   ✕ to press, ○ for back, a gold ring on the focused one) and a Text size setting (Normal, Large ×1.125, Extra large
+   ×1.3). This build's own screens did not use either.
+   - G7: the home screen and the Watch are now layers of that navigation, installed at boot (`installNav` installs
+     once). A layer can name its own controls (`nav: 'button'`), and left/right step a list (the Watch's role
+     pickers). On the home screen Continue (or Begin) is focused first. In the Watch L1/R1 change the tab, ○ goes to
+     Leave without leaving (one more ✕ leaves), and the welcome-back card is a layer of its own (○ collects). The
+     Watch now polls the controller. The Horde's cards already had their own d-pad handling and keep it.
+   - G8: Text size now reaches this build's own panels (the home screen, the Watch, the Horde's cards: their sizes
+     follow `--fs-k`), and the saved size is applied from the first screen (it was applied only on a change).
+     Extra large stays at ×1.3: the original's menus are laid out for it, and at that size the Watch fits an iPhone
+     SE with nothing off the screen.
+   - Verified by `scripts/pad-menus.mjs` (in CI), with a fake DualSense: the ring, the d-pad across the home screen,
+     ✕ on a card, R1, ○ and ✕ in the Watch, and the text at Normal and Extra large on an iPhone SE.
+
+   The plan as written:
    - G7: controller focus in the DOM menus (one focused control on open, the d-pad moves between neighbours, ✕ to press,
      ○ to go back), with a visible focus ring.
    - G8: Settings → Text size (100–150%) for the panels and cards.
