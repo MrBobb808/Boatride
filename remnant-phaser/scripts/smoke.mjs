@@ -2,7 +2,7 @@
 // through its doorway, jumps, fights a Veil Husk with real key presses and
 // earns its experience, takes a blow, the save survives a reload, the touch
 // stick and buttons drive him on a phone, pause opens, and every room in the
-// game loads without an error. Run after `npm run build`.
+// game loads without an error; Show frame rate reads the frame on the device. Run after `npm run build`.
 import { chromium } from '@playwright/test';
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
@@ -135,6 +135,19 @@ try {
   await touch('touchEnd', []);
   await phone.screenshot({ path: 'qa/phaser-phone.png' });
   console.log(`Phone: the stick walked Elior ${Math.round(x1 - x0)} px and STRIKE swung with both thumbs down`);
+
+  // ---- Settings → Show frame rate: the frame and the script's share of it, measured on the device (src/game/perfMeter.ts)
+  {
+    const ctx = await browser.newContext({ viewport: { width: 1280, height: 720 } }), pg = await ctx.newPage();
+    watch(pg);
+    await pg.addInitScript(() => localStorage.setItem('remnant-phaser.settings.v1', JSON.stringify({ showFps: true })));
+    await pg.goto(base + '?debug&nostory&autostart&fresh');
+    await ready(pg);
+    const read = /\d+ fps · frame [\d.]+ ms \(worst [\d.]+\) · script [\d.]+ ms · q\d/;
+    await pg.waitForFunction((src) => new RegExp(src).test(document.body.innerText), read.source, { timeout: 15000 });
+    console.log(`Show frame rate: ${(await pg.evaluate(() => document.body.innerText)).match(read)[0]}`);
+    await ctx.close();
+  }
 
   assert.deepEqual(errors, []);
   console.log('phaser smoke: all checks passed');

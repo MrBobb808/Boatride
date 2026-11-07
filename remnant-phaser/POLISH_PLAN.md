@@ -914,7 +914,36 @@ production build, `tsc` clean). Phases 1–2 change how the game feels everywher
    - G7: controller focus in the DOM menus (one focused control on open, the d-pad moves between neighbours, ✕ to press,
      ○ to go back), with a visible focus ring.
    - G8: Settings → Text size (100–150%) for the panels and cards.
-6. **Phase 6: performance, measured first.**
+6. **Phase 6: performance, measured first.** **BUILT.** `scripts/perf.mjs` plays the three busiest scenes as an
+   iPhone 15 Pro in headless Chromium for six seconds each and records Phaser's step time, the CPU profile, texture
+   uploads and canvas read-backs by caller, and sampled allocation (`npx vite build --minify false && node
+   scripts/perf.mjs [horde|watch|north] [--json file]`; it only reports, so it is not in CI). Measured on 7 November
+   2026, script time per step against the 8.3 ms a frame has at 120 Hz:
+
+   | Scene | Step p50 | p99 | Sampled allocation | Largest named cost |
+   |---|---|---|---|---|
+   | The Horde, 120 foes | 4.4 ms | 13.6 ms | 52 KB/s | Phaser's batching, 0.3% |
+   | The Watch at ×3, stage 95, full kit | 1.8 ms | 5.1 ms | 42 KB/s | the Watch's `tick`, 0.2% |
+   | The King of the North | 7.2–8.3 ms | 13–20 ms | 60–70 KB/s | texture uploads, 2% (about 3 ms a frame) |
+
+   The headless browser draws with a software GPU (about 95% of the samples are inside it), so it cannot say what
+   the iPhone's GPU spends; the game's own code is never more than half a percent of a sample, and the garbage
+   collector 0.1–0.3%. Nothing in the profile called for a change:
+   - The main game uploads three view-sized canvases a frame (the room's back and front, the classic actors).
+     Redrawing the classic actors every other frame under load halved their uploads and moved the step time by
+     nothing measurable, so it was taken out again (the skill's rule: keep a change only when the number moves).
+   - The boss shading's read-back (`render/bossPixel.ts`) already uses a CPU-side canvas (`willReadFrequently`), so
+     it does not stall the GPU: 0.25 ms a frame, throttled by the quality tier.
+   - G9, the Watch's per-tick lists: the whole `tick` is 0.2% at ×3, so reusing the lists would add code for no
+     measurable gain. Left as it is.
+   - What the device itself shows: Settings → Show frame rate now works in this build (`src/game/perfMeter.ts`). It
+     reads the frame, its worst in the last 240, and the script's share (Phaser's step from `prestep` to `postrender`)
+     with the quality tier: a frame much longer than its script is the GPU's, a script near the frame is the CPU's.
+     Read it on the iPhone in a busy fight before the next performance change. `scripts/smoke.mjs` checks it.
+   - Budgets to hold (rerun `perf.mjs` after a change to a busy scene): step p50 under 5 ms in the Horde and 3 ms in
+     the Watch, under 8.3 ms in a boss fight; sampled allocation under 150 KB/s (a short run reads 40–110).
+
+   The plan as written:
    - Profile a production build at 120 Hz on the busiest scenes (a full Horde stage, the Watch at ×3, a Chapter XII
      boss), record the frame split, then fix what the profile shows. G9 is the first known case: reuse the Watch's
      lists instead of filtering and sorting each tick.

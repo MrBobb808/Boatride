@@ -302,6 +302,10 @@ Never ship files from `art/incoming/` directly.
   `camera.shake(ms, intensity)` as before), a follow that blends the same at 60 and 120 Hz, and shared blow
   weights (`TIERS`, `impact`) for the Watch and the Horde. The main game keeps its steady camera: ordinary blows
   never shake it (`World.shake`). Verified by `scripts/feel.mjs`.
+- **Performance (Phaser build):** measure before changing anything (POLISH_PLAN §19 phase 6): `scripts/perf.mjs`
+  profiles the busiest scenes headless, and Settings → Show frame rate (`src/game/perfMeter.ts`) reads the frame and
+  the script's share of it on the iPhone itself (headless Chromium's GPU is software, so only the device can say
+  what its GPU costs).
 - **Lighting:** Settings → Lighting (`settings.lighting`, dramatic by
   default) scales a dim room's darkness in `render/lighting.ts`
   (`lightingLevel`); daylight is untouched.
