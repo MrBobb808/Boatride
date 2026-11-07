@@ -20,6 +20,7 @@ import { haptic } from '../../../remnant/src/core/haptics';
 import { safe, measureSafe } from '../../../remnant/src/ui/safe';
 import * as D from '../game/watch/defs';
 import { WatchUI } from '../game/watch/ui';
+import { simulateAway, applyAway } from '../game/watch/offline';
 import { ShadowBand, ESSENCE_OF, BOSS_ESSENCE, UNLOCK_COST, SHADOW_MAX, levelCost, owned, shadowName, type ShadowId } from '../game/watch/shadows';
 import type { EchoRole } from '../../../remnant/src/game/data';
 
@@ -178,6 +179,13 @@ export class Watch extends Phaser.Scene {
     this.stopT = 0;
     this.pillar = this.add.image(0, GROUND, 'vfx-abilities-1', 40).setOrigin(0.5, 0.82).setBlendMode(Phaser.BlendModes.ADD).setVisible(false).setDepth(9);
     this.ui = new WatchUI(this);
+    // Away: the wall went on at half speed (game/watch/offline.ts). It is applied now, before the stage is set, and
+    // saved at once, so the card only reports what is already his.
+    const awaySecs = (Date.now() - this.w.last) / 1000;
+    const away = awaySecs >= 60 ? simulateAway(this.w, awaySecs) : null;
+    if (away) { applyAway(this.w, away); for (const g of away.gates) this.payGate(g, true); }
+    this.w.last = Date.now();
+    if (away) this.persist();
     this.hp = D.watchStats(this.w).maxHp;
     this.kills = 0;
     this.startStage(this.w.stage);
@@ -194,10 +202,7 @@ export class Watch extends Phaser.Scene {
       this.ui.destroy();
     });
     music.play(sceneOf(D.gateOf(this.w.stage)).music);
-    // Away: the wall paid half its recent rate while the player was gone (eight hours at most).
-    const away = D.offlinePay(this.w);
-    this.w.last = Date.now();
-    if (away.secs >= 60 && away.coins > 0) this.ui.welcome(away.secs, away.coins, () => { this.w.coins += away.coins; this.ui.refresh(); this.persist(); });
+    if (away && (away.coins > 0 || away.to !== away.from)) this.ui.welcome(away, awaySecs);
     if (new URLSearchParams(location.search).has('debug')) (window as unknown as { __remnant: Record<string, unknown> }).__remnant = { ...((window as unknown as { __remnant?: Record<string, unknown> }).__remnant ?? {}), game: this.game, watch: this };
   }
 
@@ -480,19 +485,26 @@ export class Watch extends Phaser.Scene {
     const w = this.w, gate = D.gateOf(w.stage);
     this.shakeIt(0.012, 260); haptic('heavy');
     sfx('bossSlam', { vol: 0.5 }); sfx('lootRare', { vol: 0.6 });
-    // The main game's share, once a gate: silver, and two capes.
-    if (!w.paid.includes(gate)) {
-      w.paid.push(gate);
-      const silver = D.silverFor(gate);
-      this.save.silver += silver;
-      const cape = D.CAPE_AT[gate];
-      if (cape) { const st = (this.save.store ??= {}); (st.capes ??= []).includes(cape) || st.capes.push(cape); }
-      const blade = D.BLADES[gate - 1];
-      this.ui.toast(`Gate ${gate} holds · +${silver} silver for the journey${cape ? ' · and a cape' : ''}${blade ? ` · a new blade: ${blade.name} (Hero → armoury)` : ''}`, 3.6);
-    } else this.ui.toast(`Gate ${gate} holds`);
+    this.payGate(gate, false);
     this.bossName = null;
     this.next();
   }
+
+  /** The main game's share, once a gate: silver, two capes, and the first eight gates' blades. `quiet` while away. */
+  private payGate(gate: number, quiet: boolean) {
+    const w = this.w;
+    if (w.paid.includes(gate)) { if (!quiet) this.ui.toast(`Gate ${gate} holds`); return; }
+    w.paid.push(gate);
+    const silver = D.silverFor(gate);
+    this.save.silver += silver;
+    const cape = D.CAPE_AT[gate];
+    if (cape) { const st = (this.save.store ??= {}); (st.capes ??= []).includes(cape) || st.capes.push(cape); }
+    const blade = D.BLADES[gate - 1];
+    if (!quiet) this.ui.toast(`Gate ${gate} holds · +${silver} silver for the journey${cape ? ' · and a cape' : ''}${blade ? ` · a new blade: ${blade.name} (Hero → armoury)` : ''}`, 3.6);
+  }
+
+  /** What `secs` away would bring now (tests set it beside the live wall). */
+  awayReport(secs: number) { return simulateAway(this.w, secs); }
 
   private bossFled() {
     const w = this.w;

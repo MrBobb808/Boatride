@@ -775,6 +775,28 @@ gated on the quality tier, and the strip simulated at a fixed step so offline an
 A fresh Elior at level 1; portrait; the name stays *The Watch*; silver and cosmetics only back to the journey; his
 transformations come as he levels; Tirzah joins at level 150 and Uri at 300; shadows join him from level 1 to 150.
 
+### 18k. The next round (the owner's answers of 6 November 2026)
+
+Asked what to add next, modelled on popular idle RPGs (Tap Titans, AFK Arena, Idle Heroes, Clicker Heroes), the owner
+chose:
+
+- **Offline progress, in full** (BUILT): away, the wall goes on at half speed for up to twelve hours. He clears stages,
+  levels, earns coins and elites' and holders' essence, and wins gates (paying the journey's silver, capes and blades as
+  if live). He stops where the live wall would stop him: a holder he cannot fell in its time, or stages whose foes
+  outlast his health. Holding back, he never drops lower, and tries again every three levels he gains. A welcome-back
+  card lists it all. `src/game/watch/offline.ts` (`simulateAway`, `applyAway`), calibrated against the live wall in
+  `scripts/watch.mjs`. Perks may lengthen the cap (`awayCap`).
+- **Daily quests and a login streak:** three to five daily tasks (foes felled, abilities used, a gate won), weekly goals,
+  and a streak calendar; rewards come in chests.
+- **Achievements and titles:** many milestones, each a small permanent bonus and a title or badge.
+- **Relics and an Ascension tree:** Seals buy relics and talents that outlast an Ascension (the long chase).
+- **A boss tower and daily dungeons:** a tower of holders, one floor per try with milestone rewards; daily dungeons
+  (coins, essence, gear) with a few free entries a day.
+- **Chests with pity:** earned, never bought; random rolls with a guaranteed rare or better within a set number of opens.
+
+Build order: offline progress (done), then daily quests with the streak and chests, then achievements, then relics and
+the Ascension tree, then the tower and dungeons.
+
 Sources: Anthony Pecorella, *The Math of Idle Games*, parts I–III (Kongregate, on Game Developer); practitioner notes
 on idle retention, offline earnings and upgrade design (Pocket Gamer.biz on Gold & Goblins; DEV Community posts).
 

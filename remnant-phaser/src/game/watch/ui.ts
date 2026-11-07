@@ -9,8 +9,9 @@ import vanguardUrl from '../../../../remnant/src/assets/echo-vanguard.png';
 import sovereignUrl from '../../../../remnant/src/assets/echo-sovereign.png';
 import veilUrl from '../../../../remnant/src/assets/foes-veil.png';
 import { ECHO_SPECIES, ECHO_ROLES } from '../../../../remnant/src/game/data';
-import { SHADOW_ORDER, SHADOW_ART, ROLE_ORDER, UNLOCK_COST, SHADOW_MAX, levelCost, tierOf, shadowName, shadowRole, owned } from './shadows';
+import { SHADOW_ORDER, SHADOW_ART, ROLE_ORDER, UNLOCK_COST, SHADOW_MAX, levelCost, tierOf, shadowName, shadowRole, owned, type ShadowId } from './shadows';
 import type { Watch } from '../../scenes/Watch';
+import { awayCap, type AwayReport } from './offline';
 
 const CSS = `
 .wt-hud{position:fixed;left:0;right:0;z-index:15;pointer-events:none;font-family:Georgia,serif;color:#ddd4c6;padding:0 10px}
@@ -115,6 +116,11 @@ const CSS = `
 .wt-card-layer{position:fixed;inset:0;z-index:30;display:flex;align-items:center;justify-content:center;background:rgba(7,6,11,.78);padding:16px}
 .wt-welcome{width:min(380px,100%);background:#150f1b;border:1px solid rgba(226,184,90,.55);border-radius:8px;padding:16px;text-align:center;font-family:Georgia,serif;color:#ddd4c6}
 .wt-welcome b{display:block;font-family:Cinzel,Georgia,serif;color:#f6dea0;font-size:22px;margin:6px 0}
+.wt-away{display:grid;grid-template-columns:auto 1fr;gap:5px 12px;text-align:left;font-size:13px;margin:10px 0 8px;padding:10px 12px;background:#0f0b14;border-radius:6px}
+.wt-away dt{color:#9b92a6}
+.wt-away dd{margin:0;color:#f6dea0;font-family:Cinzel,Georgia,serif}
+.wt-away dd.up{color:#9be07a}
+.wt-held{font-size:12.5px;color:#ffb08a;margin:0 0 8px;line-height:1.35}
 `;
 
 const el = <K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', text = '') => { const e = document.createElement(tag); if (cls) e.className = cls; if (text) e.textContent = text; return e; };
@@ -500,14 +506,27 @@ export class WatchUI {
     if (this.toastT > 0) { this.toastT -= dt; if (this.toastT <= 0) this.toastEl.classList.remove('on'); }
   }
 
-  /** The welcome-back card: what the wall earned while the player was away. */
-  welcome(secs: number, coins: number, onTake: () => void) {
+  /** The welcome-back card: what the wall did while the player was away (already his: game/watch/offline.ts). */
+  welcome(r: AwayReport, away: number) {
     const layer = el('div', 'wt-card-layer'), card = el('div', 'wt-welcome');
-    const h = Math.floor(secs / 3600), m = Math.floor((secs % 3600) / 60);
-    card.append(el('div', 'wt-h', 'Welcome back to the Watch'), el('p', 'wt-p', `For ${h ? `${h} h ` : ''}${m} min Elior held the wall without you.`), el('b', '', `+${D.fmt(coins)} coins`));
+    const h = Math.floor(r.secs / 3600), m = Math.floor((r.secs % 3600) / 60);
+    const capped = away > awayCap(this.sc.w) + 60 ? ` (the Watch counts ${awayCap(this.sc.w) / 3600} hours at most)` : '';
+    card.append(el('div', 'wt-h', 'Welcome back to the Watch'), el('p', 'wt-p', `For ${h ? `${h} h ` : ''}${m} min Elior held the wall without you, at half his pace${capped}.`), el('b', '', `+${D.fmt(r.coins)} coins`));
+    const dl = el('dl', 'wt-away');
+    const row = (k: string, v: string, up = false) => { dl.append(el('dt', '', k), el('dd', up ? 'up' : '', v)); };
+    row('Stages', r.to !== r.from ? `${r.from} → ${r.to}` : `held at ${r.to}`, r.to > r.from);
+    if (r.levels) row('Watch level', `+${r.levels} (now ${r.level})`, true);
+    row('Foes felled', D.fmt(r.kills));
+    if (r.gates.length) row(r.gates.length > 1 ? 'Gates won' : 'Gate won', r.gates.join(', '), true);
+    const ess = (Object.entries(r.essence) as [ShadowId, number][]).filter(([, n]) => n > 0).map(([id, n]) => `${shadowName(id, 1)} ×${n}`);
+    if (ess.length) row('Essence', ess.join(' · '), true);
+    card.appendChild(dl);
+    if (r.held !== null && !r.auto) card.appendChild(el('p', 'wt-held', D.isBoss(r.held)
+      ? `Gate ${D.gateOf(r.held)}'s holder stopped him at stage ${r.held}. Grow stronger, then Challenge it.`
+      : `Stage ${r.held}'s foes stopped him. He holds the stage before it, growing, and tries again as he levels.`));
     const ok = el('button', 'wt-btn hot wt-big', 'Collect');
     ok.dataset.k = 'wt_collect';
-    ok.onclick = () => { sfx('lootRare'); layer.remove(); this.overlayEl = null; onTake(); };
+    ok.onclick = () => { sfx('lootRare'); layer.remove(); this.overlayEl = null; this.refresh(); };
     card.appendChild(ok);
     layer.appendChild(card);
     document.body.appendChild(layer);

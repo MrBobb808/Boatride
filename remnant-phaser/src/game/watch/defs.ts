@@ -251,12 +251,7 @@ export const MANTLE = { level: 25, time: 15, dmg: 1.7, speed: 1.2, perKill: 4 };
 
 // ---------------------------------------------------------------- away, and the Ascension
 
-/** Offline: half the recent rate, for at most eight hours. */
-export const OFFLINE_RATE = 0.5, OFFLINE_CAP = 8 * 3600;
-export function offlinePay(w: WatchSave, now = Date.now()) {
-  const secs = Math.max(0, Math.min(OFFLINE_CAP, (now - w.last) / 1000));
-  return { secs, coins: Math.floor(w.rate * secs * OFFLINE_RATE) };
-}
+// Away, the wall goes on at half speed: game/watch/offline.ts.
 /** The Ascension opens at stage 60; Seals grow with the square root of how far past it the run went. */
 export const ASCEND_AT = 60;
 export const sealsFor = (best: number) => (best < ASCEND_AT ? 0 : Math.floor(Math.sqrt(best - ASCEND_AT + 1) * 3));
