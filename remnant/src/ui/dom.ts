@@ -59,6 +59,8 @@ interface Layer {
   el: HTMLElement;
   onBack?: () => void;
   onAction?: (a: Action) => boolean;
+  /** Which controls a controller moves between (default `[data-nav]`): a host build's own screens can name theirs. */
+  nav?: string;
 }
 
 const stack: Layer[] = [];
@@ -80,14 +82,14 @@ function ghostClick(e: MouseEvent, born: number) {
 export function pushLayer(l: Layer) {
   stack.push(l);
   lastLayerAt = performance.now();
-  setTimeout(() => focusFirst(l.el), 30);
+  setTimeout(() => focusFirst(l.el, l.nav), 30);
 }
 export function popLayer(el: HTMLElement) {
   const i = stack.findIndex((l) => l.el === el);
   if (i >= 0) stack.splice(i, 1);
   el.remove();
   const top = stack[stack.length - 1];
-  if (top && !top.el.contains(document.activeElement)) focusFirst(top.el);
+  if (top && !top.el.contains(document.activeElement)) focusFirst(top.el, top.nav);
 }
 export function topLayer() {
   return stack[stack.length - 1] ?? null;
@@ -96,20 +98,23 @@ export function layerCount() {
   return stack.length;
 }
 
-export function focusFirst(root: HTMLElement) {
+const NAV = '[data-nav]';
+const navOf = (sel = NAV) => sel.split(',').map((x) => x.trim() + ':not([disabled])').join(',');
+
+export function focusFirst(root: HTMLElement, sel = NAV) {
   if (input.lastDevice === 'touch') return;
-  const el = (root.querySelector('[data-autofocus]') as HTMLElement) ?? (root.querySelector('[data-nav]:not([disabled])') as HTMLElement);
+  const el = (root.querySelector('[data-autofocus]') as HTMLElement) ?? navCandidates(root, sel)[0];
   el?.focus({ preventScroll: false });
 }
 
-function navCandidates(root: HTMLElement) {
-  return Array.from(root.querySelectorAll<HTMLElement>('[data-nav]:not([disabled])')).filter((e) => e.offsetParent !== null);
+function navCandidates(root: HTMLElement, sel = NAV) {
+  return Array.from(root.querySelectorAll<HTMLElement>(navOf(sel))).filter((e) => e.offsetParent !== null && e.getAttribute('aria-disabled') !== 'true');
 }
 
 function move(dir: 'left' | 'right' | 'up' | 'down') {
   const top = topLayer();
   if (!top) return;
-  const els = navCandidates(top.el);
+  const els = navCandidates(top.el, top.nav);
   if (!els.length) return;
   const cur = document.activeElement as HTMLElement | null;
   if (!cur || !top.el.contains(cur) || !els.includes(cur)) {
@@ -140,10 +145,14 @@ function move(dir: 'left' | 'right' | 'up' | 'down') {
   }
 }
 
+let navInstalled = false;
+/** Controller and keyboard navigation of the top layer. Safe to call more than once (it installs once). */
 export function installNav() {
+  if (navInstalled) return;
+  navInstalled = true;
   input.onDevice((device) => {
     const top = topLayer();
-    if (device !== 'touch' && top && !top.el.contains(document.activeElement)) focusFirst(top.el);
+    if (device !== 'touch' && top && !top.el.contains(document.activeElement)) focusFirst(top.el, top.nav);
   });
   input.onAction((a) => {
     if (input.lastDevice === 'touch') return;
@@ -163,10 +172,16 @@ export function navigate(a: Action): true | undefined {
     cur.dispatchEvent(new Event('input'));
     return true;
   }
+  // A list of choices steps through them sideways.
+  if (cur && cur.tagName === 'SELECT' && (a === 'left' || a === 'right')) {
+    const sel = cur as unknown as HTMLSelectElement, n = sel.options.length;
+    if (n) { sel.selectedIndex = (sel.selectedIndex + (a === 'right' ? 1 : -1) + n) % n; sel.dispatchEvent(new Event('change', { bubbles: true })); }
+    return true;
+  }
   if (a === 'left' || a === 'right' || a === 'up' || a === 'down') { move(a); return true; }
   else if (a === 'confirm') {
-    if (cur && top.el.contains(cur) && cur.hasAttribute('data-nav')) {
-      if (cur.tagName === 'INPUT') return;
+    if (cur && top.el.contains(cur) && cur.matches(top.nav ?? NAV)) {
+      if (cur.tagName === 'INPUT' || cur.tagName === 'SELECT') return;
       cur.click();
     }
     return true;

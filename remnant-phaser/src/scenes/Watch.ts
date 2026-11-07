@@ -16,6 +16,7 @@ import { bossScale } from '../game/bosses';
 import { music } from '../classic/shim/music';
 import { settings } from '../classic/shim/settings';
 import { sfx } from '../../../remnant/src/audio/audio';
+import { input } from '../../../remnant/src/core/input';
 import { safe, measureSafe } from '../../../remnant/src/ui/safe';
 import * as D from '../game/watch/defs';
 import { WatchUI } from '../game/watch/ui';
@@ -334,6 +335,8 @@ export class Watch extends Phaser.Scene {
 
   /** ×2 and ×3 run the wall two or three steps a frame; a staged combo always plays at its own, slowed pace. */
   update(_t: number, delta: number) {
+    // A controller's buttons drive the panel (the shared menu navigation; game/watch/ui.ts).
+    input.poll(); input.flush();
     const dt = Math.min(delta / 1000, 0.05), n = this.cine ? 1 : this.w.speed ?? 1;
     // A heavy ability's blow holds the world a moment (its light plays on).
     if (this.stopT > 0) { this.stopT -= dt; this.stepFx(dt); return; }
