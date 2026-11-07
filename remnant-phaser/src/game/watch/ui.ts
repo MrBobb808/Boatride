@@ -36,7 +36,7 @@ const CSS = `
 .wt-call{position:fixed;left:50%;z-index:16;pointer-events:none;font-family:Cinzel,Georgia,serif;font-size:min(24px,6.4vw);letter-spacing:.14em;color:#fff6dc;white-space:nowrap;opacity:0;transform:translateX(-50%);--g:#e2b85a;padding:6px 28px;border-radius:40px;background:radial-gradient(closest-side,rgba(5,4,10,.7),rgba(5,4,10,.4) 60%,transparent);text-shadow:0 0 2px #000,0 0 6px var(--g),0 0 14px var(--g),0 2px 2px #000}
 .wt-call.on{animation:wtCall 1.15s ease-out forwards}
 @keyframes wtCall{0%{opacity:0;transform:translateX(-50%) scale(1.9);letter-spacing:.5em}14%{opacity:1;transform:translateX(-50%) scale(1);letter-spacing:.14em}72%{opacity:1}100%{opacity:0;transform:translateX(-50%) translateY(-8px) scale(1.04)}}
-.wt-panel{position:fixed;left:0;right:0;bottom:0;z-index:14;display:flex;flex-direction:column;background:#0d0a12;border-top:1px solid rgba(226,184,90,.35);font-family:Georgia,serif;color:#ddd4c6;padding-bottom:env(safe-area-inset-bottom)}
+.wt-panel{position:fixed;left:0;right:0;z-index:14;display:flex;flex-direction:column;background:#0d0a12;border-top:1px solid rgba(226,184,90,.35);font-family:Georgia,serif;color:#ddd4c6;padding-bottom:env(safe-area-inset-bottom)}
 .wt-body{flex:1;overflow:auto;padding:8px 10px;-webkit-overflow-scrolling:touch}
 .wt-tabs{display:flex;border-top:1px solid rgba(226,184,90,.25)}
 .wt-tab{flex:1;padding:10px 2px;font-family:Cinzel,Georgia,serif;font-size:12px;letter-spacing:.06em;background:#120e18;color:#9b92a6;border:0;border-right:1px solid rgba(226,184,90,.15);cursor:pointer}
@@ -113,7 +113,7 @@ const CSS = `
 .wt-sh select{background:#120e18;color:#ddd4c6}
 .wt-sh .act button:disabled{background:#2a2230;color:#8a8094;cursor:default}
 .wt-role{display:inline-block;font-size:10px;letter-spacing:.06em;padding:1px 6px;border-radius:8px;border:1px solid currentColor;margin-left:4px}
-.wt-card-layer{position:fixed;inset:0;z-index:30;display:flex;align-items:center;justify-content:center;background:rgba(7,6,11,.78);padding:16px}
+.wt-card-layer{position:fixed;inset:0;bottom:auto;height:var(--app-h,100%);z-index:30;display:flex;align-items:center;justify-content:center;background:rgba(7,6,11,.78);padding:16px}
 .wt-welcome{width:min(380px,100%);background:#150f1b;border:1px solid rgba(226,184,90,.55);border-radius:8px;padding:16px;text-align:center;font-family:Georgia,serif;color:#ddd4c6}
 .wt-welcome b{display:block;font-family:Cinzel,Georgia,serif;color:#f6dea0;font-size:22px;margin:6px 0}
 .wt-away{display:grid;grid-template-columns:auto 1fr;gap:5px 12px;text-align:left;font-size:13px;margin:10px 0 8px;padding:10px 12px;background:#0f0b14;border-radius:6px}
@@ -169,7 +169,8 @@ export class WatchUI {
   private statline = el('div', 'wt-statline');
   private sl = { atk: el('b'), hp: el('b'), spd: el('b'), dps: el('b'), coins: el('b') };
   private toastT = 0;
-  private hudH = 0;
+  /** Where the bar over the wall ends (CSS px), as last placed. */
+  private hudB = 0;
   private overlayEl: HTMLElement | null = null;
 
   constructor(private sc: Watch) {
@@ -207,10 +208,12 @@ export class WatchUI {
 
   /** Place the bar at `top` and say where it ends (CSS pixels): the wall starts under it, however it wraps. */
   placeHud(top: number, landscape: boolean, split: number): number {
-    this.hud.style.top = `${top + 4}px`;
+    // Below the status bar and the Dynamic Island: the inset comes from CSS itself (as the home screen's does), so a
+    // value the phone reports late, or a measurement taken too early, never tucks the bar under them.
+    this.hud.style.top = `calc(max(env(safe-area-inset-top, 0px), ${top}px) + 10px)`;
     this.hud.style.right = landscape ? `${window.innerWidth - split}px` : '0px';
-    this.hudH = this.hud.offsetHeight;
-    return top + 4 + this.hudH;
+    this.hudB = this.hud.getBoundingClientRect().bottom;
+    return this.hudB;
   }
 
   /** Place the panel below the wall (`wallTop` and `stripBottom` in CSS pixels). */
@@ -218,10 +221,11 @@ export class WatchUI {
     this.callEl.style.top = `${wallTop + (stripBottom - wallTop) * 0.2}px`;
     this.callEl.style.left = `${split / 2}px`;
     if (landscape) {
-      Object.assign(this.panel.style, { top: '0px', left: `${split}px`, borderTop: '0', borderLeft: '1px solid rgba(226,184,90,.35)' });
+      Object.assign(this.panel.style, { top: '0px', height: 'var(--app-h, 100vh)', left: `${split}px`, borderTop: '0', borderLeft: '1px solid rgba(226,184,90,.35)' });
       this.toastEl.style.top = `${stripBottom - 40}px`;
     } else {
-      Object.assign(this.panel.style, { top: `${stripBottom}px`, left: '0px', borderTop: '1px solid rgba(226,184,90,.35)', borderLeft: '0' });
+      // Down to the true foot of the screen (not the window's, which an installed iPhone app can report short).
+      Object.assign(this.panel.style, { top: `${stripBottom}px`, height: `calc(var(--app-h, 100vh) - ${stripBottom}px)`, left: '0px', borderTop: '1px solid rgba(226,184,90,.35)', borderLeft: '0' });
       this.toastEl.style.top = `${stripBottom - 40}px`;
     }
   }
@@ -425,8 +429,8 @@ export class WatchUI {
 
   /** Numbers and states, a few times a second. */
   refresh() {
-    // The bar grew or shrank (a button came or went): the wall moves to stay just under it.
-    if (this.hudH && this.hud.offsetHeight !== this.hudH) this.sc.refit();
+    // The bar moved or changed height (a button came or went, the safe area settled): the wall stays just under it.
+    if (this.hudB && Math.abs(this.hud.getBoundingClientRect().bottom - this.hudB) > 0.5) this.sc.refit();
     const sc = this.sc, w = sc.w;
     this.coins.innerHTML = '';
     this.coins.append(el('i'), document.createTextNode(D.fmt(w.coins)));

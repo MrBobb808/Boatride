@@ -3,7 +3,7 @@
 // cleared stage, the end of a run) are DOM panels over the canvas, styled like the rest of the game's menus.
 import Phaser from 'phaser';
 import { dpr } from '../screen';
-import { safe } from '../../../../remnant/src/ui/safe';
+import { safe, measureSafe } from '../../../../remnant/src/ui/safe';
 import { bakeActionIcons } from '../actionIcons';
 import { bakeAbilityIcons } from '../abilityIcons';
 import { sfx } from '../../../../remnant/src/audio/audio';
@@ -46,6 +46,9 @@ export class HordeUI {
   private W = 0;
   private H = 0;
   private top = 0;
+  /** The insets the layout was made for, and the wait until they are checked again. */
+  private safeKey = '';
+  private safeT = 1;
   private bars: Phaser.GameObjects.Graphics;
   private stickG: Phaser.GameObjects.Graphics;
   private stick: { id: number; ox: number; oy: number; x: number; y: number } | null = null;
@@ -92,6 +95,9 @@ export class HordeUI {
 
   /** Lay the pieces out for the screen as it is now (upright or sideways). */
   layout() {
+    // The insets as the phone reports them now (the value read at start-up can be stale: 0 before the status bar settles).
+    measureSafe();
+    this.safeKey = `${safe.top},${safe.right},${safe.bottom},${safe.left}`;
     const k = this.k, W = this.h.scale.width, H = this.h.scale.height, portrait = H > W;
     this.W = W; this.H = H;
     this.top = Math.max(safe.top * k, 6 * k);
@@ -144,6 +150,8 @@ export class HordeUI {
   update(dt: number, s: Readout, held = false) {
     const k = this.k, W = this.W, g = this.bars;
     if (this.h.scale.width !== this.W || this.h.scale.height !== this.H) this.layout();
+    // Once a second, see whether the status bar or the island's inset changed since (cheap: one computed style).
+    else if ((this.safeT -= dt) <= 0) { this.safeT = 1; measureSafe(); if (`${safe.top},${safe.right},${safe.bottom},${safe.left}` !== this.safeKey) this.layout(); }
     // The stick, or the keys and the controller's left stick.
     if (!held) {
       input.enabled = true; input.poll(); input.beginStep();
@@ -237,7 +245,7 @@ export class HordeUI {
 // ---------------------------------------------------------------- the cards
 
 const CSS = `
-.hz-layer{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:20;pointer-events:auto;
+.hz-layer{position:fixed;inset:0;bottom:auto;height:var(--app-h,100%);display:flex;align-items:center;justify-content:center;z-index:20;pointer-events:auto;
   padding:max(14px,env(safe-area-inset-top)) max(12px,env(safe-area-inset-right)) max(14px,env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left));
   background:radial-gradient(ellipse at center,rgba(7,6,11,.62),rgba(7,6,11,.9));font-family:Georgia,serif;color:#ddd4c6}
 .hz-panel{width:min(440px,100%);max-height:100%;overflow:auto;text-align:center}

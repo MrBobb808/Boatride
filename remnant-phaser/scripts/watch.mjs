@@ -40,6 +40,16 @@ try {
   const fit = await E(page, () => { const sc = window.__remnant.watch, cam = sc.cameras.main, k = sc.scale.width / innerWidth;
     return { hud: document.querySelector('.wt-hud').getBoundingClientRect().bottom, top: cam.y / k, bottom: (cam.y + cam.height) / k, panel: document.querySelector('.wt-panel').getBoundingClientRect().top }; });
   assert.ok(fit.hud <= fit.top + 0.5 && Math.abs(fit.panel - fit.bottom) < 1.5, `nothing over the wall is cut off: the bar ends above it and the panel starts below it (${JSON.stringify(fit)})`);
+  // The status bar and the Dynamic Island, reported after the Watch opened: the bar steps below them and the wall follows.
+  const cdp = await ctx.newCDPSession(page);
+  const inset = await cdp.send('Emulation.setSafeAreaInsetsOverride', { insets: { top: 59, bottom: 34 } }).then(() => true, () => false);
+  if (inset) {
+    await page.waitForTimeout(700);
+    const late = await E(page, () => { const sc = window.__remnant.watch, k = sc.scale.width / innerWidth, h = document.querySelector('.wt-hud').getBoundingClientRect();
+      return { hudTop: h.top, hud: h.bottom, top: sc.cameras.main.y / k }; });
+    assert.ok(late.hudTop >= 59 && late.hud <= late.top + 0.5, `the bar sits below the status bar and the island, and the wall below the bar (${JSON.stringify(late)})`);
+    await cdp.send('Emulation.setSafeAreaInsetsOverride', { insets: {} }).catch(() => {});
+  }
 
   // ---- he fights on his own, kills pay, stages pass, levels come
   const fight = await E(page, () => {
@@ -243,7 +253,23 @@ try {
     `three hours away: he climbed from stage 1, earned and levelled, and the card says so; the Watch was kept (${JSON.stringify({ ...back, card })})`);
   assert.equal(back.team, 'sentinel,knight', 'an older watch keeps the shadows its level gave it, raised and beside him');
   await page.screenshot({ path: 'qa/watch.png' });
-  console.log(`Watch: a fresh Elior; ${fight.stage - 1} stages in 2½ minutes; the boss's timer; Gate 1 paid once; the Mantle at 26; shadows raised with essence; Ascension for 9 Seals; stage ${back.stage} and ${back.coins} coins after 3 h away; new scenery each gate; the demon at Gate 1; its blade wielded; rush and holding stages; ×2 and ×3; abilities learned, levelled, staged and called; the wall under the bar`);
+  // An installed iPhone app whose window comes up 59 px short of its screen (the status bar) yet draws from the top:
+  // the game and the Watch's panel reach the true foot of the screen, not the short window's.
+  {
+    const short = await browser.newContext({ viewport: { width: 393, height: 793 }, screen: { width: 393, height: 852 }, deviceScaleFactor: 3, isMobile: true, hasTouch: true });
+    await short.addInitScript(() => Object.defineProperty(navigator, 'standalone', { get: () => true }));
+    const p2 = await short.newPage();
+    p2.on('pageerror', (e) => errors.push(e.message));
+    await p2.goto(base + '?debug');
+    await p2.waitForFunction(() => window.__remnant?.game?.scene?.isActive('title'), null, { timeout: 60000 });
+    await p2.click('[data-k=title_watch]');
+    await p2.waitForFunction(() => window.__remnant?.watch?.w, null, { timeout: 30000 });
+    await p2.waitForTimeout(500);
+    const foot = await p2.evaluate(() => ({ canvas: document.querySelector('canvas').getBoundingClientRect().height, tabs: document.querySelector('.wt-tabs').getBoundingClientRect().bottom }));
+    assert.ok(Math.abs(foot.canvas - 852) < 1 && Math.abs(foot.tabs - 852) < 1, `a short installed-app window: the game and the tabs reach the screen's foot (${JSON.stringify(foot)})`);
+    await short.close();
+  }
+  console.log(`Watch: a fresh Elior; ${fight.stage - 1} stages in 2½ minutes; the boss's timer; Gate 1 paid once; the Mantle at 26; shadows raised with essence; Ascension for 9 Seals; stage ${back.stage} and ${back.coins} coins after 3 h away; new scenery each gate; the demon at Gate 1; its blade wielded; rush and holding stages; ×2 and ×3; abilities learned, levelled, staged and called; the wall under the bar, the bar under the island, the tabs at the screen's foot`);
 
   assert.deepEqual(errors, [], 'no page errors');
   console.log('phaser watch: all checks passed');
