@@ -247,6 +247,10 @@ Never ship files from `art/incoming/` directly.
   sub-tabs (`ui/menus.ts`, `SECTIONS`; old page names still open). A host
   build can add its own through `addMenuSection` (the Phaser build adds
   Tirzah's, and opens it while she fights).
+  Menus are layers (`pushLayer`, `ui/dom.ts`) that a controller or the keys work: a
+  focused control, the d-pad, ✕/○; a layer may name its own controls (`nav`). The
+  Phaser build's home screen and Watch are layers too, and Settings → Text size
+  scales their text (`--fs-k`; POLISH_PLAN §19 phase 5, `scripts/pad-menus.mjs`).
   `ui/coach.ts` shows optional one-time coaching cards (`SaveData.coached`)
   and `ui/statTips.ts` explains every stat on hover or long-press.
 - **Guidance:** `game/guide.ts` maps quest stages to targets and draws the

@@ -72,6 +72,8 @@ export class Title extends Phaser.Scene {
     // The shared input service already consumes Enter/Space before Phaser's keys: confirm continues (or begins).
     const off = input.onAction((action, repeat) => {
       if (repeat || starting || action !== 'confirm' && action !== 'jump') return;
+      // A focused button is the shared navigation's to press (game/home.ts); this answers only when none is.
+      if (input.lastDevice !== 'touch' && this.home?.root.contains(document.activeElement)) return;
       input.releaseAll();
       (this.home?.root.querySelector('[data-k=title_first]') as HTMLButtonElement | null)?.click();
       return true;
