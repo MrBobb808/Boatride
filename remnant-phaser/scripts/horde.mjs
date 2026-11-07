@@ -170,6 +170,9 @@ try {
   // Headless frames are slow, and the gems the fall gathers can bring a run of level-ups first.
   for (let i = 0; i < 80; i++) {
     if (await E(page, () => !!document.querySelector('[data-k=hz_next]'))) break;
+    // Keep it at the hero's side until it falls: on a slow headless run a charge or its walk can carry it out of the
+    // auto-weapons' reach before a blow lands (the stage's flow is under test here, not the chase).
+    await H(page, (h) => { if (h.boss?.alive) { h.boss.hp = Math.min(h.boss.hp, 1); h.boss.x = h.hero.x + 30; h.boss.y = h.hero.y; } });
     if (await E(page, () => document.querySelectorAll('.hz-card').length)) await page.locator('.hz-card').first().tap();
     await page.waitForTimeout(400);
   }
