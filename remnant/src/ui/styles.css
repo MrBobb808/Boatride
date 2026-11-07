@@ -31,6 +31,8 @@
 }
 html.text-large { --fs-k: 1.125; }
 html.text-xl { --fs-k: 1.3; }
+/* Largest: half again the normal size (POLISH_PLAN §19 phase 8; the game-ui-ux skill's text-size range). */
+html.text-xxl { --fs-k: 1.5; }
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 html, body {

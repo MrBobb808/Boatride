@@ -938,8 +938,7 @@ production build, `tsc` clean). Phases 1–2 change how the game feels everywher
      Watch now polls the controller. The Horde's cards already had their own d-pad handling and keep it.
    - G8: Text size now reaches this build's own panels (the home screen, the Watch, the Horde's cards: their sizes
      follow `--fs-k`), and the saved size is applied from the first screen (it was applied only on a change).
-     Extra large stays at ×1.3: the original's menus are laid out for it, and at that size the Watch fits an iPhone
-     SE with nothing off the screen.
+     Extra large stayed at ×1.3 here; phase 8 added Largest (×1.5) once every page was checked at that size.
    - Verified by `scripts/pad-menus.mjs` (in CI), with a fake DualSense: the ring, the d-pad across the home screen,
      ✕ on a card, R1, ○ and ✕ in the Watch, and the text at Normal and Extra large on an iPhone SE.
 
@@ -947,6 +946,16 @@ production build, `tsc` clean). Phases 1–2 change how the game feels everywher
    - G7: controller focus in the DOM menus (one focused control on open, the d-pad moves between neighbours, ✕ to press,
      ○ to go back), with a visible focus ring.
    - G8: Settings → Text size (100–150%) for the panels and cards.
+8. **Phase 8: loose ends** (after phases 4–7; the owner's go of 7 November 2026). **BUILT.**
+   - Text size reaches 150%: Settings → Text size → Largest (`textSize: 'xxl'`, `--fs-k` 1.5, in both builds' settings).
+     Every page of the pause menu (the original's 22 and this build's Tirzah and Psalms pages), the home screen, the
+     Watch's six tabs and the Horde's cards fit an iPhone SE at Largest with nothing off the screen and no text cut off:
+     the menus fold their tab labels into icons and scroll down.
+   - The Horde's level-up cards wear the gold focus ring (they changed only their border before), and the Watch's
+     buttons and lists now draw it too instead of the browser's own outline.
+   - Verified by `scripts/text-size.mjs` (in CI).
+   - Still the owner's to do: a reading of Settings → Show frame rate on the iPhone in a busy fight (phase 6).
+
 6. **Phase 6: performance, measured first.** **BUILT.** `scripts/perf.mjs` plays the three busiest scenes as an
    iPhone 15 Pro in headless Chromium for six seconds each and records Phaser's step time, the CPU profile, texture
    uploads and canvas read-backs by caller, and sampled allocation (`npx vite build --minify false && node
