@@ -7,6 +7,7 @@ import type { EchoRole } from '../../../../remnant/src/game/data';
 import type { ShadowId } from './shadows';
 import type { DailySave, TallyId } from './daily';
 import { featBonus, FEAT } from './feats';
+import { ascendBonus, migrateAscension, type NodeId, type RelicId } from './ascension';
 
 /** What the Watch keeps in the journey's save (`PhaserSave.watch`, optional, so saves stay compatible). */
 export interface WatchSave {
@@ -53,6 +54,12 @@ export interface WatchSave {
   /** Feats earned (ids in game/watch/feats.ts, kept through every Ascension), and the one whose title he wears. */
   feats?: string[];
   title?: string;
+  /** The Ascension tree's ranks, bought with Seals (game/watch/ascension.ts; kept through every Ascension), the relics
+   * won from gate holders (their ranks), the ones he wears, and the holder falls since the last relic (its pity). */
+  tree?: Partial<Record<NodeId, number>>;
+  relics?: Partial<Record<RelicId, number>>;
+  worn?: RelicId[];
+  relicPity?: number;
 }
 
 /** Older Watch saves knew Covenant Strike and the Pillar by level alone: they keep them, bought and equipped. */
@@ -74,6 +81,7 @@ export function migrateWatch(w: WatchSave) {
   // Feats: only ones that exist, once each; a title only from a feat earned.
   if (w.feats !== undefined) w.feats = Array.isArray(w.feats) ? [...new Set(w.feats.filter((id) => typeof id === 'string' && FEAT[id]))] : [];
   if (w.title !== undefined && !w.feats?.includes(w.title)) delete w.title;
+  migrateAscension(w);
   // Shadows used to join by level alone: an older watch keeps as many as it had, raised and in the team.
   if (!w.shadows) {
     w.shadows = {};
@@ -186,19 +194,25 @@ export const BLADES: { name: string; atk: number }[] = [
 export const bladesWon = (w: WatchSave) => BLADES.map((_, i) => w.paid.includes(i + 1));
 export const bladeOf = (w: WatchSave) => (w.blade !== undefined && w.blade >= 0 && bladesWon(w)[w.blade] ? w.blade : -1);
 
-export interface WatchStats { atk: number; maxHp: number; aspd: number; crit: number; critDmg: number; regen: number; dr: number; coinMult: number }
+export interface WatchStats {
+  atk: number; maxHp: number; aspd: number; crit: number; critDmg: number; regen: number; dr: number; coinMult: number;
+  /** From the Ascension tree and the relics worn (game/watch/ascension.ts): blows against gate holders, a holder's
+   * clock (seconds), the abilities' waits and the shadows' blows. */
+  holder: number; bossTime: number; cdMult: number; shadow: number;
+}
 export function watchStats(w: WatchSave): WatchStats {
-  const L = (id: TrackId) => lvlOf(w, id), lb = levelBonus(w.level), sb = sealBonus(w.seals), fb = featBonus(w);
+  const L = (id: TrackId) => lvlOf(w, id), lb = levelBonus(w.level), sb = sealBonus(w.seals), fb = featBonus(w), ab = ascendBonus(w);
   return {
-    atk: (10 + 4 * L('attack')) * milestones(L('attack')) * lb * sb * fb.atk * (bladeOf(w) >= 0 ? BLADES[bladeOf(w)].atk : 1),
-    maxHp: (100 + 20 * L('health')) * milestones(L('health')) * lb * fb.hp,
+    atk: (10 + 4 * L('attack')) * milestones(L('attack')) * lb * sb * fb.atk * ab.atk * (bladeOf(w) >= 0 ? BLADES[bladeOf(w)].atk : 1),
+    maxHp: (100 + 20 * L('health')) * milestones(L('health')) * lb * fb.hp * ab.hp,
     aspd: Math.min(2, 1 + 0.01 * L('speed')),
-    crit: Math.min(0.6, 0.005 * L('crit')),
-    critDmg: 1.5 + 0.05 * L('critDmg'),
-    regen: Math.min(0.05, 0.002 * L('regen')),
+    crit: Math.min(0.6, 0.005 * L('crit')) + ab.crit,
+    critDmg: 1.5 + 0.05 * L('critDmg') + ab.critDmg,
+    regen: Math.min(0.05, 0.002 * L('regen')) + ab.regen,
     // Softens toward three quarters of every blow, never all of it.
     dr: 0.75 * (1 - Math.pow(0.99, L('defense'))),
-    coinMult: (1 + 0.02 * L('coins')) * sb * fb.coins,
+    coinMult: (1 + 0.02 * L('coins')) * sb * fb.coins * ab.coins,
+    holder: ab.holder, bossTime: BOSS_TIME + ab.bossTime, cdMult: ab.cd, shadow: ab.shadow,
   };
 }
 

@@ -22,6 +22,7 @@ import * as D from '../game/watch/defs';
 import { WatchUI } from '../game/watch/ui';
 import { simulateAway, applyAway } from '../game/watch/offline';
 import { pace } from '../game/watch/balance';
+import * as A from '../game/watch/ascension';
 import { tally, rollDays, openChest, claim, type ChestPrize } from '../game/watch/daily';
 import { smoothShake, impact, type Tier } from '../game/feel';
 import { ShadowBand, pickFoe, SHADOW_ORDER, ESSENCE_OF, BOSS_ESSENCE, UNLOCK_COST, SHADOW_MAX, levelCost, owned, shadowName, type ShadowId } from '../game/watch/shadows';
@@ -72,6 +73,10 @@ export class Watch extends Phaser.Scene {
   ui!: WatchUI;
   kills = 0;
   bossTimeLeft = 0;
+  /** The holder's whole clock this fight (the tree's Oath lengthens it). */
+  bossTimeMax: number = D.BOSS_TIME;
+  /** Relics won while away, for the welcome card. */
+  awayRelics: A.RelicDrop[] = [];
   mantleT = 0;
   private from: 'title' | 'world' = 'title';
   private hero!: Phaser.GameObjects.Sprite;
@@ -188,7 +193,7 @@ export class Watch extends Phaser.Scene {
     const awaySecs = (Date.now() - this.w.last) / 1000;
     const away = awaySecs >= 60 ? simulateAway(this.w, awaySecs) : null;
     if (away) {
-      applyAway(this.w, away); for (const g of away.gates) this.payGate(g, true);
+      applyAway(this.w, away); for (const g of away.gates) { this.payGate(g, true); const r = A.rollRelic(this.w, g, Math.random()); if (r) this.awayRelics.push(r); }
       // What the wall did away counts toward the days' quests too.
       tally(this.w, 'kills', away.kills); tally(this.w, 'stages', Math.floor(away.kills / D.KILLS_PER_STAGE)); tally(this.w, 'gates', away.gates.length);
     }
@@ -212,7 +217,7 @@ export class Watch extends Phaser.Scene {
     });
     music.play(sceneOf(D.gateOf(this.w.stage)).music);
     if (away && (away.coins > 0 || away.to !== away.from)) this.ui.welcome(away, awaySecs);
-    if (new URLSearchParams(location.search).has('debug')) (window as unknown as { __remnant: Record<string, unknown> }).__remnant = { ...((window as unknown as { __remnant?: Record<string, unknown> }).__remnant ?? {}), game: this.game, watch: this, watchPace: pace, watchPick: pickFoe, watchStats: D.watchStats };
+    if (new URLSearchParams(location.search).has('debug')) (window as unknown as { __remnant: Record<string, unknown> }).__remnant = { ...((window as unknown as { __remnant?: Record<string, unknown> }).__remnant ?? {}), game: this.game, watch: this, watchPace: pace, watchPick: pickFoe, watchStats: D.watchStats, watchMigrate: D.migrateWatch, watchAscension: A };
   }
 
   /** The wall fills the top of an upright phone (the panel below); sideways, the left half. */
@@ -251,7 +256,7 @@ export class Watch extends Phaser.Scene {
     if (D.isBoss(n)) {
       const id = sceneOf(gate).boss;
       this.bossName = WATCH_BOSSES[id].name;
-      this.bossTimeLeft = D.BOSS_TIME;
+      this.bossTimeLeft = this.bossTimeMax = D.watchStats(this.w).bossTime;
       this.spawn(SW + 30, id);
       this.ui.toast(`${this.bossName[0]} · ${this.bossName[1]} holds Gate ${gate}`);
       sfx('horn', { vol: 0.5 });
@@ -287,6 +292,36 @@ export class Watch extends Phaser.Scene {
     const b = D.bladeOf(this.w);
     this.keys.base = actionAtlas(this, 'elior', 'blade', false, true, null, b);
     this.keys.mantle = actionAtlas(this, 'elior', 'blade', true, true, null, b);
+  }
+
+  /** A relic fell from a gate's holder: a moment, and a toast. */
+  private relicWon(r: A.RelicDrop) {
+    sfx('lootRare', { vol: 0.7 }); this.land('medium');
+    this.cameras.main.flash(180, 255, 215, 140);
+    this.ui.toast(r.first ? `A relic · ${r.relic.name} · ${r.relic.per}${r.wornNow ? ' · worn' : ' · Hero → relics'}` : `${r.relic.name} rises to rank ${r.rank}`, 3.4);
+    this.ui.refresh();
+  }
+
+  /** The Ascension tree: a rank bought with Seals, or the whole tree cleared (every Seal back). */
+  buyNode(id: A.NodeId) {
+    const was = D.watchStats(this.w).maxHp;
+    if (!A.buyNode(this.w, id)) return false;
+    this.hp = Math.min(D.watchStats(this.w).maxHp, this.hp + D.watchStats(this.w).maxHp - was);
+    this.persist();
+    return true;
+  }
+  resetTree() {
+    const n = A.resetTree(this.w);
+    this.hp = Math.min(this.hp, D.watchStats(this.w).maxHp);
+    this.persist();
+    return n;
+  }
+  /** Put a relic on or take it off. */
+  wearRelic(id: A.RelicId) {
+    if (!A.toggleRelic(this.w, id)) return false;
+    this.hp = Math.min(this.hp, D.watchStats(this.w).maxHp);
+    this.persist();
+    return true;
   }
 
   /** Wield a blade won at a gate (or -1, his own sword). */
@@ -423,7 +458,7 @@ export class Watch extends Phaser.Scene {
     if (this.shot) this.stepShot(dt);
     this.tapCd -= dt;
     // The shadows fight beside him, each in its role (and run with him).
-    this.band.tick(wdt, st.atk * (mantle ? D.MANTLE.dmg : 1), scroll > 0, this.fallen <= 0 && !this.cine, REACH);
+    this.band.tick(wdt, st.atk * st.shadow * (mantle ? D.MANTLE.dmg : 1), scroll > 0, this.fallen <= 0 && !this.cine, REACH);
     // The Shadow Mantle.
     if (this.mantleT > 0) { this.mantleT -= dt; if (this.mantleT <= 0) this.ui.toast('The Mantle falls away'); }
     else if (w.level >= D.MANTLE.level && w.gauge >= 100 && w.auto) this.transformNow();
@@ -460,6 +495,7 @@ export class Watch extends Phaser.Scene {
 
   private damage(f: WFoe, dmg: number, big: boolean, shadow: boolean, huge = false) {
     if (!f.alive) return;
+    if (f.boss) dmg *= D.watchStats(this.w).holder;
     f.hp -= dmg; f.flash = 0.08;
     this.number(f.x - 4, GROUND - (f.boss ? 70 : 40) - f.liftT * 50, dmg, big, undefined, '', huge);
     this.burst(f.x - 6, GROUND - (f.boss ? 40 : 22), big ? 6 : 0, big ? 0.42 : 0.28, shadow ? 0xb48cff : 0xffffff);
@@ -500,7 +536,11 @@ export class Watch extends Phaser.Scene {
     this.land('large');
     tally(w, 'gates'); tally(w, 'stages');
     sfx('bossSlam', { vol: 0.5 }); sfx('lootRare', { vol: 0.6 });
+    const first = !w.paid.includes(gate);
     this.payGate(gate, false);
+    // A relic waits for the gate's own news (silver, a cape, a blade) on its first fall.
+    const relic = A.rollRelic(w, gate, Math.random());
+    if (relic) this.time.delayedCall(first ? 3000 : 700, () => this.relicWon(relic));
     this.bossName = null;
     this.next();
   }
@@ -681,7 +721,7 @@ export class Watch extends Phaser.Scene {
       case 'balm': if (!manual && this.hp > st.maxHp * 0.55) return false; this.shot = { clip: 'heal', t: 0, dur: 0.5, hitAt: 0.5, hit: false, mult: 0, heal: m }; break;
       case 'judgment': if (!f || (!manual && !f.boss && alive.length < 3)) return false; this.startCine('LAST WATCH', [f], m, true); break;
     }
-    this.abilT[id] = D.abilityCd(id, lv);
+    this.abilT[id] = D.abilityCd(id, lv) * st.cdMult;
     tally(w, 'casts');
     if (!manual) this.ui.flashSkill(id);
     this.ui.callout(D.ABILITY[id].name.toUpperCase(), CALL_GLOW[id]);
@@ -910,10 +950,12 @@ export class Watch extends Phaser.Scene {
     const w = this.w, seals = D.sealsFor(w.best);
     if (seals <= 0) return;
     w.seals += seals; w.ascensions++;
-    w.stage = 1; w.best = 1; w.coins = 0; w.up = {}; w.auto = true;
+    // The Forced March (the Ascension tree) begins the new watch further on.
+    const start = A.ascendBonus(w).start;
+    w.stage = start; w.best = start; w.coins = 0; w.up = {}; w.auto = true;
     this.hp = D.watchStats(w).maxHp; this.mantleT = 0; this.fallen = 0;
     this.gate = 0;
-    this.startStage(1);
+    this.startStage(start);
     this.cameras.main.flash(260, 255, 230, 170);
     sfx('levelup'); this.ui.toast(`Ascended · ${w.seals} Seals strengthen every blow and coin`, 3.2);
     this.persist();
