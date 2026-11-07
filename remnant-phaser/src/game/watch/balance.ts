@@ -1,10 +1,12 @@
 // The Watch's pacing, measured (POLISH_PLAN §19 phase 3, G12; the idle-economy skill's pacing targets). A plain
 // player is played through on the live wall's stage model (offline.ts runStage, at full speed): no shadows, no
 // abilities, buying the cheapest open upgrade whenever the coins allow, pushing on while it can, holding (and buying)
-// where it cannot, and ascending once the run has stalled past the Ascension's stage. It reports how long the first
+// where it cannot, and ascending once the run has stalled past the Ascension's stage, putting its Seals into the
+// Ascension tree, cheapest rank first. Relics are left out: they fall by chance, and only ever add. It reports how long the first
 // upgrades take, when each gate falls, and how long each Ascension takes against the one before.
 import * as D from './defs';
 import { runStage } from './offline';
+import { NODES, ascendBonus, blocked, buyNode, nodeCost, rankOf } from './ascension';
 
 export interface Pace {
   /** Seconds between each of the first upgrades bought. */
@@ -59,7 +61,13 @@ export function pace(ascensions = 5, cap = 90 * 86400): Pace {
       const seals = D.sealsFor(w.best), secs = t - runStart, prev = out.runs[out.runs.length - 1];
       out.runs.push({ secs: Math.round(secs), best: w.best, seals, vsPrev: prev ? +(secs / prev.secs).toFixed(2) : 1 });
       w.seals += seals; w.ascensions++;
-      w.stage = 1; w.best = 1; w.coins = 0; w.up = {};
+      // The Seals go into the tree, the cheapest rank first (so every branch grows), and the march sets the start.
+      for (;;) {
+        let pick: (typeof NODES)[number] | null = null;
+        for (const n of NODES) if (!blocked(w, n.id) && (!pick || nodeCost(n.id, rankOf(w, n.id)) < nodeCost(pick.id, rankOf(w, pick.id)))) pick = n;
+        if (!pick || !buyNode(w, pick.id)) break;
+      }
+      w.stage = w.best = ascendBonus(w).start; w.coins = 0; w.up = {};
       runStart = t; lastGain = t;
     }
   }

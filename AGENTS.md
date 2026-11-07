@@ -369,7 +369,10 @@ Never ship files from `art/incoming/` directly.
   (`src/game/watch/offline.ts`) and a welcome card reports it. The Daily tab (`src/game/watch/daily.ts`): three
   daily quests, two weekly goals, a seven-day streak (one miss a week forgiven) and chests with shown odds and a
   pity, Watch rewards only. The Feats tab (`src/game/watch/feats.ts`): 34 feats, each a small permanent bonus to his
-  blows, health or coins and a title to wear; Watch only. The Watch has its own look (twilight indigo, lantern amber,
+  blows, health or coins and a title to wear; Watch only. The Ascend tab's tree (`src/game/watch/ascension.ts`):
+  Seals buy ranks in three branches (Blade, Wall, Wealth) that outlast every Ascension, a spent Seal keeps its
+  strength, and the tree clears for free; relics (one per place) drop from gate holders (25%, sure after five
+  misses), rank up to 5, and are worn two at a time (more with the Reliquary) from the Hero tab. The Watch has its own look (twilight indigo, lantern amber,
   rounded type; POLISH_PLAN §18l), not the journey's. Seals compound; `scripts/watch-pace.mjs` holds the pacing to the idle-economy skill's targets. Back to the journey only silver and
   capes. `PhaserSave.watch`. Verified by `scripts/watch.mjs`. See POLISH_PLAN §18.
   Each gate (ten stages) is a new place (`src/game/watch/scenes.ts`: eight

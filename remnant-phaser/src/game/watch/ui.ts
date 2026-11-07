@@ -15,6 +15,7 @@ import { awayCap, type AwayReport } from './offline';
 import * as Q from './daily';
 import { FEATS, MEASURE, checkFeats, featBonus, measure, titleOf, type FeatMeasure } from './feats';
 import { pushLayer, popLayer } from '../../../../remnant/src/ui/dom';
+import * as A from './ascension';
 
 const CSS = `
 /* The Watch's own look (POLISH_PLAN §18l, the owner's ask of 7 November 2026): a twilight indigo with lantern amber,
@@ -220,6 +221,40 @@ const CSS = `
 .wt-prize{text-align:center;padding:12px;border-radius:14px;margin:8px 0;font-weight:900;background:linear-gradient(110deg,rgba(255,255,255,.03) 30%,rgba(255,255,255,.22) 50%,rgba(255,255,255,.03) 70%) 0 0/250% 100%,linear-gradient(180deg,var(--bg3),var(--bg1));
   border:2px solid currentColor;font-size:calc(13.5px*var(--fs-k,1));animation:wtPop .3s ease-out,wtShine 1.6s ease-out .2s 2;box-shadow:0 0 18px currentColor}
 
+/* ---- the Ascension tree (POLISH_PLAN §18m): a card per branch in its colour, a row per node with its ranks as pips */
+.wt-br{--bc:var(--aqua);margin-bottom:10px;padding:10px 11px 4px;border-radius:18px;border:1px solid color-mix(in srgb,var(--bc) 40%,transparent);
+  background:linear-gradient(180deg,color-mix(in srgb,var(--bc) 14%,var(--bg2)),var(--bg1) 70%);box-shadow:0 3px 0 rgba(6,5,20,.5)}
+.wt-br>.hd{display:flex;align-items:center;gap:9px;margin-bottom:2px}
+.wt-br>.hd i{flex:none;width:30px;height:30px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:color-mix(in srgb,var(--bc) 24%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--bc) 50%,transparent)}
+.wt-br>.hd svg,.wt-relic i svg{width:18px;height:18px;stroke:var(--bc);fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.wt-br>.hd b{display:block;font-weight:900;color:var(--bc);font-size:calc(15px*var(--fs-k,1))}
+.wt-br>.hd small{display:block;color:var(--mut);font-weight:700;font-size:calc(11px*var(--fs-k,1))}
+.wt-node{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 10px;align-items:center;padding:8px 0;border-top:1px solid var(--line)}
+.wt-node b{font-weight:900;color:var(--txt);font-size:calc(13px*var(--fs-k,1))}
+.wt-node small{display:block;color:var(--mut);font-weight:700;font-size:calc(11px*var(--fs-k,1));line-height:1.3}
+.wt-node small.now{color:var(--bc)}
+.wt-pips{display:flex;gap:3px;margin-top:5px}
+.wt-pips i{flex:1;max-width:16px;height:6px;border-radius:3px;background:#2a2762}
+.wt-pips i.on{background:var(--bc);box-shadow:0 0 6px color-mix(in srgb,var(--bc) 70%,transparent)}
+.wt-node button{min-width:86px;font-weight:900;font-size:calc(11.5px*var(--fs-k,1));padding:8px 8px;border-radius:999px;border:0;cursor:pointer;white-space:nowrap;
+  background:linear-gradient(180deg,#9ff3f8,#38c4d0);color:#03262a;box-shadow:0 3px 0 #17818a,0 0 12px rgba(109,234,243,.25)}
+.wt-node button:disabled{background:#211f50;color:var(--dim);box-shadow:none;cursor:default}
+.wt-node button.max{background:linear-gradient(180deg,#ffe28a,#f2b23c);color:#3a2400;box-shadow:0 3px 0 #9b6a10}
+.wt-node.locked>div{opacity:.55}
+.wt-node.bought{animation:wtPop .22s ease-out}
+
+/* ---- relics */
+.wt-relics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin-bottom:12px}
+.wt-relic{--bc:var(--gold);display:flex;gap:9px;align-items:center;padding:8px 9px;border:1px solid var(--line2);border-radius:14px;background:linear-gradient(180deg,var(--bg2),var(--bg1));color:var(--mut);
+  font-weight:700;font-size:calc(11px*var(--fs-k,1));text-align:left;cursor:pointer;line-height:1.25;box-shadow:0 3px 0 rgba(6,5,20,.5);min-width:0}
+.wt-relic i{flex:none;width:32px;height:32px;border-radius:11px;display:flex;align-items:center;justify-content:center;background:color-mix(in srgb,var(--bc) 22%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--bc) 45%,transparent)}
+.wt-relic>span{min-width:0}
+.wt-relic b{display:block;font-weight:900;color:var(--txt);font-size:calc(12px*var(--fs-k,1))}
+.wt-relic.on{border-color:var(--bc);box-shadow:0 3px 0 rgba(6,5,20,.5),0 0 0 1px var(--bc),0 0 14px color-mix(in srgb,var(--bc) 35%,transparent)}
+.wt-relic.on b::after{content:' · worn';color:var(--bc)}
+.wt-relic.none{opacity:.45;cursor:default}
+.wt-relic.none i{filter:grayscale(1)}
+
 /* ---- the welcome-back card */
 .wt-card-layer{position:fixed;inset:0;bottom:auto;height:var(--app-h,100%);z-index:30;display:flex;align-items:center;justify-content:center;background:rgba(6,5,20,.78);padding:16px}
 .wt-welcome{width:min(380px,100%);background:radial-gradient(120% 60% at 50% 0%,#2e2a80,transparent 65%),linear-gradient(180deg,var(--bg2),var(--bg0));border:1px solid var(--line2);border-radius:22px;padding:18px;text-align:center;font-family:var(--wf);color:var(--txt);
@@ -269,6 +304,12 @@ const TRACK_LOOK: Record<D.TrackId, { d: string; c: string }> = {
   critDmg: { d: 'M12 2l2 5 5-2-2 5 5 2-5 2 2 5-5-2-2 5-2-5-5 2 2-5-5-2 5-2-2-5 5 2z', c: '#ff8d3c' },
   defense: { d: 'M12 3l7 3v5c0 5-3 8-7 10-4-2-7-5-7-10V6zM9 12l2 2 4-4', c: '#8fa8ff' },
   coins: { d: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 7v10M15 9.5c0-1-1.3-1.5-3-1.5s-3 .6-3 1.8 1.4 1.6 3 2 3 .9 3 2.1-1.3 1.9-3 1.9-3-.5-3-1.5', c: '#ffc94d' },
+};
+/** Each branch of the Ascension tree's mark and colour. */
+const BRANCH_LOOK: Record<A.Branch, { d: string; c: string }> = {
+  blade: { d: TRACK_LOOK.attack.d, c: '#ff8a5c' },
+  wall: { d: TRACK_LOOK.defense.d, c: '#5ccbff' },
+  wealth: { d: TRACK_LOOK.coins.d, c: '#ffc94d' },
 };
 const fmt1 = (n: number) => D.fmt(n);
 /** A tab's explanation, folded under "How it works" so the panel leads with what can be done (open it to read). */
@@ -497,6 +538,7 @@ export class WatchUI {
     card(-1, 'His own sword', held === -1 ? 'In hand' : 'Wield');
     D.BLADES.forEach((bl, i) => card(i, won[i] ? bl.name : 'Locked', won[i] ? `Blows ×${bl.atk}${held === i ? ' · in hand' : ''}` : `Gate ${i + 1}'s boss`));
     this.body.appendChild(arm);
+    this.buildRelics();
     this.body.appendChild(el('div', 'wt-h', 'What his levels open'));
     const ul = el('ul', 'wt-list');
     for (const [lv, text] of D.UNLOCKS) { const li = el('li', w.level >= lv ? 'got' : ''); li.append(el('b', '', `Lv ${lv}`), document.createTextNode(text)); ul.appendChild(li); }
@@ -668,12 +710,12 @@ export class WatchUI {
   }
 
   private buildAscend() {
-    const w = this.sc.w, seals = D.sealsFor(w.best);
+    const w = this.sc.w, seals = D.sealsFor(w.best), start = A.ascendBonus(w).start;
     this.body.appendChild(el('div', 'wt-h', 'The Ascension'));
-    this.body.appendChild(tip(`Leave the wall to a new watch and begin again from stage 1, stronger. Your stage, coins and upgrades reset; Elior's level, his shadows and his Seals stay. Each Seal adds 5% to every blow and every coin, and makes the whole 2% stronger again, so Seals grow on each other. The Ascension opens at stage ${D.ASCEND_AT}; the further past it you go, the more Seals it gives.`));
+    this.body.appendChild(tip(`Leave the wall to a new watch and begin again from stage ${start}, stronger. Your stage, coins and upgrades reset; Elior's level, his shadows, his relics, his feats and his Seals stay. Each Seal adds 5% to every blow and every coin, and makes the whole 2% stronger again, so Seals grow on each other. The Ascension opens at stage ${D.ASCEND_AT}; the further past it you go, the more Seals it gives.`));
     const st = el('div', 'wt-stats');
     const row = (k: string, v: string) => { const d = el('div'); d.append(document.createTextNode(k + ' '), el('b', '', v)); st.appendChild(d); };
-    row('Best this watch', `stage ${w.best}`); row('Seals now', String(w.seals)); row("Seals' strength", `×${D.sealBonus(w.seals).toFixed(2)} blows and coins`); row('Ascending gives', `${seals} Seals`); row('Ascensions', String(w.ascensions));
+    row('Best this watch', `stage ${w.best}`); row('Ascending gives', `${seals} Seals`); row("Seals' strength", `×${D.sealBonus(w.seals).toFixed(2)} blows and coins`); row('Ascensions', String(w.ascensions));
     this.body.appendChild(st);
     const b = el('button', 'wt-btn hot wt-big', seals > 0 ? `Ascend for ${seals} Seals` : `Reach stage ${D.ASCEND_AT} to Ascend`);
     b.dataset.k = 'wt_ascend';
@@ -684,6 +726,86 @@ export class WatchUI {
       this.sc.ascend(); this.show('ascend');
     };
     this.body.appendChild(b);
+    this.buildTree();
+  }
+
+  /** The Ascension tree: three branches of ranks bought with Seals, kept through every Ascension. */
+  private buildTree() {
+    const w = this.sc.w, free = A.sealsFree(w), inTree = A.spent(w);
+    const h = el('div', 'wt-h', 'The Ascension tree'); h.style.marginTop = '16px';
+    this.body.appendChild(h);
+    this.body.appendChild(tip(`Seals buy ranks here, and the ranks stay through every Ascension. A Seal in the tree keeps its strength too: the tree only chooses where it points. Each branch opens step by step, and its last step changes how a watch goes. Clear the tree at any time to get every Seal back and choose again.`));
+    const sum = el('div', 'wt-fsum');
+    for (const [k, v, c] of [['Seals to place', String(free), 'var(--aqua)'], ['In the tree', String(inTree), 'var(--violet)'], ['Every Seal', `×${D.sealBonus(w.seals).toFixed(2)}`, 'var(--amber)']] as const) {
+      const d = el('div'); d.style.setProperty('--fc', c); d.append(el('b', '', v), document.createTextNode(k)); sum.appendChild(d);
+    }
+    sum.dataset.k = 'wt_seals';
+    this.body.appendChild(sum);
+    for (const br of Object.keys(A.BRANCHES) as A.Branch[]) {
+      const look = BRANCH_LOOK[br], box = el('div', 'wt-br'), hd = el('div', 'hd'), ic = el('i'), t = el('div');
+      box.style.setProperty('--bc', look.c);
+      ic.innerHTML = svg(look.d);
+      t.append(el('b', '', A.BRANCHES[br].name), el('small', '', A.BRANCHES[br].line));
+      hd.append(ic, t); box.appendChild(hd);
+      for (const n of A.NODES.filter((x) => x.branch === br)) {
+        const r = A.rankOf(w, n.id), why = A.blocked(w, n.id), row = el('div', 'wt-node' + (why === 'locked' ? ' locked' : ''));
+        row.dataset.k = 'wt_node_' + n.id;
+        const info = el('div'), pips = el('div', 'wt-pips');
+        for (let i = 0; i < n.max; i++) pips.appendChild(el('i', i < r ? 'on' : ''));
+        info.append(el('b', '', n.name), el('small', r ? 'now' : '', r ? `${A.nodeSays(n.id, r)} · rank ${r}/${n.max}` : n.per), pips);
+        if (why === 'locked' && n.needs) info.appendChild(el('small', '', `${A.NODE[n.needs[0]].name} rank ${n.needs[1]} opens it`));
+        const btn = el('button', why === 'max' ? 'max' : '', why === 'max' ? 'MAX' : `${A.nodeCost(n.id, r)} Seal${A.nodeCost(n.id, r) > 1 ? 's' : ''}`);
+        btn.dataset.k = 'wt_buy_' + n.id;
+        btn.disabled = why !== null;
+        btn.onclick = () => {
+          if (!this.sc.buyNode(n.id)) return;
+          sfx('lootRare', { vol: 0.5 });
+          this.toast(`${n.name} · ${A.nodeSays(n.id, r + 1)}`, 2);
+          this.show('ascend');
+          this.body.querySelector(`[data-k=wt_node_${n.id}]`)?.classList.add('bought');
+        };
+        row.append(info, btn);
+        box.appendChild(row);
+      }
+      this.body.appendChild(box);
+    }
+    const reset = el('button', 'wt-btn wt-big', inTree ? `Clear the tree (${inTree} Seals back)` : 'The tree is clear');
+    reset.dataset.k = 'wt_tree_reset';
+    reset.disabled = inTree <= 0;
+    let armed = false;
+    reset.onclick = () => {
+      if (!armed) { armed = true; reset.textContent = 'Tap again: clear every rank'; return; }
+      const n = this.sc.resetTree(); this.toast(`The tree is clear · ${n} Seals to place`, 2.2); this.show('ascend');
+    };
+    this.body.appendChild(reset);
+  }
+
+  /** Relics (the Hero tab): one from each place's holder, ranked by how often it fell; a few worn at a time. */
+  private buildRelics() {
+    const w = this.sc.w, on = A.worn(w), slots = A.relicSlots(w);
+    this.body.appendChild(el('div', 'wt-h', `Relics · ${on.length} of ${slots} worn`));
+    const pity = w.relicPity ?? 0;
+    this.body.appendChild(tip(`Each place's gate holder carries a relic: it drops one time in four (${A.RELIC_CHANCE * 100}%), and after ${A.RELIC_PITY - 1} holders in a row without one the next always drops it. ${pity ? `${pity} without one so far.` : ''} Falling again, a relic rises a rank (to ${A.RELIC_MAX}). He wears ${slots} at a time (the Reliquary in the Ascension tree adds more); tap one to put it on or take it off. Relics stay through every Ascension.`));
+    const grid = el('div', 'wt-relics');
+    A.RELICS.forEach((r, i) => {
+      const rank = A.relicRank(w, r.id), b = el('button', 'wt-relic' + (on.includes(r.id) ? ' on' : '') + (rank ? '' : ' none'));
+      b.dataset.k = 'wt_relic_' + r.id;
+      b.style.setProperty('--bc', r.c);
+      const ic = el('i'); ic.innerHTML = svg(r.d);
+      const t = el('span');
+      t.append(el('b', '', rank ? r.name : 'Not yet found'), document.createTextNode(rank ? `${A.relicSays(r.id, rank)} · rank ${rank}/${A.RELIC_MAX}` : `Gate ${i + 1}'s holder · ${r.per}`));
+      b.append(ic, t);
+      b.onclick = () => {
+        if (!rank) return;
+        const was = on.includes(r.id);
+        if (!this.sc.wearRelic(r.id)) { this.toast(`Every relic slot is full (${slots}) · take one off first`, 2.2); return; }
+        sfx('pickup', { vol: 0.5 });
+        this.show('hero');
+        this.toast(was ? `${r.name} put away` : `${r.name} worn · ${A.relicSays(r.id, rank)}`, 1.8);
+      };
+      grid.appendChild(b);
+    });
+    this.body.appendChild(grid);
   }
 
   /** Numbers and states, a few times a second. */
@@ -696,7 +818,7 @@ export class WatchUI {
     const boss = D.isBoss(w.stage);
     this.stage.textContent = `Gate ${D.gateOf(w.stage)} · ${boss ? 'the boss' : `stage ${w.stage}${D.isRush(w.stage) ? ' · rush' : ''} · ${sc.kills}/${D.KILLS_PER_STAGE}`} · Lv ${w.level}`;
     this.bar.classList.toggle('boss', boss);
-    this.barFill.style.width = `${Math.max(0, Math.min(1, boss ? sc.bossTimeLeft / D.BOSS_TIME : sc.kills / D.KILLS_PER_STAGE)) * 100}%`;
+    this.barFill.style.width = `${Math.max(0, Math.min(1, boss ? sc.bossTimeLeft / sc.bossTimeMax : sc.kills / D.KILLS_PER_STAGE)) * 100}%`;
     this.challenge.hidden = w.auto;
     // A day may turn while the wall runs; the Daily tab's dot says something waits there.
     sc.checkDay();
@@ -728,7 +850,7 @@ export class WatchUI {
     if (this.barSig !== `${D.slotsAt(w.level)}:${(w.loadout ?? []).join()}`) this.buildBar();
     for (const { id, b } of this.bar_) {
       if (!id) continue;
-      const cd = D.abilityCd(id, D.skillLvl(w, id)), left = sc.abilT[id] ?? 0;
+      const cd = D.abilityCd(id, D.skillLvl(w, id)) * st.cdMult, left = sc.abilT[id] ?? 0;
       b.style.setProperty('--p', String(Math.min(1, left / cd)));
       b.classList.toggle('ready', left <= 0);
     }
@@ -737,7 +859,7 @@ export class WatchUI {
       if (!c) continue;
       const lv = D.skillLvl(w, a.id), open = w.level >= a.level, on = (w.loadout ?? []).includes(a.id), cost = D.abilityCost(a.id, lv);
       const effect = a.id === 'balm' ? `heals ${Math.round(D.abilityMult(a.id, Math.max(1, lv)) * 100)}%` : `×${D.abilityMult(a.id, Math.max(1, lv)).toFixed(1)} blows`;
-      c.lv.textContent = !open ? `Opens at Watch level ${a.level}` : lv ? `Level ${lv}/${D.ABILITY_MAX} · ${effect} · every ${D.abilityCd(a.id, lv).toFixed(1)} s` : `${effect} · every ${a.cd} s`;
+      c.lv.textContent = !open ? `Opens at Watch level ${a.level}` : lv ? `Level ${lv}/${D.ABILITY_MAX} · ${effect} · every ${(D.abilityCd(a.id, lv) * st.cdMult).toFixed(1)} s` : `${effect} · every ${(a.cd * st.cdMult).toFixed(1)} s`;
       c.root.classList.toggle('locked', !open);
       c.root.classList.toggle('on', on);
       c.buy.textContent = lv >= D.ABILITY_MAX ? 'MAX' : `${lv ? 'Level up' : 'Learn'} · ${D.fmt(cost)}`;
@@ -801,6 +923,8 @@ export class WatchUI {
     if (r.gates.length) row(r.gates.length > 1 ? 'Gates won' : 'Gate won', r.gates.join(', '), true);
     const ess = (Object.entries(r.essence) as [ShadowId, number][]).filter(([, n]) => n > 0).map(([id, n]) => `${shadowName(id, 1)} ×${n}`);
     if (ess.length) row('Essence', ess.join(' · '), true);
+    const relics = this.sc.awayRelics.map((d) => (d.first ? d.relic.name : `${d.relic.name} → rank ${d.rank}`));
+    if (relics.length) row(relics.length > 1 ? 'Relics' : 'Relic', relics.join(' · '), true);
     card.appendChild(dl);
     if (r.held !== null && !r.auto) card.appendChild(el('p', 'wt-held', D.isBoss(r.held)
       ? `Gate ${D.gateOf(r.held)}'s holder stopped him at stage ${r.held}. Grow stronger, then Challenge it.`

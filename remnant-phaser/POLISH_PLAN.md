@@ -797,13 +797,14 @@ chose:
   once, stays through every Ascension, adds +2–5% to his blows, health or coins (all of them: about +32%, +41% and +39%),
   and gives a title he may wear (the Hero tab shows it). A toast and a dot on the tab mark a new one. Save fields `feats`,
   `title` (optional; repaired in `migrateWatch`). Verified by `scripts/watch-feats.mjs`.
-- **Relics and an Ascension tree:** Seals buy relics and talents that outlast an Ascension (the long chase).
+- **Relics and an Ascension tree** (BUILT, §18m): Seals buy ranks in a tree that outlasts every Ascension; relics drop
+  from gate holders (the long chase).
 - **A boss tower and daily dungeons:** a tower of holders, one floor per try with milestone rewards; daily dungeons
   (coins, essence, gear) with a few free entries a day.
 - **Chests with pity:** earned, never bought; random rolls with a guaranteed rare or better within a set number of opens.
 
 Build order: offline progress (done), then daily quests with the streak and chests (done), then achievements (done), then
-relics and the Ascension tree, then the tower and dungeons.
+relics and the Ascension tree (done), then the tower and dungeons.
 
 ### 18l. A look of its own (the owner's ask of 7 November 2026)
 
@@ -815,6 +816,37 @@ phone's rounded system type (SF Pro Rounded; nothing to download). Upgrade cards
 buy that presses in and pops; the tabs have icons, a lit pill and a pulsing dot; long explanations fold under "How it
 works"; the wall's damage numbers use the same heavy rounded type. Motion is transforms only and stops under Reduce
 Motion; text follows Settings → Text size; a controller works every control.
+
+### 18m. The Ascension tree and relics (phase 10, 7 November 2026)
+
+The long chase after the Seals, in `src/game/watch/ascension.ts`. The owner left the shape open (a few big choices or
+many small ones), so it takes both, small and readable: plain ranks that add a little each, and one capstone per branch
+that changes how a watch goes.
+
+- **The tree** (the Ascend tab, under the Ascension): three branches of three nodes, each opened by a rank of the one
+  before. The Blade: Whetted Edge (+8% blows a rank, 10), Keen Eye (+1% critical chance past the track's cap, 10),
+  Gatebreaker's Oath (+25% against gate holders and +3 s on their clock, 4). The Wall: Living Stone (+10% health, 10),
+  Quiet Mending (+0.3% health a second past the regen cap, 5), the Reliquary (one more relic worn, 2). The Wealth:
+  Tithe of the Wall (+8% coins, 10), the Long Vigil (+1 hour counted away, 6), Forced March (each new watch begins ten
+  stages on, 4: at most stage 41, under the Ascension's 60). A rank costs `base + step × rank` Seals: about 380 for the
+  whole tree, a dozen Ascensions or more.
+- **A Seal spent keeps its strength.** `sealBonus` still counts every Seal earned, so the tree is a choice of where they
+  point, never a cost to the wall, and no older watch is weaker for it. The tree clears for free (every Seal back) to
+  choose again.
+- **Relics**, one for each of the eight places, carried by its gate holder: the Grave Lantern (+10% coins a rank), the
+  Hunter's Horn (+8% blows), the Mire Amulet (+10% health), the Night Bell (abilities 5% sooner), the Censer of the Nave
+  (+20% against holders), the Sleeper's Eye (+2% critical chance), the Broken Crown (+20% critical damage) and the Key of
+  the Depths (shadows +12%). A holder's fall drops its relic one time in four, and the sixth fall without one always does
+  (the odds and the count shown on the Hero tab, as the idle-economy skill asks of any chance a player waits on). A
+  relic that falls again rises a rank (to 5). He wears two (four with the Reliquary); the first of each goes on by
+  itself while a slot is free. Away, holders drop relics too, and the welcome card lists them.
+- **Pacing** (`scripts/watch-pace.mjs`, the plain player now putting each Ascension's Seals into the tree, cheapest
+  rank first; relics left out, since they fall by chance and only add): the Ascensions take 56, 55, 58, 81, 72 and 84
+  minutes (each at most ×1.4 the one before) and reach stages 90, 110, 130, 170, 180 and 200, against 190 at the sixth
+  without the tree. The first upgrades still average 6.8 s.
+- Save fields `tree`, `relics`, `worn`, `relicPity` (optional; `migrateAscension` drops unknown ids, keeps ranks whole
+  and within their height, drops a rank whose way in is gone, and clears a tree that costs more Seals than he has).
+  Verified by `scripts/watch-ascension.mjs`.
 
 Sources: Anthony Pecorella, *The Math of Idle Games*, parts I–III (Kongregate, on Game Developer); practitioner notes
 on idle retention, offline earnings and upgrade design (Pocket Gamer.biz on Gold & Goblins; DEV Community posts).

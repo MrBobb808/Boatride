@@ -5,11 +5,12 @@
 import * as D from './defs';
 import { sceneOf } from './scenes';
 import { ESSENCE_OF, BOSS_ESSENCE, type ShadowId } from './shadows';
+import { rankOf } from './ascension';
 
 /** Away, the wall runs at half speed, for twelve hours at most. */
 export const AWAY_RATE = 0.5, AWAY_CAP = 12 * 3600;
-/** The longest absence that counts (perks may lengthen it later). */
-export const awayCap = (_w: D.WatchSave) => AWAY_CAP;
+/** The longest absence that counts: twelve hours, and an hour more for each rank of the Long Vigil (ascension.ts). */
+export const awayCap = (w: D.WatchSave) => AWAY_CAP + 3600 * rankOf(w, 'vigil');
 
 export interface AwayReport {
   /** The time away that counted (seconds), and the stages he stood on before and after. */
@@ -46,12 +47,12 @@ export interface StageRun { ok: boolean; time: number; loss: number; heal: numbe
 /** One stage on the wall at his strength now: whether he clears it, how long it takes, and what it pays. */
 export function runStage(w: D.WatchSave, stage: number): StageRun {
   const st = D.watchStats(w), boss = D.isBoss(stage);
-  const dps = D.dpsOf(st) * (1 + PER_SHADOW * (w.team?.length ?? 0) + PER_ABILITY * (w.loadout?.length ?? 0));
-  const kills = boss ? 1 : D.KILLS_PER_STAGE, kill = D.foeHp(stage) / dps;
+  const dps = D.dpsOf(st) * (1 + PER_SHADOW * st.shadow * (w.team?.length ?? 0) + PER_ABILITY * (w.loadout?.length ?? 0) / st.cdMult);
+  const kills = boss ? 1 : D.KILLS_PER_STAGE, kill = D.foeHp(stage) / (dps * (boss ? st.holder : 1));
   // The foe before him strikes on its clock while he cuts; his regeneration answers some of it.
   const drain = Math.max(0, (D.foeDmg(stage) * (1 - st.dr)) / D.FOE_RATE - st.maxHp * st.regen);
   // A holder must fall within its time; the health he loses carries from stage to stage (see simulateAway).
-  const ok = !boss || kill <= D.BOSS_TIME;
+  const ok = !boss || kill <= st.bossTime;
   const walk = PER_FOE * kills + STAGE_WALK, time = kill * kills + walk;
   const essence: [ShadowId, number][] = [];
   let coins = D.foeCoins(stage) * st.coinMult * kills;
