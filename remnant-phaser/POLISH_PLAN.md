@@ -791,14 +791,30 @@ chose:
   elites, abilities, upgrades; away counts too); a seven-day streak calendar (1, 1, 2, 1, 2, 2, 4 chests) where one
   missed day a week is forgiven (the owner's choice); chests pay Watch rewards only (the owner's choice): coins, essence
   and rarely a Seal, with the odds shown (62/28/9/1%) and a pity (a rare within 5 opens, an epic within 20).
-- **Achievements and titles:** many milestones, each a small permanent bonus and a title or badge.
+- **Achievements and titles** (BUILT, `src/game/watch/feats.ts`, the Feats tab; the owner's answer of 7 November 2026:
+  Watch bonuses and cosmetic titles): 34 feats over what the wall counts (foes, stages, gate holders, gold elites,
+  abilities used, upgrades bought), the best stage, Ascensions, Watch level, shadows raised and the streak. Each is earned
+  once, stays through every Ascension, adds +2–5% to his blows, health or coins (all of them: about +32%, +41% and +39%),
+  and gives a title he may wear (the Hero tab shows it). A toast and a dot on the tab mark a new one. Save fields `feats`,
+  `title` (optional; repaired in `migrateWatch`). Verified by `scripts/watch-feats.mjs`.
 - **Relics and an Ascension tree:** Seals buy relics and talents that outlast an Ascension (the long chase).
 - **A boss tower and daily dungeons:** a tower of holders, one floor per try with milestone rewards; daily dungeons
   (coins, essence, gear) with a few free entries a day.
 - **Chests with pity:** earned, never bought; random rolls with a guaranteed rare or better within a set number of opens.
 
-Build order: offline progress (done), then daily quests with the streak and chests, then achievements, then relics and
-the Ascension tree, then the tower and dungeons.
+Build order: offline progress (done), then daily quests with the streak and chests (done), then achievements (done), then
+relics and the Ascension tree, then the tower and dungeons.
+
+### 18l. A look of its own (the owner's ask of 7 November 2026)
+
+"Improve the user interface of the Watch, the menus, so it's a lot more fun and inviting for long game sessions. You
+don't have to stick with the colour scheme of the main game." The Watch's panels now have their own look, separate
+from the journey's gold-on-black: a twilight indigo with lantern-amber coins, mint for what can be bought, and an accent
+per tab (amber upgrades, sky skills, violet shadows, coral days, pink feats, gold hero, aqua Ascension), set in the
+phone's rounded system type (SF Pro Rounded; nothing to download). Upgrade cards carry an icon per track and a pill to
+buy that presses in and pops; the tabs have icons, a lit pill and a pulsing dot; long explanations fold under "How it
+works"; the wall's damage numbers use the same heavy rounded type. Motion is transforms only and stops under Reduce
+Motion; text follows Settings → Text size; a controller works every control.
 
 Sources: Anthony Pecorella, *The Math of Idle Games*, parts I–III (Kongregate, on Game Developer); practitioner notes
 on idle retention, offline earnings and upgrade design (Pocket Gamer.biz on Gold & Goblins; DEV Community posts).

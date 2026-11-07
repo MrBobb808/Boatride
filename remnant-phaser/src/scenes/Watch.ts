@@ -212,7 +212,7 @@ export class Watch extends Phaser.Scene {
     });
     music.play(sceneOf(D.gateOf(this.w.stage)).music);
     if (away && (away.coins > 0 || away.to !== away.from)) this.ui.welcome(away, awaySecs);
-    if (new URLSearchParams(location.search).has('debug')) (window as unknown as { __remnant: Record<string, unknown> }).__remnant = { ...((window as unknown as { __remnant?: Record<string, unknown> }).__remnant ?? {}), game: this.game, watch: this, watchPace: pace, watchPick: pickFoe };
+    if (new URLSearchParams(location.search).has('debug')) (window as unknown as { __remnant: Record<string, unknown> }).__remnant = { ...((window as unknown as { __remnant?: Record<string, unknown> }).__remnant ?? {}), game: this.game, watch: this, watchPace: pace, watchPick: pickFoe, watchStats: D.watchStats };
   }
 
   /** The wall fills the top of an upright phone (the panel below); sideways, the left half. */

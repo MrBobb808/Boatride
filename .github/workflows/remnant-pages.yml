@@ -135,6 +135,7 @@ jobs:
       - run: node scripts/feel.mjs
       - run: node scripts/allies.mjs
       - run: node scripts/watch-pace.mjs
+      - run: node scripts/watch-feats.mjs
       - run: node scripts/home.mjs
       - run: node scripts/pad-menus.mjs
       - run: node scripts/text-size.mjs

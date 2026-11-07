@@ -6,6 +6,7 @@
 import type { EchoRole } from '../../../../remnant/src/game/data';
 import type { ShadowId } from './shadows';
 import type { DailySave, TallyId } from './daily';
+import { featBonus, FEAT } from './feats';
 
 /** What the Watch keeps in the journey's save (`PhaserSave.watch`, optional, so saves stay compatible). */
 export interface WatchSave {
@@ -49,6 +50,9 @@ export interface WatchSave {
    * and chests (game/watch/daily.ts). */
   tally?: Partial<Record<TallyId, number>>;
   daily?: DailySave;
+  /** Feats earned (ids in game/watch/feats.ts, kept through every Ascension), and the one whose title he wears. */
+  feats?: string[];
+  title?: string;
 }
 
 /** Older Watch saves knew Covenant Strike and the Pillar by level alone: they keep them, bought and equipped. */
@@ -67,6 +71,9 @@ export function migrateWatch(w: WatchSave) {
   if (w.essence) for (const k of Object.keys(w.essence) as ShadowId[]) w.essence[k] = Math.floor(n(w.essence[k]));
   if (w.tally) for (const k of Object.keys(w.tally) as TallyId[]) w.tally[k] = Math.floor(n(w.tally[k]));
   if (w.daily) { w.daily.chests = Math.floor(n(w.daily.chests)); w.daily.streak = Math.max(1, Math.floor(n(w.daily.streak))); }
+  // Feats: only ones that exist, once each; a title only from a feat earned.
+  if (w.feats !== undefined) w.feats = Array.isArray(w.feats) ? [...new Set(w.feats.filter((id) => typeof id === 'string' && FEAT[id]))] : [];
+  if (w.title !== undefined && !w.feats?.includes(w.title)) delete w.title;
   // Shadows used to join by level alone: an older watch keeps as many as it had, raised and in the team.
   if (!w.shadows) {
     w.shadows = {};
@@ -181,17 +188,17 @@ export const bladeOf = (w: WatchSave) => (w.blade !== undefined && w.blade >= 0 
 
 export interface WatchStats { atk: number; maxHp: number; aspd: number; crit: number; critDmg: number; regen: number; dr: number; coinMult: number }
 export function watchStats(w: WatchSave): WatchStats {
-  const L = (id: TrackId) => lvlOf(w, id), lb = levelBonus(w.level), sb = sealBonus(w.seals);
+  const L = (id: TrackId) => lvlOf(w, id), lb = levelBonus(w.level), sb = sealBonus(w.seals), fb = featBonus(w);
   return {
-    atk: (10 + 4 * L('attack')) * milestones(L('attack')) * lb * sb * (bladeOf(w) >= 0 ? BLADES[bladeOf(w)].atk : 1),
-    maxHp: (100 + 20 * L('health')) * milestones(L('health')) * lb,
+    atk: (10 + 4 * L('attack')) * milestones(L('attack')) * lb * sb * fb.atk * (bladeOf(w) >= 0 ? BLADES[bladeOf(w)].atk : 1),
+    maxHp: (100 + 20 * L('health')) * milestones(L('health')) * lb * fb.hp,
     aspd: Math.min(2, 1 + 0.01 * L('speed')),
     crit: Math.min(0.6, 0.005 * L('crit')),
     critDmg: 1.5 + 0.05 * L('critDmg'),
     regen: Math.min(0.05, 0.002 * L('regen')),
     // Softens toward three quarters of every blow, never all of it.
     dr: 0.75 * (1 - Math.pow(0.99, L('defense'))),
-    coinMult: (1 + 0.02 * L('coins')) * sb,
+    coinMult: (1 + 0.02 * L('coins')) * sb * fb.coins,
   };
 }
 

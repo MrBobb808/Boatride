@@ -13,6 +13,7 @@ import { SHADOW_ORDER, SHADOW_ART, ROLE_ORDER, UNLOCK_COST, SHADOW_MAX, levelCos
 import type { Watch } from '../../scenes/Watch';
 import { awayCap, type AwayReport } from './offline';
 import * as Q from './daily';
+import { FEATS, MEASURE, checkFeats, featBonus, measure, titleOf, type FeatMeasure } from './feats';
 import { pushLayer, popLayer } from '../../../../remnant/src/ui/dom';
 
 const CSS = `
@@ -67,11 +68,11 @@ const CSS = `
   background:radial-gradient(120% 60% at 50% 0%,#24206a 0%,transparent 60%),linear-gradient(180deg,var(--bg1),var(--bg0));
   border-top:1px solid var(--line2)}
 .wt-panel[data-tab=up]{--acc:var(--amber)}.wt-panel[data-tab=skills]{--acc:var(--sky)}.wt-panel[data-tab=shadows]{--acc:var(--violet)}
-.wt-panel[data-tab=daily]{--acc:var(--coral)}.wt-panel[data-tab=hero]{--acc:var(--gold)}.wt-panel[data-tab=ascend]{--acc:var(--aqua)}
+.wt-panel[data-tab=daily]{--acc:var(--coral)}.wt-panel[data-tab=feats]{--acc:#ff9ad5}.wt-panel[data-tab=hero]{--acc:var(--gold)}.wt-panel[data-tab=ascend]{--acc:var(--aqua)}
 .wt-body{flex:1;overflow:auto;padding:10px 12px 14px;-webkit-overflow-scrolling:touch}
 .wt-body>*{animation:wtRise .22s ease-out both}
 .wt-tabs{display:flex;gap:2px;padding:5px 6px 4px;border-top:1px solid var(--line);background:linear-gradient(180deg,#141239,#0c0b24)}
-.wt-tab{flex:1;min-width:0;position:relative;display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 1px 5px;font-weight:700;font-size:min(11px,3vw);letter-spacing:.01em;
+.wt-tab{flex:1;min-width:0;position:relative;display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 1px 5px;font-weight:700;font-size:min(11px,2.7vw);letter-spacing:.01em;
   background:none;color:var(--dim);border:0;border-radius:12px;cursor:pointer;transition:color .15s,background .15s}
 .wt-tab svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;transition:transform .15s}
 .wt-tab span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
@@ -91,6 +92,25 @@ const CSS = `
 .wt-tip summary::after{content:'›';margin-left:auto;font-size:18px;line-height:1;transition:transform .15s}
 .wt-tip[open] summary::after{transform:rotate(90deg)}
 .wt-tip p{margin:0;padding:0 11px 10px;line-height:1.45}
+.wt-fsum{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:10px}
+.wt-fsum>div{text-align:center;padding:8px 4px;border-radius:14px;background:linear-gradient(180deg,var(--bg2),var(--bg1));border:1px solid var(--line2);font-size:calc(11px*var(--fs-k,1));font-weight:800;color:var(--mut)}
+.wt-fsum b{display:block;font-weight:900;font-size:calc(19px*var(--fs-k,1));color:var(--fc)}
+.wt-ftitle{display:flex;align-items:center;gap:10px;margin-bottom:10px;padding:8px 11px;border-radius:14px;background:linear-gradient(90deg,rgba(255,154,213,.16),rgba(255,255,255,.03));border:1px solid var(--line2);font-weight:900;font-size:calc(13px*var(--fs-k,1))}
+.wt-ftitle select{flex:1;min-width:0;font-weight:800;font-size:calc(13px*var(--fs-k,1));padding:7px 10px;border-radius:999px;border:1px solid var(--line2);background:#1b1949;color:var(--txt)}
+.wt-fg{margin-bottom:9px;padding:9px 10px;border-radius:16px;background:linear-gradient(180deg,var(--bg2),var(--bg1));border:1px solid var(--line2)}
+.wt-fg .hd{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px;font-size:calc(13px*var(--fs-k,1))}
+.wt-fg .hd b{font-weight:900;color:var(--txt)}
+.wt-fg .hd span{font-weight:900;color:var(--acc);font-variant-numeric:tabular-nums}
+.wt-ft{display:grid;grid-template-columns:22px 1fr auto;gap:8px;align-items:center;padding:6px 0;border-top:1px solid var(--line)}
+.wt-ft i{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-style:normal;font-weight:900;font-size:13px;color:#0e0d27;background:#2a2762;box-shadow:inset 0 0 0 1px var(--line2)}
+.wt-ft.got i{background:linear-gradient(180deg,#ffd0ec,var(--acc));box-shadow:0 0 10px var(--acc)}
+.wt-ft b{display:block;font-weight:900;font-size:calc(12.5px*var(--fs-k,1));color:var(--txt)}
+.wt-ft small{display:block;font-size:calc(10.5px*var(--fs-k,1));color:var(--mut);font-weight:700}
+.wt-ft .wt-bar{height:5px;margin-top:4px}
+.wt-ft .wt-bar b{background:linear-gradient(90deg,#c25ea6,var(--acc))}
+.wt-ft em{font-style:normal;font-weight:900;font-size:calc(11px*var(--fs-k,1));color:var(--acc);white-space:nowrap}
+.wt-ft:not(.got){opacity:.85}
+.wt-ft:not(.got) b{color:var(--mut)}
 .wt-stats{display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:calc(11.5px*var(--fs-k,1));margin-bottom:12px}
 .wt-stats>div{display:flex;flex-direction:column;gap:1px;padding:7px 10px;border-radius:12px;background:linear-gradient(180deg,var(--bg2),var(--bg1));border:1px solid var(--line);color:var(--mut);font-weight:700}
 .wt-stats b{color:var(--txt);font-weight:900;font-size:calc(14px*var(--fs-k,1));font-variant-numeric:tabular-nums}
@@ -216,7 +236,7 @@ const CSS = `
 
 const el = <K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', text = '') => { const e = document.createElement(tag); if (cls) e.className = cls; if (text) e.textContent = text; return e; };
 
-type Tab = 'up' | 'skills' | 'shadows' | 'daily' | 'hero' | 'ascend';
+type Tab = 'up' | 'skills' | 'shadows' | 'daily' | 'feats' | 'hero' | 'ascend';
 const SHEET_URL: Record<string, string> = { 'echo-vanguard': vanguardUrl, 'echo-sovereign': sovereignUrl, 'foes-veil': veilUrl };
 
 /** The abilities' marks, drawn as strokes. */
@@ -231,10 +251,11 @@ const ICON: Record<D.AbilityId, string> = {
 };
 /** Each tab's mark and colour (the new look: POLISH_PLAN §18l). */
 const TAB_LOOK: Record<Tab, { label: string; d: string; c: string }> = {
-  up: { label: 'Upgrades', d: 'M12 20V6M6 12l6-6 6 6M5 4h14', c: '#ffbe55' },
+  up: { label: 'Upgrade', d: 'M12 20V6M6 12l6-6 6 6M5 4h14', c: '#ffbe55' },
   skills: { label: 'Skills', d: 'M13 2L4 14h7l-1 8 9-12h-7z', c: '#5ccbff' },
   shadows: { label: 'Shadows', d: 'M5 21V11a7 7 0 0 1 14 0v10l-2.3-1.6L14.4 21 12 19.4 9.6 21l-2.3-1.6zM9.5 11h.01M14.5 11h.01', c: '#b08cff' },
   daily: { label: 'Daily', d: 'M4 9h16v11H4zM3 6h18v3H3zM12 6v14M12 6c-1-3-5-3-5-.5S12 6 12 6s5 2.5 5 0-4-2.5-5 .5', c: '#ff7b93' },
+  feats: { label: 'Feats', d: 'M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0zM7 6H4a3 3 0 0 0 3 4M17 6h3a3 3 0 0 1-3 4', c: '#ff9ad5' },
   hero: { label: 'Hero', d: 'M12 3l7 3v5c0 5-3 8-7 10-4-2-7-5-7-10V6z', c: '#ffd76b' },
   ascend: { label: 'Ascend', d: 'M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zM12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2', c: '#6deaf3' },
 };
@@ -401,6 +422,7 @@ export class WatchUI {
     else if (tab === 'skills') this.buildSkills();
     else if (tab === 'shadows') this.buildShadows();
     else if (tab === 'daily') this.buildDaily();
+    else if (tab === 'feats') { this.newFeats = 0; this.buildFeats(); }
     else if (tab === 'hero') this.buildHero();
     else this.buildAscend();
     this.refresh();
@@ -447,8 +469,8 @@ export class WatchUI {
   }
 
   private buildHero() {
-    const w = this.sc.w, s = D.watchStats(w);
-    this.body.appendChild(el('div', 'wt-h', `Elior · Watch level ${w.level}`));
+    const w = this.sc.w, s = D.watchStats(w), title = titleOf(w);
+    this.body.appendChild(el('div', 'wt-h', `Elior${title ? (title.startsWith('the ') ? ` ${title}` : `, ${title}`) : ''} · Watch level ${w.level}`));
     const xp = el('div', 'wt-bar'), f = el('b'); f.style.width = `${Math.min(100, (w.xp / D.watchXpNext(w.level)) * 100)}%`; xp.appendChild(f);
     this.body.appendChild(xp);
     const st = el('div', 'wt-stats');
@@ -602,6 +624,49 @@ export class WatchUI {
     this.body.appendChild(ob);
   }
 
+  /** Feats earned since the Feats tab was last opened (its dot). */
+  private newFeats = 0;
+  /** The Feats tab (game/watch/feats.ts): what the feats add, the title he wears, and every feat by what it counts. */
+  private buildFeats() {
+    const w = this.sc.w, have = new Set(w.feats ?? []), b = featBonus(w), pct = (v: number) => `+${Math.round((v - 1) * 100)}%`;
+    this.body.appendChild(el('div', 'wt-h', `Feats · ${have.size} of ${FEATS.length}`));
+    const sum = el('div', 'wt-fsum');
+    for (const [k, v, c] of [['blows', b.atk, '#ff8a5c'], ['health', b.hp, '#ff5f8a'], ['coins', b.coins, '#ffc94d']] as const) {
+      const d = el('div'); d.style.setProperty('--fc', c); d.append(el('b', '', pct(v)), document.createTextNode(k)); sum.appendChild(d);
+    }
+    sum.dataset.k = 'wt_feat_sum';
+    this.body.appendChild(sum);
+    // The title he wears: any feat's, or none.
+    const row = el('div', 'wt-ftitle'), sel = el('select') as HTMLSelectElement;
+    sel.dataset.k = 'wt_title';
+    const none = el('option', '', have.size ? 'No title' : 'Earn a feat for a title') as HTMLOptionElement; none.value = ''; sel.appendChild(none);
+    for (const f of FEATS) if (have.has(f.id)) { const o = el('option', '', f.title) as HTMLOptionElement; o.value = f.id; o.selected = w.title === f.id; sel.appendChild(o); }
+    sel.disabled = !have.size;
+    sel.onchange = () => { sfx('ui'); if (sel.value) w.title = sel.value; else delete w.title; this.show('feats'); };
+    row.append(el('span', '', 'Title'), sel);
+    this.body.appendChild(row);
+    this.body.appendChild(tip('Feats come from what the wall does anyway. Each is earned once, stays through every Ascension, and adds a little for good to his blows, his health or his coins; each also gives a title he may wear. They strengthen the Watch only.'));
+    // By what each counts, nearest first within each.
+    const groups = new Map<FeatMeasure, typeof FEATS>();
+    for (const f of FEATS) groups.set(f.measure, [...(groups.get(f.measure) ?? []), f]);
+    const KIND: Record<string, string> = { atk: 'blows', hp: 'health', coins: 'coins' };
+    for (const [m, list] of groups) {
+      const now = measure(w, m), box = el('div', 'wt-fg'), hd = el('div', 'hd');
+      hd.append(el('b', '', MEASURE[m]), el('span', '', D.fmt(now)));
+      box.appendChild(hd);
+      for (const f of list) {
+        const got = have.has(f.id), r = el('div', 'wt-ft' + (got ? ' got' : ''));
+        r.dataset.k = 'wt_feat_' + f.id;
+        const mid = el('div'); mid.append(el('b', '', f.name), el('small', '', `${f.goal.toLocaleString('en-US')} · title “${f.title}”`));
+        const bar = el('div', 'wt-bar'), fill = el('b'); fill.style.width = `${Math.min(100, (now / f.goal) * 100)}%`; bar.appendChild(fill);
+        if (!got) mid.appendChild(bar);
+        r.append(el('i', '', got ? '✓' : ''), mid, el('em', '', `+${Math.round(f.bonus * 100)}% ${KIND[f.kind]}`));
+        box.appendChild(r);
+      }
+      this.body.appendChild(box);
+    }
+  }
+
   private buildAscend() {
     const w = this.sc.w, seals = D.sealsFor(w.best);
     this.body.appendChild(el('div', 'wt-h', 'The Ascension'));
@@ -635,6 +700,14 @@ export class WatchUI {
     this.challenge.hidden = w.auto;
     // A day may turn while the wall runs; the Daily tab's dot says something waits there.
     sc.checkDay();
+    // Feats earned since the last look: a toast, and a dot on the Feats tab until it is opened.
+    const got = checkFeats(w);
+    if (got.length) {
+      this.newFeats += got.length; sfx('lootRare', { vol: 0.5 });
+      this.toast(got.length > 1 ? `${got.length} feats earned · see Feats` : `Feat · ${got[0].name} · +${Math.round(got[0].bonus * 100)}% ${got[0].kind === 'atk' ? 'blows' : got[0].kind === 'hp' ? 'health' : 'coins'}`, 3);
+      if (this.tab === 'feats') { this.newFeats = 0; this.show('feats'); return; }
+    }
+    this.tabs.feats.classList.toggle('dot', this.newFeats > 0);
     this.tabs.daily.classList.toggle('dot', Q.claimable(w) > 0);
     for (const b of this.qBars) {
       const have = Q.progress(w, b.q, b.weekly), ok = have >= b.q.goal;
