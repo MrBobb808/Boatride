@@ -947,7 +947,20 @@ production build, `tsc` clean). Phases 1–2 change how the game feels everywher
    - Profile a production build at 120 Hz on the busiest scenes (a full Horde stage, the Watch at ×3, a Chapter XII
      boss), record the frame split, then fix what the profile shows. G9 is the first known case: reuse the Watch's
      lists instead of filtering and sorting each tick.
-7. **Phase 7: art that holds together.**
+7. **Phase 7: art that holds together.** **BUILT.**
+   - `art/ART_DIRECTION.md`: the brief, measured from the shipping sheets (palette roles with their swatches, the warm
+     near-black outline, light from the front and above on every sheet, 54 world-pixel figures, pivots and baselines
+     per asset type, what never to do, from the reviews) and the families with their seeds.
+   - `manifest.json`: every entry now has `pivot`, `licence` and `approval` (state, seen at native scale, seen in the
+     game, by whom); `status` and `actual_size` already held the state and size.
+   - `art/tools/`: the skill's `asset_report.py`, `build_preview_sheet.py` and `requirements.txt`, unchanged, and
+     `review.py`, which checks the manifest's entries with them (it reads, under 4 MB, the right background, nothing
+     solid on an inner cell edge) and makes the contact sheet. Run over every entry, it fails exactly the three sheets
+     the reviews rejected for crossing cells or drawn lines (C03, C05, V08) and passes everything delivered.
+   - `art/REQUESTS.md` and `art/README.md`: art is made in families, each section with its seed; siblings carry the
+     seed image and wait for its approval.
+
+   The plan as written:
    - G11: `art/ART_DIRECTION.md`, a brief written from the art the game already has (palette roles, outline, light
      direction, pixel density per asset type, pivots). Extend `manifest.json` entries with the skill's fields (state,
      size, pivot, licence, approval), and add its `asset_report.py` and `build_preview_sheet.py` to `art/tools/`, so

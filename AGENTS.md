@@ -35,8 +35,9 @@ these ten and what the game was checked against: `remnant-phaser/POLISH_PLAN.md`
 Claude Code does the game changes, following `remnant-phaser/POLISH_PLAN.md`.
 That plan covers combat, sound, abilities, the archer's kit and
 transformation, and selling, salvage, the store and crafting. ChatGPT
-generates art into `remnant-phaser/art/`. `art/REQUESTS.md` says what to make,
-and `art/README.md` how to store it and record it in `art/manifest.json`.
+generates art into `remnant-phaser/art/`. `art/ART_DIRECTION.md` says what it must look
+like (made in families, each from an approved seed), `art/REQUESTS.md` what to make, and `art/README.md` how to store
+it and record it in `art/manifest.json`; `art/tools/review.py` checks it before use.
 Never ship files from `art/incoming/` directly.
 
 ## What is in the repository
