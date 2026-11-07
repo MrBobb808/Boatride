@@ -7,6 +7,7 @@ import Phaser from 'phaser';
 import { ECHO_SPECIES, ECHO_ROLES, defaultEchoRole, type EchoRole } from '../../../../remnant/src/game/data';
 import { sfx } from '../../../../remnant/src/audio/audio';
 import type { WatchSave } from './defs';
+import { clamp01, within, soft, weigh, compensate, STICK } from '../../../../remnant/src/game/utility';
 
 export type ShadowId = 'sentinel' | 'archer' | 'knight' | 'brute' | 'bulwark' | 'lion' | 'undying' | 'marshal' | 'locust';
 export const SHADOW_ORDER: ShadowId[] = ['sentinel', 'archer', 'knight', 'brute', 'bulwark', 'lion', 'undying', 'marshal', 'locust'];
@@ -50,7 +51,7 @@ export const owned = (w: WatchSave, id: ShadowId) => (w.shadows?.[id]?.lv ?? 0) 
 // ---------------------------------------------------------------- in the fight
 
 /** What the band needs of the wall. */
-export interface BandFoe { x: number; alive: boolean; boss: string | null; atkT: number; chill: number }
+export interface BandFoe { x: number; alive: boolean; boss: string | null; atkT: number; chill: number; hp: number; max: number; elite: boolean }
 export interface BandHost {
   hx: number;
   foesAlive(): BandFoe[];
@@ -58,8 +59,37 @@ export interface BandHost {
   heal(frac: number): void;
   flare(x: number, y: number, tint: number, scale: number): void;
 }
-interface Member { id: ShadowId; role: EchoRole; lv: number; img: Phaser.GameObjects.Image; cd: number; cd2: number; hits: number; strikeT: number; lunge: number; blinkT: number; blinkX: number }
+interface Member { id: ShadowId; role: EchoRole; lv: number; img: Phaser.GameObjects.Image; cd: number; cd2: number; hits: number; strikeT: number; lunge: number; blinkT: number; blinkX: number;
+  /** The foe it last chose (kept on a near-tie: game/utility.ts). */
+  aim: BandFoe | null }
 interface Bolt { img: Phaser.GameObjects.Image; t: number; dur: number; x0: number; y0: number; f: BandFoe | null; dmg: number }
+
+/** How each role weighs a foe when it chooses (POLISH_PLAN §19 phase 4; game/utility.ts): [the foe's nearness to him,
+ * its wounds, its blow about to fall, a gold elite or the holder, a foe not chilled yet, a foe other than the one
+ * before him]. The guardian and the fighter keep to the foe before him. */
+const PICK: Partial<Record<EchoRole, readonly [number, number, number, number, number, number]>> = {
+  ninja: [0.3, 1, 0.3, 1, 0, 1.2],
+  ranger: [0, 0.8, 1, 0.8, 0, 0.5],
+  mage: [1, 0.3, 0.5, 0.5, 1.5, 0],
+};
+/** The foe a role would choose now: each one scored by its weights, the last one chosen kept on a near-tie. */
+export function pickFoe(role: EchoRole, foes: BandFoe[], hx: number, front: BandFoe | null, last: BandFoe | null): BandFoe | null {
+  const w = PICK[role];
+  if (!w) return front;
+  let best: BandFoe | null = null, bs = 0;
+  for (const f of foes) {
+    if (!f.alive) continue;
+    const s = weigh(soft(within(Math.abs(f.x - hx), 420), 0.2), w[0])
+      * weigh(soft(1 - f.hp / Math.max(1, f.max), 0.4), w[1])
+      * weigh(soft(1 - clamp01(f.atkT / 2), 0.3), w[2])
+      * weigh(f.boss || f.elite ? 1 : 0.6, w[3])
+      * weigh(f.chill > 0 ? 0.3 : 1, w[4])
+      * weigh(f === front ? 0.55 : 1, w[5]);
+    const v = compensate(s, 6) * (f === last ? STICK : 1);
+    if (v > bs) { bs = v; best = f; }
+  }
+  return best;
+}
 
 const COLOR = (r: EchoRole) => Phaser.Display.Color.HexStringToColor(ECHO_ROLES[r].color).color;
 
@@ -82,7 +112,7 @@ export class ShadowBand {
     this.members = (w.team ?? []).filter((id) => owned(w, id)).map((id, i) => {
       const a = SHADOW_ART[id];
       const img = this.sc.add.image(0, this.ground, a.sheet, a.row * 4).setOrigin(a.ox / 96, 88 / 96).setScale(a.scale).setDepth(3 - i * 0.01);
-      return { id, role: shadowRole(w, id), lv: w.shadows![id]!.lv, img, cd: 0.8 + i * 0.3, cd2: 4 + i, hits: 0, strikeT: 0, lunge: 0, blinkT: 0, blinkX: 0 };
+      return { id, role: shadowRole(w, id), lv: w.shadows![id]!.lv, img, cd: 0.8 + i * 0.3, cd2: 4 + i, hits: 0, strikeT: 0, lunge: 0, blinkT: 0, blinkX: 0, aim: null };
     });
   }
 
@@ -151,7 +181,7 @@ export class ShadowBand {
       case 'ninja':
         if (m.cd <= 0 && (front || far)) {
           // Mirage Rush: a blink to a foe and a cut, and a star thrown at another; doubles from stage II.
-          const t = (Math.random() < 0.5 ? far : front) ?? front!;
+          const t = (m.aim = pickFoe('ninja', foes, hx, front, m.aim)) ?? front ?? far!;
           m.cd = 2.4; m.strikeT = 0.25; m.blinkT = 0.35; m.blinkX = t.x - 12;
           this.host.hit(t, power * 1.4, false);
           const other = foes.find((f) => f !== t);
@@ -164,19 +194,23 @@ export class ShadowBand {
       case 'ranger':
         if (m.cd <= 0 && far) {
           m.cd = 1.1; m.strikeT = 0.2; m.hits++;
-          this.shoot(m.img.x + 6, far, power * 0.8, COLOR('ranger'));
+          // The foe whose blow is about to fall, a wounded one, an elite: chosen, not merely the last in line.
+          const t = (m.aim = pickFoe('ranger', foes, hx, front, m.aim)) ?? far;
+          this.shoot(m.img.x + 6, t, power * 0.8, COLOR('ranger'));
           // From stage II every third arrow goes through to the next foe.
-          if (tier >= 2 && m.hits % 3 === 0) { const next = foes.filter((f) => f !== far).sort((a, b) => b.x - a.x)[0]; if (next) this.shoot(m.img.x + 6, next, power * 0.8, COLOR('ranger')); }
+          if (tier >= 2 && m.hits % 3 === 0) { const next = foes.filter((f) => f !== t).sort((a, b) => b.x - a.x)[0]; if (next) this.shoot(m.img.x + 6, next, power * 0.8, COLOR('ranger')); }
         }
         if (tier >= 3 && m.cd2 <= 0) { m.cd2 = 10; for (let k = 0; k < 6; k++) this.shoot(m.img.x + 6, foes[k % foes.length], power * 0.8, 0xfff1c4); }
         break;
       case 'mage':
         if (m.cd <= 0 && front) {
           // Arcane Volley: three bolts that chill; Starfire (II) on the same foe; Chain Lightning (III) through three.
+          // It chills a near foe its frost is not on yet.
           m.cd = 3; m.strikeT = 0.3;
-          for (let k = 0; k < 3; k++) this.shoot(m.img.x + 6, front, power * 0.6, COLOR('mage'), k * 0.07);
-          front.chill = 3;
-          if (tier >= 2) { this.host.hit(front, power * 1.5, true); this.host.flare(front.x, this.ground - 30, 0xfff1c4, 0.5); }
+          const t = (m.aim = pickFoe('mage', foes, hx, front, m.aim)) ?? front;
+          for (let k = 0; k < 3; k++) this.shoot(m.img.x + 6, t, power * 0.6, COLOR('mage'), k * 0.07);
+          t.chill = 3;
+          if (tier >= 2) { this.host.hit(t, power * 1.5, true); this.host.flare(t.x, this.ground - 30, 0xfff1c4, 0.5); }
           if (tier >= 3) {
             const chain = [...foes].sort((a, b) => a.x - b.x).slice(0, 3);
             this.zap = [m.img.x + 6, this.ground - 30];

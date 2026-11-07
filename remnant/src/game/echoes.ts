@@ -25,6 +25,7 @@ import { ECHO_SPECIES, defaultEchoRole, echoRole, type EchoInst, type EchoOrder,
 import { tickEchoRole, drawEchoRole, echoSpot } from './echoRoles';
 import { echoAtk, echoMaxHp, gainEchoXp, skillRank } from './state';
 import { preferredSquadTarget } from './squadOrders';
+import { within, soft, weigh, compensate, STICK } from './utility';
 import { undyingEchoStyle, drawHostWings } from './princes';
 
 import { Proj } from './projectiles';
@@ -231,6 +232,18 @@ export function kitFor(species: string, role: EchoRole = defaultEchoRole(species
   };
 }
 
+/** How much each order cares for each consideration when it picks a foe (game/utility.ts; POLISH_PLAN §19 phase 4):
+ * [nearness to where it fights from, the foe's nearness to Elior, the foe's wounds, being Elior's own foe, a foe no
+ * other Echo is on]. 0 leaves one out; above 1 counts it more. With no order, the stance (echoMode) decides. */
+const ORDER_WEIGHTS: Record<EchoOrder | 'free', readonly [number, number, number, number, number]> = {
+  free: [1, 0.6, 0.3, 0.4, 0.5],
+  guard: [0.8, 2, 0.2, 0.4, 0.3],
+  hunt: [1, 0.2, 0.8, 0, 0.7],
+  focus: [1, 0.2, 0.8, 0, 0.7],
+  flank: [0.6, 0.3, 0.2, 2, 0.2],
+  hold: [1.5, 0, 0.3, 0, 0.4],
+};
+
 /** Colours of the order marks over the Echoes' heads. */
 export const ORDER_MARK: Record<EchoOrder, string> = { guard: '#9fe39a', hunt: '#ff8a6a', flank: '#ffd27a', hold: '#9fd7ff', focus: '#ff5a7a' };
 
@@ -276,6 +289,23 @@ export class EchoUnit extends Entity {
   /** Seconds spent circling for a foe's back without getting there. */
   private flankT = 0;
   private priorityPoll = 0;
+  /** The considerations' weights and reach for this tick's choice (read by scoreFoe, made once). */
+  private aimW: readonly number[] = ORDER_WEIGHTS.free;
+  private aimRange = 150;
+  /** One foe's worth to it now (0 rules it out): its order's weighted considerations, and a bonus for the foe it is
+   * already on, so a near-tie does not flip it. Made once, so choosing allocates nothing. */
+  private scoreFoe = (e: Entity, d: number) => {
+    if (e === this.ignore) return 0;
+    const p = G.world.player, w = this.aimW;
+    let others = 0;
+    for (const o of G.world.echoes) if (o !== this && o.target === e) others++;
+    const s = weigh(within(d, this.aimRange), w[0])
+      * weigh(soft(within(Math.hypot(e.x - p.x, (e.y - p.y) * 0.7), 220), 0.25), w[1])
+      * weigh(soft(1 - e.hp / Math.max(1, e.maxHp), 0.5), w[2])
+      * weigh(e === p.lastFoe ? 1 : 0.5, w[3])
+      * weigh(1 / (1 + 0.5 * others), w[4]);
+    return compensate(s, 5) * (e === this.target ? STICK : 1);
+  };
 
   get order(): EchoOrder | undefined {
     return this.inst.order;
@@ -468,16 +498,21 @@ export class EchoUnit extends Entity {
     }
     const prio = W.priorityTarget;
     if (order !== 'hold' && this.usable(prio)) { this.target = prio; return; }
-    let t: Entity | null;
-    if (order === 'hold') t = W.nearestEnemy(this.holdX, this.holdY - 20, 150, 0);
-    else if (order === 'hunt' || order === 'focus') t = W.nearestEnemy(this.x, this.y - 20, 420, 0);
-    else if (order === 'guard') t = W.nearestEnemy(p.x, p.y - 20, 150, 0);
-    else if (order === 'flank') t = this.usable(p.lastFoe) ? p.lastFoe : W.nearestEnemy(p.x, p.y - 20, 260, 0);
+    // Flanking means Elior's own foe, wherever it is.
+    if (order === 'flank' && this.usable(p.lastFoe)) { this.target = p.lastFoe; return; }
+    // Otherwise every foe within its order's reach is scored, and the best is taken (scoreFoe). Where it fights
+    // from and how far it looks are the order's, as before: a held post, itself on the hunt, Elior when guarding.
+    let x = p.x, y = p.y;
+    if (order === 'hold') { x = this.holdX; y = this.holdY; this.aimRange = 150; }
+    else if (order === 'hunt' || order === 'focus') { x = this.x; y = this.y; this.aimRange = 420; }
+    else if (order === 'guard') this.aimRange = 150;
+    else if (order === 'flank') this.aimRange = 260;
     else {
-      const range = mode === 'aggressive' ? 260 : mode === 'defensive' ? 110 : 150;
-      t = W.nearestEnemy(mode === 'aggressive' ? this.x : p.x, p.y - 20, range, 0);
+      this.aimRange = mode === 'aggressive' ? 260 : mode === 'defensive' ? 110 : 150;
+      if (mode === 'aggressive') x = this.x;
     }
-    this.target = t === this.ignore ? null : t;
+    this.aimW = ORDER_WEIGHTS[order ?? 'free'];
+    this.target = W.bestEnemy(x, y - 20, this.aimRange, this.scoreFoe);
   }
 
   /** A foe on a ledge it cannot climb to: give up on it for a few seconds. */

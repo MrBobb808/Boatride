@@ -577,6 +577,7 @@ export class ClassicLayer {
   switchSupport() { this.squad.switchSupport(); }
   echoCommand(c: Parameters<Squad['echoCommand']>[0]) { this.squad.echoCommand(c); }
   nearestEnemy(x: number, y: number, r: number, dir: number) { return this.squad.nearestEnemy(x, y, r, dir); }
+  bestEnemy(x: number, y: number, r: number, score: (e: Entity, d: number) => number) { return this.squad.bestEnemy(x, y, r, score); }
   commanderAura(x: number, y: number, self?: Entity) { return this.squad.commanderAura(x, y, self); }
   guardianAura(x: number, y: number) { return this.squad.guardianAura(x, y); }
   groundY(x: number, fromY: number) { return this.squad.groundY(x, fromY); }

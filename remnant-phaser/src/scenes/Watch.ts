@@ -23,7 +23,7 @@ import { simulateAway, applyAway } from '../game/watch/offline';
 import { pace } from '../game/watch/balance';
 import { tally, rollDays, openChest, claim, type ChestPrize } from '../game/watch/daily';
 import { smoothShake, impact, type Tier } from '../game/feel';
-import { ShadowBand, SHADOW_ORDER, ESSENCE_OF, BOSS_ESSENCE, UNLOCK_COST, SHADOW_MAX, levelCost, owned, shadowName, type ShadowId } from '../game/watch/shadows';
+import { ShadowBand, pickFoe, SHADOW_ORDER, ESSENCE_OF, BOSS_ESSENCE, UNLOCK_COST, SHADOW_MAX, levelCost, owned, shadowName, type ShadowId } from '../game/watch/shadows';
 import type { EchoRole } from '../../../remnant/src/game/data';
 
 /** The wall's world: 300 × 176 units (narrow, so the fighters read large on a phone), the ground at 146; Elior stands
@@ -211,7 +211,7 @@ export class Watch extends Phaser.Scene {
     });
     music.play(sceneOf(D.gateOf(this.w.stage)).music);
     if (away && (away.coins > 0 || away.to !== away.from)) this.ui.welcome(away, awaySecs);
-    if (new URLSearchParams(location.search).has('debug')) (window as unknown as { __remnant: Record<string, unknown> }).__remnant = { ...((window as unknown as { __remnant?: Record<string, unknown> }).__remnant ?? {}), game: this.game, watch: this, watchPace: pace };
+    if (new URLSearchParams(location.search).has('debug')) (window as unknown as { __remnant: Record<string, unknown> }).__remnant = { ...((window as unknown as { __remnant?: Record<string, unknown> }).__remnant ?? {}), game: this.game, watch: this, watchPace: pace, watchPick: pickFoe };
   }
 
   /** The wall fills the top of an upright phone (the panel below); sideways, the left half. */

@@ -905,7 +905,24 @@ production build, `tsc` clean). Phases 1–2 change how the game feels everywher
      the live rates; tune toward early upgrades in 3–10 s and Ascensions ×1.2–1.5 apart, and record the numbers here.
    - Then §18k's daily quests, streak and pity chests, built on the skill's rules (rewards from the save's own clock,
      odds shown for any random roll, nothing paid).
-4. **Phase 4: allies that choose well.**
+4. **Phase 4: allies that choose well.** **BUILT.** `remnant/src/game/utility.ts` (response curves, the skill's
+   compensation, `STICK` for hysteresis) and `World.bestEnemy` (the same foes as `nearestEnemy`, scored) in both builds.
+   - An Echo, and the AI partner underneath, scores each foe in its order's reach (`EchoUnit.scoreFoe`) on five
+     considerations: nearness to where it fights from, the foe's nearness to Elior, its wounds, being Elior's own foe,
+     and how many other Echoes are on it. Each order is a row of weights (`ORDER_WEIGHTS`): guarding counts the foe on
+     Elior most, hunting the wounded, holding its post, flanking Elior's foe. The foe it is on gets ×1.25, so a
+     near-tie does not flip it. The commands stay commands: a swap's handoff, a focused foe, a chosen kind, Elior's
+     marked foe, and Elior's own foe when flanking. Reaches are as before (150/260/420), and a change of target never
+     resets a cooldown.
+   - The Watch's shadows (`pickFoe` in `src/game/watch/shadows.ts`): the ranger shoots the foe whose blow is about to
+     fall, the mage chills a near foe its frost is not on yet, the ninja (once a coin toss between the front and the
+     back) leaves the foe before him to Elior and takes a wounded one or an elite. The guardian and the fighter keep to
+     the front.
+   - Verified by `scripts/allies.mjs` (in CI): hunting takes a wounded foe over a nearer fresh one; it keeps its foe
+     through a near-tie; two hunters take two foes; guarding takes the foe on Elior; flanking Elior's foe; holding
+     nothing past its post; the Watch's three choices; and the Echoes still fight a room.
+
+   The plan as written:
    - G10: utility scoring for Echoes, Watch shadows and the AI partner. Each consideration is 0–1 (distance, threat,
      the foe's health, the order given, the role), the current target gets a small bonus so it does not flip on a
      near-tie, and cooldowns survive a change of mind. Orders (Guard, Hunt, Flank, Hold, Focus) become weights, not

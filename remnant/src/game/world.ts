@@ -653,6 +653,22 @@ export class World {
     return best;
   }
 
+  /** The foe within `range` of (x, y) that `score` rates highest (game/utility.ts); `score` gets the foe and its
+   * distance, and 0 rules a foe out. The same foes as nearestEnemy's. */
+  bestEnemy(x: number, y: number, range: number, score: (e: Entity, d: number) => number): Entity | null {
+    let best: Entity | null = null;
+    let bs = 0;
+    for (const e of this.ents) {
+      if (!e.isFoe || e.dying || e.remove) continue;
+      if (e.isBoss && !e.canBeTargeted()) continue;
+      const d = Math.hypot(e.x - x, (e.y - y) * 0.7);
+      if (d >= range) continue;
+      const s = score(e, d);
+      if (s > bs) { bs = s; best = e; }
+    }
+    return best;
+  }
+
   enemyAhead(p: Player, dist: number) {
     for (const e of this.ents) {
       if (!e.isFoe || e.dying || e.heavyBody) continue;

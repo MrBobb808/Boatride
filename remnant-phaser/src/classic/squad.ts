@@ -295,6 +295,19 @@ export class Squad {
     return best;
   }
 
+  /** The foe within `range` that `score` rates highest (0 rules one out): nearestEnemy's foes, scored (game/utility.ts). */
+  bestEnemy(x: number, y: number, range: number, score: (e: Entity, d: number) => number): Entity | null {
+    let best: Entity | null = null, bs = 0;
+    for (const e of this.L.ents) {
+      if (!e.isFoe || e.dying || e.remove || !e.canBeTargeted()) continue;
+      const d = Math.hypot(e.x - x, (e.y - y) * 0.7);
+      if (d >= range || !this.L.host.player.lineOfSight(e.x, e.cy)) continue;
+      const s = score(e, d);
+      if (s > bs) { bs = s; best = e; }
+    }
+    return best;
+  }
+
   commanderAura(x: number, y: number, self?: Entity) {
     for (const e of this.echoes) {
       if (e === self || (!e.inst.commander && !e.kit.warden) || e.despawn > 0) continue;

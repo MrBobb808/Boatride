@@ -161,7 +161,10 @@ Never ship files from `art/incoming/` directly.
     `summonList`; save fields `summonPreset`, `squadPick`) and an Orders page
     (Guard / Hunt / Flank / Hold / Focus for every Echo out, or "Each Echo…"
     for one at a time and the squad picks). Orders live on `EchoInst.order`
-    and drive targeting and movement in `EchoUnit.chooseTarget` / `standX`.
+    and drive targeting and movement in `EchoUnit.chooseTarget` / `standX`:
+    each order is a row of weights over scored foes (`ORDER_WEIGHTS`, `scoreFoe`,
+    `game/utility.ts`, `World.bestEnemy`), with a bonus for the foe it is on so
+    near-ties do not flip it (POLISH_PLAN §19 phase 4).
     Flank blows to a foe's back hit harder; guards earn XP from blows taken.
   - **Called, never automatic:** Echoes appear only when called (the wheel,
     the ECHOES button, a summon preset); `flags.army_out === true` then keeps
