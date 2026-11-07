@@ -15,11 +15,13 @@ import type { Watch } from '../../scenes/Watch';
 const CSS = `
 .wt-hud{position:fixed;left:0;right:0;z-index:15;pointer-events:none;font-family:Georgia,serif;color:#ddd4c6;padding:0 10px}
 .wt-row{display:flex;align-items:center;gap:8px;justify-content:space-between}
+.wt-row.mid{min-height:28px}
 .wt-coins{font-family:Cinzel,Georgia,serif;color:#f6dea0;font-size:18px;text-shadow:0 1px 2px #000;white-space:nowrap}
 .wt-coins i{display:inline-block;width:14px;height:14px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#fff1c4,#e2b85a 55%,#8a6a34);margin-right:6px;vertical-align:-1px}
 .wt-stage{font-family:Cinzel,Georgia,serif;font-size:13px;letter-spacing:.06em;text-align:center;text-shadow:0 1px 2px #000}
-.wt-statline{display:flex;flex-wrap:wrap;gap:2px 10px;justify-content:center;font-size:11px;margin-top:4px;color:#cfc6b6;text-shadow:0 1px 2px #000}
-.wt-statline b{color:#f6dea0;font-weight:normal}
+.wt-statline{display:flex;justify-content:space-between;gap:4px;margin-top:5px;text-shadow:0 1px 2px #000;white-space:nowrap}
+.wt-statline span{display:flex;flex-direction:column;align-items:center;min-width:0;font-size:9px;letter-spacing:.08em;color:#9b92a6;line-height:1.15}
+.wt-statline b{color:#f6dea0;font-weight:normal;font-size:min(12px,3.3vw);letter-spacing:0}
 .wt-statline b.low{color:#ff8a7a}
 .wt-bar{height:5px;background:rgba(0,0,0,.55);border-radius:3px;overflow:hidden;margin-top:3px}
 .wt-bar b{display:block;height:100%;background:linear-gradient(90deg,#e2b85a,#fff1c4);width:0}
@@ -30,6 +32,9 @@ const CSS = `
 .wt-btn[hidden]{display:none}
 .wt-toast{position:fixed;left:50%;transform:translateX(-50%);z-index:16;pointer-events:none;background:rgba(20,14,24,.92);border:1px solid rgba(226,184,90,.55);border-radius:6px;padding:7px 12px;font-family:Georgia,serif;color:#f6dea0;font-size:13px;max-width:88vw;text-align:center;opacity:0;transition:opacity .25s}
 .wt-toast.on{opacity:1}
+.wt-call{position:fixed;left:50%;z-index:16;pointer-events:none;font-family:Cinzel,Georgia,serif;font-size:min(24px,6.4vw);letter-spacing:.14em;color:#fff6dc;white-space:nowrap;opacity:0;transform:translateX(-50%);--g:#e2b85a;padding:6px 28px;border-radius:40px;background:radial-gradient(closest-side,rgba(5,4,10,.7),rgba(5,4,10,.4) 60%,transparent);text-shadow:0 0 2px #000,0 0 6px var(--g),0 0 14px var(--g),0 2px 2px #000}
+.wt-call.on{animation:wtCall 1.15s ease-out forwards}
+@keyframes wtCall{0%{opacity:0;transform:translateX(-50%) scale(1.9);letter-spacing:.5em}14%{opacity:1;transform:translateX(-50%) scale(1);letter-spacing:.14em}72%{opacity:1}100%{opacity:0;transform:translateX(-50%) translateY(-8px) scale(1.04)}}
 .wt-panel{position:fixed;left:0;right:0;bottom:0;z-index:14;display:flex;flex-direction:column;background:#0d0a12;border-top:1px solid rgba(226,184,90,.35);font-family:Georgia,serif;color:#ddd4c6;padding-bottom:env(safe-area-inset-bottom)}
 .wt-body{flex:1;overflow:auto;padding:8px 10px;-webkit-overflow-scrolling:touch}
 .wt-tabs{display:flex;border-top:1px solid rgba(226,184,90,.25)}
@@ -39,16 +44,17 @@ const CSS = `
 .wt-amt button{font-family:Cinzel,Georgia,serif;font-size:11px;padding:4px 8px;border-radius:5px;border:1px solid rgba(226,184,90,.35);background:#120e18;color:#9b92a6;cursor:pointer}
 .wt-amt button.on{color:#f6dea0;border-color:#f6dea0}
 .wt-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.wt-card{display:flex;align-items:stretch;gap:6px;background:#1a1220;border:1px solid rgba(226,184,90,.3);border-radius:7px;padding:7px;cursor:pointer;color:#ddd4c6;font:inherit;text-align:left;min-height:62px}
-.wt-card .n{flex:1;display:flex;flex-direction:column;justify-content:center;min-width:0}
+.wt-card{display:flex;flex-direction:column;align-items:stretch;gap:4px;background:#1a1220;border:1px solid rgba(226,184,90,.3);border-radius:7px;padding:7px;cursor:pointer;color:#ddd4c6;font:inherit;text-align:left;min-width:0;touch-action:manipulation;-webkit-user-select:none;user-select:none}
+.wt-card .n{flex:1;display:flex;flex-direction:column;min-width:0}
+.wt-card .hd{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:0 6px}
 .wt-card .n b{font-family:Cinzel,Georgia,serif;font-size:12px;color:#f6dea0;font-weight:normal}
-.wt-card .n small{font-size:11px;color:#9b92a6}
-.wt-card .n span{font-size:13px;color:#f6dea0;font-family:Cinzel,Georgia,serif;margin-top:2px}
+.wt-card .n small{font-size:10.5px;color:#9b92a6}
+.wt-card .n span{font-size:min(14px,3.7vw);color:#f6dea0;font-family:Cinzel,Georgia,serif;margin-top:3px;white-space:nowrap}
 .wt-card .n span i{font-style:normal;color:#9be07a}
 .wt-card .n em{font-style:normal;font-size:10.5px;color:#9b92a6;line-height:1.25}
 .wt-card.bought{box-shadow:0 0 0 2px #9be07a inset}
-.wt-card .c{min-width:62px;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:5px;background:#2c5a2a;color:#eaffd8;font-family:Cinzel,Georgia,serif;font-size:12px;padding:2px 6px}
-.wt-card .c small{font-family:Georgia,serif;font-size:11px;color:#fff1c4}
+.wt-card .c{display:flex;align-items:center;justify-content:center;gap:6px;border-radius:5px;background:#2c5a2a;color:#eaffd8;font-family:Cinzel,Georgia,serif;font-size:12px;padding:5px 6px;white-space:nowrap}
+.wt-card .c small{font-family:Georgia,serif;font-size:12px;color:#fff1c4}
 .wt-card.poor .c{background:#3a2c2c;color:#c9a9a0}
 .wt-card.locked{opacity:.5;cursor:default}
 .wt-card.locked .c{background:#241c28;color:#9b92a6}
@@ -134,6 +140,7 @@ export class WatchUI {
   private panel = el('div', 'wt-panel');
   private body = el('div', 'wt-body');
   private toastEl = el('div', 'wt-toast');
+  private callEl = el('div', 'wt-call');
   private coins = el('div', 'wt-coins');
   private stage = el('div', 'wt-stage');
   private bar = el('div', 'wt-bar');
@@ -156,6 +163,7 @@ export class WatchUI {
   private statline = el('div', 'wt-statline');
   private sl = { atk: el('b'), hp: el('b'), spd: el('b'), dps: el('b'), coins: el('b') };
   private toastT = 0;
+  private hudH = 0;
   private overlayEl: HTMLElement | null = null;
 
   constructor(private sc: Watch) {
@@ -169,13 +177,13 @@ export class WatchUI {
     this.auto.dataset.k = 'wt_auto';
     this.auto.onclick = () => { sfx('ui'); sc.w.autoSkills = !sc.w.autoSkills; this.refresh(); };
     this.bar.appendChild(this.barFill);
-    const mid = el('div', 'wt-row');
+    const mid = el('div', 'wt-row mid');
     mid.style.marginTop = '4px';
     const right = el('div', 'wt-row');
     right.append(this.transform, this.challenge);
     mid.append(this.stage, right);
-    for (const [label, b] of [['ATK', this.sl.atk], ['HP', this.sl.hp], ['SPD', this.sl.spd], ['DPS', this.sl.dps], ['COINS', this.sl.coins]] as const) {
-      const span = el('span', '', label + ' '); span.appendChild(b); this.statline.appendChild(span);
+    for (const [label, b] of [['ATK', this.sl.atk], ['HEALTH', this.sl.hp], ['SPEED', this.sl.spd], ['DPS', this.sl.dps], ['COINS', this.sl.coins]] as const) {
+      const span = el('span', '', label); span.appendChild(b); this.statline.appendChild(span);
     }
     this.statline.dataset.k = 'wt_stats';
     this.hud.append(top, mid, this.bar, this.statline);
@@ -186,20 +194,27 @@ export class WatchUI {
     const tabs = el('div', 'wt-tabs');
     for (const [k, b] of Object.entries(this.tabs) as [Tab, HTMLButtonElement][]) { b.dataset.k = 'wt_tab_' + k; b.onclick = () => { sfx('ui'); this.show(k); }; tabs.appendChild(b); }
     this.panel.append(this.skillbar, this.body, tabs);
-    document.body.append(this.hud, this.panel, this.toastEl);
+    document.body.append(this.hud, this.panel, this.toastEl, this.callEl);
     this.buildBar();
     this.show('up');
   }
 
-  /** Place the bar over the wall and the panel below it (`top` and `bottom` of the wall in CSS pixels). */
-  layout(top: number, stripBottom: number, landscape: boolean, split: number) {
+  /** Place the bar at `top` and say where it ends (CSS pixels): the wall starts under it, however it wraps. */
+  placeHud(top: number, landscape: boolean, split: number): number {
     this.hud.style.top = `${top + 4}px`;
+    this.hud.style.right = landscape ? `${window.innerWidth - split}px` : '0px';
+    this.hudH = this.hud.offsetHeight;
+    return top + 4 + this.hudH;
+  }
+
+  /** Place the panel below the wall (`wallTop` and `stripBottom` in CSS pixels). */
+  layout(wallTop: number, stripBottom: number, landscape: boolean, split: number) {
+    this.callEl.style.top = `${wallTop + (stripBottom - wallTop) * 0.2}px`;
+    this.callEl.style.left = `${split / 2}px`;
     if (landscape) {
-      this.hud.style.right = `${window.innerWidth - split}px`;
       Object.assign(this.panel.style, { top: '0px', left: `${split}px`, borderTop: '0', borderLeft: '1px solid rgba(226,184,90,.35)' });
       this.toastEl.style.top = `${stripBottom - 40}px`;
     } else {
-      this.hud.style.right = '0px';
       Object.assign(this.panel.style, { top: `${stripBottom}px`, left: '0px', borderTop: '1px solid rgba(226,184,90,.35)', borderLeft: '0' });
       this.toastEl.style.top = `${stripBottom - 40}px`;
     }
@@ -261,7 +276,8 @@ export class WatchUI {
       val.append(now, next);
       val.dataset.k = 'wt_val_' + t.id;
       root.dataset.k = 'wt_up_' + t.id;
-      n.append(name, lvl, val, per); c.append(num, cst);
+      const hd = el('div', 'hd'); hd.append(name, lvl);
+      n.append(hd, val, per); c.append(num, cst);
       root.append(n, c);
       const buy = () => {
         if (!this.sc.buy(t.id, this.amount)) return false;
@@ -403,6 +419,8 @@ export class WatchUI {
 
   /** Numbers and states, a few times a second. */
   refresh() {
+    // The bar grew or shrank (a button came or went): the wall moves to stay just under it.
+    if (this.hudH && this.hud.offsetHeight !== this.hudH) this.sc.refit();
     const sc = this.sc, w = sc.w;
     this.coins.innerHTML = '';
     this.coins.append(el('i'), document.createTextNode(D.fmt(w.coins)));
@@ -449,17 +467,27 @@ export class WatchUI {
       const n = this.amount === 0 ? Math.max(1, D.affordable(t.id, lv, w.coins)) : this.amount;
       const take = t.max !== undefined ? Math.min(n, Math.max(0, t.max - lv)) : n;
       const price = D.costN(t.id, lv, Math.max(1, take));
-      const doubles = t.id === 'attack' || t.id === 'health' ? ` · ×2 at ${D.nextMilestone(lv)}` : '';
-      c.lvl.textContent = open ? `Lv ${lv}${maxed ? ' (max)' : doubles}` : 'Locked';
+      const doubles = t.id === 'attack' || t.id === 'health' ? ` · ×2\u00a0at\u00a0Lv\u00a0${D.nextMilestone(lv)}` : '';
+      c.lvl.textContent = open ? `Lv ${lv}${maxed ? ' · max' : ''}` : 'Locked';
       c.now.textContent = open ? D.trackStat(w, t.id) : '';
       c.next.textContent = open && !maxed ? ` → ${D.trackStat(w, t.id, take)}` : '';
-      c.per.textContent = open ? t.per : D.opensText(t);
+      c.per.textContent = open ? (maxed ? t.per.replace(/, to .*$/, ' · at its height') : t.per + doubles) : D.opensText(t);
       c.n.textContent = maxed ? 'MAX' : `+${take}`;
       c.cost.textContent = maxed || !open ? '' : D.fmt(price);
       c.root.classList.toggle('locked', !open);
       c.root.classList.toggle('maxed', maxed);
       c.root.classList.toggle('poor', open && !maxed && price > w.coins);
     }
+  }
+
+  /** An ability's name over the wall as it is used, in its colour. */
+  callout(text: string, glow: string) {
+    const c = this.callEl;
+    c.textContent = text;
+    c.style.setProperty('--g', glow);
+    c.classList.remove('on');
+    void c.offsetWidth; // restart the animation
+    c.classList.add('on');
   }
 
   toast(text: string, sec = 2.6) {
@@ -486,5 +514,5 @@ export class WatchUI {
     this.overlayEl = layer;
   }
 
-  destroy() { this.hud.remove(); this.panel.remove(); this.toastEl.remove(); this.skillbar.remove(); this.overlayEl?.remove(); }
+  destroy() { this.hud.remove(); this.panel.remove(); this.toastEl.remove(); this.callEl.remove(); this.skillbar.remove(); this.overlayEl?.remove(); }
 }

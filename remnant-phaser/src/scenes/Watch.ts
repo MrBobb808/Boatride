@@ -30,6 +30,10 @@ const SW = 300, SH = 176, GROUND = 146, HOME = 82, REACH = 30;
 const RUN = 74, RUSH_X = 108;
 /** A staged combo's step, in seconds; the world runs at CINE_SLOW of its pace while one plays. */
 const STEP = 0.42, CINE_SLOW = 0.25;
+/** How long a foe the Comet throws hangs before it comes down (the launch's hit to the fall's). */
+const LIFT = 0.42;
+/** The glow of each ability's name as it is called. */
+const CALL_GLOW: Record<D.AbilityId, string> = { strike: '#e2b85a', pillar: '#ff8a3a', phantom: '#b48cff', storm: '#9fd8ff', comet: '#fff1c4', balm: '#7ae0a0', judgment: '#ffd27a' };
 /** The scenes' painted floor sits a little below the fighters' feet; under it, the ground band. */
 const FLOOR = GROUND + 4;
 /** The CC0 scene layers (src/assets/cc0/scenes), by key. */
@@ -47,10 +51,14 @@ interface WFoe {
   /** A major foe (gold, tougher, leaves essence), and a mage's chill on its blows. */
   elite: boolean;
   chill: number;
+  /** Thrown up by the Comet: how long until it comes down. */
+  liftT: number;
 }
 /** One swing: its clip and timing, what it hits (a foe, every foe within `aoe` ahead, or the one before him), and
  * what follows it (the Comet's fall). */
-interface Shot { clip: string; t: number; dur: number; hitAt: number; hit: boolean; mult: number; target?: WFoe | null; aoe?: number; then?: Shot; heal?: number }
+interface Shot { clip: string; t: number; dur: number; hitAt: number; hit: boolean; mult: number; target?: WFoe | null; aoe?: number; then?: Shot; heal?: number;
+  /** The ability's light where it lands. */
+  fx?: 'strike' | 'launch' | 'comet' | 'storm' }
 /** A staged combo: he steps through the dark from mark to mark, a cut on each, while the world all but stops. */
 interface Cine { name: string; steps: { foe: WFoe; x: number; face: 1 | -1; clip: string; mult: number }[]; i: number; t: number; home: number }
 
@@ -97,6 +105,11 @@ export class Watch extends Phaser.Scene {
   private nums: { t: Phaser.GameObjects.Text; life: number; vy: number }[] = [];
   private bursts: { img: Phaser.GameObjects.Image; t: number; base: number; n: number; dur: number }[] = [];
   private pillar!: Phaser.GameObjects.Image;
+  /** The abilities' effects: rows of the effects sheets played once as light, some moving or spinning. */
+  private fxs: { img: Phaser.GameObjects.Image; t: number; wait: number; base: number; n: number; fd: number; a0: number; spin: number; grow: number; sx: number; sy: number; vx: number; vy: number }[] = [];
+  private sparks!: Phaser.GameObjects.Particles.ParticleEmitter;
+  /** A blow's pause: the world holds for a few hundredths of a second as a heavy ability lands. */
+  private stopT = 0;
   private pillarT = -1;
   private aura!: Phaser.GameObjects.Image;
   private bg!: Phaser.GameObjects.Graphics;
@@ -136,7 +149,7 @@ export class Watch extends Phaser.Scene {
     this.aura = this.add.image(HOME, GROUND - 22, 'glow').setTint(0xb48cff).setBlendMode(Phaser.BlendModes.ADD).setScale(1.4).setAlpha(0).setDepth(4);
     this.hpBar = this.add.graphics().setDepth(8);
     this.foes = [];
-    for (let i = 0; i < 6; i++) this.foes.push({ img: this.add.image(0, GROUND, 'foes-ashen', 0).setVisible(false).setDepth(4), kind: FOES.husk, id: 'husk', x: 0, hp: 0, max: 1, dmg: 0, speed: 0, alive: false, dying: 0, atkT: 0, animT: 0, flash: 0, strikeT: 0, boss: null, elite: false, chill: 0 });
+    for (let i = 0; i < 6; i++) this.foes.push({ img: this.add.image(0, GROUND, 'foes-ashen', 0).setVisible(false).setDepth(4), kind: FOES.husk, id: 'husk', x: 0, hp: 0, max: 1, dmg: 0, speed: 0, alive: false, dying: 0, atkT: 0, animT: 0, flash: 0, strikeT: 0, boss: null, elite: false, chill: 0, liftT: 0 });
     const host = this;
     this.band = new ShadowBand(this, {
       get hx() { return host.hx; },
@@ -157,6 +170,12 @@ export class Watch extends Phaser.Scene {
     this.cuts = [];
     for (let i = 0; i < 6; i++) this.cuts.push({ img: this.add.image(0, 0, 'vfx-slashes', 0).setBlendMode(Phaser.BlendModes.ADD).setVisible(false).setDepth(9), t: -1, base: 0 });
     this.dim = this.add.rectangle(SW / 2, SH / 2, SW * 2, SH * 2, 0x05040a, 1).setAlpha(0).setDepth(3.5);
+    this.fxs = [];
+    for (let i = 0; i < 18; i++) this.fxs.push({ img: this.add.image(0, 0, 'vfx-impacts', 0).setBlendMode(Phaser.BlendModes.ADD).setVisible(false).setDepth(9), t: -1, wait: 0, base: 0, n: 1, fd: 0.05, a0: 1, spin: 0, grow: 0, sx: 1, sy: 1, vx: 0, vy: 0 });
+    if (!this.textures.exists('wt-spark')) { const g = this.make.graphics({}, false); g.fillStyle(0xffffff, 1).fillRect(1, 0, 1, 3).fillRect(0, 1, 3, 1); g.generateTexture('wt-spark', 3, 3); g.destroy(); }
+    this.sparks = this.add.particles(0, 0, 'wt-spark', { emitting: false, lifespan: { min: 280, max: 620 }, speed: { min: 40, max: 150 }, angle: { min: 200, max: 340 },
+      gravityY: 220, scale: { start: 1.3, end: 0.3 }, alpha: { start: 1, end: 0 }, blendMode: 'ADD' }).setDepth(9.5);
+    this.stopT = 0;
     this.pillar = this.add.image(0, GROUND, 'vfx-abilities-1', 40).setOrigin(0.5, 0.82).setBlendMode(Phaser.BlendModes.ADD).setVisible(false).setDepth(9);
     this.ui = new WatchUI(this);
     this.hp = D.watchStats(this.w).maxHp;
@@ -187,14 +206,20 @@ export class Watch extends Phaser.Scene {
     measureSafe();
     const W = this.scale.width, H = this.scale.height, landscape = W > H * 1.1;
     const top = Math.max(safe.top, 6);
-    const vw = landscape ? Math.round(W * 0.52) : W, vh = Math.round((vw * SH) / SW);
+    let vw = landscape ? Math.round(W * 0.52) : W, vh = Math.round((vw * SH) / SW);
     const cssScale = W / window.innerWidth;
-    // Upright, the bar of coins, the stage and his numbers sits just above the wall (about 84 CSS px).
-    const y = landscape ? Math.max(0, Math.round((H - vh) / 2)) : Math.round((top + 84) * cssScale);
+    // The bar of coins, the stage and his numbers sits over the wall: the wall starts where it ends, however tall it
+    // is on this phone, so nothing of either is hidden behind the other. Sideways, a wall too tall for what is left
+    // narrows to fit.
+    const hudBottom = this.ui.placeHud(top, landscape, vw / cssScale), under = Math.round((hudBottom + 4) * cssScale);
+    const y = landscape ? Math.max(under, Math.round((H - vh) / 2)) : under;
+    if (landscape && y + vh > H) { vh = H - y; vw = Math.round((vh * SW) / SH); }
     this.baseZoom = vw / SW;
     this.cameras.main.setViewport(0, y, vw, vh).setZoom(this.baseZoom * (this.cine ? 1.14 : 1)).centerOn(SW / 2, SH / 2);
-    this.ui.layout(landscape ? y / cssScale : top, (y + vh) / cssScale, landscape, vw / cssScale);
+    this.ui.layout(y / cssScale, (y + vh) / cssScale, landscape, vw / cssScale);
   }
+  /** Fit again (the bar over the wall changed height). */
+  refit() { this.fit(); }
 
   // ---------------------------------------------------------------- stages
 
@@ -281,7 +306,7 @@ export class Watch extends Phaser.Scene {
     if (!boss) f.img.setTexture(f.kind.sheet, f.kind.row * 4).setOrigin(f.kind.ox / (f.kind.cell ?? 96), f.kind.oy / (f.kind.cell ?? 96)).setScale(f.kind.scale * (f.elite ? 1.3 : 0.95));
     f.boss = boss;
     f.x = x; f.max = f.hp = D.foeHp(s) * (f.elite ? 5 : 1); f.dmg = D.foeDmg(s) * (f.elite ? 1.6 : 1);
-    f.alive = true; f.dying = 0; f.atkT = D.FOE_RATE * 0.6; f.animT = Math.random(); f.flash = 0; f.strikeT = 0; f.chill = 0;
+    f.alive = true; f.dying = 0; f.atkT = D.FOE_RATE * 0.6; f.animT = Math.random(); f.flash = 0; f.strikeT = 0; f.chill = 0; f.liftT = 0;
     f.img.setPosition(x, GROUND).setVisible(true).setAlpha(1).clearTint().setFlipX(true);
     if (f.elite) f.img.setTint(0xffd27a);
   }
@@ -297,6 +322,8 @@ export class Watch extends Phaser.Scene {
   /** ×2 and ×3 run the wall two or three steps a frame; a staged combo always plays at its own, slowed pace. */
   update(_t: number, delta: number) {
     const dt = Math.min(delta / 1000, 0.05), n = this.cine ? 1 : this.w.speed ?? 1;
+    // A heavy ability's blow holds the world a moment (its light plays on).
+    if (this.stopT > 0) { this.stopT -= dt; this.stepFx(dt); return; }
     for (let i = 0; i < n; i++) this.tick(dt);
   }
 
@@ -399,7 +426,7 @@ export class Watch extends Phaser.Scene {
   private strike(f: WFoe, mult: number) {
     const st = D.watchStats(this.w), crit = Math.random() < st.crit;
     const dmg = st.atk * mult * (crit ? st.critDmg : 1) * (this.mantleT > 0 ? D.MANTLE.dmg : 1);
-    this.damage(f, dmg, crit || mult > 1, false);
+    this.damage(f, dmg, crit || mult > 1, false, mult >= 2);
     sfx(mult > 1 || crit ? 'hitHeavy' : 'hit', { vol: 0.5, pitch: 0.95 + Math.random() * 0.1 });
     if (mult > 1) { this.shakeIt(0.006, 120); haptic('heavy'); }
   }
@@ -415,10 +442,10 @@ export class Watch extends Phaser.Scene {
     sfx('hit', { vol: 0.35, pitch: 1.2 });
   }
 
-  private damage(f: WFoe, dmg: number, big: boolean, shadow: boolean) {
+  private damage(f: WFoe, dmg: number, big: boolean, shadow: boolean, huge = false) {
     if (!f.alive) return;
     f.hp -= dmg; f.flash = 0.08;
-    this.number(f.x - 4, GROUND - (f.boss ? 70 : 40), dmg, big);
+    this.number(f.x - 4, GROUND - (f.boss ? 70 : 40) - f.liftT * 50, dmg, big, undefined, '', huge);
     this.burst(f.x - 6, GROUND - (f.boss ? 40 : 22), big ? 6 : 0, big ? 0.42 : 0.28, shadow ? 0xb48cff : 0xffffff);
     if (f.hp <= 0) this.kill(f);
   }
@@ -507,19 +534,28 @@ export class Watch extends Phaser.Scene {
     if (w.level < D.MANTLE.level || w.gauge < 100 || this.mantleT > 0 || this.fallen > 0) return;
     w.gauge = 0; this.mantleT = D.MANTLE.time;
     sfx('transform', { vol: 0.6 }); this.shakeIt(0.008, 200);
-    this.cameras.main.flash(180, 120, 70, 200);
+    this.flash(180, 120, 70, 200);
+    this.play('vfx-abilities-1', 24, 8, this.hx, GROUND - 24, { s: 0.75, fd: 0.06, tint: 0xc59bff });
+    this.ui.callout('THE SHADOW MANTLE', '#b48cff');
     this.ui.toast('THE SHADOW MANTLE · heavier, faster blows');
   }
 
   private castPillar(mult: number) {
     let far: WFoe | null = null;
-    for (const f of this.foes) if (f.alive && (!far || f.x > far.x)) far = f;
+    // The furthest foe in sight (one still coming on beyond the edge would burn unseen).
+    for (const f of this.foes) if (f.alive && f.x < SW - 30 && (!far || f.x > far.x)) far = f;
+    far ??= this.front();
     if (!far) return;
-    this.pillar.setPosition(far.x, GROUND + 4).setScale(0.55).setVisible(true).setFrame(40);
+    this.pillar.setPosition(far.x, GROUND + 4).setScale(0.62, 0.85).setVisible(true).setFrame(40);
     this.pillarT = 0;
+    // The ground breaks under it, embers fly, and the wall lights orange.
+    this.play('vfx-impacts', 12, 6, far.x, GROUND - 6, { s: 0.7, fd: 0.05, tint: 0xffb070 });
+    this.play('vfx-impacts', 18, 6, far.x, GROUND - 1, { sx: 1.1, sy: 0.3, fd: 0.06, grow: 1.4, tint: 0xffb070 });
+    this.sparks.setParticleTint(0xffa040).explode(22, far.x, GROUND - 20);
+    this.flash(120, 255, 150, 60); this.shakeIt(0.012, 220); this.stopT = 0.05;
     const st = D.watchStats(this.w), x = far.x;
     // The fire takes the furthest foe, and any standing within a stride of it.
-    for (const f of this.foes) if (f.alive && Math.abs(f.x - x) <= 26) this.damage(f, st.atk * mult * (f === far ? 1 : 0.5) * (this.mantleT > 0 ? D.MANTLE.dmg : 1), true, false);
+    for (const f of this.foes) if (f.alive && Math.abs(f.x - x) <= 26) this.damage(f, st.atk * mult * (f === far ? 1 : 0.5) * (this.mantleT > 0 ? D.MANTLE.dmg : 1), true, false, f === far);
     sfx('pillarFire', { vol: 0.5 });
   }
 
@@ -531,11 +567,20 @@ export class Watch extends Phaser.Scene {
     sh.t += dt;
     if (!sh.hit && sh.t >= sh.dur * sh.hitAt) {
       sh.hit = true;
-      if (sh.heal) { const st = D.watchStats(this.w); this.hp = Math.min(st.maxHp, this.hp + st.maxHp * sh.heal); this.balmT = 6; this.burst(this.hx, GROUND - 26, 0, 0.6, 0x9effc0); sfx('heal', { vol: 0.5 }); }
-      else if (sh.aoe) { for (const f of this.foes) if (f.alive && f.x <= this.hx + sh.aoe) { this.strike(f, sh.mult); this.cut(f); } }
+      if (sh.heal) {
+        const st = D.watchStats(this.w); this.hp = Math.min(st.maxHp, this.hp + st.maxHp * sh.heal); this.balmT = 6; sfx('heal', { vol: 0.5 });
+        this.play('vfx-abilities-2', 32, 8, this.hx, GROUND - 26, { s: 0.62, fd: 0.07 });
+        this.play('vfx-abilities-1', 32, 8, this.hx, GROUND - 6, { sx: 0.8, sy: 0.55, fd: 0.07, tint: 0xb8ffd0 });
+        this.number(this.hx, GROUND - 62, st.maxHp * sh.heal, true, '#9effc0', '+');
+      }
+      else if (sh.aoe) {
+        if (sh.fx) this.landFx(sh.fx, null);
+        for (const f of this.foes) if (f.alive && f.x <= this.hx + sh.aoe) { this.strike(f, sh.mult); this.cut(f); this.sparks.setParticleTint(0xfff1c4).explode(5, f.x - 4, GROUND - 20); }
+      }
       else {
         const f = sh.target && sh.target.alive ? sh.target : sh.target === undefined ? this.front() : null;
         if (f) {
+          if (sh.fx) this.landFx(sh.fx, f);
           this.strike(f, sh.mult);
           if (sh.mult > 1.2) this.cut(f);
           // A running cut that leaves the foe standing: he stops and finishes it.
@@ -554,13 +599,27 @@ export class Watch extends Phaser.Scene {
     const f = this.front(), alive = this.foes.filter((o) => o.alive);
     const near = alive.filter((o) => o.x <= this.hx + REACH + 44).length, inReach = !!f && f.x <= this.hx + REACH + (f.boss ? 22 : 8);
     switch (id) {
-      case 'strike': if (!inReach) return false; this.shot = { clip: 'heavy', t: 0, dur: 0.5, hitAt: 0.55, hit: false, mult: m, target: f }; sfx('swingHeavy', { vol: 0.5 }); break;
+      case 'strike':
+        if (!inReach) return false;
+        this.shot = { clip: 'heavy', t: 0, dur: 0.5, hitAt: 0.55, hit: false, mult: m, target: f, fx: 'strike' }; sfx('swingHeavy', { vol: 0.5 });
+        this.play('vfx-abilities-1', 24, 8, this.hx, GROUND - 22, { s: 0.5, fd: 0.045 });
+        break;
       case 'pillar': if (!f) return false; this.castPillar(m); break;
-      case 'phantom': if (!alive.length || (!manual && alive.length < 2 && !f?.boss)) return false; this.startCine('PHANTOM STEP', alive.slice(0, 6), m, false); break;
-      case 'storm': if (!near || (!manual && near < 2 && !f?.boss)) return false; this.shot = { clip: 'storm', t: 0, dur: 0.6, hitAt: 0.5, hit: false, mult: m, aoe: REACH + 44 }; sfx('stormGust', { vol: 0.45 }); break;
+      case 'phantom': {
+        // Only the foes already on the wall: he never steps out of sight.
+        const seen = alive.filter((o) => o.x < SW - 50);
+        if (!seen.length || (!manual && seen.length < 2 && !f?.boss)) return false;
+        this.startCine('PHANTOM STEP', seen.slice(0, 6), m, false); break;
+      }
+      case 'storm':
+        if (!near || (!manual && near < 2 && !f?.boss)) return false;
+        this.shot = { clip: 'storm', t: 0, dur: 0.6, hitAt: 0.5, hit: false, mult: m, aoe: REACH + 44, fx: 'storm' }; sfx('stormGust', { vol: 0.45 });
+        // The wind gathers round him before the sweep.
+        this.play('vfx-abilities-1', 8, 8, this.hx + 8, GROUND - 20, { sx: 1.2, sy: 0.5, fd: 0.06, spin: 240, tint: 0xd8f0ff });
+        break;
       case 'comet':
         if (!inReach) return false;
-        this.shot = { clip: 'launch', t: 0, dur: 0.32, hitAt: 0.5, hit: false, mult: m * 0.25, target: f, then: { clip: 'plunge', t: 0, dur: 0.4, hitAt: 0.6, hit: false, mult: m, target: f } };
+        this.shot = { clip: 'launch', t: 0, dur: 0.32, hitAt: 0.5, hit: false, mult: m * 0.25, target: f, fx: 'launch', then: { clip: 'plunge', t: 0, dur: 0.4, hitAt: 0.6, hit: false, mult: m, target: f, fx: 'comet' } };
         sfx('whoosh', { vol: 0.5 });
         break;
       case 'balm': if (!manual && this.hp > st.maxHp * 0.55) return false; this.shot = { clip: 'heal', t: 0, dur: 0.5, hitAt: 0.5, hit: false, mult: 0, heal: m }; break;
@@ -568,6 +627,7 @@ export class Watch extends Phaser.Scene {
     }
     this.abilT[id] = D.abilityCd(id, lv);
     if (!manual) this.ui.flashSkill(id);
+    this.ui.callout(D.ABILITY[id].name.toUpperCase(), CALL_GLOW[id]);
     return true;
   }
 
@@ -581,17 +641,16 @@ export class Watch extends Phaser.Scene {
       steps.push({ foe: t, x: t.x - REACH + 6, face: 1, clip: 'heavy', mult: mult * 3 });
     } else {
       const sorted = [...targets].sort((a, b) => a.x - b.x);
-      sorted.forEach((t, i) => steps.push({ foe: t, x: Math.min(SW - 20, t.x + REACH - 8), face: -1, clip: ['b1', 'b2', 'b4', 'dash'][i % 4], mult }));
+      sorted.forEach((t, i) => steps.push({ foe: t, x: Math.min(SW - 28, t.x + REACH - 8), face: -1, clip: ['b1', 'b2', 'b4', 'dash'][i % 4], mult }));
       // The last cut is the heaviest, from behind the line.
       const last = sorted[sorted.length - 1];
-      steps.push({ foe: last, x: Math.min(SW - 20, last.x + REACH - 8), face: -1, clip: 'heavy', mult: mult * 1.6 });
+      steps.push({ foe: last, x: Math.min(SW - 28, last.x + REACH - 8), face: -1, clip: 'heavy', mult: mult * 1.6 });
     }
     this.cine = { name, steps, i: -1, t: STEP, home: this.hx };
     this.shot = null;
     this.dim.setPosition(SW / 2, SH / 2);
     this.tweens.add({ targets: this.dim, alpha: 0.5, duration: 180 });
     this.cameras.main.zoomTo(this.baseZoom * 1.14, 220, 'Sine.easeOut');
-    this.ui.toast(name, 1.2);
     sfx('teleport', { vol: 0.5 });
   }
 
@@ -602,7 +661,8 @@ export class Watch extends Phaser.Scene {
     c.t -= STEP;
     c.i++;
     this.ghost();
-    const s = c.steps[c.i];
+    const s = c.steps[c.i], phantom = c.name === 'PHANTOM STEP';
+    if (phantom) this.play('vfx-abilities-2', 24, 8, this.hx, GROUND - 22, { s: 0.4, fd: 0.04 });
     if (!s) {
       // Back to his place, and the world resumes.
       this.hx = c.home; this.face = 1; this.cine = null; this.shot = null;
@@ -613,6 +673,9 @@ export class Watch extends Phaser.Scene {
       return;
     }
     this.hx = s.x; this.face = s.face;
+    if (phantom) { this.play('vfx-abilities-2', 24, 8, s.x, GROUND - 22, { s: 0.48, fd: 0.035, flip: true }); this.sparks.setParticleTint(0xc59bff).explode(6, s.x, GROUND - 24); }
+    else if (s.foe.alive) this.play('vfx-impacts', 0, 6, s.foe.x - 4, GROUND - 22, { s: 0.36, fd: 0.04, tint: 0xfff1c4, angle: c.i * 47 });
+    if (s.clip === 'heavy') this.closingFx(s.foe, phantom);
     // The drawn-in view follows him from mark to mark (kept inside the place).
     const half = SW / 2 / 1.14;
     this.cameras.main.pan(Phaser.Math.Clamp(s.x, half, SW - half), SH / 2, 140, 'Sine.easeOut', true);
@@ -632,7 +695,62 @@ export class Watch extends Phaser.Scene {
   private cut(f: WFoe) {
     const c = this.cuts.find((o) => o.t < 0) ?? this.cuts[0];
     c.t = 0; c.base = (Math.floor(Math.random() * 4)) * 6;
-    c.img.setFrame(c.base).setPosition(f.x - 2, GROUND - (f.boss ? 36 : 20)).setScale(f.boss ? 0.6 : 0.42).setFlipX(Math.random() < 0.5).setAngle((Math.random() - 0.5) * 40).setVisible(true).setTint(this.mantleT > 0 ? 0xc59bff : 0xffffff);
+    c.img.setFrame(c.base).setPosition(f.x - 2, GROUND - (f.boss ? 36 : 20)).setScale((f.boss ? 0.6 : 0.42) * (this.cine ? 1.35 : 1)).setFlipX(Math.random() < 0.5).setAngle((Math.random() - 0.5) * 40).setVisible(true).setTint(this.mantleT > 0 ? 0xc59bff : 0xffffff);
+  }
+
+  /** Play a row of an effects sheet once at (x, y), as light: scaled, tinted, spinning, growing or moving. */
+  private play(key: string, base: number, n: number, x: number, y: number,
+    o: { s?: number; sx?: number; sy?: number; tint?: number; fd?: number; angle?: number; spin?: number; grow?: number; alpha?: number; flip?: boolean; vx?: number; vy?: number; wait?: number } = {}) {
+    const e = this.fxs.find((f) => f.t < 0) ?? this.fxs[0];
+    e.t = 0; e.wait = o.wait ?? 0; e.base = base; e.n = n; e.fd = o.fd ?? 0.05; e.spin = o.spin ?? 0; e.grow = o.grow ?? 0;
+    e.sx = o.sx ?? o.s ?? 0.5; e.sy = o.sy ?? o.s ?? 0.5; e.a0 = o.alpha ?? 1; e.vx = o.vx ?? 0; e.vy = o.vy ?? 0;
+    e.img.setTexture(key, base).setPosition(x, y).setScale(e.sx, e.sy).setAngle(o.angle ?? 0).setFlipX(!!o.flip).setAlpha(e.a0).setVisible(e.wait <= 0);
+    if (o.tint !== undefined) e.img.setTint(o.tint); else e.img.clearTint();
+  }
+
+  /** A flash of the wall, unless flashes are turned down in Settings. */
+  private flash(ms: number, r: number, g: number, b: number) { if (!settings.reduceFlashes) this.cameras.main.flash(ms, r, g, b); }
+
+  /** Where an ability's blow lands: its own light, sparks, a flash, the shake and a moment's pause. */
+  private landFx(kind: NonNullable<Shot['fx']>, f: WFoe | null) {
+    const x = f ? f.x - 4 : this.hx + 20, y = GROUND - (f?.boss ? 34 : 20);
+    switch (kind) {
+      case 'strike':
+        this.play('vfx-impacts', 12, 6, x, y, { s: f?.boss ? 0.95 : 0.75, fd: 0.05 });
+        this.play('vfx-impacts', 18, 6, x, GROUND - 1, { sx: 1.2, sy: 0.32, fd: 0.05, grow: 1.6, tint: 0xffe2a0 });
+        this.sparks.setParticleTint(0xffd27a).explode(18, x, y);
+        this.flash(90, 255, 225, 160); this.shakeIt(0.016, 200); this.stopT = 0.08;
+        break;
+      case 'launch':
+        // Up it goes; the comet falls on it as it comes down.
+        if (f) { f.liftT = LIFT; this.play('vfx-abilities-1', 0, 8, f.x, GROUND - 150, { s: 0.75, angle: 90, fd: 0.04, vy: 360, wait: 0.12, tint: 0xfff1c4 }); }
+        this.play('vfx-slashes', 6, 6, x, y - 6, { s: 0.55, angle: -70, fd: 0.04 });
+        break;
+      case 'comet':
+        this.play('vfx-impacts', 12, 6, x, GROUND - 10, { s: f?.boss ? 1.1 : 0.9, fd: 0.055 });
+        this.play('vfx-impacts', 18, 6, x, GROUND - 1, { sx: 1.5, sy: 0.38, fd: 0.06, grow: 1.8 });
+        this.play('vfx-impacts', 0, 6, x, GROUND - 20, { s: 0.8, fd: 0.05, tint: 0xfff1c4 });
+        this.sparks.setParticleTint(0xfff1c4).explode(26, x, GROUND - 8);
+        this.flash(140, 255, 245, 210); this.shakeIt(0.02, 260); this.stopT = 0.1; haptic('heavy');
+        break;
+      case 'storm':
+        // Three arcs round him as the sweep goes out.
+        for (let i = 0; i < 3; i++) this.play('vfx-slashes', (i % 4) * 6, 6, this.hx + 16 + i * 12, GROUND - 20, { s: 0.6, angle: i * 120, fd: 0.04, spin: 360, tint: 0xd8f0ff });
+        this.play('vfx-impacts', 18, 6, this.hx + 24, GROUND - 2, { sx: 1.6, sy: 0.3, fd: 0.05, grow: 1.2, tint: 0xd8f0ff });
+        this.shakeIt(0.01, 160); this.stopT = 0.05;
+        break;
+    }
+  }
+
+  /** The closing blow of a staged combo: a rift tearing open (Phantom Step) or the chains of light breaking (the Last Watch). */
+  private closingFx(f: WFoe, phantom: boolean) {
+    const x = Math.min(f.x - 4, SW - 50), y = GROUND - (f.boss ? 34 : 22);
+    if (phantom) this.play('vfx-abilities-2', 24, 8, x, y, { s: 0.85, fd: 0.05 });
+    else this.play('vfx-abilities-2', 0, 8, x, y, { s: 0.8, fd: 0.055 });
+    this.play('vfx-impacts', 18, 6, x, y, { s: 0.9, fd: 0.05, grow: 1, tint: phantom ? 0xc59bff : 0xfff1c4 });
+    this.sparks.setParticleTint(phantom ? 0xc59bff : 0xffd27a).explode(24, x, y);
+    if (phantom) this.flash(150, 150, 90, 230); else this.flash(150, 255, 235, 180);
+    this.stopT = 0.12;
   }
 
   /** Buy an ability, or its next level; a newly bought one goes into a free slot. */
@@ -793,21 +911,26 @@ export class Watch extends Phaser.Scene {
       f.img.setTexture(tex, `${b.id}-${f.strikeT > 0 ? Math.min(n - 1, 3) : Math.floor(f.animT * 4) % 2}`);
     } else if (b?.kind === 'demon') f.img.setFrame(f.strikeT > 0 ? 6 + Math.min(7, Math.floor((0.25 - f.strikeT) * 32)) : Math.floor(f.animT * 8) % 6);
     else f.img.setFrame(f.kind.row * 4 + (f.strikeT > 0 ? 3 : f.x > this.hx + REACH + 2 ? 1 + (Math.floor(f.animT * 6) % 2) : 0));
-    f.img.setPosition(Math.round(f.x), GROUND).setFlipX(true);
+    // Thrown up by the Comet, it hangs and then comes down with the blow.
+    f.liftT = Math.max(0, f.liftT - dt);
+    f.img.setPosition(Math.round(f.x), GROUND - Math.round(Math.sin(Math.min(1, f.liftT / LIFT) * Math.PI) * 26)).setFlipX(true);
     if (f.flash > 0) f.img.setTint(0xffffff).setTintMode(Phaser.TintModes.FILL); else f.img.clearTint().setTintMode(Phaser.TintModes.MULTIPLY);
   }
 
-  private number(x: number, y: number, v: number, big: boolean) {
+  private number(x: number, y: number, v: number, big: boolean, color?: string, prefix = '', huge = false) {
     const n = this.nums.find((o) => o.life <= 0);
     if (!n) return;
-    n.life = 0.7; n.vy = -34;
-    n.t.setText(D.fmt(v)).setPosition(x + (Math.random() - 0.5) * 10, y).setColor(big ? '#ffd27a' : '#ffffff').setScale(big ? 0.55 : 0.4).setVisible(true).setAlpha(1);
+    n.life = huge ? 0.9 : 0.7; n.vy = huge ? -26 : -34;
+    // Kept inside the wall, and lifted over any number still fresh where it would land.
+    x = Phaser.Math.Clamp(x + (Math.random() - 0.5) * 10, 22, SW - 22);
+    for (const o of this.nums) if (o !== n && o.life > 0.35 && Math.abs(o.t.x - x) < 26 && Math.abs(o.t.y - y) < 9) y = o.t.y - 9;
+    n.t.setText(prefix + D.fmt(v)).setPosition(x, Math.max(12, y)).setColor(color ?? (huge ? '#ffb347' : big ? '#ffd27a' : '#ffffff')).setScale(huge ? 0.72 : big ? 0.55 : 0.4).setVisible(true).setAlpha(1);
   }
   private coinText(x: number, y: number, v: number) {
     const n = this.nums.find((o) => o.life <= 0);
     if (!n) return;
     n.life = 0.9; n.vy = -22;
-    n.t.setText('+' + D.fmt(v)).setPosition(x, y).setColor('#f6dea0').setScale(0.36).setVisible(true).setAlpha(1);
+    n.t.setText('+' + D.fmt(v)).setPosition(Phaser.Math.Clamp(x, 22, SW - 22), y).setColor('#f6dea0').setScale(0.36).setVisible(true).setAlpha(1);
   }
   private burst(x: number, y: number, base: number, scale: number, tint: number) {
     if (settings.reduceFlashes && base === 0) return;
@@ -816,6 +939,17 @@ export class Watch extends Phaser.Scene {
     b.img.setFrame(base).setPosition(x, y).setScale(scale).setAngle(Math.random() * 360).setTint(tint).setVisible(true);
   }
   private stepFx(dt: number) {
+    for (const e of this.fxs) {
+      if (e.t < 0) continue;
+      if (e.wait > 0) { e.wait -= dt; if (e.wait <= 0) e.img.setVisible(true); continue; }
+      e.t += dt;
+      const fr = Math.floor(e.t / e.fd);
+      if (fr >= e.n) { e.t = -1; e.img.setVisible(false); continue; }
+      const k = 1 + e.grow * e.t, left = e.n - e.t / e.fd;
+      e.img.setFrame(e.base + fr).setScale(e.sx * k, e.sy * k).setAlpha(e.a0 * Math.min(1, left / (e.n * 0.35)));
+      if (e.spin) e.img.angle += e.spin * dt;
+      if (e.vx || e.vy) e.img.setPosition(e.img.x + e.vx * dt, e.img.y + e.vy * dt);
+    }
     for (const n of this.nums) { if (n.life <= 0) continue; n.life -= dt; n.t.y += n.vy * dt; n.vy *= 0.92; n.t.setAlpha(Math.min(1, n.life * 3)); if (n.life <= 0) n.t.setVisible(false); }
     for (const b of this.bursts) { if (b.t < 0) continue; b.t += dt; const f = Math.floor(b.t / 0.045); if (f >= b.n) { b.t = -1; b.img.setVisible(false); } else b.img.setFrame(b.base + f); }
     if (this.pillarT >= 0) { this.pillarT += dt; const f = Math.floor(this.pillarT / 0.08); if (f >= 8) { this.pillarT = -1; this.pillar.setVisible(false); } else this.pillar.setFrame(40 + f); }

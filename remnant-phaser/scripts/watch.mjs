@@ -34,7 +34,12 @@ try {
   // The cards show the stat itself, now and after the purchase; his numbers sit under the stage bar.
   await page.waitForTimeout(300);
   const shown = await E(page, () => ({ atk: document.querySelector('[data-k=wt_val_attack]')?.textContent, hp: document.querySelector('[data-k=wt_val_health]')?.textContent, line: document.querySelector('[data-k=wt_stats]')?.textContent }));
-  assert.ok(/^\S+ → \S+$/.test(shown.atk) && /^100 → 120$/.test(shown.hp) && /ATK .*HP .*SPD .*DPS .*COINS/.test(shown.line), `upgrade cards show the value now and after; the stat line shows his numbers (${JSON.stringify(shown)})`);
+  assert.ok(/^\S+ → \S+$/.test(shown.atk) && /^100 → 120$/.test(shown.hp) && /ATK.+HEALTH.+SPEED.+DPS.+COINS/.test(shown.line), `upgrade cards show the value now and after; the stat line shows his numbers (${JSON.stringify(shown)})`);
+
+  // The wall starts below the bar over it (however that bar wraps on this phone), and the panel below the wall.
+  const fit = await E(page, () => { const sc = window.__remnant.watch, cam = sc.cameras.main, k = sc.scale.width / innerWidth;
+    return { hud: document.querySelector('.wt-hud').getBoundingClientRect().bottom, top: cam.y / k, bottom: (cam.y + cam.height) / k, panel: document.querySelector('.wt-panel').getBoundingClientRect().top }; });
+  assert.ok(fit.hud <= fit.top + 0.5 && Math.abs(fit.panel - fit.bottom) < 1.5, `nothing over the wall is cut off: the bar ends above it and the panel starts below it (${JSON.stringify(fit)})`);
 
   // ---- he fights on his own, kills pay, stages pass, levels come
   const fight = await E(page, () => {
@@ -181,9 +186,11 @@ try {
     for (let i = 0; i < 12; i++) sc.tick(1 / 30);
     const moved = far.alive ? Math.abs(far.x - x0) : 0;
     for (let i = 0; i < 30 * 4; i++) sc.tick(1 / 30);
-    return { ok, during, moved, after: !!sc.cine, hit: before.length, hx: Math.round(sc.hx) };
+    const call = document.querySelector('.wt-call');
+    return { ok, during, moved, after: !!sc.cine, hit: before.length, hx: Math.round(sc.hx), call: call?.textContent, lit: call?.classList.contains('on') };
   });
   assert.ok(cine.ok && cine.during && !cine.after && cine.moved < 8, `Phantom Step plays slowed and ends back at his post (${JSON.stringify(cine)})`);
+  assert.ok(cine.call === 'PHANTOM STEP' && cine.lit, `an ability's name is called over the wall (${JSON.stringify(cine)})`);
   await page.click('[data-k=wt_cast_strike]');
   await E(page, () => { window.__remnant.watch.w.autoSkills = true; });
 
@@ -217,7 +224,7 @@ try {
   assert.ok(back.coins >= 215000 && back.coins <= 217000 && back.seals === 9 && back.level === 26, `three hours away pay 40 × ½ × 10,800 coins, and the Watch was kept (${JSON.stringify(back)})`);
   assert.equal(back.team, 'sentinel,knight', 'an older watch keeps the shadows its level gave it, raised and beside him');
   await page.screenshot({ path: 'qa/watch.png' });
-  console.log(`Watch: a fresh Elior; ${fight.stage - 1} stages in 2½ minutes; the boss's timer; Gate 1 paid once; the Mantle at 26; shadows raised with essence; Ascension for 9 Seals; ${back.coins} coins for 3 h away; new scenery each gate; the demon at Gate 1; its blade wielded; rush and holding stages; ×2 and ×3; abilities learned, levelled and staged`);
+  console.log(`Watch: a fresh Elior; ${fight.stage - 1} stages in 2½ minutes; the boss's timer; Gate 1 paid once; the Mantle at 26; shadows raised with essence; Ascension for 9 Seals; ${back.coins} coins for 3 h away; new scenery each gate; the demon at Gate 1; its blade wielded; rush and holding stages; ×2 and ×3; abilities learned, levelled, staged and called; the wall under the bar`);
 
   assert.deepEqual(errors, [], 'no page errors');
   console.log('phaser watch: all checks passed');
