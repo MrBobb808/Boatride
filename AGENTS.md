@@ -21,6 +21,15 @@ up next starts from the latest version.
    Explicit update navigations wait for the fresh document on slow connections;
    failed refreshes retry after a cooldown.
 
+## Agent skills
+
+Ten playbooks from [awesome-gamedev-agent-skills](https://github.com/gamedev-skills/awesome-gamedev-agent-skills)
+(Apache-2.0) are vendored in `.claude/skills/` (Claude Code) and `.agents/skills/` (Codex and other assistants): Phaser
+core, game feel, camera, saves, UI/UX, audio, performance, utility AI, asset production, and an idle economy (for the
+Watch). Load the matching one before working on its topic; this file and the rules below win where they differ. Why
+these ten and what the game was checked against: `remnant-phaser/POLISH_PLAN.md` §19; how to update them: the
+`README.md` beside them.
+
 ## Current polish work and art
 
 Claude Code does the game changes, following `remnant-phaser/POLISH_PLAN.md`.
@@ -283,6 +292,12 @@ Never ship files from `art/incoming/` directly.
   - Never break `SaveData` compatibility.
   - Add new fields as optional and fill them in `migrateSave` (`game/state.ts`)
     or `migrate` (`game/save.ts`).
+  - Phaser build: every write keeps the save it replaces under `<key>.bak`, and a save that will not read is
+    replaced by it on load (`remnant-phaser/src/game/saveGuard.ts`); damaged amounts are repaired, never refused
+    (`settle` in `src/game/save.ts`, `migrateWatch`).
+- **Volume sliders** (settings v5): the mixer squares each slider (`applyVolumes` in `audio/audio.ts`) so its travel
+  sounds even; v5 moved saved sliders to their square roots once, keeping everyone's loudness. Change both settings
+  files together (`remnant/src/core/settings.ts` and the Phaser build's `src/classic/shim/settings.ts`).
 - **Lighting:** Settings → Lighting (`settings.lighting`, dramatic by
   default) scales a dim room's darkness in `render/lighting.ts`
   (`lightingLevel`); daylight is untouched.

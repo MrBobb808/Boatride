@@ -4,6 +4,7 @@
 // private cloud copy (see cloud.ts).
 
 import { store } from './settings';
+import { guardedRead, guardedWrite, dropBackup } from '../../game/saveGuard';
 import { migrateSave, type SaveData } from '../../../../remnant/src/game/state';
 const pushSlot = (..._a: unknown[]) => {};
 const pullSlots = async (_n: number): Promise<({ json: string; updated: number } | null)[]> => [];
@@ -21,7 +22,8 @@ export interface SlotInfo {
 export function saveSlot(slot: number, data: SaveData): boolean {
   data.updated = Date.now();
   const json = JSON.stringify(data);
-  const ok = store.set(key(slot), json);
+  // The save it replaces becomes the backup (game/saveGuard.ts).
+  const ok = guardedWrite(key(slot), json, store);
   if (ok) store.set(LAST, String(slot));
   pushSlot(slot, json, data.updated);
   return ok;
@@ -66,7 +68,7 @@ export async function syncFromCloud(): Promise<boolean> {
 }
 
 export function loadSlot(slot: number): SaveData | null {
-  const raw = store.get(key(slot));
+  const raw = guardedRead(key(slot), store);
   if (!raw) return null;
   try {
     const d = JSON.parse(raw) as SaveData;
@@ -79,6 +81,7 @@ export function loadSlot(slot: number): SaveData | null {
 
 export function deleteSlot(slot: number) {
   store.remove(key(slot));
+  dropBackup(key(slot), store);
   removeSlot(slot);
 }
 

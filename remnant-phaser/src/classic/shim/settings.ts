@@ -83,11 +83,12 @@ export const isStandalone = () =>
 export const TOUCH_DEFAULTS = { touchScale: 1, touchOpacity: 0.55 } as const;
 
 const DEFAULTS: Settings = {
-  master: 0.85,
-  music: 0.6,
+  // Sliders are perceptual: the mixer squares them (audio.ts applyVolumes), so these sound as 0.85 and 0.6 did.
+  master: 0.92,
+  music: 0.77,
   soundtrack: 'songs',
   vocals: true,
-  sfx: 0.85,
+  sfx: 0.92,
   mixAudio: true,
   respectSilent: false,
   quality: 'auto',
@@ -112,7 +113,7 @@ const DEFAULTS: Settings = {
   islandSize: 'auto',
   islandLen: 96,
   showFps: false,
-  v: 4,
+  v: 5,
   keys: structuredClone(DEFAULT_KEYS),
   pad: {},
   rumble: true,
@@ -173,6 +174,17 @@ function load(): Settings {
       s.touchLayout = cleanTouchLayout(parsed.touchLayout);
       if ((parsed.v ?? 1) < 4) {
         s.v = 4;
+        store.set(KEY, JSON.stringify(s));
+      }
+      // v5 squares the volume sliders on the way to the mixer, so a slider's travel sounds even (a raw amplitude
+      // slider changes little until near the bottom). Each saved slider moves to its square root once: everyone
+      // keeps exactly the loudness they had. A damaged value falls back to the default.
+      if ((parsed.v ?? 1) < 5) {
+        for (const k of ['master', 'music', 'sfx'] as const) {
+          const v = parsed[k];
+          s[k] = typeof v === 'number' && Number.isFinite(v) ? Math.sqrt(Math.min(1, Math.max(0, v))) : DEFAULTS[k];
+        }
+        s.v = 5;
         store.set(KEY, JSON.stringify(s));
       }
     } catch {

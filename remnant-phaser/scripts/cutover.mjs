@@ -34,7 +34,8 @@ try{
   legacy=false;await page.goto(base+'?debug&v=cutover');await until(()=>window.__remnant?.world?.player);
   const after=await page.evaluate(()=>({slot:window.__remnant.G.slot,level:window.__remnant.world.save.level,silver:window.__remnant.world.save.silver,equipment:window.__remnant.world.save.equipment,d:window.__remnant.world.d,settings:window.__remnant.settings}));
   assert.equal(after.slot,2);assert.equal(after.level,before.level);assert.equal(after.silver,before.silver);assert.deepEqual(after.equipment,before.equipment);assert.deepEqual(after.d,before.d,'the same real save derives exactly the same combat stats');
-  assert.equal(after.settings.master,0.27);assert.equal(after.settings.bossDifficulty,'merciless');
+  assert.equal(after.settings.master,Math.sqrt(0.27)); // v5 perceptual sliders: the same loudness
+  assert.equal(after.settings.bossDifficulty,'merciless');
   const backup=await page.evaluate(()=>JSON.parse(localStorage.getItem('remnant-phaser.before-cutover.slot0')));assert.equal(backup.level,JSON.parse(prior).level);assert.deepEqual(backup.equipment,JSON.parse(prior).equipment,'earlier Phaser journey is backed up');
   const original=await page.evaluate(()=>[0,1,2].map(i=>localStorage.getItem('remnant-save-'+i)));
   assert.deepEqual(await page.evaluate(()=>[0,1,2].map(i=>JSON.parse(localStorage.getItem(i===0?'remnant-phaser.save.v2':'remnant-phaser.save.slot'+i)).level)),[20,30,40]);

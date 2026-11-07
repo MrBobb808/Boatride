@@ -48,6 +48,18 @@ export interface WatchSave {
 
 /** Older Watch saves knew Covenant Strike and the Pillar by level alone: they keep them, bought and equipped. */
 export function migrateWatch(w: WatchSave) {
+  // Repair, never refuse (the save-systems and idle-economy skills): an amount that is not a finite number, or is
+  // negative, becomes 0 (a level or a stage 1), so one bad value never stops the Watch from opening or reaches a price.
+  const n = (v: unknown, min = 0) => (typeof v === 'number' && Number.isFinite(v) ? Math.max(min, v) : min);
+  w.coins = n(w.coins); w.xp = n(w.xp); w.rate = n(w.rate); w.gauge = Math.min(100, n(w.gauge));
+  w.seals = Math.floor(n(w.seals)); w.ascensions = Math.floor(n(w.ascensions));
+  w.level = Math.floor(n(w.level, 1)); w.stage = Math.floor(n(w.stage, 1));
+  w.best = Math.max(w.stage, Math.floor(n(w.best, 1))); w.bestEver = Math.max(w.best, Math.floor(n(w.bestEver, 1)));
+  if (typeof w.last !== 'number' || !Number.isFinite(w.last)) w.last = Date.now();
+  w.up = w.up && typeof w.up === 'object' ? w.up : {};
+  for (const k of Object.keys(w.up) as TrackId[]) w.up[k] = Math.floor(n(w.up[k]));
+  w.paid = Array.isArray(w.paid) ? w.paid.filter((g) => Number.isFinite(g)) : [];
+  if (w.essence) for (const k of Object.keys(w.essence) as ShadowId[]) w.essence[k] = Math.floor(n(w.essence[k]));
   // Shadows used to join by level alone: an older watch keeps as many as it had, raised and in the team.
   if (!w.shadows) {
     w.shadows = {};
@@ -263,14 +275,20 @@ export const CAPE_AT: Record<number, string> = { 10: 'midnight', 25: 'lamp' };
 // ---------------------------------------------------------------- numbers
 
 const SUFFIX = ['', 'K', 'M', 'B', 'T'];
-/** 999, 1.2K, 34M, 5.6T, then aa, ab… for the idle game's big numbers. */
+/** 999, 1.20K, 34.5M, 567T, then aa, ab… for the idle game's big numbers: three significant figures. It rounds
+ * first and only then picks the digits and the suffix, so 999,950 reads 1.00M (not "1000K") and 9,999 reads 10.0K (not
+ * "10.00K"): the rollover the idle-economy skill warns of (.claude/skills/roblox-simulator-economy). */
 export function fmt(n: number) {
   if (!isFinite(n)) return '∞';
   if (n < 1000) return String(Math.floor(n));
   let e = Math.floor(Math.log10(n) / 3);
-  const v = n / Math.pow(1000, e);
-  const s = v >= 100 ? v.toFixed(0) : v >= 10 ? v.toFixed(1) : v.toFixed(2);
-  if (e < SUFFIX.length) return s + SUFFIX[e];
-  e -= SUFFIX.length;
-  return s + String.fromCharCode(97 + Math.floor(e / 26)) + String.fromCharCode(97 + (e % 26));
+  for (;;) {
+    const v = n / Math.pow(1000, e), r = Number(v.toFixed(v >= 100 ? 0 : v >= 10 ? 1 : 2));
+    // Rounded up to the next thousand: the next suffix says it.
+    if (r >= 1000) { e++; continue; }
+    const s = r.toFixed(r >= 100 ? 0 : r >= 10 ? 1 : 2);
+    if (e < SUFFIX.length) return s + SUFFIX[e];
+    const k = e - SUFFIX.length;
+    return s + String.fromCharCode(97 + Math.floor(k / 26)) + String.fromCharCode(97 + (k % 26));
+  }
 }

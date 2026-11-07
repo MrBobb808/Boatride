@@ -870,7 +870,8 @@ Measured against the code as it stands on 7 November 2026.
 One pull request per phase, each verified as the repo verifies everything (headless Chromium through `?debug`, a
 production build, `tsc` clean). Phases 1–2 change how the game feels everywhere, so they come first.
 
-1. **Phase 1: install the skills and fix what is plainly wrong** (small, safe).
+1. **Phase 1: install the skills and fix what is plainly wrong** (small, safe). **BUILT** (G1, G2, G4; the skills in
+   `.claude/skills/` and `.agents/skills/`).
    - Copy the ten skills into `.claude/skills/` and `.agents/skills/` with the licence and `NOTICE`; name them in
      AGENTS.md.
    - G1: `fmt` rounds first and steps up a suffix when the rounded value reaches 1000; a table of cases in

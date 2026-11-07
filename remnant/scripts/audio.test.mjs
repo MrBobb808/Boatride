@@ -47,9 +47,16 @@ function engineEnv({ session = true, failSession = false } = {}) {
 test('old settings opt into mixing before the first gesture while preserving volumes, controls and Silent Mode choice', () => {
   const t = settingsEnv({ v: 3, respectSilent: false, master: 0.45, music: 0, sfx: 0.7, keys: { attack: ['KeyF'] } });
   assert.equal(t.settings.mixAudio, true); assert.equal(t.settings.respectSilent, false);
-  assert.equal(t.saved().mixAudio, true); assert.equal(t.saved().v, 4);
-  assert.equal(t.settings.master, 0.45); assert.equal(t.settings.music, 0); assert.equal(t.settings.sfx, 0.7);
+  assert.equal(t.saved().mixAudio, true); assert.equal(t.saved().v, 5);
+  // v5: each slider moves to its square root, which the mixer squares again, so the loudness is exactly what it was.
+  assert.equal(t.settings.master, Math.sqrt(0.45)); assert.equal(t.settings.music, 0); assert.equal(t.settings.sfx, Math.sqrt(0.7));
   assert.deepEqual([...t.settings.keys.attack], ['KeyF']);
+});
+test('v5 moves each saved volume slider to its square root once, and a damaged one to the default', () => {
+  const t = settingsEnv({ v: 4, master: 0.25, music: 'loud', sfx: 2 });
+  assert.equal(t.settings.master, 0.5); assert.equal(t.settings.music, 0.77); assert.equal(t.settings.sfx, 1); assert.equal(t.saved().v, 5);
+  const again = settingsEnv(t.saved());
+  assert.equal(again.settings.master, 0.5, 'a v5 slider is kept as it is');
 });
 test('mixing is the fresh/reset default, and explicit opt-outs survive settings reload', () => {
   const t = settingsEnv(); assert.equal(t.settings.mixAudio, true);
@@ -84,7 +91,8 @@ test('muting the game score also mutes its reverb while preserving independent e
   const t = engineEnv(); t.engine.unlock();
   t.settings.music = 0; t.changed();
   assert.equal(t.engine.musicBus.gain.value, 0); assert.equal(t.engine.musicVerb.gain.value, 0);
-  assert.equal(t.engine.sfxBus.gain.value, 0.85); assert.ok(t.engine.sfxVerb.gain.value > 0);
+  // Sliders are squared on the way to the mixer (an even feel along the slider).
+  assert.equal(t.engine.sfxBus.gain.value, 0.85 ** 2); assert.ok(t.engine.sfxVerb.gain.value > 0);
   t.settings.music = 0.5; t.settings.sfx = 0; t.changed();
   assert.ok(t.engine.musicBus.gain.value > 0 && t.engine.musicVerb.gain.value > 0);
   assert.equal(t.engine.sfxBus.gain.value, 0); assert.equal(t.engine.sfxVerb.gain.value, 0);
