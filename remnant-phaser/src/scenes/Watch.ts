@@ -166,7 +166,7 @@ export class Watch extends Phaser.Scene {
     this.band.rebuild(this.w);
     this.events.once('shutdown', () => this.band.destroy());
     this.nums = [];
-    for (let i = 0; i < 20; i++) this.nums.push({ t: this.add.text(0, 0, '', { fontFamily: 'Georgia, serif', fontSize: '22px', color: '#ffffff', stroke: '#07060a', strokeThickness: 4 }).setOrigin(0.5).setScale(0.4).setDepth(20).setVisible(false), life: 0, vy: 0 });
+    for (let i = 0; i < 20; i++) this.nums.push({ t: this.add.text(0, 0, '', { fontFamily: 'ui-rounded, "SF Pro Rounded", system-ui, -apple-system, sans-serif', fontStyle: '900', fontSize: '22px', color: '#ffffff', stroke: '#0e0d27', strokeThickness: 5 }).setOrigin(0.5).setScale(0.4).setDepth(20).setVisible(false), life: 0, vy: 0 });
     this.bursts = [];
     for (let i = 0; i < 8; i++) this.bursts.push({ img: this.add.image(0, 0, 'vfx-impacts', 0).setBlendMode(Phaser.BlendModes.ADD).setVisible(false).setDepth(9), t: -1, base: 0, n: 6, dur: 0.27 });
     // Afterimages left where he stepped from, and the cuts on the foes.
@@ -212,7 +212,7 @@ export class Watch extends Phaser.Scene {
     });
     music.play(sceneOf(D.gateOf(this.w.stage)).music);
     if (away && (away.coins > 0 || away.to !== away.from)) this.ui.welcome(away, awaySecs);
-    if (new URLSearchParams(location.search).has('debug')) (window as unknown as { __remnant: Record<string, unknown> }).__remnant = { ...((window as unknown as { __remnant?: Record<string, unknown> }).__remnant ?? {}), game: this.game, watch: this, watchPace: pace, watchPick: pickFoe };
+    if (new URLSearchParams(location.search).has('debug')) (window as unknown as { __remnant: Record<string, unknown> }).__remnant = { ...((window as unknown as { __remnant?: Record<string, unknown> }).__remnant ?? {}), game: this.game, watch: this, watchPace: pace, watchPick: pickFoe, watchStats: D.watchStats };
   }
 
   /** The wall fills the top of an upright phone (the panel below); sideways, the left half. */

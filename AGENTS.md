@@ -368,7 +368,9 @@ Never ship files from `art/incoming/` directly.
   Seals; away, the wall climbs on at half speed for up to 12 hours
   (`src/game/watch/offline.ts`) and a welcome card reports it. The Daily tab (`src/game/watch/daily.ts`): three
   daily quests, two weekly goals, a seven-day streak (one miss a week forgiven) and chests with shown odds and a
-  pity, Watch rewards only. Seals compound; `scripts/watch-pace.mjs` holds the pacing to the idle-economy skill's targets. Back to the journey only silver and
+  pity, Watch rewards only. The Feats tab (`src/game/watch/feats.ts`): 34 feats, each a small permanent bonus to his
+  blows, health or coins and a title to wear; Watch only. The Watch has its own look (twilight indigo, lantern amber,
+  rounded type; POLISH_PLAN §18l), not the journey's. Seals compound; `scripts/watch-pace.mjs` holds the pacing to the idle-economy skill's targets. Back to the journey only silver and
   capes. `PhaserSave.watch`. Verified by `scripts/watch.mjs`. See POLISH_PLAN §18.
   Each gate (ten stages) is a new place (`src/game/watch/scenes.ts`: eight
   scenes with their own parallax layers, set pieces, foes and gate boss), and
