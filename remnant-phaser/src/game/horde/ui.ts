@@ -245,7 +245,7 @@ export class HordeUI {
 // ---------------------------------------------------------------- the cards
 
 const CSS = `
-.hz-layer{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:20;pointer-events:auto;
+.hz-layer{position:fixed;inset:0;bottom:auto;height:var(--app-h,100%);display:flex;align-items:center;justify-content:center;z-index:20;pointer-events:auto;
   padding:max(14px,env(safe-area-inset-top)) max(12px,env(safe-area-inset-right)) max(14px,env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left));
   background:radial-gradient(ellipse at center,rgba(7,6,11,.62),rgba(7,6,11,.9));font-family:Georgia,serif;color:#ddd4c6}
 .hz-panel{width:min(440px,100%);max-height:100%;overflow:auto;text-align:center}

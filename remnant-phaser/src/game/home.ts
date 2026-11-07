@@ -14,7 +14,7 @@ import type { PhaserSave } from './save';
 export type HomeMode = 'chapters' | 'trial' | 'extreme' | 'gauntlet' | 'rush' | 'daily';
 
 const CSS = `
-.hm{position:fixed;inset:0;z-index:12;overflow-y:auto;-webkit-overflow-scrolling:touch;font-family:Georgia,serif;color:#ddd4c6;
+.hm{position:fixed;inset:0;bottom:auto;height:var(--app-h,100%);z-index:12;overflow-y:auto;-webkit-overflow-scrolling:touch;font-family:Georgia,serif;color:#ddd4c6;
   padding:calc(env(safe-area-inset-top) + 14px) calc(env(safe-area-inset-right) + 16px) calc(env(safe-area-inset-bottom) + 14px) calc(env(safe-area-inset-left) + 16px)}
 .hm-wrap{max-width:980px;margin:0 auto;display:flex;flex-direction:column;gap:14px;min-height:100%}
 .hm-head{text-align:center;padding-top:4px}

@@ -21,14 +21,15 @@ patchChapterOne();
 registerPsalms();
 import { Hud } from './scenes/Hud';
 
-import { dpr } from './game/screen';
+import { dpr, appHeight, applyAppHeight } from './game/screen';
 import { audio } from './classic/shim/audio';
 import { music } from './classic/shim/music';
 import { songs } from '../../remnant/src/audio/songs';
 import { registerOffline, checkForUpdates } from './game/update';
 import { settings, onSettingsChange } from './classic/shim/settings';
 
-const size = () => ({ w: Math.round(innerWidth * dpr()), h: Math.round(innerHeight * dpr()) });
+// The page's height is the screen's own on an installed iPhone app whose window comes up short (game/screen.ts).
+const size = () => { applyAppHeight(); return { w: Math.round(innerWidth * dpr()), h: Math.round(appHeight() * dpr()) }; };
 
 const s = size();
 const game = new Phaser.Game({
