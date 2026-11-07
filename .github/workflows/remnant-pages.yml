@@ -137,6 +137,7 @@ jobs:
       - run: node scripts/watch-pace.mjs
       - run: node scripts/home.mjs
       - run: node scripts/pad-menus.mjs
+      - run: node scripts/text-size.mjs
       - run: node scripts/legends.mjs
       - run: node scripts/install-audio.mjs
       - uses: actions/upload-artifact@v4

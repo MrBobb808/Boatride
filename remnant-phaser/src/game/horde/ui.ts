@@ -262,7 +262,7 @@ const CSS = `
 .hz-stats b{color:#f6dea0;font-weight:normal}
 .hz-btns{display:flex;flex-direction:column;gap:8px}
 .hz-btn{font-family:Cinzel,Georgia,serif;font-size:calc(15px*var(--fs-k,1));padding:11px 14px;border-radius:6px;border:1px solid rgba(226,184,90,.55);background:rgba(20,14,24,.92);color:#ddd4c6;cursor:pointer}
-.hz-btn:focus{outline:2px solid #f6dea0}
+.hz-btn:focus,.hz-card:focus{outline:2px solid #f6dea0;outline-offset:2px}
 .hz-btn.primary{background:linear-gradient(#6b4a1c,#3e2a10);color:#fff1c4;border-color:#f6dea0}
 .hz-row{display:flex;gap:8px;justify-content:center;margin-top:10px}
 .hz-btn.small{font-size:calc(13px*var(--fs-k,1));padding:8px 12px;flex:1;max-width:180px}
