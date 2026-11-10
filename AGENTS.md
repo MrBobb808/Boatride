@@ -415,7 +415,8 @@ Never ship files from `art/incoming/` directly.
   clean before committing.
 - **Testing:** there is no unit-test suite. Changes are verified by playing
   them in headless Chromium (Playwright) through the `?debug` API, and by a
-  production build.
+  production build. The Phaser build's checks are listed in `remnant-phaser/scripts/ci-tests.txt`
+  (add a new one there); CI runs them in eight shards (`scripts/ci-shard.mjs`).
 
 ## Where the story stands
 

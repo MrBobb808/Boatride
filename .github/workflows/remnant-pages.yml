@@ -73,7 +73,8 @@ jobs:
           path: remnant/dist
           retention-days: 1
 
-  phaser:
+  # The Phaser build, built once; the browser checks below share it.
+  phaser-build:
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -87,74 +88,46 @@ jobs:
           cache-dependency-path: remnant-phaser/package-lock.json
       - run: npm ci
       - run: npm run build
-      - run: npx playwright install --with-deps chromium
-      - run: node scripts/smoke.mjs
-      - run: node scripts/menu.mjs
-      - run: node scripts/journey.mjs
-      - run: node scripts/story-flow.mjs
-      - run: node scripts/modes-water.mjs
-      - run: node scripts/phone-progress.mjs
-      - run: node scripts/pacing.mjs
-      - run: node scripts/action-kit.mjs
-      - run: node scripts/animation-motion.mjs
-      - run: node scripts/equipment-visuals.mjs
-      - run: node scripts/visuals.mjs
-      - run: node scripts/combat.mjs
-      - run: node scripts/combat-moves.mjs
-      - run: node scripts/combat-feel.mjs
-      - run: node scripts/archer.mjs
-      - run: node scripts/archer-craft.mjs
-      - run: node scripts/archer-kit.mjs
-      - run: node scripts/sound-pass.mjs
-      - run: node scripts/tirzah-progression.mjs
-      - run: node scripts/tirzah-dagger.mjs
-      - run: node scripts/facing.mjs
-      - run: node scripts/powers.mjs
-      - run: node scripts/foes.mjs
-      - run: node scripts/saves.mjs
-      - run: node scripts/economy.mjs
-      - run: node scripts/echoes.mjs
-      - run: node scripts/echo-bond.mjs
-      - run: node scripts/partner.mjs
-      - run: node scripts/lighting.mjs
-      - run: node scripts/atmosphere.mjs
-      - run: node scripts/screen-fx.mjs
-      - run: node scripts/phone-controls.mjs
-      - run: node scripts/shade.mjs
-      - run: node scripts/ch1-pilot.mjs
-      - run: node scripts/psalms.mjs
-      - run: node scripts/horde.mjs
-      - run: node scripts/bosses.mjs
-      - run: node scripts/classic-bosses.mjs
-      - run: node scripts/gods.mjs
-      - run: node scripts/north.mjs
-      - run: node scripts/unshorn.mjs
-      - run: node scripts/might.mjs
-      - run: node scripts/replay.mjs
-      - run: node scripts/watch.mjs
-      - run: node scripts/feel.mjs
-      - run: node scripts/allies.mjs
-      - run: node scripts/watch-pace.mjs
-      - run: node scripts/watch-feats.mjs
-      - run: node scripts/watch-ascension.mjs
-      - run: node scripts/home.mjs
-      - run: node scripts/pad-menus.mjs
-      - run: node scripts/text-size.mjs
-      - run: node scripts/legends.mjs
-      - run: node scripts/install-audio.mjs
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: phaser-browser-checks
-          path: remnant-phaser/qa
       - uses: actions/upload-artifact@v4
         with:
           name: phaser-dist
           path: remnant-phaser/dist
           retention-days: 1
 
+  # Every browser check in scripts/ci-tests.txt, dealt out over the shards (scripts/ci-shard.mjs), so the whole run
+  # takes minutes, not most of an hour (NEXT_PLAN.md A2). A new check is one more line in that file.
+  phaser:
+    needs: phaser-build
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3, 4, 5, 6, 7]
+    defaults:
+      run:
+        working-directory: remnant-phaser
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: remnant-phaser/package-lock.json
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - uses: actions/download-artifact@v4
+        with:
+          name: phaser-dist
+          path: remnant-phaser/dist
+      - run: node scripts/ci-shard.mjs ${{ matrix.shard }} 8
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: phaser-browser-checks-${{ matrix.shard }}
+          path: remnant-phaser/qa
+
   build:
-    needs: [original, phaser]
+    needs: [original, phaser-build, phaser]
     runs-on: ubuntu-latest
     defaults:
       run:

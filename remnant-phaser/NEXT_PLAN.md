@@ -89,9 +89,10 @@ Checked in the repository on this date; each is addressed by the phase named.
   boot. Once a week, if no backup has been made in 14 days and the player has more than two hours of play, the home
   screen shows a quiet one-line reminder. Follow the `save-systems` skill. Test: back up, wipe storage, restore, every
   field equal; a damaged or foreign file is refused with a message and changes nothing.
-- [ ] **A2. Tests in a quarter of the time.** Split the `phaser` job into a matrix of about six shards (the scripts
-  listed in one file, dealt out by index), each building once from a shared build artifact. Target: under 12 minutes
-  for the whole run. Do not drop or skip any script.
+- [x] **A2. Tests in a quarter of the time.** BUILT: the `phaser-build` job builds once; the `phaser` job is a matrix
+  of eight shards, each running its share of `scripts/ci-tests.txt` through `scripts/ci-shard.mjs` (every check runs
+  even after a failure; failures are listed at the end; a script not in the list is named in the log). A new check is
+  one more line in `ci-tests.txt`. Nothing was dropped: the same 54 checks.
 - [ ] **A3. A faster first screen.** Measure first (first paint and time to the home screen on a throttled 4G profile,
   recorded here). Then load on demand what the first screen does not need: the Watch, the Horde, and each chapter's
   environment and boss modules (`render/env*.ts`, `game/bosses*.ts` are the largest files in the repository). The
