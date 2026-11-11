@@ -6,13 +6,13 @@ export type Action =
   | 'left' | 'right' | 'up' | 'down'
   | 'jump' | 'attack' | 'heavy' | 'dodge' | 'parry'
   | 'skill1' | 'skill2' | 'skill3'
-  | 'interact' | 'heal' | 'echo' | 'ultimate' | 'switch' | 'transform' | 'sub'
+  | 'interact' | 'heal' | 'echo' | 'ultimate' | 'switch' | 'transform' | 'sub' | 'chain'
   | 'menu' | 'map' | 'voice'
   | 'confirm' | 'back' | 'tabL' | 'tabR';
 
 export const ACTIONS: Action[] = [
   'left', 'right', 'up', 'down', 'jump', 'attack', 'heavy', 'dodge', 'parry',
-  'skill1', 'skill2', 'skill3', 'interact', 'heal', 'echo', 'ultimate', 'switch', 'transform', 'sub', 'menu', 'map', 'voice',
+  'skill1', 'skill2', 'skill3', 'interact', 'heal', 'echo', 'ultimate', 'switch', 'transform', 'sub', 'chain', 'menu', 'map', 'voice',
   'confirm', 'back', 'tabL', 'tabR',
 ];
 
@@ -20,7 +20,7 @@ export const ACTION_LABELS: Partial<Record<Action, string>> = {
   left: 'Move left', right: 'Move right', up: 'Look up / Interact', down: 'Crouch / Drop',
   jump: 'Jump', attack: 'Attack (hold: charge)', heavy: 'Heavy attack', dodge: 'Dodge / Dash',
   parry: 'Parry (hold: block)', skill1: 'Skill 1', skill2: 'Skill 2', skill3: 'Skill 3',
-  interact: 'Interact', heal: 'Balm (heal)', echo: 'Echo command wheel', ultimate: 'Rally the Remnant', switch: 'Switch support Echo', transform: 'Shadow Mantle (transform)', sub: 'Sub-weapon (or hold up + Heavy)',
+  interact: 'Interact', heal: 'Balm (heal)', echo: 'Echo command wheel', ultimate: 'Rally the Remnant', switch: 'Switch support Echo', transform: 'Shadow Mantle (transform)', sub: 'Sub-weapon (or hold up + Heavy)', chain: 'The Sundered Chains (or hold down + Heavy)',
   menu: 'Pause menu', map: 'World map', voice: 'Voice squad orders',
 };
 
@@ -46,6 +46,7 @@ export const DEFAULT_KEYS: Record<Action, string[]> = {
   switch: ['KeyX'],
   transform: ['KeyG'],
   sub: ['KeyU'],
+  chain: ['KeyY'],
   menu: ['Escape', 'Tab'],
   map: ['KeyM'],
   voice: ['KeyV'],
@@ -66,11 +67,13 @@ export const DEFAULT_PAD: Partial<Record<Action, number[]>> = {
   jump: [0], dodge: [1], attack: [2], heavy: [3], parry: [4], skill1: [5], skill2: [6], skill3: [7],
   map: [17, 8], menu: [9], echo: [10], ultimate: [11], transform: [],
   interact: [12], heal: [13], switch: [14], sub: [15],
+  // No button of their own by default: Down + Heavy lashes the chains on any device.
+  chain: [],
 };
 // Menus always navigate the same way: ✕/A confirm, ○/B back, L1/R1 tabs.
 const PAD_FIXED: Partial<Record<Action, number[]>> = { confirm: [0], back: [1], tabL: [4], tabR: [5] };
 /** Actions a player may move to other controller buttons. */
-export const PAD_REMAPPABLE: Action[] = ['jump', 'attack', 'heavy', 'dodge', 'parry', 'skill1', 'skill2', 'skill3', 'interact', 'heal', 'echo', 'ultimate', 'switch', 'transform', 'sub', 'map', 'menu'];
+export const PAD_REMAPPABLE: Action[] = ['jump', 'attack', 'heavy', 'dodge', 'parry', 'skill1', 'skill2', 'skill3', 'interact', 'heal', 'echo', 'ultimate', 'switch', 'transform', 'sub', 'chain', 'map', 'menu'];
 
 export type PadKind = 'playstation' | 'xbox' | 'generic';
 const PS_NAMES = ['✕', '○', '□', '△', 'L1', 'R1', 'L2', 'R2', 'Create', 'Options', 'L3', 'R3', 'D-pad ↑', 'D-pad ↓', 'D-pad ←', 'D-pad →', 'PS', 'Touchpad'];

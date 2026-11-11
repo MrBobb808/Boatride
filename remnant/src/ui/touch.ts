@@ -83,6 +83,14 @@ const owner = new Map<number, TBtn>();
 /** The controls the layout editor can move. */
 export interface ControlSpec { id: string; icon: string; size: number; label: string; corner: boolean }
 export const CONTROL_SPECS: ControlSpec[] = BTNS.map((b) => ({ id: b.id, icon: b.icon, size: b.size, label: b.label, corner: !!b.corner }));
+/** Controls a host build draws itself (the Phaser build's CHAINS button): placed and edited like the rest, never
+ * built by this file, so the original's own controls are unchanged. */
+const HOST: TBtn[] = [];
+export function addHostControl(b: { id: string; icon: string; size: number; dx: number; dy: number; label: string }) {
+  if (HOST.some((q) => q.id === b.id)) return;
+  HOST.push(b);
+  CONTROL_SPECS.push({ id: b.id, icon: b.icon, size: b.size, label: b.label, corner: false });
+}
 
 /** Scale shared by every control: the size setting times the screen height. */
 export function touchUnit(H: number, scale = settings.touchScale) {
@@ -109,7 +117,7 @@ export function controlSpot(id: string, W: number, H: number, scale: number, lay
     clampSpot(lh ? W - x : x, y, r, W, H);
     return spot;
   }
-  const b = BTNS.find((q) => q.id === id)!;
+  const b = (BTNS.find((q) => q.id === id) ?? HOST.find((q) => q.id === id))!;
   const s0 = b.size * u;
   let x: number, y: number;
   if (own) {

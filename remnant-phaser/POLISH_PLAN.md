@@ -1066,6 +1066,46 @@ Saves stay compatible: new fields are optional, and the backup key is new rather
 new runtime dependencies: the skills are documentation, and their two Python QA scripts run only in `art/tools/`.
 Scripture, the story and the art style are untouched.
 
+## 20. The Sundered Chains (the owner's ask of 10 November 2026) · BUILT
+
+"Incorporate flame chain dagger abilities, where he can slash it around and it hits an enemy and pulls him in." Elior
+carries a second weapon beside his sword: twin short blades on the chains the Remnant's captives were held in, forged
+by Dov and kindled. They are won at the end of Chapter I (a journey already past it has them from its next door) and
+stay his for good. Chapter XIII will kindle them further. The name is from the verse the game already quotes for Chains
+Broken: "...and brake their bands in sunder." — Psalm 107:14 (KJV). The design is the game's own: no other game's
+names, art or moves are used.
+
+- **One button, read by where the foes are.** The CHAINS touch button (along the bottom row, movable in the touch
+  editor), `Y` on a keyboard, or **Down + Heavy** on any device (a controller has no spare button; the action can be
+  bound to one in Settings → Controls).
+  - **A foe in reach: the lash.** Three long burning arcs (about four times the sword's reach, and through every foe in
+    them): a forehand, a backhand over the top, then both blades hauled overhead and slammed down (breaks a guard). A
+    fourth press is the **cyclone**: both blades round him six times, drawing the rank in.
+  - **A foe past the lash and within 300 px, in a clear line: the hook.** A blade is thrown into it (a bite, and it
+    burns). A light foe is dragged to his feet and his next blow lands half again harder (the swap's reward,
+    `swapStrikeT`). A boss, an elite or a heavy body carries him along the chain instead and into a rising strike that
+    opens an air combo. Holding Up carries him to any foe, and prefers one above him. 1.1 s between throws.
+  - **In the air:** the hook if a foe is in reach, else one wheel of fire a leap, which holds him up while it lands.
+  - **Out of the sword:** a chain press during any sword blow cancels into the chains at that blow's cancel point (the
+    third blow goes straight to the cyclone); an attack press during a chain move goes back to the sword.
+- **Numbers** (`CHAINS` in `src/game/chains.ts`): a lash blow is 0.7–0.75 of a sword blow to each foe, the slam 1.5,
+  the cyclone 6 × 0.5, the wheel 3 × 0.6, the hook's bite 0.6, the arriving strike 1.35. Every chain blow burns for
+  3 s at 22% of his attack a second. Lighter per foe than the sword, so the sword stays the answer to one strong foe
+  and the chains to a crowd or to distance. They keep their own tempo whatever sword he carries.
+- **How it is built:** the moves are `AttackDef` data and run through the player's own swing, hit and cancel code
+  (`player.ts`: `chainPressed`, `chooseChain`, `startHook`, `updateHook`, `hookBite`). His body's poses are nine clips
+  baked into the action atlas with his hands free of the sword (`CHAIN_CLIPS`, `actionArt.ts`). The chains are drawn
+  live (`ChainFx`): pooled link sprites along a curve from his hand to the blade that lags the blade's motion, so it
+  whips; the blade; a trail of fire along its path; and embers. The four textures are painted in code, so no art drop
+  is needed. Nothing allocates per frame; Reduce flashes hides the fire. Five new sounds (`chainLash`, `chainThrow`,
+  `chainBite`, `chainSlam`, `chainWhirl` in `audio/audio.ts`).
+- Elior's alone: not Tirzah's, not in the Unshorn's bare hands, not while swimming. No save field (the flag
+  `sundered_chains`). The original edition is unchanged (it gains only the unused input action).
+- Verified by `scripts/chains.mjs`: nothing without them; Chapter I's end wins them; the lash reaches a foe 104 px away
+  that the sword cannot and sets it burning; lash, lash, slam, cyclone; the sword's third blow into the cyclone; a
+  light foe dragged from 170 px to his feet with the next blow readied; a heavy one carrying him 180 px into the
+  strike; Down + Heavy; the wheel in the air; the touch button; and that they are not Tirzah's.
+
 ## 10. Questions for the owner
 
 Answered: the archer stays **Tirzah**, and Wings of the Morning **shares** the Mantle's gauge.

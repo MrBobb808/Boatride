@@ -351,6 +351,12 @@ Never ship files from `art/incoming/` directly.
   level (the Armor of Light and the Psalm of the Swarm hit on contact in this build), and no crescent: the shadow
   element bites with a burst, and the Horde's blade only cuts. His run and swing speed are capped (`MAX_RUN`,
   `MAX_ASPD` in `player.ts`). See POLISH_PLAN §16–17.
+- **The Sundered Chains (Phaser build):** Elior's second weapon (`remnant-phaser/src/game/chains.ts`, POLISH_PLAN
+  §20): twin kindled blades on chains, won with Chapter I (the flag `sundered_chains`). The `chain` action (the CHAINS
+  touch button, `Y`, or Down + Heavy) lashes foes in reach (lash, lash, slam, cyclone), hooks a far one (a light foe is
+  dragged to him; a boss, an elite or a heavy body carries him to it), and wheels in the air. The moves are
+  `AttackDef` data run by `player.ts`; the chains are drawn live by `ChainFx` from code-painted textures. A host build's
+  own touch control is registered with `addHostControl` (`ui/touch.ts`). Verified by `scripts/chains.mjs`.
 - **The Horde (Phaser build):** a top-down survival mode in endless stages
   (`remnant-phaser/src/scenes/Horde.ts`, `src/game/horde/`): auto-weapons, a
   1-of-3 upgrade per level, a Fallen Crown monarch per stage, Elior, Tirzah and

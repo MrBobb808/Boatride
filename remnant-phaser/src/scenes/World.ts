@@ -3,6 +3,7 @@
 // doorways. The camera shows 300 world pixels of height, as the original does.
 
 import Phaser from 'phaser';
+import { CHAPTERS } from '../../../remnant/src/game/chapters';
 import { ROOMS, CHAR_TILE, T, TILE, isSolid, FALLEN_CHAPTERS, fallenObjective, chapterCurve, type RoomDef, type EntDef } from '../shared';
 import { Controls } from '../game/controls';
 import { Player } from '../game/player';
@@ -298,9 +299,19 @@ export class World extends Phaser.Scene implements WorldApi {
     this.sector = -1;
   }
 
+  /** The Sundered Chains (game/chains.ts) are won with Chapter I: Dov forges the captives' broken chains into twin
+   * blades. A journey already past it has them from its next door. A flag, so the save needs no new field. */
+  private grantChains() {
+    const s = this.save;
+    if (s.flags.sundered_chains || !CHAPTERS[0].done()) return;
+    s.flags.sundered_chains = true;
+    this.time.delayedCall(1400, () => { this.banner('THE SUNDERED CHAINS', 'The chains that held the captives, forged into twin blades'); this.toast('Chains: the CHAINS button, or hold Down and press Heavy. A far foe is hooked.'); });
+  }
+
   loadRoom(id: string, spawnName: string) {
     this.clearRoom();
     this.refreshStats();
+    this.grantChains();
     const r = (this.room = ROOMS[id]);
     // A replay lasts while the hero is in its chapter (the Trial and the Rest belong to no chapter's story).
     if (this.save.replay !== undefined && id !== 'trial_arena' && id !== 'remnant_rest' && chapterOf(id) !== this.save.replay) delete this.save.replay;
