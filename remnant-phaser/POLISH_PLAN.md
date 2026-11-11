@@ -1103,8 +1103,8 @@ names, art or moves are used.
   `sundered_chains`). The original edition is unchanged (it gains only the unused input action).
 - Verified by `scripts/chains.mjs`: nothing without them; Chapter I's end wins them; the lash reaches a foe 104 px away
   that the sword cannot and sets it burning; lash, lash, slam, cyclone; the sword's third blow into the cyclone; a
-  light foe dragged from 170 px to his feet with the next blow readied; a heavy one carrying him 180 px into the
-  strike; Down + Heavy; the wheel in the air; the touch button; and that they are not Tirzah's.
+  light foe dragged from 150 px to his feet with the next blow readied; a heavy one carrying him 160 px into the
+  strike; Down + Heavy; the wheel in the air and the hook from the air; the touch button; and that they are not Tirzah's.
 
 ## 10. Questions for the owner
 

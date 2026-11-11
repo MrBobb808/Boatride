@@ -15,6 +15,13 @@ const until = (page, fn, arg, timeout = 15000) => page.waitForFunction(fn, arg, 
 // Headless, the scene runs slower than the wall clock: every wait is on the game's own state or clock.
 /** Free, on the ground, and the last blow's combo window closed: the next press starts afresh. */
 const idle = (page) => until(page, () => { const p = window.__remnant.world.player; return p.state === 'free' && p.onGround && !p.linger; });
+/** Settled on the ground, then a real jump: off the ground and rising (he is not on the ground for a frame after he is
+ * placed, which is not a jump). Space is left held; the caller lets it go. */
+const leap = async (page) => {
+  await until(page, () => { const p = window.__remnant.world.player; return p.onGround && p.state === 'free'; });
+  await page.keyboard.down('Space');
+  await until(page, () => { const p = window.__remnant.world.player; return !p.onGround && p.body.velocity.y < -120; });
+};
 /** `secs` of game time. */
 const gameWait = async (page, secs) => { const t0 = await E(page, () => window.__remnant.world.player.clock); await until(page, ([t0, secs]) => window.__remnant.world.player.clock - t0 >= secs, [t0, secs]); };
 
@@ -35,12 +42,15 @@ try {
       /** Park every foe far away, then stand the first `n` at these offsets ahead of Elior, whole and still. */
       set(...dx) {
         const p = w.player, fs = T.foes();
+        // Every case starts from the same spot (his lunges carry him forward, and a ledge stands further along).
+        p.placeAt(T.home.x, T.home.feet, 1);
         for (const f of fs) { f.x = 99999; f.body.vx = 0; }
         T.held = dx.map((d, i) => { const f = fs[i]; f.hp = f.maxHp = 1e7; f.burn = 0; f.x = p.x + d; f.y = p.feet; f.body.vx = f.body.vy = 0; return { f, d }; });
         p.face = 1; p.hookCd = 0; p.hp = p.maxHp;
         return T.held.map((h) => h.f);
       },
       held: [],
+      home: { x: w.player.x, feet: w.player.feet },
       seen: new Set(),
       chainShown: 0,
     });
@@ -104,7 +114,7 @@ try {
 
   // ---- the hook: a far light foe is dragged to his feet, and his next blow lands harder
   await idle(page);
-  const x0 = await E(page, () => { window.__t.set(170); window.__t.seen.clear(); return window.__remnant.world.player.x; });
+  const x0 = await E(page, () => { window.__t.set(150); window.__t.seen.clear(); return window.__remnant.world.player.x; });
   await page.keyboard.press('KeyY');
   await until(page, () => window.__t.seen.has('hook:throw'));
   await page.screenshot({ path: 'qa/chains-hook.png' });
@@ -112,18 +122,18 @@ try {
   const yank = await E(page, () => { const p = window.__remnant.world.player, { f } = window.__t.held[0]; return { gap: Math.round(f.x - p.x), moved: Math.round(p.x), bonus: p.swapStrikeT, seen: [...window.__t.seen], hurt: f.maxHp - f.hp, burn: f.burn }; });
   assert.ok(yank.seen.includes('hook:yank') && yank.gap > 0 && yank.gap < 70, `the hooked foe was dragged to his feet (${JSON.stringify(yank)})`);
   assert.ok(Math.abs(yank.moved - x0) < 30 && yank.bonus > 0 && yank.hurt > 0 && yank.burn > 0, `he stood his ground, the hook bit, and his next blow is readied (${JSON.stringify(yank)})`);
-  console.log(`Hook (light): the foe came from 170 px to ${yank.gap} px; next blow readied`);
+  console.log(`Hook (light): the foe came from 150 px to ${yank.gap} px; next blow readied`);
 
   // ---- a heavy foe carries him to it, and into the arriving strike
   await idle(page);
   await until(page, () => window.__remnant.world.player.state === 'free');
-  await E(page, () => { const [f] = window.__t.set(180); f.heavyBody = true; window.__t.seen.clear(); });
+  await E(page, () => { const [f] = window.__t.set(160); f.heavyBody = true; window.__t.seen.clear(); });
   await page.keyboard.press('KeyY');
   await until(page, () => window.__t.seen.has('charrive'));
   const carry = await E(page, () => { const p = window.__remnant.world.player, { f } = window.__t.held[0]; f.heavyBody = false; return { gap: Math.round(Math.abs(f.x - p.x)), seen: [...window.__t.seen] }; });
   assert.ok(carry.seen.includes('hook:fly') && carry.gap < 80, `the chain carried him to the heavy foe (${JSON.stringify(carry)})`);
   await until(page, () => window.__remnant.world.player.state === 'free');
-  console.log(`Hook (heavy): the chain carried him 180 px to within ${carry.gap} px, into the strike`);
+  console.log(`Hook (heavy): the chain carried him 160 px to within ${carry.gap} px, into the strike`);
 
   // ---- nothing in reach: the lash, not a throw at nothing
   await idle(page);
@@ -142,15 +152,24 @@ try {
 
   // ---- in the air: one wheel of fire a leap
   await idle(page);
-  await E(page, () => { window.__t.set(50); window.__t.seen.clear(); });
-  await page.keyboard.down('Space');
-  await until(page, () => !window.__remnant.world.player.onGround);
-  await gameWait(page, 0.1);
-  await page.keyboard.up('Space');
+  // No foe in reach, so the wheel is the only answer (with one near, a higher leap puts it in the hook's reach).
+  await E(page, () => { window.__t.set(); window.__t.seen.clear(); });
+  await leap(page);
   await page.keyboard.press('KeyY');
+  await page.keyboard.up('Space');
   await until(page, () => window.__t.seen.has('chair'));
   await until(page, () => { const p = window.__remnant.world.player; return p.onGround && p.state === 'free'; });
   console.log('Aloft: the wheel of fire');
+
+  // ---- and aloft with a foe in reach: the hook, from the air
+  await idle(page);
+  await E(page, () => { window.__t.set(140); window.__t.seen.clear(); });
+  await leap(page);
+  await page.keyboard.press('KeyY');
+  await page.keyboard.up('Space');
+  await until(page, () => window.__t.seen.has('hook:throw'));
+  await until(page, () => { const p = window.__remnant.world.player; return p.onGround && p.state === 'free'; });
+  console.log('Aloft: a foe in reach is hooked from the air');
 
   // ---- the touch button stands with the others, and the chains are not Tirzah's
   const spec = await E(page, () => { const hud = window.__remnant.game.scene.getScene('hud'); return hud.btns.some((b) => b.a === 'chain'); });
@@ -165,7 +184,7 @@ try {
 } catch (e) {
   // What he was doing when a wait ran out, for the log.
   const page = browser.contexts()[0]?.pages()[0];
-  if (page) console.error('At failure:', await page.evaluate(() => { const p = window.__remnant?.world?.player; return p ? { state: p.state, atk: p.atk?.id, linger: p.linger, ground: p.onGround, hook: p.hook?.phase, seen: [...(window.__t?.seen ?? [])] } : null; }).catch(() => null));
+  if (page) console.error('At failure:', await page.evaluate(() => { const p = window.__remnant?.world?.player; return p ? { state: p.state, atk: p.atk?.id, linger: p.linger, ground: p.onGround, hook: p.hook?.phase, vy: Math.round(p.body.velocity.y), airChain: p.airChain, seen: [...(window.__t?.seen ?? [])] } : null; }).catch(() => null));
   throw e;
 } finally {
   await browser.close();
