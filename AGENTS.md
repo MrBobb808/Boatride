@@ -308,6 +308,10 @@ Never ship files from `art/incoming/` directly.
   - Phaser build: every write keeps the save it replaces under `<key>.bak`, and a save that will not read is
     replaced by it on load (`remnant-phaser/src/game/saveGuard.ts`); damaged amounts are repaired, never refused
     (`settle` in `src/game/save.ts`, `migrateWatch`).
+  - Phaser build: a player can take everything off the device and bring it back (`src/game/backup.ts`,
+    `backupUi.ts`): Save & system → Back up my journey / Restore from a backup (also on the home screen) / Undo the
+    last restore. A new storage key that holds progress must be covered by `collect` (its own keys begin
+    `remnant-phaser.`; the boards are `remnant.<name>.v1`). Verified by `scripts/backup.mjs`.
 - **Volume sliders** (settings v5): the mixer squares each slider (`applyVolumes` in `audio/audio.ts`) so its travel
   sounds even; v5 moved saved sliders to their square roots once, keeping everyone's loudness. Change both settings
   files together (`remnant/src/core/settings.ts` and the Phaser build's `src/classic/shim/settings.ts`).

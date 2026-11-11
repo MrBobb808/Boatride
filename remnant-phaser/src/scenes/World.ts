@@ -226,6 +226,8 @@ export class World extends Phaser.Scene implements WorldApi {
     this.events.once('shutdown', () => document.removeEventListener('visibilitychange', onHide));
     if (new URLSearchParams(location.search).has('debug')) {
       (window as unknown as { __remnant: unknown }).__remnant = {
+        // What the boot set (the audio graph, the backup module) stays reachable beside the world's own.
+        ...((window as unknown as { __remnant?: Record<string, unknown> }).__remnant ?? {}),
         game: this.game, world: this, controls: this.controls, rooms: ROOMS, G,
         warp: (id: string, spawn = 'start') => this.goTo(id, spawn),
         give: (xp: number) => this.onFoeDied(xp, 0, this.player.x, this.player.y),

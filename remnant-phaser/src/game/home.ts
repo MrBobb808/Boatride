@@ -10,6 +10,8 @@ import { G } from '../classic/shim/ctx';
 import { pushLayer, popLayer } from '../../../remnant/src/ui/dom';
 import { ROOMS } from '../shared';
 import type { PhaserSave } from './save';
+import { shouldRemind, noteReminded } from './backup';
+import { restoreButton } from './backupUi';
 
 /** What the world does on arrival when the journey is entered from a mode card (World.init's `mode`). */
 export type HomeMode = 'chapters' | 'trial' | 'extreme' | 'gauntlet' | 'rush' | 'daily';
@@ -51,6 +53,12 @@ const CSS = `
 .hm-card.locked em{color:#9b92a6}
 .hm-card:not(.locked):active{transform:scale(.98)}
 .hm-more{display:flex;flex-direction:column;gap:8px}
+.hm-keep{margin-top:8px;display:flex;flex-direction:column;align-items:flex-start;gap:2px}
+.hm-link{background:none;border:0;padding:6px 2px;font:inherit;font-size:calc(12px*var(--fs-k,1));color:#b9a98a;text-decoration:underline;cursor:pointer;text-align:left}
+.hm-link.warn{color:#ffb08a}
+.hm-link:focus-visible{outline:2px solid #f6dea0;outline-offset:2px}
+.hm-note{font-size:calc(11.5px*var(--fs-k,1));color:#9b92a6;line-height:1.4}
+.hm-note:empty{display:none}
 .hm-more .hm-btn{font-size:calc(13px*var(--fs-k,1));min-height:40px;text-align:left}
 .hm-foot{margin-top:auto;text-align:center;font-size:calc(11px*var(--fs-k,1));color:#9b92a6;padding-top:6px}
 .hm-foot.fresh{color:#f6dea0}
@@ -160,6 +168,7 @@ export class Home {
       button('Begin', 'title_first', 'primary', () => this.h.begin());
     }
     box.appendChild(btns);
+    box.appendChild(this.keeping());
     // The live game's slots share this origin's storage: one can be copied in (the live slot is untouched).
     if (this.h.live.length) {
       const more = el('div', 'hm-more'); more.style.marginTop = '10px';
@@ -172,6 +181,19 @@ export class Home {
       box.appendChild(more);
     }
     return box;
+  }
+
+  /** Under the journey: restoring a backup (a new phone starts here), and a quiet word when one is overdue. */
+  private keeping() {
+    const row = el('div', 'hm-keep'), note = el('div', 'hm-note');
+    const say = (msg: string) => { note.textContent = msg; };
+    note.dataset.k = 'title_backup_note';
+    if (this.h.save && shouldRemind(this.h.save.playtime ?? 0)) {
+      say('It has been a while since this journey was backed up. Menu → System → Save & system → Back up my journey.');
+      noteReminded();
+    }
+    row.append(restoreButton('hm-link', say), note);
+    return row;
   }
 
   private chapterHere(save: PhaserSave): ChapterDef | undefined {
