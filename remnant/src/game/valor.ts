@@ -92,6 +92,7 @@ const BOSSES: { key: string; name: string; won: string; title?: string; cape?: s
   { key: 'grecia_prince', name: 'the Prince of Grecia', won: 'Toward the Four Winds' },
   { key: 'nation_gods', name: 'the Gods of the Nations', won: 'No Voice, Nor Any That Answered' },
   { key: 'north_king', name: 'the King of the North', won: 'None Shall Help Him' },
+  { key: 'tyrus_prince', name: 'the Prince of Tyrus', won: 'A Man, and No God' },
 ];
 const FLAWLESS_REWARD: Record<string, { title?: string; cape?: string }> = {
   idol: { title: 'Idolbreaker' },
@@ -102,6 +103,7 @@ const FLAWLESS_REWARD: Record<string, { title?: string; cape?: string }> = {
   grecia_prince: { title: 'Hornbreaker', cape: 'storm' },
   nation_gods: { title: 'the Unbowed', cape: 'ember' },
   north_king: { title: 'the Wise', cape: 'pearl' },
+  tyrus_prince: { title: 'the Unbought', cape: 'royal' },
 };
 const cap = (s: string) => s[0].toUpperCase() + s.slice(1);
 

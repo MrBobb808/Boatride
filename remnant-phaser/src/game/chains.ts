@@ -47,6 +47,11 @@ const IDS = new Set<string>([...CHAINS.lash.map((a) => a.id), CHAINS.cyclone.id,
 export const isChainMove = (id: string) => IDS.has(id);
 /** Every chain blow sets its foe burning for this long, at this share of his attack a second. */
 export const CHAIN_BURN = { secs: 3, share: 0.22 };
+/** Kindled (after Chapter XIII, where the fetters of Tyrus were broken): the fire bites deeper and the hook flies further. */
+export const isKindled = (s: PhaserSave) => !!s.flags.chains_kindled;
+const KINDLED_BURN = { secs: 4.5, share: 0.36 };
+export const chainBurn = (s: PhaserSave) => (isKindled(s) ? KINDLED_BURN : CHAIN_BURN);
+export const hookRange = (s: PhaserSave) => HOOK_RANGE + (isKindled(s) ? 60 : 0);
 /** The hook's own bite, as a share of a blow. */
 export const HOOK_DMG = 0.6;
 

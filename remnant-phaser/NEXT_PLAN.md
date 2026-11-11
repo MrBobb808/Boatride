@@ -216,7 +216,7 @@ Checked in the repository on this date; each is addressed by the phase named.
 
 ## Phase F: more story (the owner decides)
 
-Chapter XII closes the Daniel arc. A second book is the largest thing that could be added and the slowest to make;
+**Chapter XIII, The Stones of Fire (Ezekiel 26–28), is built** (the owner asked for the next chapter on 10 November; `remnant/FALLEN_CHAPTERS.md`, `scripts/tyrus.mjs`). Beyond it, a second book is the largest thing that could be added and the slowest to make;
 the systems above give more play per week of work. When the owner wants it, the pattern is the Fallen Crown builder
 (`game/fallenChapters.ts`): a chapter is a table of rooms, a `DRESS` entry, a curve row and one boss module.
 

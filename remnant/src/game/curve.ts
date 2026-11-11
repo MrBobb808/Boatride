@@ -51,6 +51,8 @@ export const CURVE: readonly ChapterCurve[] = [
   { level: 58, foeHp: 32, foeDmg: 11.4, xp: 8, clearXp: 30000, bossHp: 240000, bossDmg: 470 }, // XI · the Gods of the Nations
   // XII: the time of trouble, harder again: a fuller host, and the king himself hits harder than any god.
   { level: 68, foeHp: 60, foeDmg: 13.8, xp: 9, clearXp: 36000, bossHp: 300000, bossDmg: 540 }, // XII · the King of the North
+  // XIII: the richest city on earth can pay for the best swords: harder again, and its prince hits hardest of all.
+  { level: 76, foeHp: 82, foeDmg: 15.6, xp: 9.5, clearXp: 40000, bossHp: 360000, bossDmg: 590 }, // XIII · the Prince of Tyrus
 ];
 
 /** A chapter's row; a chapter past the end of the table takes the last one. */

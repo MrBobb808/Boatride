@@ -126,7 +126,7 @@ export class Home {
     this.root = el('div', 'hm');
     const wrap = el('div', 'hm-wrap');
     const head = el('div', 'hm-head');
-    head.append(el('div', 'hm-word', 'REMNANT'), el('div', 'hm-asc', 'ASCENSION'), Object.assign(el('div', 'hm-sub', 'Twelve chapters · One covenant'), { id: 'title_subtitle' }));
+    head.append(el('div', 'hm-word', 'REMNANT'), el('div', 'hm-asc', 'ASCENSION'), Object.assign(el('div', 'hm-sub', 'Thirteen chapters · One covenant'), { id: 'title_subtitle' }));
     this.stage = el('div', 'hm-stage');
     const side = el('div', 'hm-side');
     side.append(head, this.stage, this.journey());
@@ -163,7 +163,7 @@ export class Home {
       button('New journey', 'title_second', '', (b) => { if (!this.h.begin()) { b.textContent = 'Tap again: a new journey'; b.classList.add('warn'); } });
     } else {
       box.append(el('div', 'hm-kicker', 'A new journey'), el('div', 'hm-where', 'The Ashen Village'),
-        el('div', 'hm-meta', 'Elior wakes in the ruins. Twelve chapters lie ahead.'));
+        el('div', 'hm-meta', 'Elior wakes in the ruins. Thirteen chapters lie ahead.'));
       box.appendChild(el('div', 'hm-prog'));
       button('Begin', 'title_first', 'primary', () => this.h.begin());
     }

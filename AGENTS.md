@@ -97,6 +97,12 @@ Never ship files from `art/incoming/` directly.
     XI's, and two standards (the Chariots', the Horsemen's) seal the palace.
     Shira, keeper of the book of names, is rescued from the Field of the
     Sleepers.
+  - XIII, *The Stones of Fire* (Ezekiel 26–28): the same builder and story
+    (`n: 13`), on Chapter X's coast art, dressed by hand (`DRESS`) as a lit
+    merchant city. The people the king's host carried off were sold in the
+    fairs of Tyrus. A hired host (`tyre()`), a curve row above XII's, and two
+    fetters (the Fairs', the Storehouse's) seal the prince's seat. Keziah, who
+    kept the market's tally, is rescued from the Holds of Tarshish.
   - `game/chapters.ts` lists the chapters for chapter select (`ui/chapters.ts`). In
     the Phaser build a finished chapter can be replayed (`chapterReplay`,
     `PhaserSave.replay`): its bosses and commanders stand again, matched to
@@ -125,6 +131,15 @@ Never ship files from `art/incoming/` directly.
     marked arrows and a low volley) and the Fury (he grows; three dashes).
     At his end none helps him (Daniel 11:45) and Michael stands up (12:1);
     Elior only withstands. Verified by `remnant-phaser/scripts/north.mjs`.
+  - `game/bosses13.ts`: the Prince of Tyrus, one prince in three movements.
+    He reads Elior: the same kind of blow (quick, heavy, the chains
+    (`HitInfo.tag`), or abilities) landed three or four times running is
+    turned aside until the attack changes, and a different blow breaks the
+    read. The Covering: nine stones blunt every blow and are struck off one
+    by one until he kneels; the stones of fire; his brightness. The Fire from
+    the Midst: he burns and his health falls by itself (Ezekiel 28:18); the
+    fetters bind him (Psalm 149:8). Elior only withstands. Verified by
+    `remnant-phaser/scripts/tyrus.mjs`.
   - `game/difficulty.ts`: Settings → Challenge → Boss difficulty (Normal,
     Hard by default, Merciless) scales every boss's health, damage and tempo.
   - `game/curve.ts`: one table per chapter of the level a straight-through
@@ -360,7 +375,8 @@ Never ship files from `art/incoming/` directly.
   touch button, `Y`, or Down + Heavy) lashes foes in reach (lash, lash, slam, cyclone), hooks a far one (a light foe is
   dragged to him; a boss, an elite or a heavy body carries him to it), and wheels in the air. The moves are
   `AttackDef` data run by `player.ts`; the chains are drawn live by `ChainFx` from code-painted textures. A host build's
-  own touch control is registered with `addHostControl` (`ui/touch.ts`). Verified by `scripts/chains.mjs`.
+  own touch control is registered with `addHostControl` (`ui/touch.ts`). After Chapter XIII they are kindled
+  (`chains_kindled`: a deeper burn, a longer hook). Verified by `scripts/chains.mjs`.
 - **The Horde (Phaser build):** a top-down survival mode in endless stages
   (`remnant-phaser/src/scenes/Horde.ts`, `src/game/horde/`): auto-weapons, a
   1-of-3 upgrade per level, a Fallen Crown monarch per stage, Elior, Tirzah and
@@ -430,7 +446,7 @@ Never ship files from `art/incoming/` directly.
 
 ## Where the story stands
 
-Chapters I–XII are implemented, each with a chapter-end screen; XII, The Time of Trouble, closes the Daniel arc. Chapter X, The
+Chapters I–XIII are implemented, each with a chapter-end screen; XII, The Time of Trouble, closes the Daniel arc, and XIII, The Stones of Fire (Ezekiel 26–28), brings home the people its king sold. Chapter X, The
 Prince of Grecia, pays off Daniel 10:20 on the storm coast of Chittim. Chapter VI
 continues into the original Fallen Crown campaigns: VII, The Crown of the Hunt
 (Varkhos), and VIII, The Crown of Pestilence (Morvane). Their room definitions,
