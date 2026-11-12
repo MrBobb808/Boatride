@@ -686,6 +686,7 @@ export class Player {
   private startHeal() {
     const s = this.w.save;
     if (!this.onGround) return;
+    if (this.w.fasting) { this.w.toast('Balm is sealed by the Fire: rest at an altar.'); return; }
     if (this.powers?.L.story.ch3.rounds.balmSealed) { this.w.toast('Balm is sealed by this run’s rules.'); return; }
     if (s.balm <= 0) { this.w.floatText(this.x, this.body.top - 8, 'No Balm left: rest at an altar', '#ff9a9a'); return; }
     if (this.hp >= this.maxHp) return;
