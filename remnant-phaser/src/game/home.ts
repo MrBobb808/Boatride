@@ -310,17 +310,32 @@ export class Home {
     const box = el('section', 'hm-modes');
     box.appendChild(el('div', 'hm-h', 'Game modes'));
     const grid = el('div', 'hm-grid');
-    for (const c of this.cards()) {
+    // A first visit is not greeted by eight cards (NEXT_PLAN E2): until the covenant relic is recovered only the modes
+    // already open are shown, and each one that opens later carries a "new" mark until it is first tried.
+    const s = this.h.save as PhaserSave | null, flags = (s?.flags ?? {}) as Record<string, unknown>;
+    const young = !s || !flags.relic_taken;
+    const all = this.cards(), shown = young ? all.filter((c) => !c.locked) : all;
+    for (const c of all) if (s && !c.locked && c.id !== 'chapters' && !flags[`seen_${c.id}`] && !young) c.isNew = true;
+    for (const c of shown) {
       const b = el('button', 'hm-card' + (c.locked ? ' locked' : '') + (c.isNew ? ' new' : '')) as HTMLButtonElement;
       b.dataset.k = `title_${c.id}`;
       b.style.setProperty('--a', c.accent);
       b.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${ICON[c.id] ?? ''}"/></svg>`;
       b.append(el('b', '', c.name), el('span', '', c.line), el('em', '', c.locked ?? c.status));
       if (c.locked) b.setAttribute('aria-disabled', 'true');
-      b.addEventListener('click', () => { if (!c.locked) c.go(); });
+      b.addEventListener('click', () => {
+        if (c.locked) return;
+        if (s && !flags[`seen_${c.id}`]) { s.flags[`seen_${c.id}`] = true; writeSave(s); }
+        c.go();
+      });
       grid.appendChild(b);
     }
     box.appendChild(grid);
+    if (shown.length < all.length) {
+      const more = el('p', 'hm-note', `${all.length - shown.length} more modes open as the journey goes on: the Trial and its kin with the covenant relic in Chapter I.`);
+      more.dataset.k = 'title_more_modes';
+      box.appendChild(more);
+    }
     return box;
   }
 
