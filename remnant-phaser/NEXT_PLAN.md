@@ -148,7 +148,7 @@ Checked in the repository on this date; each is addressed by the phase named.
   (shown on chapter select) with a reward the first time each tier is cleared. It builds on `chapterReplay`, `might.ts`
   and the daily challenge's `DAILY_MODS`. Balance by measurement: at heat 0 nothing changes; each tier is sized so a
   balanced build at the arrival level takes a set number more blows (record the table here).
-- [ ] **C2. The day's boss and bounties.** The day's boss: one boss beaten so far, chosen by the date, under one
+- [ ] **C2. The day's boss and bounties.** (The day's boss is built, in `day.ts` and `scripts/day.mjs`: a finished chapter's last boss chosen by the date, under one of the Fire's conditions, started from the Today card, paying a legendary piece once a day. Still to do: bounties, and the flawless medal.) The day's boss: one boss beaten so far, chosen by the date, under one
   affliction, with a medal for a fall without being hit (it feeds Valor's flawless titles). Bounties: three a day, a
   named elite with a legendary power of its own placed in a seeded room of a finished chapter, with a hint, not a
   marker. Each pays a legendary roll weighted toward powers not yet in the Codex.

@@ -52,6 +52,7 @@ try {
       else if (c.tally === 'watchStages') { s.watch ??= { tally: {} }; (s.watch.tally ??= {}).stages = (s.watch.tally.stages ?? 0) + n; }
       else if (c.tally === 'hooks') s.flags.chain_hooks = (s.flags.chain_hooks ?? 0) + n;
       else if (c.tally === 'parries') s.flags.parries = (s.flags.parries ?? 0) + n;
+      else if (c.tally === 'dayBoss') s.flags.day_boss_falls = (s.flags.day_boss_falls ?? 0) + n;
     };
     delete s.watch; // (its own days are tested in watch.mjs; here the Watch call counts stages on a bare tally)
     const first = s.day.calls.find((c) => c.goal > 1), silver = s.silver;
@@ -85,6 +86,14 @@ try {
     const bad = copy(); bad.day = { day: 5, calls: 'no' }; D.migrateDay(bad); out.dropped = bad.day === undefined;
     const odd = copy(); D.settleDay(odd, t0, fixed); odd.day.streak = -4; odd.day.chron.marks = 'many'; odd.day.spare = NaN; D.migrateDay(odd);
     out.repaired = { streak: odd.day.streak, marks: odd.day.chron.marks, spare: odd.day.spare };
+    // The day's boss: none until a chapter is finished; then one by the date, the same all day; its fall counts once,
+    // and only in its own fight.
+    const nb = copy(); nb.flags.ending_done = false; out.noBoss = D.dayBoss(nb, t0);
+    const b = copy({ ending_done: true, ch2_done: true, ch3_done: true });
+    const b1 = D.dayBoss(b, t0), b2 = D.dayBoss(b, t0 + 5 * 3600e3);
+    out.boss = { one: b1, same: JSON.stringify(b1) === JSON.stringify(b2), stray: D.dayBossFell(b, b1.key, t0) };
+    b.flags.day_boss_run = '2026-11-09';
+    out.boss.wrong = D.dayBossFell(b, 'no_such_boss', t0); out.boss.fell = D.dayBossFell(b, b1.key, t0); out.boss.twice = D.dayBossFell(b, b1.key, t0); out.boss.count = b.flags.day_boss_falls;
     // One streak: the Watch's longer run becomes the game's, and they turn together.
     const w = copy(); w.watch = JSON.parse(JSON.stringify(live.watch ?? null));
     out.watch = null;
@@ -104,6 +113,8 @@ try {
   assert.ok(rules.month.turned && rules.month.owed.includes(rules.month.cape) && rules.month.spare === 20 && rules.month.step === 0 && !rules.month.early, `a closed month owes its cape and keeps what was left over (${JSON.stringify(rules.month)})`);
   assert.ok(rules.month.bought && rules.month.has && rules.month.left === 0, 'spare marks buy the owed cape back');
   assert.ok(rules.dropped && rules.repaired.streak === 1 && rules.repaired.marks === 0 && rules.repaired.spare === 0, `a damaged Day is repaired (${JSON.stringify(rules.repaired)})`);
+  assert.ok(rules.noBoss === null && [1, 2, 3].includes(rules.boss.one.chapter) && rules.boss.same, `the day's boss is one whose chapter is finished, the same all day (${JSON.stringify(rules.boss.one)})`);
+  assert.ok(!rules.boss.stray && !rules.boss.wrong && rules.boss.fell && !rules.boss.twice && rules.boss.count === 1, `its fall counts once, in its own fight only (${JSON.stringify(rules.boss)})`);
   if (rules.watch) assert.deepEqual(rules.watch, { game: 10, watch: 10 }, 'the Watch\'s streak and the game\'s are one');
   console.log(`Calls: ${rules.calls.join(', ')}; a new player's: ${rules.young.join(', ')}`);
   console.log(`Streak: 1, ${rules.tomorrow}, forgiven ${rules.forgiven}, then again from ${rules.second}; Chronicle: a piece at 10, the ${rules.cape.id} cape at 15, ${rules.last.spare} spare past 30`);
@@ -145,6 +156,18 @@ try {
   const scene = mode === 'watch' ? 'watch' : mode === 'horde' ? 'horde' : 'world';
   await until(page, (k) => window.__remnant.game.scene.isActive(k), scene);
   console.log(`Home: ${card.calls.length} calls on the card (${card.streak}); its button went to the ${scene} for a ${mode} call`);
+
+  // ---- the day's boss from the home screen: its arena, under the day's condition
+  const boss = await browser.newContext({ viewport: { width: 1280, height: 720 }, storageState: await ctx.storageState() });
+  const p3 = await boss.newPage(); watch(p3);
+  await p3.goto(base + '?debug');
+  await until(p3, () => window.__remnant?.game?.scene?.isActive('title'));
+  await E(p3, () => { const s = JSON.parse(localStorage.getItem('remnant-phaser.save.v2')); Object.assign(s.flags, { ending_done: true, relic_taken: true, intro_done: true, idol_defeated: true }); (s.defeated ??= []).includes('idol') || s.defeated.push('idol'); s.level = 20; localStorage.setItem('remnant-phaser.save.v2', JSON.stringify(s)); });
+  await E(p3, () => window.__remnant.game.scene.start('world', { fresh: false, mode: 'dayboss' }));
+  await until(p3, () => window.__remnant?.world?.save?.flags?.day_boss_run && !window.__remnant.world.transitioning, null, 90000);
+  const fight = await E(p3, () => { const w = window.__remnant.world, b = window.__remnant.day.dayBoss(w.save); return { want: b, replay: w.save.replay, fire: w.save.fire?.on, here: w.room.ents.some((e) => e.t === 'boss' && e.k === b.key), standing: !!(w.cboss ?? w.boss) }; });
+  assert.ok(fight.replay === fight.want.chapter && fight.fire.join() === fight.want.cond && fight.here && fight.standing, `the day's boss stands in its arena under the day's condition (${JSON.stringify(fight)})`);
+  console.log(`Day's boss: ${fight.want.name}, under ${fight.want.condName}`);
 
   // ---- a phone upright: the card fits
   const phone = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, storageState: await ctx.storageState() });

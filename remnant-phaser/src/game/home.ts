@@ -12,12 +12,12 @@ import { ROOMS } from '../shared';
 import type { PhaserSave } from './save';
 import { shouldRemind, noteReminded } from './backup';
 import { restoreButton } from './backupUi';
-import { settleDay, progress, nextCall, stepProgress, stepOf, monthName, buyOwed, STEPS, OWED_COST, type DayMode } from './day';
+import { dayBoss, settleDay, progress, nextCall, stepProgress, stepOf, monthName, buyOwed, STEPS, OWED_COST, type DayMode } from './day';
 import { CAPES } from '../../../remnant/src/game/valor';
 import { writeSave } from './save';
 
 /** What the world does on arrival when the journey is entered from a mode card (World.init's `mode`). */
-export type HomeMode = 'chapters' | 'trial' | 'extreme' | 'gauntlet' | 'rush' | 'daily';
+export type HomeMode = 'chapters' | 'trial' | 'extreme' | 'gauntlet' | 'rush' | 'daily' | 'dayboss';
 
 const CSS = `
 .hm{position:fixed;inset:0;bottom:auto;height:var(--app-h,100%);z-index:12;overflow-y:auto;-webkit-overflow-scrolling:touch;font-family:Georgia,serif;color:#ddd4c6;
@@ -235,9 +235,10 @@ export class Home {
     streak.dataset.k = 'title_streak';
     kick.append(el('span', '', 'Today'), streak);
     const list = el('ul', 'hm-calls');
+    const boss = dayBoss(s);
     const row = (c: (typeof d.calls)[number], weekly: boolean) => {
       const li = el('li', c.paid ? 'done' : ''), have = c.paid ? c.goal : progress(s, c, weekly);
-      li.append(el('i', '', c.paid ? '✓' : weekly ? '◆' : '○'), el('span', '', c.text), el('u', '', c.paid ? 'done' : c.goal > 1 ? `${have}/${c.goal}` : weekly ? 'this week' : `about ${c.mins} min`));
+      li.append(el('i', '', c.paid ? '✓' : weekly ? '◆' : '○'), el('span', '', c.mode === 'dayboss' && boss ? `${c.text}: ${boss.name}, under ${boss.condName}` : c.text), el('u', '', c.paid ? 'done' : c.goal > 1 ? `${have}/${c.goal}` : weekly ? 'this week' : `about ${c.mins} min`));
       li.dataset.k = weekly ? 'title_weekly' : 'title_call';
       return li;
     };

@@ -10,7 +10,8 @@ import { Player } from '../game/player';
 import { makeBoss, bossPorted, BOSS_CHAPTER, type Boss } from '../game/bosses';
 import { biomeTileset, tileIndex, backdropTextures, TI } from '../game/tileset';
 import { newSave, loadSave, writeSave, gainXp, stats, type PhaserSave } from '../game/save';
-import { settleDay, dayCount } from '../game/day';
+import { settleDay, dayCount, dayBoss, dayBossFell } from '../game/day';
+import { dayKey } from '../game/watch/daily';
 import { absorbEcho, makeItem, addMaterial, echoMaxHp, type Derived } from '../../../remnant/src/game/state';
 import { ITEMS, ARCHER_SLOTS } from '../../../remnant/src/game/data';
 import type { Rarity } from '../../../remnant/src/game/data';
@@ -933,6 +934,18 @@ export class World extends Phaser.Scene implements WorldApi {
         case 'gauntlet': if (trainingOpen()) startTraining(1, true); else page(); break;
         case 'extreme': if (trainingOpen()) startExtreme(); else page(); break;
         case 'rush': if (rushOpen()) startBossRush(); else page(); break;
+        case 'dayboss': {
+          // The day's boss: its chapter replayed under the day's condition, straight to its door.
+          const b = dayBoss(this.save), arena = b && Object.values(ROOMS).find((r) => r.ents.some((e) => e.t === 'boss' && e.k === b.key));
+          if (!b || !arena) { page(); break; }
+          setFires(this.save, [b.cond]);
+          this.save.replay = b.chapter;
+          this.save.flags.day_boss_run = dayKey(Date.now());
+          this.loadRoom(arena.id, arena.spawns.left ? 'left' : 'start');
+          this.toast(`The day's boss: ${b.name}, under ${b.condName}. Fell it for a legendary piece.`);
+          this.persist();
+          break;
+        }
       }
     };
     this.time.delayedCall(450, () => tryStart(40));
@@ -1294,6 +1307,7 @@ export class World extends Phaser.Scene implements WorldApi {
   private refined(key: string) {
     if (!this.replaying || FINAL_BOSS[this.save.replay!] !== key || this.time.now - this.refinedAt < 4000) return;
     this.refinedAt = this.time.now;
+    if (dayBossFell(this.save, key)) this.time.delayedCall(4200, () => this.toast('The day\'s boss has fallen.'));
     const r = refine(this.save, this.save.replay!);
     if (r) this.time.delayedCall(2600, () => { this.banner(`REFINED ${TIER_NAME[r.tier]}`, `Heat ${r.heat} · ${r.first ? r.gifts.join(' · ') : 'this seal was already yours'}`); });
   }
