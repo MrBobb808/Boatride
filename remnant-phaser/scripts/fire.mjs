@@ -73,10 +73,9 @@ try {
   assert.ok(await E(page, () => document.querySelector('[data-k=fire_tough]').textContent.startsWith('✓')), 'the last choice is remembered');
   // The same heat again pays nothing more.
   await enter();
-  const again0 = await E(page, () => window.__remnant.world.save.silver);
   await fell();
-  const again = await E(page, (b) => window.__remnant.world.save.silver - b, again0);
-  assert.ok(again < 2800, `the same seal is not paid twice (${again} silver from the fight itself)`);
+  const again = await E(page, () => window.__remnant.world.lastRefined);
+  assert.ok(again && again.tier === 1 && !again.first && again.gifts.length === 0, `the same seal is not paid twice (${JSON.stringify(again)})`);
 
   // ---- full heat: Balm is sealed, the numbers stack, and the third seal pays a legendary piece
   await open();

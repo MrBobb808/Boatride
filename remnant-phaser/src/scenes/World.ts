@@ -1341,11 +1341,14 @@ export class World extends Phaser.Scene implements WorldApi {
   /** The chapter's last boss, fallen under the Fire: the chapter is refined. (A Crown's fall reaches here by its own
    * name from onBossDefeated, and an older boss's from its spoils; once per fall.) */
   private refinedAt = -1;
+  /** The last seal's outcome (tests read whether it paid). */
+  lastRefined: ReturnType<typeof refine> = null;
   private refined(key: string) {
     if (!this.replaying || FINAL_BOSS[this.save.replay!] !== key || this.time.now - this.refinedAt < 4000) return;
     this.refinedAt = this.time.now;
     if (dayBossFell(this.save, key)) this.time.delayedCall(4200, () => this.toast('The day\'s boss has fallen.'));
     const r = refine(this.save, this.save.replay!);
+    this.lastRefined = r;
     if (r) dayCount(this.save, 'fire_clears');
     if (r) this.time.delayedCall(2600, () => { this.banner(`REFINED ${TIER_NAME[r.tier]}`, `Heat ${r.heat} · ${r.first ? r.gifts.join(' · ') : 'this seal was already yours'}`); });
   }
