@@ -32,6 +32,10 @@ these ten and what the game was checked against: `remnant-phaser/POLISH_PLAN.md`
 
 ## Current polish work and art
 
+**What to build next is `remnant-phaser/NEXT_PLAN.md`** (10 November 2026): the audit, the phases in order (saves that
+cannot be lost, faster tests, one Day for every mode, the Refiner's Fire, the Horde between runs, gear, the Watch's
+tower) and the questions for the owner with their defaults. Take its first unticked phase.
+
 Claude Code does the game changes, following `remnant-phaser/POLISH_PLAN.md`.
 That plan covers combat, sound, abilities, the archer's kit and
 transformation, and selling, salvage, the store and crafting. ChatGPT

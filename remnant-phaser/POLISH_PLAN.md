@@ -338,6 +338,9 @@ around them stays the same.
 
 Tick each item with its PR number when it merges.
 
+The unticked items above are checked against the code, and what is truly left is scheduled, in `NEXT_PLAN.md`
+(phases A4 and E1), which is the plan from 10 November 2026 on.
+
 ## 11. The partner hero, lighting and atmosphere (owner's answers, 30 October 2026)
 
 The owner plays on an iPhone with touch. They chose **looks first** over a guaranteed 120 Hz: full effects even if that sometimes means 60 fps.

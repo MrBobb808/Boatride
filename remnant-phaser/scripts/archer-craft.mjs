@@ -137,13 +137,21 @@ try {
   await page.waitForTimeout(250);
   await page.keyboard.up('Space');
   await page.keyboard.down('KeyK');
+  // Measured by the clock until she lands, not by a count of frames: a slow machine draws few frames in the same time
+  // (CI once saw exactly 3 where "more than 3" was asked).
   const fall = await E(page, async () => {
-    const p = window.__remnant.world.player; let fastest = 0, frames = 0;
-    for (let i = 0; i < 40; i++) { await new Promise((r) => requestAnimationFrame(r)); if (!p.onGround && p.bow.drawing) { frames++; fastest = Math.max(fastest, p.body.velocity.y); } }
-    return { fastest, frames };
+    const p = window.__remnant.world.player; let fastest = 0, frames = 0, aloft = 0, last = performance.now();
+    const t0 = last;
+    while (performance.now() - t0 < 2500) {
+      await new Promise((r) => requestAnimationFrame(r));
+      const now = performance.now(), dt = now - last; last = now;
+      if (!p.onGround && p.bow.drawing) { frames++; aloft += dt; fastest = Math.max(fastest, p.body.velocity.y); }
+      else if (frames && p.onGround) break;
+    }
+    return { fastest, frames, aloft: Math.round(aloft) };
   });
   await page.keyboard.up('KeyK');
-  assert.ok(fall.frames > 3 && fall.fastest <= 111, `drawing in the air held her fall to 110 px/s (${JSON.stringify(fall)})`);
+  assert.ok(fall.frames >= 2 && fall.aloft >= 150 && fall.fastest <= 111, `drawing in the air held her fall to 110 px/s (${JSON.stringify(fall)})`);
   console.log(`Aloft: drawing in the air held her fall to ${fall.fastest.toFixed(0)} px/s`);
 
   // ---- Perfect Draw: released inside the gold window, the shot is free, faster and a sure crit
