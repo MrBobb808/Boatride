@@ -3,7 +3,7 @@
 // the Boss Gauntlet, the Boss Rush and the day's challenge. A locked mode says what opens it. Plain DOM over the
 // title's canvas (the glow, the embers and Elior standing behind the wordmark), built once per visit.
 import { CHAPTERS, RUSH_MIN, type ChapterDef } from '../../../remnant/src/game/chapters';
-import { rushRoster } from '../../../remnant/src/game/gauntlet';
+import { rushRoster } from '../../../remnant/src/game/rushKeys';
 import { dailyFor, rankedUsed } from '../../../remnant/src/game/daily';
 import { chapterOf } from '../../../remnant/src/game/rooms';
 import { G } from '../classic/shim/ctx';

@@ -80,6 +80,8 @@ import { offlineReady, updatePending, checkForUpdates } from '../game/update';
 import { placeLamps, strikeLamps } from '../../../remnant/src/game/lamps';
 import { Visuals } from '../game/visuals';
 import { Feedback } from '../game/feedback';
+import { startScene } from '../game/scenes';
+import { lateArt, finishLateArt } from '../game/lateArt';
 
 const VIEW_H = 300;
 
@@ -170,7 +172,11 @@ export class World extends Phaser.Scene implements WorldApi {
   get hud() { return this.scene.get('hud') as Hud; }
   get canUseKit() { return this.ready && !this.transitioning && !this.hud.paused && !this.hud.wheelOpen && !G.paused && !G.inCutscene && !blockingUI() && !topLayer(); }
 
+  /** The sheets the home screen did not wait for, when this scene comes before they are in (NEXT_PLAN A3). */
+  preload() { lateArt(this); }
+
   create() {
+    finishLateArt(this);
     this.save = (!this.fresh && loadSave()) || newSave(!new URLSearchParams(location.search).has("nostory"));
     const away = Date.now() - this.save.updated;
     // Bosses beaten before Psalms existed leave theirs now.
@@ -178,7 +184,7 @@ export class World extends Phaser.Scene implements WorldApi {
     this.refreshStats();
     addTirzahMenu(this); useAbilityTextures(this.textures); addPsalmsMenu(this);
     addHordeMode(() => this.save, () => this.enterHorde());
-    addWatchMode(() => this.save, () => { this.persist(); this.scene.stop('hud'); this.scene.start('watch', { from: 'world' }); });
+    addWatchMode(() => this.save, () => { this.persist(); this.scene.stop('hud'); void startScene(this, 'watch', { from: 'world' }); });
     if (late.length) this.time.delayedCall(2500, () => this.toast(`${late.length === 1 ? 'A Psalm' : `${late.length} Psalms`} from bosses you have beaten · Menu → Psalms`));
     this.controls = new Controls(this);
     // The follow below (0.14, 0.12) blends the same at 60 and 120 Hz, and a shake rolls and settles instead of
@@ -960,7 +966,7 @@ export class World extends Phaser.Scene implements WorldApi {
   enterHorde() {
     this.persist();
     this.scene.stop('hud');
-    this.scene.start('horde');
+    void startScene(this, 'horde');
   }
 
   quitToTitle() {

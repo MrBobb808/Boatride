@@ -10,6 +10,7 @@ import { h, btn, pushLayer, popLayer, clear, focusFirst } from './dom';
 import { img, iconUrl } from './icons';
 import { input, ACTION_LABELS, DEFAULT_KEYS, type Action } from '../core/input';
 import { settings, saveSettings, resetSettings, isTouchDevice } from '../core/settings';
+import { applyTextSize } from './textSize';
 import { sfx, audio } from '../audio/audio';
 import { songs } from '../audio/songs';
 import { music } from '../audio/music';
@@ -1168,11 +1169,7 @@ function editControls() {
   });
 }
 
-export function applyTextSize() {
-  document.documentElement.classList.toggle('text-large', settings.textSize === 'large');
-  document.documentElement.classList.toggle('text-xl', settings.textSize === 'xl');
-  document.documentElement.classList.toggle('text-xxl', settings.textSize === 'xxl');
-}
+export { applyTextSize };
 
 // ---------------------------------------------------------------- system
 

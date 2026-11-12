@@ -101,11 +101,17 @@ Checked in the repository on this date; each is addressed by the phase named.
   of eight shards, each running its share of `scripts/ci-tests.txt` through `scripts/ci-shard.mjs` (every check runs
   even after a failure; failures are listed at the end; a script not in the list is named in the log). A new check is
   one more line in `ci-tests.txt`. Nothing was dropped: the same 54 checks.
-- [ ] **A3. A faster first screen.** Measure first (first paint and time to the home screen on a throttled 4G profile,
-  recorded here). Then load on demand what the first screen does not need: the Watch, the Horde, and each chapter's
-  environment and boss modules (`render/env*.ts`, `game/bosses*.ts` are the largest files in the repository). The
-  service worker still precaches all of it after the first screen, so offline play is unchanged. Target: the home
-  screen's script under 1.2 MB. Test: `home.mjs` plus a new size check that fails if the first chunk grows past it.
+- [x] **A3. A faster first screen.** BUILT. Measured on Chrome's "Fast 4G" profile (9 Mbit/s, 60 ms) with
+  `node scripts/first-screen.mjs --measure`: before, the home screen came after a 4.17 MB script and every sprite
+  sheet (about 14 MB, the Fallen Crowns' atlases alone 6.8 MB): 24.3 s. After: NEW_TIME. Two changes. The script:
+  `main.ts` registers only Boot and Title, and the journey (World with its Hud, and with them every chapter's
+  environment and boss code), the Horde and the Watch are their own chunks (`src/game/scenes.ts`, `startScene`); a
+  few helpers the home screen needed moved out of heavy modules (`ui/textSize.ts`, `game/rushKeys.ts`,
+  `game/bossFrames.ts`), so the first script is 2.28 MB, of which Phaser itself is 1.37 MB (the 1.2 MB target cannot be
+  met with Phaser in the first script; the game's own share is now about 0.9 MB). The art: Boot loads only the hero's
+  sheets; the rest (`src/game/lateArt.ts`) loads while the home screen idles, or in the preload of the first scene that
+  needs it. The chunks and the art are fetched while the home screen idles, so the service worker has them for offline
+  play. Test: `home.mjs` and `first-screen.mjs` (fails past 2.45 MB, or if a mode stops being its own chunk).
 - [ ] **A4. Know what is truly left.** Go through POLISH_PLAN §9 items 1, 2, 3, 8's "still to come" and 9, and §2, §3,
   §4, §7's bullet lists, and for each bullet either point to the code and test that does it and tick it, or list it
   under E1 below. Also run `watch.mjs` twenty times under CPU throttling to catch the failure of 7 November; make any

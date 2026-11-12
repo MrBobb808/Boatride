@@ -10,16 +10,12 @@ import { initHaptics } from '../../remnant/src/core/haptics';
 measureSafe(); initHaptics();
 import { Boot } from './scenes/Boot';
 import { Title } from './scenes/Title';
-import { World } from './scenes/World';
-import { Horde } from './scenes/Horde';
-import { Watch } from './scenes/Watch';
 import { patchChapterOne } from './game/pilot';
 import { registerPsalms } from './game/psalms';
 // The Chapter I pilot reshapes the shared rooms for this build only (POLISH_PLAN §12c).
 patchChapterOne();
 // Psalter Pages are key items, and two chests hold one (POLISH_PLAN §12d).
 registerPsalms();
-import { Hud } from './scenes/Hud';
 
 import { dpr, appHeight, applyAppHeight } from './game/screen';
 import { audio } from './classic/shim/audio';
@@ -29,7 +25,7 @@ import { registerOffline, checkForUpdates } from './game/update';
 import { settings, onSettingsChange } from './classic/shim/settings';
 import { perfMeter } from './game/perfMeter';
 import { installNav } from '../../remnant/src/ui/dom';
-import { applyTextSize } from '../../remnant/src/ui/menus';
+import { applyTextSize } from '../../remnant/src/ui/textSize';
 import * as backup from './game/backup';
 import * as day from './game/day';
 import { installShare } from './game/shareCard';
@@ -56,7 +52,7 @@ const game = new Phaser.Game({
   physics: { default: 'arcade', arcade: { gravity: { x: 0, y: 0 }, fps: 120, debug: new URLSearchParams(location.search).has('boxes') } },
   // Real frame times: a target here clamps each step, and slow frames would play in slow motion.
   fps: { smoothStep: false, limit: settings.fps === '60' ? 60 : 0 },
-  scene: [Boot, Title, World, Hud, Horde, Watch],
+  scene: [Boot, Title],
 });
 
 // A controller (or the keys) moves through every menu from the first screen: the home screen and the Watch are

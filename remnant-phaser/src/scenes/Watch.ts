@@ -29,6 +29,8 @@ import { climb, runDungeon, migrateTower, type Climb, type DungeonId, type Dunge
 import { smoothShake, impact, type Tier } from '../game/feel';
 import { ShadowBand, pickFoe, SHADOW_ORDER, ESSENCE_OF, BOSS_ESSENCE, UNLOCK_COST, SHADOW_MAX, levelCost, owned, shadowName, type ShadowId } from '../game/watch/shadows';
 import type { EchoRole } from '../../../remnant/src/game/data';
+import { startScene } from '../game/scenes';
+import { lateArt, finishLateArt } from '../game/lateArt';
 
 /** The wall's world: 300 × 176 units (narrow, so the fighters read large on a phone), the ground at 146; Elior stands
  * at 82 and reaches 30 ahead. */
@@ -142,6 +144,7 @@ export class Watch extends Phaser.Scene {
 
   /** The places' art (CC0, art/incoming/cc0/CREDITS.md), loaded the first time the Watch opens. */
   preload() {
+    lateArt(this);
     for (const key of LAYER_KEYS) if (!this.textures.exists('cc0-' + key)) this.load.image('cc0-' + key, LAYER_URLS[key]);
     if (!this.textures.exists('cc0-church-column')) this.load.image('cc0-church-column', LAYER_URLS['church-column']);
     if (!this.textures.exists('watch-props')) this.load.atlas('watch-props', propsUrl, propsJson);
@@ -150,6 +153,7 @@ export class Watch extends Phaser.Scene {
   }
 
   create() {
+    finishLateArt(this);
     this.save = (loadSave() as PhaserSave | null) ?? (newSave(false) as PhaserSave);
     this.w = D.migrateWatch(this.save.watch ??= D.newWatch());
     migrateTower(this.w);
@@ -986,7 +990,7 @@ export class Watch extends Phaser.Scene {
 
   leave() {
     this.persist();
-    this.scene.start(this.from === 'world' ? 'world' : 'title', this.from === 'world' ? { fresh: false } : undefined);
+    void startScene(this, this.from === 'world' ? 'world' : 'title', this.from === 'world' ? { fresh: false } : undefined);
   }
 
   persist() {

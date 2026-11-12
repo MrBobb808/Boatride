@@ -5,6 +5,8 @@ import { installedBuild, installedVersion, latestRelease } from '../game/update'
 import { input } from '../../../remnant/src/core/input';
 import { actionAtlas, actionFrame, ACTION_FOOT, ACTION_CELL } from '../game/actionArt';
 import { Home, type HomeMode } from '../game/home';
+import { startScene, preloadScenes } from '../game/scenes';
+import { lateArt } from '../game/lateArt';
 
 /** The home screen: the journey (continue, begin again, or bring one over from the live game) and every game mode,
  * as DOM cards (game/home.ts) over a canvas that keeps the glow, drifting embers and Elior standing at his watch. */
@@ -36,22 +38,25 @@ export class Title extends Phaser.Scene {
     const go = (fn: () => void) => { if (starting) return; starting = true; fn(); };
     this.home = new Home({
       save, live,
-      play: (mode?: HomeMode) => go(() => this.scene.start('world', { fresh: false, mode })),
+      play: (mode?: HomeMode) => go(() => void startScene(this, 'world', { fresh: false, mode })),
       begin: () => {
         const empty = [0, 1, 2].find((slot) => !localStorage.getItem(slot === 0 ? 'remnant-phaser.save.v2' : `remnant-phaser.save.slot${slot}`));
         // Replacing the open journey takes a second tap when every slot is taken.
         if (save && empty === undefined && !newArmed) { newArmed = true; return false; }
-        go(() => { if (empty !== undefined) selectSlot(empty); this.scene.start('world', { fresh: true }); });
+        go(() => { if (empty !== undefined) selectSlot(empty); void startScene(this, 'world', { fresh: true }); });
         return true;
       },
       bringLive: (slot) => {
         if (save && liveArmed !== slot) { liveArmed = slot; return false; }
-        go(() => { if (importLive(slot)) this.scene.start('world', { fresh: false }); else starting = false; });
+        go(() => { if (importLive(slot)) void startScene(this, 'world', { fresh: false }); else starting = false; });
         return true;
       },
-      watch: () => go(() => this.scene.start('watch', { from: 'title' })),
-      horde: () => go(() => this.scene.start('horde')),
+      watch: () => go(() => void startScene(this, 'watch', { from: 'title' })),
+      horde: () => go(() => void startScene(this, 'horde')),
     });
+    // The modes' chunks and the sheets the home screen does not draw load while it idles (NEXT_PLAN A3).
+    preloadScenes(this.game);
+    if (lateArt(this)) this.load.start();
     // The version, and whether it is the newest the site serves.
     this.home.version(`Version ${installedVersion()} · checking for updates…`, true);
     void latestRelease().then((r) => {

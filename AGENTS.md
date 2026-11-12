@@ -339,6 +339,11 @@ Never ship files from `art/incoming/` directly.
   profiles the busiest scenes headless, and Settings → Show frame rate (`src/game/perfMeter.ts`) reads the frame and
   the script's share of it on the iPhone itself (headless Chromium's GPU is software, so only the device can say
   what its GPU costs).
+- **First screen (Phaser build):** `main.ts` registers only Boot and Title; the journey (World with its Hud), the Horde
+  and the Watch are their own chunks, loaded by `src/game/scenes.ts` (`startScene`, never `scene.start` for those) and
+  warmed while the home screen idles so they are cached offline. Keep the first screen's imports light: a helper the
+  home screen needs goes in a small module (`ui/textSize.ts`, `game/rushKeys.ts`, `game/bossFrames.ts`), not in
+  menus or boss code. `scripts/first-screen.mjs` fails past 2.45 MB (Phaser alone is 1.37 MB).
 - **Lighting:** Settings → Lighting (`settings.lighting`, dramatic by
   default) scales a dim room's darkness in `render/lighting.ts`
   (`lightingLevel`); daylight is untouched.

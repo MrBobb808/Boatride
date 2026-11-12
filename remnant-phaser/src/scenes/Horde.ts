@@ -30,6 +30,8 @@ import { uriOf, uriStats, uriGainXp } from '../game/horde/uri';
 import { HordeBoss } from '../game/horde/boss';
 import { Pickups, type DropKind } from '../game/horde/pickups';
 import { HordeUI, overlay, el, type Act } from '../game/horde/ui';
+import { startScene } from '../game/scenes';
+import { lateArt, finishLateArt } from '../game/lateArt';
 
 /** How much of the world the shorter side of the screen shows. */
 const VIEW = 440;
@@ -157,7 +159,11 @@ export class Horde extends Phaser.Scene {
 
   // ---------------------------------------------------------------- setting up
 
+  /** The sheets the home screen did not wait for, when this scene comes before they are in (NEXT_PLAN A3). */
+  preload() { lateArt(this); }
+
   create() {
+    finishLateArt(this);
     this.save = (loadSave() as PhaserSave | null) ?? (newSave(false) as PhaserSave);
     if (!this.save.archer) this.save.archer = newArcher(this.save);
     const eliorD = stats(this.save);
@@ -843,7 +849,7 @@ export class Horde extends Phaser.Scene {
       const b = el('div', 'hz-btns');
       const again = el('button', 'hz-btn primary', 'Fight again', () => { this.closeCard(); this.scene.restart(); });
       again.dataset.k = 'hz_again';
-      const back = el('button', 'hz-btn', 'Return to the journey', () => { this.closeCard(); this.scene.start('world', { fresh: false }); });
+      const back = el('button', 'hz-btn', 'Return to the journey', () => { this.closeCard(); void startScene(this, 'world', { fresh: false }); });
       back.dataset.k = 'hz_return';
       // The run's card for the share sheet (game/shareCard.ts).
       const share = shareButton({ mode: this.daily ? `Today's Horde · ${dayHorde().key}` : this.night ? 'The Long Night' : 'The Horde', big: `${reached}`, unit: this.held ? 'THE NIGHT HELD' : 'STAGE REACHED', lines: [['Foes', `${this.kills}`], ['Embers', `${this.embersWon}`]], rules: this.muts.length ? MUTATORS.filter((m) => this.muts.includes(m.id)).map((m) => m.name).join(' · ') : undefined });
