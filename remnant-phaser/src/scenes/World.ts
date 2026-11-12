@@ -10,6 +10,7 @@ import { Player } from '../game/player';
 import { makeBoss, bossPorted, BOSS_CHAPTER, type Boss } from '../game/bosses';
 import { biomeTileset, tileIndex, backdropTextures, TI } from '../game/tileset';
 import { newSave, loadSave, writeSave, gainXp, stats, type PhaserSave } from '../game/save';
+import { settleDay, dayCount } from '../game/day';
 import { absorbEcho, makeItem, addMaterial, echoMaxHp, type Derived } from '../../../remnant/src/game/state';
 import { ITEMS, ARCHER_SLOTS } from '../../../remnant/src/game/data';
 import type { Rarity } from '../../../remnant/src/game/data';
@@ -644,6 +645,8 @@ export class World extends Phaser.Scene implements WorldApi {
 
     // Autosave and time played measure real active time, independent of pacing.
     this.saveT += rawDt;
+    // The Day: calls are paid the moment they are done, wherever the hero is.
+    if ((this.dayT += rawDt) >= 3) { this.dayT = 0; this.dayNews(); }
     this.save.playtime += rawDt;
     tickElixir();
     if (this.saveT > 30) this.persist();
@@ -821,6 +824,13 @@ export class World extends Phaser.Scene implements WorldApi {
     this.persist();
     this.spark(this.player.x, this.player.feet - 20, 0xffd27a, 14);
     this.hud.toast('Rested · health and Balm restored · saved');
+  }
+
+  private dayT = 0;
+  private dayNews() {
+    const news = settleDay(this.save);
+    news.forEach((n, i) => { if (n.kind !== 'day') this.time.delayedCall(i * 1600, () => this.toast(n.text)); });
+    if (news.length) this.persist();
   }
 
   persist() {
@@ -1228,6 +1238,7 @@ export class World extends Phaser.Scene implements WorldApi {
   }
 
   bossSpoils(key = this.room.id) {
+    dayCount(this.save, 'boss_falls');
     // Every boss always leaves a legendary piece, for whoever is fighting (now and then the other hero's): once a
     // boss on the journey, every time in the Trial's arena. The boss rush leaves no loot.
     const lg = `lg_spoils_${key}`, trial = this.room.id === 'trial_arena';

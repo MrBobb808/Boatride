@@ -15,6 +15,7 @@ import { settings } from '../classic/shim/settings';
 import { T, TILE, isSolid } from '../shared';
 import { sovereignDamage } from '../../../remnant/src/game/balance';
 import { MOVESETS, FISTS, extraFor, type AttackDef } from '../../../remnant/src/game/weapons';
+import { dayCount } from './day';
 import { CHAINS, ChainFx, hasChains, isChainMove, HOOK_RANGE, HOOK_MIN, HOOK_CD, HOOK_SPEED, PULL_SPEED, HOOK_DMG, chainBurn, hookRange } from './chains';
 import { fx } from '../../../remnant/src/render/fx';
 import { skillRank } from '../../../remnant/src/game/state';
@@ -1004,6 +1005,7 @@ export class Player {
     const h = this.hook, dmg = Math.round(this.power() * HOOK_DMG * Phaser.Math.FloatBetween(0.95, 1.05)), before = f.hp;
     if (!f.hit(dmg, this.face, 0.3, false, { poise: 40, stun: 0.6, noKnock: true, tag: 'chain' })) { this.endHook(false); return; }
     this.kindle(f);
+    dayCount(this.w.save, 'chain_hooks');
     haptic('hit');
     this.w.heroHit(f, before !== undefined && f.hp !== undefined ? Math.max(0, before - f.hp) : dmg, true, false);
     this.w.hitstop(STOP.heavy);
@@ -1141,7 +1143,7 @@ export class Player {
       if (wears(ps, 'hunt') && h.src) ((h.src.ent ?? h.src) as { psalmMarkT?: number }).psalmMarkT = this.clock + 4;
       if (wears(ps, 'refiner')) this.psalmCrits = 3;
       if (this.w.d.sets.vigil >= 3 && this.vigilParryCd <= 0) { this.vigilParryCd = 3; this.hp = Math.min(this.maxHp, this.hp + this.maxHp * 0.05); this.w.save.ce = Math.min(this.maxCe, this.w.save.ce + 8); }
-      valorTrack.parry(); haptic('parry'); input.rumble(0.7, 0.5, 150);
+      valorTrack.parry(); dayCount(this.w.save, 'parries'); haptic('parry'); input.rumble(0.7, 0.5, 150);
       this.w.playEffect('parryPerfect');
       this.w.hitstop(STOP.parry);
       return false;

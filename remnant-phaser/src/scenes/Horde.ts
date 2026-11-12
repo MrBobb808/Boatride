@@ -4,6 +4,7 @@
 // run earns (silver, XP, the monarchs' gear) goes back to the journey's save.
 import Phaser from 'phaser';
 import { loadSave, newSave, writeSave, gainXp, stats, type PhaserSave } from '../game/save';
+import { settleDay } from '../game/day';
 import { archerStats, archerGainXp, archerDrop, newArcher } from '../game/archer';
 import { makeItem, type Derived } from '../../../remnant/src/game/state';
 import { ITEMS, type Rarity } from '../../../remnant/src/game/data';
@@ -107,6 +108,7 @@ export class Horde extends Phaser.Scene {
   private cleared = false;
   private dead = false;
   private banked = false;
+  private dayNews: string[] = [];
   private slow = 1;
   private slowT = 0;
   /** Foe speed scale (a frost relic or a monarch's death can hold them). */
@@ -759,6 +761,7 @@ export class Horde extends Phaser.Scene {
     this.pauseField(true);
     this.overlay = overlay((p) => {
       p.append(el('div', 'hz-title', left ? 'THE REMNANT WITHDRAWS' : 'THE HORDE PREVAILS'), el('p', 'hz-sub', `Stage ${reached} · ${best ? 'a new best' : `best: stage ${this.save.horde?.best ?? reached}`}`), this.statGrid(true));
+      for (const line of this.dayNews) { const n = el('p', 'hz-sub', line); n.dataset.k = 'hz_day'; p.append(n); }
       const b = el('div', 'hz-btns');
       const again = el('button', 'hz-btn primary', 'Fight again', () => { this.closeCard(); this.scene.restart(); });
       again.dataset.k = 'hz_again';
@@ -806,6 +809,8 @@ export class Horde extends Phaser.Scene {
     const rec = (s.horde ??= { best: 0, runs: 0, kills: 0, bestKills: 0 }), fresh = this.stage > rec.best;
     rec.runs++; rec.kills += this.kills; rec.best = Math.max(rec.best, this.stage); rec.bestKills = Math.max(rec.bestKills, this.kills);
     s.kills += this.kills;
+    // The Day's calls for the Horde are answered as the run banks.
+    this.dayNews = settleDay(s).filter((n) => n.kind !== 'day').map((n) => n.text);
     writeSave(s);
     return fresh;
   }

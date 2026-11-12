@@ -117,7 +117,7 @@ Checked in the repository on this date; each is addressed by the phase named.
 
 ## Phase B: one day for the whole game (the spine of daily play)
 
-- [ ] **B1. The Day** (`remnant-phaser/src/game/day.ts`, save field `PhaserSave.day`, optional). One object for the
+- [x] **B1. The Day** (built; `scripts/day.mjs`. Calls come from what exists today: the journey, parries, the chains, a boss, the Trial, the Daily Challenge, the Horde, the Watch. The day's boss, bounties, the day's Horde and the Fire join the pool as C1, C2 and D1 land: add a row to `DAILY` in `day.ts`.) (`remnant-phaser/src/game/day.ts`, save field `PhaserSave.day`, optional). One object for the
   local day, seeded by the date like `game/daily.ts`:
   - **Five calls** drawn from what is open to this player (the Daily Challenge, the day's boss, a bounty, the day's
     Horde, a Watch quest set, a chapter under the Fire, a Trial round reached). Never a call for a mode still locked.
@@ -125,13 +125,13 @@ Checked in the repository on this date; each is addressed by the phase named.
   - **One streak for the whole game**, the Watch's rule: one missed day a week forgiven. The Watch's own streak folds
     into it (migrate: keep the longer of the two).
   - Each call pays **Chronicle marks** (B2) and something for the mode it belongs to.
-- [ ] **B2. The Chronicle** (a free track, a new one every calendar month): 30 steps, marks from the Day's calls and
+- [x] **B2. The Chronicle** (built: silver, materials, Watch chests, a legendary piece at 10/20/30, the month's cape at 15, an owed list bought back with spare marks. Still to add as rewards: blade glows, hit-spark and number styles, title banners, Watch wall themes, a Psalter Page; marks from play outside the calls.) (a free track, a new one every calendar month): 30 steps, marks from the Day's calls and
   from play in every mode. Each step pays something visible and code-made, so no art drop is needed: cape dyes
   (`fighterRig.ts` already dyes capes), blade glows, hit-spark and damage-number styles, title banners, Watch wall
   themes, a Psalter Page, a sealed legendary piece at steps 10, 20 and 30. A finished Chronicle stays finished; an
   unfinished one closes at the month's end and its unearned steps go into a "Past Chronicles" list that can be bought
   back slowly with later marks (nothing is gone for ever). Odds, where anything is random, are shown.
-- [ ] **B3. "Today" on the home screen.** The journey card stays first; under it one card: the five calls with a tick
+- [x] **B3. "Today" on the home screen.** (built; tested in `scripts/day.mjs`) The journey card stays first; under it one card: the five calls with a tick
   each and how long each takes, the streak, the Chronicle's next step, and the one button that starts the first call
   not yet done. The eight mode cards stay below. Test in `home.mjs`: the card, the routing, a locked player's version.
 - [ ] **B4. Remnant's Rest as the place the day happens.** The settlement already grows by tier. Add a **noticeboard**

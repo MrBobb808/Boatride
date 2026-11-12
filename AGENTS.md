@@ -391,6 +391,14 @@ Never ship files from `art/incoming/` directly.
   Survival, the Boss Gauntlet, the Boss Rush, the Daily Challenge) that starts
   it straight away (`World.init`'s `mode`), or says what opens it. Verified by
   `scripts/home.mjs`.
+- **The Day (Phaser build):** `remnant-phaser/src/game/day.ts` (NEXT_PLAN B1–B3), `PhaserSave.day`. Up to five calls
+  a day drawn from what is open to the player, three for the week, one streak for the whole game (opening it counts;
+  one miss a week forgiven; the Watch's streak runs with it), and the Chronicle: thirty steps a calendar month paid in
+  marks (10 a call, 20 for all, 40 a weekly). A call pays the moment it is done, wherever the player is (`settleDay`,
+  called every few seconds on the journey and when the Horde and the Watch bank). Progress is read from what the modes
+  already count plus four counters in `flags` (`boss_falls`, `trial_rounds`, `chain_hooks`, `parries`; `dayCount`).
+  A new mode adds a row to `DAILY`/`WEEKLY` and, if nothing counts it yet, a tally. The home screen's Today card and
+  Chronicle page are in `home.ts`. Nothing earned is taken back; nothing is sold. Verified by `scripts/day.mjs`.
 - **The Watch (Phaser build):** an idle game in portrait (`remnant-phaser/src/scenes/Watch.ts`,
   `src/game/watch/`): a fresh Elior keeps a wall, kills pay coins, coins buy
   eight upgrade tracks; gates end in a boss on a timer; his Watch level opens
