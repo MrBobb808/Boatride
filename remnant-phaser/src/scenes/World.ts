@@ -1346,6 +1346,7 @@ export class World extends Phaser.Scene implements WorldApi {
     this.refinedAt = this.time.now;
     if (dayBossFell(this.save, key)) this.time.delayedCall(4200, () => this.toast('The day\'s boss has fallen.'));
     const r = refine(this.save, this.save.replay!);
+    if (r) dayCount(this.save, 'fire_clears');
     if (r) this.time.delayedCall(2600, () => { this.banner(`REFINED ${TIER_NAME[r.tier]}`, `Heat ${r.heat} · ${r.first ? r.gifts.join(' · ') : 'this seal was already yours'}`); });
   }
 

@@ -66,6 +66,7 @@ try {
   await fell();
   const one = await E(page, (b) => { const s = window.__remnant.world.save; return { seal: s.fire.seals[7], silver: s.silver - b.silver, frags: (s.materials?.covenant_fragment ?? 0) - b.frags }; }, hot);
   assert.ok(one.seal === 2 && one.silver >= 2800 && one.frags >= 2, `his fall under heat 2 seals the chapter and pays (${JSON.stringify(one)})`);
+  assert.equal(await E(page, () => window.__remnant.world.save.flags.fire_clears), 1, 'the Day counts a chapter finished under the Fire');
   await E(page, () => window.__remnant.G.ui.openMenu('chapters'));
   assert.ok(await E(page, () => /Refined I/.test(document.querySelector('[data-k=ch_7]').closest('.ch-row').textContent)), 'the Chapters page shows the seal');
   await page.click('[data-k=ch_replay_7]'); await page.waitForSelector('[data-k=fire_go]');

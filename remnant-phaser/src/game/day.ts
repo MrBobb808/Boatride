@@ -16,9 +16,9 @@ import { rollLegend } from '../../../remnant/src/game/legendary';
 import { dayKey, weekKey, rollDays } from './watch/daily';
 import type { PhaserSave } from './save';
 
-export type DayTally = 'foes' | 'bosses' | 'trialRounds' | 'dailyRuns' | 'hordeKills' | 'hordeRuns' | 'watchStages' | 'hooks' | 'parries' | 'dayBoss';
+export type DayTally = 'foes' | 'bosses' | 'trialRounds' | 'dailyRuns' | 'hordeKills' | 'hordeRuns' | 'watchStages' | 'hooks' | 'parries' | 'dayBoss' | 'refined';
 /** Where a call is played (the home screen's button starts it). */
-export type DayMode = 'journey' | 'gauntlet' | 'trial' | 'daily' | 'horde' | 'watch' | 'dayboss';
+export type DayMode = 'journey' | 'gauntlet' | 'trial' | 'daily' | 'horde' | 'watch' | 'dayboss' | 'chapters';
 export interface DayCall { id: string; tally: DayTally; goal: number; text: string; mins: number; mode: DayMode; paid?: boolean }
 export interface DaySave {
   day: string; week: string;
@@ -39,7 +39,7 @@ type Flags = Record<string, number | string | boolean>;
 
 const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) && v > 0 ? v : 0);
 /** One more of something only a counter can know (a boss felled, a Trial round, a hook, a parry). */
-export function dayCount(s: SaveData, id: 'boss_falls' | 'trial_rounds' | 'chain_hooks' | 'parries' | 'day_boss_falls', n = 1) {
+export function dayCount(s: SaveData, id: 'boss_falls' | 'trial_rounds' | 'chain_hooks' | 'parries' | 'day_boss_falls' | 'fire_clears', n = 1) {
   const f = s.flags as Flags;
   f[id] = num(f[id]) + n;
 }
@@ -57,9 +57,11 @@ export function tallyNow(s: PhaserSave, id: DayTally): number {
     case 'hooks': return num(f.chain_hooks);
     case 'parries': return num(f.parries);
     case 'dayBoss': return num(f.day_boss_falls);
+    // Chapters finished under the Refiner's Fire, at any heat (counted by World when the last boss falls).
+    case 'refined': return num(f.fire_clears);
   }
 }
-const ALL: DayTally[] = ['foes', 'bosses', 'trialRounds', 'dailyRuns', 'hordeKills', 'hordeRuns', 'watchStages', 'hooks', 'parries', 'dayBoss'];
+const ALL: DayTally[] = ['foes', 'bosses', 'trialRounds', 'dailyRuns', 'hordeKills', 'hordeRuns', 'watchStages', 'hooks', 'parries', 'dayBoss', 'refined'];
 const snapshot = (s: PhaserSave) => Object.fromEntries(ALL.map((id) => [id, tallyNow(s, id)])) as Record<DayTally, number>;
 
 // ---------------------------------------------------------------- the calls
@@ -112,6 +114,7 @@ const WEEKLY: Def[] = [
   { group: 'boss', tally: 'bosses', goal: 7, text: 'Fell 7 bosses this week', mins: 0, mode: 'gauntlet', open: (s) => trialOpen(s) && (s.defeated?.length ?? 0) > 0 },
   { group: 'trial', tally: 'trialRounds', goal: 40, text: 'Clear 40 rounds of the Trial this week', mins: 0, mode: 'trial', open: trialOpen },
   { group: 'daily', tally: 'dailyRuns', goal: 4, text: 'Clear the Daily Challenge on 4 days this week', mins: 0, mode: 'daily', open: trialOpen },
+  { group: 'fire', tally: 'refined', goal: 1, text: 'Finish a chapter under the Refiner\'s Fire this week', mins: 0, mode: 'chapters', open: (s) => !!dayBoss(s) },
   { group: 'horde', tally: 'hordeKills', goal: 3000, text: 'Fell 3,000 foes in the Horde this week', mins: 0, mode: 'horde' },
   { group: 'watch', tally: 'watchStages', goal: 150, text: 'Clear 150 stages on the Watch this week', mins: 0, mode: 'watch' },
 ];
@@ -208,7 +211,7 @@ function addMarks(s: PhaserSave, n: number, news: DayNews[], rnd: () => number) 
 function payCall(s: PhaserSave, c: DayCall, weekly: boolean) {
   const k = weekly ? 4 : 1;
   s.silver += silverFor(s, k * (c.mode === 'journey' ? 1.5 : 1));
-  if (c.mode === 'dayboss') giveLegend(s, Math.random);
+  if (c.mode === 'dayboss' || c.mode === 'chapters') giveLegend(s, Math.random);
   else if (c.mode === 'watch' && s.watch?.daily) s.watch.daily.chests += weekly ? 3 : 1;
   else if (c.mode === 'trial' || c.mode === 'daily') addMaterial(s, 'radiant_core', k);
   else if (c.mode === 'gauntlet') addMaterial(s, 'covenant_fragment', k);
