@@ -385,6 +385,10 @@ Never ship files from `art/incoming/` directly.
   after a big move is a tag combo, three full gauges the Trinity; level-ups
   can be rerolled or banished (§13d). A run banks silver, XP and gear into the
   save (`PhaserSave.horde` keeps the best stage). See POLISH_PLAN §13.
+  Between runs (`src/game/horde/board.ts`, NEXT_PLAN D1): a run leaves embers; from the second run it opens at the
+  camp, where embers buy a permanent board (seven tracks; a full board is about ×1.66), hardships add embers (Iron
+  Host, Legion, Thin Mail, from a best stage of 3), and the Long Night is a run with an end (its fifth monarch).
+  `?nocamp` skips the camp in tests. Verified by `scripts/horde-board.mjs`.
 - **Home screen (Phaser build):** `remnant-phaser/src/scenes/Title.ts` and
   `src/game/home.ts`: the journey card (Continue / New journey / Begin) and a
   card per game mode (Chapters, the Watch, the Horde, the Trial, Extreme

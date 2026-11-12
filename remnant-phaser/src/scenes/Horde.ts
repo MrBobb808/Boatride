@@ -5,6 +5,7 @@
 import Phaser from 'phaser';
 import { loadSave, newSave, writeSave, gainXp, stats, type PhaserSave } from '../game/save';
 import { settleDay } from '../game/day';
+import { BOARD, MUTATORS, NIGHT_STAGES, hordeOf, rank, costOf, buy, boardBonus, activeMuts, mutsOpen, toggleMut, mutBonus, embersFor, MUT_OPEN, type MutId } from '../game/horde/board';
 import { archerStats, archerGainXp, archerDrop, newArcher } from '../game/archer';
 import { makeItem, type Derived } from '../../../remnant/src/game/state';
 import { ITEMS, type Rarity } from '../../../remnant/src/game/data';
@@ -109,6 +110,12 @@ export class Horde extends Phaser.Scene {
   private dead = false;
   private banked = false;
   private dayNews: string[] = [];
+  /** The board's gifts and the run's chosen hardships (game/horde/board.ts). */
+  private bb = boardBonus(undefined);
+  private muts: MutId[] = [];
+  private night = false;
+  private held = false;
+  private embersWon = 0;
   private slow = 1;
   private slowT = 0;
   /** Foe speed scale (a frost relic or a monarch's death can hold them). */
@@ -128,17 +135,17 @@ export class Horde extends Phaser.Scene {
   private get d() { return this.heroD[this.heroId]; }
   /** A hero's strength from the journey: its attack, compressed so a strong save is strong but never untouchable. */
   private power(id: HeroId) { return Math.pow(Math.max(1, this.heroD[id].atk / 10), 0.8); }
-  get dmgMult() { return this.power(this.heroId) * (1 + 0.12 * this.passives.might) * (this.formT > 0 ? KIT[this.heroId].form[0] : 1); }
-  get cdMult() { return (1 - 0.08 * this.passives.haste) * (this.formT > 0 ? KIT[this.heroId].form[1] : 1); }
+  get dmgMult() { return this.power(this.heroId) * (1 + 0.12 * this.passives.might) * this.bb.dmg * (this.formT > 0 ? KIT[this.heroId].form[0] : 1); }
+  get cdMult() { return (1 - 0.08 * this.passives.haste) * this.bb.cd * (this.formT > 0 ? KIT[this.heroId].form[1] : 1); }
   get areaMult() { return 1 + 0.12 * this.passives.reach; }
   get plenty() { return this.passives.plenty; }
   private get speed() { return 96 * (1 + 0.08 * this.passives.swift) * (this.formT > 0 ? KIT[this.heroId].form[2] : 1); }
   private get crit() { return Math.min(0.6, this.d.crit + 0.06 * this.passives.precision); }
   private get armor() { return Math.min(0.65, 0.08 * this.passives.armor + Math.min(0.3, this.d.dr * 0.5)); }
-  private get reach() { return 42 * (1 + 0.4 * this.passives.magnet); }
+  private get reach() { return 42 * (1 + 0.4 * this.passives.magnet) * this.bb.reach; }
   private get fortune() { return 1 + 0.15 * this.passives.fortune; }
   private get xpNext() { return 5 + this.level * 6 + Math.floor(Math.pow(this.level, 1.6)); }
-  private baseMaxHp() { return Math.round((60 + Math.max(this.heroD.elior.maxHp, this.heroD.tirzah.maxHp) * 0.4) * (1 + 0.2 * this.passives.vigor)); }
+  private baseMaxHp() { return Math.round((60 + Math.max(this.heroD.elior.maxHp, this.heroD.tirzah.maxHp) * 0.4) * (1 + 0.2 * this.passives.vigor) * this.bb.hp * (this.muts.includes('frail') ? 0.7 : 1)); }
 
   /** Adds a game object to the world (seen by the zoomed camera) or the UI (seen by the screen camera). */
   wl<T extends Phaser.GameObjects.GameObject>(o: T): T { this.worldLayer.add(o); return o; }
@@ -152,6 +159,8 @@ export class Horde extends Phaser.Scene {
     const eliorD = stats(this.save);
     this.heroD = { elior: eliorD, tirzah: archerStats(this.save, eliorD), uri: uriStats(this.save, eliorD) };
     this.runPower = Math.max(this.power('elior'), this.power('tirzah'));
+    const hs = hordeOf(this.save);
+    this.bb = boardBonus(hs); this.muts = activeMuts(hs); this.night = hs.mode === 'night'; this.held = false; this.embersWon = 0;
     this.reset();
     hordeTextures(this);
     this.worldLayer = this.add.layer();
@@ -191,13 +200,15 @@ export class Horde extends Phaser.Scene {
     });
     this.arsenal.raise('blade'); this.arsenal.raise('bow'); this.arsenal.raise('flame');
     this.startStage(1);
+    // The camp: from the second run on, the board, the hardships and the kind of run are chosen before the first foe.
+    if (hs.runs > 0 && !new URLSearchParams(location.search).has('nocamp')) this.openCamp(); else this.pendingLevels += this.bb.levels;
     if (new URLSearchParams(location.search).has('debug')) (window as unknown as { __remnant: Record<string, unknown> }).__remnant = { ...((window as unknown as { __remnant?: Record<string, unknown> }).__remnant ?? {}), game: this.game, horde: this };
   }
 
   private reset() {
     this.stage = 1; this.stageT = 0; this.level = 1; this.xp = 0; this.kills = 0; this.silver = 0; this.gemXp = 0; this.loot = [];
     for (const k of Object.keys(this.passives) as PassiveId[]) this.passives[k] = 0;
-    this.gauges = { elior: 0, tirzah: 0, uri: 0 }; this.rerolls = 3; this.banishes = 3; this.banned = new Set(); this.tagUntil = 0; this.tags = this.trinities = this.evolutions = 0; this.formT = 0; this.formUses = 0; this.prayed = false; this.uriLevels = 0; this.dead = false; this.banked = false; this.pendingLevels = 0;
+    this.gauges = { elior: 0, tirzah: 0, uri: 0 }; this.rerolls = 3 + this.bb.redraws; this.banishes = 3 + this.bb.banishes; this.banned = new Set(); this.tagUntil = 0; this.tags = this.trinities = this.evolutions = 0; this.formT = 0; this.formUses = 0; this.prayed = false; this.uriLevels = 0; this.dead = false; this.banked = false; this.pendingLevels = 0;
     this.maxHp = this.hp = this.baseMaxHp();
     this.cds = { dash: 0, skill: 0, form: 0, switch: 0 };
   }
@@ -222,7 +233,7 @@ export class Horde extends Phaser.Scene {
   }
 
   /** Foes for this stage: health and harm by stage, measured against the run's starting strength. */
-  private get foeHp() { return stageHp(this.stage) * Math.pow(this.runPower, 0.6); }
+  private get foeHp() { return stageHp(this.stage) * Math.pow(this.runPower, 0.6) * (this.muts.includes('iron') ? 1.35 : 1); }
   private get foeDmg() { return stageDmg(this.stage); }
 
   /** Where the horde enters: just past the edge of the view, all round. */
@@ -246,7 +257,7 @@ export class Horde extends Phaser.Scene {
     if (this.cleared) return;
     const n = this.stage, t = this.stageT;
     const cap = Math.min(MAX_FOES - 30, 34 + n * 16 + t * 1.1) * (this.boss ? 0.45 : 1);
-    this.spawnT -= dt * (1.4 + n * 0.45 + t / 28) * (this.boss ? 0.5 : 1);
+    this.spawnT -= dt * (1.4 + n * 0.45 + t / 28) * (this.boss ? 0.5 : 1) * (this.muts.includes('legion') ? 1.4 : 1);
     while (this.spawnT <= 0) { this.spawnT += 1; if (this.swarm.count < cap) this.spawnFoe(); }
     // A surge: a ring of the place's commonest foe closing in from every side.
     this.surgeT -= dt;
@@ -726,6 +737,55 @@ export class Horde extends Phaser.Scene {
 
   // ---------------------------------------------------------------- cards: pause, a cleared stage, the end
 
+  /** Between runs: spend embers on the board, choose hardships (from a best stage of 3) and the kind of run. */
+  private openCamp() {
+    this.pauseField(true);
+    const h = hordeOf(this.save);
+    let panel: HTMLElement;
+    const draw = () => {
+      const kids: HTMLElement[] = [el('div', 'hz-title', 'THE CAMP'), el('p', 'hz-sub', `${h.embers ?? 0} embers · every run leaves more · best stage ${h.best}${h.nights ? ` · ${h.nights} ${h.nights === 1 ? 'Night' : 'Nights'} held` : ''}`)];
+      (kids[1] as HTMLElement).dataset.k = 'hz_camp_embers';
+      const board = el('div', 'hz-btns'); board.style.flexDirection = 'column';
+      for (const b of BOARD) {
+        const r = rank(h, b.id), c = costOf(b.id, r), full = r >= b.max;
+        const btn = el('button', 'hz-btn', `${b.name} ${r}/${b.max} · ${b.per}${full ? '' : ` · ${c} embers`}`, () => { if (buy(h, b.id)) { sfx('chest'); writeSave(this.save); draw(); } }) as HTMLButtonElement;
+        btn.dataset.k = `hz_board_${b.id}`;
+        btn.disabled = full || (h.embers ?? 0) < c;
+        board.append(btn);
+      }
+      kids.push(board);
+      if (mutsOpen(h)) {
+        kids.push(el('p', 'hz-sub', 'Hardships, for more embers:'));
+        const row = el('div', 'hz-btns');
+        for (const m of MUTATORS) {
+          const on = (h.muts ?? []).includes(m.id);
+          const btn = el('button', 'hz-btn' + (on ? ' primary' : ''), `${on ? '✓ ' : ''}${m.name} · ${m.says} · +${Math.round(m.embers * 100)}%`, () => { toggleMut(h, m.id); writeSave(this.save); draw(); });
+          btn.dataset.k = `hz_mut_${m.id}`;
+          row.append(btn);
+        }
+        kids.push(row);
+      } else kids.push(el('p', 'hz-sub', `Reach stage ${MUT_OPEN} to choose hardships for more embers.`));
+      const mode = el('div', 'hz-btns');
+      const endless = el('button', 'hz-btn' + (h.mode !== 'night' ? ' primary' : ''), 'Endless stages', () => { h.mode = 'endless'; writeSave(this.save); draw(); });
+      const night = el('button', 'hz-btn' + (h.mode === 'night' ? ' primary' : ''), `The Long Night · ${NIGHT_STAGES} stages, an end, embers ×1.5`, () => { h.mode = 'night'; writeSave(this.save); draw(); });
+      endless.dataset.k = 'hz_mode_endless'; night.dataset.k = 'hz_mode_night';
+      mode.append(endless, night);
+      const go = el('div', 'hz-btns');
+      const begin = el('button', 'hz-btn primary', 'Begin', () => {
+        this.closeCard();
+        this.bb = boardBonus(h); this.muts = activeMuts(h); this.night = h.mode === 'night';
+        this.rerolls = 3 + this.bb.redraws; this.banishes = 3 + this.bb.banishes; this.pendingLevels += this.bb.levels;
+        this.maxHp = this.hp = this.baseMaxHp();
+        if (this.night) this.ui.banners('THE LONG NIGHT', `Hold until the fifth monarch falls`, 2.4);
+      });
+      begin.dataset.k = 'hz_begin';
+      go.append(begin);
+      kids.push(mode, go);
+      panel.replaceChildren(...kids);
+    };
+    this.overlay = overlay((p) => { panel = p; draw(); });
+  }
+
   private openPause() {
     if (this.overlay) return;
     this.pauseField(true);
@@ -742,6 +802,8 @@ export class Horde extends Phaser.Scene {
   private openCleared(spoil: Loot) {
     if (this.dead) return;
     if (this.overlay) { this.time.delayedCall(300, () => this.openCleared(spoil)); return; }
+    // The Long Night ends here: its last monarch has fallen.
+    if (this.night && this.stage >= NIGHT_STAGES) { this.held = true; this.openResults(true); return; }
     this.pauseField(true);
     this.overlay = overlay((p) => {
       p.append(el('div', 'hz-title', `STAGE ${this.stage} CLEARED`), el('p', 'hz-sub', `Spoils: ${this.lootName(spoil)}`), this.statGrid());
@@ -760,7 +822,9 @@ export class Horde extends Phaser.Scene {
     const reached = this.stage, best = this.bank();
     this.pauseField(true);
     this.overlay = overlay((p) => {
-      p.append(el('div', 'hz-title', left ? 'THE REMNANT WITHDRAWS' : 'THE HORDE PREVAILS'), el('p', 'hz-sub', `Stage ${reached} · ${best ? 'a new best' : `best: stage ${this.save.horde?.best ?? reached}`}`), this.statGrid(true));
+      p.append(el('div', 'hz-title', this.held ? 'THE NIGHT IS HELD' : left ? 'THE REMNANT WITHDRAWS' : 'THE HORDE PREVAILS'), el('p', 'hz-sub', `Stage ${reached} · ${best ? 'a new best' : `best: stage ${this.save.horde?.best ?? reached}`}`), this.statGrid(true));
+      const em = el('p', 'hz-sub', `+${this.embersWon} embers${this.muts.length ? ` (×${mutBonus(this.muts).toFixed(1)} for the hardships)` : ''}${this.held ? ' · the Night held ×1.5' : ''} · ${hordeOf(this.save).embers ?? 0} to spend at the camp`);
+      em.dataset.k = 'hz_embers'; p.append(em);
       for (const line of this.dayNews) { const n = el('p', 'hz-sub', line); n.dataset.k = 'hz_day'; p.append(n); }
       const b = el('div', 'hz-btns');
       const again = el('button', 'hz-btn primary', 'Fight again', () => { this.closeCard(); this.scene.restart(); });
@@ -806,7 +870,10 @@ export class Horde extends Phaser.Scene {
       if (l.legend) it.legend = l.legend;
       s.inventory.push(it);
     }
-    const rec = (s.horde ??= { best: 0, runs: 0, kills: 0, bestKills: 0 }), fresh = this.stage > rec.best;
+    const rec = hordeOf(s), fresh = this.stage > rec.best;
+    this.embersWon = embersFor(this.kills, this.stage, this.muts, this.held);
+    rec.embers = (rec.embers ?? 0) + this.embersWon;
+    if (this.held) rec.nights = (rec.nights ?? 0) + 1;
     rec.runs++; rec.kills += this.kills; rec.best = Math.max(rec.best, this.stage); rec.bestKills = Math.max(rec.bestKills, this.kills);
     s.kills += this.kills;
     // The Day's calls for the Horde are answered as the run banks.
