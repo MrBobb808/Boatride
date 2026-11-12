@@ -58,3 +58,4 @@ chains.mjs
 backup.mjs
 day.mjs
 horde-board.mjs
+fire.mjs

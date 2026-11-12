@@ -395,6 +395,11 @@ Never ship files from `art/incoming/` directly.
   Survival, the Boss Gauntlet, the Boss Rush, the Daily Challenge) that starts
   it straight away (`World.init`'s `mode`), or says what opens it. Verified by
   `scripts/home.mjs`.
+- **The Refiner's Fire (Phaser build):** `remnant-phaser/src/game/fire.ts` (NEXT_PLAN C1), `PhaserSave.fire`. Replay on
+  the Chapters page first offers conditions worth heat (tougher, fiercer, no Balm); with none it is the ordinary
+  replay. They reach foes and bosses through `setFire` in the shared `game/might.ts` (1 and 1 unless a replay burns).
+  The chapter's last boss (`FINAL_BOSS`) falling under heat seals it (Refined I/II/III at heat 1/3/5); each tier pays
+  once. Verified by `scripts/fire.mjs`.
 - **The Day (Phaser build):** `remnant-phaser/src/game/day.ts` (NEXT_PLAN B1–B3), `PhaserSave.day`. Up to five calls
   a day drawn from what is open to the player, three for the week, one streak for the whole game (opening it counts;
   one miss a week forgiven; the Watch's streak runs with it), and the Chronicle: thirty steps a calendar month paid in
