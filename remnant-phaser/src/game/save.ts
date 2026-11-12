@@ -139,7 +139,13 @@ export function loadSave(): SaveData | null {
   return v1 ? fromV1(v1) : null;
 }
 
+/** After a backup is restored nothing in this session may save again: the page reloads onto the restored journeys
+ * (game/backupUi.ts), and a save on the way out would put the old journey back over them. */
+let frozen = false;
+export const freezeSaves = () => { frozen = true; };
+
 export function writeSave(s: SaveData) {
+  if (frozen) return;
   s.updated = Date.now();
   // The save it replaces becomes the backup (game/saveGuard.ts); private mode keeps this session only.
   guardedWrite(activeKey(), JSON.stringify(s));

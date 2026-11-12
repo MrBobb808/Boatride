@@ -1182,6 +1182,8 @@ function systemTab() {
   const slots = listSlots();
   const recovery = (G.world as unknown as { recoveryMenu?(): HTMLElement | null }).recoveryMenu?.();
   const offline = (G.world as unknown as { offlineMenu?(): HTMLElement | null }).offlineMenu?.();
+  // A host build's own box for keeping a journey safe off the device (the Phaser build's backup and restore).
+  const backup = (G.world as unknown as { backupMenu?(): HTMLElement | null }).backupMenu?.();
   return h('div', { class: 'col scroll', style: 'flex:1' },
     h('div', { class: 'box' }, h('h3', null, 'Game'),
       h('div', { style: 'display:flex;gap:8px;flex-wrap:wrap' },
@@ -1207,6 +1209,7 @@ function systemTab() {
           sl.data && sl.slot !== G.slot ? btn('Delete', () => { deleteSlot(sl.slot); renderAny(); }, 'btn small', { 'data-k': 'dl' + sl.slot }) : null,
         )))),
     ),
+    backup,
     recovery,
     offline,
     currentBuild().startsWith('phaser-') ? h('div', { class: 'box' }, h('h3', null, 'Original edition'), h('p', { class: 'muted' }, 'Your original saves remain separate and available.'), h('a', { class: 'btn small', href: new URL(location.pathname.includes('/phaser/') ? '../classic/' : './classic/', document.baseURI).href }, 'Open original edition')) : null,

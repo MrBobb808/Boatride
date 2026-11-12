@@ -65,8 +65,11 @@ Checked in the repository on this date; each is addressed by the phase named.
 - **One test failed once and passed five times** (`watch.mjs`, 7 November). The cause was never found. → A4
 - **The Horde keeps nothing between runs** but a best stage and counts (`PhaserSave.horde`). The genre it belongs to
   lives on permanent unlocks between runs. This is the largest replay gap in the game. → D1
-- **There is no second playthrough.** A finished chapter can be replayed with its bosses matched to the hero
-  (`chapterReplay`), but nothing makes the tenth replay different from the first, and nothing rewards it. → C1
+- **A second playthrough is always the same one.** There is a New Game+ (Save & system, after Chapter I: begin
+  again with level, gear, skills and Echoes; `startNewGamePlus`), and a finished chapter can be replayed with its
+  bosses matched to the hero (`chapterReplay`). But nothing makes the tenth run different from the first, the player
+  chooses nothing about it, and nothing rewards it beyond experience. → C1 (Corrected 11 November: the first version
+  of this line said there was no second playthrough at all; the search behind it missed New Game+.)
 - **The modes do not know about each other.** The journey, the Watch, the Horde and the Trial each have their own day
   (or none). There is no one place that says "here is today". → B
 - **The daily challenge pays "a small bundle of materials"** and its board never leaves the device. → B, C5
@@ -83,12 +86,17 @@ Checked in the repository on this date; each is addressed by the phase named.
 
 ## Phase A: the ground under everything (small, do first)
 
-- [ ] **A1. Progress that cannot be lost.** Settings → System gains **Back up my journey** (writes every slot and the
-  Watch to one file through the share sheet, or a download) and **Restore** (reads it back through the same guard as
-  `saveGuard.ts`: validate, keep the replaced save as `.bak`, migrate). Call `navigator.storage.persist()` once at
-  boot. Once a week, if no backup has been made in 14 days and the player has more than two hours of play, the home
-  screen shows a quiet one-line reminder. Follow the `save-systems` skill. Test: back up, wipe storage, restore, every
-  field equal; a damaged or foreign file is refused with a message and changes nothing.
+- [x] **A1. Progress that cannot be lost.** BUILT (`src/game/backup.ts`, `backupUi.ts`; `scripts/backup.mjs`).
+  Menu → System → Save & system → **Keep your journey safe**: **Back up my journey** writes one file (the three slots
+  with the Watch and the Horde inside them, the settings, and the Trial, Gauntlet, Rush, Extreme and Daily boards)
+  through the share sheet where it takes files, else as a download; **Restore from a backup** reads one back, and is
+  also on the home screen, where a new phone starts. A restore checks the whole file first (a file that is not a
+  backup, a damaged one or one from a newer version is refused with the reason, and nothing changes), asks for a
+  second tap, keeps each journey it replaces under `<key>.before-restore` (ordinary saves never touch that copy;
+  **Undo the last restore** puts it back), stops this session saving on the way out, and reloads. The game asks the
+  browser to keep its storage (`navigator.storage.persist()`) at start. The home screen says once a week that a
+  backup is overdue after two hours of play and fourteen days without one. The original edition's own slots are not
+  in a backup.
 - [x] **A2. Tests in a quarter of the time.** BUILT: the `phaser-build` job builds once; the `phaser` job is a matrix
   of eight shards, each running its share of `scripts/ci-tests.txt` through `scripts/ci-shard.mjs` (every check runs
   even after a failure; failures are listed at the end; a script not in the list is named in the log). A new check is
@@ -133,7 +141,7 @@ Checked in the repository on this date; each is addressed by the phase named.
 
 ## Phase C: reasons to play the journey again
 
-- [ ] **C1. The Refiner's Fire** (New Game+ for chapters, after Chapter XII; before it, per finished chapter). At a
+- [ ] **C1. The Refiner's Fire** (per finished chapter, and on top of the New Game+ that exists, not in place of it). At a
   chapter's start the player sets its heat by choosing conditions, each worth points: foes faster, foes tougher,
   elites in every room, no Balm, a time limit, bosses with a second phase pattern earlier, a rival hunting the player
   through the chapter. More heat: better legendary odds, more marks, and a **refined seal** per chapter per heat tier
