@@ -441,6 +441,10 @@ Never ship files from `art/incoming/` directly.
   (the main game's `ECHO_ROLES`: guardian, fighter, ninja, ranger, mage,
   healer), which drives its part in the fight (`ShadowBand`). Save fields
   `essence`, `shadows`, `team` (older watches keep the shadows their level gave).
+- **The Watch's tower and dungeons (Phaser build):** `remnant-phaser/src/game/watch/tower.ts`, on the Daily tab from
+  stage 20: one floor a try, settled by his strength against a holder's time (`fightDps` in offline.ts), a Seal and two
+  chests every fifth floor; three keys a day each for coins, essence and a relic's rank (`WatchSave.tower`, `keys`).
+  Verified by `scripts/watch-tower.mjs`.
 - **CC0 art (Phaser build):** free public-domain packs (Gothicvania by ansimuz,
   Swords and Staffs by SnoopethDuckDuck) live raw in
   `remnant-phaser/art/incoming/cc0/` with `CREDITS.md`; `art/tools/cc0.py`
