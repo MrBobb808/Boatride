@@ -227,6 +227,7 @@ Never ship files from `art/incoming/` directly.
   - The screens are in `ui/menus.ts`: Ilan's stall, Dov's Dismantle tab, and the pause menu's Elior → Store, which is closed during fights.
   - Capes show on Elior in the Phaser build: `fighterRig.ts` dyes the cape when it bakes the sprite sheet.
   - Tirzah's gear (bows, quivers, daggers, hoods, garbs, amulets, charms) lives in the same `ITEMS` table with her own `ArcherSlot`s; Elior's `SLOTS` never take it. Her level, points, tree and gear are the optional `SaveData.archer`, used only by the Phaser build (`remnant-phaser/src/game/archer.ts`); `isWorn` covers both heroes.
+  - Dov's Reforge tab (`game/reforge.ts`): re-rolls one rolled line of a piece within its own range for silver and Relic Shards, shows where the line sits and the chance of a better roll, and never makes a line worse. Verified by `remnant-phaser/scripts/reforge.mjs`.
   - Verified by `remnant-phaser/scripts/economy.mjs`.
 - **Legendary Powers:** `game/legendary.ts` holds thirteen powers carried one per gear piece (`ItemInst.legend`):
   seven for Elior, five for Tirzah, Brimstone for either. Bosses always drop a legendary piece, elites often,
