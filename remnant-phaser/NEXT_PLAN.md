@@ -173,7 +173,7 @@ Checked in the repository on this date; each is addressed by the phase named.
 
 ## Phase D: the other modes, each made to last
 
-- [ ] **D1. The Horde, between runs.** (Partly built, `scripts/horde-board.mjs`: embers, the permanent board (a full board measures ×1.66 in damage × health ÷ cooldown and costs 1,950 embers, about seventeen ordinary runs; ten runs buy roughly ×1.4), three hardships for more embers, and the Long Night, a run that ends when its fifth monarch falls. Still to do: weapons and passives unlocked by deeds, the day's Horde with a ranked run and a result card, and a Day call for it.) A run currency (embers) kept after each run buys a **permanent board** of small
+- [ ] **D1. The Horde, between runs.** (Partly built, `scripts/horde-board.mjs`: embers, the permanent board (a full board measures ×1.66 in damage × health ÷ cooldown and costs 1,950 embers, about seventeen ordinary runs; ten runs buy roughly ×1.4), three hardships for more embers, and the Long Night, a run that ends when its fifth monarch falls. Today's Horde is built too: the camp's third choice, one hardship chosen by the date, embers ×1.25, the first run of the day ranked (its stage and foes kept), a result card, and a Day call. Still to do: weapons and passives unlocked by deeds.) A run currency (embers) kept after each run buys a **permanent board** of small
   upgrades (might, health, pickup reach, one more reroll, one more banish, a starting level), **weapons and passives
   to unlock** by deeds (reach stage 5 with Tirzah, evolve three weapons in one run), and **mutators** for the stage
   select. Add a **30-minute run with an end** (a final monarch and a results screen) beside the endless one, and the

@@ -16,7 +16,7 @@ import { rollLegend } from '../../../remnant/src/game/legendary';
 import { dayKey, weekKey, rollDays } from './watch/daily';
 import type { PhaserSave } from './save';
 
-export type DayTally = 'foes' | 'bosses' | 'trialRounds' | 'dailyRuns' | 'hordeKills' | 'hordeRuns' | 'watchStages' | 'hooks' | 'parries' | 'dayBoss' | 'refined';
+export type DayTally = 'foes' | 'bosses' | 'trialRounds' | 'dailyRuns' | 'hordeKills' | 'hordeRuns' | 'watchStages' | 'hooks' | 'parries' | 'dayBoss' | 'refined' | 'dayHorde';
 /** Where a call is played (the home screen's button starts it). */
 export type DayMode = 'journey' | 'gauntlet' | 'trial' | 'daily' | 'horde' | 'watch' | 'dayboss' | 'chapters';
 export interface DayCall { id: string; tally: DayTally; goal: number; text: string; mins: number; mode: DayMode; paid?: boolean }
@@ -59,9 +59,10 @@ export function tallyNow(s: PhaserSave, id: DayTally): number {
     case 'dayBoss': return num(f.day_boss_falls);
     // Chapters finished under the Refiner's Fire, at any heat (counted by World when the last boss falls).
     case 'refined': return num(f.fire_clears);
+    case 'dayHorde': return num(f.day_horde_runs);
   }
 }
-const ALL: DayTally[] = ['foes', 'bosses', 'trialRounds', 'dailyRuns', 'hordeKills', 'hordeRuns', 'watchStages', 'hooks', 'parries', 'dayBoss', 'refined'];
+const ALL: DayTally[] = ['foes', 'bosses', 'trialRounds', 'dailyRuns', 'hordeKills', 'hordeRuns', 'watchStages', 'hooks', 'parries', 'dayBoss', 'refined', 'dayHorde'];
 const snapshot = (s: PhaserSave) => Object.fromEntries(ALL.map((id) => [id, tallyNow(s, id)])) as Record<DayTally, number>;
 
 // ---------------------------------------------------------------- the calls
@@ -107,6 +108,7 @@ const DAILY: Def[] = [
   { group: 'daily', tally: 'dailyRuns', goal: 1, text: 'Clear today\'s Daily Challenge', mins: 10, mode: 'daily', open: trialOpen },
   { group: 'horde', tally: 'hordeKills', goal: 400, text: 'Fell 400 foes in the Horde', mins: 15, mode: 'horde' },
   { group: 'horde', tally: 'hordeRuns', goal: 1, text: 'Finish a run of the Horde', mins: 15, mode: 'horde' },
+  { group: 'horde', tally: 'dayHorde', goal: 1, text: 'Run today\'s Horde (the camp\'s third choice)', mins: 15, mode: 'horde', open: (s) => (s.horde?.runs ?? 0) > 0 },
   { group: 'watch', tally: 'watchStages', goal: 20, text: 'Clear 20 stages on the Watch', mins: 10, mode: 'watch' },
 ];
 const WEEKLY: Def[] = [

@@ -80,6 +80,29 @@ try {
   await page.screenshot({ path: 'qa/horde-night.png' });
   console.log(`The Long Night: held at stage 5; ${night.line}`);
 
+  // ---- today's Horde: the date's hardship, and the first run of the day is the ranked one
+  const today = async () => {
+    await page.goto(base + '?debug&horde');
+    await ready(page);
+    await page.waitForSelector('[data-k=hz_mode_day]');
+    await page.click('[data-k=hz_mode_day]');
+    await page.waitForFunction(() => document.querySelector('[data-k=hz_mode_day]').classList.contains('primary'));
+    const label = await E(page, () => document.querySelector('[data-k=hz_mode_day]').textContent);
+    await page.click('[data-k=hz_begin]');
+    await until(page, () => !document.querySelector('[data-k=hz_begin]'));
+    const run = await E(page, () => { const h = window.__remnant.horde; if (h.overlay) h.closeCard(); h.pendingLevels = 0; return { muts: h.muts, daily: h.daily }; });
+    await E(page, () => { const h = window.__remnant.horde; h.kills = 222; h.stage = 3; h.openPause(); });
+    await page.click('[data-k=hz_leave]');
+    await page.waitForSelector('[data-k=hz_day_said]');
+    return { label, run, said: await E(page, () => document.querySelector('[data-k=hz_day_said]').textContent), rec: await E(page, () => window.__remnant.horde.save.horde), runs: await E(page, () => window.__remnant.horde.save.flags.day_horde_runs) };
+  };
+  const t1 = await today();
+  assert.ok(/one ranked run/.test(t1.label) && t1.run.daily && t1.run.muts.length === 1, `today's Horde has one hardship chosen by the date (${JSON.stringify(t1.run)}, ${t1.label})`);
+  assert.ok(/ranked run/.test(t1.said) && t1.rec.dayBest?.stage === 3 && t1.runs === 1, `its first run is today's ranked one, and the Day counts it (${t1.said})`);
+  const t2 = await today();
+  assert.ok(/practice/.test(t2.label) && /practice/.test(t2.said) && t2.rec.dayBest.stage === 3 && t2.runs === 1, `a second run today is practice and changes nothing (${t2.said})`);
+  console.log(`Today's Horde: ${t1.label.split(' · ')[1]}; the first run was ranked, the second practice`);
+
   // ---- a damaged record is repaired
   const fixed = await E(page, () => {
     const s = JSON.parse(localStorage.getItem('remnant-phaser.save.v2'));

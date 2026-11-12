@@ -389,6 +389,8 @@ Never ship files from `art/incoming/` directly.
   Between runs (`src/game/horde/board.ts`, NEXT_PLAN D1): a run leaves embers; from the second run it opens at the
   camp, where embers buy a permanent board (seven tracks; a full board is about ×1.66), hardships add embers (Iron
   Host, Legion, Thin Mail, from a best stage of 3), and the Long Night is a run with an end (its fifth monarch).
+  Today's Horde (`dayHorde` in board.ts) is the camp's third choice: one hardship chosen by the date, embers ×1.25,
+  and the day's first run is the ranked one (`HordeSave.dayRun`, `dayBest`; the Day counts `flags.day_horde_runs`).
   `?nocamp` skips the camp in tests. Verified by `scripts/horde-board.mjs`.
 - **Home screen (Phaser build):** `remnant-phaser/src/scenes/Title.ts` and
   `src/game/home.ts`: the journey card (Continue / New journey / Begin) and a
