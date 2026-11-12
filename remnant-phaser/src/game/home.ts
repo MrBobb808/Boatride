@@ -10,6 +10,11 @@ import { G } from '../classic/shim/ctx';
 import { pushLayer, popLayer } from '../../../remnant/src/ui/dom';
 import { ROOMS } from '../shared';
 import type { PhaserSave } from './save';
+import { shouldRemind, noteReminded } from './backup';
+import { restoreButton } from './backupUi';
+import { settleDay, progress, nextCall, stepProgress, stepOf, monthName, buyOwed, STEPS, OWED_COST, type DayMode } from './day';
+import { CAPES } from '../../../remnant/src/game/valor';
+import { writeSave } from './save';
 
 /** What the world does on arrival when the journey is entered from a mode card (World.init's `mode`). */
 export type HomeMode = 'chapters' | 'trial' | 'extreme' | 'gauntlet' | 'rush' | 'daily';
@@ -50,7 +55,30 @@ const CSS = `
 .hm-card.locked{cursor:default;filter:saturate(.25);opacity:.62}
 .hm-card.locked em{color:#9b92a6}
 .hm-card:not(.locked):active{transform:scale(.98)}
+.hm-today{border:1px solid rgba(154,200,255,.4);border-radius:12px;padding:12px 14px;background:linear-gradient(160deg,rgba(18,28,44,.92),rgba(14,12,22,.92))}
+.hm-today .hm-kicker{color:#9ac8ff;display:flex;justify-content:space-between;gap:8px}
+.hm-calls{list-style:none;margin:8px 0;padding:0;display:flex;flex-direction:column;gap:5px}
+.hm-calls li{display:flex;gap:8px;align-items:baseline;font-size:calc(13px*var(--fs-k,1));color:#cfd6e4;line-height:1.3}
+.hm-calls li i{font-style:normal;width:1.1em;color:#6f7a8c;flex:none}
+.hm-calls li.done{color:#8f9bb0}.hm-calls li.done i{color:#9be07a}
+.hm-calls li u{text-decoration:none;margin-left:auto;color:#8f9bb0;white-space:nowrap;font-size:calc(12px*var(--fs-k,1))}
+.hm-chron{font-size:calc(12px*var(--fs-k,1));color:#b9afc4;margin:6px 0 2px}
+.hm-today .hm-prog{margin:4px 0 10px}.hm-today .hm-prog b{background:linear-gradient(90deg,#6fa8e8,#d8ecff)}
+.hm-today .hm-btn.primary{background:linear-gradient(#2c5a8a,#16304e);border-color:#9ac8ff;box-shadow:0 0 18px rgba(120,170,255,.2)}
+.hm-chr{position:fixed;inset:0;z-index:14;background:rgba(6,5,10,.94);overflow-y:auto;font-family:Georgia,serif;color:#ddd4c6;padding:calc(env(safe-area-inset-top) + 16px) 16px calc(env(safe-area-inset-bottom) + 16px)}
+.hm-chr>div{max-width:560px;margin:0 auto;display:flex;flex-direction:column;gap:10px}
+.hm-chr ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px}
+.hm-chr li{display:flex;gap:10px;font-size:calc(13px*var(--fs-k,1));padding:6px 8px;border-radius:6px;background:rgba(255,255,255,.03)}
+.hm-chr li b{width:2em;color:#9ac8ff;font-weight:normal;flex:none}
+.hm-chr li.got{color:#8f9bb0}.hm-chr li.got b{color:#9be07a}
+.hm-chr li.next{outline:1px solid rgba(154,200,255,.6)}
 .hm-more{display:flex;flex-direction:column;gap:8px}
+.hm-keep{margin-top:8px;display:flex;flex-direction:column;align-items:flex-start;gap:2px}
+.hm-link{background:none;border:0;padding:6px 2px;font:inherit;font-size:calc(12px*var(--fs-k,1));color:#b9a98a;text-decoration:underline;cursor:pointer;text-align:left}
+.hm-link.warn{color:#ffb08a}
+.hm-link:focus-visible{outline:2px solid #f6dea0;outline-offset:2px}
+.hm-note{font-size:calc(11.5px*var(--fs-k,1));color:#9b92a6;line-height:1.4}
+.hm-note:empty{display:none}
 .hm-more .hm-btn{font-size:calc(13px*var(--fs-k,1));min-height:40px;text-align:left}
 .hm-foot{margin-top:auto;text-align:center;font-size:calc(11px*var(--fs-k,1));color:#9b92a6;padding-top:6px}
 .hm-foot.fresh{color:#f6dea0}
@@ -67,6 +95,9 @@ const CSS = `
   .hm-side{gap:8px}.hm-stage{height:clamp(48px,14vh,80px)}.hm-sub{display:none}.hm-word{font-size:calc(30px*var(--fs-k,1))}.hm-asc{font-size:calc(13px*var(--fs-k,1))}
   .hm-card{min-height:0;padding:9px 10px}.hm-card span{display:none}.hm-card svg{width:22px;height:22px}
   .hm-journey{padding:11px}.hm-where{font-size:calc(16px*var(--fs-k,1))}.hm-prog{margin:7px 0 9px}.hm-btn{min-height:40px}
+  /* Today folds to one line: the streak, and the button for the next call. */
+  .hm-modes{min-width:0}.hm-today{padding:6px 10px;display:flex;align-items:center;gap:10px;min-width:0}.hm-today .hm-btns,.hm-today .hm-btn{min-width:0}.hm-today .hm-calls,.hm-today .hm-chron,.hm-today .hm-prog{display:none}
+  .hm-today .hm-kicker{flex:none;flex-direction:column;gap:0}.hm-today .hm-btns{flex:1;flex-wrap:nowrap}.hm-today .hm-btn{min-height:32px;padding:4px 10px;font-size:calc(12px*var(--fs-k,1));white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 }
 `;
 
@@ -118,12 +149,14 @@ export class Home {
     this.root = el('div', 'hm');
     const wrap = el('div', 'hm-wrap');
     const head = el('div', 'hm-head');
-    head.append(el('div', 'hm-word', 'REMNANT'), el('div', 'hm-asc', 'ASCENSION'), Object.assign(el('div', 'hm-sub', 'Twelve chapters · One covenant'), { id: 'title_subtitle' }));
+    head.append(el('div', 'hm-word', 'REMNANT'), el('div', 'hm-asc', 'ASCENSION'), Object.assign(el('div', 'hm-sub', 'Thirteen chapters · One covenant'), { id: 'title_subtitle' }));
     this.stage = el('div', 'hm-stage');
     const side = el('div', 'hm-side');
     side.append(head, this.stage, this.journey());
     this.foot = el('div', 'hm-foot');
-    wrap.append(side, this.modes(), this.foot);
+    const right = this.modes(), today = this.today();
+    if (today) right.prepend(today);
+    wrap.append(side, right, this.foot);
     this.root.appendChild(wrap);
     document.body.appendChild(this.root);
     // A controller moves between every button here (✕ presses; the first is focused: Continue or Begin).
@@ -155,11 +188,12 @@ export class Home {
       button('New journey', 'title_second', '', (b) => { if (!this.h.begin()) { b.textContent = 'Tap again: a new journey'; b.classList.add('warn'); } });
     } else {
       box.append(el('div', 'hm-kicker', 'A new journey'), el('div', 'hm-where', 'The Ashen Village'),
-        el('div', 'hm-meta', 'Elior wakes in the ruins. Twelve chapters lie ahead.'));
+        el('div', 'hm-meta', 'Elior wakes in the ruins. Thirteen chapters lie ahead.'));
       box.appendChild(el('div', 'hm-prog'));
       button('Begin', 'title_first', 'primary', () => this.h.begin());
     }
     box.appendChild(btns);
+    box.appendChild(this.keeping());
     // The live game's slots share this origin's storage: one can be copied in (the live slot is untouched).
     if (this.h.live.length) {
       const more = el('div', 'hm-more'); more.style.marginTop = '10px';
@@ -172,6 +206,96 @@ export class Home {
       box.appendChild(more);
     }
     return box;
+  }
+
+  /** Under the journey: restoring a backup (a new phone starts here), and a quiet word when one is overdue. */
+  private keeping() {
+    const row = el('div', 'hm-keep'), note = el('div', 'hm-note');
+    const say = (msg: string) => { note.textContent = msg; };
+    note.dataset.k = 'title_backup_note';
+    if (this.h.save && shouldRemind(this.h.save.playtime ?? 0)) {
+      say('It has been a while since this journey was backed up. Menu → System → Save & system → Back up my journey.');
+      noteReminded();
+    }
+    row.append(restoreButton('hm-link', say), note);
+    return row;
+  }
+
+  // ---------------------------------------------------------------- today
+
+  /** Today's calls with a tick each, the streak, the Chronicle's next step, and one button for the first call not yet
+   * answered. Only with a journey: the Day lives in its save. */
+  private today() {
+    const s = this.h.save as PhaserSave | null;
+    if (!s) return null;
+    if (settleDay(s).length) writeSave(s);
+    const d = s.day!, box = el('section', 'hm-today');
+    box.dataset.k = 'title_today';
+    const kick = el('div', 'hm-kicker'), streak = el('span', '', `${d.streak} ${d.streak === 1 ? 'day' : 'days'} in a row`);
+    streak.dataset.k = 'title_streak';
+    kick.append(el('span', '', 'Today'), streak);
+    const list = el('ul', 'hm-calls');
+    const row = (c: (typeof d.calls)[number], weekly: boolean) => {
+      const li = el('li', c.paid ? 'done' : ''), have = c.paid ? c.goal : progress(s, c, weekly);
+      li.append(el('i', '', c.paid ? '✓' : weekly ? '◆' : '○'), el('span', '', c.text), el('u', '', c.paid ? 'done' : c.goal > 1 ? `${have}/${c.goal}` : weekly ? 'this week' : `about ${c.mins} min`));
+      li.dataset.k = weekly ? 'title_weekly' : 'title_call';
+      return li;
+    };
+    for (const c of d.calls) list.appendChild(row(c, false));
+    for (const c of d.weekly) list.appendChild(row(c, true));
+    const sp = stepProgress(d), chron = el('div', 'hm-chron', sp.done ? `The Chronicle of ${monthName(d.chron.month)} is finished.` : `Chronicle of ${monthName(d.chron.month)} · step ${d.chron.step + 1} of ${STEPS}: ${stepOf(d.chron.step + 1, d.chron.month).text} · ${sp.have}/${sp.need} marks`);
+    chron.dataset.k = 'title_chronicle';
+    const prog = el('div', 'hm-prog'), bar = el('b'); bar.style.width = `${sp.done ? 100 : Math.round((sp.have / sp.need) * 100)}%`; prog.appendChild(bar);
+    const btns = el('div', 'hm-btns'), next = nextCall(s);
+    const go = el('button', 'hm-btn primary', next ? `Answer: ${next.text}` : 'Every call answered today') as HTMLButtonElement;
+    go.dataset.k = 'title_answer';
+    if (next) go.addEventListener('click', () => this.start(next.mode)); else go.disabled = true;
+    const open = el('button', 'hm-btn', 'The Chronicle') as HTMLButtonElement;
+    open.dataset.k = 'title_chron_open';
+    open.addEventListener('click', () => this.chronicle(s));
+    btns.append(go, open);
+    box.append(kick, list, chron, prog, btns);
+    return box;
+  }
+
+  private start(mode: DayMode) {
+    if (mode === 'watch') this.h.watch();
+    else if (mode === 'horde') this.h.horde();
+    else this.h.play(mode === 'journey' ? undefined : mode);
+  }
+
+  /** The month's thirty steps, and what an earlier month still owes. */
+  private chronicle(s: PhaserSave) {
+    const d = s.day!, root = el('div', 'hm-chr'), inner = el('div');
+    root.dataset.k = 'chronicle';
+    const close = () => { popLayer(root); root.remove(); };
+    inner.append(el('div', 'hm-where', `The Chronicle of ${monthName(d.chron.month)}`),
+      el('div', 'hm-meta', `Marks come from the day's calls (10 each, 20 more for all of them) and the week's (40 each). ${d.chron.marks} earned this month. Nothing here is bought, and nothing earned is taken back.`));
+    const ol = el('ol');
+    for (let n = 1; n <= STEPS; n++) {
+      const li = el('li', n <= d.chron.step ? 'got' : n === d.chron.step + 1 ? 'next' : '');
+      li.append(el('b', '', n <= d.chron.step ? '✓' : String(n)), el('span', '', stepOf(n, d.chron.month).text));
+      ol.appendChild(li);
+    }
+    inner.appendChild(ol);
+    if (d.owed?.length) {
+      inner.appendChild(el('div', 'hm-meta', `From earlier months (spare marks: ${d.spare ?? 0}; they come from marks earned after a Chronicle is finished, and from what a closed month left over):`));
+      for (const id of d.owed) {
+        const b = el('button', 'hm-btn', `${CAPES[id]?.name ?? id} · ${OWED_COST} spare marks`) as HTMLButtonElement;
+        b.dataset.k = 'chron_owed';
+        b.disabled = (d.spare ?? 0) < OWED_COST;
+        b.addEventListener('click', () => { if (buyOwed(s, id)) { writeSave(s); close(); this.chronicle(s); } });
+        inner.appendChild(b);
+      }
+    }
+    const back = el('button', 'hm-btn primary', 'Back') as HTMLButtonElement;
+    back.dataset.k = 'chron_back';
+    back.addEventListener('click', close);
+    inner.appendChild(back);
+    root.appendChild(inner);
+    document.body.appendChild(root);
+    pushLayer({ el: root, nav: 'button', onBack: close });
+    back.focus();
   }
 
   private chapterHere(save: PhaserSave): ChapterDef | undefined {

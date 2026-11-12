@@ -65,8 +65,11 @@ Checked in the repository on this date; each is addressed by the phase named.
 - **One test failed once and passed five times** (`watch.mjs`, 7 November). The cause was never found. → A4
 - **The Horde keeps nothing between runs** but a best stage and counts (`PhaserSave.horde`). The genre it belongs to
   lives on permanent unlocks between runs. This is the largest replay gap in the game. → D1
-- **There is no second playthrough.** A finished chapter can be replayed with its bosses matched to the hero
-  (`chapterReplay`), but nothing makes the tenth replay different from the first, and nothing rewards it. → C1
+- **A second playthrough is always the same one.** There is a New Game+ (Save & system, after Chapter I: begin
+  again with level, gear, skills and Echoes; `startNewGamePlus`), and a finished chapter can be replayed with its
+  bosses matched to the hero (`chapterReplay`). But nothing makes the tenth run different from the first, the player
+  chooses nothing about it, and nothing rewards it beyond experience. → C1 (Corrected 11 November: the first version
+  of this line said there was no second playthrough at all; the search behind it missed New Game+.)
 - **The modes do not know about each other.** The journey, the Watch, the Horde and the Trial each have their own day
   (or none). There is no one place that says "here is today". → B
 - **The daily challenge pays "a small bundle of materials"** and its board never leaves the device. → B, C5
@@ -83,15 +86,21 @@ Checked in the repository on this date; each is addressed by the phase named.
 
 ## Phase A: the ground under everything (small, do first)
 
-- [ ] **A1. Progress that cannot be lost.** Settings → System gains **Back up my journey** (writes every slot and the
-  Watch to one file through the share sheet, or a download) and **Restore** (reads it back through the same guard as
-  `saveGuard.ts`: validate, keep the replaced save as `.bak`, migrate). Call `navigator.storage.persist()` once at
-  boot. Once a week, if no backup has been made in 14 days and the player has more than two hours of play, the home
-  screen shows a quiet one-line reminder. Follow the `save-systems` skill. Test: back up, wipe storage, restore, every
-  field equal; a damaged or foreign file is refused with a message and changes nothing.
-- [ ] **A2. Tests in a quarter of the time.** Split the `phaser` job into a matrix of about six shards (the scripts
-  listed in one file, dealt out by index), each building once from a shared build artifact. Target: under 12 minutes
-  for the whole run. Do not drop or skip any script.
+- [x] **A1. Progress that cannot be lost.** BUILT (`src/game/backup.ts`, `backupUi.ts`; `scripts/backup.mjs`).
+  Menu → System → Save & system → **Keep your journey safe**: **Back up my journey** writes one file (the three slots
+  with the Watch and the Horde inside them, the settings, and the Trial, Gauntlet, Rush, Extreme and Daily boards)
+  through the share sheet where it takes files, else as a download; **Restore from a backup** reads one back, and is
+  also on the home screen, where a new phone starts. A restore checks the whole file first (a file that is not a
+  backup, a damaged one or one from a newer version is refused with the reason, and nothing changes), asks for a
+  second tap, keeps each journey it replaces under `<key>.before-restore` (ordinary saves never touch that copy;
+  **Undo the last restore** puts it back), stops this session saving on the way out, and reloads. The game asks the
+  browser to keep its storage (`navigator.storage.persist()`) at start. The home screen says once a week that a
+  backup is overdue after two hours of play and fourteen days without one. The original edition's own slots are not
+  in a backup.
+- [x] **A2. Tests in a quarter of the time.** BUILT: the `phaser-build` job builds once; the `phaser` job is a matrix
+  of eight shards, each running its share of `scripts/ci-tests.txt` through `scripts/ci-shard.mjs` (every check runs
+  even after a failure; failures are listed at the end; a script not in the list is named in the log). A new check is
+  one more line in `ci-tests.txt`. Nothing was dropped: the same 54 checks.
 - [ ] **A3. A faster first screen.** Measure first (first paint and time to the home screen on a throttled 4G profile,
   recorded here). Then load on demand what the first screen does not need: the Watch, the Horde, and each chapter's
   environment and boss modules (`render/env*.ts`, `game/bosses*.ts` are the largest files in the repository). The
@@ -108,7 +117,7 @@ Checked in the repository on this date; each is addressed by the phase named.
 
 ## Phase B: one day for the whole game (the spine of daily play)
 
-- [ ] **B1. The Day** (`remnant-phaser/src/game/day.ts`, save field `PhaserSave.day`, optional). One object for the
+- [x] **B1. The Day** (built; `scripts/day.mjs`. Calls come from what exists today: the journey, parries, the chains, a boss, the Trial, the Daily Challenge, the Horde, the Watch. The day's boss, bounties, the day's Horde and the Fire join the pool as C1, C2 and D1 land: add a row to `DAILY` in `day.ts`.) (`remnant-phaser/src/game/day.ts`, save field `PhaserSave.day`, optional). One object for the
   local day, seeded by the date like `game/daily.ts`:
   - **Five calls** drawn from what is open to this player (the Daily Challenge, the day's boss, a bounty, the day's
     Horde, a Watch quest set, a chapter under the Fire, a Trial round reached). Never a call for a mode still locked.
@@ -116,13 +125,13 @@ Checked in the repository on this date; each is addressed by the phase named.
   - **One streak for the whole game**, the Watch's rule: one missed day a week forgiven. The Watch's own streak folds
     into it (migrate: keep the longer of the two).
   - Each call pays **Chronicle marks** (B2) and something for the mode it belongs to.
-- [ ] **B2. The Chronicle** (a free track, a new one every calendar month): 30 steps, marks from the Day's calls and
+- [x] **B2. The Chronicle** (built: silver, materials, Watch chests, a legendary piece at 10/20/30, the month's cape at 15, an owed list bought back with spare marks. Still to add as rewards: blade glows, hit-spark and number styles, title banners, Watch wall themes, a Psalter Page; marks from play outside the calls.) (a free track, a new one every calendar month): 30 steps, marks from the Day's calls and
   from play in every mode. Each step pays something visible and code-made, so no art drop is needed: cape dyes
   (`fighterRig.ts` already dyes capes), blade glows, hit-spark and damage-number styles, title banners, Watch wall
   themes, a Psalter Page, a sealed legendary piece at steps 10, 20 and 30. A finished Chronicle stays finished; an
   unfinished one closes at the month's end and its unearned steps go into a "Past Chronicles" list that can be bought
   back slowly with later marks (nothing is gone for ever). Odds, where anything is random, are shown.
-- [ ] **B3. "Today" on the home screen.** The journey card stays first; under it one card: the five calls with a tick
+- [x] **B3. "Today" on the home screen.** (built; tested in `scripts/day.mjs`) The journey card stays first; under it one card: the five calls with a tick
   each and how long each takes, the streak, the Chronicle's next step, and the one button that starts the first call
   not yet done. The eight mode cards stay below. Test in `home.mjs`: the card, the routing, a locked player's version.
 - [ ] **B4. Remnant's Rest as the place the day happens.** The settlement already grows by tier. Add a **noticeboard**
@@ -132,7 +141,7 @@ Checked in the repository on this date; each is addressed by the phase named.
 
 ## Phase C: reasons to play the journey again
 
-- [ ] **C1. The Refiner's Fire** (New Game+ for chapters, after Chapter XII; before it, per finished chapter). At a
+- [ ] **C1. The Refiner's Fire** (Partly built, `scripts/fire.mjs`: Replay offers four conditions (Tried Metal ×1.4 health, heat 1; Hotter Coals ×1.3 blows, heat 1; Fasting, no Balm, heat 2; Seven Times Hotter ×1.3 health and ×1.2 blows, heat 2), seals I/II/III at heat 1/3/5 shown on the Chapters page, each tier paid once. Still to do: more conditions (elites in every room, a time limit, a rival), better legendary odds and marks by heat, a Day call, and the blows-to-fell table measured per tier.) (per finished chapter, and on top of the New Game+ that exists, not in place of it). At a
   chapter's start the player sets its heat by choosing conditions, each worth points: foes faster, foes tougher,
   elites in every room, no Balm, a time limit, bosses with a second phase pattern earlier, a rival hunting the player
   through the chapter. More heat: better legendary odds, more marks, and a **refined seal** per chapter per heat tier
@@ -164,7 +173,7 @@ Checked in the repository on this date; each is addressed by the phase named.
 
 ## Phase D: the other modes, each made to last
 
-- [ ] **D1. The Horde, between runs.** A run currency (embers) kept after each run buys a **permanent board** of small
+- [ ] **D1. The Horde, between runs.** (Partly built, `scripts/horde-board.mjs`: embers, the permanent board (a full board measures ×1.66 in damage × health ÷ cooldown and costs 1,950 embers, about seventeen ordinary runs; ten runs buy roughly ×1.4), three hardships for more embers, and the Long Night, a run that ends when its fifth monarch falls. Still to do: weapons and passives unlocked by deeds, the day's Horde with a ranked run and a result card, and a Day call for it.) A run currency (embers) kept after each run buys a **permanent board** of small
   upgrades (might, health, pickup reach, one more reroll, one more banish, a starting level), **weapons and passives
   to unlock** by deeds (reach stage 5 with Tirzah, evolve three weapons in one run), and **mutators** for the stage
   select. Add a **30-minute run with an end** (a final monarch and a results screen) beside the endless one, and the
@@ -207,7 +216,7 @@ Checked in the repository on this date; each is addressed by the phase named.
 
 ## Phase F: more story (the owner decides)
 
-Chapter XII closes the Daniel arc. A second book is the largest thing that could be added and the slowest to make;
+**Chapter XIII, The Stones of Fire (Ezekiel 26–28), is built** (the owner asked for the next chapter on 10 November; `remnant/FALLEN_CHAPTERS.md`, `scripts/tyrus.mjs`). Beyond it, a second book is the largest thing that could be added and the slowest to make;
 the systems above give more play per week of work. When the owner wants it, the pattern is the Fallen Crown builder
 (`game/fallenChapters.ts`): a chapter is a table of rooms, a `DRESS` entry, a curve row and one boss module.
 

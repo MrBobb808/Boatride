@@ -15,6 +15,8 @@ import { settings } from '../classic/shim/settings';
 import { T, TILE, isSolid } from '../shared';
 import { sovereignDamage } from '../../../remnant/src/game/balance';
 import { MOVESETS, FISTS, extraFor, type AttackDef } from '../../../remnant/src/game/weapons';
+import { dayCount } from './day';
+import { CHAINS, ChainFx, hasChains, isChainMove, HOOK_RANGE, HOOK_MIN, HOOK_CD, HOOK_SPEED, PULL_SPEED, HOOK_DMG, chainBurn, hookRange } from './chains';
 import { fx } from '../../../remnant/src/render/fx';
 import { skillRank } from '../../../remnant/src/game/state';
 import { SKILLS, skillSlots, castSkill, isArcherSkill, archerUnlocked, ARCHER, type AnySkillId } from './abilities';
@@ -59,7 +61,7 @@ const CHARGE_MULT = [1, 1.35, 1.8, 2.5];
 /** Sheet frames (4×4, 128 px): idle 0–3, run 4–7, rise 8, fall 9, wind-up 10, strike 11, dodge 12–13, hurt 14, cast 15. */
 const FRAME = 128, FOOT = 120, DRAW = 56;
 
-type State = 'free' | 'attack' | 'charge' | 'parry' | 'block' | 'heal' | 'cast' | 'dodge' | 'airdash' | 'phantom' | 'plunge' | 'execute' | 'transform' | 'scripted' | 'swim' | 'bow' | 'hurt' | 'dead';
+type State = 'free' | 'attack' | 'hook' | 'charge' | 'parry' | 'block' | 'heal' | 'cast' | 'dodge' | 'airdash' | 'phantom' | 'plunge' | 'execute' | 'transform' | 'scripted' | 'swim' | 'bow' | 'hurt' | 'dead';
 
 export class Player {
   rect: Phaser.GameObjects.Rectangle;
@@ -121,6 +123,13 @@ export class Player {
   private linger = '';
   private lingerT = 0;
   private heavyQueued = false;
+  /** The Sundered Chains (game/chains.ts): a chain press waiting on the swing in progress, the hook's cooldown, the
+   * one wheel of fire a leap allows, and the hook in flight. */
+  private chainQueued = false;
+  hookCd = 0;
+  private airChain = false;
+  private chainFx: ChainFx;
+  private hook: { f: FoeLike | null; phase: 'throw' | 'yank' | 'fly'; cx: number; cy: number; T: number } = { f: null, phase: 'throw', cx: 0, cy: 0, T: 0.1 };
   private hitSeg = -1;
   private swung = false;
   phantomN = 0;
@@ -185,6 +194,7 @@ export class Player {
     this.maxCe = w.d.maxCe;
     this.hp = w.save.hp > 0 ? Math.min(w.save.hp, this.maxHp) : this.maxHp;
     this.face = face;
+    this.chainFx = new ChainFx(sc);
     this.bow = new Bow(w, this);
     this.dawn = new Dawn(w, this, this.bow);
     this.bow.dawn = this.dawn;
@@ -248,6 +258,7 @@ export class Player {
   }
 
   destroy() {
+    this.chainFx.destroy();
     this.bow.destroy();
     this.dawn.destroy();
     for(const g of this.trail)g.sprite.destroy();
@@ -283,6 +294,7 @@ export class Player {
     this.vigilParryCd = Math.max(0, this.vigilParryCd - dt);
     this.invuln = Math.max(0, this.invuln - dt);
     this.dodgeCd = Math.max(0, this.dodgeCd - dt);
+    this.hookCd = Math.max(0, this.hookCd - dt);
     this.cloudCd = Math.max(0, this.cloudCd - dt);
     this.stepClones(dt);
     this.parryT = Math.max(0, this.parryT - dt);
@@ -311,7 +323,7 @@ export class Player {
     if (!this.phantomT && this.state !== 'phantom') { this.phantomN = 0; this.phantomStruck.clear(); }
     this.comboT = Math.max(0, this.comboT - dt);
     if (!this.comboT) this.comboHits = 0;
-    if (this.onGround) { this.airAttacks = 0; this.airDash = this.airDashes(); this.airJumps = this.airJumpCount(); }
+    if (this.onGround) { this.airAttacks = 0; this.airChain = false; this.airDash = this.airDashes(); this.airJumps = this.airJumpCount(); }
     if (this.state !== 'dead' && (s.flags.relic_taken || !this.powers?.L.storyEnabled)) s.ce = Math.min(this.maxCe, s.ce + CE_REGEN * this.w.d.ceRegen * dt);
     this.coyote = this.onGround ? COYOTE : Math.max(0, this.coyote - dt);
     this.jumpBuf = c.pressed('jump') ? BUFFER : Math.max(0, this.jumpBuf - dt);
@@ -340,7 +352,7 @@ export class Player {
     if (this.state === 'swim') { this.swim(dt); this.draw(dt); return; }
     // Short hops: letting go of jump on the way up pulls Elior down sooner.
     const airSwing = (this.state === 'attack' || this.state === 'charge') && !this.onGround;
-    b.setGravityY(this.water.swimming ? 0 : this.glide() ? GRAV * 0.12 : this.state === 'phantom' || this.state === 'airdash' ? 0 : airSwing && this.atk.id !== 'rend' ? GRAV * 0.35 : b.velocity.y < 0 && !c.down('jump') ? GRAV * 1.9 : GRAV);
+    b.setGravityY(this.water.swimming ? 0 : this.glide() ? GRAV * 0.12 : this.state === 'phantom' || this.state === 'airdash' || this.state === 'hook' ? 0 : airSwing && this.atk.id !== 'rend' ? GRAV * 0.35 : b.velocity.y < 0 && !c.down('jump') ? GRAV * 1.9 : GRAV);
 
     switch (this.state) {
       case 'free': {
@@ -359,7 +371,8 @@ export class Player {
           this.airJumps--; this.jumpBuf = 0; b.setVelocityY(-JUMP_V * 0.9);
         }
         if (this.defence()) break;
-        if (c.pressed('heavy') && !c.down('up')) {
+        if (this.chainPressed()) this.chooseChain(this.linger);
+        else if (c.pressed('heavy') && !c.down('up')) {
           if (this.onGround && [this.moves.combo[2].id, this.moves.extra.id].includes(this.linger)) this.startMove(this.moves.storm);
           else if (!this.onGround) this.startPlunge();
           else this.startCharge('heavy');
@@ -370,6 +383,7 @@ export class Player {
         break;
       }
       case 'attack': this.updateAttack(actionDt); break;
+      case 'hook': this.updateHook(); break;
       case 'charge': {
         b.setVelocityX(b.velocity.x * 0.8);
         if (Math.abs(c.axis) > 0.3) this.face = Math.sign(c.axis);
@@ -510,7 +524,7 @@ export class Player {
   }
 
   private startMove(a: AttackDef) {
-    const speed = Math.min(MAX_ASPD, this.w.d.aspd * (this.lion > 0 ? 1.1 : 1) * (this.formT > 0 ? 1.25 : this.mantleT > 0 ? 1.2 : 1)) * this.moves.speed;
+    const speed = Math.min(MAX_ASPD, this.w.d.aspd * (this.lion > 0 ? 1.1 : 1) * (this.formT > 0 ? 1.25 : this.mantleT > 0 ? 1.2 : 1)) * (isChainMove(a.id) ? 1 : this.moves.speed);
     this.atk = swing(a, speed);
     this.atkMult = 1;
     this.combo = this.moves.combo.findIndex((v) => v.id === a.id);
@@ -569,7 +583,8 @@ export class Player {
       return;
     }
     if (c.pressed('attack')) this.queued = true;
-    if (c.pressed('heavy')) this.heavyQueued = true;
+    if (this.chainPressed()) this.chainQueued = true;
+    else if (c.pressed('heavy')) this.heavyQueued = true;
     if (a.dive && u >= a.hit[0]) b.setVelocity(this.face * 230, Math.max(470, b.velocity.y));
     else if (a.lunge && a.lungeT && u >= a.lungeT[0] && u <= a.lungeT[1] && (this.onGround || a.id === 'dash' || a.id === 'flurry')) {
       const near = this.w.foes().some((f) => f.alive && Math.abs(f.x - this.x) < 24 && Math.abs(f.box.centerY - this.y) < 40);
@@ -600,6 +615,8 @@ export class Player {
     if (c.pressed('dodge') && this.recentHit > 0 && this.canPhantom()) { this.startPhantom(); return; }
     if (u >= a.cancel && this.defence()) return;
     if (u >= a.cancel) {
+      // The chains answer out of any swing: sword into chains, and chains into each other.
+      if (this.chainQueued) { this.chainQueued = false; if (this.chooseChain(a.id)) return; }
       if (this.heavyQueued && this.onGround && [m.combo[2].id, m.extra.id].includes(a.id)) { this.startMove(m.storm); return; }
       if (this.heavyQueued && a.air && a.id === m.air[2].id) { this.startMove(m.rend); return; }
       if (a.id === m.combo[2].id && c.down('attack') && !this.queued && this.onGround) { this.startMove(m.storm); return; }
@@ -633,6 +650,7 @@ export class Player {
     this.st = 0;
     this.queued = false;
     this.heavyQueued = false;
+    this.chainQueued = false;
     this.hitDone.clear();
     const ax = this.w.controls.axis;
     if (Math.abs(ax) > 0.2) this.face = Math.sign(ax);
@@ -668,6 +686,7 @@ export class Player {
   private startHeal() {
     const s = this.w.save;
     if (!this.onGround) return;
+    if (this.w.fasting) { this.w.toast('Balm is sealed by the Fire: rest at an altar.'); return; }
     if (this.powers?.L.story.ch3.rounds.balmSealed) { this.w.toast('Balm is sealed by this run’s rules.'); return; }
     if (s.balm <= 0) { this.w.floatText(this.x, this.body.top - 8, 'No Balm left: rest at an altar', '#ff9a9a'); return; }
     if (this.hp >= this.maxHp) return;
@@ -880,8 +899,139 @@ export class Player {
     else if (['heavy', 'sub', 'heal', 'ultimate', 'transform', 'skill1', 'skill2', 'skill3'].some(a => c.pressed(a as import('./controls').Action)) && w.deniedT <= 0) { w.deniedT = 1.2; this.w.toast('Not under water. Swim, thrust, parry or dash-stroke.'); }
   }
 
+  // ---------------------------------------------------------------- the Sundered Chains (game/chains.ts)
+
+  /** The Chain button, or Down + Heavy on any device. Elior's alone, and not in the Unshorn's bare hands. */
+  private chainPressed() {
+    const c = this.w.controls;
+    return (c.pressed('chain') || (c.pressed('heavy') && c.down('down'))) && this.hero === 'elior' && this.formT <= 0 && !this.water.swimming && hasChains(this.w.save);
+  }
+  /** Whether the lash already reaches a foe ahead (then there is nothing to hook). */
+  private foeInLash() {
+    for (const f of this.w.foes()) {
+      if (!f.alive) continue;
+      const dx = (f.x - this.x) * this.face;
+      if (dx > -14 && dx < 122 && Math.abs(f.box.centerY - this.y) < 62) return true;
+    }
+    return false;
+  }
+  /** The foe a thrown blade would take: ahead, in the hook's reach, in a clear line. Holding Up prefers one above. */
+  private hookTarget(min = HOOK_MIN) {
+    const far = hookRange(this.w.save);
+    let best: FoeLike | null = null, score = far + 1;
+    const up = this.w.controls.down('up');
+    for (const f of this.w.foes()) {
+      const phase = f as FoeLike & { fighting?: boolean; ward?: boolean };
+      if (!f.alive || f.removed || phase.fighting === false || phase.ward) continue;
+      const dx = f.x - this.x, dy = f.box.centerY - this.y, d = Math.hypot(dx, dy);
+      if (dx * this.face < 8 || d < min || d > far || !this.lineOfSight(f.x, f.box.centerY)) continue;
+      const sc = d - (up && dy < -30 ? 140 : 0);
+      if (sc < score) { score = sc; best = f; }
+    }
+    return best;
+  }
+  /** What a chain press does now (`from`: the swing or the lingering blow it follows). False if nothing started. */
+  private chooseChain(from: string) {
+    const L = CHAINS.lash, m = this.moves;
+    if (Math.abs(this.w.controls.axis) <= 0.2) this.face = this.swingFacing();
+    else this.face = Math.sign(this.w.controls.axis);
+    if (!this.onGround) {
+      // Aloft: the hook if a foe is in its reach, else one wheel of fire a leap.
+      const t = this.hookCd <= 0 ? this.hookTarget(60) : null;
+      if (t) { this.startHook(t); return true; }
+      if (this.airChain) return false;
+      this.airChain = true; this.startMove(CHAINS.air);
+      return true;
+    }
+    // A foe past the lash and inside the hook's reach: throw.
+    if (this.hookCd <= 0 && !this.foeInLash()) { const t = this.hookTarget(); if (t) { this.startHook(t); return true; } }
+    if (from === L[0].id) this.startMove(L[1]);
+    else if (from === L[1].id) this.startMove(L[2]);
+    else if (from === L[2].id || from === m.combo[2].id || from === m.extra.id) this.startMove(CHAINS.cyclone);
+    else this.startMove(L[0]);
+    return true;
+  }
+  /** A chain's blow sets its foe burning. */
+  private kindle(f: FoeLike) {
+    const e = (f as FoeLike & { e?: { burn: number; burnDps: number } }).e;
+    const k = chainBurn(this.w.save);
+    if (e) { e.burn = Math.max(e.burn, k.secs); e.burnDps = Math.max(e.burnDps, this.power() * k.share); }
+    this.w.spark(f.x, f.box.centerY, 0xff8a3a, 4);
+  }
+  private startHook(f: FoeLike) {
+    const h = this.hook, b = this.body;
+    this.state = 'hook'; this.st = 0; this.hookCd = HOOK_CD;
+    this.face = Math.sign(f.x - this.x) || this.face;
+    h.f = f; h.phase = 'throw'; h.cx = this.x + this.face * 9; h.cy = this.feet - 31;
+    h.T = Phaser.Math.Clamp(Math.hypot(f.x - this.x, f.box.centerY - this.y) / HOOK_SPEED, 0.07, 0.28);
+    this.queued = this.heavyQueued = this.chainQueued = false;
+    this.linger = '';
+    this.slash.setVisible(false);
+    b.setVelocity(b.velocity.x * 0.3, Math.min(0, b.velocity.y * 0.3));
+    this.w.playEffect('chainThrow');
+    this.noteStyle('hook');
+  }
+  /** The blade flies, bites, and then a light foe comes to him or the chain carries him to a heavy one. */
+  private updateHook() {
+    const h = this.hook, f = h.f, b = this.body;
+    if (!f || !f.alive || f.removed) { this.endHook(false); return; }
+    const tx = f.x, ty = f.box.centerY;
+    if (h.phase === 'throw') {
+      b.setVelocity(b.velocity.x * 0.8, 0);
+      const u = Math.min(1, this.st / h.T), hx = this.x + this.face * 9, hy = this.feet - 31;
+      h.cx = hx + (tx - hx) * u; h.cy = hy + (ty - hy) * u;
+      if (u >= 1) this.hookBite(f);
+      return;
+    }
+    h.cx = tx; h.cy = ty;
+    if (h.phase === 'yank') {
+      b.setVelocity(b.velocity.x * 0.8, 0);
+      const e = (f as FoeLike & { e?: { x: number; body: { vx: number } } }).e, want = this.x + this.face * 34;
+      if (!e || this.st >= 0.3 || Math.abs(f.x - want) < 12) { if (e) e.body.vx *= 0.15; this.endHook(true); return; }
+      e.body.vx = Math.sign(want - e.x) * 640;
+      return;
+    }
+    // Carried in: straight along the chain to just short of the foe, then the strike.
+    const gx = tx - this.face * 30, dx = gx - this.x, dy = ty - this.y, d = Math.hypot(dx, dy);
+    if (d < 30 || this.st > 0.6 || (this.st > 0.08 && (b.blocked.left || b.blocked.right || b.blocked.up))) {
+      b.setVelocity(this.face * 110, -130);
+      h.f = null;
+      this.airDash = this.airDashes();
+      this.startMove(this.onGround ? CHAINS.arrive : CHAINS.arriveAir);
+      return;
+    }
+    b.setVelocity((dx / d) * PULL_SPEED, (dy / d) * PULL_SPEED);
+  }
+  private hookBite(f: FoeLike) {
+    const h = this.hook, dmg = Math.round(this.power() * HOOK_DMG * Phaser.Math.FloatBetween(0.95, 1.05)), before = f.hp;
+    if (!f.hit(dmg, this.face, 0.3, false, { poise: 40, stun: 0.6, noKnock: true, tag: 'chain' })) { this.endHook(false); return; }
+    this.kindle(f);
+    dayCount(this.w.save, 'chain_hooks');
+    haptic('hit');
+    this.w.heroHit(f, before !== undefined && f.hp !== undefined ? Math.max(0, before - f.hp) : dmg, true, false);
+    this.w.hitstop(STOP.heavy);
+    this.w.burst(h.cx, h.cy, 2);
+    this.w.flashLight?.(h.cx, h.cy, 120, '#ff9a3c', 0.35);
+    this.w.playEffect('chainBite', { x: h.cx });
+    this.recentHit = 0.65; this.comboHits++; this.comboT = 1.7;
+    if (!f.alive) { this.endHook(false); return; }
+    // Light foes come to him. Bosses, elites and the heavy carry him to them; so does holding Up.
+    const e = (f as FoeLike & { e?: { isBoss: boolean; heavyBody: boolean; elite?: string | null; body: { vy: number } } }).e;
+    const carry = !e || e.isBoss || e.heavyBody || !!e.elite || this.w.controls.down('up');
+    this.st = 0;
+    if (carry) { h.phase = 'fly'; this.untouchable = Math.max(this.untouchable, 0.3); }
+    else { h.phase = 'yank'; e.body.vy = Math.min(e.body.vy, -110); }
+  }
+  /** `won`: the foe is at his feet, and the next blow lands half again harder (the swap's own reward). */
+  private endHook(won: boolean) {
+    this.hook.f = null;
+    if (won) this.swapStrikeT = Math.max(this.swapStrikeT, 0.9);
+    this.toFree();
+  }
+
   private blade() {
-    const a = this.atk, reach = a.box.w * (this.w.d.family === 'spear' ? 1 : this.moves.reach) + (a.heavy ? 30 : 0);
+    // A chain's reach is its own: the sword's family does not stretch it.
+    const a = this.atk, reach = isChainMove(a.id) ? a.box.w : a.box.w * (this.w.d.family === 'spear' ? 1 : this.moves.reach) + (a.heavy ? 30 : 0);
     const x = this.face > 0 ? this.x + a.box.x : this.x - a.box.x - reach;
     return new Phaser.Geom.Rectangle(x, this.feet + a.box.y, reach, a.box.h);
   }
@@ -907,7 +1057,7 @@ export class Player {
       const swap = this.swapStrikeT > 0 ? 1.5 : 1;
       const force = this.atk.force * this.atkMult * (counter ? 1.5 : 1) * swap;
       const beforeHp = f.hp;
-      if (f.hit(Math.round(dmg * swap), this.face, force, crit, { poise: this.atk.poise * this.atkMult * this.w.d.heavyPoiseMult * (this.atk.heavy && wears(ps, 'broken_idol') ? 1.4 : 1), kx: this.atk.kx * this.face, ky: this.atk.ky, launch: this.atk.launch, heavy: this.atk.heavy, guardBreak: this.atk.guardBreak })) {
+      if (f.hit(Math.round(dmg * swap), this.face, force, crit, { poise: this.atk.poise * this.atkMult * this.w.d.heavyPoiseMult * (this.atk.heavy && wears(ps, 'broken_idol') ? 1.4 : 1), kx: this.atk.kx * this.face, ky: this.atk.ky, launch: this.atk.launch, heavy: this.atk.heavy, guardBreak: this.atk.guardBreak, tag: isChainMove(this.atk.id) ? 'chain' : undefined })) {
         haptic('hit');
         landed = true;
         const dealt = beforeHp !== undefined && f.hp !== undefined ? Math.max(0, beforeHp - f.hp) : Math.round(dmg * swap);
@@ -936,6 +1086,7 @@ export class Player {
         if (id === 'cross' || (id === 'pstrike' && this.phantomN >= 3) || (ender && !f.alive)) this.w.finale(f.x, f.box.centerY, id === 'cross' ? 1.4 : id === 'pstrike' ? 0.8 : 1);
         this.w.legends?.onHit(f, { crit, heavy: !!this.atk.heavy, ender });
         if (this.formT > 0) this.punchImpact(f, crit, ender || !!this.atk.heavy);
+        if (isChainMove(id)) this.kindle(f);
       }
     }
     return landed;
@@ -993,7 +1144,7 @@ export class Player {
       if (wears(ps, 'hunt') && h.src) ((h.src.ent ?? h.src) as { psalmMarkT?: number }).psalmMarkT = this.clock + 4;
       if (wears(ps, 'refiner')) this.psalmCrits = 3;
       if (this.w.d.sets.vigil >= 3 && this.vigilParryCd <= 0) { this.vigilParryCd = 3; this.hp = Math.min(this.maxHp, this.hp + this.maxHp * 0.05); this.w.save.ce = Math.min(this.maxCe, this.w.save.ce + 8); }
-      valorTrack.parry(); haptic('parry'); input.rumble(0.7, 0.5, 150);
+      valorTrack.parry(); dayCount(this.w.save, 'parries'); haptic('parry'); input.rumble(0.7, 0.5, 150);
       this.w.playEffect('parryPerfect');
       this.w.hitstop(STOP.parry);
       return false;
@@ -1065,6 +1216,7 @@ export class Player {
     else if(this.hero==='tirzah'&&this.bow.stabT>0){clip='dagger2';uArt=.3+(1-this.bow.stabT/STAB_T)*.7;}
     else if(this.state==='bow'&&this.bow.dagger){clip=`dagger${this.bow.dagger}`;uArt=this.bow.daggerU;}
     else if(this.state==='bow'){clip=this.bow.drawing?'bowDraw':'bowRelease';uArt=this.bow.drawing?this.bow.charge/.55:1-this.bow.recovery/.28;}
+    else if(this.state==='hook'){const ph=this.hook.phase;clip=ph==='throw'?'chhook':ph==='yank'?'chhaul':'chfly';uArt=ph==='throw'?this.st/this.hook.T:this.st/.3;}
     else if(this.state==='attack'||this.state==='plunge'){clip=this.hero==='tirzah'?'cast':this.atk.clip;uArt=this.st/this.atk.t;}
     else if(this.state==='dodge'){clip='roll';uArt=this.st/DODGE_T;}
     else if(this.state==='airdash'||this.state==='phantom'){clip='airdash';uArt=this.st/.2;}
@@ -1101,7 +1253,12 @@ export class Player {
     // The blade's arc shows from the moment it lands until the swing ends.
     const u = this.state === 'attack' ? this.st / this.atk.t : 0;
     // Bare fists draw no blade arcs: the impact is the effect.
-    const show = !form && this.state === 'attack' && u >= this.atk.hit[0] && u <= this.atk.hit[1] + 0.15;
+    const chain = this.state === 'attack' && isChainMove(this.atk.id);
+    const show = !form && !chain && this.state === 'attack' && u >= this.atk.hit[0] && u <= this.atk.hit[1] + 0.15;
+    // The chains themselves, drawn live from his hand (the arriving strike is a blade in the fist: no chain out).
+    if (chain && this.atk.id !== CHAINS.arrive.id) this.chainFx.sweep(this.atk.id, u, b.center.x, b.bottom, this.face, dt);
+    else if (this.state === 'hook' && this.hook.f) this.chainFx.line(b.center.x, b.bottom, this.face, this.hook.cx, this.hook.cy, dt);
+    else this.chainFx.hide();
     this.slash.setVisible(show);
     if (show) {
       const k = (u - this.atk.hit[0]) / (this.atk.hit[1] + 0.15 - this.atk.hit[0]);

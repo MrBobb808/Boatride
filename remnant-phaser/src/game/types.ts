@@ -74,6 +74,8 @@ export interface WorldApi {
   roomW(): number;
   banner(title: string, sub: string): void;
   toast(text: string): void;
+  /** Balm is sealed (a replay under the Fire's Fasting). */
+  readonly fasting: boolean;
   bossBar(name: string | null, sub?: string): void;
   onBossDefeated(key: string): void;
   /** A short freeze on a heavy impact. */

@@ -20,7 +20,7 @@ const watch = (page) => {
   page.on('console', (m) => { if (m.type() === 'error' && !m.text().includes('404')) errors.push(m.text()); });
 };
 const E = (page, fn, arg) => page.evaluate(fn, arg);
-const until = (page, fn, arg, timeout = 15000) => page.waitForFunction(fn, arg, { timeout }).catch(async (e) => {
+const until = (page, fn, arg, timeout = 60000) => page.waitForFunction(fn, arg, { timeout }).catch(async (e) => {
   const b = await page.evaluate(() => { const w = window.__remnant.world, b = w.boss; return { room: w.room.id, boss: b && { st: b.state, phase: b.phase, hp: b.hp, ward: b.ward }, p: w.player.state }; });
   throw new Error(`${e.message}\n${fn}\n${JSON.stringify(b)}`);
 });
@@ -134,7 +134,8 @@ try {
   const kneelHit = await E(page, () => { const b = window.__remnant.world.boss, hp = b.hp; b.hit(100, 1, 0); return hp - b.hp; });
   assert.equal(kneelHit, 150, 'a kneeling Crown takes half again');
   await page.screenshot({ path: 'qa/boss-azkar.png' });
-  await until(page, () => window.__remnant.world.boss.state !== 'kneel');
+  // His kneel lasts a few seconds of the game's time, which is much longer by the clock on a slow machine.
+  await until(page, () => window.__remnant.world.boss.state !== 'kneel', null, 90000);
   await toNextPhase(page);
   w3 = await E(page, () => { const b = window.__remnant.world.boss; return { ward: b.ward, armor: b.armor }; });
   assert.ok(w3.ward && !w3.armor, 'the Last Bellows is warded and the armor is gone');

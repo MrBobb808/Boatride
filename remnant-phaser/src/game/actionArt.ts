@@ -8,6 +8,7 @@ import type { PlayableHero } from './style';
 import { FighterRig, FIGHTER_DIMS } from './fighterRig';
 import { easeOutCubic, easeInQuad } from '../../../remnant/src/core/math';
 import BLADE_GRIPS from '../assets/cc0/blades.json';
+import { CHAIN_CLIPS, CHAIN_CLIP_NAMES } from './chains';
 export const ACTION_CELL=192,ACTION_FOOT=120,ACTION_STEPS=16;
 /** Clips baked as loops (sampled at i/STEPS); the rest are one-shots sampled at i/(STEPS-1). */
 const LOOPS=new Set<string>();
@@ -21,6 +22,8 @@ function fighterClips(family:ArtFamily,hero:PlayableHero){
     const a=u*Math.PI*2;
     return{lean:.25,head:-.1,fUA:2.4+Math.sin(a)*.55,fFA:.3,bUA:2.4+Math.sin(a+Math.PI)*.55,bFA:.3,fTh:.25+Math.sin(a)*.35,bTh:.25-Math.sin(a)*.35,fSh:-.65,bSh:-.65,y:Math.sin(a)*.4};
   }};
+  // The Sundered Chains (game/chains.ts): Elior's, on any weapon's stance, baked with his hands free of the sword.
+  if(hero==='elior'&&family!=='fists')for(const n of CHAIN_CLIP_NAMES)clips[n]={...CHAIN_CLIPS[n],base};
   if(hero==='tirzah'){
     const bowBase={...base,lean:.03,head:0,fTh:.35,fSh:-.35,bTh:-.35,bSh:-.2};
     clips.bowDraw={dur:.55,base:bowBase,keys:[{t:0,p:{lean:.12}},{t:1,p:{lean:-.08,head:.04}}]};
@@ -66,7 +69,7 @@ export function actionAtlas(sc:Phaser.Scene,hero:PlayableHero,family:ArtFamily,m
   const clips=fighterClips(hero==='tirzah'?'blade':family,hero),anim=new Animator(clips),rig=new FighterRig(sc,hero,fists?'blade':family,mantle&&!fists,fists?null:cape,fists,sprite);
   const moves=Object.values(fists?FISTS:MOVESETS[family]).flatMap(v=>Array.isArray(v)?v:typeof v==='object'?[v as AttackDef]:[]);
   const attacks=new Set(moves.map(m=>m.clip));
-  const names=hero==='tirzah'?[...COMMON,'bowDraw','bowRelease','dagger1','dagger2','dagger3']:[...new Set([...COMMON,...attacks,'b1','b2','b4','heavy','dash','launch','storm','plunge'])];
+  const names=hero==='tirzah'?[...COMMON,'bowDraw','bowRelease','dagger1','dagger2','dagger3']:[...new Set([...COMMON,...attacks,'b1','b2','b4','heavy','dash','launch','storm','plunge',...(fists?[]:CHAIN_CLIP_NAMES)])];
   const canvas=document.createElement('canvas');canvas.width=canvas.height=ACTION_CELL;const c=canvas.getContext('2d')!;
   const packed:{name:string;canvas:HTMLCanvasElement;left:number;top:number;x:number;y:number;ground:boolean;clip:string;phase:number}[]=[];
   let px=2,py=2,row=0;
@@ -78,10 +81,10 @@ export function actionAtlas(sc:Phaser.Scene,hero:PlayableHero,family:ArtFamily,m
       const u=i/(clip.loop?ACTION_STEPS:ACTION_STEPS-1);anim.time=clip.dur*u;
       const p=anim.sample();
       // Enter wind-ups from the same ready pose without skipping anticipation.
-      if(attacks.has(name)&&u<.18)blendPose(clip.base!,p,Math.min(1,u/.18),p);
-      const ground=!/air|jump|fall|flip|comet|rend|executeLeap|swim/i.test(name),j=solve(p,FIGHTER_DIMS,ground);
+      if((attacks.has(name)||name in CHAIN_CLIPS&&name!=='chfly'&&name!=='chhaul')&&u<.18)blendPose(clip.base!,p,Math.min(1,u/.18),p);
+      const ground=!/air|jump|fall|flip|comet|rend|executeLeap|swim|chfly/i.test(name),j=solve(p,FIGHTER_DIMS,ground);
       c.clearRect(0,0,ACTION_CELL,ACTION_CELL);c.save();c.translate(ACTION_CELL/2,ACTION_FOOT);
-      c.imageSmoothingEnabled=true;rig.draw(c,j,p,anim.time,name,u,armed&&!fists);c.restore();
+      c.imageSmoothingEnabled=true;rig.draw(c,j,p,anim.time,name,u,armed&&!fists&&!(name in CHAIN_CLIPS));c.restore();
       const d=c.getImageData(0,0,ACTION_CELL,ACTION_CELL).data;let left=ACTION_CELL-1,top=ACTION_CELL-1,right=0,bottom=0;
       for(let y=0;y<ACTION_CELL;y++)for(let x=0;x<ACTION_CELL;x++)if(d[(y*ACTION_CELL+x)*4+3]){left=Math.min(left,x);right=Math.max(right,x);top=Math.min(top,y);bottom=Math.max(bottom,y);}
       if(left===0||top===0||right===ACTION_CELL-1||bottom===ACTION_CELL-1)throw Error(`Clipped fighter frame: ${key}/${name}:${i}`);

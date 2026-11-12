@@ -40,6 +40,7 @@ import { Story } from '../../../remnant/src/game/story';
 import { initUI, hooks } from '../../../remnant/src/ui/ui';
 import { closeMenu } from '../../../remnant/src/ui/menus';
 import { h as el, btn } from '../../../remnant/src/ui/dom';
+import { backupButton, restoreButton, undoButton, backupLine } from '../game/backupUi';
 import { installNav } from '../../../remnant/src/ui/dom';
 import { mantleStyle } from '../../../remnant/src/game/mantle';
 import { ELEMENTS } from '../../../remnant/src/game/power';
@@ -403,6 +404,13 @@ export class ClassicLayer {
   deathHandled = false;
   get rallyT() { return (this.hero as any)?.superT ?? -1; }
   offlineMenu() { return el('div', { class: 'box' }, el('h3', null, 'Offline play'), el('p', { class: 'muted', 'data-phaser-offline': '' }, offlineStatusText())); }
+  /** Save & system → Keep your journey safe: one file out, one file back (game/backup.ts). */
+  backupMenu() {
+    const say = (msg: string) => G.ui.toast(msg, 'info');
+    return el('div', { class: 'box' }, el('h3', null, 'Keep your journey safe'),
+      el('p', { class: 'muted', style: 'margin:0 0 8px' }, 'Your journeys live in this browser on this device. A backup file holds all three slots, the Watch, the Horde and your settings, so a new or cleared phone can have them back. ', el('span', { 'data-k': 'backup_last' }, backupLine())),
+      el('div', { style: 'display:flex;gap:8px;flex-wrap:wrap' }, backupButton('btn primary', () => this.host.persist(), say), restoreButton('btn', say), undoButton('btn')));
+  }
   recoveryMenu(): HTMLElement | null {
     const rows: HTMLElement[] = [];
     for (let slot = 0; slot < 3; slot++) {

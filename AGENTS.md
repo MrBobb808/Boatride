@@ -97,6 +97,12 @@ Never ship files from `art/incoming/` directly.
     XI's, and two standards (the Chariots', the Horsemen's) seal the palace.
     Shira, keeper of the book of names, is rescued from the Field of the
     Sleepers.
+  - XIII, *The Stones of Fire* (Ezekiel 26–28): the same builder and story
+    (`n: 13`), on Chapter X's coast art, dressed by hand (`DRESS`) as a lit
+    merchant city. The people the king's host carried off were sold in the
+    fairs of Tyrus. A hired host (`tyre()`), a curve row above XII's, and two
+    fetters (the Fairs', the Storehouse's) seal the prince's seat. Keziah, who
+    kept the market's tally, is rescued from the Holds of Tarshish.
   - `game/chapters.ts` lists the chapters for chapter select (`ui/chapters.ts`). In
     the Phaser build a finished chapter can be replayed (`chapterReplay`,
     `PhaserSave.replay`): its bosses and commanders stand again, matched to
@@ -125,6 +131,15 @@ Never ship files from `art/incoming/` directly.
     marked arrows and a low volley) and the Fury (he grows; three dashes).
     At his end none helps him (Daniel 11:45) and Michael stands up (12:1);
     Elior only withstands. Verified by `remnant-phaser/scripts/north.mjs`.
+  - `game/bosses13.ts`: the Prince of Tyrus, one prince in three movements.
+    He reads Elior: the same kind of blow (quick, heavy, the chains
+    (`HitInfo.tag`), or abilities) landed three or four times running is
+    turned aside until the attack changes, and a different blow breaks the
+    read. The Covering: nine stones blunt every blow and are struck off one
+    by one until he kneels; the stones of fire; his brightness. The Fire from
+    the Midst: he burns and his health falls by itself (Ezekiel 28:18); the
+    fetters bind him (Psalm 149:8). Elior only withstands. Verified by
+    `remnant-phaser/scripts/tyrus.mjs`.
   - `game/difficulty.ts`: Settings → Challenge → Boss difficulty (Normal,
     Hard by default, Merciless) scales every boss's health, damage and tempo.
   - `game/curve.ts`: one table per chapter of the level a straight-through
@@ -308,6 +323,10 @@ Never ship files from `art/incoming/` directly.
   - Phaser build: every write keeps the save it replaces under `<key>.bak`, and a save that will not read is
     replaced by it on load (`remnant-phaser/src/game/saveGuard.ts`); damaged amounts are repaired, never refused
     (`settle` in `src/game/save.ts`, `migrateWatch`).
+  - Phaser build: a player can take everything off the device and bring it back (`src/game/backup.ts`,
+    `backupUi.ts`): Save & system → Back up my journey / Restore from a backup (also on the home screen) / Undo the
+    last restore. A new storage key that holds progress must be covered by `collect` (its own keys begin
+    `remnant-phaser.`; the boards are `remnant.<name>.v1`). Verified by `scripts/backup.mjs`.
 - **Volume sliders** (settings v5): the mixer squares each slider (`applyVolumes` in `audio/audio.ts`) so its travel
   sounds even; v5 moved saved sliders to their square roots once, keeping everyone's loudness. Change both settings
   files together (`remnant/src/core/settings.ts` and the Phaser build's `src/classic/shim/settings.ts`).
@@ -351,6 +370,13 @@ Never ship files from `art/incoming/` directly.
   level (the Armor of Light and the Psalm of the Swarm hit on contact in this build), and no crescent: the shadow
   element bites with a burst, and the Horde's blade only cuts. His run and swing speed are capped (`MAX_RUN`,
   `MAX_ASPD` in `player.ts`). See POLISH_PLAN §16–17.
+- **The Sundered Chains (Phaser build):** Elior's second weapon (`remnant-phaser/src/game/chains.ts`, POLISH_PLAN
+  §20): twin kindled blades on chains, won with Chapter I (the flag `sundered_chains`). The `chain` action (the CHAINS
+  touch button, `Y`, or Down + Heavy) lashes foes in reach (lash, lash, slam, cyclone), hooks a far one (a light foe is
+  dragged to him; a boss, an elite or a heavy body carries him to it), and wheels in the air. The moves are
+  `AttackDef` data run by `player.ts`; the chains are drawn live by `ChainFx` from code-painted textures. A host build's
+  own touch control is registered with `addHostControl` (`ui/touch.ts`). After Chapter XIII they are kindled
+  (`chains_kindled`: a deeper burn, a longer hook). Verified by `scripts/chains.mjs`.
 - **The Horde (Phaser build):** a top-down survival mode in endless stages
   (`remnant-phaser/src/scenes/Horde.ts`, `src/game/horde/`): auto-weapons, a
   1-of-3 upgrade per level, a Fallen Crown monarch per stage, Elior, Tirzah and
@@ -359,12 +385,29 @@ Never ship files from `art/incoming/` directly.
   after a big move is a tag combo, three full gauges the Trinity; level-ups
   can be rerolled or banished (§13d). A run banks silver, XP and gear into the
   save (`PhaserSave.horde` keeps the best stage). See POLISH_PLAN §13.
+  Between runs (`src/game/horde/board.ts`, NEXT_PLAN D1): a run leaves embers; from the second run it opens at the
+  camp, where embers buy a permanent board (seven tracks; a full board is about ×1.66), hardships add embers (Iron
+  Host, Legion, Thin Mail, from a best stage of 3), and the Long Night is a run with an end (its fifth monarch).
+  `?nocamp` skips the camp in tests. Verified by `scripts/horde-board.mjs`.
 - **Home screen (Phaser build):** `remnant-phaser/src/scenes/Title.ts` and
   `src/game/home.ts`: the journey card (Continue / New journey / Begin) and a
   card per game mode (Chapters, the Watch, the Horde, the Trial, Extreme
   Survival, the Boss Gauntlet, the Boss Rush, the Daily Challenge) that starts
   it straight away (`World.init`'s `mode`), or says what opens it. Verified by
   `scripts/home.mjs`.
+- **The Refiner's Fire (Phaser build):** `remnant-phaser/src/game/fire.ts` (NEXT_PLAN C1), `PhaserSave.fire`. Replay on
+  the Chapters page first offers conditions worth heat (tougher, fiercer, no Balm); with none it is the ordinary
+  replay. They reach foes and bosses through `setFire` in the shared `game/might.ts` (1 and 1 unless a replay burns).
+  The chapter's last boss (`FINAL_BOSS`) falling under heat seals it (Refined I/II/III at heat 1/3/5); each tier pays
+  once. Verified by `scripts/fire.mjs`.
+- **The Day (Phaser build):** `remnant-phaser/src/game/day.ts` (NEXT_PLAN B1–B3), `PhaserSave.day`. Up to five calls
+  a day drawn from what is open to the player, three for the week, one streak for the whole game (opening it counts;
+  one miss a week forgiven; the Watch's streak runs with it), and the Chronicle: thirty steps a calendar month paid in
+  marks (10 a call, 20 for all, 40 a weekly). A call pays the moment it is done, wherever the player is (`settleDay`,
+  called every few seconds on the journey and when the Horde and the Watch bank). Progress is read from what the modes
+  already count plus four counters in `flags` (`boss_falls`, `trial_rounds`, `chain_hooks`, `parries`; `dayCount`).
+  A new mode adds a row to `DAILY`/`WEEKLY` and, if nothing counts it yet, a tally. The home screen's Today card and
+  Chronicle page are in `home.ts`. Nothing earned is taken back; nothing is sold. Verified by `scripts/day.mjs`.
 - **The Watch (Phaser build):** an idle game in portrait (`remnant-phaser/src/scenes/Watch.ts`,
   `src/game/watch/`): a fresh Elior keeps a wall, kills pay coins, coins buy
   eight upgrade tracks; gates end in a boss on a timer; his Watch level opens
@@ -415,11 +458,12 @@ Never ship files from `art/incoming/` directly.
   clean before committing.
 - **Testing:** there is no unit-test suite. Changes are verified by playing
   them in headless Chromium (Playwright) through the `?debug` API, and by a
-  production build.
+  production build. The Phaser build's checks are listed in `remnant-phaser/scripts/ci-tests.txt`
+  (add a new one there); CI runs them in eight shards (`scripts/ci-shard.mjs`).
 
 ## Where the story stands
 
-Chapters I–XII are implemented, each with a chapter-end screen; XII, The Time of Trouble, closes the Daniel arc. Chapter X, The
+Chapters I–XIII are implemented, each with a chapter-end screen; XII, The Time of Trouble, closes the Daniel arc, and XIII, The Stones of Fire (Ezekiel 26–28), brings home the people its king sold. Chapter X, The
 Prince of Grecia, pays off Daniel 10:20 on the storm coast of Chittim. Chapter VI
 continues into the original Fallen Crown campaigns: VII, The Crown of the Hunt
 (Varkhos), and VIII, The Crown of Pestilence (Morvane). Their room definitions,

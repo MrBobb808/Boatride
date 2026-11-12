@@ -19,7 +19,10 @@ import type { Action } from '../game/controls';
 import type { World } from './World';
 import { openMenu, closeMenu, isMenuOpen, menuTab } from '../../../remnant/src/ui/menus';
 import { settings, onSettingsChange } from '../classic/shim/settings';
-import { controlSpot } from '../../../remnant/src/ui/touch';
+import { controlSpot, addHostControl } from '../../../remnant/src/ui/touch';
+import { hasChains } from '../game/chains';
+// The CHAINS button is this build's own: along the bottom row past the first skill, and movable like the rest.
+addHostControl({ id: 'chain', icon: 'chains', size: 50, dx: 228, dy: -26, label: 'Chains' });
 import { drawIsland, islandSide } from '../../../remnant/src/ui/island';
 import { measureSafe as measureSharedSafe } from '../../../remnant/src/ui/safe';
 import { haptic } from '../../../remnant/src/core/haptics';
@@ -534,7 +537,7 @@ export class Hud extends Phaser.Scene {
     const mk = (a: Action, label: string, r: number): Btn => {
       const g = this.add.circle(0, 0, r * k, 0x1a1420, 0.35).setStrokeStyle(1.5 * k, 0xe2b85a, 0.55);
       const t = this.add.text(0, 0, label, { fontFamily: 'Cinzel, Georgia, serif', fontSize: `${(r > 30 ? 13 : r < 20 ? 8 : 10) * k}px`, color: '#f6dea0' }).setOrigin(0.5).setAlpha(0.85);
-      const name = a === 'transform' ? 'mantle' : a === 'ultimate' ? 'rally' : a.startsWith('skill') ? 'arc' : a;
+      const name = a === 'transform' ? 'mantle' : a === 'ultimate' ? 'rally' : a.startsWith('skill') ? 'arc' : a === 'chain' ? 'chains' : a;
       // Each move's own pixel picture where there is one; the line icon otherwise.
       const i = this.add.image(0, 0, actionIconKey(a, this.world.player?.hero ?? 'elior') ?? this.iconKey(name));
       this.touchUi.add([g, i, t]);
@@ -544,7 +547,7 @@ export class Hud extends Phaser.Scene {
       mk('attack', 'STRIKE', 36), mk('jump', 'JUMP', 28), mk('dodge', 'DODGE', 24), mk('parry', 'PARRY', 24), mk('interact', '', 22),
       mk('heal', 'BALM', 19), ...SLOTS.map((_, i) => mk(`skill${i + 1}` as Action, '', 19)),
       mk('echo', 'ECHOES', 18), mk('switch', 'SWITCH', 18),
-      mk('transform', 'MANTLE', 18), mk('ultimate', 'SUPER', 18), mk('sub', 'SUB', 18),
+      mk('transform', 'MANTLE', 18), mk('ultimate', 'SUPER', 18), mk('sub', 'SUB', 18), mk('chain', 'CHAINS', 22),
     ];
     this.cdG = this.add.graphics();
     this.touchUi.add(this.cdG);
@@ -604,6 +607,7 @@ export class Hud extends Phaser.Scene {
         case 'transform': return form && (!smart || p.mantleT > 0 || (s.mantle ?? 0) >= 100);
         case 'ultimate': return !!s.flags.relic_taken && (!smart || s.rally >= 100);
         case 'sub': return (!!s.sub || p.mantleT > 0) && fight;
+        case 'chain': return hasChains(s) && p.hero === 'elior' && p.formT <= 0 && fight;
         default: return true;
       }
     };

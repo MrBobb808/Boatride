@@ -29,6 +29,21 @@ The art reuses Chapter X's temple set with ember weather; dedicated sprites and 
 
 The art reuses Chapter X's coast and temple set under rain; dedicated sprites and backgrounds are a follow-up (art requests B12, E14).
 
+**XIII — The Stones of Fire**, recommended level 78+, continues from XII's ending or Chapters. It follows Ezekiel 26–28: Tyrus, "the crowning city, whose merchants are princes" (Isaiah 23:8, KJV), on a rock in the midst of the seas, where "they traded the persons of men" (Ezekiel 27:13, KJV). The people the King of the North's host carried off were sold there. Its prince says "I am a God" (28:2) and is "wiser than Daniel" (28:3). Elior withstands him; the fire from the midst of him is what brings him to ashes (28:18). Six places: the Strand Opposite Tyrus, the Fairs of Tyrus, the House of Merchandise, the Holds of Tarshish (optional; Keziah, who kept the market's tally, is rescued there), the Walls of Tyrus and the Seat in the Midst of the Seas.
+
+- **A hired host:** each route room holds two ranks and two elites (`tyre()` in `fallenChapters.ts`); the curve row (level 78) is above XII's. Every room is dressed by hand (`DRESS`): awnings, amphorae, banners, hanging chains.
+- **Two fetters** (the Fetters of the Fairs, the Fetters of the Storehouse) seal the seat; their guards must fall before each is broken.
+- **The boss** (`game/bosses13.ts`, `TyrusPrince`) is one prince in three movements.
+  - *He reads Elior.* Blows are of four kinds: quick, heavy, the chains (the Phaser build; `HitInfo.tag`) and craft (abilities and arrows). The same kind landed four times running (three from the second movement) is read for five seconds: it lands at a fifth of its strength and takes no poise, and an eye opens over him in that kind's colour. A blow of another kind breaks the read and takes 15% of his poise. The many hits of one move count as one blow. Echoes are not read.
+  - *The Prince* (from the start): a sceptre combo; his wares, two fans of precious stones; the slaver's fetter, a chain along the floor that drags Elior to him for a blow unless it is parried, jumped or dodged (then he is open and loses poise); his hired swords (Ezekiel 27:10).
+  - *The Covering* (two thirds, Ezekiel 28:13–14): nine stones stand round him and blunt every blow to 45%; each blow he has not read strikes one off, and the ninth drops him to his knee; they stand again nine seconds after he rises. The stones of fire erupt along the floor in two turns (stand where the first has burned); his brightness crosses the hall as a wall of light (dodge through it). A winged shadow stands behind him.
+  - *The Fire from the Midst* (one third, Ezekiel 28:18): the covering burns off, his hired swords leave, and his health falls by itself (about a third of his health in a minute and a half). Fire bursts from him with a wave each way; the wall of light comes from both sides; the stones of fire take three turns.
+  - *His end:* the fetters rise out of the floor and bind him (Psalm 149:8), and he is brought to ashes.
+- **Rewards:** Fetterbreaker (a fire greatsword) and the Ashes of Tyrus; Keziah's Tally from Mara; the Greaves of Tarshish and the Mail of the Unbought in the caches; the Psalm of the Broken Fetters in the Phaser build, where the Sundered Chains are also kindled (a deeper burn, a longer hook).
+- **Verified by** `remnant-phaser/scripts/tyrus.mjs`.
+
+The art reuses Chapter X's coast set; dedicated sprites and backgrounds are a follow-up (art requests B13, E15).
+
 ## Art
 
 Built-in image-generation mode, transparent background, no references. Assets are copied into the repository and consumed by `src/render/fallenArt.ts`, using authored crops and pivots.

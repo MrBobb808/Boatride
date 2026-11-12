@@ -1647,6 +1647,42 @@ export const SFX: Record<string, SfxFn> = {
     metal(a, t + 0.12, 620 * p, 0.5 * v, d, 0.2);
   },
   // Elemental accents, layered on an ordinary hit.
+  // The Sundered Chains (the Phaser build's chained blades): iron links running out, and fire along them.
+  chainLash(a, t, v, p, pan) {
+    const d = a.out(pan, 0.25);
+    // The links: a run of small metal ticks, rising as the chain pays out.
+    for (let i = 0; i < 7; i++) a.osc('square', (1700 + i * 190) * p * rand(0.94, 1.06), t + i * 0.016, 0.03, d, 0.035 * v, 0.001);
+    a.noiseHit(t + 0.03, 0.26, d, 'bandpass', 900 * p, 0.9, 0.42 * v, 3000 * p, 0.05);
+    for (let i = 0; i < 4; i++) a.noiseHit(t + 0.06 + rand(0, 0.18), 0.012, d, 'highpass', rand(2800, 5200), 1, 0.12 * v, undefined, 0.001);
+  },
+  chainThrow(a, t, v, p, pan) {
+    const d = a.out(pan, 0.2);
+    for (let i = 0; i < 10; i++) a.osc('square', (1500 + i * 230) * p * rand(0.95, 1.05), t + i * 0.011, 0.024, d, 0.04 * v, 0.001);
+    a.noiseHit(t, 0.14, d, 'bandpass', 2600 * p, 1.8, 0.3 * v, 5200 * p, 0.01);
+  },
+  chainBite(a, t, v, p, pan) {
+    const d = a.out(pan, 0.4);
+    a.osc('triangle', 620 * p, t, 0.09, d, 0.3 * v, 0.001, 240);
+    a.osc('sine', 150 * p, t, 0.2, d, 0.5 * v, 0.002, 50);
+    a.noiseHit(t, 0.05, d, 'highpass', 4200, 1.2, 0.4 * v, undefined, 0.001);
+    // The chain pulls taut.
+    for (let i = 0; i < 5; i++) a.osc('square', (2600 - i * 260) * p, t + 0.05 + i * 0.014, 0.02, d, 0.04 * v, 0.001);
+  },
+  chainSlam(a, t, v, p, pan) {
+    const d = a.out(pan, 0.5);
+    a.osc('sine', 82 * p, t, 0.5, d, 0.85 * v, 0.003, 30);
+    a.noiseHit(t, 0.4, d, 'lowpass', 1300 * p, 0.7, 0.7 * v, 160);
+    a.noiseHit(t + 0.02, 0.5, d, 'bandpass', 600 * p, 0.8, 0.4 * v, 2400 * p, 0.08);
+    for (let i = 0; i < 9; i++) a.noiseHit(t + 0.05 + rand(0, 0.4), 0.014, d, 'highpass', rand(2500, 5500), 1, 0.13 * v, undefined, 0.001);
+  },
+  chainWhirl(a, t, v, p, pan) {
+    const d = a.out(pan, 0.3);
+    // Two blades going round: four passes of wind and flame, with the links ticking under them.
+    for (let i = 0; i < 4; i++) {
+      a.noiseHit(t + i * 0.13, 0.16, d, 'bandpass', (900 + i * 120) * p, 1.2, 0.34 * v, (2600 + i * 200) * p, 0.04);
+      a.osc('square', (1900 + i * 150) * p, t + i * 0.13 + 0.04, 0.025, d, 0.035 * v, 0.001);
+    }
+  },
   elemFire(a, t, v, p, pan) {
     const d = a.out(pan, 0.3);
     a.noiseHit(t, 0.22, d, 'bandpass', 700 * p, 0.9, 0.35 * v, 2200 * p, 0.02);

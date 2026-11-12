@@ -68,6 +68,13 @@ export const CAPES: Record<string, CapeLook> = {
   ember: { name: 'Unburnt Ember', c: '#3e1406', trim: '#ff8a3a' },
   blood: { name: 'Merciless Red', c: '#5a080e', trim: '#1a0a0a' },
   gold: { name: 'Sovereign Gold', c: '#6a4a12', trim: '#fff1c4' },
+  // The Chronicle's capes, one a month in turn (the Phaser build's game/day.ts).
+  tyrian: { name: 'Tyrian Purple', c: '#5a1e6a', trim: '#e8c25a' },
+  seafoam: { name: 'Seafoam', c: '#2a6a64', trim: '#d8fff0' },
+  ashen: { name: 'Ashen Watch', c: '#4a464e', trim: '#ff9a50' },
+  dawn: { name: 'First Light', c: '#b8502a', trim: '#fff1c4' },
+  harvest: { name: 'Harvest Gold', c: '#8a6a1a', trim: '#3a2410' },
+  frostfall: { name: 'Frostfall', c: '#c8d8e8', trim: '#3a5a8a' },
   // Dyed cloth from Ilan's store (game/economy.ts).
   saffron: { name: 'Saffron Pilgrim', c: '#a8701a', trim: '#fff1c4' },
   indigo: { name: 'Indigo of Tyre', c: '#22245c', trim: '#d9b25a' },
@@ -92,6 +99,7 @@ const BOSSES: { key: string; name: string; won: string; title?: string; cape?: s
   { key: 'grecia_prince', name: 'the Prince of Grecia', won: 'Toward the Four Winds' },
   { key: 'nation_gods', name: 'the Gods of the Nations', won: 'No Voice, Nor Any That Answered' },
   { key: 'north_king', name: 'the King of the North', won: 'None Shall Help Him' },
+  { key: 'tyrus_prince', name: 'the Prince of Tyrus', won: 'A Man, and No God' },
 ];
 const FLAWLESS_REWARD: Record<string, { title?: string; cape?: string }> = {
   idol: { title: 'Idolbreaker' },
@@ -102,6 +110,7 @@ const FLAWLESS_REWARD: Record<string, { title?: string; cape?: string }> = {
   grecia_prince: { title: 'Hornbreaker', cape: 'storm' },
   nation_gods: { title: 'the Unbowed', cape: 'ember' },
   north_king: { title: 'the Wise', cape: 'pearl' },
+  tyrus_prince: { title: 'the Unbought', cape: 'royal' },
 };
 const cap = (s: string) => s[0].toUpperCase() + s.slice(1);
 

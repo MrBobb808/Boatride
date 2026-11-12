@@ -30,6 +30,10 @@ import { settings, onSettingsChange } from './classic/shim/settings';
 import { perfMeter } from './game/perfMeter';
 import { installNav } from '../../remnant/src/ui/dom';
 import { applyTextSize } from '../../remnant/src/ui/menus';
+import * as backup from './game/backup';
+import * as day from './game/day';
+// Ask the browser to keep this site's storage, so space running short does not clear a journey (NEXT_PLAN.md A1).
+backup.keepStorage();
 
 // The page's height is the screen's own on an installed iPhone app whose window comes up short (game/screen.ts).
 const size = () => { applyAppHeight(); return { w: Math.round(innerWidth * dpr()), h: Math.round(appHeight() * dpr()) }; };
@@ -77,7 +81,7 @@ void registerOffline();
 window.addEventListener('remnant-update-ready', () => { if (game.scene.isActive('title')) void checkForUpdates(() => {}); });
 
 // The debug API starts with the game itself (the world scene adds the rest), so the title can be driven too.
-if (new URLSearchParams(location.search).has('debug')) (window as unknown as { __remnant: unknown }).__remnant = { game, audio, music, songs };
+if (new URLSearchParams(location.search).has('debug')) (window as unknown as { __remnant: unknown }).__remnant = { game, audio, music, songs, backup, day };
 
 const fit = () => {
   const n = size();
