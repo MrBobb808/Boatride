@@ -5,6 +5,7 @@
 import Phaser from 'phaser';
 import { loadSave, newSave, writeSave, gainXp, stats, type PhaserSave } from '../game/save';
 import { settleDay } from '../game/day';
+import { shareButton } from '../../../remnant/src/ui/share';
 import { BOARD, MUTATORS, NIGHT_STAGES, hordeOf, rank, costOf, buy, boardBonus, activeMuts, mutsOpen, toggleMut, mutBonus, embersFor, MUT_OPEN, type MutId } from '../game/horde/board';
 import { archerStats, archerGainXp, archerDrop, newArcher } from '../game/archer';
 import { makeItem, type Derived } from '../../../remnant/src/game/state';
@@ -831,7 +832,9 @@ export class Horde extends Phaser.Scene {
       again.dataset.k = 'hz_again';
       const back = el('button', 'hz-btn', 'Return to the journey', () => { this.closeCard(); this.scene.start('world', { fresh: false }); });
       back.dataset.k = 'hz_return';
-      b.append(again, back);
+      // The run's card for the share sheet (game/shareCard.ts).
+      const share = shareButton({ mode: this.night ? 'The Long Night' : 'The Horde', big: `${reached}`, unit: this.held ? 'THE NIGHT HELD' : 'STAGE REACHED', lines: [['Foes', `${this.kills}`], ['Embers', `${this.embersWon}`]], rules: this.muts.length ? MUTATORS.filter((m) => this.muts.includes(m.id)).map((m) => m.name).join(' · ') : undefined });
+      if (share) { share.className = 'hz-btn'; b.append(again, share, back); } else b.append(again, back);
       p.append(b);
     });
   }

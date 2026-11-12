@@ -32,8 +32,10 @@ import { installNav } from '../../remnant/src/ui/dom';
 import { applyTextSize } from '../../remnant/src/ui/menus';
 import * as backup from './game/backup';
 import * as day from './game/day';
+import { installShare } from './game/shareCard';
 // Ask the browser to keep this site's storage, so space running short does not clear a journey (NEXT_PLAN.md A1).
 backup.keepStorage();
+installShare();
 
 // The page's height is the screen's own on an installed iPhone app whose window comes up short (game/screen.ts).
 const size = () => { applyAppHeight(); return { w: Math.round(innerWidth * dpr()), h: Math.round(appHeight() * dpr()) }; };

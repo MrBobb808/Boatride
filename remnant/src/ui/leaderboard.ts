@@ -10,6 +10,7 @@ import { settings, saveSettings } from '../core/settings';
 import { formatTime } from '../core/math';
 import { loadBoard, renameRun, rushClock, type RunEntry, type BoardId } from '../game/board';
 import { pullBoard, cloudActive } from '../game/cloud';
+import { shareButton } from './share';
 
 export interface RunStats { rounds: number; kills: number; time: number; level: number; levels: number; from: number; bossOnly?: boolean; extreme?: boolean; rematch?: boolean; contract?: string;
   /** Boss Rush: bosses in the run, whether all fell, and the best run before this one. */
@@ -109,6 +110,7 @@ export function gameOver(st: RunStats, entry: RunEntry | null, place: number, be
       h('p', { class: 'muted go-verse' }, '“I have fought a good fight, I have finished my course, I have kept the faith.” 2 Timothy 4:7 (KJV)'),
       h('div', { class: 'row', style: 'justify-content:center;gap:10px;margin-top:8px' },
         btn('Run it again', () => done('again'), 'btn primary', { 'data-autofocus': '', 'data-k': 'go_again' }),
+        shareButton({ mode: 'The Boss Rush', big: `${st.rounds}/${rush.total}`, unit: 'BOSSES BEATEN', lines: [['Time', rushClock(st.time)], ['Level', `${st.level}`]] }),
         btn('Leave the Rush', () => done('leave'), 'btn', { 'data-k': 'go_leave' })),
     ) : h('div', { class: 'chapter panel scroll gameover' },
       h('div', { class: 'go-cols' },
@@ -130,6 +132,7 @@ export function gameOver(st: RunStats, entry: RunEntry | null, place: number, be
       h('p', { class: 'muted go-verse' }, '“Be thou faithful unto death, and I will give thee a crown of life.” Revelation 2:10 (KJV)'),
       h('div', { class: 'row', style: 'justify-content:center;gap:10px;margin-top:8px' },
         btn('Again from round 1', () => done('again'), 'btn primary', { 'data-autofocus': '', 'data-k': 'go_again' }),
+        st.rematch || st.contract ? null : shareButton({ mode: st.bossOnly ? 'The Boss Gauntlet' : st.extreme ? 'Extreme Survival' : 'The Trial of the Remnant', big: `${st.rounds}`, unit: st.bossOnly ? 'BOSSES DEFEATED' : st.rounds === 1 ? 'ROUND' : 'ROUNDS', lines: [['Kills', `${st.kills}`], ['Time', formatTime(st.time)], ['Level', `${st.level}`]] }),
         btn(st.rematch ? 'Leave rematch' : st.bossOnly ? 'Leave the Gauntlet' : st.extreme ? 'Leave Extreme' : 'Leave the Trial', () => done('leave'), 'btn', { 'data-k': 'go_leave' })),
     );
     const layer = h('div', { class: 'layer death' }, card);

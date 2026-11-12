@@ -12,6 +12,7 @@ import { ITEMS } from '../game/data';
 import { iconUrl } from './icons';
 import { dailyFor, loadDaily, rankedUsed, renameDaily, dailyRewardClaimed, DAILY_MODS, DAILY_WAVES, DAILY_REWARD, type DailyEntry, type DailyDef } from '../game/daily';
 import { startDaily, trainingOpen } from '../game/chapters';
+import { shareButton } from './share';
 
 const root = () => document.getElementById('ui')!;
 const rewardText = `${DAILY_REWARD.silver} silver, ${DAILY_REWARD.covenant_fragment} ${ITEMS.covenant_fragment.name}s and a ${ITEMS.radiant_core.name}`;
@@ -99,6 +100,7 @@ export function dailyOver(st: DailyStats, entry: DailyEntry | null, place: numbe
       h('p', { class: 'muted go-verse' }, '“This is the day which the LORD hath made; we will rejoice and be glad in it.” Psalm 118:24 (KJV)'),
       h('div', { class: 'row', style: 'justify-content:center;gap:10px;margin-top:8px' },
         btn('Practise again', () => done('again'), 'btn primary', { 'data-autofocus': '', 'data-k': 'go_again' }),
+        st.ranked ? shareButton({ mode: `The Daily Challenge · ${st.def.key}`, big: `${st.score}`, unit: 'SCORE', lines: [['Waves', `${st.waves}/${DAILY_WAVES}`], ['Time', formatTime(st.time)], ['Kills', `${st.kills}`]], rules: st.def.mods.map((m) => DAILY_MODS[m].name).join(' · ') }) : null,
         btn('Leave the arena', () => done('leave'), 'btn', { 'data-k': 'go_leave' })),
     );
     const layer = h('div', { class: 'layer death' }, card);

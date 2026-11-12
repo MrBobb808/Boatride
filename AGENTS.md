@@ -401,6 +401,10 @@ Never ship files from `art/incoming/` directly.
   replay. They reach foes and bosses through `setFire` in the shared `game/might.ts` (1 and 1 unless a replay burns).
   The chapter's last boss (`FINAL_BOSS`) falling under heat seals it (Refined I/II/III at heat 1/3/5); each tier pays
   once. Verified by `scripts/fire.mjs`.
+- **Result cards (Phaser build):** `remnant/src/ui/share.ts` (`shareHook`, `shareButton`) puts "Share this run" on the
+  Trial's, Gauntlet's, Extreme's, the Rush's and the ranked daily challenge's end cards when a host sets the hook; the
+  Phaser build sets it (`remnant-phaser/src/game/shareCard.ts`): a 1080×1350 PNG to the share sheet, else a download.
+  The Horde's results offer it too. Verified by `scripts/share.mjs`.
 - **The Day (Phaser build):** `remnant-phaser/src/game/day.ts` (NEXT_PLAN B1–B3), `PhaserSave.day`. Up to five calls
   a day drawn from what is open to the player, three for the week, one streak for the whole game (opening it counts;
   one miss a week forgiven; the Watch's streak runs with it), and the Chronicle: thirty steps a calendar month paid in

@@ -163,7 +163,7 @@ Checked in the repository on this date; each is addressed by the phase named.
 - [ ] **C4. Mastery.** A track per weapon type and per Echo species, raised by using it: small bonuses, a new move or
   a cosmetic at set levels, and a reason to change build. The Bestiary pays a small bonus against a kind at kill
   counts. Mastery shows on the character page as one screen.
-- [ ] **C5. Bests, medals and something to show.** Per chapter: a clock with a par time, a count of secrets, a
+- [ ] **C5. Bests, medals and something to show.** (The result card is built: `remnant/src/ui/share.ts` is the hook and button, `remnant-phaser/src/game/shareCard.ts` draws a 1080×1350 card (mode, date, result, rules, hero level, the build's three main pieces) and hands it to the share sheet, else saves it. On the Trial's, the Gauntlet's, Extreme's and the Rush's Game Over card, the ranked daily challenge's, and the Horde's results. `scripts/share.mjs`. Still to do: par times, secret counts and medals per chapter.) Per chapter: a clock with a par time, a count of secrets, a
   flawless-boss mark, and three medals. After any ranked run (the Daily Challenge, the day's boss, the day's Horde) a
   **result card** drawn to a canvas (the date, the rules, the score, the build's three main pieces) and handed to
   `navigator.share`. It is the leaderboard a static site can have: players compare the same seed by sending the card.
