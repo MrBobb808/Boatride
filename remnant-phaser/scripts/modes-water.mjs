@@ -23,7 +23,8 @@ try {
       for (const e of w.classic.ents) if (e.isFoe) e.remove = true;
       w.player.placeAt(spot.x*16+8,spot.y*16+12,1);
     }, room);
-    await until(() => window.__remnant.world.player.state === 'swim');
+    // Say what he is doing instead, if he never swims.
+    await until(() => window.__remnant.world.player.state === 'swim').catch(async (e) => { throw new Error(`${room}: never swam: ${JSON.stringify(await p.evaluate(() => { const w = window.__remnant.world, q = w.player; return { state: q.state, dead: q.dead, hp: q.hp, x: Math.round(q.x), y: Math.round(q.y), room: w.room.id, transitioning: w.transitioning, cut: window.__remnant.G.inCutscene, layers: document.querySelectorAll('.layer').length, dialogue: !!document.querySelector('.dialogue'), paused: w.scene.isPaused(), swimming: q.water?.swimming }; }))} (${e.message})`); });
     await until(() => window.__remnant.world.player.water.breath < 19.7);
     const x = await p.evaluate(() => window.__remnant.world.player.x);
     await p.keyboard.down('KeyD'); await until(x => window.__remnant.world.player.x > x + 8, x); await p.keyboard.up('KeyD');
