@@ -94,6 +94,24 @@ try {
   assert.ok(await E(page, () => !window.__remnant.world.fasting && window.__remnant.world.save.replay === undefined), 'leaving the chapter ends the replay and the Fire');
   console.log(`Fire: heat 2 gave Varkhos ${hot.hp} health against ${plain.hp} and sealed Refined I for ${one.silver} silver; heat 6 sealed Balm, gave ${full.hp}, and paid ${three.legend} legendary pieces`);
 
+  // ---- take heart (NEXT_PLAN E2): three falls to one boss, and help is offered once; taken, that boss is lighter
+  const throne = async () => { await E(page, () => window.__remnant.warp('plague_throne', 'start')); await page.waitForFunction(() => window.__remnant.world.room.id === 'plague_throne' && !window.__remnant.world.transitioning && window.__remnant.world.boss); await page.waitForTimeout(300); return E(page, () => window.__remnant.world.boss.maxHp); };
+  const hard = await throne();
+  await E(page, () => { const w = window.__remnant.world; w.classic.bossActive = true; w.fellToBoss(); w.fellToBoss(); });
+  assert.ok(await E(page, () => !document.querySelector('[data-k=heart]')), 'two falls offer nothing');
+  await E(page, () => { const w = window.__remnant.world; w.fellToBoss(); w.classic.bossActive = false; });
+  await page.waitForSelector('[data-k=heart_yes]', { timeout: 60000 });
+  await page.screenshot({ path: 'qa/heart.png' });
+  await page.click('[data-k=heart_yes]');
+  await E(page, () => window.__remnant.warp('sanctuary', 'start'));
+  await page.waitForFunction(() => window.__remnant.world.room.id === 'sanctuary' && !window.__remnant.world.transitioning);
+  const light = await throne();
+  assert.ok(Math.abs(light / hard - 0.9) < 0.01, `having taken heart, Morvane has 10% less health (${hard} → ${light})`);
+  const other = await E(page, () => { const w = window.__remnant.world; w.classic.bossActive = true; w.fellToBoss(); w.classic.bossActive = false; return w.save.flags.heart_plague_monarch; });
+  await page.waitForTimeout(400);
+  assert.ok(other === 'yes' && await E(page, () => !document.querySelector('[data-k=heart]')), 'the offer is made once');
+  console.log(`Take heart: offered after three falls; taken, Morvane stands at ${light} health against ${hard}`);
+
   assert.deepEqual(errors, [], 'no page errors');
   console.log('phaser fire: all checks passed');
 } finally {

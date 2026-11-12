@@ -196,7 +196,7 @@ Checked in the repository on this date; each is addressed by the phase named.
 - [ ] **E1. What A4 finds left** of combat feel (§2), the sound pass (§3), ability effects (§4), the store's leftovers
   (quiver upgrades, recipe scrolls, Echo imprint tokens, "new item" dots) and gameplay polish (§7: ledge forgiveness,
   landing recovery, clearer Echo orders, a stinger and a framing beat on every boss phase). One PR per section.
-- [ ] **E2. Nobody stuck, nobody lost.**
+- [ ] **E2.** (Partly built: after three falls to the same boss the player is offered, once, to take heart: that boss strikes 15% lighter and has 10% less health until it falls. Tested in `scripts/fire.mjs`. Still to do: first-session timing and paced mode cards.) **(original text:)**  Nobody stuck, nobody lost.**
   - After three falls to the same boss, offer once (never force): "Lower the boss's difficulty for this fight?" and,
     separately, a short card naming the one move that fell the player most. Setting: Challenge → Offer help (on).
   - Time the first session by machine: from Begin to the first fight (target under 60 seconds), to the first boss

@@ -87,6 +87,9 @@ interface Interactable { x: number; y: number; label: string; use: () => void }
 
 const FIXED_STEP = new URLSearchParams(location.search).has('fixedstep');
 
+/** What taking heart changes (NEXT_PLAN E2). */
+const HEART = { hp: 0.9, dmg: 0.85 };
+
 export class World extends Phaser.Scene implements WorldApi {
   controls!: Controls;
   save!: PhaserSave;
@@ -330,8 +333,11 @@ export class World extends Phaser.Scene implements WorldApi {
     // A replay lasts while the hero is in its chapter (the Trial and the Rest belong to no chapter's story).
     if (this.save.replay !== undefined && id !== 'trial_arena' && id !== 'remnant_rest' && chapterOf(id) !== this.save.replay) delete this.save.replay;
     // The Refiner's Fire burns only in the chapter being replayed; set before the room's foes are made.
+    const r0 = ROOMS[id];
     const burning = this.save.replay !== undefined && chapterOf(id) === this.save.replay ? fireMult(firesOn(this.save)) : null;
-    setFire(burning?.hp ?? 1, burning?.dmg ?? 1);
+    // Take heart: a boss that has felled the hero three times, if the offer was taken, is a little lighter.
+    const hearted = r0.ents.some((e) => e.t === 'boss' && this.save.flags[`heart_${e.k}`] === 'yes' && !this.save.defeated?.includes(e.k));
+    setFire((burning?.hp ?? 1) * (hearted ? HEART.hp : 1), (burning?.dmg ?? 1) * (hearted ? HEART.dmg : 1));
     if (r.music) music.play(r.music);
     this.entrySpawn = r.spawns[spawnName] ? spawnName : r.spawns.start ? 'start' : Object.keys(r.spawns)[0];
     this.save.room = id;
@@ -638,7 +644,7 @@ export class World extends Phaser.Scene implements WorldApi {
     if (this.classic.storyEnabled) valorTick(dt);
     if (this.player.dead) {
       this.deadT += dt;
-      if (!this.deathCounted) { this.deathCounted = true; this.save.deaths++; this.dropShade(); }
+      if (!this.deathCounted) { this.deathCounted = true; this.save.deaths++; this.dropShade(); this.fellToBoss(); }
       const R = this.classic.story.ch3.rounds;
       if (this.room.id === 'trial_arena' && R.active && !this.classic.deathHandled) { this.classic.deathHandled = true; this.classic.after(1.8, async () => this.classic.afterRun(await R.onDeath())); }
       if (this.deadT > 1.4 && !this.classic.deathHandled) {
@@ -1060,6 +1066,37 @@ export class World extends Phaser.Scene implements WorldApi {
   // ---------------------------------------------------------------- classic bosses
 
   /** Playing a finished chapter again (Chapters → Replay), in one of its rooms. */
+  /** A fall in a boss's fight: after the third to the same boss, help is offered once (NEXT_PLAN E2). Bosses stay as
+   * hard as the player chose unless they take it. */
+  private fellToBoss() {
+    const key = (this.boss as { key?: string } | null)?.key ?? (this.room.ents.find((e) => e.t === 'boss') as { k?: string } | undefined)?.k;
+    if (!key || !(this.boss?.fighting || this.classic.bossActive) || this.room.id === 'trial_arena') return;
+    const f = this.save.flags, n = Number(f[`falls_${key}`] ?? 0) + 1;
+    f[`falls_${key}`] = n;
+    if (n >= 3 && f[`heart_${key}`] === undefined) this.time.delayedCall(2600, () => this.offerHeart(key));
+  }
+  private offerHeart(key: string) {
+    if (this.save.flags[`heart_${key}`] !== undefined || document.querySelector('[data-k=heart]')) return;
+    const root = document.createElement('div');
+    root.dataset.k = 'heart';
+    root.style.cssText = 'position:fixed;inset:0;z-index:40;background:rgba(6,5,10,.9);display:flex;align-items:center;justify-content:center;font-family:Georgia,serif;color:#ddd4c6;padding:16px';
+    const box = document.createElement('div');
+    box.style.cssText = 'max-width:440px;display:flex;flex-direction:column;gap:10px';
+    const say = (t: string, css: string) => { const e = document.createElement('div'); e.textContent = t; e.style.cssText = css; box.appendChild(e); };
+    say('Take heart', 'font-family:Cinzel,Georgia,serif;color:#f6dea0;font-size:calc(20px*var(--fs-k,1))');
+    say(`Three falls to the same foe. If you wish, it will strike ${Math.round((1 - HEART.dmg) * 100)}% lighter and have ${Math.round((1 - HEART.hp) * 100)}% less health until it falls. Only this boss; nothing else changes, and no reward is lessened.`, 'font-size:calc(14px*var(--fs-k,1));line-height:1.45;color:#b9afc4');
+    const done = (v: 'yes' | 'no') => { this.save.flags[`heart_${key}`] = v; popLayer(root); root.remove(); this.persist(); if (v === 'yes') this.toast('Take heart: it is lighter from your next rising.'); };
+    for (const [k, label, v] of [['heart_yes', 'Take heart', 'yes'], ['heart_no', 'No: as it is', 'no']] as const) {
+      const b = document.createElement('button'); b.className = 'btn'; b.dataset.k = k; b.setAttribute('data-nav', ''); b.textContent = label; b.style.minHeight = '44px';
+      b.addEventListener('click', () => done(v));
+      box.appendChild(b);
+    }
+    root.appendChild(box);
+    document.body.appendChild(root);
+    pushLayer({ el: root, onBack: () => done('no') });
+    (root.querySelector('[data-k=heart_yes]') as HTMLElement | null)?.focus();
+  }
+
   /** Balm is sealed while a replay burns under Fasting. */
   get fasting() { return this.replaying && firesOn(this.save).includes('fasting'); }
 
