@@ -117,7 +117,7 @@ Checked in the repository on this date; each is addressed by the phase named.
 
 ## Phase B: one day for the whole game (the spine of daily play)
 
-- [ ] **B1. The Day** (`remnant-phaser/src/game/day.ts`, save field `PhaserSave.day`, optional). One object for the
+- [x] **B1. The Day** (built; `scripts/day.mjs`. Calls come from what exists today: the journey, parries, the chains, a boss, the Trial, the Daily Challenge, the Horde, the Watch. The day's boss, bounties, the day's Horde and the Fire join the pool as C1, C2 and D1 land: add a row to `DAILY` in `day.ts`.) (`remnant-phaser/src/game/day.ts`, save field `PhaserSave.day`, optional). One object for the
   local day, seeded by the date like `game/daily.ts`:
   - **Five calls** drawn from what is open to this player (the Daily Challenge, the day's boss, a bounty, the day's
     Horde, a Watch quest set, a chapter under the Fire, a Trial round reached). Never a call for a mode still locked.
@@ -125,13 +125,13 @@ Checked in the repository on this date; each is addressed by the phase named.
   - **One streak for the whole game**, the Watch's rule: one missed day a week forgiven. The Watch's own streak folds
     into it (migrate: keep the longer of the two).
   - Each call pays **Chronicle marks** (B2) and something for the mode it belongs to.
-- [ ] **B2. The Chronicle** (a free track, a new one every calendar month): 30 steps, marks from the Day's calls and
+- [x] **B2. The Chronicle** (built: silver, materials, Watch chests, a legendary piece at 10/20/30, the month's cape at 15, an owed list bought back with spare marks. Still to add as rewards: blade glows, hit-spark and number styles, title banners, Watch wall themes, a Psalter Page; marks from play outside the calls.) (a free track, a new one every calendar month): 30 steps, marks from the Day's calls and
   from play in every mode. Each step pays something visible and code-made, so no art drop is needed: cape dyes
   (`fighterRig.ts` already dyes capes), blade glows, hit-spark and damage-number styles, title banners, Watch wall
   themes, a Psalter Page, a sealed legendary piece at steps 10, 20 and 30. A finished Chronicle stays finished; an
   unfinished one closes at the month's end and its unearned steps go into a "Past Chronicles" list that can be bought
   back slowly with later marks (nothing is gone for ever). Odds, where anything is random, are shown.
-- [ ] **B3. "Today" on the home screen.** The journey card stays first; under it one card: the five calls with a tick
+- [x] **B3. "Today" on the home screen.** (built; tested in `scripts/day.mjs`) The journey card stays first; under it one card: the five calls with a tick
   each and how long each takes, the streak, the Chronicle's next step, and the one button that starts the first call
   not yet done. The eight mode cards stay below. Test in `home.mjs`: the card, the routing, a locked player's version.
 - [ ] **B4. Remnant's Rest as the place the day happens.** The settlement already grows by tier. Add a **noticeboard**
@@ -141,7 +141,7 @@ Checked in the repository on this date; each is addressed by the phase named.
 
 ## Phase C: reasons to play the journey again
 
-- [ ] **C1. The Refiner's Fire** (per finished chapter, and on top of the New Game+ that exists, not in place of it). At a
+- [ ] **C1. The Refiner's Fire** (Partly built, `scripts/fire.mjs`: Replay offers four conditions (Tried Metal ×1.4 health, heat 1; Hotter Coals ×1.3 blows, heat 1; Fasting, no Balm, heat 2; Seven Times Hotter ×1.3 health and ×1.2 blows, heat 2), seals I/II/III at heat 1/3/5 shown on the Chapters page, each tier paid once. Still to do: more conditions (elites in every room, a time limit, a rival), better legendary odds and marks by heat, a Day call, and the blows-to-fell table measured per tier.) (per finished chapter, and on top of the New Game+ that exists, not in place of it). At a
   chapter's start the player sets its heat by choosing conditions, each worth points: foes faster, foes tougher,
   elites in every room, no Balm, a time limit, bosses with a second phase pattern earlier, a rival hunting the player
   through the chapter. More heat: better legendary odds, more marks, and a **refined seal** per chapter per heat tier
@@ -173,7 +173,7 @@ Checked in the repository on this date; each is addressed by the phase named.
 
 ## Phase D: the other modes, each made to last
 
-- [ ] **D1. The Horde, between runs.** A run currency (embers) kept after each run buys a **permanent board** of small
+- [ ] **D1. The Horde, between runs.** (Partly built, `scripts/horde-board.mjs`: embers, the permanent board (a full board measures ×1.66 in damage × health ÷ cooldown and costs 1,950 embers, about seventeen ordinary runs; ten runs buy roughly ×1.4), three hardships for more embers, and the Long Night, a run that ends when its fifth monarch falls. Still to do: weapons and passives unlocked by deeds, the day's Horde with a ranked run and a result card, and a Day call for it.) A run currency (embers) kept after each run buys a **permanent board** of small
   upgrades (might, health, pickup reach, one more reroll, one more banish, a starting level), **weapons and passives
   to unlock** by deeds (reach stage 5 with Tirzah, evolve three weapons in one run), and **mutators** for the stage
   select. Add a **30-minute run with an end** (a final monarch and a results screen) beside the endless one, and the

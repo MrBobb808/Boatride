@@ -5,6 +5,7 @@
 // game/watch/defs.ts, its panel in game/watch/ui.ts; its progress is the save's optional `watch`.
 import Phaser from 'phaser';
 import { loadSave, newSave, writeSave, type PhaserSave } from '../game/save';
+import { settleDay } from '../game/day';
 import { actionAtlas, actionFrame, ACTION_FOOT, ACTION_CELL } from '../game/actionArt';
 import { FOES, type BossId, type FoeKind } from '../game/horde/defs';
 import { sceneOf, LAYER_KEYS, WATCH_BOSSES, type Layer } from '../game/watch/scenes';
@@ -468,7 +469,12 @@ export class Watch extends Phaser.Scene {
     this.rateT += dt;
     if (this.rateT >= 10) { w.rate = w.rate * 0.6 + (this.earned / this.rateT) * 0.4; this.earned = 0; this.rateT = 0; }
     this.saveT += dt;
-    if (this.saveT >= 10) { this.saveT = 0; this.persist(); }
+    if (this.saveT >= 10) {
+      this.saveT = 0;
+      // The Day's calls for the Watch are answered as the wall is kept.
+      for (const n of settleDay(this.save)) if (n.kind !== 'day') this.ui.toast(n.text, 3);
+      this.persist();
+    }
     this.uiT -= dt;
     if (this.uiT <= 0) { this.uiT = 0.2; this.ui.refresh(); }
     this.ui.tick(dt);

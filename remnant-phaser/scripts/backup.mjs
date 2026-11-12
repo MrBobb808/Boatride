@@ -78,8 +78,9 @@ try {
   assert.equal(await E(p2, (KEY) => localStorage.getItem(KEY), KEY), null, 'choosing the file changes nothing until the second tap');
   await Promise.all([p2.waitForEvent('load'), p2.click('[data-k=backup_restore]')]);
   await atTitle(p2);
-  const back = await E(p2, (keys) => ({ same: Object.entries(keys).every(([k, v]) => localStorage.getItem(k) === v), meta: document.querySelector('.hm-meta')?.textContent, first: document.querySelector('[data-k=title_first]')?.textContent }), made.keys);
-  assert.ok(back.same, 'every key is as it was on the old phone');
+  const back = await E(p2, (keys) => ({ same: Object.entries(keys).every(([k, v]) => { const now = localStorage.getItem(k); if (now === v) return true; try { const a = JSON.parse(now), b = JSON.parse(v); delete a.day; delete b.day; delete a.updated; delete b.updated; const same = JSON.stringify(a) === JSON.stringify(b); if (!same) window.__diff = Object.keys({ ...a, ...b }).filter((x) => JSON.stringify(a[x]) !== JSON.stringify(b[x])).map((x) => `${k}.${x}: ${JSON.stringify(b[x])?.slice(0, 80)} -> ${JSON.stringify(a[x])?.slice(0, 80)}`); return same; } catch { return false; } }), diff: window.__diff, meta: document.querySelector('.hm-meta')?.textContent, first: document.querySelector('[data-k=title_first]')?.textContent }), made.keys);
+  // (Opening the game draws the day's calls into the journey and stamps the save, game/day.ts; all else is as it was.)
+  assert.ok(back.same, `every key is as it was on the old phone (${back.diff})`);
   assert.ok(/Level 17/.test(back.meta) && back.first === 'Continue', `the home screen offers the journey again (${back.meta}; ${back.first})`);
   console.log(`Restored on a new phone: ${back.meta}`);
 

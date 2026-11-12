@@ -30,6 +30,8 @@ try {
   const replay = async () => {
     await E(page, () => window.__remnant.G.ui.openMenu('chapters'));
     await page.click('[data-k=ch_replay_7]');
+    // The Refiner's Fire is offered first (scripts/fire.mjs); with nothing chosen it is an ordinary replay.
+    await page.click('[data-k=fire_go]');
     await page.waitForFunction(() => window.__remnant.world.save.replay === 7 && !window.__remnant.world.transitioning);
     await drain(calm);
     await E(page, () => window.__remnant.warp('hunt_throne', 'start'));

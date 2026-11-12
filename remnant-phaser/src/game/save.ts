@@ -9,6 +9,9 @@ import { newGame, migrateSave, derive, gainXp as stateGainXp, absorbEcho, type S
 import { ROOMS } from '../shared';
 import { settleArcher } from './archer';
 import { guardedRead, guardedWrite } from './saveGuard';
+import { migrateDay } from './day';
+import { settleHorde } from './horde/board';
+import { settleFire } from './fire';
 
 export type ArrowType = 'standard' | 'fire' | 'frost' | 'storm' | 'holy';
 /** Phaser-only fields, all optional: the fighter in play, Elior's style, and Tirzah's loadout (her three ability slots,
@@ -30,7 +33,11 @@ export type PhaserSave = SaveData & {
   /** Psalms owned and worn (game/psalms.ts). */
   psalms?: { owned: import('./psalms').PsalmId[]; worn: import('./psalms').PsalmId[] };
   /** The Horde's records: the deepest stage reached, runs, and foes felled (game/horde). */
-  horde?: { best: number; runs: number; kills: number; bestKills: number };
+  horde?: import('./horde/board').HordeSave;
+  /** The Refiner's Fire: the conditions chosen for a replay, and each chapter's seal (game/fire.ts). */
+  fire?: import('./fire').FireSave;
+  /** The Day: today's calls, the week's, the streak and the Chronicle (game/day.ts). */
+  day?: import('./day').DaySave;
   /** Uri's level and XP, earned in the Horde (game/horde/uri.ts). */
   uri?: import('./horde/uri').UriSave;
 };
@@ -70,6 +77,9 @@ function settle(d: SaveData): SaveData {
   d.equippedSkills ??= [null, null, null];
   migrateSave(d);
   settleArcher(d);
+  migrateDay(d as PhaserSave);
+  settleHorde(d as PhaserSave);
+  settleFire(d as PhaserSave);
   // Repair, never refuse (save-systems skill): an amount that is not a finite number, or is negative, becomes 0, and
   // the level at least 1, so one bad value never stops a journey from loading.
   const num = d as unknown as Record<string, unknown>;

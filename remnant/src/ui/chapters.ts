@@ -12,7 +12,7 @@ import { contractBoard } from './progression';
 import { dailyBox } from './daily';
 
 /** A host build that can play a finished chapter again (the Phaser build) sets this; the row then offers Replay. */
-export const chapterReplay: { start: ((c: (typeof CHAPTERS)[number]) => void) | null } = { start: null };
+export const chapterReplay: { start: ((c: (typeof CHAPTERS)[number]) => void) | null; note?: (c: (typeof CHAPTERS)[number]) => string } = { start: null };
 
 /** Modes a host build adds to the list (the Phaser build's Horde). */
 export const extraModes: ((close: () => void, busy: boolean) => HTMLElement)[] = [];
@@ -58,7 +58,7 @@ export function chaptersTab(close: () => void): HTMLElement {
       h('div', { class: 'ch-text' },
         h('b', null, c.title),
         h('span', { class: 'muted' }, c.blurb),
-        h('small', null, `${status} · level ${c.level}+`),
+        h('small', null, `${status} · level ${c.level}+${chapterReplay.note?.(c) ?? ''}`),
       ),
       action,
     );

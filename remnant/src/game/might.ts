@@ -43,6 +43,10 @@ export function outmatch(level: number, from: number) {
 let heroLevel = (): number => G.save?.level ?? 1;
 export function setMightLevel(f: () => number) { heroLevel = f; }
 
+/** A host build's extra heat on a replayed chapter (the Phaser build's Refiner's Fire); 1 and 1 otherwise. */
+const fire = { hp: 1, dmg: 1 };
+export function setFire(hp: number, dmg: number) { fire.hp = hp; fire.dmg = dmg; }
+
 /** The multipliers for the room the hero is in (or a given chapter's foes). */
 export function might(chapter?: number) {
   const rid = G.world?.room?.id ?? '';
@@ -50,5 +54,6 @@ export function might(chapter?: number) {
   // challenger picks how deep to go.
   const rounds = (G.world as unknown as { story?: { ch3?: { rounds?: { active?: boolean } } } } | undefined)?.story?.ch3?.rounds;
   if (chapter === undefined && (rid === 'trial_arena' || rounds?.active)) return { hp: 1, dmg: 1 };
-  return outmatch(heroLevel(), leaveLevel(chapter ?? roomChapter(rid)));
+  const m = outmatch(heroLevel(), leaveLevel(chapter ?? roomChapter(rid)));
+  return fire.hp === 1 && fire.dmg === 1 ? m : { hp: m.hp * fire.hp, dmg: m.dmg * fire.dmg };
 }

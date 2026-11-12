@@ -368,6 +368,8 @@ export class Rounds {
     }
     if (this.extreme) { if (n > Number(s.flags.extreme_best ?? 0)) s.flags.extreme_best = n; }
     else if (n > Number(s.flags.trial_best ?? 0)) s.flags.trial_best = n;
+    // Rounds cleared, for ever (the Phaser build's Day measures a day's and a week's from it).
+    s.flags.trial_rounds = Number(s.flags.trial_rounds ?? 0) + 1;
     if (n >= 10 && s.quests.s_trial && !s.quests.s_trial.done) G.world.story.quest('s_trial', 0, true);
     if (n % 5 === 0) this.reward(n);
     if (n % 10 === 0) G.world.configureTrial(n + 1);
