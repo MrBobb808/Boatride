@@ -45,9 +45,14 @@ function eliteOf(stage: number) {
 export interface StageRun { ok: boolean; time: number; loss: number; heal: number; max: number; coins: number; xp: number; kills: number; essence: [ShadowId, number][] }
 
 /** One stage on the wall at his strength now: whether he clears it, how long it takes, and what it pays. */
+/** His whole fight's damage a second: his own blows, his shadows' and his abilities' share. */
+export function fightDps(w: D.WatchSave, st = D.watchStats(w)) {
+  return D.dpsOf(st) * (1 + PER_SHADOW * st.shadow * (w.team?.length ?? 0) + PER_ABILITY * (w.loadout?.length ?? 0) / st.cdMult);
+}
+
 export function runStage(w: D.WatchSave, stage: number): StageRun {
   const st = D.watchStats(w), boss = D.isBoss(stage);
-  const dps = D.dpsOf(st) * (1 + PER_SHADOW * st.shadow * (w.team?.length ?? 0) + PER_ABILITY * (w.loadout?.length ?? 0) / st.cdMult);
+  const dps = fightDps(w, st);
   const kills = boss ? 1 : D.KILLS_PER_STAGE, kill = D.foeHp(stage) / (dps * (boss ? st.holder : 1));
   // The foe before him strikes on its clock while he cuts; his regeneration answers some of it.
   const drain = Math.max(0, (D.foeDmg(stage) * (1 - st.dr)) / D.FOE_RATE - st.maxHp * st.regen);

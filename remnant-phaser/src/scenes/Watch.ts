@@ -25,6 +25,7 @@ import { simulateAway, applyAway } from '../game/watch/offline';
 import { pace } from '../game/watch/balance';
 import * as A from '../game/watch/ascension';
 import { tally, rollDays, openChest, claim, type ChestPrize } from '../game/watch/daily';
+import { climb, runDungeon, migrateTower, type Climb, type DungeonId, type DungeonRun } from '../game/watch/tower';
 import { smoothShake, impact, type Tier } from '../game/feel';
 import { ShadowBand, pickFoe, SHADOW_ORDER, ESSENCE_OF, BOSS_ESSENCE, UNLOCK_COST, SHADOW_MAX, levelCost, owned, shadowName, type ShadowId } from '../game/watch/shadows';
 import type { EchoRole } from '../../../remnant/src/game/data';
@@ -151,6 +152,7 @@ export class Watch extends Phaser.Scene {
   create() {
     this.save = (loadSave() as PhaserSave | null) ?? (newSave(false) as PhaserSave);
     this.w = D.migrateWatch(this.save.watch ??= D.newWatch());
+    migrateTower(this.w);
     this.cameras.main.setBackgroundColor('#07060a');
     smoothShake(this);
     this.bg = this.add.graphics().setDepth(-10);
@@ -580,6 +582,21 @@ export class Watch extends Phaser.Scene {
     const n = claim(this.w, what);
     if (n) { sfx('lootRare', { vol: 0.5 }); this.ui.toast(`+${n} chest${n > 1 ? 's' : ''}`, 1.6); this.persist(); }
     return n;
+  }
+
+  /** Try the tower's next floor (game/watch/tower.ts). */
+  climbTower(): Climb | null {
+    const r = climb(this.w);
+    if (!r) return null;
+    if (r.ok) { sfx(r.seals ? 'lootRare' : 'chest', { vol: 0.6 }); if (r.seals) this.land('medium'); this.persist(); } else sfx('uiBack', { vol: 0.5 });
+    return r;
+  }
+  /** Spend a dungeon key. */
+  dungeon(id: DungeonId, rnd = Math.random()): DungeonRun | null {
+    const owned = SHADOW_ORDER.filter((s) => (this.w.shadows?.[s]?.lv ?? 0) > 0), pool = owned.length ? owned : SHADOW_ORDER;
+    const r = runDungeon(this.w, id, () => pool[Math.floor(rnd * pool.length) % pool.length], rnd);
+    if (r) { sfx(r.relic ? 'lootRare' : 'pickup', { vol: 0.6 }); this.persist(); }
+    return r;
   }
 
   /** Open a chest: Watch rewards only (game/watch/daily.ts ODDS, with its pity). */

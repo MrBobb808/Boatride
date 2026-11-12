@@ -4,6 +4,7 @@
 // updated (text and classes) a few times a second, never rebuilt per frame.
 import { sfx } from '../../../../remnant/src/audio/audio';
 import * as D from './defs';
+import * as T from './tower';
 import bladesUrl from '../../assets/cc0/blades.png';
 import vanguardUrl from '../../../../remnant/src/assets/echo-vanguard.png';
 import sovereignUrl from '../../../../remnant/src/assets/echo-sovereign.png';
@@ -648,6 +649,35 @@ export class WatchUI {
     this.body.appendChild(all);
     this.body.appendChild(el('div', 'wt-h', "This week's goals"));
     for (const q of d.weekly) this.body.appendChild(quest(q, true));
+    // The tower and the dungeons (tower.ts): from a best stage of 20.
+    if (T.towerOpen(w)) {
+      const floor = T.floorOf(w) + 1, k = T.keysOf(w);
+      this.body.appendChild(el('div', 'wt-h', `The tower · floor ${floor}`));
+      this.body.appendChild(el('p', 'wt-p', `One floor a try. Its holder falls if your strength can fell it in a holder's time; a miss costs nothing. Every fifth floor pays a Seal and two chests.`));
+      if (this.lastClimb) {
+        const c = this.lastClimb, box = el('div', 'wt-prize');
+        box.dataset.k = 'wt_climb_said';
+        box.textContent = c.ok ? `Floor ${c.floor} cleared · +${D.fmt(c.coins)} coins${c.seals ? ` · +${c.seals} Seal · +${c.chests} chests` : ''}` : `Floor ${c.floor} held: you could deal ${D.fmt(c.have)} of the ${D.fmt(c.need)} it takes. Grow stronger and try again.`;
+        this.body.appendChild(box);
+      }
+      const cb = el('button', 'wt-btn hot wt-big', `Climb to floor ${floor}`) as HTMLButtonElement;
+      cb.dataset.k = 'wt_climb';
+      cb.onclick = () => { this.lastClimb = sc.climbTower(); this.show('daily'); };
+      this.body.appendChild(cb);
+      this.body.appendChild(el('div', 'wt-h', 'Dungeons · three keys a day each'));
+      if (this.lastRun) {
+        const r = this.lastRun, box = el('div', 'wt-prize');
+        box.dataset.k = 'wt_dungeon_said';
+        box.textContent = r.relic ? `${r.relic.relic.name} · rank ${r.relic.rank}` : r.essence ? `${shadowName(r.essence[0], 1)} essence ×${r.essence[1]}` : `+${D.fmt(r.coins)} coins${r.note ? ` · ${r.note}` : ''}`;
+        this.body.appendChild(box);
+      }
+      for (const dg of T.DUNGEONS) {
+        const b = el('button', 'wt-btn wt-big', `${dg.name} · ${dg.says} · ${k[dg.id]} of ${T.KEYS} keys`) as HTMLButtonElement;
+        b.dataset.k = `wt_dungeon_${dg.id}`; b.disabled = k[dg.id] <= 0;
+        b.onclick = () => { this.lastRun = sc.dungeon(dg.id); this.show('daily'); };
+        this.body.appendChild(b);
+      }
+    } else this.body.appendChild(el('p', 'wt-p', `The tower and the dungeons open at stage ${T.TOWER_OPEN}.`));
     // Chests: Watch rewards only; the odds and the pity in full.
     this.body.appendChild(el('div', 'wt-h', `Chests · ${d.chests}`));
     const odds = el('div', 'wt-odds');
@@ -666,6 +696,8 @@ export class WatchUI {
     this.body.appendChild(ob);
   }
 
+  private lastClimb: T.Climb | null = null;
+  private lastRun: T.DungeonRun | null = null;
   /** Feats earned since the Feats tab was last opened (its dot). */
   private newFeats = 0;
   /** The Feats tab (game/watch/feats.ts): what the feats add, the title he wears, and every feat by what it counts. */

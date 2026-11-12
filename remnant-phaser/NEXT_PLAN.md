@@ -180,7 +180,7 @@ Checked in the repository on this date; each is addressed by the phase named.
   **day's Horde** (seeded weapons offered, one mutator, one ranked run, a result card). Save: extend
   `PhaserSave.horde` with optional fields. Measure the board so the tenth run feels about 40% stronger than the first,
   never three times.
-- [ ] **D2. The Watch, to the end of its plan.** In order: the **boss tower and daily dungeons** the owner chose
+- [ ] **D2. The Watch, to the end of its plan.** (The tower and the daily dungeons are built, `src/game/watch/tower.ts`, `scripts/watch-tower.mjs`: from stage 20, one floor a try settled by his strength against the holder's time, a Seal and two chests every fifth floor; three keys a day each for coins, essence and a relic's rank. They are settled at once by numbers, not fought on screen: a staged fight for a floor is a follow-up. Still to do: the forms, Tirzah and Uri on the wall. `watch-pace.mjs` does not yet count the tower's Seals.) In order: the **boss tower and daily dungeons** the owner chose
   (POLISH_PLAN §18k: one floor a try, milestone rewards; three keys a day each for coins, essence and relic ranks);
   **the forms** (the Unshorn and the Sovereign on the wall); **Tirzah at Watch level 150 and Uri at 300**; **gear with
   merging** and **expeditions** (§18f) only if the tower and dungeons leave the wall wanting. Re-run `watch-pace.mjs`

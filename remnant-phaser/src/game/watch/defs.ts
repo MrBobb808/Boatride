@@ -60,6 +60,9 @@ export interface WatchSave {
   relics?: Partial<Record<RelicId, number>>;
   worn?: RelicId[];
   relicPity?: number;
+  /** The tower's floors cleared, and today's dungeon keys (tower.ts). */
+  tower?: number;
+  keys?: import('./tower').KeysSave;
 }
 
 /** Older Watch saves knew Covenant Strike and the Pillar by level alone: they keep them, bought and equipped. */
