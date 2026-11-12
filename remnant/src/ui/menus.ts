@@ -34,7 +34,7 @@ import { altarName, travelGroups, travelBlocked, travelTo } from '../game/travel
 import { restStock, restRecipes } from '../game/settlement';
 import {
   storeOffers, buyOffer, storeBlocked, OFFER_KINDS, SHARD, keepReason, isLocked, toggleLock, needsConfirm, sellPrice, salvageOf,
-  sellItem, dismantleItem, junk, sellJunk, buyback, canBuyBack, buyBack, PACK, packCount, usePack, stow, BALM_CAP, type OfferKind,
+  sellItem, dismantleItem, junk, junkBelow, sellJunk, buyback, canBuyBack, buyBack, PACK, packCount, usePack, stow, BALM_CAP, type OfferKind,
 } from '../game/economy';
 import { ELIXIRS, elixirOn, elixirLeft, type ElixirId } from '../game/elixirs';
 import { chaptersTab, gameModes } from './chapters';
@@ -1386,6 +1386,10 @@ function sellPane(dismantle: boolean) {
   const why = new Map(gear.map((it) => [it, keepReason(s, it)]));
   gear.sort((a, b) => Number(!!why.get(a)) - Number(!!why.get(b)) || b.rarity - a.rarity);
   const trash = dismantle ? [] : junk(s);
+  // The loot filter: how rare a spare piece can be and still count as junk.
+  const filter = dismantle ? null : h('div', { class: 'modes', style: 'margin:4px 0;flex-wrap:wrap;align-items:center' },
+    h('span', { class: 'muted', style: 'font-size:0.85em;margin-right:4px' }, 'Junk is spare gear up to:'),
+    ...[0, 1, 2, 3].map((r) => btn(RARITY_NAMES[r], () => { (s.store ??= {}).junk = r; sfx('ui'); renderAny(); }, 'btn small' + (junkBelow(s) === r ? ' primary' : ''), { 'data-k': 'junk_' + r })));
   const junkSilver = trash.reduce((n, it) => n + sellPrice(it), 0);
   const act = (it: ItemInst) => {
     const key = (dismantle ? 'dis_' : 'sell_') + it.uid;
@@ -1423,7 +1427,8 @@ function sellPane(dismantle: boolean) {
     trash.length ? btn(`Sell all junk · ${trash.length} ${trash.length === 1 ? 'item' : 'items'} · ${junkSilver} silver`, () => {
       const r = sellJunk(s);
       if (r.n) { sfx('pickup'); G.ui.toast(`Sold ${r.n} for ${r.silver} silver`, 'loot'); renderAny(); }
-    }, 'btn small', { 'data-k': 'sell_junk', style: 'margin:6px 0', title: 'Common and Uncommon gear, untempered and unlocked, where you already wear something at least as rare.' }) : null,
+    }, 'btn small', { 'data-k': 'sell_junk', style: 'margin:6px 0', title: `${RARITY_NAMES[junkBelow(s)]} gear and below, untempered, unlocked and without a Legendary Power, where you already wear something at least as rare.` }) : null,
+    filter,
     rows.length ? h('div', { class: 'list' }, rows) : h('div', { class: 'muted' }, 'Nothing to part with. Equipped gear and keepsakes stay with you.'),
     ...backs);
 }

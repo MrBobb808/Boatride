@@ -56,6 +56,20 @@ try {
   assert.equal(end, 'At its best', 'at the top of its range the line is done');
   console.log(`Reforge: health ${made.lo} → ${last} (its range ${made.lo}–${made.hi}) in ${tries} tries, never worse; a line at its best is left alone`);
 
+  // ---- the loot filter (Ilan's Sell tab): how rare spare gear can be and still count as junk; it is kept
+  const count = () => E(page, () => { const b = document.querySelector('[data-k=sell_junk]'); return b ? Number(/· (\d+) item/.exec(b.textContent)?.[1] ?? 0) : 0; });
+  await page.getByRole('button', { name: 'Leave', exact: true }).click();
+  await E(page, () => { const { G } = window.__remnant, s = window.__remnant.world.save; G.ui.openShop('merchant');
+    // Spares of every rarity in a worn slot: a Legendary Power keeps one out of the junk whatever its rarity.
+    const worn = s.inventory.find((i) => Object.values(s.equipment).includes(i.uid));
+    if (worn) { worn.rarity = 4; for (let r = 0; r < 4; r++) s.inventory.push({ uid: 'jk' + r, id: worn.id, rarity: r, plus: 0, affixes: [] }); s.inventory.push({ uid: 'jkL', id: worn.id, rarity: 2, plus: 0, affixes: [], legend: 'x' }); } });
+  await page.click('[data-k=shop_sell]');
+  const seen = [];
+  for (const r of [0, 1, 2, 3]) { await page.click(`[data-k=junk_${r}]`); await page.waitForFunction((r) => document.querySelector(`[data-k=junk_${r}]`)?.classList.contains('primary'), r); seen.push(await count()); }
+  const kept = await E(page, () => window.__remnant.world.save.store.junk);
+  assert.ok(seen.every((n, i) => i === 0 || n >= seen[i - 1]) && seen[3] > seen[0] && kept === 3, `a higher filter takes more as junk, and it is kept (${seen}, ${kept})`);
+  console.log(`Loot filter: junk up to Common ${seen[0]}, Uncommon ${seen[1]}, Rare ${seen[2]}, Epic ${seen[3]}`);
+
   assert.deepEqual(errors, [], 'no page errors');
   console.log('phaser reforge: all checks passed');
 } finally {

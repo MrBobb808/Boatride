@@ -152,7 +152,7 @@ Checked in the repository on this date; each is addressed by the phase named.
   affliction, with a medal for a fall without being hit (it feeds Valor's flawless titles). Bounties: three a day, a
   named elite with a legendary power of its own placed in a seeded room of a finished chapter, with a hint, not a
   marker. Each pays a legendary roll weighted toward powers not yet in the Codex.
-- [ ] **C3. Gear worth hunting.** (Reforge at Dov is built, `remnant/src/game/reforge.ts`, `scripts/reforge.mjs`: each rolled line shows its range as a bar and the chance of a better roll; a reforge keeps the better of old and new. Still to do: the Refined quality, sets, the loot filter and the "new" dot.) The loot loop needs more room at the top:
+- [ ] **C3. Gear worth hunting.** (Reforge at Dov is built, `remnant/src/game/reforge.ts`, `scripts/reforge.mjs`: each rolled line shows its range as a bar and the chance of a better roll; a reforge keeps the better of old and new. A loot filter on Ilan's Sell tab sets how rare spare gear can be and still count as junk (Common to Epic; a Legendary Power is never junk); the "new" dot already existed. Still to do: the Refined quality and sets) The loot loop needs more room at the top:
   - **Rolls with ranges** on Epic gear and up (shown as a bar: where this piece sits in its range), and a rare
     **Refined** quality whose ranges are higher.
   - **Reforge at Dov**: re-roll one line for materials and Relic Shards, with the odds shown.
