@@ -15,7 +15,7 @@ import { settings } from '../classic/shim/settings';
 import { T, TILE, isSolid } from '../shared';
 import { sovereignDamage } from '../../../remnant/src/game/balance';
 import { MOVESETS, FISTS, extraFor, type AttackDef } from '../../../remnant/src/game/weapons';
-import { CHAINS, ChainFx, hasChains, isChainMove, HOOK_RANGE, HOOK_MIN, HOOK_CD, HOOK_SPEED, PULL_SPEED, CHAIN_BURN, HOOK_DMG } from './chains';
+import { CHAINS, ChainFx, hasChains, isChainMove, HOOK_RANGE, HOOK_MIN, HOOK_CD, HOOK_SPEED, PULL_SPEED, HOOK_DMG, chainBurn, hookRange } from './chains';
 import { fx } from '../../../remnant/src/render/fx';
 import { skillRank } from '../../../remnant/src/game/state';
 import { SKILLS, skillSlots, castSkill, isArcherSkill, archerUnlocked, ARCHER, type AnySkillId } from './abilities';
@@ -915,13 +915,14 @@ export class Player {
   }
   /** The foe a thrown blade would take: ahead, in the hook's reach, in a clear line. Holding Up prefers one above. */
   private hookTarget(min = HOOK_MIN) {
-    let best: FoeLike | null = null, score = HOOK_RANGE + 1;
+    const far = hookRange(this.w.save);
+    let best: FoeLike | null = null, score = far + 1;
     const up = this.w.controls.down('up');
     for (const f of this.w.foes()) {
       const phase = f as FoeLike & { fighting?: boolean; ward?: boolean };
       if (!f.alive || f.removed || phase.fighting === false || phase.ward) continue;
       const dx = f.x - this.x, dy = f.box.centerY - this.y, d = Math.hypot(dx, dy);
-      if (dx * this.face < 8 || d < min || d > HOOK_RANGE || !this.lineOfSight(f.x, f.box.centerY)) continue;
+      if (dx * this.face < 8 || d < min || d > far || !this.lineOfSight(f.x, f.box.centerY)) continue;
       const sc = d - (up && dy < -30 ? 140 : 0);
       if (sc < score) { score = sc; best = f; }
     }
@@ -951,7 +952,8 @@ export class Player {
   /** A chain's blow sets its foe burning. */
   private kindle(f: FoeLike) {
     const e = (f as FoeLike & { e?: { burn: number; burnDps: number } }).e;
-    if (e) { e.burn = Math.max(e.burn, CHAIN_BURN.secs); e.burnDps = Math.max(e.burnDps, this.power() * CHAIN_BURN.share); }
+    const k = chainBurn(this.w.save);
+    if (e) { e.burn = Math.max(e.burn, k.secs); e.burnDps = Math.max(e.burnDps, this.power() * k.share); }
     this.w.spark(f.x, f.box.centerY, 0xff8a3a, 4);
   }
   private startHook(f: FoeLike) {
@@ -1000,7 +1002,7 @@ export class Player {
   }
   private hookBite(f: FoeLike) {
     const h = this.hook, dmg = Math.round(this.power() * HOOK_DMG * Phaser.Math.FloatBetween(0.95, 1.05)), before = f.hp;
-    if (!f.hit(dmg, this.face, 0.3, false, { poise: 40, stun: 0.6, noKnock: true })) { this.endHook(false); return; }
+    if (!f.hit(dmg, this.face, 0.3, false, { poise: 40, stun: 0.6, noKnock: true, tag: 'chain' })) { this.endHook(false); return; }
     this.kindle(f);
     haptic('hit');
     this.w.heroHit(f, before !== undefined && f.hp !== undefined ? Math.max(0, before - f.hp) : dmg, true, false);
@@ -1052,7 +1054,7 @@ export class Player {
       const swap = this.swapStrikeT > 0 ? 1.5 : 1;
       const force = this.atk.force * this.atkMult * (counter ? 1.5 : 1) * swap;
       const beforeHp = f.hp;
-      if (f.hit(Math.round(dmg * swap), this.face, force, crit, { poise: this.atk.poise * this.atkMult * this.w.d.heavyPoiseMult * (this.atk.heavy && wears(ps, 'broken_idol') ? 1.4 : 1), kx: this.atk.kx * this.face, ky: this.atk.ky, launch: this.atk.launch, heavy: this.atk.heavy, guardBreak: this.atk.guardBreak })) {
+      if (f.hit(Math.round(dmg * swap), this.face, force, crit, { poise: this.atk.poise * this.atkMult * this.w.d.heavyPoiseMult * (this.atk.heavy && wears(ps, 'broken_idol') ? 1.4 : 1), kx: this.atk.kx * this.face, ky: this.atk.ky, launch: this.atk.launch, heavy: this.atk.heavy, guardBreak: this.atk.guardBreak, tag: isChainMove(this.atk.id) ? 'chain' : undefined })) {
         haptic('hit');
         landed = true;
         const dealt = beforeHp !== undefined && f.hp !== undefined ? Math.max(0, beforeHp - f.hp) : Math.round(dmg * swap);

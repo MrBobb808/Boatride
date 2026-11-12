@@ -136,6 +136,14 @@ export const NPC_DEFS: Record<NpcKind, { name: string; title: string; style: Hum
       outline: '#0a070c', weapon: 'none', offhand: 'none', bulk: 0.9,
     },
   },
+  keziah: {
+    name: 'Keziah', title: 'Who Kept the Tally', base: { ...NPC_BASE, lean: 0.06, fUA: 0.45, fFA: 1.2 }, dims: { ...PDIMS, torso: 11.2 }, scale: 0.9,
+    style: {
+      skin: '#9a6e4e', hair: '#1c1210', hairKind: 'short', beard: null, coat: '#8a8478', coatDark: '#5a564e', skirt: 20, trim: '#6a2a7a',
+      pants: '#5a564e', boots: '#3a2a20', glove: '#9a6e4e', belt: '#3a3440', plate: null, helm: 'none', eye: '#fff', eyeGlow: 0,
+      outline: '#0a070c', weapon: 'none', offhand: 'none', bulk: 0.86,
+    },
+  },
   feastlord: {
     name: 'The Lord of the Feast', title: 'Regent of Babylon', base: { ...NPC_BASE, fUA: 0.55, fFA: 1.15, bUA: 0.45, bFA: 1.2 }, dims: { ...PDIMS, torso: 13.5, thigh: 8.6, shin: 8.6 }, scale: 1.12,
     style: {
@@ -467,7 +475,7 @@ export class Shrine extends Entity implements Interactable {
     return fallenObjective(this.grants) ? !!G.save.flags[this.grants] : G.save.keyItems.includes(this.grants);
   }
   prompt() {
-    return this.taken ? '' : fallenObjective(this.grants) ? this.grants.startsWith('cinder_')?'Release Pressure Wheel':this.grants.startsWith('grecia_')?'Relight the Beacon':this.grants.startsWith('gods_')?'Cast Down the Altar':this.grants.startsWith('north_')?'Overturn the Standard':'Cleanse Spore Heart' : 'Take the relic';
+    return this.taken ? '' : fallenObjective(this.grants) ? this.grants.startsWith('cinder_')?'Release Pressure Wheel':this.grants.startsWith('grecia_')?'Relight the Beacon':this.grants.startsWith('gods_')?'Cast Down the Altar':this.grants.startsWith('north_')?'Overturn the Standard':this.grants.startsWith('tyre_')?'Break the Fetters':'Cleanse Spore Heart' : 'Take the relic';
   }
   interact() {
     if (!this.taken) G.world.story.shrine(this);

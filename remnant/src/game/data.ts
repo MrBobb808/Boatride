@@ -109,6 +109,12 @@ export const ITEMS: Record<string, ItemBase> = {
   shiras_copy: {id:'shiras_copy',name:'Shira’s Copy of the Names',slot:'relic',rarity:5,icon:'lamp',unique:true,value:3800,mods:{ce:150,ceRegen:56,xp:14},desc:'Mara’s reward for bringing Shira and her copy of the book home from the Field of the Sleepers.'},
   seas_gauntlets: {id:'seas_gauntlets',name:'Gauntlets Between the Seas',slot:'gauntlets',rarity:4,icon:'glove',look:2,unique:true,value:3300,mods:{atk:70,crit:9,poise:22},desc:'Left behind in an empty tent on the mountain. Salt from both seas has dried in the seams.'},
   linen_mantle: {id:'linen_mantle',name:'Mantle of Fine Linen',slot:'armor',rarity:4,icon:'armor',look:2,unique:true,value:3500,mods:{hp:420,def:30,res:16},desc:'White linen over plain mail. Dust does not seem to settle on it.'},
+  // Chapter XIII · The Stones of Fire.
+  fetterbreaker: {id:'fetterbreaker',name:'Fetterbreaker',slot:'weapon',family:'greatsword',rarity:5,icon:'greatsword',element:'fire',look:2,unique:true,value:7200,mods:{atk:350,crit:13,poise:50,critDmg:36},desc:'Beaten out of the fetters of the fairs, link by link. It has never held anyone. Trophy of the Prince of Tyrus, Chapter XIII.'},
+  ashes_of_tyrus: {id:'ashes_of_tyrus',name:'Ashes of Tyrus',slot:'relic',rarity:5,icon:'crown',unique:true,value:5200,mods:{hp:540,def:34,res:20,abil:38},desc:'A pinch of grey ash in a plain clay seal. It was the richest man on earth. It weighs nothing.'},
+  keziahs_tally: {id:'keziahs_tally',name:'Keziah’s Tally',slot:'relic',rarity:5,icon:'lamp',unique:true,value:4200,mods:{ce:170,ceRegen:62,xp:16},desc:'Mara’s reward for bringing Keziah home from the holds: every name she counted, and the ship each one sailed on.'},
+  tarshish_greaves: {id:'tarshish_greaves',name:'Greaves of Tarshish',slot:'boots',rarity:4,icon:'boot',look:2,unique:true,value:3600,mods:{hp:240,speed:16,def:20},desc:'A ship’s officer wore them to keep his footing on a wet deck. He did not need them where he went.'},
+  unbought_mail: {id:'unbought_mail',name:'Mail of the Unbought',slot:'armor',rarity:4,icon:'armor',look:2,unique:true,value:3900,mods:{hp:470,def:33,res:18},desc:'There was a price tag wired to the collar. Somebody tore it off.'},
   stormglass_mantle: {id:'stormglass_mantle',name:'Stormglass Mantle',slot:'armor',rarity:4,icon:'armor',look:2,unique:true,value:2800,mods:{hp:300,def:22,res:12},desc:'Woven by the librarians of the drowned halls from sailcloth and sea-glass.'},
   cinderbreak: {id:'cinderbreak',name:'Cinderbreak',slot:'weapon',family:'greatsword',rarity:5,icon:'greatsword',element:'fire',look:2,unique:true,value:4200,mods:{atk:205,poise:35,critDmg:25},desc:'Azkar’s broken hammer reforged into a blade by free hands. Trophy of Chapter IX.'},
   oath_of_the_unburnt: {id:'oath_of_the_unburnt',name:'Oath of the Unburnt',slot:'relic',rarity:5,icon:'crown',unique:true,value:3200,mods:{hp:300,def:18,echoDmg:35,echoHp:35},desc:'The foundry’s freedom, carried into every battle.'},
@@ -588,6 +594,7 @@ export const LORE: Record<string, LoreEntry> = {
   jer295: {id:'jer295',title:'The Well-Stone of the Rest',ref:'Jeremiah 29:5 (KJV)',text:'Build ye houses, and dwell in them; and plant gardens, and eat the fruit of them;',note:'Cut into the well-stone at Remnant\'s Rest by its first settlers.'},
   gods_testament: {id:'gods_testament',title:'Micaiah’s Record of the High Places',ref:'Remnant chronicle · Original fiction',text:'They are not gods. They are old powers that took the names men gave them and grew fat on what was burned to them. Dagon of the sea, Molech of the fire, Baal of the storm. Each is stronger than any of us. None of them made the heavens. Stand where they cannot answer, and they will fall the way their altars fall.',note:'Written in the Valley of Hinnom, in a hand that did not shake.'},
   north_testament: {id:'north_testament',title:'Shira’s Note in the Book of Names',ref:'Remnant chronicle · Original fiction',text:'He came over the land like a whirlwind and called himself greater than every god. He wanted this book because it holds the names of people he means to forget. I have kept it. Whoever finds this note: the king is strong, but nobody stands with him. His horsemen follow the winner. When he begins to lose, he will lose alone.',note:'Tucked into the back of the book, in a careful hand.'},
+  tyre_testament: {id:'tyre_testament',title:'Keziah’s Tally',ref:'Remnant chronicle · Original fiction',text:'They taught me to count because I was quick, and then they made me count people. A mark for each one, the price beside it, the ship beneath. I kept a second tally where they could not see it, with the names. The prince knows what you will do before you do it; I have watched him read a buyer across the hall. So do not do the same thing twice. And remember what he forgets: he was bought too, long ago, by the thing that stands behind his chair.',note:'Scratched on the inside of a ship’s hold, low down, where a child could reach.'},
   grecia_testament: {id:'grecia_testament',title:'Hanan’s Notes from the Deep',ref:'Remnant chronicle · Original fiction',text:'The shrines of this coast were built to guide ships home. The prince drowned their beacons so no ship would come but his. He runs, and does not rest, and does not touch the ground. Every stone here says the same thing in a different hand: his great horn will break, and four will rise in its place. Do not despair when they do. Stand, as you stood before.',note:'Recovered from the Drowned Library. Bring it to Mara.'},
   cinder_testament: {id:'cinder_testament',title:'The Testament of Free Hands',ref:'Remnant chronicle · Original fiction',text:'We know the names of every chain we forged. We kept this last workshop for hinges, ploughs and cradles. If the furnaces are freed, let no crown decide what our hands are for again.',note:'Rescue Talia in the Last Smithy, then bring this testament to Mara at Ashwatch.'},
   hunt_plague: {id:'hunt_plague',title:'The Green-Stained Record',ref:'Remnant chronicle · Original fiction',text:'Morvane’s wings carry a thousand smaller wings. The green dust is not pollen. It is a road for her army.',note:'Rescue Barak in the grove, then bring this record to Mara at Thawgate.'},
@@ -867,6 +874,26 @@ export const LORE: Record<string, LoreEntry> = {
     id: 'dan122', title: 'Them That Sleep', ref: 'Daniel 12:2 (KJV)',
     text: 'And many of them that sleep in the dust of the earth shall awake, some to everlasting life, and some to shame and everlasting contempt.',
     note: 'Carved on a marker stone in the field the king\'s soldiers have been digging up.',
+  },
+  ezk2713: {
+    id: 'ezk2713', title: 'The Persons of Men', ref: 'Ezekiel 27:13 (KJV)',
+    text: 'Javan, Tubal, and Meshech, they were thy merchants: they traded the persons of men and vessels of brass in thy market.',
+    note: 'Painted over the gate of the fairs, as a merchant paints his prices.',
+  },
+  ezk282: {
+    id: 'ezk282', title: 'I Am a God', ref: 'Ezekiel 28:2 (KJV)',
+    text: 'Son of man, say unto the prince of Tyrus, Thus saith the Lord GOD; Because thine heart is lifted up, and thou hast said, I am a God, I sit in the seat of God, in the midst of the seas; yet thou art a man, and not God, though thou set thine heart as the heart of God:',
+    note: 'Cut into the lintel of the storehouse, under the prince’s own seal.',
+  },
+  ezk2734: {
+    id: 'ezk2734', title: 'Broken by the Seas', ref: 'Ezekiel 27:34 (KJV)',
+    text: 'In the time when thou shalt be broken by the seas in the depths of the waters thy merchandise and all thy company in the midst of thee shall fall.',
+    note: 'Scratched by many hands on a rib of the hold, below the waterline.',
+  },
+  ezk2819: {
+    id: 'ezk2819', title: 'Never Any More', ref: 'Ezekiel 28:19 (KJV)',
+    text: 'All they that know thee among the people shall be astonished at thee: thou shalt be a terror, and never shalt thou be any more.',
+    note: 'On the last stone of the sea wall, facing the open water.',
   },
   dan1145: {
     id: 'dan1145', title: 'None Shall Help Him', ref: 'Daniel 11:45 (KJV)',

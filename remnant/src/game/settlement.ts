@@ -54,7 +54,7 @@ export const restOpen = () => flag('ending_done');
 /** People brought home, weighted by how many came with them. */
 const SURVIVORS: [flag: string, people: number][] = [
   ['tobiah_saved', 1], ['captives_freed', 3], ['ch5_writing', 1], ['ch6_storm_done', 1],
-  ['ch7_rescued', 2], ['ch8_rescued', 2], ['ch9_rescued', 2], ['ch10_rescued', 1], ['ch11_rescued', 1], ['ch12_rescued', 1],
+  ['ch7_rescued', 2], ['ch8_rescued', 2], ['ch9_rescued', 2], ['ch10_rescued', 1], ['ch11_rescued', 1], ['ch12_rescued', 1], ['ch13_rescued', 3],
 ];
 /** Score needed for each tier: roughly Ch I, II, IV, VI and VIII with their rescues. */
 const TIER_AT = [0, 3, 8, 12, 18];
@@ -153,6 +153,10 @@ export const RESIDENTS: Resident[] = [
   { kind: 'shira', role: 'Keeper of the Book', here: () => restTier() >= 3 && flag('ch12_rescued'), lines: [
     [always, 'I keep the book of names here now. Every evening I add the ones who arrived that day. It is getting thick.'],
     [() => flag('ch12_done'), 'He wanted the names forgotten. I read them out by the river every morning, so that will never happen.'],
+  ] },
+  { kind: 'keziah', role: 'Keeper of the Tally', here: () => restTier() >= 3 && flag('ch13_rescued'), lines: [
+    [always, 'I still count. I cannot stop. But here I count loaves, and children, and the days until the ships come back.'],
+    [() => flag('ch13_done'), 'Four hundred and twelve were sold while I kept the tally. Three hundred and ninety are home. I am not finished.'],
   ] },
   { kind: 'arshan', role: 'Keeper of the Tower', here: () => restTier() >= 4 && flag('ch6_storm_done'), lines: [
     [always, 'Captain of a king\'s guard, now keeper of a wooden tower. I have never slept so well.'],

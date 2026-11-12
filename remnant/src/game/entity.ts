@@ -28,6 +28,8 @@ export interface HitInfo {
   noKnock?: boolean;
   /** Burn or bleed damage over time: no flinch, no poise, no sparks. */
   dot?: boolean;
+  /** What made the blow, for a target that cares (the Phaser build's chains say 'chain'). */
+  tag?: string;
 }
 
 let nextId = 1;

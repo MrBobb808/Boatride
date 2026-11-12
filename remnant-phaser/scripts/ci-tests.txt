@@ -39,6 +39,7 @@ bosses.mjs
 classic-bosses.mjs
 gods.mjs
 north.mjs
+tyrus.mjs
 unshorn.mjs
 might.mjs
 replay.mjs

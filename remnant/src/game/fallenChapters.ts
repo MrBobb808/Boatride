@@ -1,7 +1,7 @@
 // Original fiction: each Fallen Crown commands a distinct domain.
 import { MapBuilder, type RoomDef, type EntDef, type EnemyKind, type NpcKind } from './tiles';
 export interface FallenChapter {
-  n: 7 | 8 | 9 | 10 | 11 | 12; roman: string; title: string; name: string; boss: 'beast_monarch' | 'plague_monarch' | 'cinder_monarch' | 'grecia_prince' | 'nation_gods' | 'north_king'; biome: 'hunt' | 'plague' | 'cinders' | 'grecia';
+  n: 7 | 8 | 9 | 10 | 11 | 12 | 13; roman: string; title: string; name: string; boss: 'beast_monarch' | 'plague_monarch' | 'cinder_monarch' | 'grecia_prince' | 'nation_gods' | 'north_king' | 'tyrus_prince'; biome: 'hunt' | 'plague' | 'cinders' | 'grecia';
   hub: string; trail: string; depths: string; side: string; ridge: string; arena: string; rescue: NpcKind;
   objectives: {id: string; flag: string; room: string; name: string}[];
   rewards: string[]; optional: string; caches: string[]; record: string; intro: string[]; challenge: string[]; ending: string[]; tips: string;
@@ -72,13 +72,26 @@ export const FALLEN_CHAPTERS: FallenChapter[] = [
     rewards:['firmament_blade','lot_of_the_end'], optional:'shiras_copy', caches:['north_tent_cache','north_field_cache','north_mount_cache'], record:'north_testament',
     intro:['The gods fell, and a man stood up in their place. He calls himself the King of the North. He bows to no god, because he has made himself greater than all of them, and his army comes over the land like a whirlwind: chariots, horsemen, and more ships than the harbour can count.', 'He has pitched the tents of his palace on the holy mountain between the seas. Two standards, the Chariots\' and the Horsemen\'s, hold his host together. Overturn both, and the way to his palace opens.', 'Shira kept the book of names in the old vault. His soldiers dragged her out to the field where they are digging up the dead. Bring her home. And Elior: this is a time of trouble such as never was. Nobody is coming to help him. That may be the only thing he has not counted on.'],
     challenge:['The watchman of the Remnant. You broke the princes, and you saw the gods fall. Did you think the world would be empty after them? I filled it.', 'You filled it with tents and horses. The mountain is still not yours.', 'I do according to my will. I magnify myself above every god, and every god has fallen. Who is left to stop me? You?', 'Not me. I only have to stand until the end.', 'Then stand. My chariots will go over you like a whirlwind.'],
-    ending:['The King of the North comes to his end, and none helps him. His horsemen are gone, his chariots are scattered, and the tents on the mountain are empty in the wind. Then a great light stands up over the seas, and the time of trouble breaks.', 'It was never mine to take him down. It was only mine to be standing when he fell.', 'Every name in Shira\'s book is still there. "They that be wise shall shine as the brightness of the firmament" (Daniel 12:3, KJV). Rest now, watchman. You will stand in your lot at the end of the days.'],
+    ending:['The King of the North comes to his end, and none helps him. His horsemen are gone, his chariots are scattered, and the tents on the mountain are empty in the wind. Then a great light stands up over the seas, and the time of trouble breaks.', 'It was never mine to take him down. It was only mine to be standing when he fell.', 'Every name in Shira\'s book is still there. "They that be wise shall shine as the brightness of the firmament" (Daniel 12:3, KJV). But some pages have a mark beside the name, Elior: the people his host carried off were sold over the sea, in the fairs of Tyrus. Their names are written. They are not home.'],
     tips:'He is a whirlwind: when he lowers his shoulder he spins across the whole floor; jump it or dodge through it. Parry the sword. When he overflows, the flood runs the length of the floor: jump each wave. Tidings from the north and the east come as arrows: leave the marked ground and duck the volley from the wall. In his fury he dashes through you three times; dodge each one. His horsemen come with him: cut them down fast.',
     voices:{tobiah:['The ground shakes every time his chariots go by. The children have stopped asking what it is.','It is so quiet. I keep listening for the wheels, and they do not come.'],rescued:['They wanted the book so they could burn every name in it. I hid it in my coat and let them take me instead.','I went back and read every name in the book to the river. All of them are still there.']},
     places:['The Camp by the Great River','The Tents of His Palace','The Vault of the Sealed Book','The Field of the Sleepers','The Glorious Holy Mountain','The Palace Between the Seas'],
     foes:{lead:'knight',signature:'lion',rear:'archer',guard:'bulwark',side:['undying','gale']},
     cacheItems:['seas_gauntlets','linen_mantle'],
     words:{sideQuest:'The Book of Names',sidePlace:'the Field of the Sleepers beyond the Vault of the Sealed Book',guardWarn:'Clear the standard\'s guards before you overturn it.',rescueBlock:'They are still digging. Clear them, and I will walk out of this field with you.',rescueThanks:'The book is here, under my coat. Take my copy of the names to Mara. Tell her none of them were lost.',maraReward:'Shira copied every name by lamplight in a vault with no door. Take her copy; it remembers the people the king tried to forget.',recordPlace:'field',theme:'Every throne that magnifies itself comes to its end alone. Those who are written in the book are not forgotten.',stay:'Return to the River'},
+  },
+  { n:13, roman:'XIII', title:'The Stones of Fire', name:'The Prince of Tyrus', boss:'tyrus_prince', biome:'grecia', hub:'tyre_strand', trail:'fairs_of_tyrus', depths:'house_of_merchandise', side:'holds_of_tarshish', ridge:'walls_of_tyrus', arena:'seat_in_the_seas', rescue:'keziah',
+    objectives:[{id:'tyre_fetters_a',flag:'tyre_fetters_a',room:'fairs_of_tyrus',name:'Fetters of the Fairs'},{id:'tyre_fetters_b',flag:'tyre_fetters_b',room:'house_of_merchandise',name:'Fetters of the Storehouse'}],
+    rewards:['fetterbreaker','ashes_of_tyrus'], optional:'keziahs_tally', caches:['tyre_fairs_cache','tyre_holds_cache','tyre_wall_cache'], record:'tyre_testament',
+    intro:['The king\'s host is scattered, but the people it carried off never came back. They were marched to the coast and sold. Across a narrow water stands Tyrus, the crowning city, on a rock in the midst of the seas. Every lamp in it is lit. Every ship in the world ties up there. It is the most beautiful thing Elior has ever seen.', 'Its merchants are princes, and what they trade is people: the persons of men, for brass and purple and precious stones. Two great chains hold the captives, the Fetters of the Fairs and the Fetters of the Storehouse. Break both, and the prince will have nothing left to sell, and his gate will open.', 'Listen to me, Elior. The prince of Tyrus is a man, but something old stands behind his chair, and it has made him wise. He will read you. Strike him the same way again and again and he will turn it aside. Change your attack, and keep changing it. A girl called Keziah kept the market\'s tally; they hold her in the ships. She knows where everyone was sent. Bring her out.'],
+    challenge:['The watchman. I priced you when you stepped off the boat. A sword, some chains, a few borrowed ghosts. You are worth less than you think.', 'I am not for sale. Neither were they.', 'Everything is for sale. Kings come to me for their crowns. I am wiser than Daniel; there is no secret hidden from me. I sit in the seat of God, in the midst of the seas. I am a god.', 'You are a man with a full storehouse. I have just emptied it.', 'Then I will take the price out of you. I already know every blow you are going to throw.'],
+    ending:['The fetters he sold men in rise out of the floor and take hold of him. Then a fire comes out from the midst of him, and it does not need Elior\'s help. On the sea wall the people from the holds stand and watch. By morning there is ash on the wind, and a bare rock where they spread nets to dry.', 'He said he was a god. He could not even keep what he had bought.', 'Keziah has the tally, and Shira has the book. Between them every name has a road home now. "They that know thee among the people shall be astonished at thee: thou shalt be a terror, and never shalt thou be any more" (Ezekiel 28:19, KJV). The ships in the harbour are ours tonight. Let us fill them the other way.'],
+    tips:'He reads you: land the same kind of blow three or four times running (quick blows, heavy blows, the chains, or arrows and abilities) and an eye opens over him: that kind is turned aside until you change your attack, and a different blow breaks his read and staggers him. Parry or jump his chain, or it drags you to him. When the nine stones stand round him, every blow that is not read strikes one off; break all nine and he falls to his knee. Stand where the first stones of fire have burned, and dodge through the wall of light. At the last the fire is in him: stay alive, and it will finish what you started.',
+    voices:{tobiah:['You can hear the fairs from here at night. Music, and hammers, and under it a sound like a lot of people being very quiet.','No lamps on the rock tonight. First time in a thousand years, the fishermen say.'],rescued:['Four hundred and twelve. I counted every one as they went up the gangway. I can tell you the ship for each.','I gave Shira my tally and she gave me a pen. I had never held one for myself before.']},
+    places:['The Strand Opposite Tyrus','The Fairs of Tyrus','The House of Merchandise','The Holds of Tarshish','The Walls of Tyrus','The Seat in the Midst of the Seas'],
+    foes:{lead:'knight',signature:'golem',rear:'archer',guard:'bulwark',side:['brute','knight']},
+    cacheItems:['tarshish_greaves','unbought_mail'],
+    words:{sideQuest:'The Girl Who Kept the Tally',sidePlace:'the Holds of Tarshish above the House of Merchandise',guardWarn:'Clear the fetters\' guards before you break them.',rescueBlock:'Not yet. They count us every hour, and they are counting now. Clear them, and I will come.',rescueThanks:'You are the one from the book. Shira wrote that you would come; I counted the days. Take my tally to Mara. It has the names, and the ship beneath each one.',maraReward:'Every mark in Keziah\'s tally is a person, and she never once wrote a price beside a name. Keep it close. It is worth more than the city was.',recordPlace:'holds',theme:'What can be bought can be burned. The ones who would not be sold are still here.',stay:'Return to the Strand'},
   },
 ];
 export const chapterForRoom = (id: string) => FALLEN_CHAPTERS.find(c => [c.hub,c.trail,c.depths,c.side,c.ridge,c.arena].includes(id));
@@ -92,7 +105,7 @@ type Feat = [kind: 'mound' | 'pit' | 'hang', x: number, w: number, n: number, fi
 type Prop = [k: string, x: number, o?: { v?: number; w?: number; h?: number; flip?: boolean; fg?: boolean; y?: number }];
 type Lamp = [k: 'glow' | 'torch' | 'brazier' | 'forge' | 'lantern', x: number, lift: number, r?: number, c?: string];
 interface Dress { feats?: Feat[]; props: Prop[]; lamps?: Lamp[] }
-const SEA_FIRE = '#ffb070', SEA_LIGHT = '#6ad0d8';
+const SEA_FIRE = '#ffb070', SEA_LIGHT = '#6ad0d8', TYRE = '#ffc878';
 const FIRE = '#ff9a50', MOON = '#9ab8e8', BILE = '#9ae050', LAMP = '#d8f080', SLAG = '#ff7a2a';
 const DRESS: Record<string, Dress> = {
   // ---- VII · the Hunt
@@ -169,6 +182,25 @@ const DRESS: Record<string, Dress> = {
     lamps: [['torch', 98, 3], ['glow', 98, 3, 60, SEA_FIRE]] },
   grecia_throne: { props: [['grecia_column', 10], ['grecia_statue', 18], ['grecia_column', 26, { v: 1 }], ['grecia_banner', 34, { h: 5 }], ['grecia_column', 42, { v: 2 }], ['grecia_throne', 59], ['grecia_banner', 68, { h: 5 }], ['grecia_column', 74]],
     lamps: [['glow', 49, 9, 150, '#c8d8ff']] },
+  // ---- XIII · the prince of Tyrus: a lit city of awnings, amphorae and banners; ships' ribs in the holds
+  tyre_strand: { props: [['grecia_nets', 5], ['grecia_wreck', 14], ['grecia_nets', 22], ['grecia_anchor', 30], ['grecia_amphora', 38], ['grecia_nets', 46, { flip: true }], ['grecia_olive', 54], ['grecia_awning', 62], ['grecia_lighthouse', 71]],
+    lamps: [['torch', 16, 3], ['torch', 41, 3], ['glow', 62, 2, 50, SEA_FIRE], ['glow', 71, 9, 130, TYRE]] },
+  fairs_of_tyrus: { feats: [['mound', 26, 8, 1], ['pit', 50, 4, 2, 'w'], ['mound', 60, 8, 1]],
+    props: [['grecia_banner', 5, { h: 5 }], ['grecia_awning', 10], ['grecia_amphora', 16, { v: 1 }], ['grecia_awning', 22, { flip: true }], ['grecia_statue', 30], ['grecia_banner', 37, { h: 4 }], ['grecia_amphora', 42], ['grecia_awning', 46], ['grecia_column', 56, { v: 1 }], ['grecia_awning', 63, { flip: true }], ['grecia_amphora', 70, { v: 1 }], ['grecia_banner', 76, { h: 5 }], ['grecia_awning', 82], ['grecia_statue', 88, { v: 1 }], ['grecia_column', 92], ['grecia_column', 101, { v: 1 }],
+      ['cinders_chain', 96, { y: 14, h: 9 }], ['cinders_chain', 99, { y: 14, h: 9 }]],
+    lamps: [['glow', 10, 2, 56, TYRE], ['glow', 22, 2, 56, SEA_FIRE], ['glow', 46, 2, 56, TYRE], ['glow', 63, 2, 56, SEA_FIRE], ['glow', 82, 2, 56, TYRE], ['torch', 37, 3], ['torch', 76, 3], ['glow', 97, 4, 70, '#c88ae0']] },
+  house_of_merchandise: { feats: [['mound', 36, 9, 1], ['hang', 14, 7, 2], ['hang', 56, 9, 3], ['hang', 90, 7, 2]],
+    props: [['grecia_shelf', 18], ['grecia_amphora', 24, { v: 1 }], ['grecia_shelf', 28, { v: 1 }], ['grecia_column', 33], ['grecia_amphora', 46], ['grecia_shelf', 54], ['grecia_statue', 60, { v: 1 }], ['grecia_shelf', 68, { v: 1 }], ['grecia_amphora', 73, { v: 1 }], ['grecia_column', 78, { v: 1 }], ['grecia_shelf', 88], ['grecia_column', 106],
+      ['cinders_chain', 22, { y: 2, h: 9 }], ['cinders_chain', 44, { y: 2, h: 7 }], ['cinders_chain', 70, { y: 2, h: 10 }], ['cinders_chain', 96, { y: 2, h: 12 }], ['cinders_chain', 99, { y: 2, h: 12 }]],
+    lamps: [['lantern', 26, 6], ['lantern', 52, 6], ['lantern', 76, 6], ['glow', 26, 5, 70, TYRE], ['glow', 52, 5, 70, TYRE], ['glow', 76, 5, 70, TYRE], ['glow', 97, 4, 80, '#c88ae0']] },
+  holds_of_tarshish: { props: [['grecia_wreck', 6], ['grecia_amphora', 14], ['grecia_nets', 22], ['grecia_amphora', 28, { v: 1 }], ['grecia_shelf', 38], ['grecia_anchor', 44], ['grecia_nets', 54, { flip: true }], ['grecia_amphora', 64],
+      ['cinders_chain', 10, { y: 2, h: 8 }], ['cinders_chain', 26, { y: 2, h: 10 }], ['cinders_chain', 58, { y: 2, h: 12 }], ['cinders_chain', 62, { y: 2, h: 12 }]],
+    lamps: [['lantern', 20, 6], ['lantern', 42, 6], ['glow', 20, 5, 60, SEA_FIRE], ['glow', 42, 5, 60, SEA_FIRE], ['glow', 60, 3, 60, '#ffe6a8']] },
+  walls_of_tyrus: { feats: [['mound', 15, 7, 1], ['mound', 28, 10, 2], ['pit', 46, 4, 2, '^'], ['mound', 62, 9, 2], ['mound', 76, 8, 3]],
+    props: [['grecia_banner', 6, { h: 5 }], ['grecia_column', 13], ['grecia_statue', 21], ['grecia_banner', 32, { h: 4 }], ['grecia_column', 38, { v: 2 }], ['grecia_column', 52, { v: 1 }], ['grecia_banner', 57, { h: 5 }], ['grecia_statue', 68, { v: 1 }], ['grecia_column', 82], ['grecia_banner', 90, { h: 5 }], ['grecia_column', 96], ['grecia_banner', 103, { h: 5 }], ['grecia_gate', 108]],
+    lamps: [['torch', 6, 3], ['torch', 32, 3], ['torch', 57, 3], ['torch', 90, 3], ['glow', 98, 3, 70, TYRE]] },
+  seat_in_the_seas: { props: [['grecia_column', 8], ['grecia_amphora', 13, { v: 1 }], ['grecia_statue', 19], ['grecia_banner', 26, { h: 6 }], ['grecia_column', 33, { v: 1 }], ['grecia_amphora', 40], ['grecia_throne', 59], ['grecia_amphora', 66, { v: 1 }], ['grecia_banner', 70, { h: 6 }], ['grecia_column', 75]],
+    lamps: [['brazier', 22, 0], ['brazier', 72, 0], ['glow', 49, 9, 160, TYRE], ['glow', 59, 4, 80, '#c88ae0']] },
 };
 
 /** Shape the floor, then put every grounded thing back on the ground it now has. */
@@ -196,10 +228,10 @@ function dress(r: RoomDef) {
 }
 
 function makeRooms(c:FallenChapter):RoomDef[] {
-  const theme=c.biome, floor=24, width=104, mapY=c.n===12?33:c.n===11?26:c.n*2;
+  const theme=c.biome, floor=24, width=104, mapY=c.n===13?40:c.n===12?33:c.n===11?26:c.n*2;
   const room=(id:string,name:string,w=width,f=floor,interior=false):RoomDef=>{
     const b=new MapBuilder(w,f+4).rect(0,f,w,4);if(interior)b.rect(0,0,w,2);
-    return {id,name,region:c.title,biome:theme,music:theme,dark:interior?.36:.23,interior,weather:c.n===10||c.n===12?(interior?'drips':'rain'):c.n===9||c.n===11?'embers':c.n===7&&!interior?'ash':'motes',seed:c.n*100+[c.hub,c.trail,c.depths,c.side,c.ridge,c.arena].indexOf(id),map:{x:0,y:mapY},w,h:b.h,rows:b.rows(),spawns:{start:{x:6,y:f},left:{x:4,y:f},right:{x:w-4,y:f,face:-1}},exits:[],ents:[]};
+    return {id,name,region:c.title,biome:theme,music:theme,dark:interior?.36:.23,interior,weather:c.n===13&&interior?'drips':c.n===10||c.n===12?(interior?'drips':'rain'):c.n===9||c.n===11?'embers':c.n===7&&!interior?'ash':'motes',seed:c.n*100+[c.hub,c.trail,c.depths,c.side,c.ridge,c.arena].indexOf(id),map:{x:0,y:mapY},w,h:b.h,rows:b.rows(),spawns:{start:{x:6,y:f},left:{x:4,y:f},right:{x:w-4,y:f,face:-1}},exits:[],ents:[]};
   };
   const P=c.places;
   const hub=room(c.hub,P?P[0]:c.n===9?'Ashwatch Refuge':c.n===7?'Thawgate Outpost':'Lantern Quarantine',76,20);
@@ -246,6 +278,7 @@ function makeRooms(c:FallenChapter):RoomDef[] {
   if(c.n===10)tide(c,depths,side,trail,ridge);
   if(c.n===11)horde(trail,depths,side,ridge);
   if(c.n===12)trouble(trail,depths,side,ridge);
+  if(c.n===13)tyre(trail,depths,side,ridge);
   for(const r of rooms)dress(r);
   return rooms;
 }
@@ -302,4 +335,19 @@ function trouble(trail:RoomDef,depths:RoomDef,side:RoomDef,ridge:RoomDef){
   depths.ents.push({t:'lore',id:'dan124',x:30,y:depths.h-4});
   side.ents.push({t:'lore',id:'dan122',x:30,y:24});
   ridge.ents.push({t:'lore',id:'dan1145',x:64,y:16});
+}
+/**
+ * Chapter XIII: the richest city on earth hires the best swords. Every route room holds two ranks and two elites, the
+ * holds are counted hourly by their keepers, and the chapter's scripture is cut along the way.
+ */
+function tyre(trail:RoomDef,depths:RoomDef,side:RoomDef,ridge:RoomDef){
+  for(const [i,r] of [trail,depths,ridge].entries()){
+    const f=r.h-4;
+    r.ents.push(foe('soldier',34,f),foe('priest',44,f),foe('lion',64,f),foe('knight',70,f),foe('archer',86,f),foe(i===1?'golem':'brute',40,f,`tyre_elite_${i}a`),foe(i===2?'stalker':'knight',74,f,`tyre_elite_${i}b`));
+  }
+  side.ents.push(foe('soldier',14,24),foe('archer',34,24),foe('priest',40,24),foe('bulwark',56,24,'tyre_elite_side'));
+  trail.ents.push({t:'lore',id:'ezk2713',x:12,y:trail.h-4});
+  depths.ents.push({t:'lore',id:'ezk282',x:30,y:depths.h-4});
+  side.ents.push({t:'lore',id:'ezk2734',x:30,y:24});
+  ridge.ents.push({t:'lore',id:'ezk2819',x:64,y:16});
 }
