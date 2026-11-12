@@ -110,7 +110,10 @@ try {
   for (let i = 0; i < 5; i++) {
     await E(page, () => { const w = window.__remnant.world, b = w.cboss; w.player.placeAt(b.x - 34, b.y, 1); });
     await page.keyboard.press('KeyJ');
-    await page.waitForTimeout(350);
+    // Wait for the swing itself, not for the wall clock: placing him again cancels a swing in progress, and headless
+    // the scene can run well under real time (CI once saw all five cancelled before they landed).
+    await until(page, () => window.__remnant.world.player.state === 'attack').catch(() => {});
+    await until(page, () => window.__remnant.world.player.state !== 'attack');
   }
   const hp1 = await E(page, () => window.__remnant.world.cboss.hp);
   assert.ok(hp1 < hp0, `Elior's blade cuts the Gatekeeper (${hp0} → ${hp1})`);
