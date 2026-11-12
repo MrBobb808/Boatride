@@ -67,7 +67,9 @@ import { smoothShake, frameFreeFollow } from '../game/feel';
 import { GuideTrail } from '../game/guideTrail';
 import { Legends } from '../game/legends';
 import { Awakening } from '../game/awakening';
-import { setMightLevel } from '../../../remnant/src/game/might';
+import { setMightLevel, setFire } from '../../../remnant/src/game/might';
+import { FIRES, FINAL_BOSS, TIER_NAME, firesOn, setFires, heatOf, fireMult, tierOf, sealOf, refine, type FireId } from '../game/fire';
+import { pushLayer, popLayer } from '../../../remnant/src/ui/dom';
 import { chapterReplay } from '../../../remnant/src/ui/chapters';
 import { travelToChapter, trainingOpen, startTraining, startExtreme, startBossRush, rushOpen } from '../../../remnant/src/game/chapters';
 import type { HomeMode } from '../game/home';
@@ -188,12 +190,15 @@ export class World extends Phaser.Scene implements WorldApi {
     // Foes answer the hero in play (game/might.ts): Tirzah's level while she fights.
     setMightLevel(() => heroLevel(this.save));
     // Chapters → Replay: a finished chapter's bosses and commanders stand again; rewards already won stay won.
-    chapterReplay.start = (c) => {
+    chapterReplay.start = (c) => this.chooseFire(c.n, c.roman, c.title, (on) => {
+      setFires(this.save, on);
       this.save.replay = c.n;
       travelToChapter(c);
-      this.time.delayedCall(1200, () => this.toast(`Replaying Chapter ${c.roman}: its bosses and commanders stand again, matched to your strength. Rewards already won are not given twice.`));
+      const heat = heatOf(on);
+      this.time.delayedCall(1200, () => this.toast(heat ? `Chapter ${c.roman} under the Refiner's Fire · heat ${heat}: ${FIRES.filter((f) => on.includes(f.id)).map((f) => f.name).join(', ')}. Fell its last boss to seal it.` : `Replaying Chapter ${c.roman}: its bosses and commanders stand again, matched to your strength. Rewards already won are not given twice.`));
       this.persist();
-    };
+    });
+    chapterReplay.note = (c) => { const t = tierOf(sealOf(this.save, c.n)); return t ? ` · Refined ${TIER_NAME[t]}` : ''; };
     // ?fixedstep (tests only): the physics too advances exactly 1/60 s a frame, so jumps and dashes measure as on a
     // 60 fps phone however slow the frames are.
     if (FIXED_STEP) { const pw = this.physics.world, step = pw.update.bind(pw); pw.update = (time: number) => step(time, 1000 / 60); }
@@ -323,6 +328,9 @@ export class World extends Phaser.Scene implements WorldApi {
     const r = (this.room = ROOMS[id]);
     // A replay lasts while the hero is in its chapter (the Trial and the Rest belong to no chapter's story).
     if (this.save.replay !== undefined && id !== 'trial_arena' && id !== 'remnant_rest' && chapterOf(id) !== this.save.replay) delete this.save.replay;
+    // The Refiner's Fire burns only in the chapter being replayed; set before the room's foes are made.
+    const burning = this.save.replay !== undefined && chapterOf(id) === this.save.replay ? fireMult(firesOn(this.save)) : null;
+    setFire(burning?.hp ?? 1, burning?.dmg ?? 1);
     if (r.music) music.play(r.music);
     this.entrySpawn = r.spawns[spawnName] ? spawnName : r.spawns.start ? 'start' : Object.keys(r.spawns)[0];
     this.save.room = id;
@@ -1039,6 +1047,48 @@ export class World extends Phaser.Scene implements WorldApi {
   // ---------------------------------------------------------------- classic bosses
 
   /** Playing a finished chapter again (Chapters → Replay), in one of its rooms. */
+  /** Balm is sealed while a replay burns under Fasting. */
+  get fasting() { return this.replaying && firesOn(this.save).includes('fasting'); }
+
+  /** Before a replay: choose the Fire's conditions (none is an ordinary replay). */
+  private chooseFire(n: number, roman: string, title: string, go: (on: FireId[]) => void) {
+    const root = document.createElement('div');
+    root.dataset.k = 'fire';
+    root.style.cssText = 'position:fixed;inset:0;z-index:40;background:rgba(6,5,10,.94);overflow-y:auto;font-family:Georgia,serif;color:#ddd4c6;padding:calc(env(safe-area-inset-top) + 14px) 16px calc(env(safe-area-inset-bottom) + 14px)';
+    const box = document.createElement('div');
+    box.style.cssText = 'max-width:520px;margin:0 auto;display:flex;flex-direction:column;gap:8px';
+    const on = new Set<FireId>(firesOn(this.save));
+    const close = () => { popLayer(root); root.remove(); };
+    const text = (t: string, css: string) => { const e = document.createElement('div'); e.textContent = t; e.style.cssText = css; return e; };
+    const button = (k: string) => { const b = document.createElement('button'); b.className = 'btn'; b.dataset.k = k; b.setAttribute('data-nav', ''); b.style.cssText = 'min-height:44px;text-align:left;font-size:calc(14px*var(--fs-k,1))'; return b; };
+    const draw = () => {
+      const heat = heatOf([...on]), tier = tierOf(heat), best = sealOf(this.save, n);
+      const head = text(`The Refiner's Fire · Chapter ${roman}`, 'font-family:Cinzel,Georgia,serif;color:#f6dea0;font-size:calc(19px*var(--fs-k,1))');
+      const sub = text(`${title}. Choose what the chapter is tried by. Fell its last boss to seal it; each seal pays once. ${best ? `Sealed so far at heat ${best} (Refined ${TIER_NAME[tierOf(best)]}).` : 'Not yet refined.'}`, 'font-size:calc(13px*var(--fs-k,1));color:#b9afc4;line-height:1.4');
+      const kids: HTMLElement[] = [head, sub];
+      for (const f of FIRES) {
+        const b = button(`fire_${f.id}`);
+        b.textContent = `${on.has(f.id) ? '✓ ' : ''}${f.name} · ${f.says} · heat +${f.heat}`;
+        if (on.has(f.id)) b.style.borderColor = '#ff9a50';
+        b.addEventListener('click', () => { if (on.has(f.id)) on.delete(f.id); else on.add(f.id); draw(); (root.querySelector(`[data-k=fire_${f.id}]`) as HTMLElement | null)?.focus(); });
+        kids.push(b);
+      }
+      const sum = text(heat ? `Heat ${heat} · Refined ${TIER_NAME[tier]} if you finish it${tier > tierOf(best) ? ' (a new seal: it pays)' : ''}` : 'No fire: an ordinary replay.', 'font-size:calc(13px*var(--fs-k,1));color:#ffb070;margin-top:4px');
+      sum.dataset.k = 'fire_sum';
+      const start = button('fire_go'); start.textContent = heat ? 'Enter the Fire' : 'Replay'; start.style.textAlign = 'center';
+      start.addEventListener('click', () => { close(); go([...on]); });
+      const back = button('fire_back'); back.textContent = 'Back'; back.style.textAlign = 'center';
+      back.addEventListener('click', close);
+      kids.push(sum, start, back);
+      box.replaceChildren(...kids);
+    };
+    draw();
+    root.appendChild(box);
+    document.body.appendChild(root);
+    pushLayer({ el: root, onBack: close });
+    (root.querySelector('[data-k=fire_go]') as HTMLElement | null)?.focus();
+  }
+
   get replaying() { return this.save.replay !== undefined && this.save.replay === chapterOf(this.room.id); }
 
   /** A classic boss on its mark, with the original's own health on Hard. */
@@ -1132,6 +1182,7 @@ export class World extends Phaser.Scene implements WorldApi {
 
   /** A Crown broken: the chapter is done, the gate opens, and its experience is Elior's. */
   onBossDefeated(key: string) {
+    this.refined(key);
     if (this.classic.storyEnabled && this.boss) { this.save.flags[`defeated_${key}`] = true; const e = this.classic.entityFor(this.boss); if (e) this.classic.onBossDefeated(e as any); this.boss = null; return; }
     music.play('victory');
     const n = BOSS_CHAPTER[key as keyof typeof BOSS_CHAPTER];
@@ -1237,8 +1288,19 @@ export class World extends Phaser.Scene implements WorldApi {
     this.banner(`✦ ${lg.name.toUpperCase()}`, `${ITEMS[l.item].name} · ${lg.desc}`);
   }
 
+  /** The chapter's last boss, fallen under the Fire: the chapter is refined. (A Crown's fall reaches here by its own
+   * name from onBossDefeated, and an older boss's from its spoils; once per fall.) */
+  private refinedAt = -1;
+  private refined(key: string) {
+    if (!this.replaying || FINAL_BOSS[this.save.replay!] !== key || this.time.now - this.refinedAt < 4000) return;
+    this.refinedAt = this.time.now;
+    const r = refine(this.save, this.save.replay!);
+    if (r) this.time.delayedCall(2600, () => { this.banner(`REFINED ${TIER_NAME[r.tier]}`, `Heat ${r.heat} · ${r.first ? r.gifts.join(' · ') : 'this seal was already yours'}`); });
+  }
+
   bossSpoils(key = this.room.id) {
     dayCount(this.save, 'boss_falls');
+    this.refined(key);
     // Every boss always leaves a legendary piece, for whoever is fighting (now and then the other hero's): once a
     // boss on the journey, every time in the Trial's arena. The boss rush leaves no loot.
     const lg = `lg_spoils_${key}`, trial = this.room.id === 'trial_arena';

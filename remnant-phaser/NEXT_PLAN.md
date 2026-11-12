@@ -141,7 +141,7 @@ Checked in the repository on this date; each is addressed by the phase named.
 
 ## Phase C: reasons to play the journey again
 
-- [ ] **C1. The Refiner's Fire** (per finished chapter, and on top of the New Game+ that exists, not in place of it). At a
+- [ ] **C1. The Refiner's Fire** (Partly built, `scripts/fire.mjs`: Replay offers four conditions (Tried Metal ×1.4 health, heat 1; Hotter Coals ×1.3 blows, heat 1; Fasting, no Balm, heat 2; Seven Times Hotter ×1.3 health and ×1.2 blows, heat 2), seals I/II/III at heat 1/3/5 shown on the Chapters page, each tier paid once. Still to do: more conditions (elites in every room, a time limit, a rival), better legendary odds and marks by heat, a Day call, and the blows-to-fell table measured per tier.) (per finished chapter, and on top of the New Game+ that exists, not in place of it). At a
   chapter's start the player sets its heat by choosing conditions, each worth points: foes faster, foes tougher,
   elites in every room, no Balm, a time limit, bosses with a second phase pattern earlier, a rival hunting the player
   through the chapter. More heat: better legendary odds, more marks, and a **refined seal** per chapter per heat tier
@@ -173,7 +173,7 @@ Checked in the repository on this date; each is addressed by the phase named.
 
 ## Phase D: the other modes, each made to last
 
-- [ ] **D1. The Horde, between runs.** A run currency (embers) kept after each run buys a **permanent board** of small
+- [ ] **D1. The Horde, between runs.** (Partly built, `scripts/horde-board.mjs`: embers, the permanent board (a full board measures ×1.66 in damage × health ÷ cooldown and costs 1,950 embers, about seventeen ordinary runs; ten runs buy roughly ×1.4), three hardships for more embers, and the Long Night, a run that ends when its fifth monarch falls. Still to do: weapons and passives unlocked by deeds, the day's Horde with a ranked run and a result card, and a Day call for it.) A run currency (embers) kept after each run buys a **permanent board** of small
   upgrades (might, health, pickup reach, one more reroll, one more banish, a starting level), **weapons and passives
   to unlock** by deeds (reach stage 5 with Tirzah, evolve three weapons in one run), and **mutators** for the stage
   select. Add a **30-minute run with an end** (a final monarch and a results screen) beside the endless one, and the

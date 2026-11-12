@@ -132,7 +132,7 @@ const giveCape = (s: PhaserSave, id: string) => { const st = (s.store ??= {}); (
 const silverFor = (s: PhaserSave, k = 1) => Math.round((150 + (s.level ?? 1) * 25) * k);
 /** A piece of Elior's gear a notch above ordinary, carrying a power (leaning toward ones not yet learned). */
 const LEGEND_BASES = ['idolbreaker', 'ashlar_mail', 'highplace_gauntlets', 'tidewalker_greaves', 'firmament_blade', 'linen_mantle', 'seas_gauntlets'];
-function giveLegend(s: PhaserSave, rnd: () => number) {
+export function giveLegend(s: PhaserSave, rnd: () => number) {
   const pool = LEGEND_BASES.filter((id) => ITEMS[id]);
   const it = makeItem(pool[Math.min(pool.length - 1, Math.floor(rnd() * pool.length))], 5);
   it.legend = rollLegend(s, 'elior', rnd);
