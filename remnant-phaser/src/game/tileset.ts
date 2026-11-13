@@ -49,6 +49,10 @@ export const PALETTES: Record<Biome, Palette> = {
   plague: P('#46503a', '#262c1e', '#647054', '#6a8a3a', ['#121a10', '#2e3a1e'], '#1e2818', '#121a0e', '#badc8b'),
   cinders: P('#4a3a34', '#281e1a', '#6a544a', '#ff7a3a', ['#140a08', '#4a1a10'], '#24120e', '#160a08', '#ffad62'),
   grecia: P('#5a6066', '#30343a', '#7e868e', '#8a9a9a', ['#0e141a', '#2a3a48'], '#1a242c', '#0e161c', '#ffb060'),
+  unwalled: P('#a8987a', '#6a5a44', '#d8ccb0', '#6a8a3a', ['#2a4a7a', '#f0d8a8'], '#7a8a9a', '#4a5a3a', '#ffe0a0'),
+  host: P('#6a5440', '#3a2a1e', '#8e7458', '#6a5a2a', ['#1a1418', '#c89a68'], '#5a4a44', '#3a2a24', '#ff9a4a'),
+  shaking: P('#5a4034', '#30201a', '#7e5a4a', '#ff8a3a', ['#140c0c', '#c87038'], '#4a2a24', '#2e1a16', '#ffb060'),
+  river: P('#b8a888', '#7a6a52', '#e0d4b8', '#5aa04a', ['#3a6aa0', '#f0ecc0'], '#8aa8b0', '#3a6a3a', '#9fe0ff'),
   rest: STONE,
 };
 
