@@ -102,7 +102,7 @@ export class FallenStory {
     if(!flag(`ch${c.n}_rewarded`)){setFlag(`ch${c.n}_rewarded`);for(const id of c.rewards)if(!s.inventory.some(i=>i.id===id)){const it=makeItem(id);s.inventory.push(it);G.ui.itemGet(it);}s.silver+=(c.n-4)*1000;addMaterial(s,'radiant_core',c.n);addMaterial(s,'covenant_fragment',c.n+1);W.giveXp(chapterCurve(c.n).clearXp??10000);}
     if(!s.defeated.includes(c.boss))s.defeated.push(c.boss);this.st.quest(`m_crown${c.n}`,2,true);setFlag(`ch${c.n}_done`);G.d=derive(s);G.camera.focus=null;G.camera.viewMultTarget=1;W.autosave(true);
     await this.st.say(c.ending.map((text,i)=>({who:['narrator','elior','mara'][i],text})));if(!this.current(token))return;
-    this.cine(false);const next=await G.ui.chapterEnd(c.n);if(!this.current(token))return;if(next==='next'&&FALLEN_CHAPTERS.some(n=>n.n===c.n+1))await this.begin(c.n+1);else await W.transition(c.hub,'altar');
+    this.cine(false);const next=await G.ui.chapterEnd(c.n);if(!this.current(token))return;if(next==='next'&&FALLEN_CHAPTERS.some(n=>n.n===c.n+1))await this.begin(c.n+1);else if(next==='next'&&c.n===13)await this.st.ch14.begin();else await W.transition(c.hub,'altar');
   }
   async talk(n:Npc){
     const c=chapterForRoom(G.world.room.id);if(!c||n.kind==='dov'||n.kind==='ilan')return false;const s=G.save;
