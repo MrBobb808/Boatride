@@ -93,6 +93,8 @@ export function dayBoss(s: PhaserSave, now = Date.now()): DayBoss | null {
 export function dayBossFell(s: PhaserSave, key: string, now = Date.now(), clean = false) {
   const f = s.flags as Flags, today = dayKey(now), b = dayBoss(s, now);
   if (!b || b.key !== key || f.day_boss_run !== today || f.day_boss_done === today) return false;
+  // Entering the day's boss only marks the day; the fall counts under the day's own condition, not an ordinary replay.
+  if ((s.fire?.on ?? []).join() !== b.cond) return false;
   f.day_boss_done = today;
   dayCount(s, 'day_boss_falls');
   if (clean) { f.day_boss_medal = today; dayCount(s, 'day_boss_medals'); }

@@ -93,6 +93,7 @@ try {
     const b1 = D.dayBoss(b, t0), b2 = D.dayBoss(b, t0 + 5 * 3600e3);
     out.boss = { one: b1, same: JSON.stringify(b1) === JSON.stringify(b2), stray: D.dayBossFell(b, b1.key, t0) };
     b.flags.day_boss_run = '2026-11-09';
+    b.fire = { on: b1.cond.split(',') }; // the fight is under the day's own condition
     out.boss.wrong = D.dayBossFell(b, 'no_such_boss', t0); out.boss.fell = D.dayBossFell(b, b1.key, t0); out.boss.twice = D.dayBossFell(b, b1.key, t0); out.boss.count = b.flags.day_boss_falls;
     // One streak: the Watch's longer run becomes the game's, and they turn together.
     const w = copy(); w.watch = JSON.parse(JSON.stringify(live.watch ?? null));
@@ -175,6 +176,9 @@ try {
     const first = d.dayBossFell(s, b.key, Date.now(), true), again = d.dayBossFell(s, b.key, Date.now(), true);
     const s2 = JSON.parse(JSON.stringify(w.save)), hurt = d.dayBossFell(s2, b.key, Date.now(), false);
     return { first, again, medals: s.flags.day_boss_medals, hurt, hurtMedals: s2.flags.day_boss_medals ?? 0 }; });
+  // Leaving the day's fight for an ordinary replay of the same chapter (no condition) does not credit it.
+  const plain = await E(p3, () => { const w = window.__remnant.world, d = window.__remnant.day, b = d.dayBoss(w.save), s = JSON.parse(JSON.stringify(w.save)); s.fire = { on: [] }; return d.dayBossFell(s, b.key, Date.now(), true) || (s.flags.day_boss_medals ?? 0) > 0; });
+  assert.ok(!plain, 'an ordinary replay of the day\'s chapter does not complete the day\'s boss');
   assert.ok(medal.first && !medal.again && medal.medals === 1 && medal.hurt && medal.hurtMedals === 0, `an untouched fall wins one medal a day, a wounded one none (${JSON.stringify(medal)})`);
   console.log('Day\'s medal: won untouched, once a day');
 

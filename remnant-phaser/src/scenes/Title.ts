@@ -35,24 +35,30 @@ export class Title extends Phaser.Scene {
     }
 
     let newArmed = false, liveArmed = -1, starting = false;
-    const go = (fn: () => void) => { if (starting) return; starting = true; fn(); };
+    // A mode's chunk that cannot be fetched (offline before it was cached) gives the home screen back, with a line to
+    // say so, rather than leaving every card dead.
+    const go = (fn: () => void | Promise<void>) => {
+      if (starting) return;
+      starting = true;
+      void Promise.resolve().then(fn).catch(() => { starting = false; this.home?.version('That could not load. Check the connection and try again.', false); });
+    };
     this.home = new Home({
       save, live,
-      play: (mode?: HomeMode) => go(() => void startScene(this, 'world', { fresh: false, mode })),
+      play: (mode?: HomeMode) => go(() => startScene(this, 'world', { fresh: false, mode })),
       begin: () => {
         const empty = [0, 1, 2].find((slot) => !localStorage.getItem(slot === 0 ? 'remnant-phaser.save.v2' : `remnant-phaser.save.slot${slot}`));
         // Replacing the open journey takes a second tap when every slot is taken.
         if (save && empty === undefined && !newArmed) { newArmed = true; return false; }
-        go(() => { if (empty !== undefined) selectSlot(empty); void startScene(this, 'world', { fresh: true }); });
+        go(() => { if (empty !== undefined) selectSlot(empty); return startScene(this, 'world', { fresh: true }); });
         return true;
       },
       bringLive: (slot) => {
         if (save && liveArmed !== slot) { liveArmed = slot; return false; }
-        go(() => { if (importLive(slot)) void startScene(this, 'world', { fresh: false }); else starting = false; });
+        go(() => { if (importLive(slot)) return startScene(this, 'world', { fresh: false }); starting = false; });
         return true;
       },
-      watch: () => go(() => void startScene(this, 'watch', { from: 'title' })),
-      horde: () => go(() => void startScene(this, 'horde')),
+      watch: () => go(() => startScene(this, 'watch', { from: 'title' })),
+      horde: () => go(() => startScene(this, 'horde')),
     });
     // The modes' chunks and the sheets the home screen does not draw load while it idles (NEXT_PLAN A3).
     preloadScenes(this.game);
