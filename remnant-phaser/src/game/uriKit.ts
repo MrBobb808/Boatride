@@ -239,8 +239,11 @@ export class UriKit {
   }
   /** A new room: his fire in flight and on the ground stays behind. */
   clearRoom() {
-    for (const s of this.shots) { s.life = 0; s.img.setVisible(false).stop(); }
-    for (const g of this.grounds) { g.t = 0; g.img.setVisible(false).stop(); }
-    for (const b of this.bursts) b.setVisible(false).stop();
+    // The world clears a room before its new player exists, so this kit may belong to a scene run already torn down:
+    // its sprites are destroyed then, and only the numbers need resetting.
+    const hide = (o: Phaser.GameObjects.Sprite) => { if (o.scene) o.setVisible(false).stop(); };
+    for (const s of this.shots) { s.life = 0; hide(s.img); }
+    for (const g of this.grounds) { g.t = 0; hide(g.img); }
+    for (const b of this.bursts) hide(b);
   }
 }
