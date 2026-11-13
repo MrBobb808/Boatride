@@ -27,6 +27,7 @@ import * as A from '../game/watch/ascension';
 import { tally, rollDays, openChest, claim, type ChestPrize } from '../game/watch/daily';
 import { climb, runDungeon, migrateTower, type Climb, type DungeonId, type DungeonRun } from '../game/watch/tower';
 import { smoothShake, impact, type Tier } from '../game/feel';
+import { UriWall } from '../game/watch/uriWall';
 import { ShadowBand, pickFoe, SHADOW_ORDER, ESSENCE_OF, BOSS_ESSENCE, UNLOCK_COST, SHADOW_MAX, levelCost, owned, shadowName, type ShadowId } from '../game/watch/shadows';
 import type { EchoRole } from '../../../remnant/src/game/data';
 import { startScene } from '../game/scenes';
@@ -96,6 +97,8 @@ export class Watch extends Phaser.Scene {
   private foes: WFoe[] = [];
   /** The shadows fighting beside him (game/watch/shadows.ts), and this stage's spawn count (the sixth is a major foe). */
   band!: ShadowBand;
+  /** Uri beside him on the wall, from Watch level 35. */
+  uri!: UriWall;
   private spawned = 0;
   /** Each ability's wait, in seconds. */
   abilT: Partial<Record<D.AbilityId, number>> = {};
@@ -177,6 +180,15 @@ export class Watch extends Phaser.Scene {
     }, GROUND);
     this.band.rebuild(this.w);
     this.events.once('shutdown', () => this.band.destroy());
+    // Uri on the wall from Watch level 35 (game/watch/uriWall.ts), fed through the shadows' host.
+    this.uri = new UriWall(this, {
+      get hx() { return host.hx; },
+      foesAlive: () => this.foes.filter((f) => f.alive),
+      hit: (f, dmg, big) => this.damage(f as WFoe, dmg, big, true),
+      heal: () => {},
+      flare: (x, y, tint, scale) => this.burst(x, y, 0, scale, tint),
+    }, GROUND);
+    this.events.once('shutdown', () => this.uri.destroy());
     this.nums = [];
     for (let i = 0; i < 20; i++) this.nums.push({ t: this.add.text(0, 0, '', { fontFamily: 'ui-rounded, "SF Pro Rounded", system-ui, -apple-system, sans-serif', fontStyle: '900', fontSize: '22px', color: '#ffffff', stroke: '#0e0d27', strokeThickness: 5 }).setOrigin(0.5).setScale(0.4).setDepth(20).setVisible(false), life: 0, vy: 0 });
     this.bursts = [];
@@ -466,6 +478,7 @@ export class Watch extends Phaser.Scene {
     this.tapCd -= dt;
     // The shadows fight beside him, each in its role (and run with him).
     this.band.tick(wdt, st.atk * st.shadow * (mantle ? D.MANTLE.dmg : 1), scroll > 0, this.fallen <= 0 && !this.cine, REACH);
+    this.uri.tick(wdt, w.level >= D.URI_WALL, st.atk * (mantle ? D.MANTLE.dmg : 1), scroll > 0, this.fallen <= 0 && !this.cine);
     // The Shadow Mantle.
     if (this.mantleT > 0) { this.mantleT -= dt; if (this.mantleT <= 0) this.ui.toast('The Mantle falls away'); }
     else if (w.level >= D.MANTLE.level && w.gauge >= 100 && w.auto) this.transformNow();

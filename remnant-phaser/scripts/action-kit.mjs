@@ -61,7 +61,9 @@ try{
  // Phone: a paired tap changes hero and never starts the movement stick.
  await until(()=>window.__remnant.world.player.onGround);
  const tap=await E(()=>{const h=window.__remnant.game.scene.getScene('hud'),b=h.children.getByName('hero_swap').getBounds();return{x:b.centerX/window.devicePixelRatio,y:b.centerY/window.devicePixelRatio};});
- await page.touchscreen.tap(tap.x,tap.y);await until(()=>window.__remnant.world.player.hero==='elior');
+ // The chip goes on round the three heroes: from Tirzah to Uri, then to Elior.
+ await page.touchscreen.tap(tap.x,tap.y);await until(()=>window.__remnant.world.player.hero==='uri');
+ await E(()=>{window.__remnant.world.player.switchCd=0;});await page.touchscreen.tap(tap.x,tap.y);await until(()=>window.__remnant.world.player.hero==='elior');
  assert.equal(await E(()=>window.__remnant.world.player.hp),tagHp,'tagging does not heal');
  assert.equal(await E(()=>window.__remnant.game.scene.getScene('hud').stick.id),-1);
  const kit=await E(()=>{const h=window.__remnant.game.scene.getScene('hud'),b=h.children.getByName('style_cycle').getBounds();return{x:b.centerX/window.devicePixelRatio,y:b.centerY/window.devicePixelRatio};});

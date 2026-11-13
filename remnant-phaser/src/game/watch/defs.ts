@@ -237,6 +237,8 @@ export function trackStat(w: WatchSave, id: TrackId, more = 0): string {
 export const dpsOf = (st: WatchStats) => st.atk * st.aspd * (1 + st.crit * (st.critDmg - 1));
 
 /** The Watch level's milestones (POLISH_PLAN §18d): what each opens, for the Hero card and the level-up toast. */
+/** The Watch level at which Uri stands on the wall beside him (game/watch/uriWall.ts). */
+export const URI_WALL = 35;
 export const UNLOCKS: [number, string][] = [
   [5, 'Covenant Strike (Skills): a heavy blow with all his weight'],
   [8, 'A shadow slot: raise a shadow with essence and set it beside him (Shadows)'],
@@ -246,6 +248,7 @@ export const UNLOCKS: [number, string][] = [
   [22, 'Whirlwind (Skills): a sweep through every foe near him'],
   [25, 'The Shadow Mantle: kills fill the gauge; transform for heavier, faster blows · a third ability slot'],
   [30, 'Rising Comet (Skills): up, and down like a falling star'],
+  [35, 'Uri joins the wall: the flame-caller hurls fire at the foes ahead'],
   [40, 'A third shadow slot · Balm (Skills) · the wall at ×3 speed'],
   [60, 'Last Watch (Skills): a slowed flurry and a closing blow · a fourth ability slot'],
   [70, 'A fourth shadow slot'],

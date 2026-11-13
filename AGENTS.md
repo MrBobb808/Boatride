@@ -379,6 +379,15 @@ Never ship files from `art/incoming/` directly.
   level (the Armor of Light and the Psalm of the Swarm hit on contact in this build), and no crescent: the shadow
   element bites with a burst, and the Horde's blade only cuts. His run and swing speed are capped (`MAX_RUN`,
   `MAX_ASPD` in `player.ts`). See POLISH_PLAN §16–17.
+- **Uri on the journey (Phaser build):** the third playable hero beside Elior and Tirzah (the switch goes Elior, Tirzah,
+  Uri; `switchHero(to?)`), drawn from his own parts (`art` C08–C10 → `src/assets/fighter-parts-uri*.png`,
+  `fighter-parts-shaman.png`; `FighterRig` / `actionAtlas` with `RigHero` `'uri'`/`'shaman'`). His kit is
+  `remnant-phaser/src/game/uriKit.ts` (state `'flame'`): Strike a fireball (Up: burning ground; a foe in reach: an
+  open-hand burst), Heavy a flame wave that passes through foes, Down + Heavy calls his orc shaman for 20 s; the
+  transformation gauge gives the Crown of Flame (C09): larger fire, burning ground under every fireball. He keeps his
+  own level (`PhaserSave.uri`, `uriStats` in `game/horde/uri.ts`) in Elior's gear; the AI partner stays Elior or
+  Tirzah. The Horde draws him and the shaman from the same parts, and the Watch puts him on the wall from Watch level
+  35 (`src/game/watch/uriWall.ts`, `URI_WALL`). Verified by `scripts/uri.mjs`.
 - **The Sundered Chains (Phaser build):** Elior's second weapon (`remnant-phaser/src/game/chains.ts`, POLISH_PLAN
   §20): twin kindled blades on chains, won with Chapter I (the flag `sundered_chains`). The `chain` action (the CHAINS
   touch button, `Y`, or Down + Heavy) lashes foes in reach (lash, lash, slam, cyclone), hooks a far one (a light foe is
@@ -389,7 +398,7 @@ Never ship files from `art/incoming/` directly.
 - **The Horde (Phaser build):** a top-down survival mode in endless stages
   (`remnant-phaser/src/scenes/Horde.ts`, `src/game/horde/`): auto-weapons, a
   1-of-3 upgrade per level, a Fallen Crown monarch per stage, Elior, Tirzah and
-  Uri (the flame-caller, with his orc shaman; Horde only for now) switchable,
+  Uri (the flame-caller, with his orc shaman) switchable,
   upright or sideways. Maxed weapons evolve with a partner passive; a switch
   after a big move is a tag combo, three full gauges the Trinity; level-ups
   can be rerolled or banished (§13d). A run banks silver, XP and gear into the

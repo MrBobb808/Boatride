@@ -193,7 +193,7 @@ Checked in the repository on this date; each is addressed by the phase named.
   after each.
 - [ ] **D3. The Trial, the Gauntlet and the Rush.** A weekly rule set for each (the daily challenge's modifiers), a
   medal time, and their bests on the result card. The Trial's Game Over card offers "again with the same build".
-- [ ] **D4. Uri on the journey.** The third hero outside the Horde: his kit (flame-calling, the orc shaman) as a
+- [ ] **D4. Uri on the journey.** (Built, 13 November 2026, from the owner's art (C08–C10, V10): he plays in the chapters and every mode they hold (the Trial, the Gauntlet, the Rush, Extreme, the daily challenge) with his own kit in `src/game/uriKit.ts` (fireball, burning ground, open-hand burst, flame wave, the shaman called for 20 s, the Crown of Flame), his own level in Elior's gear; the Horde draws him from the same parts; the Watch puts him on the wall from Watch level 35. `scripts/uri.mjs`. Still to do: his own page in the pause menu with the portraits (U02), his own gear and tree, Uri as the AI partner, and a redo of V11 for the summon and the crown's forming.) The third hero outside the Horde: his kit (flame-calling, the orc shaman) as a
   playable fighter in the chapters and as the AI partner, with his own page in the pause menu like Tirzah's. Large;
   it needs his animation sheet from the art requests. Do it after C and D1.
 
