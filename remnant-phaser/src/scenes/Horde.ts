@@ -39,7 +39,7 @@ const VIEW = 440;
 const KIT: Record<HeroId, { name: string; weapon: WeaponId; skillCd: number; skillSfx: string; form: [number, number, number]; formName: string; formSub: string; formSfx: string; arrive: string }> = {
   elior: { name: 'Elior', weapon: 'blade', skillCd: 11, skillSfx: 'swordWord', form: [1.7, 0.7, 1.15], formName: 'SHADOW MANTLE', formSub: 'Heavier, faster blows · the fallen burst in shadow', formSfx: 'transform', arrive: 'Elior · the Covenant Blade' },
   tirzah: { name: 'Tirzah', weapon: 'bow', skillCd: 9, skillSfx: 'quiverMight', form: [1.4, 1, 1.2], formName: 'WINGS OF DAWN', formSub: 'Two more arrows · they pierce deeper', formSfx: 'wingsForm', arrive: 'Tirzah · the Dawn Bow' },
-  uri: { name: 'Uri', weapon: 'flame', skillCd: 12, skillSfx: 'pillarFire', form: [1.5, 0.85, 1.1], formName: 'CROWN OF FLAME', formSub: 'Uri and the shaman are one · meteors and a ring of fire', formSfx: 'transform', arrive: 'Uri · the Hand of Flame, and his shaman' },
+  uri: { name: 'Uri', weapon: 'flame', skillCd: 12, skillSfx: 'pillarFire', form: [1.5, 0.85, 1.1], formName: 'FUSION OF FLAME', formSub: 'Uri and the shaman are one · meteors and a ring of fire', formSfx: 'transform', arrive: 'Uri · the Hand of Flame, and his shaman' },
 };
 const FORM_TIME = 14;
 

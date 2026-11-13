@@ -21,7 +21,7 @@ import { fx, PK } from '../../../remnant/src/render/fx';
 import type { ClassicLayer } from './layer';
 import type { Player } from '../game/player';
 /** Each hero's form from the same gauge. */
-const FORM_NAME = { elior: 'Shadow Mantle', tirzah: 'Wings of the Morning', uri: 'Crown of Flame' } as const;
+const FORM_NAME = { elior: 'Shadow Mantle', tirzah: 'Wings of the Morning', uri: 'Fusion of Flame' } as const;
 import { heroLevel, trank } from '../game/archer';
 
 const ELEMENT_COLORS = Object.fromEntries(Object.entries(ELEMENTS).map(([id, e]) => [id, parseInt(e.c.slice(1), 16)]));
@@ -117,12 +117,12 @@ export class HeroPowers {
         // Tirzah takes the Wings of the Morning from the same gauge: dawn light instead of shadow.
         const dawn = p.hero === 'tirzah';
         if (dawn) { fx.holyBurst(p.x, p.y - 20, 35, 1.8); fx.column(p.x, p.feet, 44, 440, '#ffe6a8', 1); fx.ring(p.x, p.y, 6, 150, '#fff1c4', 0.7, 5); }
-        // Uri's Crown of Flame: the shaman steps into him in a pillar of fire.
+        // Uri's Fusion of Flame: the shaman steps into him in a pillar of fire.
         else if (p.hero === 'uri') { fx.column(p.x, p.feet, 44, 440, '#ff8a3a', 1); fx.ring(p.x, p.y, 6, 150, '#ffd27a', 0.7, 5); }
         else { fx.veilBurst(p.x, p.y, 35, 1.8); fx.column(p.x, p.feet, 44, 440, '#a34bdf', 1); fx.ring(p.x, p.y, 6, 150, '#d5a1ff', 0.7, 5); }
         this.L.hitEnemies({ x: p.x - 140, y: p.feet - 100, w: 280, h: 120 }, { dmg: w.d.atk * 2.2 * this.multiplier, poise: 90, kx: p.face * 340, ky: -240, dir: p.face, kind: 'ability', src: this.actor, guardBreak: true }, new Set());
         w.shake(0.012, 400); this.L.slowmo(0.4, 0.4);
-        if (p.hero === 'uri') w.banner('CROWN OF FLAME', `${Math.round(p.mantleT)} seconds · the shaman burns in him: larger fire, and every fireball leaves the ground burning`);
+        if (p.hero === 'uri') w.banner('FUSION OF FLAME', `${Math.round(p.mantleT)} seconds · Uri and the shaman are one fire: twin fireballs, the chant in his own hand, burning ground, a longer dash`);
         else if (!dawn) w.banner('SHADOW MANTLE', `${Math.round(p.mantleT)} seconds · pursuit, throw and free Phantom Steps`);
         else {
           w.banner('WINGS OF THE MORNING', `${Math.round(p.mantleT)} seconds · an arrow lands, then Dodge: Dawnstep behind it`);

@@ -457,8 +457,12 @@ export function killBlow(p: Player, e: Entity, arcA0: number, arcA1: number) {
 
 const SHADOW_OF: Record<string, string> = { archer: 'archer', wisp: 'archer', brute: 'brute', bulwark: 'bulwark', knight: 'knight', soldier: 'locust', drone: 'locust', lion: 'lion', priest: 'archer', vessel: 'archer', scribe: 'archer', undying: 'undying', gale: 'archer', stalker: 'lion', carrier: 'locust', golem: 'brute' };
 
+/** A host build may forbid the fallen to rise (the Phaser build: never while Uri fights). */
+export const shadowGate = { allowed: () => true };
+
 /** The fallen rise as a shadow Echo for half a minute. */
 export function riseAsShadow(e: Entity) {
+  if (!shadowGate.allowed()) return;
   // Echoes come out only when called, so the fallen rise only if the player has turned it on.
   if (!settings.shadowAllies || !(e instanceof Enemy) || e.elite) return;
   const W = G.world;
