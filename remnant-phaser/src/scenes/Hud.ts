@@ -208,7 +208,7 @@ export class Hud extends Phaser.Scene {
   sync(w: World) {
     const k = this.k, s = w.save, p = w.player;
     const keys = w.controls.device === 'keyboard';
-    const heroLabel = `${keys ? 'N  ' : ''}⇄ ${p.hero === 'elior' ? 'TIRZAH' : 'ELIOR'}`, styleLabel = `${keys ? 'B  ' : ''}${STYLE_NAMES[p.combatStyle].toUpperCase()}`;
+    const heroLabel = `${keys ? 'N  ' : ''}⇄ ${p.hero === 'elior' ? 'TIRZAH' : p.hero === 'tirzah' ? 'URI' : 'ELIOR'}`, styleLabel = `${keys ? 'B  ' : ''}${STYLE_NAMES[p.combatStyle].toUpperCase()}`;
     if (this.heroBtn.text !== heroLabel) this.heroBtn.setText(heroLabel);
     if (this.styleBtn.text !== styleLabel) this.styleBtn.setText(styleLabel);
     const kitOn = w.canUseKit && !p.dead;
@@ -280,7 +280,7 @@ export class Hud extends Phaser.Scene {
     }
     this.echoText.setVisible(total > 0);
     cy += 13 * k;
-    const form = p.hero === 'tirzah' ? 'Wings' : 'Mantle';
+    const form = p.hero === 'tirzah' ? 'Wings' : p.hero === 'uri' ? 'Crown' : 'Mantle';
     const power = `Super ${Math.floor(s.rally)}%${heroLevel(s) >= 25 ? p.mantleT > 0 ? ` · ${form} ${Math.ceil(p.mantleT)}s` : ` · ${form} ${Math.floor(s.mantle ?? 0)}%` : ''}${s.sub ? ` · ${s.sub.replace('_', ' ')} ${s.hearts ?? 0}♥` : ''}`;
     this.powerText.setText(power).setPosition(hx, cy);
     const touch = w.controls.device === 'touch';
@@ -297,7 +297,7 @@ export class Hud extends Phaser.Scene {
     this.touchUi.setVisible(touch);
     // Hidden in story scenes, and until an ability is carried.
     this.skillBar.setVisible(!touch && !G.inCutscene && skillSlots(s).some(Boolean));
-    for(const b of this.btns) { if(b.a==='attack')b.t.setText(p.hero==='tirzah'?'SHOOT':'STRIKE');if(b.a==='heavy')b.t.setText(p.hero==='tirzah'?'DRAW':'HEAVY'); }
+    for(const b of this.btns) { if(b.a==='attack')b.t.setText(p.hero==='tirzah'?'SHOOT':p.hero==='uri'?'FIRE':'STRIKE');if(b.a==='heavy')b.t.setText(p.hero==='tirzah'?'DRAW':p.hero==='uri'?'WAVE':'HEAVY'); }
     if (touch) this.drawTouchCooldowns(w); else this.drawSkillBar(w);
     this.updateInteractBtn();
     for (const b of this.btns) {
@@ -644,7 +644,7 @@ export class Hud extends Phaser.Scene {
     if (page === 'heroes') {
       title = 'Remnant fighters'; sub = 'Shared journey, health and equipment · N: tag · B: style';
       items = [
-        {label:w.player.hero==='elior'?'Switch to Tirzah · bow':'Switch to Elior · blade',run:()=>{if(w.player.switchHero())w.persist();}},
+        {label:w.player.hero==='elior'?'Switch to Tirzah · bow':w.player.hero==='tirzah'?'Switch to Uri · fire':'Switch to Elior · blade',run:()=>{if(w.player.switchHero())w.persist();}},
         {label:s.partnerOut?`Partner: ${w.partner.hero==='tirzah'?'Tirzah':'Elior'} (send back)`:`Partner: call ${w.partner.hero==='tirzah'?'Tirzah':'Elior'}`,on:!!s.partnerOut,run:()=>{w.partner.toggle();w.persist();}},
         ...(['vanguard','wraith','sentinel'] as const).map(style=>({label:STYLE_NAMES[style],on:w.player.combatStyle===style,run:()=>{if(!['free','swim'].includes(w.player.state)){this.toast('Change style after the current move.');return;}s.combatStyle=style;this.toast(STYLE_HELP[style]);w.persist();}})),
 

@@ -57,6 +57,7 @@ const SHOOTABLE = new Set(['arrow', 'orb', 'drop', 'flame', 'arcbolt', 'star', '
 import type { Player as OriginalPlayer } from '../../../remnant/src/game/player';
 import { syncArcher, ARCHER, ARCHER_IDS, type SkillId } from '../game/abilities';
 import { archerStats, archerLevel, heroLevel, archerGainXp, archerDrop, learnArcher, allocateArcher, trank, newArcher, ARCHER_KEEPSAKES } from '../game/archer';
+import { uriOf, uriStats, uriGainXp } from '../game/horde/uri';
 import { addTirzahMenu, useAbilityTextures } from '../game/tirzahMenu';
 import { Partner } from '../game/partner';
 import { lighting } from '../classic/shim/lighting';
@@ -102,10 +103,14 @@ export class World extends Phaser.Scene implements WorldApi {
    * his are replaced. */
   get d(): Derived {
     const base = this.eliorD;
+    // Uri's own level against Elior's, in Elior's gear (game/horde/uri.ts).
+    if (this.save?.playableHero === 'uri') { if (this.uriFor !== base) { this.uriD = uriStats(this.save, base); this.uriFor = base; } return this.uriD!; }
     if (this.save?.playableHero !== 'tirzah' || !this.save.archer) return base;
     if (this.herFor !== base) { this.herD = archerStats(this.save, base); this.herFor = base; }
     return this.herD!;
   }
+  private uriD?: Derived;
+  private uriFor?: Derived;
   /** The other hero fighting beside you, when called (game/partner.ts). */
   partner!: Partner;
   private herD: Derived | null = null;
@@ -286,6 +291,8 @@ export class World extends Phaser.Scene implements WorldApi {
 
   private clearRoom() {
     this.visuals.clear();
+    // Uri's fire in flight and on the ground stays in the room it was cast in.
+    this.player?.flame.clearRoom();
     this.legends.clear();
     this.feedback.clear();
     for (const c of this.colliders) c.destroy();
@@ -1406,6 +1413,8 @@ export class World extends Phaser.Scene implements WorldApi {
     // The hero fighting earns it all; the one waiting earns half. Story XP catches each up to the chapter's
     // arrival level by their own level; the Trial pays by its own rules.
     const her = this.player.hero === 'tirzah', catchUp = (lv: number) => this.room.id !== 'trial_arena' ? catchUpXp(lv, chapterOf(this.room.id)) : 1;
+    // Uri, fighting, earns his own share as well (three times over while he is behind Elior).
+    if (this.player.hero === 'uri') { const ups = uriGainXp(s, xp); if (ups) { this.refreshStats(); this.player.hp = s.hp = Math.min(this.d.maxHp, s.hp); this.toast(`Uri reached level ${uriOf(s).level}`); islandNotify(`URI ${uriOf(s).level}`, '#ff9a50', 'stats', 2.8); } }
     const hisXp = Math.round(xp * catchUp(s.level) * (her ? 0.5 : 1)), herXp = Math.round(xp * catchUp(archerLevel(s)) * (her ? 1 : 0.5));
     this.archerXp(herXp);
     xp = hisXp;

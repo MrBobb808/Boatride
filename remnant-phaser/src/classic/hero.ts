@@ -20,6 +20,8 @@ import { clipsFor } from '../../../remnant/src/game/weapons';
 import { fx, PK } from '../../../remnant/src/render/fx';
 import type { ClassicLayer } from './layer';
 import type { Player } from '../game/player';
+/** Each hero's form from the same gauge. */
+const FORM_NAME = { elior: 'Shadow Mantle', tirzah: 'Wings of the Morning', uri: 'Crown of Flame' } as const;
 import { heroLevel, trank } from '../game/archer';
 
 const ELEMENT_COLORS = Object.fromEntries(Object.entries(ELEMENTS).map(([id, e]) => [id, parseInt(e.c.slice(1), 16)]));
@@ -79,14 +81,14 @@ export class HeroPowers {
     const p = this.p, w = this.L.host, c = w.controls, s = w.save;
     this.clipTime+=dt*this.clipSpeed;
     this.subCd = Math.max(0, this.subCd - dt); const recharge = dt * runBlessings.recharge * w.d.pursuitRecharge; this.throwCd = Math.max(0, this.throwCd - recharge); this.pursuitCd = Math.max(0, this.pursuitCd - recharge);
-    if (heroLevel(s) >= 25 && !s.flags.mantle_known) { s.flags.mantle_known = true; s.mantle = 100; w.toast(`${p.hero === 'tirzah' ? 'Wings of the Morning' : 'Shadow Mantle'} awakened · G / the MANTLE button`); }
+    if (heroLevel(s) >= 25 && !s.flags.mantle_known) { s.flags.mantle_known = true; s.mantle = 100; w.toast(`${FORM_NAME[p.hero]} awakened · G / the MANTLE button`); }
     if (p.mantleT > 0 && p.state !== 'transform' && !G.inCutscene) {
       p.mantleT = Math.max(0, p.mantleT - dt);
       this.shadeT -= dt;
       if (this.shadeT <= 0 && settings.quality !== 'low' && !settings.reduceFlashes && (Math.abs(p.body.velocity.x) > 20 || p.state === 'attack')) {
         this.shadeT = 0.06; this.ghosts.push({ x: p.x, y: p.feet, face: p.face, a: 0.5 });
       }
-      if (!p.mantleT) { sfx('mantleEnd'); if (p.hero === 'tirzah') fx.holyBurst(p.x, p.y - 20, 16, 1); else fx.veilBurst(p.x, p.y, 18, 1); }
+      if (!p.mantleT) { sfx('mantleEnd'); if (p.hero === 'tirzah') fx.holyBurst(p.x, p.y - 20, 16, 1); else if (p.hero === 'uri') fx.embers(p.x, p.y - 20, 16); else fx.veilBurst(p.x, p.y, 18, 1); }
     }
     if (p.formT > 0 && p.state !== 'transform' && !G.inCutscene) {
       p.formT = Math.max(0, p.formT - dt);
@@ -115,10 +117,13 @@ export class HeroPowers {
         // Tirzah takes the Wings of the Morning from the same gauge: dawn light instead of shadow.
         const dawn = p.hero === 'tirzah';
         if (dawn) { fx.holyBurst(p.x, p.y - 20, 35, 1.8); fx.column(p.x, p.feet, 44, 440, '#ffe6a8', 1); fx.ring(p.x, p.y, 6, 150, '#fff1c4', 0.7, 5); }
+        // Uri's Crown of Flame: the shaman steps into him in a pillar of fire.
+        else if (p.hero === 'uri') { fx.column(p.x, p.feet, 44, 440, '#ff8a3a', 1); fx.ring(p.x, p.y, 6, 150, '#ffd27a', 0.7, 5); }
         else { fx.veilBurst(p.x, p.y, 35, 1.8); fx.column(p.x, p.feet, 44, 440, '#a34bdf', 1); fx.ring(p.x, p.y, 6, 150, '#d5a1ff', 0.7, 5); }
         this.L.hitEnemies({ x: p.x - 140, y: p.feet - 100, w: 280, h: 120 }, { dmg: w.d.atk * 2.2 * this.multiplier, poise: 90, kx: p.face * 340, ky: -240, dir: p.face, kind: 'ability', src: this.actor, guardBreak: true }, new Set());
         w.shake(0.012, 400); this.L.slowmo(0.4, 0.4);
-        if (!dawn) w.banner('SHADOW MANTLE', `${Math.round(p.mantleT)} seconds · pursuit, throw and free Phantom Steps`);
+        if (p.hero === 'uri') w.banner('CROWN OF FLAME', `${Math.round(p.mantleT)} seconds · the shaman burns in him: larger fire, and every fireball leaves the ground burning`);
+        else if (!dawn) w.banner('SHADOW MANTLE', `${Math.round(p.mantleT)} seconds · pursuit, throw and free Phantom Steps`);
         else {
           w.banner('WINGS OF THE MORNING', `${Math.round(p.mantleT)} seconds · an arrow lands, then Dodge: Dawnstep behind it`);
           if (!s.flags.wings_seen) { s.flags.wings_seen = true; w.toast('"If I take the wings of the morning, and dwell in the uttermost parts of the sea;" — Psalm 139:9 (KJV)'); }
@@ -172,11 +177,11 @@ export class HeroPowers {
     // In the Shadow Mantle, Transform again ascends into the Unshorn once it has been awakened.
     if (this.p.mantleT > 0 && this.p.hero === 'elior' && !s.flags.unshorn) { this.L.host.toast('A third form waits for Elior: it awakens in the King of the North\'s fight (Chapter XII).'); return false; }
     if (this.p.mantleT > 0 && this.p.hero === 'elior' && s.flags.unshorn) { this.ascending = true; this.transformT = 0; this.transformed = false; this.clip = 'charge'; this.p.state = 'transform'; sfx('transform'); return true; }
-    const form = this.p.hero === 'tirzah' ? 'Wings of the Morning' : 'Shadow Mantle';
+    const form = FORM_NAME[this.p.hero];
     if (heroLevel(s) < 25) { this.L.host.toast(`${form} awakens at level 25.`); return false; }
     if (this.p.formT > 0) return false;
     if (this.p.mantleT > 0 || (s.mantle ?? 0) < 100) { this.L.host.toast(`Fill the transformation gauge through battle (${form}).`); return false; }
-    s.mantle = 0; this.transformT = 0; this.transformed = false; this.clip = 'charge'; this.p.state = 'transform'; sfx(this.p.hero === 'tirzah' ? 'wingsForm' : 'transform'); return true;
+    s.mantle = 0; this.transformT = 0; this.transformed = false; this.clip = 'charge'; this.p.state = 'transform'; sfx(this.p.hero === 'tirzah' ? 'wingsForm' : this.p.hero === 'uri' ? 'pillarFire' : 'transform'); return true;
   }
   trySuper() {
     const s = this.L.host.save;
@@ -203,11 +208,11 @@ export class HeroPowers {
     const el = this.p.hero === 'tirzah' ? this.p.bow.element() : weaponElement();
     if (el) elementHit(e, el, damage, this.p.face, heavy, damage);
     // The forms add their own element: shadow under the Mantle, light under the Wings.
-    const formEl = this.p.hero === 'tirzah' ? 'holy' : 'shadow';
+    const formEl = this.p.hero === 'tirzah' ? 'holy' : this.p.hero === 'uri' ? 'fire' : 'shadow';
     if (this.p.mantleT > 0 && el !== formEl) elementHit(e, formEl, damage * 0.6, this.p.face, heavy, damage);
     this.gain(1.4);
     if (heavy) this.L.echoAssist(e);
-    if (e.dying) { killBlow(this.actor, e, -1.2, 0.8); mantleGain(4); if (this.p.mantleT > 0 && this.p.hero !== 'tirzah' && Math.random() < 0.4) this.L.after(0.6, () => riseAsShadow(e)); }
+    if (e.dying) { killBlow(this.actor, e, -1.2, 0.8); mantleGain(4); if (this.p.mantleT > 0 && this.p.hero === 'elior' && Math.random() < 0.4) this.L.after(0.6, () => riseAsShadow(e)); }
   }
   onSwing(heavy: boolean, air: boolean) {
     if (this.p.water.swimming) return;

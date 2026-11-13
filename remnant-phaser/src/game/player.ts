@@ -8,6 +8,7 @@
 import { trank, heroLevel } from './archer';
 import Phaser from 'phaser';
 import { Bow } from './bow';
+import { UriKit } from './uriKit';
 import { StyleMeter, STYLE_NAMES, RANKS, type CombatStyle, type PlayableHero } from './style';
 import { actionAtlas, actionFrame, ACTION_CELL, ACTION_FOOT } from './actionArt';
 import { ACTION_RATE } from './pace';
@@ -61,7 +62,7 @@ const CHARGE_MULT = [1, 1.35, 1.8, 2.5];
 /** Sheet frames (4×4, 128 px): idle 0–3, run 4–7, rise 8, fall 9, wind-up 10, strike 11, dodge 12–13, hurt 14, cast 15. */
 const FRAME = 128, FOOT = 120, DRAW = 56;
 
-type State = 'free' | 'attack' | 'hook' | 'charge' | 'parry' | 'block' | 'heal' | 'cast' | 'dodge' | 'airdash' | 'phantom' | 'plunge' | 'execute' | 'transform' | 'scripted' | 'swim' | 'bow' | 'hurt' | 'dead';
+type State = 'free' | 'attack' | 'hook' | 'charge' | 'parry' | 'block' | 'heal' | 'cast' | 'dodge' | 'airdash' | 'phantom' | 'plunge' | 'execute' | 'transform' | 'scripted' | 'swim' | 'bow' | 'flame' | 'hurt' | 'dead';
 
 export class Player {
   rect: Phaser.GameObjects.Rectangle;
@@ -196,21 +197,28 @@ export class Player {
     this.face = face;
     this.chainFx = new ChainFx(sc);
     this.bow = new Bow(w, this);
+    this.flame = new UriKit(w, this);
     this.dawn = new Dawn(w, this, this.bow);
     this.bow.dawn = this.dawn;
     this.trail = Array.from({length:4},()=>({sprite:sc.add.sprite(x,feet,'elior',0).setDepth(9).setVisible(false).setTint(0xa99ad7),life:0}));
   }
 
-  get hero(): PlayableHero { return this.w.save.playableHero === 'tirzah' ? 'tirzah' : 'elior'; }
+  get hero(): PlayableHero { const h = this.w.save.playableHero; return h === 'tirzah' || h === 'uri' ? h : 'elior'; }
+  /** Uri's fire on the journey (game/uriKit.ts). */
+  flame: UriKit;
   get combatStyle(): CombatStyle { const s = this.w.save.combatStyle; return s === 'wraith' || s === 'sentinel' ? s : 'vanguard'; }
-  switchHero() {
+  /** To the next hero, or to `to` when it is given. */
+  switchHero(to?: PlayableHero) {
     if (this.switchCd > 0 || G.paused || G.inCutscene || this.dead || !['free', 'swim'].includes(this.state)) { this.w.toast('Switch after the current move.'); return false; }
     // Each hero has her own maximum; the health left carries over (capped), so a switch never heals.
-    this.w.save.playableHero = this.hero === 'elior' ? 'tirzah' : 'elior';
+    // Elior, then Tirzah, then Uri, and round again.
+    this.w.save.playableHero = to ?? (this.hero === 'elior' ? 'tirzah' : this.hero === 'tirzah' ? 'uri' : 'elior');
     this.w.refreshStats();
-    this.switchCd = 0.8; this.bow.cancel(); this.w.controls.flush();
-    this.w.spark(this.x,this.y,this.hero === 'tirzah' ? 0xa6efdc : 0xffd27a,12);
-    this.w.toast(this.hero === 'tirzah' ? 'Tirzah · bow and arrow · hold Strike to charge; Up + Strike for spread' : 'Elior · ' + STYLE_NAMES[this.combatStyle]);
+    this.switchCd = 0.8; this.bow.cancel(); this.flame.cancel(); this.w.controls.flush();
+    this.w.spark(this.x,this.y,this.hero === 'tirzah' ? 0xa6efdc : this.hero === 'uri' ? 0xff8a3a : 0xffd27a,12);
+    this.w.toast(this.hero === 'tirzah' ? 'Tirzah · bow and arrow · hold Strike to charge; Up + Strike for spread'
+      : this.hero === 'uri' ? 'Uri · Strike: fireball (Up: burning ground) · Heavy: flame wave · Down + Heavy: the shaman'
+      : 'Elior · ' + STYLE_NAMES[this.combatStyle]);
     return true;
   }
   noteStyle(move:string,air=!this.onGround) {
@@ -290,6 +298,7 @@ export class Player {
     this.switchCd = Math.max(0,this.switchCd-dt);
     this.styleMeter.update(dt);
     this.bow.update(dt);
+    this.flame.update(dt);
     this.dawn.update(dt);
     this.vigilParryCd = Math.max(0, this.vigilParryCd - dt);
     this.invuln = Math.max(0, this.invuln - dt);
@@ -339,6 +348,12 @@ export class Player {
     if (this.hero === 'tirzah' && !G.inCutscene && (this.state === 'free' || this.state === 'bow') && c.pressed('dodge') && this.dawn.ready()) {
       this.bow.cancel(); if (this.state === 'bow') this.releaseState();
       this.dawn.step(); this.w.legends?.onDodge(); this.draw(dt); return;
+    }
+    if (this.hero === 'uri' && !G.inCutscene && this.flame.control(dt * ACTION_RATE)) {
+      if (c.pressed('dodge') || c.pressed('parry')) { this.flame.cancel(); this.defence(); }
+      b.setGravityY(this.water.swimming ? 0 : this.glide() ? GRAV * 0.12 : GRAV);
+      const hz=this.hazard();if(hz&&this.vulnerable)this.hurt({dmg:hz===T.Spikes?18:10,dir:0,hazard:true});
+      this.draw(dt); return;
     }
     if (this.hero === 'tirzah' && !G.inCutscene && this.bow.control(dt * ACTION_RATE)) {
       if (c.pressed('dodge') || c.pressed('parry')) { this.bow.cancel(); this.releaseState(); this.defence(); }
@@ -1165,7 +1180,7 @@ export class Player {
     dmg = Math.max(1, Math.round(dmg));
     valorTrack.hurt(); haptic('hurt'); input.rumble(0.5, 0.2, 120);
     this.styleMeter.hurt();
-    this.bow.cancel();
+    this.bow.cancel(); this.flame.cancel();
     this.w.playEffect('hurt');
     this.hp = Math.max(this.deathless ? 1 : 0, this.hp - dmg);
     this.sinceHurt = 0;
@@ -1214,6 +1229,7 @@ export class Player {
     if(this.dead){clip='death';uArt=this.st/1.2;}
     else if(this.state==='hurt'){clip='hurt';uArt=this.st/.3;}
     else if(this.hero==='tirzah'&&this.bow.stabT>0){clip='dagger2';uArt=.3+(1-this.bow.stabT/STAB_T)*.7;}
+    else if(this.state==='flame'){clip=this.flame.clip;uArt=this.flame.u;}
     else if(this.state==='bow'&&this.bow.dagger){clip=`dagger${this.bow.dagger}`;uArt=this.bow.daggerU;}
     else if(this.state==='bow'){clip=this.bow.drawing?'bowDraw':'bowRelease';uArt=this.bow.drawing?this.bow.charge/.55:1-this.bow.recovery/.28;}
     else if(this.state==='hook'){const ph=this.hook.phase;clip=ph==='throw'?'chhook':ph==='yank'?'chhaul':'chfly';uArt=ph==='throw'?this.st/this.hook.T:this.st/.3;}
