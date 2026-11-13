@@ -103,7 +103,7 @@ Checked in the repository on this date; each is addressed by the phase named.
   one more line in `ci-tests.txt`. Nothing was dropped: the same 54 checks.
 - [x] **A3. A faster first screen.** BUILT. Measured on Chrome's "Fast 4G" profile (9 Mbit/s, 60 ms) with
   `node scripts/first-screen.mjs --measure`: before, the home screen came after a 4.17 MB script and every sprite
-  sheet (about 14 MB, the Fallen Crowns' atlases alone 6.8 MB): 24.3 s. After: NEW_TIME. Two changes. The script:
+  sheet (about 14 MB, the Fallen Crowns' atlases alone 6.8 MB): 24.3 s. After: first paint 224 ms, home screen 5.1 s. Two changes. The script:
   `main.ts` registers only Boot and Title, and the journey (World with its Hud, and with them every chapter's
   environment and boss code), the Horde and the Watch are their own chunks (`src/game/scenes.ts`, `startScene`); a
   few helpers the home screen needed moved out of heavy modules (`ui/textSize.ts`, `game/rushKeys.ts`,

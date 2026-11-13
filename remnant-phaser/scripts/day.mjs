@@ -163,6 +163,8 @@ try {
   await p3.goto(base + '?debug');
   await until(p3, () => window.__remnant?.game?.scene?.isActive('title'));
   await E(p3, () => { const s = JSON.parse(localStorage.getItem('remnant-phaser.save.v2')); Object.assign(s.flags, { ending_done: true, relic_taken: true, intro_done: true, idol_defeated: true }); (s.defeated ??= []).includes('idol') || s.defeated.push('idol'); s.level = 20; localStorage.setItem('remnant-phaser.save.v2', JSON.stringify(s)); });
+  // The journey is its own chunk, added while the home screen idles (src/game/scenes.ts).
+  await until(p3, () => window.__remnant.game.scene.getScene('world'));
   await E(p3, () => window.__remnant.game.scene.start('world', { fresh: false, mode: 'dayboss' }));
   await until(p3, () => window.__remnant?.world?.save?.flags?.day_boss_run && !window.__remnant.world.transitioning, null, 90000);
   const fight = await E(p3, () => { const w = window.__remnant.world, b = window.__remnant.day.dayBoss(w.save); return { want: b, replay: w.save.replay, fire: w.save.fire?.on, here: w.room.ents.some((e) => e.t === 'boss' && e.k === b.key), standing: !!(w.cboss ?? w.boss) }; });
