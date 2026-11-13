@@ -15,10 +15,13 @@ import { GreciaPrince } from '../../../remnant/src/game/bosses10';
 import { NationGods } from '../../../remnant/src/game/bosses11';
 import { NorthKing } from '../../../remnant/src/game/bosses12';
 import { TyrusPrince } from '../../../remnant/src/game/bosses13';
+import { MeshechTubal } from '../../../remnant/src/game/bosses14';
+import { SiegeColossus } from '../../../remnant/src/game/bosses14b';
+import { GogPrince } from '../../../remnant/src/game/bosses14c';
 import type { Entity } from '../../../remnant/src/game/entity';
 import type { EnemyKind } from '../shared';
 
-export type ClassicBossKey = 'idol' | 'gatekeeper' | 'marshal' | 'locust_king' | 'golden_image' | 'weigher' | 'storm_prince' | 'persia_prince' | 'grecia_prince' | 'nation_gods' | 'north_king' | 'tyrus_prince';
+export type ClassicBossKey = 'idol' | 'gatekeeper' | 'marshal' | 'locust_king' | 'golden_image' | 'weigher' | 'storm_prince' | 'persia_prince' | 'grecia_prince' | 'nation_gods' | 'north_king' | 'tyrus_prince' | 'meshech_tubal' | 'siege_colossus' | 'gog_prince';
 
 export interface ClassicBoss extends Entity {
   key?: string;
@@ -65,6 +68,9 @@ export const CLASSIC_BOSSES: Record<ClassicBossKey, Def> = {
   nation_gods: { make: (x, y) => new NationGods(x, y), chapter: 11, trigger: 'nation_gods_start', flags: ['ch11_done'], boundary: true },
   north_king: { make: (x, y) => new NorthKing(x, y), chapter: 12, trigger: 'north_king_start', flags: ['ch12_done'], boundary: true },
   tyrus_prince: { make: (x, y) => new TyrusPrince(x, y), chapter: 13, trigger: 'tyrus_prince_start', flags: ['ch13_done'], boundary: true },
+  meshech_tubal: { make: (x, y) => new MeshechTubal(x, y), chapter: 14, trigger: 'princes_start', flags: ['ch14_princes_done'] },
+  siege_colossus: { make: (x, y) => new SiegeColossus(x, y), chapter: 14, trigger: 'engine_start', flags: ['ch14_engine_done'] },
+  gog_prince: { make: (x, y) => new GogPrince(x, y), chapter: 14, trigger: 'gog_start', flags: ['ch14_gog_done'] },
 };
 
 export const isClassicBoss = (k: string): k is ClassicBossKey => k in CLASSIC_BOSSES;

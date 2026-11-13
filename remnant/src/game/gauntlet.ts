@@ -3,6 +3,9 @@ import { GreciaPrince } from './bosses10';
 import { NationGods } from './bosses11';
 import { NorthKing } from './bosses12';
 import { TyrusPrince } from './bosses13';
+import { MeshechTubal } from './bosses14';
+import { SiegeColossus } from './bosses14b';
+import { GogPrince } from './bosses14c';
 import { BeastMonarch, PlagueMonarch } from './fallenBosses';
 // The real chapter bosses, isolated from campaign rewards and story callbacks.
 import { G } from './ctx';
@@ -19,10 +22,10 @@ import { ECHO_SPECIES } from './data';
 import type { EnemyKind } from './tiles';
 
 type BossCtor = new (x: number, y: number) => Idol | BossBase;
-const ROSTER: BossCtor[] = [Idol, Gatekeeper, Marshal, LocustKing, GoldenImage, Weigher, BeastMonarch, PlagueMonarch, CinderMonarch, GreciaPrince, NationGods, NorthKing, TyrusPrince];
+const ROSTER: BossCtor[] = [Idol, Gatekeeper, Marshal, LocustKing, GoldenImage, Weigher, BeastMonarch, PlagueMonarch, CinderMonarch, GreciaPrince, NationGods, NorthKing, TyrusPrince, MeshechTubal, SiegeColossus, GogPrince];
 export const BOSS_COUNT = 6;
-export const gauntletCount = () => G.save?.flags.ch13_done ? 13 : G.save?.flags.ch12_done ? 12 : G.save?.flags.ch11_done ? 11 : G.save?.flags.ch10_done ? 10 : G.save?.flags.ch9_done ? 9 : G.save?.flags.ch8_done ? 8 : G.save?.flags.ch7_done ? 7 : BOSS_COUNT;
-const IMPRINTS = [null, null, 'marshal', 'locust', null, null, null, null, null, null, null, null, null];
+export const gauntletCount = () => G.save?.flags.ch14_done ? 16 : G.save?.flags.ch13_done ? 13 : G.save?.flags.ch12_done ? 12 : G.save?.flags.ch11_done ? 11 : G.save?.flags.ch10_done ? 10 : G.save?.flags.ch9_done ? 9 : G.save?.flags.ch8_done ? 8 : G.save?.flags.ch7_done ? 7 : BOSS_COUNT;
+const IMPRINTS = [null, null, 'marshal', 'locust', null, null, null, null, null, null, null, null, null, null, null, null];
 export const gauntletImprint = (round: number) => IMPRINTS[(round - 1) % gauntletCount()];
 
 /** Echo rematches use the actual original enemy, including the two raised bosses. */
@@ -60,6 +63,9 @@ const KINDS: Record<string, BossCtor> = {
   nation_gods: NationGods,
   north_king: NorthKing,
   tyrus_prince: TyrusPrince,
+  meshech_tubal: MeshechTubal,
+  siege_colossus: SiegeColossus,
+  gog_prince: GogPrince,
 };
 export const RUSH_ORDER = RUSH_KEYS.map((b) => ({ ...b, Kind: KINDS[b.key] }));
 export { rushRoster, rushName };

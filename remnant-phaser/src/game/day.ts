@@ -76,7 +76,7 @@ export const DAY_BOSSES: [chapter: number, key: string, name: string][] = [
   [1, 'idol', 'the Gilded Idol'], [2, 'marshal', 'the Crimson Marshal'], [3, 'locust_king', 'the Locust King'], [4, 'golden_image', 'the Image of Gold'],
   [5, 'weigher', 'the Weigher'], [6, 'persia_prince', 'the Prince of Persia'], [7, 'beast_monarch', 'Varkhos'], [8, 'plague_monarch', 'Morvane'],
   [9, 'cinder_monarch', 'Azkar'], [10, 'grecia_prince', 'the Prince of Grecia'], [11, 'nation_gods', 'the Gods of the Nations'], [12, 'north_king', 'the King of the North'],
-  [13, 'tyrus_prince', 'the Prince of Tyrus'],
+  [13, 'tyrus_prince', 'the Prince of Tyrus'], [14, 'gog_prince', 'Gog'],
 ];
 const AFFLICTIONS = [['tough', 'Tried Metal'], ['fierce', 'Hotter Coals'], ['fasting', 'Fasting']] as const;
 export interface DayBoss { chapter: number; key: string; name: string; cond: (typeof AFFLICTIONS)[number][0]; condName: string }
