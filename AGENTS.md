@@ -382,9 +382,15 @@ Never ship files from `art/incoming/` directly.
 - **Uri on the journey (Phaser build):** the third playable hero beside Elior and Tirzah (the switch goes Elior, Tirzah,
   Uri; `switchHero(to?)`), drawn from his own parts (`art` C08–C10 → `src/assets/fighter-parts-uri*.png`,
   `fighter-parts-shaman.png`; `FighterRig` / `actionAtlas` with `RigHero` `'uri'`/`'shaman'`). His kit is
-  `remnant-phaser/src/game/uriKit.ts` (state `'flame'`): Strike a fireball (Up: burning ground; a foe in reach: an
-  open-hand burst), Heavy a flame wave that passes through foes, Down + Heavy calls his orc shaman for 20 s; the
-  transformation gauge gives the Crown of Flame (C09): larger fire, burning ground under every fireball. He keeps his
+  `remnant-phaser/src/game/uriKit.ts` (state `'flame'`): every cast finds the nearest foe (`UriKit.target`). Strike a
+  fireball (the third in a quick chain a piercing bolt; a foe in reach: an open-hand burst; Up: burning ground; Down
+  in the air: Meteor), Heavy a flame wave, Down + Heavy the shaman's Geyser under the three nearest foes. Dodge is the
+  Flame Dash (`UriKit.dodge`, from `Player.defence`): through foes, scorching them, leaving a trail of fire. His orc
+  shaman is always at his side, chanting fire. His three abilities are his own (`URI_SKILLS` in `game/abilities.ts`:
+  Pillar of Flame, Ring of Fire, Firestorm; `skillSlots` gives them while he plays). The transformation is the Fusion of
+  Flame: the shaman steps into him (`UriKit.dress` draws the shaman's fire-shape inside a larger Uri, C09): twin
+  fireballs, the chant from his own hand, burning ground, a longer dash. He calls no Echoes (`Squad.uriAlone`) and
+  raises no shadows (`shadowGate` in the shared `game/finishers.ts`). He keeps his
   own level (`PhaserSave.uri`, `uriStats` in `game/horde/uri.ts`) in Elior's gear; the AI partner stays Elior or
   Tirzah. The Horde draws him and the shaman from the same parts, and the Watch puts him on the wall from Watch level
   35 (`src/game/watch/uriWall.ts`, `URI_WALL`). Verified by `scripts/uri.mjs`.

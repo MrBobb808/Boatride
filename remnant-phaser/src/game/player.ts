@@ -215,9 +215,12 @@ export class Player {
     this.w.save.playableHero = to ?? (this.hero === 'elior' ? 'tirzah' : this.hero === 'tirzah' ? 'uri' : 'elior');
     this.w.refreshStats();
     this.switchCd = 0.8; this.bow.cancel(); this.flame.cancel(); this.w.controls.flush();
+    // Uri fights with his shaman alone: the Echoes step back while he plays and come again for the others.
+    const L = this.powers?.L, s = this.w.save;
+    if (L) { const out = s.flags.army_out; if (this.hero === 'uri') { L.dismissEchoes(); s.flags.army_out = out; } else if (out === true) L.summonEchoes(true); }
     this.w.spark(this.x,this.y,this.hero === 'tirzah' ? 0xa6efdc : this.hero === 'uri' ? 0xff8a3a : 0xffd27a,12);
     this.w.toast(this.hero === 'tirzah' ? 'Tirzah · bow and arrow · hold Strike to charge; Up + Strike for spread'
-      : this.hero === 'uri' ? 'Uri · Strike: fireball (Up: burning ground) · Heavy: flame wave · Down + Heavy: the shaman'
+      : this.hero === 'uri' ? 'Uri and his shaman · Strike: fireball at the nearest foe · Heavy: flame wave · Down + Heavy: Geyser · Dodge: Flame Dash'
       : 'Elior · ' + STYLE_NAMES[this.combatStyle]);
     return true;
   }
@@ -350,7 +353,7 @@ export class Player {
       this.dawn.step(); this.w.legends?.onDodge(); this.draw(dt); return;
     }
     if (this.hero === 'uri' && !G.inCutscene && this.flame.control(dt * ACTION_RATE)) {
-      if (c.pressed('dodge') || c.pressed('parry')) { this.flame.cancel(); this.defence(); }
+      if ((c.pressed('dodge') || c.pressed('parry')) && this.flame.cast !== 'dash' && this.flame.cast !== 'meteor') { this.flame.cancel(); this.defence(); }
       b.setGravityY(this.water.swimming ? 0 : this.glide() ? GRAV * 0.12 : GRAV);
       const hz=this.hazard();if(hz&&this.vulnerable)this.hurt({dmg:hz===T.Spikes?18:10,dir:0,hazard:true});
       this.draw(dt); return;
@@ -434,12 +437,12 @@ export class Player {
           this.w.spark(this.x, this.y, 0x9fe39a, 12);
         }
         if (this.st >= 0.9) this.toFree();
-        else if (this.healDone && c.pressed('dodge')) this.startDodge();
+        else if (this.healDone && c.pressed('dodge')) { if (this.hero === 'uri') this.defence(); else this.startDodge(); }
         break;
       case 'cast':
         b.setVelocityX(b.velocity.x * 0.7);
         if (this.castId && this.st >= 0.12) {
-          if (isArcherSkill(this.castId)) this.bow.kit.cast(this.castId); else castSkill(this.w, this.castId);
+          if (isArcherSkill(this.castId)) this.bow.kit.cast(this.castId); else castSkill(this.w, this.castId as Parameters<typeof castSkill>[1]);
           this.castId = null;
         }
         // Once the skill is loosed, another can follow straight on.
@@ -485,7 +488,9 @@ export class Player {
   /** Dodge or parry, from free or from the tail of a swing. */
   private defence() {
     const c = this.w.controls;
-    if (c.pressed('dodge')) {
+    // Uri's dodge is the Flame Dash, on the ground or once in the air (uriKit.ts).
+    if (this.hero === 'uri' && c.pressed('dodge') && this.flame.dodge()) return true;
+    if (c.pressed('dodge') && this.hero !== 'uri') {
       if (this.formT > 0 && this.cloudStep()) return true;
       if (this.canPhantom()) { this.startPhantom(); return true; }
       if (!this.onGround && this.airDash > 0) { this.airDash--; this.state = 'airdash'; this.st = 0; return true; }
@@ -498,11 +503,13 @@ export class Player {
   private trySkill() {
     const c = this.w.controls, s = this.w.save;
     if (this.powers?.L.storyEnabled && !s.flags.relic_taken) return false;
+    // Uri's three abilities are his own, cast by his kit (uriKit.ts).
+    if (this.hero === 'uri') return false;
     const n = c.pressed('skill1') ? 0 : c.pressed('skill2') ? 1 : c.pressed('skill3') ? 2 : -1;
     if (n < 0) return false;
     const id = skillSlots(s)[n];
     if (isArcherSkill(id)) { if (!archerUnlocked(s, id)) { this.w.toast(`${ARCHER[id].name} comes at level ${ARCHER[id].level}.`); return false; } }
-    else if (!id || !s.abilities.includes(id)) { this.w.toast(this.hero === 'tirzah' ? "Choose Tirzah's abilities in the Echo wheel → Heroes." : 'Choose an ability in Menu → Elior → Abilities.'); return false; }
+    else if (!id || !s.abilities.includes(id as (typeof s.abilities)[number])) { this.w.toast(this.hero === 'tirzah' ? "Choose Tirzah's abilities in the Echo wheel → Heroes." : 'Choose an ability in Menu → Elior → Abilities.'); return false; }
     const def = SKILLS[id];
     if (this.cds[id] > 0) return false;
     if (isArcherSkill(id) && !this.bow.kit.canCast(id)) return false;
@@ -1259,11 +1266,12 @@ export class Player {
     this.sprite.setTexture(key,frame).setOrigin(.5,ACTION_FOOT/ACTION_CELL).setScale(1-this.sq*.55,1+this.sq);
     this.sprite.setFlipX(this.face < 0);
     this.sprite.setPosition(Math.round(b.center.x), Math.round(b.bottom));
+    if (this.hero === 'uri') this.flame.dress(this.sprite, clip, uArt);
     // Blink while invulnerable after a blow.
     this.sprite.setAlpha(this.invuln > 0 && this.state !== 'dead' && Math.floor(this.invuln * 20) % 2 === 0 ? 0.35 : 1);
     this.sprite.setAngle(!this.dead&&this.water.swimming&&vx>25?this.face*Math.min(65,vx*.45):this.dead?0:this.leanA);
     this.trailT-=dt;
-    const streak=!settings.reduceFlashes&&settings.quality!=='low'&&this.hero==='elior'&&((this.state==='attack'&&(this.atk.air||this.atk.heavy))||(this.state==='dodge'&&this.combatStyle==='wraith'));
+    const streak=!settings.reduceFlashes&&settings.quality!=='low'&&((this.hero==='elior'&&((this.state==='attack'&&(this.atk.air||this.atk.heavy))||(this.state==='dodge'&&this.combatStyle==='wraith')))||(this.hero==='uri'&&this.state==='flame'&&(this.flame.cast==='dash'||this.flame.cast==='meteor')));
     for(const ghost of this.trail){ghost.life=this.dead||settings.reduceFlashes?0:Math.max(0,ghost.life-dt);ghost.sprite.setVisible(ghost.life>0).setAlpha(ghost.life*1.6);}
     if(streak&&this.trailT<=0){const ghost=this.trail.find(g=>g.life<=0);if(ghost){ghost.life=0.18;ghost.sprite.setTexture(this.sprite.texture.key,this.sprite.frame.name).setPosition(this.sprite.x,this.sprite.y).setOrigin(this.sprite.originX,this.sprite.originY).setScale(this.sprite.scaleX,this.sprite.scaleY).setFlipX(this.sprite.flipX).setAngle(this.sprite.angle);}this.trailT=0.055;}
     // The blade's arc shows from the moment it lands until the swing ends.

@@ -12,7 +12,8 @@ import { archerLevel } from './archer';
 
 export type SkillId = AbilityId;
 export type ArcherSkillId = 'deliverance' | 'jonathan' | 'mark' | 'rain' | 'watchman' | 'quiver';
-export type AnySkillId = SkillId | ArcherSkillId;
+export type UriSkillId = 'uri_pillar' | 'uri_ring' | 'uri_storm';
+export type AnySkillId = SkillId | ArcherSkillId | UriSkillId;
 export interface SkillDef { id: AnySkillId; name: string; short: string; cost: number; cd: number; color: number; desc: string; icon: string; verse?: string }
 const STYLE: Record<SkillId, [string, number]> = {
   sword_word: ['WORD', 0xffd27a], trumpet: ['HORN', 0xfff1c4], shield_faith: ['SHIELD', 0x9fd8ff],
@@ -40,18 +41,30 @@ export const ARCHER: Record<ArcherSkillId, SkillDef & { level: number }> = {
     verse: '"As arrows are in the hand of a mighty man; so are children of the youth." — Psalm 127:4 (KJV)' },
 };
 export const ARCHER_IDS = Object.keys(ARCHER) as ArcherSkillId[];
+/** Uri's three abilities, always on his three buttons, each opening at one of his levels (effects in uriKit.ts). */
+export const URI_SKILLS: Record<UriSkillId, SkillDef & { level: number }> = {
+  uri_pillar: { id: 'uri_pillar', name: 'Pillar of Flame', short: 'PILLAR', cost: 22, cd: 5, color: 0xff8a3a, icon: 'pillar', level: 1,
+    desc: 'A pillar of fire stands up under the nearest foe, throws it into the air and leaves the ground burning.' },
+  uri_ring: { id: 'uri_ring', name: 'Ring of Fire', short: 'RING', cost: 30, cd: 9, color: 0xffb35c, icon: 'shield', level: 5,
+    desc: 'Fire bursts out of him in a ring: it burns and throws back every foe near him, and the ground around him takes fire.' },
+  uri_storm: { id: 'uri_storm', name: 'Firestorm', short: 'STORM', cost: 40, cd: 16, color: 0xffd27a, icon: 'arc', level: 10,
+    desc: 'For three seconds fire falls from above on the foes around him, each fall finding its own mark.' },
+};
+export const URI_SKILL_IDS = Object.keys(URI_SKILLS) as UriSkillId[];
+export const uriSkillOpen = (s: PhaserSave, id: UriSkillId) => (s.uri?.level ?? 1) >= URI_SKILLS[id].level;
 export const SKILLS = {
   ...(Object.keys(ABILITIES) as SkillId[]).reduce((out, id) => {
     out[id] = { ...ABILITIES[id], short: STYLE[id][0], color: STYLE[id][1] };
     return out;
   }, {} as Record<SkillId, SkillDef>),
   ...ARCHER,
+  ...URI_SKILLS,
 } as Record<AnySkillId, SkillDef>;
 export const isArcherSkill = (id: AnySkillId | null | undefined): id is ArcherSkillId => !!id && id in ARCHER;
 export const archerUnlocked = (s: PhaserSave, id: ArcherSkillId) => archerLevel(s) >= ARCHER[id].level;
 /** Button positions are stable; the journey owns the ability in each position. While Tirzah fights, they are hers. */
 export const SLOTS = [0, 1, 2] as const;
-export const skillSlots = (s: PhaserSave): readonly (AnySkillId | null)[] => s.playableHero === 'tirzah' ? (s.archerSkills ?? NONE) : s.equippedSkills;
+export const skillSlots = (s: PhaserSave): readonly (AnySkillId | null)[] => s.playableHero === 'tirzah' ? (s.archerSkills ?? NONE) : s.playableHero === 'uri' ? URI_SKILL_IDS : s.equippedSkills;
 const NONE = [null, null, null] as const;
 /** Fill her empty slots with abilities she has just reached, in order, and add the arrow types her level has
  * opened to the quiver. Returns the arrow types just added, for a notice. */

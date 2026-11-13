@@ -57,7 +57,7 @@ export class Squad {
 
   /** Call out the lineup the summon preset names, beside Elior. */
   summonEchoes(silent = false) {
-    if (this.duel) return;
+    if (this.duel || this.uriAlone()) return;
     const s = G.save, slots = G.d.echoSlots;
     s.active = s.active.filter((u: string) => s.echoes.some((e: { uid: string }) => e.uid === u)).slice(0, slots);
     const call = this.summonList();
@@ -80,6 +80,13 @@ export class Squad {
       i++;
     }
     s.flags.army_out = true;
+  }
+
+  /** Uri fights with his shaman alone: no Echoes come out while he plays (they wait for Elior and Tirzah). */
+  private uriAlone(say = false) {
+    if (G.save.playableHero !== 'uri') return false;
+    if (say) this.toast('Uri fights with his shaman. The Echoes wait for Elior and Tirzah.');
+    return true;
   }
 
   dismissEchoes() {
@@ -196,6 +203,7 @@ export class Squad {
    */
   switchSupport() {
     const s = G.save;
+    if (this.uriAlone(true)) return;
     if (this.duel) { this.toast('An honour duel: your Echoes kneel and watch.'); return; }
     if (!s.echoes.length) { this.toast('You have no Echoes yet.'); return; }
     if (this.switchCd > 0) { this.toast(`Switch ready in ${Math.ceil(this.switchCd)}s`); return; }
@@ -243,6 +251,7 @@ export class Squad {
 
   echoCommand(cmd: Command) {
     const s = G.save;
+    if (this.uriAlone(true)) return;
     if (!s.echoes.length) { this.toast('You have no Echoes yet.'); return; }
     if (this.duel && cmd !== 'aggressive' && cmd !== 'defensive' && cmd !== 'follow') { this.toast('An honour duel: your Echoes kneel and watch.'); return; }
     const p = this.p;
