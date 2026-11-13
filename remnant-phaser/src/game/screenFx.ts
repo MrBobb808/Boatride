@@ -33,6 +33,10 @@ const GRADES: Record<string, Grade> = {
   plague: { sat: -0.1, con: 0.05, tint: [0.97, 1.05, 0.9] },
   cinders: { sat: 0.08, con: 0.08, tint: [1.1, 0.96, 0.85] },
   grecia: { sat: -0.12, con: 0.08, tint: [0.92, 1, 1.06] },
+  unwalled: { sat: 0.04, con: 0.03, tint: [1.04, 1.01, 0.95] },
+  host: { sat: -0.06, con: 0.07, tint: [1.06, 0.98, 0.9] },
+  shaking: { sat: 0.06, con: 0.09, tint: [1.1, 0.95, 0.86] },
+  river: { sat: 0.06, con: 0.03, tint: [0.98, 1.03, 1.03] },
   rest: { sat: 0.04, con: 0.03, tint: [1.04, 1, 0.95] },
 };
 const NONE: Grade = { sat: 0, con: 0, tint: [1, 1, 1] };

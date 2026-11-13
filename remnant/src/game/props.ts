@@ -144,6 +144,31 @@ export const NPC_DEFS: Record<NpcKind, { name: string; title: string; style: Hum
       outline: '#0a070c', weapon: 'none', offhand: 'none', bulk: 0.86,
     },
   },
+  // Chapter XIV: the two heroes stand among the villagers as people, and Gog's herald speaks for the host.
+  tirzah: {
+    name: 'Tirzah', title: 'The Archer of the Remnant', base: { ...NPC_BASE, lean: 0.03, fUA: 0.35, fFA: 0.6 }, dims: { ...PDIMS, torso: 11.8 }, scale: 0.95,
+    style: {
+      skin: '#7a4a2e', hair: '#120c0a', hairKind: 'braid', beard: null, coat: '#21393c', coatDark: '#152426', skirt: 16, trim: '#b99460',
+      pants: '#1e1715', boots: '#693a1f', glove: '#b99460', belt: '#693a1f', plate: null, helm: 'none', eye: '#fff', eyeGlow: 0,
+      outline: '#0a070c', weapon: 'none', offhand: 'none', bulk: 0.92,
+    },
+  },
+  uri: {
+    name: 'Uri', title: 'The Flame-Caller', base: { ...NPC_BASE, lean: 0.05, fUA: 0.55, fFA: 1.25 }, dims: { ...PDIMS, torso: 13 }, scale: 1.02,
+    style: {
+      skin: '#875331', hair: '#120c0a', hairKind: 'short', beard: '#120c0a', coat: '#272227', coatDark: '#140e0f', skirt: 18, trim: '#dc9640',
+      pants: '#1c181a', boots: '#2a1a14', glove: '#875331', belt: '#3a2a20', plate: null, helm: 'none', eye: '#fff', eyeGlow: 0,
+      outline: '#0a070c', weapon: 'none', offhand: 'none', bulk: 1.02, scarf: '#b83424',
+    },
+  },
+  gogherald: {
+    name: 'The Herald of Gog', title: 'Voice of the Chief Prince of Meshech and Tubal', base: { ...NPC_BASE, fUA: 0.3, fFA: 0.4, wpn: 1.2 }, dims: { ...PDIMS, torso: 14, thigh: 9, shin: 9 }, scale: 1.12,
+    style: {
+      skin: '#b08a6a', hair: '#2a2420', hairKind: 'short', beard: '#2a2420', coat: '#3a2a2a', coatDark: '#1e1414', skirt: 22, trim: '#9a8a6a',
+      pants: '#2a2220', boots: '#1c1410', glove: '#3a2a20', belt: '#2a1c12', plate: { c: '#5a5a62', dark: '#34343c', hi: '#a8a8b0', tier: 2 },
+      helm: 'none', eye: '#fff', eyeGlow: 0, outline: '#0a070c', weapon: 'spear', offhand: 'none', bulk: 1.2,
+    },
+  },
   feastlord: {
     name: 'The Lord of the Feast', title: 'Regent of Babylon', base: { ...NPC_BASE, fUA: 0.55, fFA: 1.15, bUA: 0.45, bFA: 1.2 }, dims: { ...PDIMS, torso: 13.5, thigh: 8.6, shin: 8.6 }, scale: 1.12,
     style: {

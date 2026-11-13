@@ -12,10 +12,11 @@ import { CH3_ROOM_IDS } from './rooms3';
 import { CH4_ROOM_IDS } from './rooms4';
 import { CH5_ROOM_IDS } from './rooms5';
 import { CH6_ROOM_IDS } from './rooms6';
+import { CH14_ROOM_IDS } from './rooms14';
 
 /** The chapter a room belongs to (its foes' tier). */
 export function roomChapter(rid: string) {
-  return chapterForRoom(rid)?.n ?? (CH6_ROOM_IDS.has(rid) ? 6 : CH5_ROOM_IDS.has(rid) ? 5 : CH4_ROOM_IDS.has(rid) ? 4 : CH3_ROOM_IDS.has(rid) ? 3 : CH2_ROOM_IDS.has(rid) ? 2 : 1);
+  return chapterForRoom(rid)?.n ?? (CH14_ROOM_IDS.has(rid) ? 14 : CH6_ROOM_IDS.has(rid) ? 6 : CH5_ROOM_IDS.has(rid) ? 5 : CH4_ROOM_IDS.has(rid) ? 4 : CH3_ROOM_IDS.has(rid) ? 3 : CH2_ROOM_IDS.has(rid) ? 2 : 1);
 }
 
 /**

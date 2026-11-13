@@ -18,6 +18,7 @@ import { Chapter3, QUESTS3, type LocustKing } from './story3';
 import { Chapter4, QUESTS4 } from './story4';
 import { Chapter5, QUESTS5 } from './story5';
 import { Chapter6, QUESTS6 } from './story6';
+import { Chapter14, QUESTS14 } from './story14';
 import { LORE, ITEMS, ECHO_SPECIES } from './data';
 import { setQuest, grantAbility, derive, makeItem, addMaterial, hasMaterials, payMaterials, getItem, MAX_PLUS } from './state';
 import { rand } from '../core/math';
@@ -57,6 +58,7 @@ export const QUESTS: QuestDef[] = [
   ...QUESTS4,
   ...QUESTS5,
   ...QUESTS6,
+  ...QUESTS14,
   ...FALLEN_QUESTS,
   ...REST_QUEST_DEFS,
 ];
@@ -72,6 +74,7 @@ export class Story {
   ch4 = new Chapter4(this);
   ch5 = new Chapter5(this);
   ch6 = new Chapter6(this);
+  ch14 = new Chapter14(this);
   fallen = new FallenStory(this);
   rest = new Settlement(this);
   // ---------------------------------------------------------------- helpers
@@ -138,6 +141,7 @@ export class Story {
     const s = G.save;
     G.ui.clearAreaBanner();
     this.ch6.roomChanged();
+    this.ch14.roomChanged();
     // Before any chapter claims the room, so leaving the Trial into Chapters VII–IX ends the run too.
     if (id !== 'trial_arena') this.ch3.leftTrial();
     if (this.rest.onEnter(id, first)) return;
@@ -146,6 +150,7 @@ export class Story {
     if (this.ch4.onEnter(id, first)) return;
     if (this.ch5.onEnter(id, first)) return;
     if (this.ch6.onEnter(id, first)) return;
+    if (this.ch14.onEnter(id, first)) return;
     if (this.ch2.onEnter(id, first)) return;
     if (id === 'sanctuary' && !flag('intro_done')) {
       this.opening();
@@ -223,6 +228,7 @@ export class Story {
     if (this.ch5.onTrigger(id)) return;
     if (this.fallen.onTrigger(id)) return;
     if (this.ch6.onTrigger(id)) return;
+    if (this.ch14.onTrigger(id)) return;
     if (this.ch2.onTrigger(id)) return;
     switch (id) {
       case 'steps_cutscene': if (!flag('collapsed')) this.collapse(); break;
@@ -461,6 +467,7 @@ export class Story {
     if (await this.ch5.talk(n)) return;
     if (await this.fallen.talk(n)) return;
     if (await this.ch6.talk(n)) return;
+    if (await this.ch14.talk(n)) return;
     if (await this.ch2.talk(n)) return;
     switch (n.kind) {
       case 'mara': return this.talkMara();
@@ -587,6 +594,7 @@ export class Story {
       this.ch4.onLore(id);
       this.ch5.onLore(id);
       this.ch6.onLore(id);
+      this.ch14.onLore(id);
     }
     this.checkMara();
   }
@@ -642,6 +650,7 @@ export class Story {
     if (this.ch5.secret(key)) return;
     if (this.fallen.secret(key)) return;
     if (this.ch6.secret(key)) return;
+    if (this.ch14.secret(key)) return;
     if (!SECRET_IDS.includes(key) || s.secrets.includes(key)) return;
     s.secrets.push(key);
     sfx('lootRare', { vol: 0.6 });
@@ -672,7 +681,7 @@ export class Story {
     G.world.autosave(true);
   }
 
-  onKill(e: Enemy) { this.fallen.onKill(e); this.rest.onKill(e); }
+  onKill(e: Enemy) { this.fallen.onKill(e); this.rest.onKill(e); this.ch14.onKill(e); }
 
   // ---------------------------------------------------------------- purification
   async purify(e: Enemy) {
@@ -735,6 +744,7 @@ export class Story {
     this.ch4.onPurified(e.elite);
     this.ch5.onPurified(e.elite);
     this.ch6.onPurified(e.elite);
+    this.ch14.onPurified(e.elite);
     if (e.elite === 'chamber_sentinel') {
       setFlag('chamber_done');
       setFlag('has_echo');

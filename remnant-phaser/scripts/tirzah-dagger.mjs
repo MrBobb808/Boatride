@@ -116,12 +116,15 @@ try {
   // ---- motion: a stretch on take-off, a squash on landing, a lean into the run (Elior too)
   for (const hero of ['tirzah', 'elior']) {
     await free(page);
-    await E(page, (h) => { const w = window.__remnant.world; if (w.player.hero !== h) { w.player.switchCd = 0; w.player.switchHero(h); } w.player.switchCd = 0; window.target.x = -9999; window.seen.sy.length = 0; window.seen.angles.length = 0; }, hero);
+    await E(page, (h) => { const w = window.__remnant.world; if (w.player.hero !== h) { w.player.switchCd = 0; w.player.switchHero(h); } w.player.switchCd = 0; window.place(-200); window.target.x = -9999; window.seen.sy.length = 0; window.seen.angles.length = 0; }, hero);
     await free(page);
     await tap(page, 'Space', 120);
     await until(page, () => !window.__remnant.world.player.onGround);
     await free(page);
-    await page.keyboard.down('KeyD'); await page.waitForTimeout(500); await page.keyboard.up('KeyD');
+    // Run until the lean has built (a slow runner's game clock covers less than the wall clock), up to 3 s.
+    await page.keyboard.down('KeyD'); await page.waitForTimeout(500);
+    await until(page, () => Math.max(0, ...window.seen.angles.map(Math.abs)) > 1, undefined, 2500).catch(() => {});
+    await page.keyboard.up('KeyD');
     const m = await E(page, () => ({ hi: Math.max(...window.seen.sy), lo: Math.min(...window.seen.sy), lean: Math.max(...window.seen.angles.map(Math.abs)) }));
     assert.ok(m.hi > 1.02 && m.lo < 0.98 && m.lean > 1, `${hero} stretches, squashes and leans (${JSON.stringify(m)})`);
     console.log(`Motion (${hero}): stretch to ×${m.hi.toFixed(3)}, squash to ×${m.lo.toFixed(3)}, lean ${m.lean.toFixed(1)}°`);

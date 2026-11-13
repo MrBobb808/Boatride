@@ -14,6 +14,7 @@ import { buildParallaxCh4, drawSkyCh4, drawSolidCh4, drawOneWayCh4, drawSpikesCh
 import { buildParallaxCh6, useRoomCh6, drawSkyCh6, drawSolidCh6, drawOneWayCh6, drawSpikesCh6, drawLiquidCh6, drawPropCh6, drawLivePropCh6, isCh6, LIVE_CH6, BACKDROP_CH6 } from './env6';
 import { fallenSky, fallenParallax, fallenProp, drawFallenLive, FALLEN_LIVE, isFallen, drawSolidFallen, drawOneWayFallen, drawSpikesFallen, drawLiquidFallen } from './fallenEnv';
 import { restSky, restParallax, restProp, drawRestLive, REST_LIVE, drawSolidRest, drawOneWayRest } from './envRest';
+import { buildParallaxCh14, useRoomCh14, drawSkyCh14, drawPropCh14, drawLivePropCh14, isCh14, LIVE_CH14, BACKDROP_CH14 } from './env14';
 import { buildParallaxCh5, drawSkyCh5, drawSolidCh5, drawOneWayCh5, drawSpikesCh5, drawLiquidCh5, drawPropCh5, drawLivePropCh5, isCh5, LIVE_CH5, BACKDROP_CH5 } from './env5';
 
 export interface BiomePal {
@@ -137,6 +138,27 @@ export const BIOMES: Record<Biome, BiomePal> = {
     stone: '#c8c0b0', stoneDark: '#5a5448', cap: '#f0e8d8', capTuft: '#ffd88a', back: '#2a2434', backLine: '#3a3248', moon: null,
     plat: '#d8ccb0', ambient: '#140e1e',
   },
+  // Chapter XIV, the Day of Gog (env14.ts draws their skies, parallax and props).
+  unwalled: {
+    sky: ['#2a4a7a', '#7aa0c0', '#f0d8a8'], far: '#7a8a9a', mid: '#4a5a3a', near: '#2a3220', fog: '#e8dcc0',
+    stone: '#c8b898', stoneDark: '#7a6a52', cap: '#e8dcc0', capTuft: '#6a8a3a', back: '#5a5040', backLine: '#7a6a52', moon: null,
+    plat: '#a88a5a', ambient: '#2a2a30',
+  },
+  host: {
+    sky: ['#1a1418', '#5a4034', '#c89a68'], far: '#5a4a44', mid: '#3a2a24', near: '#1c1410', fog: '#c89a68',
+    stone: '#8a7258', stoneDark: '#3e2e22', cap: '#b09a78', capTuft: '#6a5a2a', back: '#2e2420', backLine: '#463628', moon: null,
+    plat: '#7a5a3a', ambient: '#1a1210',
+  },
+  shaking: {
+    sky: ['#140c0c', '#5a2418', '#c87038'], far: '#4a2a24', mid: '#2e1a16', near: '#160c0a', fog: '#d0703a',
+    stone: '#7a5a4a', stoneDark: '#3a2620', cap: '#9a7a62', capTuft: '#ff8a3a', back: '#281814', backLine: '#3e241c', moon: null,
+    plat: '#6a4a3a', ambient: '#1a0c0a',
+  },
+  river: {
+    sky: ['#3a6aa0', '#9ac0d0', '#f0ecc0'], far: '#8aa8b0', mid: '#3a6a3a', near: '#1e3a22', fog: '#e8f0d8',
+    stone: '#d8ccb0', stoneDark: '#8a7a5a', cap: '#f0e8d0', capTuft: '#5aa04a', back: '#4a5a44', backLine: '#6a7a5a', moon: null,
+    plat: '#b8a07a', ambient: '#1e2a2a',
+  },
 };
 
 // ---------------------------------------------------------------- Parallax
@@ -164,6 +186,7 @@ export function useRoomLook(biome: Biome, seed: number, interior: boolean) {
   look.seed = seed;
   look.interior = interior;
   if (isCh6(biome)) useRoomCh6(biome, seed, interior);
+  if (isCh14(biome)) useRoomCh14(biome, seed);
 }
 
 /** Bakes done on the spot, in a frame, because nothing prepared them (debug API and browser checks). */
@@ -188,6 +211,7 @@ export function* parallaxSteps(biome: Biome, seed: number, interior: boolean, vi
   if (isCh4(biome)) return yield* buildParallaxCh4(biome, pal, seed, viewH, res);
   if (isCh5(biome)) return yield* buildParallaxCh5(biome, pal, seed, interior, viewH, res);
   if (isCh6(biome)) return yield* buildParallaxCh6(biome, pal, seed, interior, viewH, res);
+  if (isCh14(biome)) return yield* buildParallaxCh14(biome, pal, seed, interior, viewH, res);
   const layers: Layer[] = [];
   const rng = new RNG(seed);
   const W = 1024;
@@ -381,6 +405,10 @@ export function drawSky(ctx: Ctx, pal: BiomePal, w: number, h: number, interior:
   if (pal === BIOMES.hiddekel) return drawSkyCh6(ctx, 'hiddekel', pal, w, h, interior, t);
   if (pal === BIOMES.shushan) return drawSkyCh6(ctx, 'shushan', pal, w, h, interior, t);
   if (pal === BIOMES.highplaces) return drawSkyCh6(ctx, 'highplaces', pal, w, h, interior, t);
+  if (pal === BIOMES.unwalled) return drawSkyCh14(ctx, 'unwalled', pal, w, h, interior, t);
+  if (pal === BIOMES.host) return drawSkyCh14(ctx, 'host', pal, w, h, interior, t);
+  if (pal === BIOMES.shaking) return drawSkyCh14(ctx, 'shaking', pal, w, h, interior, t);
+  if (pal === BIOMES.river) return drawSkyCh14(ctx, 'river', pal, w, h, interior, t);
   const g = ctx.createLinearGradient(0, 0, 0, h);
   g.addColorStop(0, pal.sky[0]);
   g.addColorStop(0.6, pal.sky[1]);
@@ -563,7 +591,7 @@ export class TileCache {
     for (let pass = 0; pass < 2; pass++)
       for (const e of this.ents) {
         if (e.t !== 'decor' || e.fg) continue;
-        const backdrop = BACKDROP_CH4.has(e.k) || BACKDROP_CH5.has(e.k) || BACKDROP_CH6.has(e.k);
+        const backdrop = BACKDROP_CH4.has(e.k) || BACKDROP_CH5.has(e.k) || BACKDROP_CH6.has(e.k) || BACKDROP_CH14.has(e.k);
         if (backdrop !== (pass === 0)) continue;
         if (!this.cond((e as { cond?: string }).cond, (e as { ncond?: string }).ncond)) continue;
         const px = e.x * TILE, py = e.y * TILE;
@@ -796,7 +824,7 @@ export function drawProp(ctx: Ctx, e: Extract<EntDef, { t: 'decor' }>, pal: Biom
   const rng = new RNG(seed + Math.floor(e.x * 31 + e.y * 7));
   const o = '#08060a';
   ctx.save();
-  if (restProp(ctx, e) || fallenProp(ctx,e) || drawPropCh2(ctx, e, pal, seed) || drawPropCh3(ctx, e, pal, seed) || drawPropCh4(ctx, e, pal, seed, isCh5(biome) || seed === FEAST_SEED) || drawPropCh5(ctx, e, pal, seed) || drawPropCh6(ctx, e, pal, seed)) {
+  if (restProp(ctx, e) || fallenProp(ctx,e) || drawPropCh2(ctx, e, pal, seed) || drawPropCh3(ctx, e, pal, seed) || drawPropCh4(ctx, e, pal, seed, isCh5(biome) || seed === FEAST_SEED) || drawPropCh5(ctx, e, pal, seed) || drawPropCh6(ctx, e, pal, seed) || drawPropCh14(ctx, e, pal, seed)) {
     ctx.restore();
     return;
   }
@@ -1396,7 +1424,7 @@ function drawHallBack(ctx: Ctx, e: Extract<EntDef, { t: 'decor' }>, pal: BiomePa
 }
 
 /** Decor kinds animated by drawLiveProps behind the actors (pass these in the background pass). */
-export const LIVE_DECOR: ReadonlySet<string> = new Set(['banner', ...REST_LIVE, ...LIVE_CH3, ...LIVE_CH4, ...LIVE_CH5, ...LIVE_CH6, ...FALLEN_LIVE]);
+export const LIVE_DECOR: ReadonlySet<string> = new Set(['banner', ...REST_LIVE, ...LIVE_CH3, ...LIVE_CH4, ...LIVE_CH5, ...LIVE_CH6, ...LIVE_CH14, ...FALLEN_LIVE]);
 let liveCh3Frame = -1;
 
 /** Animated props drawn every frame (banners, flames, water, veil pools, grass). */
@@ -1411,7 +1439,7 @@ export function drawLiveProps(ctx: Ctx, ents: EntDef[], t: number, view: { x: nu
         if (!!e.fg === fg && cond(e.cond, e.ncond)) drawRestLive(ctx, e, t);
         continue;
       }
-      if (LIVE_CH3.has(e.k) || LIVE_CH4.has(e.k) || LIVE_CH5.has(e.k) || LIVE_CH6.has(e.k) || FALLEN_LIVE.has(e.k)) {
+      if (LIVE_CH3.has(e.k) || LIVE_CH4.has(e.k) || LIVE_CH5.has(e.k) || LIVE_CH6.has(e.k) || LIVE_CH14.has(e.k) || FALLEN_LIVE.has(e.k)) {
         // Chapter III and IV overlays belong to the background pass; if this frame's
         // background pass did not include them, the foreground pass draws them.
         if (!fg) liveCh3Frame = t;
@@ -1420,6 +1448,7 @@ export function drawLiveProps(ctx: Ctx, ents: EntDef[], t: number, view: { x: nu
           else if (LIVE_CH3.has(e.k)) drawLivePropCh3(ctx, e, t);
           else if (LIVE_CH4.has(e.k)) drawLivePropCh4(ctx, e, t);
           else if (LIVE_CH5.has(e.k)) drawLivePropCh5(ctx, e, t);
+          else if (LIVE_CH14.has(e.k)) drawLivePropCh14(ctx, e, t);
           else drawLivePropCh6(ctx, e, t);
         }
         continue;

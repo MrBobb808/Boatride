@@ -103,6 +103,14 @@ Never ship files from `art/incoming/` directly.
     fairs of Tyrus. A hired host (`tyre()`), a curve row above XII's, and two
     fetters (the Fairs', the Storehouse's) seal the prince's seat. Keziah, who
     kept the market's tally, is rescued from the Holds of Tarshish.
+  - XIV, *The Day of Gog* (Ezekiel 38–39, then 47): its own rooms (`game/rooms14.ts`, 24 rooms in five acts: the
+    unwalled villages, the north parts, the great shaking, the valley of Hamongog, the river), story
+    (`game/story14.ts`) and art (`render/env14.ts`: four lands, `unwalled`, `host`, `shaking`, `river`, each with
+    moods chosen by room seed). Gog's host comes out of the north against villages without walls; the LORD answers
+    on the mountains with a shaking and hail, fire and brimstone (38:22), and Elior only withstands. Then the
+    waters from under the threshold heal the sea. Its three fights are waves of the host for now (`ARENAS`); the
+    bosses, set pieces and its music follow. Begun from XIII's end card or Journey on. Verified by
+    `remnant-phaser/scripts/ch14.mjs`.
   - `game/chapters.ts` lists the chapters for chapter select (`ui/chapters.ts`). In
     the Phaser build a finished chapter can be replayed (`chapterReplay`,
     `PhaserSave.replay`): its bosses and commanders stand again, matched to
@@ -491,7 +499,7 @@ Never ship files from `art/incoming/` directly.
 
 ## Where the story stands
 
-Chapters I–XIII are implemented, each with a chapter-end screen; XII, The Time of Trouble, closes the Daniel arc, and XIII, The Stones of Fire (Ezekiel 26–28), brings home the people its king sold. Chapter X, The
+Chapters I–XIV are implemented, each with a chapter-end screen (XIV, The Day of Gog, is being built in four steps); XII, The Time of Trouble, closes the Daniel arc, and XIII, The Stones of Fire (Ezekiel 26–28), brings home the people its king sold. Chapter X, The
 Prince of Grecia, pays off Daniel 10:20 on the storm coast of Chittim. Chapter VI
 continues into the original Fallen Crown campaigns: VII, The Crown of the Hunt
 (Varkhos), and VIII, The Crown of Pestilence (Morvane). Their room definitions,

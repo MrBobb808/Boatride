@@ -57,6 +57,11 @@ export const CHAPTERS: ChapterDef[] = [
     reached: () => flag('ch6_intro'), done: () => flag('ch6_done'),
   },
   ...FALLEN_CHAPTERS.map(c => ({n:c.n,roman:c.roman,title:c.title,hub:c.hub,level:chapterCurve(c.n).level,blurb:c.intro[1],reached:()=>flag(`ch${c.n}_intro`),done:()=>flag(`ch${c.n}_done`)})),
+  {
+    n: 14, roman: 'XIV', title: 'The Day of Gog', hub: 'gog_hub', level: chapterCurve(14).level,
+    blurb: 'The Remnant dwells safely in villages without walls. Out of the north comes Gog with a host like a cloud, and after him, a river.',
+    reached: () => flag('ch14_intro'), done: () => flag('ch14_done'),
+  },
 ];
 
 /** A chapter can be played once you have reached it or finished the one before. */
