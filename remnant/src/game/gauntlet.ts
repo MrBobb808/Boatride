@@ -6,6 +6,7 @@ import { TyrusPrince } from './bosses13';
 import { BeastMonarch, PlagueMonarch } from './fallenBosses';
 // The real chapter bosses, isolated from campaign rewards and story callbacks.
 import { G } from './ctx';
+import { RUSH_KEYS, rushRoster, rushName } from './rushKeys';
 import { Idol } from './boss';
 import { BossBase, Gatekeeper, Marshal } from './bosses2';
 import { LocustKing } from './bosses3';
@@ -42,28 +43,26 @@ export function gauntletBoss(round: number, hp: number, damage: number, powerRou
   return spawnBoss(ROSTER[(round - 1) % gauntletCount()], hp, damage, powerRound);
 }
 
-/** The Boss Rush, in story order. Names are known before a boss is built (for the breather banner). */
-export const RUSH_ORDER: readonly { key: string; name: string; Kind: BossCtor; music?: string }[] = [
-  { key: 'idol', name: 'The Gilded Idol', Kind: Idol },
-  { key: 'gatekeeper', name: 'The Gatekeeper', Kind: Gatekeeper },
-  { key: 'marshal', name: 'The Crimson Marshal', Kind: Marshal },
-  { key: 'locust_king', name: 'The Locust King', Kind: LocustKing },
-  { key: 'golden_image', name: 'The Image of Gold', Kind: GoldenImage },
-  { key: 'weigher', name: 'The Weigher', Kind: Weigher },
-  // The princes' music is normally started by the Chapter VI story.
-  { key: 'storm_prince', name: 'The Prince of the Storm', Kind: StormPrince, music: 'storm' },
-  { key: 'persia_prince', name: 'The Prince of Persia', Kind: PersiaPrince, music: 'persia' },
-  { key: 'beast_monarch', name: 'Varkhos, Crown of the Hunt', Kind: BeastMonarch },
-  { key: 'plague_monarch', name: 'Morvane, Crown of Pestilence', Kind: PlagueMonarch },
-  { key: 'cinder_monarch', name: 'Azkar, Crown of Cinders', Kind: CinderMonarch },
-  { key: 'grecia_prince', name: 'The Prince of Grecia', Kind: GreciaPrince },
-  { key: 'nation_gods', name: 'The Gods of the Nations', Kind: NationGods },
-  { key: 'north_king', name: 'The King of the North', Kind: NorthKing },
-  { key: 'tyrus_prince', name: 'The Prince of Tyrus', Kind: TyrusPrince },
-];
-/** The bosses this save has beaten, as rush keys in story order. */
-export const rushRoster = (defeated: readonly string[]) => RUSH_ORDER.filter((b) => defeated.includes(b.key)).map((b) => b.key);
-export const rushName = (key: string) => RUSH_ORDER.find((b) => b.key === key)?.name ?? key;
+/** The Boss Rush, in story order (keys and names in rushKeys.ts). */
+const KINDS: Record<string, BossCtor> = {
+  idol: Idol,
+  gatekeeper: Gatekeeper,
+  marshal: Marshal,
+  locust_king: LocustKing,
+  golden_image: GoldenImage,
+  weigher: Weigher,
+  storm_prince: StormPrince,
+  persia_prince: PersiaPrince,
+  beast_monarch: BeastMonarch,
+  plague_monarch: PlagueMonarch,
+  cinder_monarch: CinderMonarch,
+  grecia_prince: GreciaPrince,
+  nation_gods: NationGods,
+  north_king: NorthKing,
+  tyrus_prince: TyrusPrince,
+};
+export const RUSH_ORDER = RUSH_KEYS.map((b) => ({ ...b, Kind: KINDS[b.key] }));
+export { rushRoster, rushName };
 
 /** A rush boss at the run's entry strength: every fight in the run is the same size. */
 export function rushBoss(key: string, hp: number, damage: number): Idol | BossBase {

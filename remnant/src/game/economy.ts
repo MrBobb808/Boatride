@@ -27,6 +27,8 @@ export interface StoreSave {
   bought?: string[];
   /** Capes bought (CAPES keys). */
   capes?: string[];
+  /** The loot filter: gear at or below this rarity counts as junk (0 Common … 3 Epic; 1 by default). */
+  junk?: number;
   /** Tomes read, as `<tome>_<chapter>`. */
   tomes?: string[];
 }
@@ -150,12 +152,14 @@ export function buyBack(s: SaveData, sale: Sale) {
 }
 
 /**
- * Junk: Common and Uncommon gear, untempered, not equipped, locked or a keepsake,
- * whose slot already holds something at least as rare.
+ * Junk: gear at or below the loot filter's rarity (Common and Uncommon by default), untempered, not equipped, locked,
+ * a keepsake or carrying a Legendary Power, whose slot already holds something at least as rare.
  */
+export const junkBelow = (s: SaveData) => Math.max(0, Math.min(3, Math.floor(Number(s.store?.junk ?? 1)) || 0));
 export function junk(s: SaveData): ItemInst[] {
+  const top = junkBelow(s);
   return s.inventory.filter((it) => {
-    if (it.rarity > 1 || it.plus > 0 || keepReason(s, it)) return false;
+    if (it.rarity > top || it.plus > 0 || it.legend || keepReason(s, it)) return false;
     const slot = ITEMS[it.id].slot as Slot, eq = s.inventory.find((x) => x.uid === (s.equipment[slot] ?? s.archer?.equipment[slot]));
     return !!eq && eq.rarity >= it.rarity;
   });

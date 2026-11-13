@@ -295,12 +295,13 @@ export class Visuals {
   }
 
   /** Sixteen frames of the form gathering across the transformation (1.15 s), Mantle or Wings. */
-  private stepForming(dt: number, dawn: boolean) {
+  /** `fire`: Uri's Crown forms in the dawn frames, tinted to flame. */
+  private stepForming(dt: number, dawn: boolean, fire = false) {
     const p = this.w.player;
     if (p.state !== 'transform' || p.dead) { if (this.formT >= 0) { this.formT = -1; this.forming.setVisible(false); } return; }
     this.formT = Math.max(0, this.formT) + dt;
     const f = Math.min(15, Math.floor((this.formT / 1.15) * 16));
-    this.forming.setFrame((dawn ? 16 : 0) + f).setPosition(p.x, p.feet - 30).setScale(0.62).setAlpha(settings.reduceFlashes ? 0.55 : 1).setVisible(true);
+    this.forming.setFrame((dawn ? 16 : 0) + f).setTint(fire ? 0xff9a50 : 0xffffff).setPosition(p.x, p.feet - 30).setScale(0.62).setAlpha(settings.reduceFlashes ? 0.55 : 1).setVisible(true);
   }
 
   private stepBursts(dt: number) {
@@ -336,12 +337,13 @@ export class Visuals {
     this.screen.step(dt, v, this.tier, { letterbox: w.hud.letterbox ?? 0, intro: this.bossCamera.mode === 'intro', submerged: !!p.water?.submerged, form: !p.dead && (p.mantleT > 0 || p.state === 'transform') });
     this.element = weaponElement();
     const mantle = !p.dead && (p.mantleT > 0 || p.state === 'transform');
-    // Tirzah's Wings of the Morning share the Mantle's timer but are dawn light: no smoke, no crown.
-    const dawn = p.hero === 'tirzah';
-    const visible=mantle&&p.sprite.visible&&!dawn;
+    // Tirzah's Wings of the Morning and Uri's Crown of Flame share the Mantle's timer, in their own light: no
+    // shadow smoke, no violet crown (the Crown of Flame paints its own).
+    const dawn = p.hero === 'tirzah', fire = p.hero === 'uri';
+    const visible=mantle&&p.sprite.visible&&!dawn&&!fire;
     this.smoke.setVisible(visible);this.smokeFront.setVisible(visible);
-    this.stepForming(dt, dawn);
-    if(mantle&&!this.mantled&&!dawn) {this.smoke.emitParticleAt(p.x,p.feet-12,this.tier===0||settings.reduceFlashes?3:12);this.tick=0;}
+    this.stepForming(dt, dawn || fire, fire);
+    if(mantle&&!this.mantled&&!dawn&&!fire) {this.smoke.emitParticleAt(p.x,p.feet-12,this.tier===0||settings.reduceFlashes?3:12);this.tick=0;}
     else if(!mantle&&this.mantled) {this.smoke.killAll();this.smokeFront.killAll();this.wisps.killAll();}
     this.mantled=mantle;
     const crown=this.crown.clear();
@@ -351,10 +353,10 @@ export class Visuals {
     }
     const color = this.element ? COLORS[this.element] : 0xffffff;
     const pulse = settings.reduceFlashes ? 0.2 : 0.26 + Math.sin(G.time * 3) * 0.035;
-    this.light.setVisible(mantle && p.sprite.visible).setPosition(p.x, p.y).setAlpha(pulse).setTint(dawn ? 0xffc96a : 0xa04bf5);
+    this.light.setVisible(mantle && p.sprite.visible).setPosition(p.x, p.y).setAlpha(pulse).setTint(dawn ? 0xffc96a : fire ? 0xff7a2a : 0xa04bf5);
     this.weaponLight.setVisible(!!this.element && !p.dead && p.sprite.visible).setTint(color).setPosition(p.x + p.face * 12, p.feet - 24).setAlpha(settings.reduceFlashes ? 0.12 : 0.2);
     if (this.element && p.slash.visible) p.slash.setTint(color);
-    if (this.heroGlow) { this.heroGlow.active = mantle && this.tier > 0; this.heroGlow.color = dawn ? 0xffd27a : 0xa34bdf; this.heroGlow.outerStrength = settings.reduceFlashes ? 1 : 1.8 + Math.sin(G.time * 3) * 0.25; }
+    if (this.heroGlow) { this.heroGlow.active = mantle && this.tier > 0; this.heroGlow.color = dawn ? 0xffd27a : fire ? 0xff8a3a : 0xa34bdf; this.heroGlow.outerStrength = settings.reduceFlashes ? 1 : 1.8 + Math.sin(G.time * 3) * 0.25; }
     if (this.bladeGlow) { this.bladeGlow.active = !!this.element && p.slash.visible && this.tier > 0; this.bladeGlow.color = color; }
     this.tick -= dt;
     if (this.tick <= 0) {

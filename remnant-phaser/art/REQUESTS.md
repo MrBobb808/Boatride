@@ -75,6 +75,8 @@ Each row is one effect, played left to right.
 | V06 | 8×4, 256 px | **Transformations:** rows 1–2, Shadow Mantle forming (smoke wraps in, then a violet burst); rows 3–4, Wings of the Morning forming (light gathers, then the wings unfold in a dawn flash). |
 | V07 | 8×6, 128 px | **Status overlays** (looping): burning, frozen, shocked, bleeding, holy-marked, shadow-bound. |
 | V09 | 6×4, 128 px | **The Unshorn's impacts** (delivered 5 November 2026): punch spark, heavy-blow burst, dust kicked up, rising flame. |
+| V10 | 6×4, 256 px | **Uri's flame effects** (delivered 13 November 2026; asked for as U4): fireball in flight, its burst, ground fire along the cell bottom, a crescent flame wave. White-gold core, orange, warm red edge. |
+| V11 | 6×4, 256 px | **Uri's calling, summon and Crown of Flame** (asked for as U5; the first take was rejected, re-prompt): a hand-flame blooming; an ember-rune circle on the ground with a rising pillar of fire; two streams of fire joining into a floating crown; a looping shoulder aura under the crown. Bright shapes on transparent, no bodies. |
 | V08 | 8×4, 128 px | **World effects:** dust puff, water splash, lava ember burst, wood-splinter burst. |
 
 ## Retries after drop P1 (do these before P2)
@@ -197,4 +199,5 @@ subject and a soft rim light.
 | I03 | **Materials and salvage,** 8×4: iron scrap, steel ingot, bronze, leather strap, linen, gold thread, cedar wood, relic shard, ember core, frost crystal, storm glass, holy oil, shadow silk, lion's mane, locust chitin, slag iron, eel scale, feather of dawn, and similar crafting goods. |
 | I04 | **Ability icons,** 6×3, 96 px: the twelve Covenant abilities, then the six archer abilities from `../POLISH_PLAN.md` §4. |
 | U01 | **Key art** (delivered 5 November 2026, `incoming/ui/`): the Unshorn facing the King of the North in the rain. Not shipped yet. |
+| U02 | **Portraits** (3×1, 512 px; delivered 13 November 2026, asked for as U6): Uri, Uri as the Crown of Flame, and the orc shaman, head and shoulders facing right, for his pause-menu page, the Watch's Hero tab and dialogue. |
 | I05 | **Shop backdrops** (`incoming/ui/`), two opaque illustrations at 1280×720: Ilan's market stall (lamps, crates, cloth awning) and Dov's forge (anvil, bellows, glowing hearth). |

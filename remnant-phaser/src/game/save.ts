@@ -90,7 +90,7 @@ function settle(d: SaveData): SaveData {
   if (!Number.isFinite(d.level) || d.level < 1) d.level = 1;
   if (!Number.isFinite(d.hp)) d.hp = 9999;
   const kit=d as PhaserSave;
-  if(kit.playableHero!==undefined&&kit.playableHero!=='tirzah'&&kit.playableHero!=='elior')delete kit.playableHero;
+  if(kit.playableHero!==undefined&&!['elior','tirzah','uri'].includes(kit.playableHero))delete kit.playableHero;
   if(kit.combatStyle!==undefined&&!['vanguard','wraith','sentinel'].includes(kit.combatStyle))delete kit.combatStyle;
   if(kit.bestStyle!==undefined)kit.bestStyle=Number.isFinite(kit.bestStyle)?Math.max(0,Math.min(6,Math.floor(kit.bestStyle))):0;
   // Tirzah's loadout: drop anything unknown, keep three slots, and nock only an unlocked arrow.

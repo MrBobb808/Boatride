@@ -3,7 +3,7 @@
 // the Boss Gauntlet, the Boss Rush and the day's challenge. A locked mode says what opens it. Plain DOM over the
 // title's canvas (the glow, the embers and Elior standing behind the wordmark), built once per visit.
 import { CHAPTERS, RUSH_MIN, type ChapterDef } from '../../../remnant/src/game/chapters';
-import { rushRoster } from '../../../remnant/src/game/gauntlet';
+import { rushRoster } from '../../../remnant/src/game/rushKeys';
 import { dailyFor, rankedUsed } from '../../../remnant/src/game/daily';
 import { chapterOf } from '../../../remnant/src/game/rooms';
 import { G } from '../classic/shim/ctx';
@@ -12,12 +12,12 @@ import { ROOMS } from '../shared';
 import type { PhaserSave } from './save';
 import { shouldRemind, noteReminded } from './backup';
 import { restoreButton } from './backupUi';
-import { settleDay, progress, nextCall, stepProgress, stepOf, monthName, buyOwed, STEPS, OWED_COST, type DayMode } from './day';
+import { dayBoss, settleDay, progress, nextCall, stepProgress, stepOf, monthName, buyOwed, STEPS, OWED_COST, type DayMode } from './day';
 import { CAPES } from '../../../remnant/src/game/valor';
 import { writeSave } from './save';
 
 /** What the world does on arrival when the journey is entered from a mode card (World.init's `mode`). */
-export type HomeMode = 'chapters' | 'trial' | 'extreme' | 'gauntlet' | 'rush' | 'daily';
+export type HomeMode = 'chapters' | 'trial' | 'extreme' | 'gauntlet' | 'rush' | 'daily' | 'dayboss';
 
 const CSS = `
 .hm{position:fixed;inset:0;bottom:auto;height:var(--app-h,100%);z-index:12;overflow-y:auto;-webkit-overflow-scrolling:touch;font-family:Georgia,serif;color:#ddd4c6;
@@ -235,9 +235,10 @@ export class Home {
     streak.dataset.k = 'title_streak';
     kick.append(el('span', '', 'Today'), streak);
     const list = el('ul', 'hm-calls');
+    const boss = dayBoss(s);
     const row = (c: (typeof d.calls)[number], weekly: boolean) => {
       const li = el('li', c.paid ? 'done' : ''), have = c.paid ? c.goal : progress(s, c, weekly);
-      li.append(el('i', '', c.paid ? '✓' : weekly ? '◆' : '○'), el('span', '', c.text), el('u', '', c.paid ? 'done' : c.goal > 1 ? `${have}/${c.goal}` : weekly ? 'this week' : `about ${c.mins} min`));
+      li.append(el('i', '', c.paid ? '✓' : weekly ? '◆' : '○'), el('span', '', c.mode === 'dayboss' && boss ? `${c.text}: ${boss.name}, under ${boss.condName}${s.flags.day_boss_medal === s.flags.day_boss_done && c.paid ? ' · ✦ untouched' : ' (untouched wins a medal)'}` : c.text), el('u', '', c.paid ? 'done' : c.goal > 1 ? `${have}/${c.goal}` : weekly ? 'this week' : `about ${c.mins} min`));
       li.dataset.k = weekly ? 'title_weekly' : 'title_call';
       return li;
     };
@@ -309,17 +310,32 @@ export class Home {
     const box = el('section', 'hm-modes');
     box.appendChild(el('div', 'hm-h', 'Game modes'));
     const grid = el('div', 'hm-grid');
-    for (const c of this.cards()) {
+    // A first visit is not greeted by eight cards (NEXT_PLAN E2): until the covenant relic is recovered only the modes
+    // already open are shown, and each one that opens later carries a "new" mark until it is first tried.
+    const s = this.h.save as PhaserSave | null, flags = (s?.flags ?? {}) as Record<string, unknown>;
+    const young = !s || !flags.relic_taken;
+    const all = this.cards(), shown = young ? all.filter((c) => !c.locked) : all;
+    for (const c of all) if (s && !c.locked && c.id !== 'chapters' && !flags[`seen_${c.id}`] && !young) c.isNew = true;
+    for (const c of shown) {
       const b = el('button', 'hm-card' + (c.locked ? ' locked' : '') + (c.isNew ? ' new' : '')) as HTMLButtonElement;
       b.dataset.k = `title_${c.id}`;
       b.style.setProperty('--a', c.accent);
       b.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${ICON[c.id] ?? ''}"/></svg>`;
       b.append(el('b', '', c.name), el('span', '', c.line), el('em', '', c.locked ?? c.status));
       if (c.locked) b.setAttribute('aria-disabled', 'true');
-      b.addEventListener('click', () => { if (!c.locked) c.go(); });
+      b.addEventListener('click', () => {
+        if (c.locked) return;
+        if (s && !flags[`seen_${c.id}`]) { s.flags[`seen_${c.id}`] = true; writeSave(s); }
+        c.go();
+      });
       grid.appendChild(b);
     }
     box.appendChild(grid);
+    if (shown.length < all.length) {
+      const more = el('p', 'hm-note', `${all.length - shown.length} more modes open as the journey goes on: the Trial and its kin with the covenant relic in Chapter I.`);
+      more.dataset.k = 'title_more_modes';
+      box.appendChild(more);
+    }
     return box;
   }
 

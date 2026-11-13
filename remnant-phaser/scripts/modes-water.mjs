@@ -31,8 +31,9 @@ try {
     await p.keyboard.up('KeyS');
     const x = await p.evaluate(() => window.__remnant.world.player.x);
     await p.keyboard.down('KeyD'); await until(x => window.__remnant.world.player.x > x + 8, x); await p.keyboard.up('KeyD');
-    await p.keyboard.press('KeyL'); await until(() => window.__remnant.world.player.water.dashT > 0.06 && window.__remnant.world.player.water.dashT < 0.28);
-    assert.ok(await p.evaluate(() => !window.__remnant.world.player.vulnerable), 'dash stroke has invulnerability');
+    // The stroke's window and his guard are read in one look: on a slow machine a second look comes after the window.
+    await p.keyboard.press('KeyL');
+    await until(() => { const q = window.__remnant.world.player; return q.water.dashT > 0.06 && q.water.dashT < 0.28 && !q.vulnerable; }).catch(() => assert.fail('dash stroke has invulnerability'));
     await p.keyboard.press('KeyQ'); assert.equal(await p.evaluate(() => window.__remnant.world.player.cds.sword_word),0,'no Covenant cast underwater');
     console.log(room + ': submerged swim, breath, real directional input and dash stroke; skills refused');
   }

@@ -10,7 +10,8 @@ import { Player } from '../game/player';
 import { makeBoss, bossPorted, BOSS_CHAPTER, type Boss } from '../game/bosses';
 import { biomeTileset, tileIndex, backdropTextures, TI } from '../game/tileset';
 import { newSave, loadSave, writeSave, gainXp, stats, type PhaserSave } from '../game/save';
-import { settleDay, dayCount } from '../game/day';
+import { settleDay, dayCount, dayBoss, dayBossFell } from '../game/day';
+import { dayKey } from '../game/watch/daily';
 import { absorbEcho, makeItem, addMaterial, echoMaxHp, type Derived } from '../../../remnant/src/game/state';
 import { ITEMS, ARCHER_SLOTS } from '../../../remnant/src/game/data';
 import type { Rarity } from '../../../remnant/src/game/data';
@@ -46,7 +47,7 @@ import { hooks, blockingUI } from '../../../remnant/src/ui/ui';
 import { topLayer } from '../../../remnant/src/ui/dom';
 import { maybeRecap } from '../../../remnant/src/game/recap';
 import { tickCoach } from '../../../remnant/src/ui/coach';
-import { valorTick } from '../../../remnant/src/game/valor';
+import { valorTick, valorTrack } from '../../../remnant/src/game/valor';
 import { runBlessings } from '../../../remnant/src/game/blessings';
 import { Grid } from '../../../remnant/src/game/tiles';
 import { trialArena, trialSector } from '../../../remnant/src/game/trialArena';
@@ -56,6 +57,7 @@ const SHOOTABLE = new Set(['arrow', 'orb', 'drop', 'flame', 'arcbolt', 'star', '
 import type { Player as OriginalPlayer } from '../../../remnant/src/game/player';
 import { syncArcher, ARCHER, ARCHER_IDS, type SkillId } from '../game/abilities';
 import { archerStats, archerLevel, heroLevel, archerGainXp, archerDrop, learnArcher, allocateArcher, trank, newArcher, ARCHER_KEEPSAKES } from '../game/archer';
+import { uriOf, uriStats, uriGainXp } from '../game/horde/uri';
 import { addTirzahMenu, useAbilityTextures } from '../game/tirzahMenu';
 import { Partner } from '../game/partner';
 import { lighting } from '../classic/shim/lighting';
@@ -79,12 +81,17 @@ import { offlineReady, updatePending, checkForUpdates } from '../game/update';
 import { placeLamps, strikeLamps } from '../../../remnant/src/game/lamps';
 import { Visuals } from '../game/visuals';
 import { Feedback } from '../game/feedback';
+import { startScene } from '../game/scenes';
+import { lateArt, finishLateArt } from '../game/lateArt';
 
 const VIEW_H = 300;
 
 interface Interactable { x: number; y: number; label: string; use: () => void }
 
 const FIXED_STEP = new URLSearchParams(location.search).has('fixedstep');
+
+/** What taking heart changes (NEXT_PLAN E2). */
+const HEART = { hp: 0.9, dmg: 0.85 };
 
 export class World extends Phaser.Scene implements WorldApi {
   controls!: Controls;
@@ -96,10 +103,14 @@ export class World extends Phaser.Scene implements WorldApi {
    * his are replaced. */
   get d(): Derived {
     const base = this.eliorD;
+    // Uri's own level against Elior's, in Elior's gear (game/horde/uri.ts).
+    if (this.save?.playableHero === 'uri') { if (this.uriFor !== base) { this.uriD = uriStats(this.save, base); this.uriFor = base; } return this.uriD!; }
     if (this.save?.playableHero !== 'tirzah' || !this.save.archer) return base;
     if (this.herFor !== base) { this.herD = archerStats(this.save, base); this.herFor = base; }
     return this.herD!;
   }
+  private uriD?: Derived;
+  private uriFor?: Derived;
   /** The other hero fighting beside you, when called (game/partner.ts). */
   partner!: Partner;
   private herD: Derived | null = null;
@@ -166,7 +177,11 @@ export class World extends Phaser.Scene implements WorldApi {
   get hud() { return this.scene.get('hud') as Hud; }
   get canUseKit() { return this.ready && !this.transitioning && !this.hud.paused && !this.hud.wheelOpen && !G.paused && !G.inCutscene && !blockingUI() && !topLayer(); }
 
+  /** The sheets the home screen did not wait for, when this scene comes before they are in (NEXT_PLAN A3). */
+  preload() { lateArt(this); }
+
   create() {
+    finishLateArt(this);
     this.save = (!this.fresh && loadSave()) || newSave(!new URLSearchParams(location.search).has("nostory"));
     const away = Date.now() - this.save.updated;
     // Bosses beaten before Psalms existed leave theirs now.
@@ -174,7 +189,7 @@ export class World extends Phaser.Scene implements WorldApi {
     this.refreshStats();
     addTirzahMenu(this); useAbilityTextures(this.textures); addPsalmsMenu(this);
     addHordeMode(() => this.save, () => this.enterHorde());
-    addWatchMode(() => this.save, () => { this.persist(); this.scene.stop('hud'); this.scene.start('watch', { from: 'world' }); });
+    addWatchMode(() => this.save, () => { this.persist(); this.scene.stop('hud'); void startScene(this, 'watch', { from: 'world' }); });
     if (late.length) this.time.delayedCall(2500, () => this.toast(`${late.length === 1 ? 'A Psalm' : `${late.length} Psalms`} from bosses you have beaten · Menu → Psalms`));
     this.controls = new Controls(this);
     // The follow below (0.14, 0.12) blends the same at 60 and 120 Hz, and a shake rolls and settles instead of
@@ -276,6 +291,8 @@ export class World extends Phaser.Scene implements WorldApi {
 
   private clearRoom() {
     this.visuals.clear();
+    // Uri's fire in flight and on the ground stays in the room it was cast in.
+    this.player?.flame.clearRoom();
     this.legends.clear();
     this.feedback.clear();
     for (const c of this.colliders) c.destroy();
@@ -329,8 +346,11 @@ export class World extends Phaser.Scene implements WorldApi {
     // A replay lasts while the hero is in its chapter (the Trial and the Rest belong to no chapter's story).
     if (this.save.replay !== undefined && id !== 'trial_arena' && id !== 'remnant_rest' && chapterOf(id) !== this.save.replay) delete this.save.replay;
     // The Refiner's Fire burns only in the chapter being replayed; set before the room's foes are made.
+    const r0 = ROOMS[id];
     const burning = this.save.replay !== undefined && chapterOf(id) === this.save.replay ? fireMult(firesOn(this.save)) : null;
-    setFire(burning?.hp ?? 1, burning?.dmg ?? 1);
+    // Take heart: a boss that has felled the hero three times, if the offer was taken, is a little lighter.
+    const hearted = r0.ents.some((e) => e.t === 'boss' && this.save.flags[`heart_${e.k}`] === 'yes' && !this.save.defeated?.includes(e.k));
+    setFire((burning?.hp ?? 1) * (hearted ? HEART.hp : 1), (burning?.dmg ?? 1) * (hearted ? HEART.dmg : 1));
     if (r.music) music.play(r.music);
     this.entrySpawn = r.spawns[spawnName] ? spawnName : r.spawns.start ? 'start' : Object.keys(r.spawns)[0];
     this.save.room = id;
@@ -637,7 +657,7 @@ export class World extends Phaser.Scene implements WorldApi {
     if (this.classic.storyEnabled) valorTick(dt);
     if (this.player.dead) {
       this.deadT += dt;
-      if (!this.deathCounted) { this.deathCounted = true; this.save.deaths++; this.dropShade(); }
+      if (!this.deathCounted) { this.deathCounted = true; this.save.deaths++; this.dropShade(); this.fellToBoss(); }
       const R = this.classic.story.ch3.rounds;
       if (this.room.id === 'trial_arena' && R.active && !this.classic.deathHandled) { this.classic.deathHandled = true; this.classic.after(1.8, async () => this.classic.afterRun(await R.onDeath())); }
       if (this.deadT > 1.4 && !this.classic.deathHandled) {
@@ -933,6 +953,18 @@ export class World extends Phaser.Scene implements WorldApi {
         case 'gauntlet': if (trainingOpen()) startTraining(1, true); else page(); break;
         case 'extreme': if (trainingOpen()) startExtreme(); else page(); break;
         case 'rush': if (rushOpen()) startBossRush(); else page(); break;
+        case 'dayboss': {
+          // The day's boss: its chapter replayed under the day's condition, straight to its door.
+          const b = dayBoss(this.save), arena = b && Object.values(ROOMS).find((r) => r.ents.some((e) => e.t === 'boss' && e.k === b.key));
+          if (!b || !arena) { page(); break; }
+          setFires(this.save, [b.cond]);
+          this.save.replay = b.chapter;
+          this.save.flags.day_boss_run = dayKey(Date.now());
+          this.loadRoom(arena.id, arena.spawns.left ? 'left' : 'start');
+          this.toast(`The day's boss: ${b.name}, under ${b.condName}. Fell it for a legendary piece.`);
+          this.persist();
+          break;
+        }
       }
     };
     this.time.delayedCall(450, () => tryStart(40));
@@ -941,7 +973,7 @@ export class World extends Phaser.Scene implements WorldApi {
   enterHorde() {
     this.persist();
     this.scene.stop('hud');
-    this.scene.start('horde');
+    void startScene(this, 'horde');
   }
 
   quitToTitle() {
@@ -1047,6 +1079,37 @@ export class World extends Phaser.Scene implements WorldApi {
   // ---------------------------------------------------------------- classic bosses
 
   /** Playing a finished chapter again (Chapters → Replay), in one of its rooms. */
+  /** A fall in a boss's fight: after the third to the same boss, help is offered once (NEXT_PLAN E2). Bosses stay as
+   * hard as the player chose unless they take it. */
+  private fellToBoss() {
+    const key = (this.boss as { key?: string } | null)?.key ?? (this.room.ents.find((e) => e.t === 'boss') as { k?: string } | undefined)?.k;
+    if (!key || !(this.boss?.fighting || this.classic.bossActive) || this.room.id === 'trial_arena') return;
+    const f = this.save.flags, n = Number(f[`falls_${key}`] ?? 0) + 1;
+    f[`falls_${key}`] = n;
+    if (n >= 3 && f[`heart_${key}`] === undefined) this.time.delayedCall(2600, () => this.offerHeart(key));
+  }
+  private offerHeart(key: string) {
+    if (this.save.flags[`heart_${key}`] !== undefined || document.querySelector('[data-k=heart]')) return;
+    const root = document.createElement('div');
+    root.dataset.k = 'heart';
+    root.style.cssText = 'position:fixed;inset:0;z-index:40;background:rgba(6,5,10,.9);display:flex;align-items:center;justify-content:center;font-family:Georgia,serif;color:#ddd4c6;padding:16px';
+    const box = document.createElement('div');
+    box.style.cssText = 'max-width:440px;display:flex;flex-direction:column;gap:10px';
+    const say = (t: string, css: string) => { const e = document.createElement('div'); e.textContent = t; e.style.cssText = css; box.appendChild(e); };
+    say('Take heart', 'font-family:Cinzel,Georgia,serif;color:#f6dea0;font-size:calc(20px*var(--fs-k,1))');
+    say(`Three falls to the same foe. If you wish, it will strike ${Math.round((1 - HEART.dmg) * 100)}% lighter and have ${Math.round((1 - HEART.hp) * 100)}% less health until it falls. Only this boss; nothing else changes, and no reward is lessened.`, 'font-size:calc(14px*var(--fs-k,1));line-height:1.45;color:#b9afc4');
+    const done = (v: 'yes' | 'no') => { this.save.flags[`heart_${key}`] = v; popLayer(root); root.remove(); this.persist(); if (v === 'yes') this.toast('Take heart: it is lighter from your next rising.'); };
+    for (const [k, label, v] of [['heart_yes', 'Take heart', 'yes'], ['heart_no', 'No: as it is', 'no']] as const) {
+      const b = document.createElement('button'); b.className = 'btn'; b.dataset.k = k; b.setAttribute('data-nav', ''); b.textContent = label; b.style.minHeight = '44px';
+      b.addEventListener('click', () => done(v));
+      box.appendChild(b);
+    }
+    root.appendChild(box);
+    document.body.appendChild(root);
+    pushLayer({ el: root, onBack: () => done('no') });
+    (root.querySelector('[data-k=heart_yes]') as HTMLElement | null)?.focus();
+  }
+
   /** Balm is sealed while a replay burns under Fasting. */
   get fasting() { return this.replaying && firesOn(this.save).includes('fasting'); }
 
@@ -1291,10 +1354,18 @@ export class World extends Phaser.Scene implements WorldApi {
   /** The chapter's last boss, fallen under the Fire: the chapter is refined. (A Crown's fall reaches here by its own
    * name from onBossDefeated, and an older boss's from its spoils; once per fall.) */
   private refinedAt = -1;
+  /** The last seal's outcome (tests read whether it paid). */
+  lastRefined: ReturnType<typeof refine> = null;
   private refined(key: string) {
     if (!this.replaying || FINAL_BOSS[this.save.replay!] !== key || this.time.now - this.refinedAt < 4000) return;
     this.refinedAt = this.time.now;
+    if (dayBossFell(this.save, key, Date.now(), valorTrack.state.clean)) {
+      const medal = this.save.flags.day_boss_medal === dayKey(Date.now());
+      this.time.delayedCall(4200, () => this.toast(medal ? 'The day\'s boss has fallen, and you were not touched: the day\'s medal is yours.' : 'The day\'s boss has fallen.'));
+    }
     const r = refine(this.save, this.save.replay!);
+    this.lastRefined = r;
+    if (r) dayCount(this.save, 'fire_clears');
     if (r) this.time.delayedCall(2600, () => { this.banner(`REFINED ${TIER_NAME[r.tier]}`, `Heat ${r.heat} · ${r.first ? r.gifts.join(' · ') : 'this seal was already yours'}`); });
   }
 
@@ -1342,6 +1413,8 @@ export class World extends Phaser.Scene implements WorldApi {
     // The hero fighting earns it all; the one waiting earns half. Story XP catches each up to the chapter's
     // arrival level by their own level; the Trial pays by its own rules.
     const her = this.player.hero === 'tirzah', catchUp = (lv: number) => this.room.id !== 'trial_arena' ? catchUpXp(lv, chapterOf(this.room.id)) : 1;
+    // Uri, fighting, earns his own share as well (three times over while he is behind Elior).
+    if (this.player.hero === 'uri') { const ups = uriGainXp(s, xp); if (ups) { this.refreshStats(); this.player.hp = s.hp = Math.min(this.d.maxHp, s.hp); this.toast(`Uri reached level ${uriOf(s).level}`); islandNotify(`URI ${uriOf(s).level}`, '#ff9a50', 'stats', 2.8); } }
     const hisXp = Math.round(xp * catchUp(s.level) * (her ? 0.5 : 1)), herXp = Math.round(xp * catchUp(archerLevel(s)) * (her ? 1 : 0.5));
     this.archerXp(herXp);
     xp = hisXp;

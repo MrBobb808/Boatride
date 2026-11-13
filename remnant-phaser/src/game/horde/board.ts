@@ -28,9 +28,11 @@ export const MUTATORS: MutDef[] = [
 export const MUT_OPEN = 3;
 /** The Long Night: a run with an end. Held when this stage's monarch falls. */
 export const NIGHT_STAGES = 5, NIGHT_BONUS = 1.5;
-export type HordeMode = 'endless' | 'night';
+export type HordeMode = 'endless' | 'night' | 'day';
 
-export interface HordeSave { best: number; runs: number; kills: number; bestKills: number; embers?: number; board?: Partial<Record<BoardId, number>>; muts?: MutId[]; mode?: HordeMode; nights?: number }
+export interface HordeSave { best: number; runs: number; kills: number; bestKills: number; embers?: number; board?: Partial<Record<BoardId, number>>; muts?: MutId[]; mode?: HordeMode; nights?: number;
+  /** Today's Horde: the day its one ranked run was spent, and the best of each day's (key, stage, foes). */
+  dayRun?: string; dayBest?: { key: string; stage: number; kills: number } }
 export const hordeOf = (s: PhaserSave): HordeSave => (s.horde ??= { best: 0, runs: 0, kills: 0, bestKills: 0 });
 
 export const rank = (h: HordeSave | undefined, id: BoardId) => Math.max(0, Math.min(DEF[id].max, Math.floor(h?.board?.[id] ?? 0)));
@@ -76,5 +78,29 @@ export function settleHorde(s: PhaserSave) {
   for (const d of BOARD) { const r = Math.min(d.max, n(h.board?.[d.id])); if (r) b[d.id] = r; }
   h.board = b;
   h.muts = Array.isArray(h.muts) ? MUTATORS.map((m) => m.id).filter((m) => h.muts!.includes(m)) : [];
-  h.mode = h.mode === 'night' ? 'night' : 'endless';
+  h.mode = h.mode === 'night' || h.mode === 'day' ? h.mode : 'endless';
+  if (typeof h.dayRun !== 'string') delete h.dayRun;
+  if (h.dayBest && (typeof h.dayBest.key !== 'string' || !(n(h.dayBest.stage) > 0))) delete h.dayBest;
+}
+
+// ---------------------------------------------------------------- today's Horde
+
+/** The local day, YYYY-MM-DD. */
+const dayKeyOf = (t: number) => { const d = new Date(t), p = (n: number) => String(n).padStart(2, '0'); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`; };
+/** Today's Horde: one hardship chosen by the date for everyone, and one ranked run a day. Embers ×1.25. */
+export const DAY_EMBERS = 1.25;
+export function dayHorde(now = Date.now()) {
+  const key = dayKeyOf(now);
+  let h = 2166136261;
+  for (const c of 'horde:' + key) h = Math.imul(h ^ c.charCodeAt(0), 16777619);
+  return { key, mut: MUTATORS[(h >>> 0) % MUTATORS.length] };
+}
+export const dayRunUsed = (h: HordeSave | undefined, now = Date.now()) => h?.dayRun === dayHorde(now).key;
+/** A day's ranked run has ended: spend today's try and keep its result. Returns whether it was today's first. */
+export function recordDayRun(h: HordeSave, stage: number, kills: number, now = Date.now()) {
+  const d = dayHorde(now);
+  if (h.dayRun === d.key) return false;
+  h.dayRun = d.key;
+  h.dayBest = { key: d.key, stage, kills };
+  return true;
 }

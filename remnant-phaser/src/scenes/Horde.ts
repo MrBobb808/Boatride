@@ -5,7 +5,8 @@
 import Phaser from 'phaser';
 import { loadSave, newSave, writeSave, gainXp, stats, type PhaserSave } from '../game/save';
 import { settleDay } from '../game/day';
-import { BOARD, MUTATORS, NIGHT_STAGES, hordeOf, rank, costOf, buy, boardBonus, activeMuts, mutsOpen, toggleMut, mutBonus, embersFor, MUT_OPEN, type MutId } from '../game/horde/board';
+import { shareButton } from '../../../remnant/src/ui/share';
+import { BOARD, MUTATORS, NIGHT_STAGES, hordeOf, rank, costOf, buy, boardBonus, activeMuts, mutsOpen, toggleMut, mutBonus, embersFor, MUT_OPEN, dayHorde, dayRunUsed, recordDayRun, DAY_EMBERS, type MutId } from '../game/horde/board';
 import { archerStats, archerGainXp, archerDrop, newArcher } from '../game/archer';
 import { makeItem, type Derived } from '../../../remnant/src/game/state';
 import { ITEMS, type Rarity } from '../../../remnant/src/game/data';
@@ -29,6 +30,8 @@ import { uriOf, uriStats, uriGainXp } from '../game/horde/uri';
 import { HordeBoss } from '../game/horde/boss';
 import { Pickups, type DropKind } from '../game/horde/pickups';
 import { HordeUI, overlay, el, type Act } from '../game/horde/ui';
+import { startScene } from '../game/scenes';
+import { lateArt, finishLateArt } from '../game/lateArt';
 
 /** How much of the world the shorter side of the screen shows. */
 const VIEW = 440;
@@ -116,6 +119,9 @@ export class Horde extends Phaser.Scene {
   private night = false;
   private held = false;
   private embersWon = 0;
+  /** Today's Horde: the date's hardship, one ranked run (board.ts dayHorde). */
+  private daily = false;
+  private dayFirst = false;
   private slow = 1;
   private slowT = 0;
   /** Foe speed scale (a frost relic or a monarch's death can hold them). */
@@ -153,14 +159,18 @@ export class Horde extends Phaser.Scene {
 
   // ---------------------------------------------------------------- setting up
 
+  /** The sheets the home screen did not wait for, when this scene comes before they are in (NEXT_PLAN A3). */
+  preload() { lateArt(this); }
+
   create() {
+    finishLateArt(this);
     this.save = (loadSave() as PhaserSave | null) ?? (newSave(false) as PhaserSave);
     if (!this.save.archer) this.save.archer = newArcher(this.save);
     const eliorD = stats(this.save);
     this.heroD = { elior: eliorD, tirzah: archerStats(this.save, eliorD), uri: uriStats(this.save, eliorD) };
     this.runPower = Math.max(this.power('elior'), this.power('tirzah'));
     const hs = hordeOf(this.save);
-    this.bb = boardBonus(hs); this.muts = activeMuts(hs); this.night = hs.mode === 'night'; this.held = false; this.embersWon = 0;
+    this.bb = boardBonus(hs); this.muts = activeMuts(hs); this.night = hs.mode === 'night'; this.daily = false; this.held = false; this.embersWon = 0;
     this.reset();
     hordeTextures(this);
     this.worldLayer = this.add.layer();
@@ -173,7 +183,8 @@ export class Horde extends Phaser.Scene {
     this.swarm = new Swarm(this);
     this.pickups = new Pickups(this);
     this.hero = new HordeHero(this, (o) => this.wl(o), eliorD.family);
-    this.hero.hero = this.save.playableHero === 'tirzah' ? 'tirzah' : 'elior';
+    const start = this.save.playableHero;
+    this.hero.hero = start === 'tirzah' || start === 'uri' ? start : 'elior';
     this.arsenal = new Arsenal(this);
     this.shaman = new Shaman(this);
     this.hpBar = this.wl(this.add.graphics());
@@ -199,6 +210,8 @@ export class Horde extends Phaser.Scene {
       this.overlay = null;
     });
     this.arsenal.raise('blade'); this.arsenal.raise('bow'); this.arsenal.raise('flame');
+    // A run begun as Uri brings his shaman from the start.
+    this.shaman.show(this.heroId === 'uri');
     this.startStage(1);
     // The camp: from the second run on, the board, the hardships and the kind of run are chosen before the first foe.
     if (hs.runs > 0 && !new URLSearchParams(location.search).has('nocamp')) this.openCamp(); else this.pendingLevels += this.bb.levels;
@@ -458,8 +471,8 @@ export class Horde extends Phaser.Scene {
     if (this.formT > 0) this.endForm();
     const next = this.nextHero;
     this.hero.hero = next;
-    // The story knows two heroes; Uri's turn leaves the journey's choice as it was.
-    if (next !== 'uri') this.save.playableHero = next;
+    // The hero in play carries back to the journey, Uri too now that he fights there.
+    this.save.playableHero = next;
     this.shaman.show(next === 'uri');
     this.cds.switch = 5; this.cds.skill = Math.min(this.cds.skill, 2);
     this.invuln = Math.max(this.invuln, 0.5);
@@ -770,13 +783,22 @@ export class Horde extends Phaser.Scene {
       const night = el('button', 'hz-btn' + (h.mode === 'night' ? ' primary' : ''), `The Long Night · ${NIGHT_STAGES} stages, an end, embers ×1.5`, () => { h.mode = 'night'; writeSave(this.save); draw(); });
       endless.dataset.k = 'hz_mode_endless'; night.dataset.k = 'hz_mode_night';
       mode.append(endless, night);
+      // Today's Horde: the date's hardship for everyone, embers ×1.25, and the first run of the day is the one that counts.
+      const td = dayHorde(), used = dayRunUsed(h);
+      const today = el('button', 'hz-btn' + (h.mode === 'day' ? ' primary' : ''), `Today's Horde · ${td.mut.name} · ${used ? 'practice (today\'s run is spent)' : 'one ranked run'} · embers ×${DAY_EMBERS}`, () => { h.mode = 'day'; writeSave(this.save); draw(); });
+      today.dataset.k = 'hz_mode_day';
+      mode.append(today);
       const go = el('div', 'hz-btns');
       const begin = el('button', 'hz-btn primary', 'Begin', () => {
         this.closeCard();
-        this.bb = boardBonus(h); this.muts = activeMuts(h); this.night = h.mode === 'night';
+        this.bb = boardBonus(h); this.muts = activeMuts(h); this.night = h.mode === 'night'; this.daily = h.mode === 'day';
+        if (this.daily) { this.muts = [dayHorde().mut.id]; this.dayFirst = !dayRunUsed(h); }
         this.rerolls = 3 + this.bb.redraws; this.banishes = 3 + this.bb.banishes; this.pendingLevels += this.bb.levels;
         this.maxHp = this.hp = this.baseMaxHp();
         if (this.night) this.ui.banners('THE LONG NIGHT', `Hold until the fifth monarch falls`, 2.4);
+        if (this.daily) this.ui.banners('TODAY\'S HORDE', `${dayHorde().mut.name} · ${this.dayFirst ? 'your ranked run' : 'practice'}`, 2.4);
+        // From the camp, a hardship's own ×1.x already counts; today's run adds its own on top.
+        this.maxHp = this.hp = this.baseMaxHp();
       });
       begin.dataset.k = 'hz_begin';
       go.append(begin);
@@ -825,13 +847,16 @@ export class Horde extends Phaser.Scene {
       p.append(el('div', 'hz-title', this.held ? 'THE NIGHT IS HELD' : left ? 'THE REMNANT WITHDRAWS' : 'THE HORDE PREVAILS'), el('p', 'hz-sub', `Stage ${reached} · ${best ? 'a new best' : `best: stage ${this.save.horde?.best ?? reached}`}`), this.statGrid(true));
       const em = el('p', 'hz-sub', `+${this.embersWon} embers${this.muts.length ? ` (×${mutBonus(this.muts).toFixed(1)} for the hardships)` : ''}${this.held ? ' · the Night held ×1.5' : ''} · ${hordeOf(this.save).embers ?? 0} to spend at the camp`);
       em.dataset.k = 'hz_embers'; p.append(em);
+      if (this.daily) { const dl = el('p', 'hz-sub', this.dayFirst ? `Today's Horde: stage ${reached}, ${this.kills} foes. That is today's ranked run.` : 'Today\'s Horde: practice. Your ranked run for today is already spent.'); dl.dataset.k = 'hz_day_said'; p.append(dl); }
       for (const line of this.dayNews) { const n = el('p', 'hz-sub', line); n.dataset.k = 'hz_day'; p.append(n); }
       const b = el('div', 'hz-btns');
       const again = el('button', 'hz-btn primary', 'Fight again', () => { this.closeCard(); this.scene.restart(); });
       again.dataset.k = 'hz_again';
-      const back = el('button', 'hz-btn', 'Return to the journey', () => { this.closeCard(); this.scene.start('world', { fresh: false }); });
+      const back = el('button', 'hz-btn', 'Return to the journey', () => { this.closeCard(); void startScene(this, 'world', { fresh: false }); });
       back.dataset.k = 'hz_return';
-      b.append(again, back);
+      // The run's card for the share sheet (game/shareCard.ts).
+      const share = shareButton({ mode: this.daily ? `Today's Horde · ${dayHorde().key}` : this.night ? 'The Long Night' : 'The Horde', big: `${reached}`, unit: this.held ? 'THE NIGHT HELD' : 'STAGE REACHED', lines: [['Foes', `${this.kills}`], ['Embers', `${this.embersWon}`]], rules: this.muts.length ? MUTATORS.filter((m) => this.muts.includes(m.id)).map((m) => m.name).join(' · ') : undefined });
+      if (share) { share.className = 'hz-btn'; b.append(again, share, back); } else b.append(again, back);
       p.append(b);
     });
   }
@@ -871,7 +896,8 @@ export class Horde extends Phaser.Scene {
       s.inventory.push(it);
     }
     const rec = hordeOf(s), fresh = this.stage > rec.best;
-    this.embersWon = embersFor(this.kills, this.stage, this.muts, this.held);
+    this.embersWon = Math.round(embersFor(this.kills, this.stage, this.muts, this.held) * (this.daily ? DAY_EMBERS : 1));
+    if (this.daily && this.dayFirst) { recordDayRun(rec, this.stage, this.kills); (s.flags as Record<string, number>).day_horde_runs = Number(s.flags.day_horde_runs ?? 0) + 1; }
     rec.embers = (rec.embers ?? 0) + this.embersWon;
     if (this.held) rec.nights = (rec.nights ?? 0) + 1;
     rec.runs++; rec.kills += this.kills; rec.best = Math.max(rec.best, this.stage); rec.bestKills = Math.max(rec.bestKills, this.kills);

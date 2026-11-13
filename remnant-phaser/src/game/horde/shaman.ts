@@ -2,8 +2,7 @@
 // while he fights and chants on its own: hail of fire on the horde, a war-cry that slows it, and a burning ward
 // around Uri. In the Crown of Flame the two are one, and the shaman steps into him.
 import Phaser from 'phaser';
-import { actionFrame, ACTION_FOOT, ACTION_CELL } from '../actionArt';
-import { shamanAtlas } from './uriArt';
+import { actionAtlas, actionFrame, ACTION_FOOT, ACTION_CELL } from '../actionArt';
 import type { Horde } from '../../scenes/Horde';
 
 export class Shaman {
@@ -24,7 +23,8 @@ export class Shaman {
   private wardTick = 0;
 
   constructor(private h: Horde) {
-    this.key = shamanAtlas(h);
+    // Cut from its own parts (C10), drawn a little larger than Uri: broad and heavy.
+    this.key = actionAtlas(h, 'shaman', 'blade');
     this.shadow = h.wl(h.add.image(0, 0, 'hz-shadow').setScale(1.3, 1.2).setVisible(false));
     this.sprite = h.wl(h.add.sprite(0, 0, this.key, 'idle:0').setOrigin(0.5, ACTION_FOOT / ACTION_CELL).setVisible(false));
   }
@@ -66,7 +66,7 @@ export class Shaman {
       this.shot.t += dt;
       if (this.shot.t >= this.shot.dur) this.shot = null; else { clip = this.shot.clip; u = this.shot.t / this.shot.dur; }
     }
-    this.sprite.setTexture(this.key, actionFrame(h, this.key, clip, u)).setFlipX(this.face < 0).setPosition(Math.round(this.x), Math.round(this.y)).setDepth(this.y);
+    this.sprite.setTexture(this.key, actionFrame(h, this.key, clip, u)).setScale(0.95).setFlipX(this.face < 0).setPosition(Math.round(this.x), Math.round(this.y)).setDepth(this.y);
     this.shadow.setPosition(Math.round(this.x), Math.round(this.y) + 1).setDepth(-40000 + this.y * 0.001);
   }
 

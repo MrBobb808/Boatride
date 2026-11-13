@@ -7,7 +7,7 @@ import { wornLegends } from '../../../remnant/src/game/legendary';
 import type { FoeLike, WorldApi } from './types';
 
 /** What the powers need from the hero. */
-interface Hero { x: number; y: number; feet: number; face: number; hero: 'elior' | 'tirzah'; dead: boolean; power(): number }
+interface Hero { x: number; y: number; feet: number; face: number; hero: 'elior' | 'tirzah' | 'uri'; dead: boolean; power(): number }
 
 /** A strike queued a moment ahead: a falling star, a pillar, a rain arrow. */
 interface Strike { t: number; on: boolean; kind: 'star' | 'pillar' | 'rain' | 'brim'; x: number; y: number; mult: number }
@@ -60,7 +60,7 @@ export class Legends {
   }
 
   /** The powers worn now (after gear changes, a switch, a pickup). */
-  refresh() { const p = this.hero(); if (p && this.w.save) wornLegends(this.w.save, p.hero, this.on); }
+  refresh() { const p = this.hero(); if (p && this.w.save) wornLegends(this.w.save, p.hero === 'tirzah' ? 'tirzah' : 'elior', this.on); } // Uri fights in Elior's gear
   has(id: string) { return this.on.has(id); }
   private count(id: string) { this.tally[id] = (this.tally[id] ?? 0) + 1; }
 

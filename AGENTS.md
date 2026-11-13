@@ -157,6 +157,9 @@ Never ship files from `art/incoming/` directly.
   - `game/player.ts`: the player.
   - `game/weapons.ts`: movesets and animation clips.
   - `game/finishers.ts`: randomized slow-motion executions and kill cams.
+  - `game/progression.ts`: weapon mastery (ten ranks per family), the armor sets and contracts, and the Bestiary's
+    hunter's mark (`huntBonus`: a kind slain 25/100/300 times takes 3/6/10% more, applied in `Enemy.takeHit`).
+    Verified by `remnant-phaser/scripts/mastery.mjs`.
   - `game/power.ts`: power tiers by level, weapon elements, and the
     Sovereign form at level 100.
   - `game/mantle.ts`: the Shadow Mantle transformation (from level 25):
@@ -227,6 +230,7 @@ Never ship files from `art/incoming/` directly.
   - The screens are in `ui/menus.ts`: Ilan's stall, Dov's Dismantle tab, and the pause menu's Elior → Store, which is closed during fights.
   - Capes show on Elior in the Phaser build: `fighterRig.ts` dyes the cape when it bakes the sprite sheet.
   - Tirzah's gear (bows, quivers, daggers, hoods, garbs, amulets, charms) lives in the same `ITEMS` table with her own `ArcherSlot`s; Elior's `SLOTS` never take it. Her level, points, tree and gear are the optional `SaveData.archer`, used only by the Phaser build (`remnant-phaser/src/game/archer.ts`); `isWorn` covers both heroes.
+  - Dov's Reforge tab (`game/reforge.ts`): re-rolls one rolled line of a piece within its own range for silver and Relic Shards, shows where the line sits and the chance of a better roll, and never makes a line worse. Verified by `remnant-phaser/scripts/reforge.mjs`.
   - Verified by `remnant-phaser/scripts/economy.mjs`.
 - **Legendary Powers:** `game/legendary.ts` holds thirteen powers carried one per gear piece (`ItemInst.legend`):
   seven for Elior, five for Tirzah, Brimstone for either. Bosses always drop a legendary piece, elites often,
@@ -338,6 +342,11 @@ Never ship files from `art/incoming/` directly.
   profiles the busiest scenes headless, and Settings → Show frame rate (`src/game/perfMeter.ts`) reads the frame and
   the script's share of it on the iPhone itself (headless Chromium's GPU is software, so only the device can say
   what its GPU costs).
+- **First screen (Phaser build):** `main.ts` registers only Boot and Title; the journey (World with its Hud), the Horde
+  and the Watch are their own chunks, loaded by `src/game/scenes.ts` (`startScene`, never `scene.start` for those) and
+  warmed while the home screen idles so they are cached offline. Keep the first screen's imports light: a helper the
+  home screen needs goes in a small module (`ui/textSize.ts`, `game/rushKeys.ts`, `game/bossFrames.ts`), not in
+  menus or boss code. `scripts/first-screen.mjs` fails past 2.45 MB (Phaser alone is 1.37 MB).
 - **Lighting:** Settings → Lighting (`settings.lighting`, dramatic by
   default) scales a dim room's darkness in `render/lighting.ts`
   (`lightingLevel`); daylight is untouched.
@@ -370,6 +379,15 @@ Never ship files from `art/incoming/` directly.
   level (the Armor of Light and the Psalm of the Swarm hit on contact in this build), and no crescent: the shadow
   element bites with a burst, and the Horde's blade only cuts. His run and swing speed are capped (`MAX_RUN`,
   `MAX_ASPD` in `player.ts`). See POLISH_PLAN §16–17.
+- **Uri on the journey (Phaser build):** the third playable hero beside Elior and Tirzah (the switch goes Elior, Tirzah,
+  Uri; `switchHero(to?)`), drawn from his own parts (`art` C08–C10 → `src/assets/fighter-parts-uri*.png`,
+  `fighter-parts-shaman.png`; `FighterRig` / `actionAtlas` with `RigHero` `'uri'`/`'shaman'`). His kit is
+  `remnant-phaser/src/game/uriKit.ts` (state `'flame'`): Strike a fireball (Up: burning ground; a foe in reach: an
+  open-hand burst), Heavy a flame wave that passes through foes, Down + Heavy calls his orc shaman for 20 s; the
+  transformation gauge gives the Crown of Flame (C09): larger fire, burning ground under every fireball. He keeps his
+  own level (`PhaserSave.uri`, `uriStats` in `game/horde/uri.ts`) in Elior's gear; the AI partner stays Elior or
+  Tirzah. The Horde draws him and the shaman from the same parts, and the Watch puts him on the wall from Watch level
+  35 (`src/game/watch/uriWall.ts`, `URI_WALL`). Verified by `scripts/uri.mjs`.
 - **The Sundered Chains (Phaser build):** Elior's second weapon (`remnant-phaser/src/game/chains.ts`, POLISH_PLAN
   §20): twin kindled blades on chains, won with Chapter I (the flag `sundered_chains`). The `chain` action (the CHAINS
   touch button, `Y`, or Down + Heavy) lashes foes in reach (lash, lash, slam, cyclone), hooks a far one (a light foe is
@@ -380,7 +398,7 @@ Never ship files from `art/incoming/` directly.
 - **The Horde (Phaser build):** a top-down survival mode in endless stages
   (`remnant-phaser/src/scenes/Horde.ts`, `src/game/horde/`): auto-weapons, a
   1-of-3 upgrade per level, a Fallen Crown monarch per stage, Elior, Tirzah and
-  Uri (the flame-caller, with his orc shaman; Horde only for now) switchable,
+  Uri (the flame-caller, with his orc shaman) switchable,
   upright or sideways. Maxed weapons evolve with a partner passive; a switch
   after a big move is a tag combo, three full gauges the Trinity; level-ups
   can be rerolled or banished (§13d). A run banks silver, XP and gear into the
@@ -388,6 +406,8 @@ Never ship files from `art/incoming/` directly.
   Between runs (`src/game/horde/board.ts`, NEXT_PLAN D1): a run leaves embers; from the second run it opens at the
   camp, where embers buy a permanent board (seven tracks; a full board is about ×1.66), hardships add embers (Iron
   Host, Legion, Thin Mail, from a best stage of 3), and the Long Night is a run with an end (its fifth monarch).
+  Today's Horde (`dayHorde` in board.ts) is the camp's third choice: one hardship chosen by the date, embers ×1.25,
+  and the day's first run is the ranked one (`HordeSave.dayRun`, `dayBest`; the Day counts `flags.day_horde_runs`).
   `?nocamp` skips the camp in tests. Verified by `scripts/horde-board.mjs`.
 - **Home screen (Phaser build):** `remnant-phaser/src/scenes/Title.ts` and
   `src/game/home.ts`: the journey card (Continue / New journey / Begin) and a
@@ -400,13 +420,17 @@ Never ship files from `art/incoming/` directly.
   replay. They reach foes and bosses through `setFire` in the shared `game/might.ts` (1 and 1 unless a replay burns).
   The chapter's last boss (`FINAL_BOSS`) falling under heat seals it (Refined I/II/III at heat 1/3/5); each tier pays
   once. Verified by `scripts/fire.mjs`.
+- **Result cards (Phaser build):** `remnant/src/ui/share.ts` (`shareHook`, `shareButton`) puts "Share this run" on the
+  Trial's, Gauntlet's, Extreme's, the Rush's and the ranked daily challenge's end cards when a host sets the hook; the
+  Phaser build sets it (`remnant-phaser/src/game/shareCard.ts`): a 1080×1350 PNG to the share sheet, else a download.
+  The Horde's results offer it too. Verified by `scripts/share.mjs`.
 - **The Day (Phaser build):** `remnant-phaser/src/game/day.ts` (NEXT_PLAN B1–B3), `PhaserSave.day`. Up to five calls
   a day drawn from what is open to the player, three for the week, one streak for the whole game (opening it counts;
   one miss a week forgiven; the Watch's streak runs with it), and the Chronicle: thirty steps a calendar month paid in
   marks (10 a call, 20 for all, 40 a weekly). A call pays the moment it is done, wherever the player is (`settleDay`,
   called every few seconds on the journey and when the Horde and the Watch bank). Progress is read from what the modes
   already count plus four counters in `flags` (`boss_falls`, `trial_rounds`, `chain_hooks`, `parries`; `dayCount`).
-  A new mode adds a row to `DAILY`/`WEEKLY` and, if nothing counts it yet, a tally. The home screen's Today card and
+  The day's boss fallen without a wound wins the day's medal (`dayBossFell`'s `clean`, from Valor). A new mode adds a row to `DAILY`/`WEEKLY` and, if nothing counts it yet, a tally. The home screen's Today card and
   Chronicle page are in `home.ts`. Nothing earned is taken back; nothing is sold. Verified by `scripts/day.mjs`.
 - **The Watch (Phaser build):** an idle game in portrait (`remnant-phaser/src/scenes/Watch.ts`,
   `src/game/watch/`): a fresh Elior keeps a wall, kills pay coins, coins buy
@@ -441,6 +465,10 @@ Never ship files from `art/incoming/` directly.
   (the main game's `ECHO_ROLES`: guardian, fighter, ninja, ranger, mage,
   healer), which drives its part in the fight (`ShadowBand`). Save fields
   `essence`, `shadows`, `team` (older watches keep the shadows their level gave).
+- **The Watch's tower and dungeons (Phaser build):** `remnant-phaser/src/game/watch/tower.ts`, on the Daily tab from
+  stage 20: one floor a try, settled by his strength against a holder's time (`fightDps` in offline.ts), a Seal and two
+  chests every fifth floor; three keys a day each for coins, essence and a relic's rank (`WatchSave.tower`, `keys`).
+  Verified by `scripts/watch-tower.mjs`.
 - **CC0 art (Phaser build):** free public-domain packs (Gothicvania by ansimuz,
   Swords and Staffs by SnoopethDuckDuck) live raw in
   `remnant-phaser/art/incoming/cc0/` with `CREDITS.md`; `art/tools/cc0.py`

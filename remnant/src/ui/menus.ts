@@ -1,3 +1,4 @@
+import { reforge, reforgeCost, canReforge, lineRange, lineAt, betterChance, REFORGE_SHARD } from '../game/reforge';
 import { islandCalibrate, ISLAND_LEN } from './island';
 import eliorBoard from '../assets/elior-board.webp';
 // The pause menu (character, equipment, skills, Echoes, map, journal,
@@ -9,6 +10,7 @@ import { h, btn, pushLayer, popLayer, clear, focusFirst } from './dom';
 import { img, iconUrl } from './icons';
 import { input, ACTION_LABELS, DEFAULT_KEYS, type Action } from '../core/input';
 import { settings, saveSettings, resetSettings, isTouchDevice } from '../core/settings';
+import { applyTextSize } from './textSize';
 import { sfx, audio } from '../audio/audio';
 import { songs } from '../audio/songs';
 import { music } from '../audio/music';
@@ -33,7 +35,7 @@ import { altarName, travelGroups, travelBlocked, travelTo } from '../game/travel
 import { restStock, restRecipes } from '../game/settlement';
 import {
   storeOffers, buyOffer, storeBlocked, OFFER_KINDS, SHARD, keepReason, isLocked, toggleLock, needsConfirm, sellPrice, salvageOf,
-  sellItem, dismantleItem, junk, sellJunk, buyback, canBuyBack, buyBack, PACK, packCount, usePack, stow, BALM_CAP, type OfferKind,
+  sellItem, dismantleItem, junk, junkBelow, sellJunk, buyback, canBuyBack, buyBack, PACK, packCount, usePack, stow, BALM_CAP, type OfferKind,
 } from '../game/economy';
 import { ELIXIRS, elixirOn, elixirLeft, type ElixirId } from '../game/elixirs';
 import { chaptersTab, gameModes } from './chapters';
@@ -1167,11 +1169,7 @@ function editControls() {
   });
 }
 
-export function applyTextSize() {
-  document.documentElement.classList.toggle('text-large', settings.textSize === 'large');
-  document.documentElement.classList.toggle('text-xl', settings.textSize === 'xl');
-  document.documentElement.classList.toggle('text-xxl', settings.textSize === 'xxl');
-}
+export { applyTextSize };
 
 // ---------------------------------------------------------------- system
 
@@ -1229,7 +1227,7 @@ function renderAny() {
 let shopEl: HTMLElement | null = null;
 let shopBody: HTMLElement;
 let shopKind: 'merchant' | 'smith' = 'merchant';
-let shopTab: 'store' | 'sell' | 'temper' | 'dismantle' | 'forge' | 'imprint' = 'store';
+let shopTab: 'store' | 'sell' | 'temper' | 'dismantle' | 'forge' | 'imprint' | 'reforge' = 'store';
 
 export function openShop(kind: 'merchant' | 'smith') {
   if (shopEl) return;
@@ -1265,7 +1263,7 @@ function closeShop() {
 }
 
 function shopTabs(): [typeof shopTab, string][] {
-  return shopKind === 'merchant' ? [['store', 'Store'], ['sell', 'Sell']] : [['temper', 'Temper'], ['dismantle', 'Dismantle'], ['imprint', 'Imprint'], ['forge', 'Forge']];
+  return shopKind === 'merchant' ? [['store', 'Store'], ['sell', 'Sell']] : [['temper', 'Temper'], ['dismantle', 'Dismantle'], ['imprint', 'Imprint'], ['reforge', 'Reforge'], ['forge', 'Forge']];
 }
 
 function renderShop() {
@@ -1287,6 +1285,7 @@ function renderShop() {
   else if (shopTab === 'sell') content = sellPane(false);
   else if (shopTab === 'dismantle') content = sellPane(true);
   else if (shopTab === 'imprint') content = imprintPane();
+  else if (shopTab === 'reforge') content = reforgePane();
   else if (shopTab === 'temper') {
     const gear = s.inventory.filter((i) => ITEMS[i.id].slot !== 'material' && ITEMS[i.id].slot !== 'key');
     gear.sort((a, b) => Number(isWorn(s, b.uid)) - Number(isWorn(s, a.uid)));
@@ -1384,6 +1383,10 @@ function sellPane(dismantle: boolean) {
   const why = new Map(gear.map((it) => [it, keepReason(s, it)]));
   gear.sort((a, b) => Number(!!why.get(a)) - Number(!!why.get(b)) || b.rarity - a.rarity);
   const trash = dismantle ? [] : junk(s);
+  // The loot filter: how rare a spare piece can be and still count as junk.
+  const filter = dismantle ? null : h('div', { class: 'modes', style: 'margin:4px 0;flex-wrap:wrap;align-items:center' },
+    h('span', { class: 'muted', style: 'font-size:0.85em;margin-right:4px' }, 'Junk is spare gear up to:'),
+    ...[0, 1, 2, 3].map((r) => btn(RARITY_NAMES[r], () => { (s.store ??= {}).junk = r; sfx('ui'); renderAny(); }, 'btn small' + (junkBelow(s) === r ? ' primary' : ''), { 'data-k': 'junk_' + r })));
   const junkSilver = trash.reduce((n, it) => n + sellPrice(it), 0);
   const act = (it: ItemInst) => {
     const key = (dismantle ? 'dis_' : 'sell_') + it.uid;
@@ -1421,7 +1424,8 @@ function sellPane(dismantle: boolean) {
     trash.length ? btn(`Sell all junk · ${trash.length} ${trash.length === 1 ? 'item' : 'items'} · ${junkSilver} silver`, () => {
       const r = sellJunk(s);
       if (r.n) { sfx('pickup'); G.ui.toast(`Sold ${r.n} for ${r.silver} silver`, 'loot'); renderAny(); }
-    }, 'btn small', { 'data-k': 'sell_junk', style: 'margin:6px 0', title: 'Common and Uncommon gear, untempered and unlocked, where you already wear something at least as rare.' }) : null,
+    }, 'btn small', { 'data-k': 'sell_junk', style: 'margin:6px 0', title: `${RARITY_NAMES[junkBelow(s)]} gear and below, untempered, unlocked and without a Legendary Power, where you already wear something at least as rare.` }) : null,
+    filter,
     rows.length ? h('div', { class: 'list' }, rows) : h('div', { class: 'muted' }, 'Nothing to part with. Equipped gear and keepsakes stay with you.'),
     ...backs);
 }
@@ -1454,6 +1458,35 @@ function imprintPane() {
   return h('div', { class: 'col', style: 'flex:1' }, head, powers,
     h('div', { class: 'box', style: `border-color:${l.color}` }, h('b', { style: `color:${l.color}` }, `✦ ${l.name}`), h('p', { style: 'margin:4px 0 0' }, l.desc), h('div', { class: 'muted', style: 'font-size:0.85em' }, `Goes on ${who}.`)),
     rows.length ? h('div', { class: 'list' }, rows) : h('div', { class: 'muted' }, `No piece of ${who} to take it.`));
+}
+
+/** Dov's Reforge tab (game/reforge.ts): each rolled line of a piece, where it sits in its range, and the chance a
+ * reforge betters it. He never makes a line worse. */
+function reforgePane() {
+  const s = G.save;
+  const head = h('div', { class: 'muted', style: 'font-size:0.88em' }, 'Dov re-rolls one line of a piece within that line\'s own range. He never makes a line worse: the better of the old and the new is kept. The chance shown is the chance of a better one.');
+  const gear = s.inventory.filter((i) => i.affixes.length && ITEMS[i.id] && ITEMS[i.id].slot !== 'material' && ITEMS[i.id].slot !== 'key')
+    .sort((a, b) => Number(isWorn(s, b.uid)) - Number(isWorn(s, a.uid)) || b.rarity - a.rarity);
+  if (!gear.length) return h('div', { class: 'col', style: 'flex:1' }, head, h('div', { class: 'box muted', 'data-k': 'reforge_empty' }, 'No piece with a rolled line. Rare gear and better carries them.'));
+  const rows = gear.slice(0, 40).map((it) => {
+    const c = reforgeCost(it);
+    const lines = it.affixes.map((a, i) => {
+      const r = lineRange(it, a.key), at = lineAt(it, i), chance = betterChance(it, i), key = `rf_${it.uid}_${i}`;
+      return h('div', { style: 'display:flex;align-items:center;gap:8px;margin-top:4px' },
+        h('div', { style: 'flex:1;min-width:0' },
+          h('div', { class: 'sub' }, `${MOD_LABEL[a.key](a.v)}${r ? ` · range ${r.lo}–${r.hi}` : ''}`),
+          h('div', { style: 'height:4px;border-radius:2px;background:rgba(0,0,0,.5);overflow:hidden' }, h('div', { style: `height:100%;width:${Math.round(at * 100)}%;background:${at >= 1 ? '#9be07a' : '#e2b85a'}` }))),
+        btn(chance > 0 ? `Reforge · ${Math.round(chance * 100)}%` : 'At its best', () => {
+          const out = reforge(s, it, i);
+          if (out) { sfx('hitMetal'); G.ui.toast(out.now > out.was ? `Better: ${out.was} → ${out.now}` : `No better this time: it stays ${out.was}`, out.now > out.was ? 'good' : 'info'); G.d = derive(s); }
+          renderAny();
+        }, 'btn small', { disabled: !canReforge(s, it, i), 'data-k': key }));
+    });
+    return h('div', { class: 'row-item', style: 'cursor:default;align-items:flex-start' }, itemIcon(it),
+      h('div', { style: 'flex:1;min-width:0' }, h('div', { class: 'nm', style: rarityStyle(it.rarity) }, itemName(it) + (isWorn(s, it.uid) ? ' · equipped' : '')),
+        costView({ silver: c.silver, [REFORGE_SHARD]: c.shards }), ...lines));
+  });
+  return h('div', { class: 'col', style: 'flex:1' }, head, h('div', { class: 'list' }, rows));
 }
 
 /** The pause menu's Store: buy and sell anywhere outside a fight. */

@@ -101,11 +101,17 @@ Checked in the repository on this date; each is addressed by the phase named.
   of eight shards, each running its share of `scripts/ci-tests.txt` through `scripts/ci-shard.mjs` (every check runs
   even after a failure; failures are listed at the end; a script not in the list is named in the log). A new check is
   one more line in `ci-tests.txt`. Nothing was dropped: the same 54 checks.
-- [ ] **A3. A faster first screen.** Measure first (first paint and time to the home screen on a throttled 4G profile,
-  recorded here). Then load on demand what the first screen does not need: the Watch, the Horde, and each chapter's
-  environment and boss modules (`render/env*.ts`, `game/bosses*.ts` are the largest files in the repository). The
-  service worker still precaches all of it after the first screen, so offline play is unchanged. Target: the home
-  screen's script under 1.2 MB. Test: `home.mjs` plus a new size check that fails if the first chunk grows past it.
+- [x] **A3. A faster first screen.** BUILT. Measured on Chrome's "Fast 4G" profile (9 Mbit/s, 60 ms) with
+  `node scripts/first-screen.mjs --measure`: before, the home screen came after a 4.17 MB script and every sprite
+  sheet (about 14 MB, the Fallen Crowns' atlases alone 6.8 MB): 24.3 s. After: first paint 224 ms, home screen 5.1 s. Two changes. The script:
+  `main.ts` registers only Boot and Title, and the journey (World with its Hud, and with them every chapter's
+  environment and boss code), the Horde and the Watch are their own chunks (`src/game/scenes.ts`, `startScene`); a
+  few helpers the home screen needed moved out of heavy modules (`ui/textSize.ts`, `game/rushKeys.ts`,
+  `game/bossFrames.ts`), so the first script is 2.28 MB, of which Phaser itself is 1.37 MB (the 1.2 MB target cannot be
+  met with Phaser in the first script; the game's own share is now about 0.9 MB). The art: Boot loads only the hero's
+  sheets; the rest (`src/game/lateArt.ts`) loads while the home screen idles, or in the preload of the first scene that
+  needs it. The chunks and the art are fetched while the home screen idles, so the service worker has them for offline
+  play. Test: `home.mjs` and `first-screen.mjs` (fails past 2.45 MB, or if a mode stops being its own chunk).
 - [ ] **A4. Know what is truly left.** Go through POLISH_PLAN §9 items 1, 2, 3, 8's "still to come" and 9, and §2, §3,
   §4, §7's bullet lists, and for each bullet either point to the code and test that does it and tick it, or list it
   under E1 below. Also run `watch.mjs` twenty times under CPU throttling to catch the failure of 7 November; make any
@@ -141,18 +147,18 @@ Checked in the repository on this date; each is addressed by the phase named.
 
 ## Phase C: reasons to play the journey again
 
-- [ ] **C1. The Refiner's Fire** (Partly built, `scripts/fire.mjs`: Replay offers four conditions (Tried Metal ×1.4 health, heat 1; Hotter Coals ×1.3 blows, heat 1; Fasting, no Balm, heat 2; Seven Times Hotter ×1.3 health and ×1.2 blows, heat 2), seals I/II/III at heat 1/3/5 shown on the Chapters page, each tier paid once. Still to do: more conditions (elites in every room, a time limit, a rival), better legendary odds and marks by heat, a Day call, and the blows-to-fell table measured per tier.) (per finished chapter, and on top of the New Game+ that exists, not in place of it). At a
+- [ ] **C1. The Refiner's Fire** (Partly built, `scripts/fire.mjs`: Replay offers four conditions (Tried Metal ×1.4 health, heat 1; Hotter Coals ×1.3 blows, heat 1; Fasting, no Balm, heat 2; Seven Times Hotter ×1.3 health and ×1.2 blows, heat 2), seals I/II/III at heat 1/3/5 shown on the Chapters page, each tier paid once. A weekly Day call asks for one chapter finished under the Fire and pays a legendary piece. Still to do: more conditions (elites in every room, a time limit, a rival), better legendary odds and marks by heat, and the blows-to-fell table measured per tier.) (per finished chapter, and on top of the New Game+ that exists, not in place of it). At a
   chapter's start the player sets its heat by choosing conditions, each worth points: foes faster, foes tougher,
   elites in every room, no Balm, a time limit, bosses with a second phase pattern earlier, a rival hunting the player
   through the chapter. More heat: better legendary odds, more marks, and a **refined seal** per chapter per heat tier
   (shown on chapter select) with a reward the first time each tier is cleared. It builds on `chapterReplay`, `might.ts`
   and the daily challenge's `DAILY_MODS`. Balance by measurement: at heat 0 nothing changes; each tier is sized so a
   balanced build at the arrival level takes a set number more blows (record the table here).
-- [ ] **C2. The day's boss and bounties.** The day's boss: one boss beaten so far, chosen by the date, under one
+- [ ] **C2. The day's boss and bounties.** (The day's boss is built, in `day.ts` and `scripts/day.mjs`: a finished chapter's last boss chosen by the date, under one of the Fire's conditions, started from the Today card, paying a legendary piece once a day. A fall without a wound (Valor's own judgement of the fight) wins the day's medal (`flags.day_boss_medals`), shown on the Today card. Still to do: bounties.) The day's boss: one boss beaten so far, chosen by the date, under one
   affliction, with a medal for a fall without being hit (it feeds Valor's flawless titles). Bounties: three a day, a
   named elite with a legendary power of its own placed in a seeded room of a finished chapter, with a hint, not a
   marker. Each pays a legendary roll weighted toward powers not yet in the Codex.
-- [ ] **C3. Gear worth hunting.** The loot loop needs more room at the top:
+- [ ] **C3. Gear worth hunting.** (Reforge at Dov is built, `remnant/src/game/reforge.ts`, `scripts/reforge.mjs`: each rolled line shows its range as a bar and the chance of a better roll; a reforge keeps the better of old and new. A loot filter on Ilan's Sell tab sets how rare spare gear can be and still count as junk (Common to Epic; a Legendary Power is never junk); the "new" dot already existed. Still to do: the Refined quality and sets) The loot loop needs more room at the top:
   - **Rolls with ranges** on Epic gear and up (shown as a bar: where this piece sits in its range), and a rare
     **Refined** quality whose ranges are higher.
   - **Reforge at Dov**: re-roll one line for materials and Relic Shards, with the odds shown.
@@ -160,10 +166,10 @@ Checked in the repository on this date; each is addressed by the phase named.
     Mantle, the bow). They drop from the Fire and bounties only.
   - **Comfort**: a comparison against what is worn on every tooltip, a loot filter (auto-mark below a rarity as junk),
     a "new" dot. Without these a long session is spent in menus.
-- [ ] **C4. Mastery.** A track per weapon type and per Echo species, raised by using it: small bonuses, a new move or
+- [ ] **C4. Mastery.** (Partly built. Weapon mastery was already there: `remnant/src/game/progression.ts`, ten ranks per weapon family raised by landing hits, +3% damage a rank and perks at set ranks, on Elior → Mastery. The Bestiary's hunter's mark is new (`huntBonus`): a kind slain 25, 100 and 300 times takes 3%, 6% and 10% more from Elior's side, shown on its Bestiary entry; `scripts/mastery.mjs`. Each Echo already levels by itself, which is its species' track. Still to do: a cosmetic or a move at a weapon's top rank.) A track per weapon type and per Echo species, raised by using it: small bonuses, a new move or
   a cosmetic at set levels, and a reason to change build. The Bestiary pays a small bonus against a kind at kill
   counts. Mastery shows on the character page as one screen.
-- [ ] **C5. Bests, medals and something to show.** Per chapter: a clock with a par time, a count of secrets, a
+- [ ] **C5. Bests, medals and something to show.** (The result card is built: `remnant/src/ui/share.ts` is the hook and button, `remnant-phaser/src/game/shareCard.ts` draws a 1080×1350 card (mode, date, result, rules, hero level, the build's three main pieces) and hands it to the share sheet, else saves it. On the Trial's, the Gauntlet's, Extreme's and the Rush's Game Over card, the ranked daily challenge's, and the Horde's results. `scripts/share.mjs`. Still to do: par times, secret counts and medals per chapter.) Per chapter: a clock with a par time, a count of secrets, a
   flawless-boss mark, and three medals. After any ranked run (the Daily Challenge, the day's boss, the day's Horde) a
   **result card** drawn to a canvas (the date, the rules, the score, the build's three main pieces) and handed to
   `navigator.share`. It is the leaderboard a static site can have: players compare the same seed by sending the card.
@@ -173,21 +179,21 @@ Checked in the repository on this date; each is addressed by the phase named.
 
 ## Phase D: the other modes, each made to last
 
-- [ ] **D1. The Horde, between runs.** (Partly built, `scripts/horde-board.mjs`: embers, the permanent board (a full board measures ×1.66 in damage × health ÷ cooldown and costs 1,950 embers, about seventeen ordinary runs; ten runs buy roughly ×1.4), three hardships for more embers, and the Long Night, a run that ends when its fifth monarch falls. Still to do: weapons and passives unlocked by deeds, the day's Horde with a ranked run and a result card, and a Day call for it.) A run currency (embers) kept after each run buys a **permanent board** of small
+- [ ] **D1. The Horde, between runs.** (Partly built, `scripts/horde-board.mjs`: embers, the permanent board (a full board measures ×1.66 in damage × health ÷ cooldown and costs 1,950 embers, about seventeen ordinary runs; ten runs buy roughly ×1.4), three hardships for more embers, and the Long Night, a run that ends when its fifth monarch falls. Today's Horde is built too: the camp's third choice, one hardship chosen by the date, embers ×1.25, the first run of the day ranked (its stage and foes kept), a result card, and a Day call. Still to do: weapons and passives unlocked by deeds.) A run currency (embers) kept after each run buys a **permanent board** of small
   upgrades (might, health, pickup reach, one more reroll, one more banish, a starting level), **weapons and passives
   to unlock** by deeds (reach stage 5 with Tirzah, evolve three weapons in one run), and **mutators** for the stage
   select. Add a **30-minute run with an end** (a final monarch and a results screen) beside the endless one, and the
   **day's Horde** (seeded weapons offered, one mutator, one ranked run, a result card). Save: extend
   `PhaserSave.horde` with optional fields. Measure the board so the tenth run feels about 40% stronger than the first,
   never three times.
-- [ ] **D2. The Watch, to the end of its plan.** In order: the **boss tower and daily dungeons** the owner chose
+- [ ] **D2. The Watch, to the end of its plan.** (The tower and the daily dungeons are built, `src/game/watch/tower.ts`, `scripts/watch-tower.mjs`: from stage 20, one floor a try settled by his strength against the holder's time, a Seal and two chests every fifth floor; three keys a day each for coins, essence and a relic's rank. They are settled at once by numbers, not fought on screen: a staged fight for a floor is a follow-up. Still to do: the forms, Tirzah and Uri on the wall. `watch-pace.mjs` does not yet count the tower's Seals.) In order: the **boss tower and daily dungeons** the owner chose
   (POLISH_PLAN §18k: one floor a try, milestone rewards; three keys a day each for coins, essence and relic ranks);
   **the forms** (the Unshorn and the Sovereign on the wall); **Tirzah at Watch level 150 and Uri at 300**; **gear with
   merging** and **expeditions** (§18f) only if the tower and dungeons leave the wall wanting. Re-run `watch-pace.mjs`
   after each.
 - [ ] **D3. The Trial, the Gauntlet and the Rush.** A weekly rule set for each (the daily challenge's modifiers), a
   medal time, and their bests on the result card. The Trial's Game Over card offers "again with the same build".
-- [ ] **D4. Uri on the journey.** The third hero outside the Horde: his kit (flame-calling, the orc shaman) as a
+- [ ] **D4. Uri on the journey.** (Built, 13 November 2026, from the owner's art (C08–C10, V10): he plays in the chapters and every mode they hold (the Trial, the Gauntlet, the Rush, Extreme, the daily challenge) with his own kit in `src/game/uriKit.ts` (fireball, burning ground, open-hand burst, flame wave, the shaman called for 20 s, the Crown of Flame), his own level in Elior's gear; the Horde draws him from the same parts; the Watch puts him on the wall from Watch level 35. `scripts/uri.mjs`. Still to do: his own page in the pause menu with the portraits (U02), his own gear and tree, Uri as the AI partner, and a redo of V11 for the summon and the crown's forming.) The third hero outside the Horde: his kit (flame-calling, the orc shaman) as a
   playable fighter in the chapters and as the AI partner, with his own page in the pause menu like Tirzah's. Large;
   it needs his animation sheet from the art requests. Do it after C and D1.
 
@@ -196,7 +202,7 @@ Checked in the repository on this date; each is addressed by the phase named.
 - [ ] **E1. What A4 finds left** of combat feel (§2), the sound pass (§3), ability effects (§4), the store's leftovers
   (quiver upgrades, recipe scrolls, Echo imprint tokens, "new item" dots) and gameplay polish (§7: ledge forgiveness,
   landing recovery, clearer Echo orders, a stinger and a framing beat on every boss phase). One PR per section.
-- [ ] **E2. Nobody stuck, nobody lost.**
+- [ ] **E2.** (Partly built: after three falls to the same boss the player is offered, once, to take heart: that boss strikes 15% lighter and has 10% less health until it falls. Tested in `scripts/fire.mjs`. The home screen is paced too: until the covenant relic only the open modes show (the Watch and the Horde), with a line naming the rest, and each mode that opens later carries a "new" mark until tried (`seen_<mode>` flags; `scripts/home.mjs`). Still to do: first-session timing.) **(original text:)**  Nobody stuck, nobody lost.**
   - After three falls to the same boss, offer once (never force): "Lower the boss's difficulty for this fight?" and,
     separately, a short card naming the one move that fell the player most. Setting: Challenge → Offer help (on).
   - Time the first session by machine: from Begin to the first fight (target under 60 seconds), to the first boss

@@ -28,9 +28,10 @@ try {
   // ---- no journey yet
   await home();
   let c = await cards();
-  assert.deepEqual(Object.keys(c), MODES, 'every game mode has a card on the home screen');
+  // A first visit is not greeted by eight cards: only the modes already open, and a word on the rest.
+  assert.deepEqual(Object.keys(c), ['watch', 'horde'], `a new player sees only the open modes (${Object.keys(c)})`);
   assert.ok(!c.watch.locked && !c.horde.locked, 'the Watch and the Horde need no journey');
-  assert.ok(['chapters', 'trial', 'rush', 'daily'].every((m) => c[m].locked && /Begin the journey first/.test(c[m].text)), 'the journey\'s modes say what they need');
+  assert.match(await E(page, () => document.querySelector('[data-k=title_more_modes]')?.textContent ?? ''), /^6 more modes open as the journey goes on/, 'the rest are named as coming');
   assert.equal(await E(page, () => document.querySelector('[data-k=title_first]').textContent), 'Begin');
   assert.ok(await fits(), 'no sideways scroll on a phone');
   await page.screenshot({ path: 'qa/home-new.png' });
@@ -42,6 +43,9 @@ try {
   await home();
   c = await cards();
   assert.ok(MODES.every((m) => !c[m].locked), `with the relic and two bosses every mode is open (${MODES.filter((m) => c[m].locked)})`);
+  assert.deepEqual(Object.keys(c), MODES, 'with the relic every game mode has a card');
+  const fresh = await E(page, () => [...document.querySelectorAll('.hm-card.new')].map((b) => b.dataset.k.slice(6)));
+  assert.ok(['trial', 'gauntlet', 'rush', 'daily', 'extreme'].every((m) => fresh.includes(m)) && !fresh.includes('chapters'), `the modes that just opened are marked new (${fresh})`);
   const journey = await E(page, () => document.querySelector('.hm-journey').textContent);
   assert.ok(/Level 30/.test(journey) && /1234 silver/.test(journey) && /Continue/.test(journey), `the journey card shows where it stands (${journey})`);
   assert.ok(/2 bosses ready/.test(c.rush.text), 'the Boss Rush counts the bosses ready');
@@ -51,6 +55,7 @@ try {
   await page.click('[data-k=title_trial]');
   await page.waitForFunction(() => window.__remnant?.world?.room?.id === 'trial_arena' && !window.__remnant.world.transitioning, null, { timeout: 60000 });
   assert.equal(await E(page, () => document.querySelector('.hm')), null, 'the home screen is gone once the mode starts');
+  assert.ok(await E(page, () => window.__remnant.world.save.flags.seen_trial), 'trying a mode clears its mark');
   console.log('Trial: the card went straight to the arena');
 
   // ---- Chapters opens the Chapters page on the journey

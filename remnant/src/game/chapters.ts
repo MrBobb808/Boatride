@@ -10,7 +10,7 @@ import { ROOMS } from './rooms';
 import { bestRounds } from './board';
 import { ECHO_SPECIES } from './data';
 import { isContract, type ContractId } from './progression';
-import { rushRoster } from './gauntlet';
+import { rushRoster } from './rushKeys';
 
 export interface ChapterDef {
   n: number;
