@@ -93,10 +93,10 @@ export function drawSkyCh14(ctx: Ctx, biome: Ch14Biome, _pal: BiomePal, w: numbe
     const near = v === 'alarm' ? 0.2 : 0.55;
     for (let i = 0; i < 9; i++) {
       const x = w * (hash2(i, 151) * 1.2 - 0.1) + Math.sin(t * 0.2 + i) * 20 * k;
-      blob(ctx, i & 1 ? '#3a2e2a' : '#5a443a', x, h * (0.46 - near * 0.2 + hash2(i, 153) * 0.1), (220 + hash2(i, 155) * 160) * k, (60 + near * 120) * k, 0.55 + near * 0.3);
+      blob(ctx, i & 1 ? '#3a2e2a' : '#5a443a', x, h * (0.16 + hash2(i, 153) * 0.16), (220 + hash2(i, 155) * 160) * k, (50 + near * 90) * k, 0.6 + near * 0.3);
     }
     ctx.globalCompositeOperation = 'lighter';
-    blob(ctx, v === 'ford' ? '#e07040' : '#c08050', w * 0.5, h * 0.62, w * 0.7, h * 0.08, 0.25);
+    blob(ctx, v === 'ford' ? '#e07040' : '#c08050', w * 0.5, h * 0.36, w * 0.7, h * 0.08, 0.25);
     ctx.globalCompositeOperation = 'source-over';
     if (v !== 'alarm') lightning(ctx, w, h, t, k, 7.3);
     return;
@@ -267,9 +267,9 @@ export function* buildParallaxCh14(biome: Ch14Biome, pal: BiomePal, seed: number
     yield mk(0.04, 0.03, (ctx, w, h) => {
       const hz = h * 0.76, n = wrapNoise(w, 260, seed, 3);
       const hy = (x: number) => hz - 30 - n(x) * 50;
-      fillRidge(ctx, w, h, hy, mix(pal.far, pal.fog, 0.55));
+      fillRidge(ctx, w, h, hy, mix(pal.far, pal.fog, 0.3));
       const fr = new RNG(seed + 1);
-      for (let x = fr.range(30, 90); x < w - 60; x += fr.range(140, 260)) wrap(x, 60, w, (xx) => housesSil(ctx, xx, xx + 50, hy(xx) + 4, 0.6, mix(pal.far, pal.fog, 0.4), rim, new RNG(seed + Math.floor(x)), 0.2));
+      for (let x = fr.range(30, 90); x < w - 60; x += fr.range(140, 260)) wrap(x, 60, w, (xx) => housesSil(ctx, xx, xx + 50, hy(xx) + 4, 0.6, mix(pal.far, pal.fog, 0.55), rim, new RNG(seed + Math.floor(x)), 0.2));
     }, res * 0.7);
     // Mid: terraced olive groves and walled vineyards (no wall around any village).
     yield mk(0.14, 0.07, (ctx, w, h) => {

@@ -155,18 +155,16 @@ export class Chapter14 {
       placeBanner(r, r.name.toUpperCase(), r.region);
     }
     const s = G.save;
-    const stage = s.quests.m_gog?.stage ?? 0;
     if (first && id === 'olive_terraces') this.caption('Olives older than the exile, and terraces rebuilt stone by stone. Nobody here has drawn a sword in a year.', 2400, 6400);
-    if (first && id === 'refuge_cave') void this.refuge();
+    if (id === 'refuge_cave') void this.refuge();
     if (first && id === 'north_pass') this.caption('The north parts. The road is cut to ribbons by wheels and hooves, and it all runs one way: south.', 2400, 6400);
     if (first && id === 'host_camp') this.caption('Fires to the horizon. Persia, Cush and Put; Gomer and all his bands; the house of Togarmah of the north quarters.', 2400, 6800);
-    if (first && id === 'fallen_walls') void this.shaking();
+    if (id === 'fallen_walls' && !flag('ch14_shaken')) void this.shaking();
     if (first && id === 'brothers_field') this.caption('The host has turned on itself. Every man\'s sword is against his brother, and none of them can say why.', 2400, 6800);
-    if (first && id === 'hamongog') void this.hamongog();
+    if (id === 'hamongog') void this.hamongog();
     if (first && id === 'river_measure') this.caption('A thousand cubits, and the water is to the ankles. A thousand more, to the knees. Then the loins. Then a river to swim in.', 2400, 7200);
     if (first && id === 'river_trees') this.caption('Trees on both banks, heavy with fruit. A leaf falls into the water and does not wither.', 2400, 6400);
     if (id === 'shield_field' && first && !s.quests.s_bucklers) this.st.quest('s_bucklers', 0);
-    if (first && stage === 2 && id === 'refuge_cave') this.st.quest('m_gog', 3);
     for (const a of ARENAS) if (a.room === id && flag(a.flag)) G.world.closeGate(false);
     return true;
   }
@@ -431,6 +429,7 @@ export class Chapter14 {
   private async shaking() {
     const st = this.st;
     const token = this.epoch;
+    setFlag('ch14_shaken');
     st.cine(true);
     for (let i = 0; i < 4; i++) {
       G.camera.addTrauma(0.6 * shakeScale());
