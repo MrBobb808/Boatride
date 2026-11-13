@@ -111,6 +111,11 @@ export const ITEMS: Record<string, ItemBase> = {
   linen_mantle: {id:'linen_mantle',name:'Mantle of Fine Linen',slot:'armor',rarity:4,icon:'armor',look:2,unique:true,value:3500,mods:{hp:420,def:30,res:16},desc:'White linen over plain mail. Dust does not seem to settle on it.'},
   // Chapter XIII · The Stones of Fire.
   fetterbreaker: {id:'fetterbreaker',name:'Fetterbreaker',slot:'weapon',family:'greatsword',rarity:5,icon:'greatsword',element:'fire',look:2,unique:true,value:7200,mods:{atk:350,crit:13,poise:50,critDmg:36},desc:'Beaten out of the fetters of the fairs, link by link. It has never held anyone. Trophy of the Prince of Tyrus, Chapter XIII.'},
+  // Chapter XIV: the Day of Gog.
+  hailstone_maul: {id:'hailstone_maul',name:'Hailstone Maul',slot:'weapon',family:'greatsword',rarity:5,icon:'greatsword',element:'frost',look:2,unique:true,value:7800,mods:{atk:380,crit:12,poise:60,critDmg:40},desc:'Forged from one of the stones that fell on the mountains of Israel. It is still cold. Elior did not throw it.'},
+  bucklers_of_meshech: {id:'bucklers_of_meshech',name:'Bucklers of Meshech and Tubal',slot:'gauntlets',rarity:5,icon:'gauntlets',look:2,unique:true,value:5600,mods:{def:40,hp:420,parry:14,poise:30},desc:'Two princes carried these into the field and covered each other with them. They were burned with the rest, except these two.'},
+  line_of_the_measurer: {id:'line_of_the_measurer',name:'The Measuring Line',slot:'weapon',family:'spear',rarity:5,icon:'spear',element:'holy',look:2,unique:true,value:8400,mods:{atk:400,crit:14,critDmg:44,speed:8},desc:'A line of flax wound on a reed, given at the threshold of the house. It measured the waters a thousand cubits at a time.'},
+  leaf_for_medicine: {id:'leaf_for_medicine',name:'Leaf for Medicine',slot:'relic',rarity:5,icon:'lamp',unique:true,value:6000,mods:{hp:620,ceRegen:70,res:24,xp:18},desc:'One leaf from a tree by the river. It has not faded, and it will not.'},
   ashes_of_tyrus: {id:'ashes_of_tyrus',name:'Ashes of Tyrus',slot:'relic',rarity:5,icon:'crown',unique:true,value:5200,mods:{hp:540,def:34,res:20,abil:38},desc:'A pinch of grey ash in a plain clay seal. It was the richest man on earth. It weighs nothing.'},
   keziahs_tally: {id:'keziahs_tally',name:'Keziah’s Tally',slot:'relic',rarity:5,icon:'lamp',unique:true,value:4200,mods:{ce:170,ceRegen:62,xp:16},desc:'Mara’s reward for bringing Keziah home from the holds: every name she counted, and the ship each one sailed on.'},
   tarshish_greaves: {id:'tarshish_greaves',name:'Greaves of Tarshish',slot:'boots',rarity:4,icon:'boot',look:2,unique:true,value:3600,mods:{hp:240,speed:16,def:20},desc:'A ship’s officer wore them to keep his footing on a wet deck. He did not need them where he went.'},
@@ -894,6 +899,106 @@ export const LORE: Record<string, LoreEntry> = {
     id: 'ezk2819', title: 'Never Any More', ref: 'Ezekiel 28:19 (KJV)',
     text: 'All they that know thee among the people shall be astonished at thee: thou shalt be a terror, and never shalt thou be any more.',
     note: 'On the last stone of the sea wall, facing the open water.',
+  },
+  ezk382: {
+    id: 'ezk382', title: 'Set Thy Face Against Gog', ref: 'Ezekiel 38:2 (KJV)',
+    text: 'Son of man, set thy face against Gog, the land of Magog, the chief prince of Meshech and Tubal, and prophesy against him,',
+    note: 'Copied by a watchman onto the doorpost of the lookout, years before anyone climbed it to keep watch.',
+  },
+  ezk389: {
+    id: 'ezk389', title: 'Like a Storm', ref: 'Ezekiel 38:9 (KJV)',
+    text: 'Thou shalt ascend and come like a storm, thou shalt be like a cloud to cover the land, thou, and all thy bands, and many people with thee.',
+    note: 'Read aloud from the top of the lookout, the moment the dust rose on the northern road.',
+  },
+  ezk3811: {
+    id: 'ezk3811', title: 'Unwalled Villages', ref: 'Ezekiel 38:11 (KJV)',
+    text: 'And thou shalt say, I will go up to the land of unwalled villages; I will go to them that are at rest, that dwell safely, all of them dwelling without walls, and having neither bars nor gates,',
+    note: 'Carved on the lintel of the first house built in Beth-shalom, where there was no gate to carve it on.',
+  },
+  ezk3815: {
+    id: 'ezk3815', title: 'Out of the North Parts', ref: 'Ezekiel 38:15 (KJV)',
+    text: 'And thou shalt come from thy place out of the north parts, thou, and many people with thee, all of them riding upon horses, a great company, and a mighty army:',
+    note: 'Scratched on a milestone of the northern road by someone who saw them pass.',
+  },
+  ezk3816: {
+    id: 'ezk3816', title: 'A Cloud to Cover the Land', ref: 'Ezekiel 38:16 (KJV)',
+    text: 'And thou shalt come up against my people of Israel, as a cloud to cover the land; it shall be in the latter days, and I will bring thee against my land, that the heathen may know me, when I shall be sanctified in thee, O Gog, before their eyes.',
+    note: 'On a standard of the host, written by its own scribes, who did not know what it meant.',
+  },
+  ezk3819: {
+    id: 'ezk3819', title: 'A Great Shaking', ref: 'Ezekiel 38:19 (KJV)',
+    text: 'For in my jealousy and in the fire of my wrath have I spoken, Surely in that day there shall be a great shaking in the land of Israel;',
+    note: 'On a boundary stone that the ground has split in two.',
+  },
+  ezk3820: {
+    id: 'ezk3820', title: 'Every Wall Shall Fall', ref: 'Ezekiel 38:20 (KJV)',
+    text: 'So that the fishes of the sea, and the fowls of the heaven, and the beasts of the field, and all creeping things that creep upon the earth, and all the men that are upon the face of the earth, shall shake at my presence, and the mountains shall be thrown down, and the steep places shall fall, and every wall shall fall to the ground.',
+    note: 'On the one piece of the wall still standing.',
+  },
+  ezk3821: {
+    id: 'ezk3821', title: 'Against His Brother', ref: 'Ezekiel 38:21 (KJV)',
+    text: 'And I will call for a sword against him throughout all my mountains, saith the Lord GOD: every man\'s sword shall be against his brother.',
+    note: 'Cut into the shaft of a broken spear, in the camp where the host turned on itself.',
+  },
+  ezk3822: {
+    id: 'ezk3822', title: 'Great Hailstones', ref: 'Ezekiel 38:22 (KJV)',
+    text: 'And I will plead against him with pestilence and with blood; and I will rain upon him, and upon his bands, and upon the many people that are with him, an overflowing rain, and great hailstones, fire, and brimstone.',
+    note: 'Spoken over the summit as the cloud broke.',
+  },
+  ezk3823: {
+    id: 'ezk3823', title: 'They Shall Know', ref: 'Ezekiel 38:23 (KJV)',
+    text: 'Thus will I magnify myself, and sanctify myself; and I will be known in the eyes of many nations, and they shall know that I am the LORD.',
+    note: 'Written in the ash of the summit, though no one saw who wrote it.',
+  },
+  ezk399: {
+    id: 'ezk399', title: 'Burn the Weapons', ref: 'Ezekiel 39:9 (KJV)',
+    text: 'And they that dwell in the cities of Israel shall go forth, and shall set on fire and burn the weapons, both the shields and the bucklers, the bows and the arrows, and the handstaves, and the spears, and they shall burn them with fire seven years:',
+    note: 'On a cairn of spears, waiting for the fire.',
+  },
+  ezk3911: {
+    id: 'ezk3911', title: 'The Valley of Hamongog', ref: 'Ezekiel 39:11 (KJV)',
+    text: 'And it shall come to pass in that day, that I will give unto Gog a place there of graves in Israel, the valley of the passengers on the east of the sea: and it shall stop the noses of the passengers: and there shall they bury Gog and all his multitude: and they shall call it The valley of Hamongog.',
+    note: 'On the first marker set at the mouth of the valley.',
+  },
+  ezk3912: {
+    id: 'ezk3912', title: 'To Cleanse the Land', ref: 'Ezekiel 39:12 (KJV)',
+    text: 'And seven months shall the house of Israel be burying of them, that they may cleanse the land.',
+    note: 'On the last of the seven markers, set where the burying is done.',
+  },
+  ezk3929: {
+    id: 'ezk3929', title: 'Neither Will I Hide My Face', ref: 'Ezekiel 39:29 (KJV)',
+    text: 'Neither will I hide my face any more from them: for I have poured out my spirit upon the house of Israel, saith the Lord GOD.',
+    note: 'Carved over the door of the house, above the threshold.',
+  },
+  ezk471: {
+    id: 'ezk471', title: 'From Under the Threshold', ref: 'Ezekiel 47:1 (KJV)',
+    text: 'Afterward he brought me again unto the door of the house; and, behold, waters issued out from under the threshold of the house eastward: for the forefront of the house stood toward the east, and the waters came down from under from the right side of the house, at the south side of the altar.',
+    note: 'On the step of the house, wet, where the water runs over it.',
+  },
+  ezk473: {
+    id: 'ezk473', title: 'To the Ankles', ref: 'Ezekiel 47:3 (KJV)',
+    text: 'And when the man that had the line in his hand went forth eastward, he measured a thousand cubits, and he brought me through the waters; the waters were to the ankles.',
+    note: 'On the first marker of the river, a thousand cubits from the house.',
+  },
+  ezk474: {
+    id: 'ezk474', title: 'To the Knees, To the Loins', ref: 'Ezekiel 47:4 (KJV)',
+    text: 'Again he measured a thousand, and brought me through the waters; the waters were to the knees. Again he measured a thousand, and brought me through; the waters were to the loins.',
+    note: 'On the second and third markers, half under the water.',
+  },
+  ezk475: {
+    id: 'ezk475', title: 'Waters to Swim In', ref: 'Ezekiel 47:5 (KJV)',
+    text: 'Afterward he measured a thousand; and it was a river that I could not pass over: for the waters were risen, waters to swim in, a river that could not be passed over.',
+    note: 'On the fourth marker, which only a swimmer can read.',
+  },
+  ezk479: {
+    id: 'ezk479', title: 'Every Thing Shall Live', ref: 'Ezekiel 47:9 (KJV)',
+    text: 'And it shall come to pass, that every thing that liveth, which moveth, whithersoever the rivers shall come, shall live: and there shall be a very great multitude of fish, because these waters shall come thither: for they shall be healed; and every thing shall live whither the river cometh.',
+    note: 'On a stone where the river meets the sea, with fish around it.',
+  },
+  ezk4712: {
+    id: 'ezk4712', title: 'The Leaf for Medicine', ref: 'Ezekiel 47:12 (KJV)',
+    text: 'And by the river upon the bank thereof, on this side and on that side, shall grow all trees for meat, whose leaf shall not fade, neither shall the fruit thereof be consumed: it shall bring forth new fruit according to his months, because their waters they issued out of the sanctuary: and the fruit thereof shall be for meat, and the leaf thereof for medicine.',
+    note: 'On the bark of the first tree by the river, grown over the words as if it meant to keep them.',
   },
   dan1145: {
     id: 'dan1145', title: 'None Shall Help Him', ref: 'Daniel 11:45 (KJV)',

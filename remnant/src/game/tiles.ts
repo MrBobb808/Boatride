@@ -12,7 +12,7 @@ export const CHAR_TILE: Record<string, T> = {
   '~': T.Veil, 'w': T.Water, 'X': T.Collapse, 'S': T.Seal, 'G': T.Gate,
 };
 
-export type Biome = 'sanctuary' | 'village' | 'temple' | 'crypt' | 'sanctum' | 'plain' | 'tower' | 'valley' | 'hive' | 'trial' | 'dura' | 'babylon' | 'furnace' | 'riverbed' | 'gardens' | 'palace' | 'hiddekel' | 'shushan' | 'highplaces' | 'hunt' | 'plague' | 'cinders' | 'grecia' | 'rest';
+export type Biome = 'sanctuary' | 'village' | 'temple' | 'crypt' | 'sanctum' | 'plain' | 'tower' | 'valley' | 'hive' | 'trial' | 'dura' | 'babylon' | 'furnace' | 'riverbed' | 'gardens' | 'palace' | 'hiddekel' | 'shushan' | 'highplaces' | 'hunt' | 'plague' | 'cinders' | 'grecia' | 'rest' | 'unwalled' | 'host' | 'shaking' | 'river';
 
 export type EntDef =
   | { t: 'enemy'; k: EnemyKind; x: number; y: number; face?: number; elite?: string; cond?: string; ncond?: string }
@@ -33,7 +33,7 @@ export type EntDef =
   | { t: 'boss'; k: 'idol' | 'gatekeeper' | 'marshal' | 'locust_king' | 'golden_image' | 'weigher' | 'storm_prince' | 'persia_prince' | 'beast_monarch' | 'plague_monarch' | 'cinder_monarch' | 'grecia_prince' | 'nation_gods' | 'north_king' | 'tyrus_prince'; x: number; y: number };
 
 export type EnemyKind = 'husk' | 'hound' | 'archer' | 'sentinel' | 'wisp' | 'brute' | 'bulwark' | 'knight' | 'drone' | 'soldier' | 'lion' | 'priest' | 'vessel' | 'scribe' | 'undying' | 'gale' | 'stalker' | 'carrier' | 'golem' | 'eel';
-export type NpcKind = 'azriel' | 'mara' | 'tobiah' | 'ilan' | 'dov' | 'regent' | 'marshal' | 'satrap' | 'ezra' | 'talia' | 'barak' | 'hanan' | 'micaiah' | 'shira' | 'keziah' | 'feastlord' | 'arshan' | 'storm_prince' | 'persia_prince';
+export type NpcKind = 'azriel' | 'mara' | 'tobiah' | 'ilan' | 'dov' | 'regent' | 'marshal' | 'satrap' | 'ezra' | 'talia' | 'barak' | 'hanan' | 'micaiah' | 'shira' | 'keziah' | 'tirzah' | 'uri' | 'gogherald' | 'feastlord' | 'arshan' | 'storm_prince' | 'persia_prince';
 
 export interface Loot {
   item?: string;
