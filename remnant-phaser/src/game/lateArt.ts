@@ -26,6 +26,10 @@ import foesGothic from '../assets/cc0/foes-gothic.png';
 import echoVanguard from '../../../remnant/src/assets/echo-vanguard.png';
 import echoSovereign from '../../../remnant/src/assets/echo-sovereign.png';
 import foesGothicBig from '../assets/cc0/foes-gothic-big.png';
+import uriPartsUrl from '../assets/fighter-parts-uri.png';
+import uriCrownUrl from '../assets/fighter-parts-uri-crown.png';
+import shamanPartsUrl from '../assets/fighter-parts-shaman.png';
+import uriFireUrl from '../assets/vfx-uri-fire.png';
 
 /** Queues every late sheet not yet in; true when any was queued (the caller starts the loader outside preload). */
 export function lateArt(sc: Phaser.Scene): boolean {
@@ -59,6 +63,12 @@ export function lateArt(sc: Phaser.Scene): boolean {
   if (!has('varkhos')) sc.load.image('varkhos', varkhosUrl);
   if (!has('morvane')) sc.load.image('morvane', morvaneUrl);
   if (!has('azkar')) sc.load.image('azkar', azkarUrl);
+  // C08–C10, V10: Uri, his Crown of Flame and his orc shaman; his fire in 128 px cells (six frames a row: fireball,
+  // burst, ground fire, wave).
+  if (!has('fighter-parts-uri')) sc.load.image('fighter-parts-uri', uriPartsUrl);
+  if (!has('fighter-parts-uri-crown')) sc.load.image('fighter-parts-uri-crown', uriCrownUrl);
+  if (!has('fighter-parts-shaman')) sc.load.image('fighter-parts-shaman', shamanPartsUrl);
+  if (!has('vfx-uri-fire')) sc.load.spritesheet('vfx-uri-fire', uriFireUrl, { frameWidth: 128, frameHeight: 128 });
   return sc.load.totalToLoad > before;
 }
 

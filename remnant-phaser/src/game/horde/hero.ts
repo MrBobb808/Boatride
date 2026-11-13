@@ -4,7 +4,6 @@ import Phaser from 'phaser';
 import { actionAtlas, actionFrame, ACTION_FOOT, ACTION_CELL } from '../actionArt';
 import type { WeaponFamily } from '../../../../remnant/src/game/data';
 import type { HeroId } from './defs';
-import { uriAtlas, crownAtlas } from './uriArt';
 
 const LOOP: Record<string, number> = { idle: 1.6, run: 0.62 };
 
@@ -36,9 +35,9 @@ export class HordeHero {
     this.keys.tirzah = actionAtlas(sc, 'tirzah', 'blade');
     this.keys['elior-form'] = actionAtlas(sc, 'elior', family, true);
     this.keys['tirzah-form'] = actionAtlas(sc, 'tirzah', 'blade', true);
-    // Uri and his Crown of Flame are painted, not cut from parts (game/horde/uriArt.ts).
-    this.keys.uri = uriAtlas(sc);
-    this.keys['uri-form'] = crownAtlas(sc);
+    // Uri and his Crown of Flame, cut from their own parts (C08, C09).
+    this.keys.uri = actionAtlas(sc, 'uri', 'blade');
+    this.keys['uri-form'] = actionAtlas(sc, 'uri', 'blade', true);
     this.shadow = wl(sc.add.image(0, 0, 'hz-shadow').setScale(0.9, 1));
     this.wings = wl(sc.add.image(0, 0, 'vfx-transform', 27).setBlendMode(Phaser.BlendModes.ADD).setVisible(false).setScale(0.62));
     for (let i = 0; i < 16; i++) this.trail.push({ img: wl(sc.add.image(0, 0, this.keys.elior, 'idle:0').setVisible(false).setTint(0xb48cff).setTintMode(Phaser.TintModes.FILL)), life: 0 });
@@ -54,7 +53,7 @@ export class HordeHero {
     g.life = life;
     // Another hero's afterimage (the Trinity) wears that hero's figure mid-strike.
     const key = who === this.hero ? this.sprite.texture.key : this.keys[who], frame = who === this.hero ? this.sprite.frame.name : actionFrame(this.sc, key, who === 'tirzah' ? 'bowRelease' : who === 'uri' ? 'invoke' : 'b3', 0.5);
-    g.img.setTexture(key, frame).setOrigin(this.sprite.originX, this.sprite.originY).setScale(who === 'uri' ? 1.05 : 0.82).setFlipX(this.face < 0)
+    g.img.setTexture(key, frame).setOrigin(this.sprite.originX, this.sprite.originY).setScale(0.82).setFlipX(this.face < 0)
       .setPosition(Math.round(x), Math.round(y)).setDepth(y - 1).setTint(who === 'tirzah' ? 0xffe6a8 : who === 'uri' ? 0xff9a50 : 0xb48cff).setTintMode(Phaser.TintModes.FILL);
   }
 
@@ -81,8 +80,7 @@ export class HordeHero {
     }
     if (dashing) clip = this.hero === 'elior' ? 'dash' : 'roll', u = 0.5;
     const key = this.key;
-    // The painted figures are drawn at one pixel per unit and smaller than the fighters' atlases.
-    this.sprite.setTexture(key, actionFrame(this.sc, key, clip, u)).setScale(this.hero === 'uri' ? 1.05 : 0.82).setFlipX(this.face < 0).setPosition(Math.round(this.x), Math.round(this.y)).setDepth(this.y);
+    this.sprite.setTexture(key, actionFrame(this.sc, key, clip, u)).setScale(0.82).setFlipX(this.face < 0).setPosition(Math.round(this.x), Math.round(this.y)).setDepth(this.y);
     // A hurt flash, then a flicker while the blow's grace lasts.
     this.hurtT = Math.max(0, this.hurtT - dt);
     if (this.hurtT > 0.12) this.sprite.setTint(0xff5a5a).setTintMode(Phaser.TintModes.FILL); else this.sprite.clearTint().setTintMode(Phaser.TintModes.MULTIPLY);

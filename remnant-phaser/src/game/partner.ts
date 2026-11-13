@@ -34,12 +34,14 @@ interface Host {
   finale(x: number, y: number, power?: number): void;
 }
 
-const NAME: Record<PlayableHero, string> = { elior: 'Elior', tirzah: 'Tirzah' };
+/** The partner is Elior or Tirzah; Uri's own ally is his orc shaman (game/uriKit.ts). */
+type PartnerHero = Exclude<PlayableHero, 'uri'>;
+const NAME: Record<PartnerHero, string> = { elior: 'Elior', tirzah: 'Tirzah' };
 const DOWN_T = 20;
 
 /** The partner as an Echo: the hero's numbers, an aggressive kit, and no canvas drawing (Phaser draws the hero). */
 class PartnerUnit extends EchoUnit {
-  constructor(readonly hero: PlayableHero, inst: EchoInst, x: number, y: number, private stats: () => Derived) {
+  constructor(readonly hero: PartnerHero, inst: EchoInst, x: number, y: number, private stats: () => Derived) {
     super(inst, x, y, 0);
     // The Echo constructor sizes health before `stats` is set; size it now.
     this.maxHp = this.hp = this.maxHealth();
@@ -89,10 +91,10 @@ export class Partner {
 
   get out() { return !!this.h.save.partnerOut; }
   /** The hero the partner plays: always the one you are not. */
-  get hero(): PlayableHero { return this.h.player.hero === 'tirzah' ? 'elior' : 'tirzah'; }
+  get hero(): PartnerHero { return this.h.player.hero === 'tirzah' ? 'elior' : 'tirzah'; }
 
   /** The partner hero's own stats: Elior's as derived, or Tirzah's from her level, gear and tree. */
-  private stats(hero: PlayableHero): Derived {
+  private stats(hero: PartnerHero): Derived {
     const base = this.h.eliorD;
     if (hero === 'elior' || !this.h.save.archer) return base;
     if (this.herFor !== base) { this.herD = archerStats(this.h.save, base); this.herFor = base; }
@@ -153,7 +155,7 @@ export class Partner {
 
   // ---------------------------------------------------------------- banter (playful rivalry)
 
-  private static LINES: Record<PlayableHero, Record<string, string[]>> = {
+  private static LINES: Record<PartnerHero, Record<string, string[]>> = {
     elior: {
       kill: ['That one was mine.', 'Keep counting, archer.', 'Another for the blade.'],
       join: ['Together, then!', 'Hold it still for me!'],

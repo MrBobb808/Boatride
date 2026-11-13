@@ -122,7 +122,7 @@ try {
   await drain(page);
   await H(page, (h) => { h.cds.switch = 0; });
   await tap('switch', (h) => h.heroId === 'uri');
-  assert.deepEqual(await H(page, (h) => [h.heroId, h.shaman.active, h.hero.key]), ['uri', true, 'painted-uri'], 'the switch brings Uri, and his shaman with him');
+  assert.deepEqual(await H(page, (h) => [h.heroId, h.shaman.active, h.hero.key]), ['uri', true, 'action-uri'], 'the switch brings Uri, and his shaman with him');
   await drain(page);
   await H(page, (h) => { h.spawnFoe(h.hero.x + 90, h.hero.y, 'bulwark'); });
   await until(page, () => window.__remnant.horde.arsenal.missiles.some((m) => m.t >= 0 && m.kind === 'fireball'), null, 15000);
@@ -134,7 +134,7 @@ try {
   await drain(page);
   await H(page, (h) => { h.gauge = 1; });
   await tap('form', (h) => h.formT > 0);
-  assert.deepEqual(await H(page, (h) => [h.formT > 0, h.hero.key, h.shaman.active]), [true, 'painted-uri-crown', false], 'the Crown of Flame merges Uri and the shaman');
+  assert.deepEqual(await H(page, (h) => [h.formT > 0, h.hero.key, h.shaman.active]), [true, 'action-uri-crown', false], 'the Crown of Flame merges Uri and the shaman');
   await page.waitForTimeout(500);
   await page.screenshot({ path: 'qa/horde-crown.png' });
   await H(page, (h) => { h.formT = 0.01; });

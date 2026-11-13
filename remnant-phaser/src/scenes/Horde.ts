@@ -183,7 +183,8 @@ export class Horde extends Phaser.Scene {
     this.swarm = new Swarm(this);
     this.pickups = new Pickups(this);
     this.hero = new HordeHero(this, (o) => this.wl(o), eliorD.family);
-    this.hero.hero = this.save.playableHero === 'tirzah' ? 'tirzah' : 'elior';
+    const start = this.save.playableHero;
+    this.hero.hero = start === 'tirzah' || start === 'uri' ? start : 'elior';
     this.arsenal = new Arsenal(this);
     this.shaman = new Shaman(this);
     this.hpBar = this.wl(this.add.graphics());
@@ -209,6 +210,8 @@ export class Horde extends Phaser.Scene {
       this.overlay = null;
     });
     this.arsenal.raise('blade'); this.arsenal.raise('bow'); this.arsenal.raise('flame');
+    // A run begun as Uri brings his shaman from the start.
+    this.shaman.show(this.heroId === 'uri');
     this.startStage(1);
     // The camp: from the second run on, the board, the hardships and the kind of run are chosen before the first foe.
     if (hs.runs > 0 && !new URLSearchParams(location.search).has('nocamp')) this.openCamp(); else this.pendingLevels += this.bb.levels;
@@ -468,8 +471,8 @@ export class Horde extends Phaser.Scene {
     if (this.formT > 0) this.endForm();
     const next = this.nextHero;
     this.hero.hero = next;
-    // The story knows two heroes; Uri's turn leaves the journey's choice as it was.
-    if (next !== 'uri') this.save.playableHero = next;
+    // The hero in play carries back to the journey, Uri too now that he fights there.
+    this.save.playableHero = next;
     this.shaman.show(next === 'uri');
     this.cds.switch = 5; this.cds.skill = Math.min(this.cds.skill, 2);
     this.invuln = Math.max(this.invuln, 0.5);

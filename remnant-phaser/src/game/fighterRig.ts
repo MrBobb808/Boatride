@@ -4,7 +4,7 @@ import type Phaser from 'phaser';
 import type { Joints, Pose } from '../../../remnant/src/render/skeleton';
 import { drawWeapon, type HumanStyle } from '../../../remnant/src/render/actors';
 import type { WeaponFamily } from '../../../remnant/src/game/data';
-import type { PlayableHero } from './style';
+import type { RigHero } from './style';
 import { CAPES, type CapeLook } from '../../../remnant/src/game/valor';
 
 // Source rectangle; proximal/distal joint in source pixels; transverse width.
@@ -57,6 +57,27 @@ const LOCKS: readonly Part[] = [
   [591,362,218,116,800,434,604,408,113],
   [870,362,219,115,1080,433,883,408,114],
 ];
+// C08–C10 (art/manifest.json), packed by art/tools/parts.py --scale 1: Uri, Uri as the Crown of Flame, and his orc
+// shaman, in Elior's order; 7 is a short mantle (the shaman's hood-cape), 8 a scarf, 9 the hand-flame or the staff.
+const URI_PARTS: readonly Part[] = [
+  [70,57,140,166,140,203,140,79,120],[365,50,110,180,427,75,426,205,92],[601,46,198,188,702,74,702,223,174],
+  [929,52,102,175,982,73,980,206,82],[1222,42,76,196,1260,58,1260,209,47],[86,329,107,181,134,351,145,488,79],
+  [357,325,125,189,394,344,416,506,75],[602,344,196,152,774,359,690,478,171],[890,340,180,159,1043,356,926,480,99],
+  [1206,333,108,173,1260,470,1260,343,79],
+];
+// The crowned head's crown of fire stands above the hair, so its crown joint is the top of the hair, not of the fire.
+const CROWN_PARTS: readonly Part[] = [
+  [71,42,137,195,140,214,140,110,118],[369,50,102,180,426,75,425,205,86],[604,45,192,189,702,73,702,223,169],
+  [922,43,116,193,982,66,980,213,93],[1218,43,83,194,1260,59,1260,208,51],[80,322,119,195,134,345,145,494,88],
+  [354,322,131,195,393,342,416,509,79],[601,338,198,163,775,354,690,481,172],[895,339,170,161,1040,355,929,481,94],
+  [1231,312,58,216,1260,483,1260,325,42],
+];
+const SHAMAN_PARTS: readonly Part[] = [
+  [55,54,169,172,140,205,140,76,145],[336,42,168,196,430,69,428,211,141],[592,38,215,204,702,69,702,230,189],
+  [909,35,141,210,982,60,980,220,113],[1209,37,102,205,1260,53,1260,211,63],[74,320,132,200,133,344,147,496,98],
+  [348,318,143,203,391,338,415,513,86],[595,312,209,216,779,334,689,502,182],[900,331,160,177,1036,349,932,487,88],
+  [1225,312,70,215,1260,482,1260,325,51],
+];
 export const FIGHTER_DIMS = {torso:14.5,head:5.8,neck:1.4,upperArm:8,foreArm:7.2,thigh:10,shin:10,shoulderSpread:1.5,hipSpread:1.4};
 const WEAPON = {weaponColor:'#e3dfdb',outline:'#09080d',weaponGlow:null,weaponGlowAmt:0} as HumanStyle;
 
@@ -84,12 +105,13 @@ export class FighterRig {
   private weapon: HumanStyle;
   /** `unshorn`: the third transformation's look (crimson and gold, a long mane, a tail of fire, bare fists). */
   /** `blade`: a sword sprite (upright, pommel down) drawn in his hand in place of the drawn blade, with its grip point and height. */
-  constructor(sc: Phaser.Scene, readonly hero: PlayableHero, family: WeaponFamily, readonly mantle: boolean, cape: string | null = null, readonly unshorn = false, private blade: { img: HTMLCanvasElement; gx: number; gy: number; h: number } | null = null) {
+  constructor(sc: Phaser.Scene, readonly hero: RigHero, family: WeaponFamily, readonly mantle: boolean, cape: string | null = null, readonly unshorn = false, private blade: { img: HTMLCanvasElement; gx: number; gy: number; h: number } | null = null) {
     this.offset = hero === 'tirzah' ? 10 : 0;
     this.weapon = {...WEAPON,weapon:family,weaponColor:mantle?'#d5a1ff':'#e3dfdb',weaponGlow:mantle?'#b45cff':null,weaponGlowAmt:mantle?0.65:0};
     const look=cape&&!mantle?CAPES[cape]:null;
+    const fire=hero==='uri'||hero==='shaman';
     const key=`fighter-parts-${hero}${unshorn?'-unshorn':mantle?'-mantle':''}${look?'-cape-'+cape:''}`;
-    this.table=unshorn?UNSHORN_PARTS:PARTS.slice(this.offset,this.offset+10);
+    this.table=unshorn?UNSHORN_PARTS:hero==='uri'?(mantle?CROWN_PARTS:URI_PARTS):hero==='shaman'?SHAMAN_PARTS:PARTS.slice(this.offset,this.offset+10);
     const crop=(source:HTMLImageElement,[x,y,w,h]:Part)=>{const c=document.createElement('canvas');c.width=w;c.height=h;c.getContext('2d')!.drawImage(source,x,y,w,h,0,0,w,h);return c;};
     if(unshorn){
       const locks=sc.registry.get('unshorn-locks') as HTMLCanvasElement[] | undefined;
@@ -99,10 +121,12 @@ export class FighterRig {
     // The source crops are small and shared across every weapon/clip bake.
     const cached=sc.registry.get(key) as HTMLCanvasElement[] | undefined;
     if(cached){this.parts=cached;return;}
-    const source=sc.textures.get(unshorn?'fighter-parts-unshorn':'fighter-parts').getSourceImage() as HTMLImageElement;
+    // Uri's crowned form is its own painted sheet (C09), not a recolour.
+    const sheet=unshorn?'fighter-parts-unshorn':hero==='uri'?(mantle?'fighter-parts-uri-crown':'fighter-parts-uri'):hero==='shaman'?'fighter-parts-shaman':'fighter-parts';
+    const source=sc.textures.get(sheet).getSourceImage() as HTMLImageElement;
     this.parts=this.table.map((part,i)=>{
       const c=crop(source,part),g=c.getContext('2d')!,w=c.width,h=c.height;
-      if(!unshorn&&mantle&&i!==0&&i!==4&&i!==9){
+      if(!unshorn&&!fire&&mantle&&i!==0&&i!==4&&i!==9){
         const image=g.getImageData(0,0,w,h),d=image.data;
         for(let n=0;n<d.length;n+=4)if(d[n+3]){
           const r=d[n],gr=d[n+1],b=d[n+2];
@@ -143,7 +167,10 @@ export class FighterRig {
     const flutter=Math.sin(time*7)*.7;
     // Cloth lags the torso and gait, rather than rotating rigidly with a limb.
     // The Unshorn wears no cape (the owner's call): the tail of fire is what streams behind him.
+    const fire=this.hero==='uri'||this.hero==='shaman';
     if(this.unshorn)this.tail(c,j,time,running);
+    // Uri's short mantle hangs to the waist; the shaman's hood-cape falls further.
+    else if(fire)this.bone(c,7,j.neckX-1,j.neckY,j.neckX-9-flow,j.neckY+(this.hero==='shaman'?17:13)-flow+flutter,this.hero==='shaman'?22:19);
     else this.bone(c,7,j.neckX-2,j.neckY+1,j.neckX-12-flow,j.neckY+18-flow+flutter,archer?23:25);
     if(archer)this.bone(c,8,j.headX-3,j.headY-3,j.headX-8-flow,j.headY+12-flow+flutter,4.4);
     this.limb(c,j,false,.84);
@@ -152,7 +179,9 @@ export class FighterRig {
     this.limb(c,j,true,1);
     this.bone(c,2,j.hipX,j.hipY-1,j.hipX+Math.sin(p.lean)*3,j.hipY+11,archer?17:18);
     this.bone(c,1,j.neckX,j.neckY,j.hipX,j.hipY,12.8);
-    if(!archer&&!this.unshorn)this.bone(c,8,j.neckX,j.neckY,j.neckX-1,j.neckY+4,11);
+    // His scarf (the shaman's hanging charm) streams back from the neck.
+    if(fire)this.bone(c,8,j.neckX+1,j.neckY,j.neckX-9-flow,j.neckY+7-flow+flutter,6);
+    else if(!archer&&!this.unshorn)this.bone(c,8,j.neckX,j.neckY,j.neckX-1,j.neckY+4,11);
     // The sash's knot sits at the back of his waist; the mane falls over his back, under the head.
     if(this.unshorn){this.bone(c,8,j.hipX-6,j.hipY-3,j.hipX+1,j.hipY-3,3.2);this.mane(c,j,time,clip);}
     this.bone(c,0,j.neckX,j.neckY,j.neckX+Math.sin(j.headA)*12.8,j.neckY-Math.cos(j.headA)*12.8,archer?11:10.8);
@@ -169,6 +198,11 @@ export class FighterRig {
       c.strokeStyle=this.mantle?'#fff1c4':'#dfe3ea';c.lineWidth=1.4;c.beginPath();c.moveTo(hx+ux*1.5,hy+uy*1.5);c.lineTo(hx+ux*10,hy+uy*10);c.stroke();
       c.strokeStyle='#b08a4a';c.lineWidth=1.2;c.beginPath();c.moveTo(hx+ux*1.2-uy*2,hy+uy*1.2+ux*2);c.lineTo(hx+ux*1.2+uy*2,hy+uy*1.2-ux*2);c.stroke();
       c.lineCap='butt';
+    }else if(armed&&fire){
+      // The hand-flame burns above the open front hand; the crowned Uri and the shaman hold a burning staff upright.
+      const x=j.haFX,y=j.haFY;
+      if(this.hero==='uri'&&!this.mantle)this.bone(c,9,x+1,y-1,x+1+Math.sin(time*9)*.6,y-11,6.5);
+      else this.bone(c,9,x,y+12,x,y-22,3.6);
     }else if(armed){
       if(archer){
         const x=j.haFX,y=j.haFY,top=y-17,bottom=y+17;

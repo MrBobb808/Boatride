@@ -4,7 +4,7 @@ import type Phaser from 'phaser';
 import { Animator, solve, blendPose, type Clip } from '../../../remnant/src/render/skeleton';
 import { clipsFor, fistClips, MOVESETS, FISTS, type AttackDef } from '../../../remnant/src/game/weapons';
 import type { WeaponFamily } from '../../../remnant/src/game/data';
-import type { PlayableHero } from './style';
+import type { RigHero } from './style';
 import { FighterRig, FIGHTER_DIMS } from './fighterRig';
 import { easeOutCubic, easeInQuad } from '../../../remnant/src/core/math';
 import BLADE_GRIPS from '../assets/cc0/blades.json';
@@ -16,7 +16,7 @@ const COMMON=['idle','run','jump','fall','land','roll','airdash','hurt','death',
 
 /** The Unshorn fights bare-handed: 'fists' is a form's moveset, not a weapon family. */
 export type ArtFamily=WeaponFamily|'fists';
-function fighterClips(family:ArtFamily,hero:PlayableHero){
+function fighterClips(family:ArtFamily,hero:RigHero){
   const clips=family==='fists'?fistClips():clipsFor(family),base=clips.idle.base!;
   clips.swim={dur:1.1,loop:true,base,fn:u=>{
     const a=u*Math.PI*2;
@@ -59,17 +59,31 @@ function bladeSprite(sc:Phaser.Scene,i:number){
   const img=document.createElement('canvas');img.width=32;img.height=64;img.getContext('2d')!.drawImage(src,i*32,0,32,64,0,0,32,64);
   return {img,gx:g.x,gy:g.y,h:g.h};
 }
+/** Uri and his shaman (C08–C10) fight with fire, not a weapon family: the blade's stance, its cuts read as casts. */
+const FIRE_CLIPS=['b1','b2','b3','heavy','launch'];
 /** `cape` is a Valor cape key (game/valor.ts CAPES); each worn colour bakes its own atlas once. */
 /** `blade`: the index of a sprite sword in the 'watch-blades' sheet (the Watch's armoury), drawn in his hand. */
-export function actionAtlas(sc:Phaser.Scene,hero:PlayableHero,family:ArtFamily,mantle=false,armed=true,cape:string|null=null,blade=-1){
+export function actionAtlas(sc:Phaser.Scene,hero:RigHero,family:ArtFamily,mantle=false,armed=true,cape:string|null=null,blade=-1){
+  if(hero==='uri'||hero==='shaman')return fireAtlas(sc,hero,mantle);
   const fists=family==='fists';
   const sprite=blade>=0&&!fists&&hero==='elior'?bladeSprite(sc,blade):null;
   const key=`action-${hero}-${hero==='tirzah'?'bow':family}${mantle&&!fists?'-mantle':''}${armed&&!fists?'':'-unarmed'}${cape&&!fists?'-cape-'+cape:''}${sprite?'-blade'+blade:''}`;
   if(sc.textures.exists(key))return key;
-  const clips=fighterClips(hero==='tirzah'?'blade':family,hero),anim=new Animator(clips),rig=new FighterRig(sc,hero,fists?'blade':family,mantle&&!fists,fists?null:cape,fists,sprite);
+  const clips=fighterClips(hero==='tirzah'?'blade':family,hero),rig=new FighterRig(sc,hero,fists?'blade':family,mantle&&!fists,fists?null:cape,fists,sprite);
   const moves=Object.values(fists?FISTS:MOVESETS[family]).flatMap(v=>Array.isArray(v)?v:typeof v==='object'?[v as AttackDef]:[]);
   const attacks=new Set(moves.map(m=>m.clip));
   const names=hero==='tirzah'?[...COMMON,'bowDraw','bowRelease','dagger1','dagger2','dagger3']:[...new Set([...COMMON,...attacks,'b1','b2','b4','heavy','dash','launch','storm','plunge',...(fists?[]:CHAIN_CLIP_NAMES)])];
+  return bake(sc,key,clips,rig,names,attacks,armed&&!fists);
+}
+/** Uri (`crown`: the Crown of Flame, C09) or his orc shaman, baked from their own parts. */
+function fireAtlas(sc:Phaser.Scene,hero:'uri'|'shaman',crown:boolean){
+  const key=`action-${hero}${crown&&hero==='uri'?'-crown':''}`;
+  if(sc.textures.exists(key))return key;
+  const clips=fighterClips('blade',hero),rig=new FighterRig(sc,hero,'blade',crown&&hero==='uri');
+  return bake(sc,key,clips,rig,[...COMMON,...FIRE_CLIPS],new Set(FIRE_CLIPS),true);
+}
+function bake(sc:Phaser.Scene,key:string,clips:Record<string,Clip>,rig:FighterRig,names:string[],attacks:Set<string>,armed:boolean){
+  const anim=new Animator(clips);
   const canvas=document.createElement('canvas');canvas.width=canvas.height=ACTION_CELL;const c=canvas.getContext('2d')!;
   const packed:{name:string;canvas:HTMLCanvasElement;left:number;top:number;x:number;y:number;ground:boolean;clip:string;phase:number}[]=[];
   let px=2,py=2,row=0;
@@ -84,7 +98,7 @@ export function actionAtlas(sc:Phaser.Scene,hero:PlayableHero,family:ArtFamily,m
       if((attacks.has(name)||name in CHAIN_CLIPS&&name!=='chfly'&&name!=='chhaul')&&u<.18)blendPose(clip.base!,p,Math.min(1,u/.18),p);
       const ground=!/air|jump|fall|flip|comet|rend|executeLeap|swim|chfly/i.test(name),j=solve(p,FIGHTER_DIMS,ground);
       c.clearRect(0,0,ACTION_CELL,ACTION_CELL);c.save();c.translate(ACTION_CELL/2,ACTION_FOOT);
-      c.imageSmoothingEnabled=true;rig.draw(c,j,p,anim.time,name,u,armed&&!fists&&!(name in CHAIN_CLIPS));c.restore();
+      c.imageSmoothingEnabled=true;rig.draw(c,j,p,anim.time,name,u,armed&&!(name in CHAIN_CLIPS));c.restore();
       const d=c.getImageData(0,0,ACTION_CELL,ACTION_CELL).data;let left=ACTION_CELL-1,top=ACTION_CELL-1,right=0,bottom=0;
       for(let y=0;y<ACTION_CELL;y++)for(let x=0;x<ACTION_CELL;x++)if(d[(y*ACTION_CELL+x)*4+3]){left=Math.min(left,x);right=Math.max(right,x);top=Math.min(top,y);bottom=Math.max(bottom,y);}
       if(left===0||top===0||right===ACTION_CELL-1||bottom===ACTION_CELL-1)throw Error(`Clipped fighter frame: ${key}/${name}:${i}`);
