@@ -65,3 +65,13 @@ export function migrateProgression(s: ProgressionData) {
   s.weaponMastery = Object.fromEntries(WEAPON_FAMILIES.map(f => [f, masteryXp(s, f)]));
   s.contracts = Object.fromEntries(CONTRACT_IDS.map(id => [id, contractWins(s, id)]));
 }
+
+/** The Bestiary's hunter's mark (NEXT_PLAN C4): a kind slain often enough takes more from every blow on Elior's side. */
+export const HUNT_STEPS = [[25, 0.03], [100, 0.06], [300, 0.1]] as const;
+export function huntBonus(bestiary: Record<string, number> | undefined, kind: string) {
+  const n = bestiary?.[kind] ?? 0;
+  let b = 0;
+  for (const [at, v] of HUNT_STEPS) if (n >= at) b = v;
+  return b;
+}
+

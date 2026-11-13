@@ -6,6 +6,14 @@ import { G } from '../game/ctx';
 import { ENEMY_STATS } from '../game/enemies';
 import type { EnemyKind } from '../game/tiles';
 import { h } from './dom';
+import { HUNT_STEPS } from '../game/progression';
+
+/** The hunter's mark on this kind, and the next step of it. */
+function huntLine(n: number) {
+  const have = [...HUNT_STEPS].reverse().find(([at]) => n >= at), next = HUNT_STEPS.find(([at]) => n < at);
+  const text = (have ? `Hunter's mark: +${Math.round(have[1] * 100)}% damage to this kind.` : 'No hunter\'s mark yet.') + (next ? ` +${Math.round(next[1] * 100)}% at ${next[0]} slain.` : '');
+  return h('p', { class: have ? 'up' : 'muted', 'data-k': 'hunt_mark', style: 'font-size:0.88em' }, text);
+}
 import { img } from './icons';
 
 interface Entry { ch: number; icon: string; note: string }
@@ -93,6 +101,7 @@ export function bestiaryPanes(sel: string | null, pick: (id: string) => void): [
       h('div', { class: 'title-text' }, st.name),
       h('div', { class: 'eyebrow' }, `Chapter ${ROMAN[NOTES[k].ch]} · slain ${b[k]}`),
       h('p', null, NOTES[k].note),
+      huntLine(b[k] ?? 0),
       h('div', { style: 'display:grid;grid-template-columns:repeat(3,1fr);gap:6px 10px;margin-top:6px' },
         stat('Health', st.hp), stat('Strength', st.dmg), stat('Poise', st.poise),
         stat('Experience', st.xp), stat('Silver', `${st.silver[0]}–${st.silver[1]}`)),

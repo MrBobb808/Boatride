@@ -39,7 +39,7 @@ type Flags = Record<string, number | string | boolean>;
 
 const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) && v > 0 ? v : 0);
 /** One more of something only a counter can know (a boss felled, a Trial round, a hook, a parry). */
-export function dayCount(s: SaveData, id: 'boss_falls' | 'trial_rounds' | 'chain_hooks' | 'parries' | 'day_boss_falls' | 'fire_clears', n = 1) {
+export function dayCount(s: SaveData, id: 'boss_falls' | 'trial_rounds' | 'chain_hooks' | 'parries' | 'day_boss_falls' | 'day_boss_medals' | 'fire_clears', n = 1) {
   const f = s.flags as Flags;
   f[id] = num(f[id]) + n;
 }
@@ -88,12 +88,14 @@ export function dayBoss(s: PhaserSave, now = Date.now()): DayBoss | null {
   const r = seeded('boss:' + dayKey(now)), [chapter, key, name] = open[Math.floor(r() * open.length)], [cond, condName] = AFFLICTIONS[Math.floor(r() * AFFLICTIONS.length)];
   return { chapter, key, name, cond, condName };
 }
-/** The day's boss has fallen in its own fight: once a day. Returns whether it counted. */
-export function dayBossFell(s: PhaserSave, key: string, now = Date.now()) {
+/** The day's boss has fallen in its own fight: once a day. Returns whether it counted. A fall without a wound
+ *  (`clean`, Valor's own judgement of the fight) also wins the day's medal (`day_boss_medals` counts them). */
+export function dayBossFell(s: PhaserSave, key: string, now = Date.now(), clean = false) {
   const f = s.flags as Flags, today = dayKey(now), b = dayBoss(s, now);
   if (!b || b.key !== key || f.day_boss_run !== today || f.day_boss_done === today) return false;
   f.day_boss_done = today;
   dayCount(s, 'day_boss_falls');
+  if (clean) { f.day_boss_medal = today; dayCount(s, 'day_boss_medals'); }
   return true;
 }
 

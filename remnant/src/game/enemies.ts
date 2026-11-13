@@ -12,6 +12,7 @@ import { glow, rgba, circle, poly, limb, ellipse, limbShaded, limbStroke, lineGr
 import { fx, PK } from '../render/fx';
 import { sfx } from '../audio/audio';
 import { G } from './ctx';
+import { huntBonus } from './progression';
 import { approach, clamp, rand, sign, choose, easeOutCubic, easeInQuad, easeOutBack, easeInOutSine } from '../core/math';
 import { Proj } from './projectiles';
 import { waterRoom, landFoeWater } from './water';
@@ -394,7 +395,8 @@ export abstract class Enemy extends Entity {
       }
       return true;
     }
-    let dmg = h.dmg;
+    // The Bestiary's hunter's mark: a kind slain often takes more from Elior's side.
+    let dmg = h.kind === 'hazard' ? h.dmg : h.dmg * (1 + huntBonus(G.save?.bestiary, this.kind));
     this.aggro = true;
     if (this.guardCheck(h)) return true;
     if (this.staggered > 0) dmg *= this.brokenMul;

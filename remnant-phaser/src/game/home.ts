@@ -238,7 +238,7 @@ export class Home {
     const boss = dayBoss(s);
     const row = (c: (typeof d.calls)[number], weekly: boolean) => {
       const li = el('li', c.paid ? 'done' : ''), have = c.paid ? c.goal : progress(s, c, weekly);
-      li.append(el('i', '', c.paid ? '✓' : weekly ? '◆' : '○'), el('span', '', c.mode === 'dayboss' && boss ? `${c.text}: ${boss.name}, under ${boss.condName}` : c.text), el('u', '', c.paid ? 'done' : c.goal > 1 ? `${have}/${c.goal}` : weekly ? 'this week' : `about ${c.mins} min`));
+      li.append(el('i', '', c.paid ? '✓' : weekly ? '◆' : '○'), el('span', '', c.mode === 'dayboss' && boss ? `${c.text}: ${boss.name}, under ${boss.condName}${s.flags.day_boss_medal === s.flags.day_boss_done && c.paid ? ' · ✦ untouched' : ' (untouched wins a medal)'}` : c.text), el('u', '', c.paid ? 'done' : c.goal > 1 ? `${have}/${c.goal}` : weekly ? 'this week' : `about ${c.mins} min`));
       li.dataset.k = weekly ? 'title_weekly' : 'title_call';
       return li;
     };

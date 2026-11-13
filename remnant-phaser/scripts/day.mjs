@@ -170,6 +170,13 @@ try {
   const fight = await E(p3, () => { const w = window.__remnant.world, b = window.__remnant.day.dayBoss(w.save); return { want: b, replay: w.save.replay, fire: w.save.fire?.on, here: w.room.ents.some((e) => e.t === 'boss' && e.k === b.key), standing: !!(w.cboss ?? w.boss) }; });
   assert.ok(fight.replay === fight.want.chapter && fight.fire.join() === fight.want.cond && fight.here && fight.standing, `the day's boss stands in its arena under the day's condition (${JSON.stringify(fight)})`);
   console.log(`Day's boss: ${fight.want.name}, under ${fight.want.condName}`);
+  // A fall without a wound wins the day's medal; once a day, like the fall itself.
+  const medal = await E(p3, () => { const w = window.__remnant.world, d = window.__remnant.day, b = d.dayBoss(w.save), s = JSON.parse(JSON.stringify(w.save));
+    const first = d.dayBossFell(s, b.key, Date.now(), true), again = d.dayBossFell(s, b.key, Date.now(), true);
+    const s2 = JSON.parse(JSON.stringify(w.save)), hurt = d.dayBossFell(s2, b.key, Date.now(), false);
+    return { first, again, medals: s.flags.day_boss_medals, hurt, hurtMedals: s2.flags.day_boss_medals ?? 0 }; });
+  assert.ok(medal.first && !medal.again && medal.medals === 1 && medal.hurt && medal.hurtMedals === 0, `an untouched fall wins one medal a day, a wounded one none (${JSON.stringify(medal)})`);
+  console.log('Day\'s medal: won untouched, once a day');
 
   // ---- a phone upright: the card fits
   const phone = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, storageState: await ctx.storageState() });

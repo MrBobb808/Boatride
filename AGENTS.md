@@ -157,6 +157,9 @@ Never ship files from `art/incoming/` directly.
   - `game/player.ts`: the player.
   - `game/weapons.ts`: movesets and animation clips.
   - `game/finishers.ts`: randomized slow-motion executions and kill cams.
+  - `game/progression.ts`: weapon mastery (ten ranks per family), the armor sets and contracts, and the Bestiary's
+    hunter's mark (`huntBonus`: a kind slain 25/100/300 times takes 3/6/10% more, applied in `Enemy.takeHit`).
+    Verified by `remnant-phaser/scripts/mastery.mjs`.
   - `game/power.ts`: power tiers by level, weapon elements, and the
     Sovereign form at level 100.
   - `game/mantle.ts`: the Shadow Mantle transformation (from level 25):
@@ -418,7 +421,7 @@ Never ship files from `art/incoming/` directly.
   marks (10 a call, 20 for all, 40 a weekly). A call pays the moment it is done, wherever the player is (`settleDay`,
   called every few seconds on the journey and when the Horde and the Watch bank). Progress is read from what the modes
   already count plus four counters in `flags` (`boss_falls`, `trial_rounds`, `chain_hooks`, `parries`; `dayCount`).
-  A new mode adds a row to `DAILY`/`WEEKLY` and, if nothing counts it yet, a tally. The home screen's Today card and
+  The day's boss fallen without a wound wins the day's medal (`dayBossFell`'s `clean`, from Valor). A new mode adds a row to `DAILY`/`WEEKLY` and, if nothing counts it yet, a tally. The home screen's Today card and
   Chronicle page are in `home.ts`. Nothing earned is taken back; nothing is sold. Verified by `scripts/day.mjs`.
 - **The Watch (Phaser build):** an idle game in portrait (`remnant-phaser/src/scenes/Watch.ts`,
   `src/game/watch/`): a fresh Elior keeps a wall, kills pay coins, coins buy

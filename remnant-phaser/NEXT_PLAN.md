@@ -154,7 +154,7 @@ Checked in the repository on this date; each is addressed by the phase named.
   (shown on chapter select) with a reward the first time each tier is cleared. It builds on `chapterReplay`, `might.ts`
   and the daily challenge's `DAILY_MODS`. Balance by measurement: at heat 0 nothing changes; each tier is sized so a
   balanced build at the arrival level takes a set number more blows (record the table here).
-- [ ] **C2. The day's boss and bounties.** (The day's boss is built, in `day.ts` and `scripts/day.mjs`: a finished chapter's last boss chosen by the date, under one of the Fire's conditions, started from the Today card, paying a legendary piece once a day. Still to do: bounties, and the flawless medal.) The day's boss: one boss beaten so far, chosen by the date, under one
+- [ ] **C2. The day's boss and bounties.** (The day's boss is built, in `day.ts` and `scripts/day.mjs`: a finished chapter's last boss chosen by the date, under one of the Fire's conditions, started from the Today card, paying a legendary piece once a day. A fall without a wound (Valor's own judgement of the fight) wins the day's medal (`flags.day_boss_medals`), shown on the Today card. Still to do: bounties.) The day's boss: one boss beaten so far, chosen by the date, under one
   affliction, with a medal for a fall without being hit (it feeds Valor's flawless titles). Bounties: three a day, a
   named elite with a legendary power of its own placed in a seeded room of a finished chapter, with a hint, not a
   marker. Each pays a legendary roll weighted toward powers not yet in the Codex.
@@ -166,7 +166,7 @@ Checked in the repository on this date; each is addressed by the phase named.
     Mantle, the bow). They drop from the Fire and bounties only.
   - **Comfort**: a comparison against what is worn on every tooltip, a loot filter (auto-mark below a rarity as junk),
     a "new" dot. Without these a long session is spent in menus.
-- [ ] **C4. Mastery.** A track per weapon type and per Echo species, raised by using it: small bonuses, a new move or
+- [ ] **C4. Mastery.** (Partly built. Weapon mastery was already there: `remnant/src/game/progression.ts`, ten ranks per weapon family raised by landing hits, +3% damage a rank and perks at set ranks, on Elior → Mastery. The Bestiary's hunter's mark is new (`huntBonus`): a kind slain 25, 100 and 300 times takes 3%, 6% and 10% more from Elior's side, shown on its Bestiary entry; `scripts/mastery.mjs`. Each Echo already levels by itself, which is its species' track. Still to do: a cosmetic or a move at a weapon's top rank.) A track per weapon type and per Echo species, raised by using it: small bonuses, a new move or
   a cosmetic at set levels, and a reason to change build. The Bestiary pays a small bonus against a kind at kill
   counts. Mastery shows on the character page as one screen.
 - [ ] **C5. Bests, medals and something to show.** (The result card is built: `remnant/src/ui/share.ts` is the hook and button, `remnant-phaser/src/game/shareCard.ts` draws a 1080×1350 card (mode, date, result, rules, hero level, the build's three main pieces) and hands it to the share sheet, else saves it. On the Trial's, the Gauntlet's, Extreme's and the Rush's Game Over card, the ranked daily challenge's, and the Horde's results. `scripts/share.mjs`. Still to do: par times, secret counts and medals per chapter.) Per chapter: a clock with a par time, a count of secrets, a

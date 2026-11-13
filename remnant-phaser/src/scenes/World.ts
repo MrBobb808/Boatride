@@ -47,7 +47,7 @@ import { hooks, blockingUI } from '../../../remnant/src/ui/ui';
 import { topLayer } from '../../../remnant/src/ui/dom';
 import { maybeRecap } from '../../../remnant/src/game/recap';
 import { tickCoach } from '../../../remnant/src/ui/coach';
-import { valorTick } from '../../../remnant/src/game/valor';
+import { valorTick, valorTrack } from '../../../remnant/src/game/valor';
 import { runBlessings } from '../../../remnant/src/game/blessings';
 import { Grid } from '../../../remnant/src/game/tiles';
 import { trialArena, trialSector } from '../../../remnant/src/game/trialArena';
@@ -1352,7 +1352,10 @@ export class World extends Phaser.Scene implements WorldApi {
   private refined(key: string) {
     if (!this.replaying || FINAL_BOSS[this.save.replay!] !== key || this.time.now - this.refinedAt < 4000) return;
     this.refinedAt = this.time.now;
-    if (dayBossFell(this.save, key)) this.time.delayedCall(4200, () => this.toast('The day\'s boss has fallen.'));
+    if (dayBossFell(this.save, key, Date.now(), valorTrack.state.clean)) {
+      const medal = this.save.flags.day_boss_medal === dayKey(Date.now());
+      this.time.delayedCall(4200, () => this.toast(medal ? 'The day\'s boss has fallen, and you were not touched: the day\'s medal is yours.' : 'The day\'s boss has fallen.'));
+    }
     const r = refine(this.save, this.save.replay!);
     this.lastRefined = r;
     if (r) dayCount(this.save, 'fire_clears');
