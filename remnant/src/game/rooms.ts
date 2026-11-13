@@ -8,6 +8,7 @@ import { ROOMS3, CH3_ROOM_IDS } from './rooms3';
 import { ROOMS4, CH4_ROOM_IDS } from './rooms4';
 import { ROOMS5, CH5_ROOM_IDS } from './rooms5';
 import { ROOMS6, CH6_ROOM_IDS } from './rooms6';
+import { ROOMS14, CH14_ROOM_IDS } from './rooms14';
 import { REST_ROOM } from './restRoom';
 
 export interface RoomSpec extends Omit<RoomDef, 'rows' | 'w' | 'h' | 'exits'> {
@@ -554,11 +555,11 @@ function sanctum() {
 export type RoomData = ReturnType<typeof sanctuary>;
 
 export const ROOMS: Record<string, RoomData> = Object.fromEntries(
-  [sanctuary(), ashenRoad(), villageSquare(), cistern(), templeSteps(), templeHall(), chamber(), crypt(), gallery(), vault(), antechamber(), sanctum(), ...ROOMS2, ...ROOMS3, ...ROOMS4, ...ROOMS5, ...ROOMS6, ...FALLEN_ROOMS, REST_ROOM]
+  [sanctuary(), ashenRoad(), villageSquare(), cistern(), templeSteps(), templeHall(), chamber(), crypt(), gallery(), vault(), antechamber(), sanctum(), ...ROOMS2, ...ROOMS3, ...ROOMS4, ...ROOMS5, ...ROOMS6, ...FALLEN_ROOMS, ...ROOMS14, REST_ROOM]
     .map((r) => [r.id, r]),
 );
 
 /** Which chapter a room belongs to (maps show one chapter at a time). */
 export function chapterOf(id: string) {
-  return chapterForRoom(id)?.n ?? (CH6_ROOM_IDS.has(id) ? 6 : CH5_ROOM_IDS.has(id) ? 5 : CH4_ROOM_IDS.has(id) ? 4 : CH3_ROOM_IDS.has(id) ? 3 : CH2_ROOM_IDS.has(id) ? 2 : 1);
+  return chapterForRoom(id)?.n ?? (CH14_ROOM_IDS.has(id) ? 14 : CH6_ROOM_IDS.has(id) ? 6 : CH5_ROOM_IDS.has(id) ? 5 : CH4_ROOM_IDS.has(id) ? 4 : CH3_ROOM_IDS.has(id) ? 3 : CH2_ROOM_IDS.has(id) ? 2 : 1);
 }

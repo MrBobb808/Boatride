@@ -19,6 +19,13 @@ const ELITE_NAMES: Record<string, string> = {
   garden_keeper: 'Keeper of the Gardens',
   treasury_captain: 'Captain of the Treasury',
   undying_captain: 'Captain of the Undying',
+  buckler_captain: 'Captain of the Bucklers',
+  rent_golem: 'The Stone of the Rent Valley',
+  meshech_captain: 'Captain of Meshech',
+  tubal_captain: 'Captain of Tubal',
+  engine_warden: 'Warden of the Engine',
+  gog_standard: 'Standard-Bearer of Gog',
+  gog_champion: 'Champion of Gog',
 };
 
 function build(kind: EnemyKind, x: number, y: number, elite: string | null): Enemy {

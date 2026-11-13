@@ -22,7 +22,7 @@ const TAU = Math.PI * 2;
 const OUT = '#0e0a0c';
 
 /** Rooms whose seed asks for another mood of their land (rooms14.ts gives these seeds). */
-export const SEED = { alarm: 1405, ford: 1409, cloud: 1417, fire: 1420, sea: 1424 } as const;
+export const SEED = { alarm: 1404, ford: 1410, cloud: 1418, fire: 1419, sea: 1424 } as const;
 type Variant = 'morning' | 'alarm' | 'host' | 'ford' | 'shaking' | 'cloud' | 'fire' | 'river' | 'sea';
 let variant: Variant = 'morning';
 
