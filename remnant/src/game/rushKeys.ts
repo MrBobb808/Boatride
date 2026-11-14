@@ -16,6 +16,9 @@ export const RUSH_KEYS: readonly { key: string; name: string; music?: string }[]
   { key: 'nation_gods', name: 'The Gods of the Nations' },
   { key: 'north_king', name: 'The King of the North' },
   { key: 'tyrus_prince', name: 'The Prince of Tyrus' },
+  { key: 'meshech_tubal', name: 'The Princes of Meshech and Tubal', music: 'duel' },
+  { key: 'siege_colossus', name: 'The Engine of the North', music: 'tower' },
+  { key: 'gog_prince', name: 'Gog, Chief Prince of Meshech and Tubal', music: 'persia' },
 ];
 /** The bosses this save has beaten, as rush keys in story order. */
 export const rushRoster = (defeated: readonly string[]) => RUSH_KEYS.filter((b) => defeated.includes(b.key)).map((b) => b.key);

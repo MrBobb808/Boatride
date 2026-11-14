@@ -996,6 +996,9 @@ export class World extends Phaser.Scene implements WorldApi {
     if (wears(this.save, 'high_places')) d.dr = Math.min(0.85, d.dr + 0.08);
     if (wears(this.save, 'firmament')) d.critDmg *= 1.15;
     if (wears(this.save, 'fetters')) d.heavyPoiseMult *= 1.2;
+    if (wears(this.save, 'bucklers')) d.maxHp = Math.round(d.maxHp * 1.12);
+    if (wears(this.save, 'walls')) d.ceRegen *= 1.25;
+    if (wears(this.save, 'hail')) d.skillRecharge *= 1.15;
     this.setEliorStats(d);
     this.legends?.refresh();
   }

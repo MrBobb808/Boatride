@@ -6,7 +6,7 @@ import { ITEMS } from '../../../remnant/src/game/data';
 import { ROOMS } from '../shared';
 import type { PhaserSave } from './save';
 
-export type PsalmId = 'broken_idol' | 'open_gate' | 'banner' | 'swarm' | 'furnace' | 'balance' | 'wind' | 'watch' | 'four_winds' | 'hunt' | 'cleansing' | 'refiner' | 'high_places' | 'firmament' | 'fetters';
+export type PsalmId = 'broken_idol' | 'open_gate' | 'banner' | 'swarm' | 'furnace' | 'balance' | 'wind' | 'watch' | 'four_winds' | 'hunt' | 'cleansing' | 'refiner' | 'high_places' | 'firmament' | 'fetters' | 'bucklers' | 'walls' | 'hail';
 export interface Psalm { id: PsalmId; name: string; cost: number; boss: string; bossName: string; kind: 'Combat' | 'Movement' | 'Echoes'; desc: string }
 
 const P = (id: PsalmId, name: string, cost: number, boss: string, bossName: string, kind: Psalm['kind'], desc: string): Psalm => ({ id, name, cost, boss, bossName, kind, desc });
@@ -26,6 +26,9 @@ export const PSALMS: Psalm[] = [
   P('high_places', 'Psalm of the High Places', 2, 'nation_gods', 'the Gods of the Nations', 'Combat', 'Every blow you take lands 8% lighter.'),
   P('firmament', 'Psalm of the Firmament', 2, 'north_king', 'the King of the North', 'Combat', 'Critical blows land 15% harder.'),
   P('fetters', 'Psalm of the Broken Fetters', 2, 'tyrus_prince', 'the Prince of Tyrus', 'Combat', 'Your blows break a foe\'s guard 20% sooner.'),
+  P('bucklers', 'Psalm of the Bucklers', 2, 'meshech_tubal', 'the Princes of Meshech and Tubal', 'Combat', 'Your health is 12% greater.'),
+  P('walls', 'Psalm of the Fallen Walls', 2, 'siege_colossus', 'the Engine of the North', 'Combat', 'Covenant Energy returns 25% faster.'),
+  P('hail', 'Psalm of the Hail', 3, 'gog_prince', 'Gog', 'Combat', 'Your abilities recharge 15% faster.'),
 ];
 export const PSALM = Object.fromEntries(PSALMS.map((p) => [p.id, p])) as Record<PsalmId, Psalm>;
 
@@ -35,7 +38,7 @@ export const PAGE_BOSSES: Record<string, string> = { marshal: 'psalter_3', storm
 export const BASE_SLOTS = 3, MAX_SLOTS = 7;
 
 /** Story flags that mark a boss beaten in saves from before Psalms (the rewards flag came later). */
-const BEATEN: Record<string, string> = { idol: 'idol_defeated', gatekeeper: 'gate_open', marshal: 'marshal_raised', locust_king: 'ch3_king_done', golden_image: 'ch4_image_done', weigher: 'ch5_weigher_done', storm_prince: 'ch6_storm_done', persia_prince: 'ch6_prince_done', grecia_prince: 'ch10_done', nation_gods: 'ch11_done', north_king: 'ch12_done', tyrus_prince: 'ch13_done' };
+const BEATEN: Record<string, string> = { idol: 'idol_defeated', gatekeeper: 'gate_open', marshal: 'marshal_raised', locust_king: 'ch3_king_done', golden_image: 'ch4_image_done', weigher: 'ch5_weigher_done', storm_prince: 'ch6_storm_done', persia_prince: 'ch6_prince_done', grecia_prince: 'ch10_done', nation_gods: 'ch11_done', north_king: 'ch12_done', tyrus_prince: 'ch13_done', meshech_tubal: 'ch14_princes_done', siege_colossus: 'ch14_engine_done', gog_prince: 'ch14_gog_done' };
 
 let ready = false;
 /** The Psalter Pages are key items, and the two chests hold one each. Once, at startup. */

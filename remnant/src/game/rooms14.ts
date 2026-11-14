@@ -453,6 +453,7 @@ function princesTents() {
     { t: 'decor', k: 'shield_wall', x: 76, y: f, w: 5 },
     { t: 'light', k: 'brazier', x: 22, y: f },
     { t: 'light', k: 'brazier', x: 62, y: f },
+    { t: 'boss', k: 'meshech_tubal', x: 60, y: f },
     { t: 'trigger', x: 9, y: f - 9, w: 2, h: 9, id: 'princes_start' },
   ];
   return room(b, {
@@ -518,6 +519,7 @@ function engineHill() {
     { t: 'decor', k: 'host_banner', x: 52, y: f },
     { t: 'decor', k: 'spear_cairn', x: 88, y: f },
     { t: 'light', k: 'forge', x: 50, y: f },
+    { t: 'boss', k: 'siege_colossus', x: 70, y: f },
     { t: 'trigger', x: 9, y: f - 9, w: 2, h: 9, id: 'engine_start' },
   ];
   return room(b, {
@@ -722,7 +724,8 @@ function gogMountain() {
     { t: 'decor', k: 'host_banner', x: 50, y: f },
     { t: 'decor', k: 'broken_wall', x: 70, y: f, w: 6 },
     { t: 'decor', k: 'host_banner', x: 92, y: f },
-    { t: 'decor', k: 'hail_fall', x: 6, y: f, w: 94, h: 26, cond: 'ch14_hail' },
+    { t: 'decor', k: 'hail_fall', x: 6, y: f, w: 94, h: 26 },
+    { t: 'boss', k: 'gog_prince', x: 76, y: f },
     { t: 'light', k: 'brazier', x: 20, y: f },
     { t: 'light', k: 'brazier', x: 84, y: f },
     { t: 'trigger', x: 9, y: f - 9, w: 2, h: 9, id: 'gog_start' },
