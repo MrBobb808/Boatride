@@ -31,7 +31,7 @@ const TIMBER = '#5a4030', TIMBER_D = '#2e2018', HIDE = '#6a3a28', IRON = '#4a4e5
 interface Fall { x: number; t: number; at: number }
 
 export class SiegeColossus extends BossBase {
-  pixelBox = [-210, -340, 210, 24] as const;
+  pixelBox = [-330, -350, 330, 24] as const;
   floorY: number;
   atk: Atk | null = null;
   lastAtk: Atk | null = null;
@@ -105,6 +105,8 @@ export class SiegeColossus extends BossBase {
     } else if (t > 2.3) {
       this.ram = 0;
       this.beginFight();
+      // The engine is taller than the screen at the usual zoom: draw back to see the whole of it.
+      G.camera.viewMultTarget = 1.5;
     }
     this.animate(_dt);
   }

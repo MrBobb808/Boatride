@@ -1,7 +1,7 @@
 // Chapter XIV, the Day of Gog (remnant/src/game/rooms14.ts, story14.ts, render/env14.ts): its twenty-four rooms load,
 // are dressed and joined door to door both ways; the host holds the fighting rooms; and the story runs from the end of
-// Chapter XIII through the opening, the cloud out of the north, the herald, the cave of refuge, the three fights of
-// the host, the hail and fire on the mountain, Hamongog, the threshold and the river to the chapter's end card.
+// Chapter XIII through the opening, the cloud out of the north, the herald, the cave of refuge, the three bosses, Gog
+// on the mountain, Hamongog, the threshold and the river to the chapter's end card.
 // Run after `npm run build`.
 import { chromium } from '@playwright/test';
 import assert from 'node:assert/strict';
@@ -31,7 +31,7 @@ async function drain(done, arg, max = 90000) {
     else if (await p.locator('.lore-card:visible button').count()) await p.locator('.lore-card button').last().click();
     await p.waitForTimeout(150);
   }
-  throw Error('Chapter XIV stalled: ' + await p.evaluate(() => JSON.stringify({ room: window.__remnant.world.room.id, cutscene: window.__remnant.G.inCutscene, flags: Object.keys(window.__remnant.world.save.flags).filter((k) => k.startsWith('ch14')), ui: document.getElementById('ui').innerText.slice(-400) })));
+  throw Error('Chapter XIV stalled: ' + await p.evaluate(() => JSON.stringify({ room: window.__remnant.world.room.id, cutscene: window.__remnant.G.inCutscene, boss: [window.__remnant.world.cboss?.key, window.__remnant.world.cboss?.state, window.__remnant.world.classic.bossActive], flags: Object.keys(window.__remnant.world.save.flags).filter((k) => k.startsWith('ch14')), ui: document.getElementById('ui').innerText.slice(-400) })));
 }
 
 /** Stand Elior in a trigger of the current room. */
@@ -104,39 +104,31 @@ try {
   await drain(() => window.__remnant.world.save.flags.ch14_refuge && !window.__remnant.G.inCutscene && window.__remnant.world.save.quests.m_gog?.stage === 3);
   console.log('Act I: the cloud, the herald, the cave of refuge');
 
-  // The three fights: the gate shuts, waves come, the captains last; the way on opens when they are down.
+  // The three fights (their mechanics are ch14-bosses.mjs's): the trigger plays the scene, the boss rises, the gate
+  // shuts; the boss's fall plays the outro, pays its reward and opens the way on.
   const xpBefore = await E(() => window.__remnant.world.save.xp + window.__remnant.world.save.level * 1e9);
-  for (const [room, trigger, flag, item] of [['princes_tents', 'princes_start', 'ch14_princes_done', 'bucklers_of_meshech'], ['engine_hill', 'engine_start', 'ch14_engine_done', null], ['gog_mountain', 'gog_start', 'ch14_gog_done', 'hailstone_maul']]) {
+  for (const [room, trigger, key, flag, item] of [['princes_tents', 'princes_start', 'meshech_tubal', 'ch14_princes_done', 'bucklers_of_meshech'], ['engine_hill', 'engine_start', 'siege_colossus', 'ch14_engine_done', null], ['gog_mountain', 'gog_start', 'gog_prince', 'ch14_gog_done', 'hailstone_maul']]) {
     await warp(room);
-    assert.ok(await E(() => !window.__remnant.world.room.exits.find((x) => x.cond && x.x > 2) || !window.__remnant.world.save.flags[window.__remnant.world.room.exits.find((x) => x.cond).cond]), `${room} is shut`);
+    assert.ok(await E(() => { const w = window.__remnant.world, x = w.room.exits.find((x) => x.cond); return !x || !w.save.flags[x.cond]; }), `${room} is shut`);
+    assert.equal(await E(() => window.__remnant.world.cboss?.key), key, `${room} holds ${key}`);
     await enter(trigger);
-    let waves = 0;
-    const end = Date.now() + 120000;
-    while (!(await E((f) => window.__remnant.world.save.flags[f], flag))) {
-      if (Date.now() > end) throw Error(`${room}: the fight did not end`);
-      if (errors.length) throw Error(errors.join('\n'));
-      const n = await E(() => {
-        const w = window.__remnant.world;
-        const foes = w.classic.ents.filter((e) => e.isFoe && !e.isBoss && !e.dying && !e.remove);
-        for (const f of foes) f.takeHit({ dmg: 1e9, poise: 999, kx: 0, ky: 0, dir: 1, kind: 'ability', guardBreak: true, src: w.classic.player });
-        return foes.length;
-      });
-      if (n) waves++;
-      const choice = p.locator('.dialogue .choices button:visible');
-      if (await choice.count()) await choice.first().click();
-      else if (await p.locator('.dialogue:visible').count()) await p.keyboard.press('Enter');
-      else if (await p.locator('.lore-card:visible button').count()) await p.locator('.lore-card button').last().click();
-      await p.waitForTimeout(250);
-    }
-    await drain(() => !window.__remnant.G.inCutscene);
-    assert.ok(waves >= 3, `${room}: the host came in waves (${waves} rounds struck)`);
+    await drain((k) => ['idle', 'attack'].includes(window.__remnant.world.cboss?.state), key);
+    assert.ok(await E(() => window.__remnant.world.classic.bossActive), `${room}: the gate shuts behind Elior`);
+    // Bring it down the way each one falls.
+    if (key === 'gog_prince') {
+      await E(() => { const w = window.__remnant.world, b = w.cboss; b.phase = 3; b.hp = Math.round(b.maxHp * 0.105); });
+      await until(() => window.__remnant.world.cboss.state === 'idle', null, 30000);
+      await E(() => { const w = window.__remnant.world; w.cboss.takeHit({ dmg: 5e6, poise: 0, kx: 0, ky: 0, dir: 1, kind: 'melee', src: w.player }); });
+      await drain(() => window.__remnant.world.cboss.hailing);
+      await E(() => { const b = window.__remnant.world.cboss; b.hailT = b.hailLen - 0.6; });
+    } else await E(() => { const w = window.__remnant.world, b = w.cboss; b.hp = 1; b.state = 'idle'; b.takeHit({ dmg: 999, poise: 0, kx: 0, ky: 0, dir: 1, kind: 'melee', src: w.player }); });
+    await drain((f) => window.__remnant.world.save.flags[f] && !window.__remnant.G.inCutscene, flag);
     if (item) assert.ok(await E((id) => window.__remnant.world.save.inventory.some((i) => i.id === id), item), `${room} rewards ${item}`);
     assert.ok(await E(() => !window.__remnant.world.classic.gateClosed && !window.__remnant.world.classic.bossActive), `${room}: the gate opens again`);
   }
-  assert.ok(await E(() => !window.__remnant.world.save.flags.ch14_hail), 'the hail stops when it has done its work');
   assert.ok(await E((b) => window.__remnant.world.save.xp + window.__remnant.world.save.level * 1e9 > b, xpBefore), 'the fights pay experience');
   assert.equal(await E(() => window.__remnant.world.save.quests.m_gog?.stage), 6, 'the host is fallen: on to Hamongog');
-  console.log('Act II–III: the princes\' tents, the engine of the north and the mountain of Gog, ended by hail and fire');
+  console.log('Act II–III: the princes, the engine of the north and Gog, each woken by its trigger and brought down');
 
   await warp('hamongog');
   await drain(() => window.__remnant.world.save.flags.ch14_hamongog && !window.__remnant.G.inCutscene);

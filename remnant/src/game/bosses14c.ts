@@ -107,6 +107,7 @@ export class GogPrince extends Prince14 {
     } else if (t > 2.4) {
       this.target = { ...MP.guard };
       this.beginFight();
+      G.camera.viewMultTarget = 1.25;
     }
   }
 
@@ -126,7 +127,7 @@ export class GogPrince extends Prince14 {
     if (this.cloudy >= 0.5 || this.hailing) return false;
     const conf = this.confused ? 1.3 : 1, k = this.state === 'kneel' ? 1.5 : 1;
     const room = this.hp - this.floor;
-    const dmg = Math.min(h.dmg * conf, Math.max(0, room - 1) / k);
+    const dmg = Math.min(h.dmg * conf, Math.max(0, room) / k);
     const hit = super.takeHit({ ...h, dmg });
     if (this.hp <= this.floor && this.phase >= 3 && this.state !== 'transition' && !this.hailing) { this.hp = this.floor; this.startHail(); }
     else if (this.hp < this.floor) this.hp = this.floor;

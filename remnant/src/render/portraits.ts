@@ -45,10 +45,29 @@ const EXTRA: Record<string, HumanStyle> = {
     helm: 'crown', helmColor: '#6a2a7a', helmTrim: '#e8c25a', eye: '#fff1c4', eyeGlow: 1, iris: '#ff4a6a', outline: '#08040a',
     weapon: 'none', offhand: 'none', bulk: 1.3, crest: '#6a2a7a',
   },
+  // Chapter XIV's three speakers (game/bosses14.ts, bosses14c.ts): Meshech in bronze, Tubal in hooded green, Gog in black iron.
+  Meshech: {
+    skin: '#7a5a44', hair: '#1a1210', hairKind: 'short', beard: '#1a1210', coat: '#3a2418', coatDark: '#1e120a', skirt: 16, trim: '#c8943a',
+    pants: '#241810', boots: '#140c08', glove: '#2a1a10', belt: '#c8943a', plate: { c: '#8a6a3a', dark: '#4a361c', hi: '#f0d08a', tier: 3 },
+    helm: 'visor', helmColor: '#8a6a3a', helmTrim: '#f0d08a', eye: '#ffe0b0', eyeGlow: 0.6, outline: '#060408',
+    weapon: 'none', offhand: 'none', bulk: 1.5, crest: '#c8501a',
+  },
+  Tubal: {
+    skin: '#8a6048', hair: '#1a1210', hairKind: 'braid', beard: null, coat: '#2a3a3c', coatDark: '#141e20', skirt: 14, trim: '#d8a850',
+    pants: '#1a2224', boots: '#120c08', glove: '#1a1210', belt: '#d8a850', plate: null,
+    helm: 'archer', helmColor: '#3a4a4c', helmTrim: '#d8a850', eye: '#ffd8a0', eyeGlow: 0.8, outline: '#060408',
+    weapon: 'none', offhand: 'none', bulk: 1.15, scarf: '#c8501a',
+  },
+  Gog: {
+    skin: '#6a5a58', hair: '#0e0a12', hairKind: 'long', beard: '#0e0a12', coat: '#1e1a26', coatDark: '#0a0810', skirt: 18, trim: '#c8a04a',
+    pants: '#120e18', boots: '#0a080c', glove: '#14101a', belt: '#c8a04a', plate: { c: '#3a3a48', dark: '#16161e', hi: '#c8c8e0', tier: 3 },
+    helm: 'crown', helmColor: '#2a2a36', helmTrim: '#c8a04a', eye: '#e8e0ff', eyeGlow: 1, iris: '#8a7ac8', outline: '#04030a',
+    weapon: 'none', offhand: 'none', bulk: 1.5, crest: '#c8a04a',
+  },
 };
 
 /** Who glowers by default. */
-const VILLAINS = new Set(['regent', 'satrap', 'feastlord', 'marshal', 'storm_prince', 'persia_prince', 'The Prince of Grecia', 'Baal', 'The King of the North', 'The Prince of Tyrus', 'Varkhos', 'Morvane', 'Azkar']);
+const VILLAINS = new Set(['regent', 'satrap', 'feastlord', 'marshal', 'storm_prince', 'persia_prince', 'The Prince of Grecia', 'Baal', 'The King of the North', 'The Prince of Tyrus', 'Varkhos', 'Morvane', 'Azkar', 'Meshech', 'Tubal', 'Gog']);
 
 function styleOf(who: string): HumanStyle | null {
   if (who === 'elior') return G.world?.player?.style ?? NPC_DEFS.tobiah.style;

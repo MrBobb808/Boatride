@@ -774,6 +774,7 @@ export class MeshechTubal extends Prince14 {
     } else if (t > 2.2) {
       this.target = { ...MP.guard };
       this.beginFight();
+      G.camera.viewMultTarget = 1.2;
       if (this.partner) this.partner.cd = 2.2;
     }
     this.partner!.run(dt);
