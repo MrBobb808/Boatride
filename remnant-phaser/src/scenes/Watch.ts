@@ -478,7 +478,7 @@ export class Watch extends Phaser.Scene {
     this.tapCd -= dt;
     // The shadows fight beside him, each in its role (and run with him).
     this.band.tick(wdt, st.atk * st.shadow * (mantle ? D.MANTLE.dmg : 1), scroll > 0, this.fallen <= 0 && !this.cine, REACH);
-    this.uri.tick(wdt, w.level >= D.URI_WALL, st.atk * (mantle ? D.MANTLE.dmg : 1), scroll > 0, this.fallen <= 0 && !this.cine);
+    this.uri.tick(wdt, w.level >= D.URI_WALL, st.atk * (mantle ? D.MANTLE.dmg : 1), scroll > 0, this.fallen <= 0 && !this.cine, mantle);
     // The Shadow Mantle.
     if (this.mantleT > 0) { this.mantleT -= dt; if (this.mantleT <= 0) this.ui.toast('The Mantle falls away'); }
     else if (w.level >= D.MANTLE.level && w.gauge >= 100 && w.auto) this.transformNow();
