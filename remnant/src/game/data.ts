@@ -112,6 +112,7 @@ export const ITEMS: Record<string, ItemBase> = {
   // Chapter XIII · The Stones of Fire.
   fetterbreaker: {id:'fetterbreaker',name:'Fetterbreaker',slot:'weapon',family:'greatsword',rarity:5,icon:'greatsword',element:'fire',look:2,unique:true,value:7200,mods:{atk:350,crit:13,poise:50,critDmg:36},desc:'Beaten out of the fetters of the fairs, link by link. It has never held anyone. Trophy of the Prince of Tyrus, Chapter XIII.'},
   // Chapter XIV: the Day of Gog.
+  salt_of_the_covenant: {id:'salt_of_the_covenant',name:'Salt of the Covenant',slot:'relic',rarity:5,icon:'lamp',unique:true,value:6400,mods:{hp:540,def:30,res:30,parry:10},desc:'A pinch of the marsh\'s last salt, kept in a leaf. Not everything was healed; some of it was left to keep a promise.'},
   hailstone_maul: {id:'hailstone_maul',name:'Hailstone Maul',slot:'weapon',family:'greatsword',rarity:5,icon:'greatsword',element:'frost',look:2,unique:true,value:7800,mods:{atk:380,crit:12,poise:60,critDmg:40},desc:'Forged from one of the stones that fell on the mountains of Israel. It is still cold. Elior did not throw it.'},
   bucklers_of_meshech: {id:'bucklers_of_meshech',name:'Bucklers of Meshech and Tubal',slot:'gauntlets',rarity:5,icon:'gauntlets',look:2,unique:true,value:5600,mods:{def:40,hp:420,parry:14,poise:30},desc:'Two princes carried these into the field and covered each other with them. They were burned with the rest, except these two.'},
   line_of_the_measurer: {id:'line_of_the_measurer',name:'The Measuring Line',slot:'weapon',family:'spear',rarity:5,icon:'spear',element:'holy',look:2,unique:true,value:8400,mods:{atk:400,crit:14,critDmg:44,speed:8},desc:'A line of flax wound on a reed, given at the threshold of the house. It measured the waters a thousand cubits at a time.'},
@@ -999,6 +1000,11 @@ export const LORE: Record<string, LoreEntry> = {
     id: 'ezk4712', title: 'The Leaf for Medicine', ref: 'Ezekiel 47:12 (KJV)',
     text: 'And by the river upon the bank thereof, on this side and on that side, shall grow all trees for meat, whose leaf shall not fade, neither shall the fruit thereof be consumed: it shall bring forth new fruit according to his months, because their waters they issued out of the sanctuary: and the fruit thereof shall be for meat, and the leaf thereof for medicine.',
     note: 'On the bark of the first tree by the river, grown over the words as if it meant to keep them.',
+  },
+  ezk4711: {
+    id: 'ezk4711', title: 'Given to Salt', ref: 'Ezekiel 47:11 (KJV)',
+    text: 'But the miry places thereof and the marshes thereof shall not be healed; they shall be given to salt.',
+    note: 'On a white stone at the edge of the marsh, crusted over, where nothing grows.',
   },
   dan1145: {
     id: 'dan1145', title: 'None Shall Help Him', ref: 'Daniel 11:45 (KJV)',

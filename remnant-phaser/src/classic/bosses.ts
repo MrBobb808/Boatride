@@ -18,10 +18,11 @@ import { TyrusPrince } from '../../../remnant/src/game/bosses13';
 import { MeshechTubal } from '../../../remnant/src/game/bosses14';
 import { SiegeColossus } from '../../../remnant/src/game/bosses14b';
 import { GogPrince } from '../../../remnant/src/game/bosses14c';
+import { SaltWarden } from '../../../remnant/src/game/bosses14d';
 import type { Entity } from '../../../remnant/src/game/entity';
 import type { EnemyKind } from '../shared';
 
-export type ClassicBossKey = 'idol' | 'gatekeeper' | 'marshal' | 'locust_king' | 'golden_image' | 'weigher' | 'storm_prince' | 'persia_prince' | 'grecia_prince' | 'nation_gods' | 'north_king' | 'tyrus_prince' | 'meshech_tubal' | 'siege_colossus' | 'gog_prince';
+export type ClassicBossKey = 'idol' | 'gatekeeper' | 'marshal' | 'locust_king' | 'golden_image' | 'weigher' | 'storm_prince' | 'persia_prince' | 'grecia_prince' | 'nation_gods' | 'north_king' | 'tyrus_prince' | 'meshech_tubal' | 'siege_colossus' | 'gog_prince' | 'salt_warden';
 
 export interface ClassicBoss extends Entity {
   key?: string;
@@ -71,6 +72,7 @@ export const CLASSIC_BOSSES: Record<ClassicBossKey, Def> = {
   meshech_tubal: { make: (x, y) => new MeshechTubal(x, y), chapter: 14, trigger: 'princes_start', flags: ['ch14_princes_done'] },
   siege_colossus: { make: (x, y) => new SiegeColossus(x, y), chapter: 14, trigger: 'engine_start', flags: ['ch14_engine_done'] },
   gog_prince: { make: (x, y) => new GogPrince(x, y), chapter: 14, trigger: 'gog_start', flags: ['ch14_gog_done'] },
+  salt_warden: { make: (x, y) => new SaltWarden(x, y), chapter: 14, trigger: 'salt_start', flags: ['ch14_salt_done'] },
 };
 
 export const isClassicBoss = (k: string): k is ClassicBossKey => k in CLASSIC_BOSSES;
