@@ -53,15 +53,31 @@ try {
   assert.ok(ball > 0 && wave > 0 && ground > 0 && palm > 0, `each of his fires lands (${JSON.stringify({ ball, wave, ground, palm, tally })})`);
   console.log(`Fire: fireball ${ball}, wave ${wave}, ground ${ground}, open hand ${palm}`);
 
-  // ---- the shaman: always at his side, chanting fire on his own; Down + Heavy orders his Geyser
+  // ---- the orc: the Echo button (C) calls him and sends him away; while he is out he chants fire of his own and the
+  // Geyser answers Down + Heavy. Uri has no Echoes or shadows, so the wheel does not open.
   await E(page, place, 150);
-  await until(page, () => window.__remnant.world.player.flame.shaman.visible && window.__remnant.world.player.flame.tally.chants > 0, null, 30000);
+  assert.ok(await E(page, () => !window.__remnant.world.player.flame.out && !window.__remnant.world.player.flame.shaman.visible), 'the orc is not out until he is called');
+  await page.keyboard.down('KeyS'); await tap(page, 'KeyK'); await page.keyboard.up('KeyS');
+  await page.waitForTimeout(500);
+  assert.equal(await E(page, () => window.__remnant.world.player.flame.tally.geysers), 0, 'the Geyser needs the orc out');
+  await until(page, () => window.__remnant.world.player.state === 'free', null, 20000);
+  await tap(page, 'KeyC');
+  await until(page, () => window.__remnant.world.player.flame.out && window.__remnant.world.player.flame.shaman.visible, null, 20000);
+  assert.ok(await E(page, () => !window.__remnant.world.hud.wheelOpen), 'the Echo button does not open the wheel for Uri');
+  await E(page, place, 150);
+  await until(page, () => window.__remnant.world.player.flame.tally.chants > 0, null, 30000);
   await E(page, () => { window.__uriHp = window.__uriFoe.hp; });
   await page.keyboard.down('KeyS'); await tap(page, 'KeyK'); await page.keyboard.up('KeyS');
   await until(page, () => window.__remnant.world.player.flame.tally.geysers > 0, null, 20000);
   await page.waitForTimeout(700);
   assert.ok(await dealt() > 0, 'the Geyser burns the foe');
-  console.log('The shaman is beside him unbidden, chants fire, and answers Down + Heavy with the Geyser');
+  await until(page, () => window.__remnant.world.player.state === 'free', null, 20000);
+  await tap(page, 'KeyC');
+  await until(page, () => !window.__remnant.world.player.flame.out && !window.__remnant.world.player.flame.shaman.visible, null, 20000);
+  console.log('Orc: called with the Echo button, chants fire and answers the Geyser; the button sends him away');
+  await tap(page, 'KeyC');
+  await until(page, () => window.__remnant.world.player.flame.out, null, 20000);
+
 
   // ---- his fire finds its mark: a foe behind him and above him is struck without turning
   await until(page, () => window.__remnant.world.player.state !== 'flame', null, 20000);
@@ -119,14 +135,19 @@ try {
   await until(page, () => window.__remnant.world.player.flame.tally.meteors > 0 && window.__remnant.world.player.state !== 'flame', null, 10000);
   console.log('Meteor: he fell in fire and burst where he landed');
 
-  // ---- the Fusion: the shaman steps into him
-  await E(page, () => { const w = window.__remnant.world; w.save.level = Math.max(w.save.level, 25); w.save.flags.mantle_known = true; w.save.mantle = 100; w.refreshStats(); });
+  // ---- the Fusion: the orc runs into him as the fire gathers, and they are one
+  await E(page, () => { const w = window.__remnant.world; w.save.level = Math.max(w.save.level, 25); w.save.flags.mantle_known = true; w.save.mantle = 100; w.refreshStats(); window.__merge = { max: 0, minGap: 1e9, seen: 0 }; setInterval(() => { const fl = w.player.flame; if (fl.mergeU > 0) { window.__merge.seen++; window.__merge.max = Math.max(window.__merge.max, fl.mergeU); window.__merge.minGap = Math.min(window.__merge.minGap, Math.abs(fl.shaman.x - w.player.x)); } }, 16); });
   await tap(page, 'KeyG');
   await until(page, () => window.__remnant.world.player.mantleT > 0 && window.__remnant.world.player.sprite.texture.key === 'action-uri-crown', null, 30000);
   await page.waitForTimeout(800);
-  const fusion = await E(page, () => { const fl = window.__remnant.world.player.flame; return { fused: fl.fused, shaman: fl.shaman.visible, ghost: fl.ghost.visible, scale: window.__remnant.world.player.sprite.scaleY }; });
-  assert.ok(fusion.fused && !fusion.shaman && fusion.ghost && fusion.scale > 1.05, `fused: the shaman is in him (${JSON.stringify(fusion)})`);
-  console.log('Fusion of Flame: the shaman steps into him, and his shape burns inside Uri');
+  const fusion = await E(page, () => { const fl = window.__remnant.world.player.flame; return { fused: fl.fused, shaman: fl.shaman.visible, ghost: fl.ghost.visible, scale: window.__remnant.world.player.sprite.scaleY, merge: window.__merge }; });
+  assert.ok(fusion.fused && !fusion.shaman && fusion.ghost && fusion.scale > 1.05, `fused: the orc is in him (${JSON.stringify(fusion)})`);
+  assert.ok(fusion.merge.seen > 5 && fusion.merge.max > 0.9 && fusion.merge.minGap < 20, `the orc ran into him as they fused (${JSON.stringify(fusion.merge)})`);
+  console.log('Fusion of Flame: the orc runs into Uri in a spiral of fire, and his shape burns inside him');
+  // When the fire fades the orc steps out again, still called.
+  await E(page, () => { window.__remnant.world.player.mantleT = 0.05; });
+  await until(page, () => !window.__remnant.world.player.flame.fused && window.__remnant.world.player.flame.shaman.visible, null, 20000);
+  console.log('The fire fades: the orc steps out beside him again');
 
   // ---- no Echoes and no shadows while he fights
   const alone = await E(page, () => { const w = window.__remnant.world; w.classic.summonEchoes(); return w.classic.echoes?.length ?? 0; });
@@ -167,9 +188,12 @@ try {
   await tp.waitForSelector('[data-k="tw_1"]');
   await tp.click('[data-k="tw_1"]');
   await until(tp, () => window.__remnant.world.classic.story.ch3.rounds.active && window.__remnant.world.room.id === 'trial_arena');
-  await until(tp, () => window.__remnant.world.player.hero === 'uri' && window.__remnant.world.player.flame.shaman.visible, null, 30000);
+  await until(tp, () => window.__remnant.world.player.hero === 'uri' && window.__remnant.world.player.state === 'free', null, 30000);
+  // The rounds hit him while he waits: press until the call lands (a press in a cutscene beat does nothing).
+  for (let i = 0; i < 20 && !(await E(tp, () => window.__remnant.world.player.flame.out)); i++) { await tap(tp, 'KeyC'); await tp.waitForTimeout(600); }
+  await until(tp, () => window.__remnant.world.player.flame.out && window.__remnant.world.player.flame.shaman.visible, null, 30000).catch(async (e) => { throw Error(e.message + ' ' + await E(tp, () => { const w = window.__remnant.world, pl = w.player; return JSON.stringify({ hero: pl.hero, state: pl.state, cut: window.__remnant.G.inCutscene, paused: window.__remnant.G.paused, out: pl.flame.out, vis: pl.flame.shaman.visible, wheel: w.hud.wheelOpen, flag: w.save.flags.uri_orc, dead: pl.dead, mantle: pl.mantleT }); })); });
   await until(tp, () => window.__remnant.world.player.flame.tally.chants > 0, null, 40000);
-  console.log('Trial: Uri fights the rounds with his shaman beside him, and the shaman chants');
+  console.log('Trial: Uri calls his orc with the Echo button, and the orc chants in the rounds');
   await tp.context().close();
 
   // ---- the Horde: he and his shaman come from their own parts

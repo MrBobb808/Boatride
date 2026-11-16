@@ -151,6 +151,24 @@ const ART: Record<string, PixelArt> = {
     '.....c..a..c....',
     '......c...c.....',
     '................'] },
+  // Uri's Echo button: the orc shaman, tusked, a crown of fire over him (calls him, and sends him away).
+  echo_uri: { pal: { a: '#6a9a4a', b: '#a6d06a', c: '#f0ead0', r: '#ff8a3a', y: '#ffd27a' }, rows: [
+    '.....r.rr.r.....',
+    '....rryrryrr....',
+    '....oooooooo....',
+    '...oaaaaaaaao...',
+    '..oaaaaaaaaaao..',
+    '..oaayaaaayaao..',
+    '..oaabaaaabaao..',
+    '...oaaaaaaaao...',
+    '...oacaaaacao...',
+    '....ocaaaaco....',
+    '.....oaaaao.....',
+    '......oooo......',
+    '...oooaaaaooo...',
+    '..oaaaaaaaaaao..',
+    '..oaaaaaaaaaao..',
+    '................'] },
   // Switch: two heroes, two arrows turning about them.
   switch: { pal: { a: '#ffd27a', b: '#a6efdc', w: '#fff6dc' }, rows: [
     '................',
@@ -245,7 +263,7 @@ const ART: Record<string, PixelArt> = {
 
 /** The texture for an action's button, for the hero in play (Strike and the transformation differ by hero). */
 export function actionIconKey(action: string, hero: PlayableHero) {
-  const name = action === 'attack' || action === 'transform' ? `${action}_${hero}` : action;
+  const name = action === 'attack' || action === 'transform' || (action === 'echo' && hero === 'uri') ? `${action}_${hero}` : action;
   return ART[name] ? 'action-' + name : null;
 }
 
