@@ -111,6 +111,8 @@ export class HeroPowers {
       // Transform pressed again while the Mantle gathers: straight on into the Unshorn, once he is awakened.
       if (c.pressed('transform') && !this.ascending && !this.transformed && p.hero === 'elior' && s.flags.unshorn) { this.ascending = true; this.doubled = true; sfx('mantleReady'); }
       this.transformT += dt; p.body.setGravityY(0).setVelocity(0, this.transformT < 0.72 ? -12 : 0);
+      // Uri's orc runs into him as the fire gathers (game/uriKit.ts).
+      if (p.hero === 'uri' && !this.transformed) p.flame.merge(Math.min(1, this.transformT / 0.72));
       if (this.transformT >= 0.72 && !this.transformed && this.ascending) { this.transformed = true; this.ascend(14 + (this.doubled ? mantleDuration() : p.mantleT) * 0.5); this.doubled = false; }
       else if (this.transformT >= 0.72 && !this.transformed) {
         this.transformed = true; p.mantleT = this.mantleMax = mantleDuration() + (p.hero === 'tirzah' ? trank(this.L.host.save, 't_wings') * 1.5 : 0);

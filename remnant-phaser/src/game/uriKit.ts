@@ -5,13 +5,14 @@
 //   Up + Strike: the ground under the nearest foe takes fire.
 //   Down + Strike in the air: Meteor. He drops wrapped in flame and bursts where he lands.
 //   Heavy: a wave of flame toward the nearest foe that passes through every foe in its path.
-//   Down + Heavy: the shaman's Geyser. Fire bursts up under the three nearest foes.
+//   Down + Heavy: the shaman's Geyser (while he is out). Fire bursts up under the three nearest foes.
 //   Dodge: the Flame Dash. He streaks through foes, scorching them, and leaves a trail of fire.
 //   Abilities (his own): Pillar of Flame, Ring of Fire, Firestorm (game/abilities.ts, URI_SKILLS).
 //   The transformation: the Fusion. The shaman steps into him, and they fight as one fire: larger, harder flame,
 //     the shaman's chant from his own hand, every fireball sets the ground burning, a longer dash.
-// The shaman (a cleansed battle-imprint, like the Echoes) is always at his side, chanting fire at the nearest foe.
-// He calls no Echoes and raises no shadows: the two of them are enough.
+// The shaman (a cleansed battle-imprint, like the Echoes) is called with the Echo button and stays at his side, chanting
+// fire at the nearest foe, until the button sends him away. The Fusion calls him if he is not out, and he runs into Uri.
+// Uri calls no Echoes and raises no shadows: the two of them are enough.
 // His numbers are his own (game/horde/uri.ts: his level, measured against Elior's), in Elior's gear.
 import Phaser from 'phaser';
 import { TILE, isSolid, T } from '../shared';
@@ -73,6 +74,10 @@ export class UriKit {
   private shaman: Phaser.GameObjects.Sprite;
   private ghost: Phaser.GameObjects.Sprite;
   private shamanX = 0;
+  /** The merge into Uri during the transformation (0 none, then 0..1), and where the orc began it. */
+  mergeU = 0;
+  private mergeFrom = 0;
+  private mergeSpark = 0;
   private shamanClip = 'idle';
   private shamanClipT = 0;
   /** For tests: what his fire has done. */
@@ -95,6 +100,28 @@ export class UriKit {
 
   /** Fused with the shaman, his fire is larger and every fireball leaves the ground burning. */
   get fused() { return this.p.mantleT > 0; }
+  /** Is the orc standing with him? (Kept in the save, so he is still there after a room or a reload.) */
+  get out() { return !!this.w.save.flags.uri_orc; }
+
+  /** The Echo button for Uri: call the orc, or send him away. */
+  toggleOrc(on = !this.out, quiet = false) {
+    const p = this.p;
+    if (on === this.out) return;
+    if (this.fused && !on) { this.w.toast('The orc is in him now: he steps out when the fire fades.'); return; }
+    this.w.save.flags.uri_orc = on;
+    this.shamanX = p.x - p.face * 26;
+    this.burst(this.shamanX, p.feet - 22, 0.7);
+    this.w.playEffect(on ? 'summon' : 'elemFire', { x: p.x, vol: 0.7 });
+    this.chantT = 0.8;
+    if (!quiet) this.w.toast(on ? 'The orc stands with Uri: press again to send him away' : 'The orc withdraws');
+  }
+
+  /** The transformation under way (0..1 of the gathering): the orc runs into Uri, and they are one fire. */
+  merge(u: number) {
+    if (!this.out) this.toggleOrc(true, true);
+    if (this.mergeU <= 0) { this.mergeFrom = this.shamanX || this.p.x - this.p.face * 26; this.mergeSpark = 0; }
+    this.mergeU = Math.max(0.001, Math.min(1, u));
+  }
   private get here() { return this.w.save.playableHero === 'uri' && !this.p.dead; }
   private power(mult: number) {
     const d = this.w.d, crit = Math.random() < d.crit;
@@ -156,6 +183,7 @@ export class UriKit {
 
   private begin(kind: Cast) {
     const p = this.p;
+    if (kind === 'geyser' && !this.out) { this.w.toast('Call the orc first (the Echo button).'); return; }
     if (kind === 'geyser' && this.geyserCd > 0) { this.w.toast(`The shaman's Geyser is ready in ${Math.ceil(this.geyserCd)} s.`); return; }
     if (kind === 'ball' || kind === 'bolt' || kind === 'palm') { this.chain = kind === 'bolt' ? 0 : this.chain + 1; this.chainT = 0.9; }
     // Every cast turns toward its mark.
@@ -416,8 +444,29 @@ export class UriKit {
   /** The shaman keeps at his back and chants fire at the nearest foe; fused, the chant comes from Uri's own hand. */
   private updateShaman(dt: number) {
     const p = this.p, here = this.here;
-    if (!here || this.fused) {
-      if (this.shaman.visible) { if (here) this.burst(this.shamanX, p.feet - 20, 0.6); this.shaman.setVisible(false); }
+    if (p.state !== 'transform' && this.mergeU > 0) this.mergeU = 0;
+    // The merge: the orc runs into Uri on a curve, shrinking, his fire drawn in after him.
+    if (here && this.mergeU > 0 && p.state === 'transform') {
+      const u = this.mergeU, e = u * u * (3 - 2 * u), key = actionAtlas(this.w.sc, 'shaman', 'blade');
+      this.shamanX = this.mergeFrom + (p.x - this.mergeFrom) * e;
+      this.shamanClipT += dt;
+      this.shaman.setTexture(key, actionFrame(this.w.sc, key, 'run', (this.shamanClipT * 2.4) % 0.999)).setScale(1.05 * (1 - 0.5 * e))
+        .setPosition(Math.round(this.shamanX), Math.round(p.feet - Math.sin(u * Math.PI) * 26)).setFlipX(p.x < this.mergeFrom).setVisible(true)
+        .setAlpha(1 - 0.45 * e).setTint(Phaser.Display.Color.GetColor(255, 255 - Math.round(150 * e), 255 - Math.round(255 * e)));
+      // A spiral of sparks winds in from the orc to Uri.
+      this.mergeSpark -= dt;
+      if (this.mergeSpark <= 0) {
+        this.mergeSpark = 0.04;
+        const a = u * 14, r = (1 - e) * 46;
+        this.w.spark(p.x + Math.cos(a) * r, p.feet - 24 + Math.sin(a) * r * 0.6, u > 0.7 ? 0xffe08a : 0xff8a3a, 2);
+        this.w.spark(p.x - Math.cos(a) * r, p.feet - 24 - Math.sin(a) * r * 0.6, 0xff8a3a, 1);
+      }
+      if (u >= 1) { this.burst(p.x, p.feet - 26, 1.1); this.shaman.setVisible(false).clearTint(); this.mergeU = 0; }
+      return;
+    }
+    this.shaman.clearTint();
+    if (!here || this.fused || !this.out) {
+      if (this.shaman.visible) { if (here && this.out) this.burst(this.shamanX, p.feet - 20, 0.6); this.shaman.setVisible(false); }
       if (here && this.fused) this.chant(dt, p.x + p.face * 12, 1.0);
       return;
     }

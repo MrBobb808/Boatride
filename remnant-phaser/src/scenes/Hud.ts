@@ -297,7 +297,7 @@ export class Hud extends Phaser.Scene {
     this.touchUi.setVisible(touch);
     // Hidden in story scenes, and until an ability is carried.
     this.skillBar.setVisible(!touch && !G.inCutscene && skillSlots(s).some(Boolean));
-    for(const b of this.btns) { if(b.a==='attack')b.t.setText(p.hero==='tirzah'?'SHOOT':p.hero==='uri'?'FIRE':'STRIKE');if(b.a==='heavy')b.t.setText(p.hero==='tirzah'?'DRAW':p.hero==='uri'?'WAVE':'HEAVY'); }
+    for(const b of this.btns) { if(b.a==='attack')b.t.setText(p.hero==='tirzah'?'SHOOT':p.hero==='uri'?'FIRE':'STRIKE');if(b.a==='heavy')b.t.setText(p.hero==='tirzah'?'DRAW':p.hero==='uri'?'WAVE':'HEAVY');if(b.a==='echo')b.t.setText(p.hero==='uri'?(p.flame.out?'ORC OUT':'ORC'):'ECHOES'); }
     if (touch) this.drawTouchCooldowns(w); else this.drawSkillBar(w);
     this.updateInteractBtn();
     for (const b of this.btns) {
@@ -346,7 +346,7 @@ export class Hud extends Phaser.Scene {
     // Strike and the transformation show the hero in play: his sword or her bow, the Mantle or the Wings.
     if (p.hero !== this.iconHero) {
       this.iconHero = p.hero;
-      for (const b of this.btns) if (b.a === 'attack' || b.a === 'transform') { const key = actionIconKey(b.a, p.hero); if (key) b.i.setTexture(key); }
+      for (const b of this.btns) if (b.a === 'attack' || b.a === 'transform' || b.a === 'echo') { const key = actionIconKey(b.a, p.hero); if (key) b.i.setTexture(key); }
     }
     for (const b of this.btns) {
       const slots = skillSlots(w.save);
@@ -600,8 +600,8 @@ export class Hud extends Phaser.Scene {
     const want = (a: Action): boolean => {
       switch (a) {
         case 'interact': return !!this.interactLabel;
-        case 'echo': return echoes;
-        case 'switch': return echoes && fight;
+        case 'echo': return echoes || p.hero === 'uri';
+        case 'switch': return echoes && fight && p.hero !== 'uri';
         case 'parry': case 'skill1': case 'skill2': case 'skill3': return fight;
         case 'heal': return !smart || (s.balm > 0 && p.hp < p.maxHp);
         case 'transform': return form && (!smart || p.mantleT > 0 || (s.mantle ?? 0) >= 100);
