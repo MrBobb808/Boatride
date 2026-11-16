@@ -149,7 +149,28 @@ try {
   await until(wp, () => window.__remnant.watch.uri.shown && window.__remnant.watch.uri.tally.landed > 0, null, 60000);
   assert.ok(!before, 'Uri is not on the wall before Watch level 35');
   console.log('Watch: Uri on the wall from level 35, and his fire lands');
+  // His orc shaman stands behind him on the wall and chants; under the Mantle they are one: larger, twin fireballs.
+  await until(wp, () => window.__remnant.watch.uri.shamanShown && window.__remnant.watch.uri.tally.chants > 0, null, 60000);
+  await E(wp, () => { window.__remnant.watch.mantleT = 30; });
+  await until(wp, () => window.__remnant.watch.uri.fusedShown && !window.__remnant.watch.uri.shamanShown && window.__remnant.watch.uri.tally.twins > 0, null, 60000);
+  assert.ok(await E(wp, () => window.__remnant.watch.uri.tally.fusions >= 1), 'the Mantle fuses them');
+  await wp.screenshot({ path: 'qa/uri-watch-fused.png' });
+  console.log('Watch: the shaman chants behind him; under the Mantle he steps into Uri and the fire comes twin');
   await wp.screenshot({ path: 'qa/uri-watch.png' });
+
+  // ---- the other modes run on the journey's World: Uri keeps his shaman in the Trial, the Gauntlet and the rest
+  const tp = await (await browser.newContext({ viewport: { width: 1280, height: 720 }, storageState: await ctx.storageState() })).newPage(); watch(tp);
+  await tp.goto(base + '?debug&autostart');
+  await until(tp, () => window.__remnant?.world?.player && !window.__remnant.world.transitioning);
+  await E(tp, () => { const w = window.__remnant.world; w.save.flags.relic_taken = true; w.save.flags.intro_done = true; w.save.playableHero = 'uri'; w.refreshStats(); w.player.flame.cancel(); });
+  await E(tp, () => window.__remnant.G.ui.openMenu('chapters'));
+  await tp.waitForSelector('[data-k="tw_1"]');
+  await tp.click('[data-k="tw_1"]');
+  await until(tp, () => window.__remnant.world.classic.story.ch3.rounds.active && window.__remnant.world.room.id === 'trial_arena');
+  await until(tp, () => window.__remnant.world.player.hero === 'uri' && window.__remnant.world.player.flame.shaman.visible, null, 30000);
+  await until(tp, () => window.__remnant.world.player.flame.tally.chants > 0, null, 40000);
+  console.log('Trial: Uri fights the rounds with his shaman beside him, and the shaman chants');
+  await tp.context().close();
 
   // ---- the Horde: he and his shaman come from their own parts
   const hp = await (await browser.newContext({ viewport: { width: 1280, height: 720 }, storageState: await ctx.storageState() })).newPage(); watch(hp);

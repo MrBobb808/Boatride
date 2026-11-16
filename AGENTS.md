@@ -412,7 +412,10 @@ Never ship files from `art/incoming/` directly.
   raises no shadows (`shadowGate` in the shared `game/finishers.ts`). He keeps his
   own level (`PhaserSave.uri`, `uriStats` in `game/horde/uri.ts`) in Elior's gear; the AI partner stays Elior or
   Tirzah. The Horde draws him and the shaman from the same parts, and the Watch puts him on the wall from Watch level
-  35 (`src/game/watch/uriWall.ts`, `URI_WALL`). Verified by `scripts/uri.mjs`.
+  35 (`src/game/watch/uriWall.ts`, `URI_WALL`) with the shaman behind him chanting his own fire; under the Watch's
+  Mantle they are one (larger Uri, twin fireballs). Every journey mode (Chapters, the Trial, Extreme, the Gauntlet, the
+  Rush, the Daily Challenge) runs on the journey's World, so Uri keeps his shaman in all of them. Verified by
+  `scripts/uri.mjs`.
 - **The Sundered Chains (Phaser build):** Elior's second weapon (`remnant-phaser/src/game/chains.ts`, POLISH_PLAN
   §20): twin kindled blades on chains, won with Chapter I (the flag `sundered_chains`). The `chain` action (the CHAINS
   touch button, `Y`, or Down + Heavy) lashes foes in reach (lash, lash, slam, cyclone), hooks a far one (a light foe is
