@@ -624,8 +624,10 @@ export class World extends Phaser.Scene implements WorldApi {
     if (this.physics.world.isPaused) this.physics.resume();
     if (this.controls.pressed('map') && !G.inCutscene) { G.ui.openMenu('map'); return; }
     if (this.controls.pressed('menu') && !G.inCutscene) { this.hud.togglePause(); return; }
-    if (this.controls.pressed('echo') && !G.inCutscene && !this.player.dead) { this.hud.openWheel(); return; }
-    if (this.controls.pressed('switch') && !G.inCutscene && !this.player.dead) this.classic.squad.switchSupport();
+    // Uri has no Echoes or shadows: the Echo button calls his orc, and sends him away.
+    if (this.player.hero === 'uri') { if (this.controls.pressed('echo') && !G.inCutscene && !this.player.dead) this.player.flame.toggleOrc(); }
+    else if (this.controls.pressed('echo') && !G.inCutscene && !this.player.dead) { this.hud.openWheel(); return; }
+    if (this.controls.pressed('switch') && !G.inCutscene && !this.player.dead && this.player.hero !== 'uri') this.classic.squad.switchSupport();
     this.controls.locked = G.inCutscene;
     this.player.update(dt);
     this.legends.update(dt);

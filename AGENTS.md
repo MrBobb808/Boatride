@@ -405,9 +405,12 @@ Never ship files from `art/incoming/` directly.
   fireball (the third in a quick chain a piercing bolt; a foe in reach: an open-hand burst; Up: burning ground; Down
   in the air: Meteor), Heavy a flame wave, Down + Heavy the shaman's Geyser under the three nearest foes. Dodge is the
   Flame Dash (`UriKit.dodge`, from `Player.defence`): through foes, scorching them, leaving a trail of fire. His orc
-  shaman is always at his side, chanting fire. His three abilities are his own (`URI_SKILLS` in `game/abilities.ts`:
+  orc shaman is called with the Echo button (C, or the ORC touch button) and stays at his side chanting fire until the
+  button sends him away (`UriKit.toggleOrc`, `flags.uri_orc`); the Geyser needs him out. Uri has no Echoes and no
+  shadows, so that button never opens the wheel for him. His three abilities are his own (`URI_SKILLS` in `game/abilities.ts`:
   Pillar of Flame, Ring of Fire, Firestorm; `skillSlots` gives them while he plays). The transformation is the Fusion of
-  Flame: the shaman steps into him (`UriKit.dress` draws the shaman's fire-shape inside a larger Uri, C09): twin
+  Flame: the orc (called if he is not out) runs into him in a spiral of fire (`UriKit.merge`, driven by the transformation in
+  `classic/hero.ts`) and he steps out again when the fire fades; the shaman steps into him (`UriKit.dress` draws the shaman's fire-shape inside a larger Uri, C09): twin
   fireballs, the chant from his own hand, burning ground, a longer dash. He calls no Echoes (`Squad.uriAlone`) and
   raises no shadows (`shadowGate` in the shared `game/finishers.ts`). He keeps his
   own level (`PhaserSave.uri`, `uriStats` in `game/horde/uri.ts`) in Elior's gear; the AI partner stays Elior or
