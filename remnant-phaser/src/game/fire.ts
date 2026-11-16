@@ -16,7 +16,7 @@ export const FIRES: FireDef[] = [
 ];
 export const MAX_HEAT = FIRES.reduce((a, f) => a + f.heat, 0);
 /** The final boss of each chapter: its fall under the Fire seals the chapter. */
-export const FINAL_BOSS: Record<number, string> = { 1: 'idol', 2: 'marshal', 3: 'locust_king', 4: 'golden_image', 5: 'weigher', 6: 'persia_prince', 7: 'beast_monarch', 8: 'plague_monarch', 9: 'cinder_monarch', 10: 'grecia_prince', 11: 'nation_gods', 12: 'north_king', 13: 'tyrus_prince' };
+export const FINAL_BOSS: Record<number, string> = { 1: 'idol', 2: 'marshal', 3: 'locust_king', 4: 'golden_image', 5: 'weigher', 6: 'persia_prince', 7: 'beast_monarch', 8: 'plague_monarch', 9: 'cinder_monarch', 10: 'grecia_prince', 11: 'nation_gods', 12: 'north_king', 13: 'tyrus_prince', 14: 'gog_prince' };
 
 export interface FireSave { on: FireId[]; seals?: Record<string, number> }
 const valid = (on: unknown): FireId[] => (Array.isArray(on) ? FIRES.map((f) => f.id).filter((id) => on.includes(id)) : []);

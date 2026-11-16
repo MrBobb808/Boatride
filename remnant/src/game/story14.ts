@@ -5,16 +5,17 @@
 // (38:22–23). Then the valley of Hamongog, and the waters that issue from under the threshold of the house and heal
 // the sea (47). Scripture is quoted from the King James Version; the world and its people are fictional.
 //
-// Its three fights are arenas of the host for now (ARENAS); the princes of Meshech and Tubal, the engine of the
-// north and Gog himself take their places in the next step of the chapter.
+// Its three fights are the bosses of game/bosses14.ts, bosses14b.ts and bosses14c.ts (FIGHTS below): the princes of
+// Meshech and Tubal, the engine of the north, and Gog, who is ended by the sky and not by Elior.
 
 import { G, flag, setFlag, placeBanner, type DialogueLine } from './ctx';
 import { fx } from '../render/fx';
 import { sfx } from '../audio/audio';
 import { music } from '../audio/music';
-import { TILE, type EnemyKind } from './tiles';
+import { TILE } from './tiles';
+import { cinema } from './cinema';
+import type { BossBase } from './bosses2';
 import type { Npc } from './props';
-import type { Enemy } from './enemies';
 import { makeItem, addMaterial } from './state';
 import { CH14_ROOM_IDS } from './rooms14';
 import { FALLEN_CHAPTERS } from './fallenChapters';
@@ -56,51 +57,52 @@ const wait = (sec: number) => new Promise<void>((r) => setTimeout(r, sec * 1000)
 const inCh14 = () => CH14_ROOM_IDS.has(G.world.room.id);
 const lore = async (id: string) => { const s = G.save; if (!s.lore.includes(id)) s.lore.push(id); await G.ui.lore(id); };
 
-// ---------------------------------------------------------------- the arenas
+// ---------------------------------------------------------------- the three fights
 
-type Wave = [EnemyKind, number, string?][];
-interface Arena {
-  room: string; trigger: string; flag: string; music: string; floor: number;
-  waves: Wave[];
-  intro: DialogueLine[];
+interface Fight {
+  room: string; key: string; trigger: string; flag: string; stage: number; xp: number;
+  intro: DialogueLine[]; outro: DialogueLine[];
+  reward: string | null; silver: number;
 }
 
-const ARENAS: Arena[] = [
+const FIGHTS: Fight[] = [
   {
-    room: 'princes_tents', trigger: 'princes_start', flag: 'ch14_princes_done', music: 'duel', floor: 26,
+    room: 'princes_tents', key: 'meshech_tubal', trigger: 'princes_start', flag: 'ch14_princes_done', stage: 4, xp: 0.2, reward: 'bucklers_of_meshech', silver: 2400,
     intro: [
-      { who: 'gogherald', text: 'Here are the tents of the princes of Meshech and Tubal. Their captains have broken cities that had walls. You have not even a gate.' },
-      { who: 'elior', text: '...', choices: [{ label: 'Then come through.' }, { label: 'Go home.' }] },
+      { who: 'narrator', text: 'In the tents of the princes the straw is trampled flat and the fires are lit. Two men stand in the middle of the camp as if they had been waiting a long time to be asked.' },
+      { who: 'Meshech', text: 'We took Persia, Cush and Put under one shield, and Gomer with all his bands. We will not be stopped by a man with no wall.' },
+      { who: 'Tubal', text: 'Silver, watchman. Brass and iron have bought cities that were never for sale. Yours is cheaper: it has no gate.' },
+      { who: 'elior', text: '...', choices: [{ label: 'You have come a long way for nothing.' }, { label: 'Come and take it from where I stand.' }] },
+      { who: 'Meshech', text: 'Then stand. My brother will see to the rest.' },
     ],
-    waves: [
-      [['knight', 20], ['knight', 64], ['archer', 40]],
-      [['bulwark', 18], ['hound', 30], ['hound', 56], ['bulwark', 66]],
-      [['knight', 24, 'meshech_captain'], ['bulwark', 60, 'tubal_captain'], ['archer', 41]],
+    outro: [
+      { who: 'narrator', text: 'The brothers go down together, the bucklers and the bow laid on the trampled straw. Beyond the tents the siege lines run on as far as the eye can see, and nothing in them has stopped.' },
+      { who: 'elior', text: 'Two captains of a host that does not wait for captains.' },
     ],
   },
   {
-    room: 'engine_hill', trigger: 'engine_start', flag: 'ch14_engine_done', music: 'tower', floor: 27,
+    room: 'engine_hill', key: 'siege_colossus', trigger: 'engine_start', flag: 'ch14_engine_done', stage: 5, xp: 0.2, reward: null, silver: 3000,
     intro: [
-      { who: 'narrator', text: 'On the hill the host has raised its engine: a tower on wheels, iron-shod, with a ram the length of a cedar. It is built for walls. There are no walls here.' },
-      { who: 'gogherald', text: 'Then it will break the hills.' },
+      { who: 'narrator', text: 'On the hill the host has raised its engine: a tower on iron-shod wheels, hides on its face against fire, a ram the length of a cedar. It was built for walls. There are no walls here.' },
+      { who: 'elior', text: '...', choices: [{ label: 'There is no wall for you to break.' }, { label: 'Then what are you for?' }] },
+      { who: 'narrator', text: 'A horn sounds from the deck. The ram swings back on its chains.' },
     ],
-    waves: [
-      [['brute', 22], ['brute', 70], ['archer', 44]],
-      [['golem', 30], ['knight', 60], ['priest', 82]],
-      [['golem', 48, 'engine_warden'], ['brute', 20], ['brute', 76]],
+    outro: [
+      { who: 'narrator', text: 'The engine\'s tower leans, and shudders, and does not stop leaning. Under Elior\'s feet the ground gives one long, low note, like a bell struck far below the world.' },
+      { who: 'narrator', text: 'It was not his last blow that brought it down. The hills have begun to move.' },
     ],
   },
   {
-    room: 'gog_mountain', trigger: 'gog_start', flag: 'ch14_gog_done', music: 'persia', floor: 27,
+    room: 'gog_mountain', key: 'gog_prince', trigger: 'gog_start', flag: 'ch14_gog_done', stage: 6, xp: 0.3, reward: 'hailstone_maul', silver: 5000,
     intro: [
-      { who: 'narrator', text: 'On the top of the mountain the cloud is so low it touches the spears. Under it, a standard of black and a voice that has spoken to many nations.' },
-      { who: 'gogherald', text: 'Gog, of the land of Magog, the chief prince of Meshech and Tubal, has come up to take a spoil. Every land he has gone up against has given him its silver. Give him yours.' },
-      { who: 'elior', text: '...', choices: [{ label: 'I will stand.' }, { label: 'This land is not his.' }] },
+      { who: 'narrator', text: 'On the top of the mountain the cloud is so low it touches the spears. Under it, a black standard, and a man who has not been refused in forty years.' },
+      { who: 'Gog', text: 'I have come up to the land of unwalled villages. I have come to take a spoil, and to take a prey. Every land I have gone up against has given me its silver.' },
+      { who: 'elior', text: '...', choices: [{ label: 'I will stand.' }, { label: 'This land is not yours.' }] },
+      { who: 'Gog', text: 'Then be the wall they never built, little watchman. Let us see what a man is worth against a cloud.' },
     ],
-    waves: [
-      [['knight', 20], ['knight', 84], ['lion', 50], ['archer', 40]],
-      [['bulwark', 24], ['golem', 52], ['gale', 70], ['knight', 80]],
-      [['knight', 30, 'gog_standard'], ['lion', 74, 'gog_champion'], ['gale', 52], ['priest', 62]],
+    outro: [
+      { who: 'narrator', text: 'When it is over there is no host on the mountain. Only spears, bucklers, bows and arrows, handstaves and spears lying where the hail found them, and smoke going up from the brimstone.' },
+      { who: 'elior', text: 'I did not throw him down. I only stood on the mountain until the LORD answered for His land.' },
     ],
   },
 ];
@@ -128,12 +130,20 @@ registerGuide(() => {
 
 export class Chapter14 {
   private epoch = 0;
-  private arena: { def: Arena; wave: number; alive: Set<Enemy>; poll: number; next: boolean } | null = null;
+  private completing = '';
+  private ownsCine = false;
   constructor(private st: Story) {}
 
   roomChanged() {
     this.epoch++;
-    if (this.arena) { clearInterval(this.arena.poll); this.arena = null; }
+    this.completing = '';
+  }
+
+  /** The scene still belongs to the room it began in (a leftover cutscene is ended if it does not). */
+  private current(token: number) {
+    if (token === this.epoch) return true;
+    if (!this.ownsCine) this.st.cine(false);
+    return false;
   }
 
   /** From the end of Chapter XIII (or Journey on): the hills of Israel. */
@@ -165,7 +175,8 @@ export class Chapter14 {
     if (first && id === 'river_measure') this.caption('A thousand cubits, and the water is to the ankles. A thousand more, to the knees. Then the loins. Then a river to swim in.', 2400, 7200);
     if (first && id === 'river_trees') this.caption('Trees on both banks, heavy with fruit. A leaf falls into the water and does not wither.', 2400, 6400);
     if (id === 'shield_field' && first && !s.quests.s_bucklers) this.st.quest('s_bucklers', 0);
-    for (const a of ARENAS) if (a.room === id && flag(a.flag)) G.world.closeGate(false);
+    // A boss fallen before its scene could finish (a reload in the middle of it): the scene finishes on return.
+    for (const f of FIGHTS) if (f.room === id && s.defeated.includes(f.key) && !flag(f.flag)) void this.complete(f);
     return true;
   }
 
@@ -175,8 +186,8 @@ export class Chapter14 {
     if (id === 'gog_herald') { if (!flag('ch14_herald')) void this.herald(); return true; }
     if (id === 'threshold') { if (flag('ch14_gog_done') && !flag('ch14_threshold')) void this.threshold(); return true; }
     if (id === 'river_end') { if (flag('ch14_threshold') && !flag('ch14_done')) void this.ending(); return true; }
-    const a = ARENAS.find((x) => x.trigger === id);
-    if (a) { if (!flag(a.flag) && !this.arena) void this.arenaStart(a); return true; }
+    const f = FIGHTS.find((x) => x.trigger === id);
+    if (f) { if (!flag(f.flag) && !G.save.defeated.includes(f.key)) void this.bossStart(f); return true; }
     return false;
   }
 
@@ -303,126 +314,63 @@ export class Chapter14 {
     G.world.autosave(true);
   }
 
-  // ---------------------------------------------------------------- the arenas
-  private async arenaStart(a: Arena) {
-    const W = G.world;
-    const st = this.st;
-    const token = this.epoch;
-    st.cine(true);
+  // ---------------------------------------------------------------- the three fights
+  private async bossStart(f: Fight) {
+    const W = G.world, st = this.st, token = this.epoch;
+    const b = W.boss as unknown as BossBase | null;
+    if (!b || b.key !== f.key || b.state !== 'dormant' || W.bossActive) return;
     W.bossActive = true;
     W.closeGate(true);
-    music.stop(1);
-    await st.walkPlayer(W.player.x + 3 * TILE, 60);
-    if (token !== this.epoch) return;
-    await st.say(a.intro);
-    if (token !== this.epoch) return;
-    music.play(a.music, 0.5);
-    st.cine(false);
-    this.arena = { def: a, wave: -1, alive: new Set(), poll: 0, next: false };
-    this.arena.poll = window.setInterval(() => this.checkArena(token), 800);
-    this.nextWave(token);
-  }
-
-  private nextWave(token: number) {
-    const ar = this.arena;
-    if (!ar || token !== this.epoch) return;
-    ar.wave++;
-    if (ar.wave >= ar.def.waves.length) { void this.arenaWon(ar.def, token); return; }
-    const W = G.world;
-    const last = ar.wave === ar.def.waves.length - 1;
-    G.ui.toast(last ? 'The captains come forward.' : `The host presses in (${ar.wave + 1}/${ar.def.waves.length})`, last ? 'warn' : 'info');
-    for (const [k, x, elite] of ar.def.waves[ar.wave]) {
-      const fly = k === 'gale';
-      const y = (ar.def.floor - (fly ? 9 : 0)) * TILE;
-      const e = W.spawnEnemy(k, x * TILE, y, elite ?? null);
-      fx.dust(x * TILE, ar.def.floor * TILE, 10, 1.3);
-      ar.alive.add(e);
-    }
-  }
-
-  private checkArena(token: number) {
-    const ar = this.arena;
-    if (!ar || token !== this.epoch) return;
-    for (const e of ar.alive) if (e.remove || e.dying) ar.alive.delete(e);
-    if (ar.alive.size === 0 && !ar.next && !G.inCutscene) {
-      ar.next = true;
-      setTimeout(() => { if (this.arena === ar) { ar.next = false; this.nextWave(token); } }, 1200);
-    }
-  }
-
-  onKill(e: Enemy) {
-    const ar = this.arena;
-    if (ar && ar.alive.has(e)) this.checkArena(this.epoch);
-  }
-
-  private async arenaWon(a: Arena, token: number) {
-    const W = G.world;
-    const st = this.st;
-    if (this.arena) { clearInterval(this.arena.poll); this.arena = null; }
+    W.player.body.vx = 0;
     st.cine(true);
-    music.stop(1.2);
-    await wait(1.0);
-    if (token !== this.epoch) return;
-    const xp = chapterCurve(14).clearXp ?? 60000;
-    if (a.room === 'princes_tents') {
-      await st.say([
-        { who: 'narrator', text: 'The captains of Meshech and Tubal kneel in the trampled straw of their princes\' tents. Beyond them the camp roars on. It has not noticed yet.' },
-        { who: 'elior', text: 'Bucklers and shields, all of them handling swords. And not one of them had a reason to be here.' },
-      ]);
-      this.reward('ch14_princes_rewarded', 'bucklers_of_meshech', Math.round(xp * 0.2), 2400);
-      st.quest('m_gog', 4);
-    } else if (a.room === 'engine_hill') {
-      await st.say([
-        { who: 'narrator', text: 'The engine\'s wardens fall. The great ram swings once more on its chains, and stops. Under your feet the ground hums like a struck bell.' },
-        { who: 'elior', text: 'That is not the engine.' },
-      ]);
-      this.reward('ch14_engine_rewarded', null, Math.round(xp * 0.2), 3000);
-      st.quest('m_gog', 5);
-    } else {
-      await this.hailAndFire(token);
-      if (token !== this.epoch) return;
-      this.reward('ch14_gog_rewarded', 'hailstone_maul', Math.round(xp * 0.3), 5000);
-      st.quest('m_gog', 6);
-    }
-    if (token !== this.epoch) return;
-    setFlag(a.flag);
+    this.ownsCine = true;
+    music.stop(1);
+    const alive = () => token === this.epoch && (W.boss as unknown) === b;
+    // The camera travels from Elior to the boss and settles close on it.
+    await cinema.run(async (k) => { await k.pan(b.x, b.y - 90, 1.4); await k.zoom(0.82, 0.8); }, alive);
+    if (!this.current(token) || !alive()) return;
+    G.camera.focus = { x: b.x - 80, y: b.y - 80 };
+    G.camera.viewMultTarget = 1.2;
+    await st.say(f.intro);
+    if (!this.current(token) || !alive()) return;
+    this.ownsCine = false;
+    G.camera.viewMultTarget = 1;
+    b.awaken();
+  }
+
+  /** A boss of the chapter is down (the world calls this from onBossDefeated). */
+  bossDefeated(b: BossBase) {
+    const f = FIGHTS.find((x) => x.key === b.key);
+    if (f) void this.complete(f);
+  }
+
+  private async complete(f: Fight) {
+    if (this.completing === f.key || flag(f.flag)) return;
+    this.completing = f.key;
+    const W = G.world, st = this.st, token = this.epoch;
+    st.cine(true);
+    this.ownsCine = true;
     W.bossActive = false;
     W.closeGate(false);
+    G.ui.bossBar(null);
     G.camera.focus = null;
     G.camera.viewMultTarget = 1;
-    music.play(a.room === 'gog_mountain' ? 'revelation' : 'dura', 2);
+    music.play('victory');
+    // Rewards and progress are committed before any awaited dialogue: a reload cannot repeat or lose them.
+    this.reward(`ch14_${f.key}_rewarded`, f.reward, Math.round((chapterCurve(14).clearXp ?? 60000) * f.xp), f.silver);
+    if (!G.save.defeated.includes(f.key)) G.save.defeated.push(f.key);
+    setFlag(f.flag);
+    st.quest('m_gog', f.stage);
+    W.autosave(true);
+    if (f.key === 'siege_colossus') { G.camera.addTrauma(0.6 * shakeScale()); input.rumble(1, 1, 900); }
+    await st.say(f.outro);
+    this.completing = '';
+    if (!this.current(token)) return;
+    this.ownsCine = false;
+    music.play(f.key === 'gog_prince' ? 'revelation' : 'dura', 2);
     st.cine(false);
     W.autosave(true);
     G.ui.toast('The way on is open.', 'info');
-  }
-
-  /** The end of the day of Gog: hail, fire and brimstone (38:22). Elior only stood. */
-  private async hailAndFire(token: number) {
-    const st = this.st;
-    await st.say([
-      { who: 'gogherald', text: 'Enough. He comes himself. Kneel, little watchman, and you may yet carry his spear.' },
-      { who: 'narrator', text: 'The cloud over the mountain splits. Not for Gog. Light pours through it like water through a broken dam.' },
-    ]);
-    if (token !== this.epoch) return;
-    setFlag('ch14_hail');
-    for (let i = 0; i < 6; i++) {
-      sfx('thunder', { vol: 0.8 });
-      fx.flash(i % 2 ? '#ffd8a0' : '#e8f0ff', 0.35);
-      G.camera.addTrauma(0.5 * shakeScale());
-      input.rumble(0.8, 0.8, 300);
-      const x = G.world.player.x + (i % 2 ? 1 : -1) * (80 + i * 40);
-      fx.column(x, 27 * TILE, 26, 260, i % 2 ? '#ffb060' : '#e8f0ff', 0.9);
-      fx.embers(x, 27 * TILE, 18, '#ffb35c', 20);
-      await wait(0.5);
-      if (token !== this.epoch) return;
-    }
-    await lore('ezk3822');
-    if (token !== this.epoch) return;
-    await st.say([
-      { who: 'narrator', text: 'When it is over there is no host on the mountain. Only spears, bucklers, bows and arrows, handstaves and spears, lying where the hail found them, and smoke going up from the brimstone.' },
-      { who: 'elior', text: 'I did not throw him down. I only stood on the mountain until the LORD answered for His land.' },
-    ]);
-    G.save.flags.ch14_hail = false;
   }
 
   // ---------------------------------------------------------------- Act III and IV

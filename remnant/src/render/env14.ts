@@ -15,6 +15,8 @@ import { cypressSil } from './env5';
 import type { BiomePal, Layer, ParallaxSteps } from './environment';
 
 type Decor = Extract<EntDef, { t: 'decor' }>;
+/** Gog's last movement tears the cloud open over the mountain: the boss sets this, the sky and the hail read it. */
+export const skyState = { torn: false };
 export type Ch14Biome = 'unwalled' | 'host' | 'shaking' | 'river';
 export const isCh14 = (b: Biome): b is Ch14Biome => b === 'unwalled' || b === 'host' || b === 'shaking' || b === 'river';
 
@@ -71,7 +73,10 @@ function skyFill(ctx: Ctx, v: Variant, w: number, h: number) {
 }
 
 export function drawSkyCh14(ctx: Ctx, biome: Ch14Biome, _pal: BiomePal, w: number, h: number, interior: boolean, t: number) {
-  const k = h / 720, v = interior ? (biome === 'river' ? 'river' : 'cloud') : variant;
+  const k = h / 720;
+  let v: Variant = interior ? (biome === 'river' ? 'river' : 'cloud') : variant;
+  // The mountain's sky is under the cloud until the cloud is torn.
+  if (v === 'fire' && !skyState.torn) v = 'cloud';
   skyFill(ctx, v, w, h);
   if (interior) return;
   if (v === 'morning' || v === 'river' || v === 'sea') {
@@ -580,6 +585,7 @@ export function drawLivePropCh14(ctx: Ctx, e: Decor, t: number) {
     return;
   }
   if (e.k === 'hail_fall') {
+    if (!skyState.torn) return;
     // great hailstones and fire falling across a band of the room (38:22)
     const w = (e.w ?? 20) * TILE, fallH = (e.h ?? 14) * TILE, n = tier() === 2 ? 26 : 14;
     for (let i = 0; i < n; i++) {

@@ -788,6 +788,7 @@ export class ClassicLayer {
     else if (key === 'storm_prince') void this.story.ch6.stormDefeated(k);
     else if (key === 'persia_prince') void this.story.ch6.princeDefeated(k);
     else if (key === 'idol') { this.closeGate(false); void this.story.bossDefeated(k); }
+    else if (key === 'meshech_tubal' || key === 'siege_colossus' || key === 'gog_prince') void this.story.ch14.bossDefeated(k);
     else void this.story.fallen.bossDefeated(k);
   }
   /** Tobiah's lamp oil in the Idol fight: the Idol kneels (his walk-on comes with the NPC port). */

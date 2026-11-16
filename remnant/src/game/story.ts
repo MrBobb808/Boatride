@@ -681,7 +681,7 @@ export class Story {
     G.world.autosave(true);
   }
 
-  onKill(e: Enemy) { this.fallen.onKill(e); this.rest.onKill(e); this.ch14.onKill(e); }
+  onKill(e: Enemy) { this.fallen.onKill(e); this.rest.onKill(e); }
 
   // ---------------------------------------------------------------- purification
   async purify(e: Enemy) {

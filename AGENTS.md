@@ -108,8 +108,8 @@ Never ship files from `art/incoming/` directly.
     (`game/story14.ts`) and art (`render/env14.ts`: four lands, `unwalled`, `host`, `shaking`, `river`, each with
     moods chosen by room seed). Gog's host comes out of the north against villages without walls; the LORD answers
     on the mountains with a shaking and hail, fire and brimstone (38:22), and Elior only withstands. Then the
-    waters from under the threshold heal the sea. Its three fights are waves of the host for now (`ARENAS`); the
-    bosses, set pieces and its music follow. Begun from XIII's end card or Journey on. Verified by
+    waters from under the threshold heal the sea. Its three fights are the bosses below (`FIGHTS` in the story); the set
+    pieces and its music follow. Begun from XIII's end card or Journey on. Verified by
     `remnant-phaser/scripts/ch14.mjs`.
   - `game/chapters.ts` lists the chapters for chapter select (`ui/chapters.ts`). In
     the Phaser build a finished chapter can be replayed (`chapterReplay`,
@@ -148,6 +148,17 @@ Never ship files from `art/incoming/` directly.
     the Midst: he burns and his health falls by itself (Ezekiel 28:18); the
     fetters bind him (Psalm 149:8). Elior only withstands. Verified by
     `remnant-phaser/scripts/tyrus.mjs`.
+  - `game/bosses14.ts`, `bosses14b.ts`, `bosses14c.ts`: Chapter XIV's three. The princes of Meshech and Tubal are one
+    encounter with one life and two hittable bodies (`Tubal14` forwards every blow to Meshech's `takeHit`): Meshech's
+    shield wall turns a blow from the front aside (behind and heavy blows get through), his charge ends against a wall
+    and daze him; Tubal shoots from heights, then comes down (dash, fan, forge fire, leaps); a poise broken on one
+    kneels both. The Engine of the North (a tower on wheels): the ram (dodge or parry), the roll (it kneels against the
+    wall), pots, volley, the door; it burns, then its deck falls in, then the ground shakes. Gog (`GogPrince`): four
+    movements (the chief prince; a cloud that cannot be struck; every man's sword against his brother, where his bands
+    fight at the walls and he takes a third more; then no blow takes his last tenth and Elior only withstands the hail
+    and fire on marked ground until the sky answers). `Prince14` is their shared humanoid base (marks, ghosts, host).
+    The mountain's sky is torn only while `skyState.torn` (render/env14.ts). Verified by
+    `remnant-phaser/scripts/ch14-bosses.mjs`.
   - `game/difficulty.ts`: Settings → Challenge → Boss difficulty (Normal,
     Hard by default, Merciless) scales every boss's health, damage and tempo.
   - `game/curve.ts`: one table per chapter of the level a straight-through

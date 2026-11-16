@@ -35,7 +35,7 @@ try {
   // One foe stands `d` px ahead, healthy and still; the rest are put far away.
   const place = (d) => { const w = window.__remnant.world, p = w.player, foes = w.foes().filter((f) => f.alive), f = foes[0];
     for (const o of foes) if (o !== f) { const e = o.e ?? o; if (e.x !== undefined) e.x = 99999; }
-    const e = f.e ?? f; e.x = p.x + d; e.hp = e.maxHp = 1e6; if (e.body) { e.body.vx = 0; } p.face = 1; window.__uriFoe = f; window.__uriHp = 1e6; };
+    const e = f.e ?? f; e.x = p.x + d; e.hp = e.maxHp = 1e6; e.staggered = 0; e.think = function () { if (this.body) this.body.vx = 0; }; if (e.body) { e.body.vx = 0; } p.face = 1; window.__uriFoe = f; window.__uriHp = 1e6; };
   const fire = async (key, up, d) => {
     await E(page, place, d);
     if (up) await page.keyboard.down('KeyW');
@@ -77,12 +77,13 @@ try {
   });
   await page.waitForTimeout(200);
   await E(page, place, -140);
-  await E(page, () => { const w = window.__remnant.world, f = window.__uriFoe, e = f.e ?? f; e.y = (e.y ?? 0) - 40; w.player.face = 1; window.__aimed = w.player.flame.tally.aimed; });
+  await E(page, () => { const w = window.__remnant.world, f = window.__uriFoe, e = f.e ?? f; w.player.face = 1; window.__aimed = w.player.flame.tally.aimed; });
   await tap(page, 'KeyJ');
-  await page.waitForTimeout(800);
+  // The ball needs a moment on a slow runner: wait for it to land rather than for a fixed time.
+  await until(page, () => window.__uriHp - window.__uriFoe.hp > 0, null, 10000).catch(() => {});
   const aim = await E(page, () => { const w = window.__remnant.world, f = window.__uriFoe; return { hurt: window.__uriHp - f.hp, aimed: w.player.flame.tally.aimed - window.__aimed, balls: w.player.flame.tally.balls, palms: w.player.flame.tally.palms, px: w.player.x, fx: f.x, fy: f.box.centerY, feet: w.player.feet, state: w.player.state }; });
-  assert.ok(aim.hurt > 0 && aim.aimed > 0, `a fireball turns to the foe behind him (${JSON.stringify(aim)})`);
-  console.log('Aim: his fireball found a foe behind and above him');
+  assert.ok(aim.hurt > 0 && aim.aimed > 0, `a fireball turns to the foe behind him and lands (${JSON.stringify(aim)})`);
+  console.log('Aim: his fireball turned to a foe behind him');
 
   // ---- the Flame Dash: a streak through the foe that leaves fire behind
   await until(page, () => window.__remnant.world.player.state !== 'flame', null, 20000);

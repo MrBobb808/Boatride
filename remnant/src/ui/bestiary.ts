@@ -63,9 +63,12 @@ const GREAT: { id: string; name: string; ch: number; boss: boolean }[] = [
   { id: 'nation_gods', name: 'The Gods of the Nations', ch: 11, boss: true },
   { id: 'north_king', name: 'The King of the North', ch: 12, boss: true },
   { id: 'tyrus_prince', name: 'The Prince of Tyrus', ch: 13, boss: true },
+  { id: 'meshech_tubal', name: 'The Princes of Meshech and Tubal', ch: 14, boss: true },
+  { id: 'siege_colossus', name: 'The Engine of the North', ch: 14, boss: true },
+  { id: 'gog_prince', name: 'Gog', ch: 14, boss: true },
 ];
 
-const ROMAN = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII', 'XIII'];
+const ROMAN = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII', 'XIII', 'XIV'];
 const KINDS = Object.keys(NOTES) as EnemyKind[];
 
 export function bestiaryCount() {
