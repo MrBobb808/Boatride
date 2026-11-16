@@ -41,7 +41,8 @@ try {
     try { await until((r) => window.__remnant.world.room.id === r && !window.__remnant.world.transitioning, id); } catch { bad(id, 'the room does not load'); continue; }
     if (!(await settle(id))) continue;
     const exits = await E(([r]) => window.__remnant.rooms[r].exits.map((x) => ({ to: x.to, spawn: x.spawn, cond: x.cond ?? null, ok: !!window.__remnant.rooms[x.to] })), [id]);
-    if (!exits.length) { bad(id, 'no door at all: it cannot be left'); continue; }
+    // The Trial's arena has no door: it is left from the menu.
+    if (!exits.length) { if (id !== 'trial_arena') bad(id, 'no door at all: it cannot be left'); continue; }
     for (let i = 0; i < exits.length; i++) {
       const ex = exits[i];
       doors++;

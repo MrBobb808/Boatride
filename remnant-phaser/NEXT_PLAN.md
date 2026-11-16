@@ -116,7 +116,7 @@ Checked in the repository on this date; each is addressed by the phase named.
   §4, §7's bullet lists, and for each bullet either point to the code and test that does it and tick it, or list it
   under E1 below. Also run `watch.mjs` twenty times under CPU throttling to catch the failure of 7 November; make any
   test that draws on `Math.random` use a seed (a `?seed=` debug parameter), so a failure can be replayed.
-- [ ] **A5. A walk through the whole game by machine.** A script that starts a fresh save and, with the debug API's
+- [ ] **A5. A walk through the whole game by machine.** (Doors built: `scripts/walk.mjs` steps Elior through every exit of every room (121 rooms, 214 doors) and fails on a door that does not open, a missing spawn, an arrival out of bounds or in free fall, and any page error; `.github/workflows/walk-nightly.yml` runs it nightly. Still to do: the quest stages and the boss in each chapter, to each chapter-end screen.) A script that starts a fresh save and, with the debug API's
   god mode, goes room to room through all twelve chapters to each chapter-end screen, failing on any page error, any
   room that cannot be left, any quest stage that does not advance and any boss that does not appear. It finds the
   softlocks no single-feature test looks for. Run it nightly in CI (not on every push; it is long).
