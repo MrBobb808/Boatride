@@ -67,3 +67,4 @@ mastery.mjs
 uri.mjs
 ch14.mjs
 ch14-bosses.mjs
+ch14-setpieces.mjs

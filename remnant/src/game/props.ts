@@ -144,6 +144,39 @@ export const NPC_DEFS: Record<NpcKind, { name: string; title: string; style: Hum
       outline: '#0a070c', weapon: 'none', offhand: 'none', bulk: 0.86,
     },
   },
+  // Chapter XIV: the villagers of the unwalled hills, held in their own houses while the host is in the land.
+  eliab: {
+    name: 'Eliab', title: 'Shepherd of Ein Shalom', base: { ...NPC_BASE, lean: 0.05, fUA: 0.4, fFA: 1.0 }, dims: { ...PDIMS, torso: 12 }, scale: 0.96,
+    style: {
+      skin: '#a07048', hair: '#2a1c14', hairKind: 'short', beard: '#2a1c14', coat: '#8a7a58', coatDark: '#5e5238', skirt: 18, trim: '#c8b080',
+      pants: '#4a3e2a', boots: '#2a2018', glove: '#a07048', belt: '#5a4028', plate: null, helm: 'none', eye: '#fff', eyeGlow: 0,
+      outline: '#0a070c', weapon: 'staff', offhand: 'none', bulk: 0.96,
+    },
+  },
+  naomi: {
+    name: 'Naomi', title: 'Vintner of the Terraces', base: { ...NPC_BASE, lean: 0.05, fUA: 0.45, fFA: 1.1 }, dims: { ...PDIMS, torso: 11.4 }, scale: 0.92,
+    style: {
+      skin: '#b07a58', hair: '#3a2018', hairKind: 'braid', beard: null, coat: '#7a3a4a', coatDark: '#52242f', skirt: 22, trim: '#d8b878',
+      pants: '#52242f', boots: '#2a2018', glove: '#b07a58', belt: '#5a3a22', plate: null, helm: 'none', eye: '#fff', eyeGlow: 0,
+      outline: '#0a070c', weapon: 'none', offhand: 'none', bulk: 0.88,
+    },
+  },
+  jether: {
+    name: 'Jether', title: 'A Boy of Ein Shalom', base: { ...NPC_BASE, lean: 0.07, fUA: 0.5, fFA: 1.1 }, dims: { ...PDIMS, torso: 10.2 }, scale: 0.74,
+    style: {
+      skin: '#a87850', hair: '#1c1210', hairKind: 'short', beard: null, coat: '#6a8a6a', coatDark: '#46604a', skirt: 12, trim: '#e8dcc0',
+      pants: '#4a5a46', boots: '#3a2a20', glove: '#a87850', belt: '#5a4028', plate: null, helm: 'none', eye: '#fff', eyeGlow: 0,
+      outline: '#0a070c', weapon: 'none', offhand: 'none', bulk: 0.8,
+    },
+  },
+  hannah: {
+    name: 'Hannah', title: 'Who Baked for the Terraces', base: { ...NPC_BASE, lean: 0.12, fUA: 0.45, fFA: 1.2 }, dims: { ...PDIMS, torso: 11 }, scale: 0.88,
+    style: {
+      skin: '#9a6e4e', hair: '#b8b0a8', hairKind: 'long', beard: null, coat: '#6a6a82', coatDark: '#44445a', skirt: 24, trim: '#c8c0a0',
+      pants: '#44445a', boots: '#2a2018', glove: '#9a6e4e', belt: '#4a3a30', plate: null, helm: 'hood_up', helmColor: '#6a6a82', eye: '#fff', eyeGlow: 0,
+      outline: '#0a070c', weapon: 'staff', offhand: 'none', bulk: 0.86,
+    },
+  },
   // Chapter XIV: the two heroes stand among the villagers as people, and Gog's herald speaks for the host.
   tirzah: {
     name: 'Tirzah', title: 'The Archer of the Remnant', base: { ...NPC_BASE, lean: 0.03, fUA: 0.35, fFA: 0.6 }, dims: { ...PDIMS, torso: 11.8 }, scale: 0.95,

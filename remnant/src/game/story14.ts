@@ -24,6 +24,8 @@ import { registerGuide } from './guide';
 import { shakeScale } from '../core/settings';
 import { input } from '../core/input';
 import type { Story, QuestDef } from './story';
+import { RidersWall, Aftershocks, Feud } from './setpieces14';
+import { Enemy } from './enemies';
 
 export const QUESTS14: QuestDef[] = [
   {
@@ -42,6 +44,7 @@ export const QUESTS14: QuestDef[] = [
   },
   { id: 's_gog_words', title: 'Words of the Latter Days', kind: 'side', stages: ['Mara wants every inscription between Bethshalom and the river. Find all sixteen.', 'You have found all sixteen. Bring them to Mara.'], done: 'Mara has the words of the latter days.' },
   { id: 's_gog_caches', title: 'The Spoil of the Host', kind: 'side', stages: ['Gog came to take a spoil. Find the nineteen caches hidden between the hills and the sea before his host does.'], done: 'Every cache from the hills to the sea is found.' },
+  { id: 's_villagers', title: 'Those Left Behind', kind: 'side', stages: ['Four of the hill-folk are still out in the groves and the lanes, hiding from the host: Hannah, Eliab, Jether and Naomi. Clear the foes from around each one and send them to the cave of refuge.'], done: 'Everyone from the hills is in the cave of refuge.' },
   { id: 's_bucklers', title: 'Captain of the Bucklers', kind: 'side', stages: ['A captain holds the field of bucklers behind his shield. Bring him to his knees and purify the shape of how he fought.'], done: 'The Captain of the Bucklers stands with you now.' },
 ];
 
@@ -167,6 +170,13 @@ export class Chapter14 {
     const s = G.save;
     if (first && id === 'olive_terraces') this.caption('Olives older than the exile, and terraces rebuilt stone by stone. Nobody here has drawn a sword in a year.', 2400, 6400);
     if (id === 'refuge_cave') void this.refuge();
+    if (id === 'dust_road' && !flag('ch14_refuge') && !G.world.ents.some((e) => e instanceof RidersWall)) {
+      // The flight: the host's horsemen behind him, a little slower than he runs (Elior's run is 142).
+      G.world.add(new RidersWall(-140, 24 * TILE, 142 * 0.86, 120 * TILE));
+      sfx('horn', { vol: 0.5 });
+    }
+    if (flag('ch14_shaken') && ['fallen_walls', 'steep_places', 'rent_valley', 'gog_ascent'].includes(id) && !G.world.ents.some((e) => e instanceof Aftershocks)) G.world.add(new Aftershocks(first ? 9 : 6));
+    if (id === 'brothers_field' && !G.world.ents.some((e) => e instanceof Feud)) G.world.add(new Feud());
     if (first && id === 'north_pass') this.caption('The north parts. The road is cut to ribbons by wheels and hooves, and it all runs one way: south.', 2400, 6400);
     if (first && id === 'host_camp') this.caption('Fires to the horizon. Persia, Cush and Put; Gomer and all his bands; the house of Togarmah of the north quarters.', 2400, 6800);
     if (id === 'fallen_walls' && !flag('ch14_shaken')) void this.shaking();
@@ -514,9 +524,38 @@ export class Chapter14 {
       case 'barak': return line('barak', 'I have outlived a statue, a city and a storm prince. A host from the north is merely large.');
       case 'tirzah': return line('tirzah', done ? 'I did not loose a single arrow on the mountain. There was nothing left to aim at.' : 'The north road. I knew it. You can always tell when a road is waiting for something.');
       case 'uri': return line('uri', done ? 'I have called fire my whole life. I have never seen fire like that. I will call mine more carefully now.' : 'If they come at night, I will light the hills. Let them see how many of us are awake.');
+      case 'hannah': case 'eliab': case 'jether': case 'naomi': return this.rescueVillager(n);
       case 'gogherald': return line('gogherald', 'Bring out your silver. The chief prince is not patient.');
     }
     return false;
+  }
+
+  /** A hill-villager still out in the open: with a foe near they hide; with the way clear they run for the cave. */
+  private async rescueVillager(n: Npc): Promise<boolean> {
+    const s = G.save, st = this.st;
+    const key = `ch14_rescued_${n.kind}`;
+    if (flag(key)) return true;
+    if (!s.quests.s_villagers) st.quest('s_villagers', 0);
+    const near = G.world.ents.some((e) => e instanceof Enemy && !e.dying && !e.remove && Math.abs(e.x - n.x) < 190 && Math.abs(e.y - n.y) < 90);
+    const text: Record<string, [string, string]> = {
+      hannah: ['Behind you, child. They are in the olives.', 'You came back for an old woman. Tell Mara I took the long way to the cave, and I am not sorry.'],
+      eliab: ['Not yet. They would see me. The sheep are one thing, but I will not be the reason they find the lane.', 'The flock is gone, so I am free to run. I know the paths the host does not. Cave of refuge. Go.'],
+      jether: ['Shh! There is one by the wall!', 'I counted them for you! Eleven! I am going to the cave now, and I will not stop for anything!'],
+      naomi: ['Please. Not while that one is there.', 'My presses are burned, my vines are standing. I can start again. Cave first. Thank you, Elior.'],
+    };
+    const who = n.kind;
+    if (near) { await st.say([{ who, text: text[who][0] }]); return true; }
+    await st.say([{ who, text: text[who][1] }]);
+    setFlag(key);
+    n.walkTo = n.x + (G.world.room.id === 'olive_terraces' ? 900 : 700);
+    setTimeout(() => { n.remove = true; }, 4200);
+    const done = ['hannah', 'eliab', 'jether', 'naomi'].filter((k) => flag(`ch14_rescued_${k}`)).length;
+    G.ui.toast(`Sent to the cave of refuge (${done}/4)`, 'good');
+    if (done >= 4) {
+      st.quest('s_villagers', 0, true);
+      this.reward('ch14_villagers_paid', null, 6000, 1800);
+    }
+    return true;
   }
 
   onLore(id: string) {
