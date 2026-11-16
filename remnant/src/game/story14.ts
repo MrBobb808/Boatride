@@ -65,6 +65,8 @@ const lore = async (id: string) => { const s = G.save; if (!s.lore.includes(id))
 interface Fight {
   room: string; key: string; trigger: string; flag: string; stage: number; xp: number;
   intro: DialogueLine[]; outro: DialogueLine[];
+  /** An optional fight: it moves neither the quest nor the way on. */
+  side?: boolean;
   reward: string | null; silver: number;
 }
 
@@ -106,6 +108,18 @@ const FIGHTS: Fight[] = [
     outro: [
       { who: 'narrator', text: 'When it is over there is no host on the mountain. Only spears, bucklers, bows and arrows, handstaves and spears lying where the hail found them, and smoke going up from the brimstone.' },
       { who: 'elior', text: 'I did not throw him down. I only stood on the mountain until the LORD answered for His land.' },
+    ],
+  },
+  {
+    room: 'salt_marshes', key: 'salt_warden', trigger: 'salt_start', flag: 'ch14_salt_done', stage: 0, side: true, xp: 0.15, reward: 'salt_of_the_covenant', silver: 3500,
+    intro: [
+      { who: 'narrator', text: 'Where the river does not reach, the ground is white and the water is the old sea: thick, bitter and still. A tall shape stands in the middle of it, crusted like a wall that has been under the tide for a thousand years.' },
+      { who: 'elior', text: '...', choices: [{ label: 'You were left behind.' }, { label: 'I will not take what is yours.' }] },
+      { who: 'narrator', text: 'The salt on its shoulders falls as it turns. It has kept this ground since before the river, and it has never once been asked to leave.' },
+    ],
+    outro: [
+      { who: 'narrator', text: 'The Warden comes apart in a long dry fall, and the pan under it is only salt: clean, white and harmless. The marsh is still not healed. It was never going to be. Some of it was given to salt, and it keeps.' },
+      { who: 'elior', text: 'The river does not reach everywhere. I think it was not meant to.' },
     ],
   },
 ];
@@ -370,7 +384,7 @@ export class Chapter14 {
     this.reward(`ch14_${f.key}_rewarded`, f.reward, Math.round((chapterCurve(14).clearXp ?? 60000) * f.xp), f.silver);
     if (!G.save.defeated.includes(f.key)) G.save.defeated.push(f.key);
     setFlag(f.flag);
-    st.quest('m_gog', f.stage);
+    if (!f.side) st.quest('m_gog', f.stage);
     W.autosave(true);
     if (f.key === 'siege_colossus') { G.camera.addTrauma(0.6 * shakeScale()); input.rumble(1, 1, 900); }
     await st.say(f.outro);
@@ -380,7 +394,7 @@ export class Chapter14 {
     music.play(f.key === 'gog_prince' ? 'revelation' : 'dura', 2);
     st.cine(false);
     W.autosave(true);
-    G.ui.toast('The way on is open.', 'info');
+    if (!f.side) G.ui.toast('The way on is open.', 'info');
   }
 
   // ---------------------------------------------------------------- Act III and IV

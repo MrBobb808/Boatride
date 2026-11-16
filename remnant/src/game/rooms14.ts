@@ -1,4 +1,4 @@
-// Chapter XIV — The Day of Gog (Ezekiel 38–39, then 47). Twenty-four rooms in five acts:
+// Chapter XIV — The Day of Gog (Ezekiel 38–39, then 47). Twenty-six rooms in five acts:
 //   I   The land of unwalled villages: the Remnant at rest in the hills, the cloud out of the north, the alarm, the
 //       flight to the cave of refuge.
 //   II  The north parts: up the pass into the camps of the host, the field of bucklers, the ford, the tents of the
@@ -919,8 +919,7 @@ function healedSea() {
   const b = new MapBuilder(96, 28);
   const f = 22;
   b.rect(0, f, 96, 6);
-  b.rect(94, 0, 2, f);
-  pool(b, 54, f, 40, 4);
+  pool(b, 54, f, 34, 4);
   b.rect(46, f - 2, 8, 2);
   const ents: EntDef[] = [
     { t: 'decor', k: 'healing_tree', x: 10, y: f, h: 7 },
@@ -937,7 +936,38 @@ function healedSea() {
   ];
   return room(b, {
     id: 'healed_sea', name: 'The Sea Made Whole', region: RIVER, biome: 'river', music: 'rest', seed: 1424,
-    dark: 0.05, weather: 'motes', fl: f, fr: f, prev: 'river_trees', map: [254, 3],
+    dark: 0.05, weather: 'motes', fl: f, fr: f, prev: 'river_trees', next: 'salt_marshes', nextCond: 'ch14_done', map: [254, 3],
+    ents,
+  });
+}
+
+// ---------------------------------------------------------------- The marshes given to salt (optional: the Warden)
+function saltMarshes() {
+  const b = new MapBuilder(100, 28);
+  const f = 22;
+  b.rect(0, f, 100, 6);
+  b.rect(0, 0, 2, f - 9).rect(98, 0, 2, f - 9);
+  b.rect(4, f - 9, 1, 9, 'G');
+  b.plat(22, f - 6, 8).plat(46, f - 10, 8).plat(70, f - 6, 8);
+  const ents: EntDef[] = [
+    { t: 'decor', k: 'boundary_stone', x: 10, y: f },
+    { t: 'decor', k: 'grave_marker', x: 18, y: f },
+    { t: 'decor', k: 'spear_cairn', x: 34, y: f },
+    { t: 'decor', k: 'broken_wall', x: 40, y: f, w: 5 },
+    { t: 'decor', k: 'grave_marker', x: 58, y: f, v: 1 },
+    { t: 'decor', k: 'spear_cairn', x: 66, y: f },
+    { t: 'decor', k: 'boundary_stone', x: 90, y: f },
+    { t: 'light', k: 'glow', x: 50, y: f - 4, r: 150, c: '#9ee6ff' },
+    { t: 'boss', k: 'salt_warden', x: 72, y: f },
+    { t: 'altar', x: 8, y: f, id: 'salt_marshes' },
+    { t: 'trigger', x: 11, y: f - 9, w: 2, h: 9, id: 'salt_start' },
+    { t: 'lore', x: 14, y: f, id: 'ezk4711' },
+    { t: 'chest', x: 48, y: f - 10, id: 'salt_pan', secret: true, loot: HOST_LOOT },
+  ];
+  return room(b, {
+    id: 'salt_marshes', name: 'The Marshes Given to Salt', region: RIVER, biome: 'river', music: '', seed: 1427,
+    dark: 0.25, weather: 'dust', fl: f, fr: f, prev: 'healed_sea', map: [264, 3],
+    spawns: { center: { x: 46, y: f, face: 1 } },
     ents,
   });
 }
@@ -947,6 +977,6 @@ export const ROOMS14 = [
   northPass(), hostCamp(), shieldField(), fordOfHost(), princesTents(), siegeLines(), engineHill(),
   fallenWalls(), steepPlaces(), rentValley(), brothersField(), gogAscent(), gogMountain(),
   hamongog(),
-  templeThreshold(), riverMeasure(), riverTrees(), healedSea(),
+  templeThreshold(), riverMeasure(), riverTrees(), healedSea(), saltMarshes(),
 ];
 export const CH14_ROOM_IDS = new Set(ROOMS14.map((r) => r.id));

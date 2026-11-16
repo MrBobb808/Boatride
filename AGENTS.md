@@ -103,16 +103,18 @@ Never ship files from `art/incoming/` directly.
     fairs of Tyrus. A hired host (`tyre()`), a curve row above XII's, and two
     fetters (the Fairs', the Storehouse's) seal the prince's seat. Keziah, who
     kept the market's tally, is rescued from the Holds of Tarshish.
-  - XIV, *The Day of Gog* (Ezekiel 38–39, then 47): its own rooms (`game/rooms14.ts`, 25 rooms in five acts: the
+  - XIV, *The Day of Gog* (Ezekiel 38–39, then 47): its own rooms (`game/rooms14.ts`, 26 rooms in five acts: the
     unwalled villages, the north parts, the great shaking, the valley of Hamongog, the river), story
     (`game/story14.ts`) and art (`render/env14.ts`: four lands, `unwalled`, `host`, `shaking`, `river`, each with
     moods chosen by room seed). Gog's host comes out of the north against villages without walls; the LORD answers
     on the mountains with a shaking and hail, fire and brimstone (38:22), and Elior only withstands. Then the
     waters from under the threshold heal the sea. Its three fights are the bosses below (`FIGHTS` in the story); the set
-    pieces and its music follow. Begun from XIII's end card or Journey on. Set pieces (`game/setpieces14.ts`, wired in
+    pieces are below. Begun from XIII's end card or Journey on. Set pieces (`game/setpieces14.ts`, wired in
     `story14.ts`): the Dust Road's riders' wall (a flight to the cave, slower than Elior's run), the Aftershocks after
     the shaking, the brothers' Feud in Hamongog's approach, and the hill-villagers to send to the cave (`s_villagers`).
-    Verified by `remnant-phaser/scripts/ch14.mjs` and `ch14-setpieces.mjs`.
+    After the chapter the sea's east door opens on the Marshes Given to Salt (Ezekiel 47:11), an optional fight with
+    the Warden of the Salt (`game/bosses14d.ts`, `salt_warden`; it leaves the quest alone and pays the Salt of the
+    Covenant). Verified by `remnant-phaser/scripts/ch14.mjs`, `ch14-setpieces.mjs` and `ch14-salt.mjs`.
   - `game/chapters.ts` lists the chapters for chapter select (`ui/chapters.ts`). In
     the Phaser build a finished chapter can be replayed (`chapterReplay`,
     `PhaserSave.replay`): its bosses and commanders stand again, matched to

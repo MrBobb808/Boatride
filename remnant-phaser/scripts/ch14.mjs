@@ -1,4 +1,4 @@
-// Chapter XIV, the Day of Gog (remnant/src/game/rooms14.ts, story14.ts, render/env14.ts): its twenty-four rooms load,
+// Chapter XIV, the Day of Gog (remnant/src/game/rooms14.ts, story14.ts, render/env14.ts): its twenty-six rooms load,
 // are dressed and joined door to door both ways; the host holds the fighting rooms; and the story runs from the end of
 // Chapter XIII through the opening, the cloud out of the north, the herald, the cave of refuge, the three bosses, Gog
 // on the mountain, Hamongog, the threshold and the river to the chapter's end card.
@@ -47,7 +47,7 @@ try {
   await until(() => window.__remnant?.world?.player && !window.__remnant.world.transitioning, null, 60000);
   const rooms = await E(() => {
     const w = window.__remnant.world, R = window.__remnant.rooms ?? null;
-    const ids = ['gog_hub', 'olive_terraces', 'watch_hill', 'alarm_village', 'vineyard_road', 'dust_road', 'refuge_cave', 'north_pass', 'host_camp', 'shield_field', 'ford_of_host', 'princes_tents', 'siege_lines', 'engine_hill', 'fallen_walls', 'steep_places', 'rent_valley', 'brothers_field', 'gog_ascent', 'gog_mountain', 'hamongog', 'temple_threshold', 'river_measure', 'river_trees', 'healed_sea'];
+    const ids = ['gog_hub', 'olive_terraces', 'watch_hill', 'alarm_village', 'vineyard_road', 'dust_road', 'refuge_cave', 'north_pass', 'host_camp', 'shield_field', 'ford_of_host', 'princes_tents', 'siege_lines', 'engine_hill', 'fallen_walls', 'steep_places', 'rent_valley', 'brothers_field', 'gog_ascent', 'gog_mountain', 'hamongog', 'temple_threshold', 'river_measure', 'river_trees', 'healed_sea', 'salt_marshes'];
     return ids.map((id) => {
       w.loadRoom(id, ['gog_hub'].includes(id) ? 'start' : 'left');
       const r = w.room;
@@ -58,7 +58,7 @@ try {
       };
     });
   });
-  assert.equal(rooms.length, 25, 'twenty-five rooms');
+  assert.equal(rooms.length, 26, 'twenty-six rooms');
   const byId = Object.fromEntries(rooms.map((r) => [r.id, r]));
   for (const r of rooms) {
     assert.ok(['unwalled', 'host', 'shaking', 'river'].includes(r.biome), `${r.id} is in one of the chapter's four lands (${r.biome})`);
@@ -72,7 +72,7 @@ try {
   for (const r of fighting) assert.ok(r.foes >= 5, `${r.id} holds the host (${r.foes} foes)`);
   for (const r of rooms) if (!['princes_tents', 'engine_hill', 'gog_mountain'].includes(r.id)) assert.ok(r.decor >= 4, `${r.id} is dressed (${r.decor} props)`);
   for (const id of ['princes_tents', 'engine_hill', 'gog_mountain']) assert.ok(byId[id].exits.some(([, , cond]) => cond), `${id} stays shut until its fight is won`);
-  console.log(`Rooms: 25 in four lands, ${rooms.reduce((n, r) => n + r.foes, 0)} foes, ${rooms.reduce((n, r) => n + r.decor, 0)} props, every door joined both ways`);
+  console.log(`Rooms: 26 in four lands, ${rooms.reduce((n, r) => n + r.foes, 0)} foes, ${rooms.reduce((n, r) => n + r.decor, 0)} props, every door joined both ways`);
   if (SHOTS) for (const id of ['gog_hub', 'alarm_village', 'host_camp', 'ford_of_host', 'fallen_walls', 'gog_ascent', 'hamongog', 'river_measure', 'healed_sea']) {
     await E((id) => window.__remnant.world.loadRoom(id, id === 'gog_hub' ? 'start' : 'left'), id);
     await p.waitForTimeout(900);

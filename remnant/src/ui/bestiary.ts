@@ -69,6 +69,7 @@ const GREAT: { id: string; name: string; ch: number; boss: boolean }[] = [
   { id: 'meshech_tubal', name: 'The Princes of Meshech and Tubal', ch: 14, boss: true },
   { id: 'siege_colossus', name: 'The Engine of the North', ch: 14, boss: true },
   { id: 'gog_prince', name: 'Gog', ch: 14, boss: true },
+  { id: 'salt_warden', name: 'The Warden of the Salt', ch: 14, boss: true },
 ];
 
 const ROMAN = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII', 'XIII', 'XIV'];
