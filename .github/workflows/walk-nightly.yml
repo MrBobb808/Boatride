@@ -1,0 +1,36 @@
+# The whole-game walk (NEXT_PLAN A5, remnant-phaser/scripts/walk.mjs): Elior steps through every door of every room of
+# every chapter. It is long, so it runs nightly and on request, not on every push.
+name: Remnant — whole-game walk (nightly)
+
+on:
+  schedule:
+    - cron: '17 4 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  walk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: remnant-phaser
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: remnant-phaser/package-lock.json
+      - run: npm ci
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - run: node scripts/walk.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: walk-qa
+          path: remnant-phaser/qa
+          if-no-files-found: ignore
