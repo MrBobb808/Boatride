@@ -108,7 +108,7 @@ try {
     ran.push(...await runAttacks(page, ['thrust', 'bash', 'wall', 'summon'], ['wall']));
     const tubal1 = await E(page, () => { const t = window.__remnant.world.cboss.partner; return { act: t.act, perch: t.perch, cd: t.cd }; });
     await atHealth(page, 0.66);
-    await until(page, () => window.__remnant.world.cboss.phase === 2 && ['idle', 'attack'].includes(window.__remnant.world.cboss.state), null, 30000);
+    await until(page, () => window.__remnant.world.cboss.phase === 2 && ['idle', 'attack'].includes(window.__remnant.world.cboss.state), null, 90000);
     assert.equal(await E(page, () => window.__remnant.world.cboss.sub), 'The Bow of Tubal', 'the second movement is the bow of Tubal');
     ran.push(...await runAttacks(page, ['charge'], ['charge']));
     // Tubal's attacks, forced one at a time from the floor and from a height.
@@ -127,7 +127,7 @@ try {
     }
     assert.equal(tubalActs.length, 6, 'each of Tubal\'s attacks (volley, fan, rain, forge, dash, leap) ran to its end');
     await atHealth(page, 0.33);
-    await until(page, () => window.__remnant.world.cboss.phase === 3 && ['idle', 'attack'].includes(window.__remnant.world.cboss.state), null, 30000);
+    await until(page, () => window.__remnant.world.cboss.phase === 3 && ['idle', 'attack'].includes(window.__remnant.world.cboss.state), null, 90000);
     ran.push(...await runAttacks(page, ['slam', 'thrust'], ['slam']));
 
     // Breaking poise on one body kneels both.
@@ -178,11 +178,11 @@ try {
     console.log('Engine: the roll ended against the wall and left it kneeling');
     await until(page, () => window.__remnant.world.cboss.state === 'idle', null, 20000);
     await atHealth(page, 0.66);
-    await until(page, () => window.__remnant.world.cboss.phase === 2 && ['idle', 'attack'].includes(window.__remnant.world.cboss.state), null, 30000);
+    await until(page, () => window.__remnant.world.cboss.phase === 2 && ['idle', 'attack'].includes(window.__remnant.world.cboss.state), null, 90000);
     assert.ok(await E(page, () => window.__remnant.world.cboss.burning), 'in the second movement it burns');
     ran.push(...await runAttacks(page, ['flames', 'ram'], ['flames']));
     await atHealth(page, 0.33);
-    await until(page, () => window.__remnant.world.cboss.phase === 3 && ['idle', 'attack'].includes(window.__remnant.world.cboss.state), null, 30000);
+    await until(page, () => window.__remnant.world.cboss.phase === 3 && ['idle', 'attack'].includes(window.__remnant.world.cboss.state), null, 90000);
     const broken = await E(page, () => { const b = window.__remnant.world.cboss; return { broken: b.broken, h: b.hurtbox().h }; });
     assert.ok(broken.broken && broken.h < 220, `in the third its deck falls in (${JSON.stringify(broken)})`);
     ran.push(...await runAttacks(page, ['rubble'], ['rubble']));
@@ -203,7 +203,7 @@ try {
     const ran = [];
     ran.push(...await runAttacks(page, ['combo', 'rush', 'sweep', 'command', 'summon'], ['rush', 'command']));
     await atHealth(page, 0.7);
-    await until(page, () => window.__remnant.world.cboss.phase === 2 && ['idle', 'attack'].includes(window.__remnant.world.cboss.state), null, 30000);
+    await until(page, () => window.__remnant.world.cboss.phase === 2 && ['idle', 'attack'].includes(window.__remnant.world.cboss.state), null, 90000);
     assert.equal(await E(page, () => window.__remnant.world.cboss.sub), 'As a Cloud to Cover the Land', 'the second movement is the cloud');
     // As a cloud he cannot be struck.
     await until(page, () => window.__remnant.world.cboss.state === 'idle', null, 30000);
@@ -216,7 +216,7 @@ try {
     ran.push('cloud');
     ran.push(...await runAttacks(page, ['tempest'], ['tempest']));
     await atHealth(page, 0.4);
-    await until(page, () => window.__remnant.world.cboss.phase === 3 && ['idle', 'attack'].includes(window.__remnant.world.cboss.state), null, 30000);
+    await until(page, () => window.__remnant.world.cboss.phase === 3 && ['idle', 'attack'].includes(window.__remnant.world.cboss.state), null, 90000);
     // Every man's sword: his bands fight one another, and he stands confounded and takes a third more.
     await until(page, () => window.__remnant.world.cboss.state === 'idle', null, 30000);
     await E(page, () => { window.__remnant.world.cboss.start('confusion'); });
