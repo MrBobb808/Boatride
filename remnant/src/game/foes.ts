@@ -10,6 +10,7 @@ import { Vessel, Scribe } from './feast';
 import { Undying, Gale } from './princes';
 import { Stalker, Carrier, Golem } from './fallenFoes';
 import { Eel } from './eel';
+import { Rider, StandardBearer, Sapper } from './hostFoes';
 
 /** Named elites. Classes give a generic elite title; these placed foes have their own. */
 const ELITE_NAMES: Record<string, string> = {
@@ -51,6 +52,9 @@ function build(kind: EnemyKind, x: number, y: number, elite: string | null): Ene
     case 'carrier': return new Carrier(x, y, elite);
     case 'golem': return new Golem(x, y, elite);
     case 'eel': return new Eel(x, y, elite);
+    case 'rider': return new Rider(x, y, elite);
+    case 'standard': return new StandardBearer(x, y, elite);
+    case 'sapper': return new Sapper(x, y, elite);
   }
 }
 

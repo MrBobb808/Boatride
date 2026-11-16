@@ -117,6 +117,7 @@ function oliveTerraces() {
     { t: 'light', k: 'glow', x: 96, y: 5, r: 80, c: '#fff0c8' },
     { t: 'enemy', k: 'hound', x: 34, y: 23, face: -1 },
     { t: 'enemy', k: 'hound', x: 58, y: 21, face: -1 },
+    { t: 'npc', k: 'hannah', x: 62, y: 21, face: 1, ncond: 'ch14_rescued_hannah' },
     { t: 'enemy', k: 'archer', x: 76, y: 18, face: -1 },
     { t: 'enemy', k: 'hound', x: 92, y: 15, face: -1 },
     { t: 'enemy', k: 'archer', x: 110, y: 12, face: -1 },
@@ -191,6 +192,8 @@ function alarmVillage() {
     { t: 'enemy', k: 'hound', x: 26, y: f, face: -1 },
     { t: 'enemy', k: 'knight', x: 36, y: f, face: -1 },
     { t: 'enemy', k: 'archer', x: 43, y: f - 4, face: -1 },
+    { t: 'npc', k: 'eliab', x: 20, y: f, face: 1, ncond: 'ch14_rescued_eliab' },
+    { t: 'npc', k: 'jether', x: 64, y: f - 4, face: -1, ncond: 'ch14_rescued_jether' },
     { t: 'enemy', k: 'brute', x: 56, y: f, face: -1 },
     { t: 'enemy', k: 'knight', x: 72, y: f, face: -1 },
     { t: 'enemy', k: 'archer', x: 78, y: 12, face: -1 },
@@ -231,9 +234,10 @@ function vineyardRoad() {
     { t: 'decor', k: 'spear_cairn', x: 114, y: f - 4 },
     { t: 'decor', k: 'olive_tree', x: 130, y: f - 4, h: 5, flip: true },
     { t: 'enemy', k: 'knight', x: 20, y: f, face: -1 },
-    { t: 'enemy', k: 'archer', x: 38, y: f - 6, face: -1 },
+    { t: 'enemy', k: 'sapper', x: 38, y: f - 6, face: -1 },
     { t: 'enemy', k: 'hound', x: 46, y: f, face: -1 },
     { t: 'enemy', k: 'brute', x: 60, y: f - 6, face: -1 },
+    { t: 'npc', k: 'naomi', x: 56, y: f - 6, face: 1, ncond: 'ch14_rescued_naomi' },
     { t: 'enemy', k: 'knight', x: 76, y: f, face: -1 },
     { t: 'enemy', k: 'archer', x: 93, y: f - 6, face: -1 },
     { t: 'enemy', k: 'bulwark', x: 102, y: f, face: -1 },
@@ -244,7 +248,39 @@ function vineyardRoad() {
   ];
   return room(b, {
     id: 'vineyard_road', name: 'The Vineyard Road', region: UNWALLED, biome: 'unwalled', music: 'tower', seed: 1405,
-    dark: 0.12, weather: 'ash', fl: f, fr: f - 4, prev: 'alarm_village', next: 'refuge_cave', map: [42, 5],
+    dark: 0.12, weather: 'ash', fl: f, fr: f - 4, prev: 'alarm_village', next: 'dust_road', map: [42, 5],
+    ents,
+  });
+}
+
+// ---------------------------------------------------------------- The dust road (the flight to the cave of refuge)
+function dustRoad() {
+  const b = new MapBuilder(132, 30);
+  const f = 24;
+  b.rect(0, f, 132, 6);
+  b.rect(0, 12, 3, f - 12);
+  // low walls of fieldstone across the road, pits where the wadis cut it, a cart on its side, a step up
+  b.rect(22, f - 2, 3, 2).rect(52, f - 2, 3, 2).rect(78, f - 3, 3, 3);
+  b.clear(34, f, 5, 3).rect(34, f + 2, 5, 1, '^');
+  b.clear(64, f, 5, 3).rect(64, f + 2, 5, 1, '^');
+  b.rect(96, f - 2, 6, 2).rect(104, f - 4, 6, 4);
+  const ents: EntDef[] = [
+    { t: 'decor', k: 'vine_row', x: 8, y: f, w: 8 },
+    { t: 'decor', k: 'olive_tree', x: 28, y: f, h: 5 },
+    { t: 'decor', k: 'broken_wall', x: 40, y: f, w: 6 },
+    { t: 'decor', k: 'olive_tree', x: 58, y: f, h: 6, flip: true },
+    { t: 'decor', k: 'spear_cairn', x: 72, y: f },
+    { t: 'decor', k: 'vine_row', x: 84, y: f, w: 8 },
+    { t: 'decor', k: 'olive_tree', x: 112, y: f - 4, h: 5 },
+    { t: 'decor', k: 'host_banner', x: 4, y: f },
+    { t: 'light', k: 'glow', x: 16, y: f - 6, r: 120, c: '#ff7a3a' },
+    { t: 'trigger', x: 124, y: f - 9, w: 3, h: 9, id: 'dust_end' },
+    { t: 'hint', x: 6, w: 8, id: 'h_dust', text: 'The riders are behind you. Do not stop: jump the walls and the pits, and run for the cave.' },
+  ];
+  return room(b, {
+    id: 'dust_road', name: 'The Dust Road', region: UNWALLED, biome: 'unwalled', music: 'tower', seed: 1426,
+    dark: 0.2, weather: 'dust', fl: f, fr: f - 4, prev: 'vineyard_road', next: 'refuge_cave', map: [49, 5.7],
+    spawns: { left: { x: 5, y: f, face: 1 } },
     ents,
   });
 }
@@ -274,11 +310,15 @@ function refugeCave() {
     { t: 'npc', k: 'ilan', x: 52, y: f, face: -1 },
     { t: 'npc', k: 'dov', x: 58, y: f, face: -1 },
     { t: 'npc', k: 'micaiah', x: 44, y: f, face: 1 },
+    { t: 'npc', k: 'hannah', x: 14, y: f, face: 1, cond: 'ch14_rescued_hannah' },
+    { t: 'npc', k: 'eliab', x: 56, y: f, face: -1, cond: 'ch14_rescued_eliab' },
+    { t: 'npc', k: 'jether', x: 38, y: f, face: 1, cond: 'ch14_rescued_jether' },
+    { t: 'npc', k: 'naomi', x: 28, y: f, face: 1, cond: 'ch14_rescued_naomi' },
     { t: 'chest', x: 51, y: 12, id: 'refuge_cache', secret: true, loot: SHEPHERD_LOOT },
   ];
   return room(b, {
     id: 'refuge_cave', name: 'The Cave of Refuge', region: UNWALLED, biome: 'unwalled', music: 'rest', seed: 1406,
-    dark: 0.4, weather: 'drips', interior: true, fl: f, fr: f, prev: 'vineyard_road', next: 'north_pass', map: [56, 5],
+    dark: 0.4, weather: 'drips', interior: true, fl: f, fr: f, prev: 'dust_road', next: 'north_pass', map: [56, 5],
     spawns: { altar: { x: 10, y: f, face: 1 } },
     ents,
   });
@@ -341,11 +381,11 @@ function hostCamp() {
     { t: 'light', k: 'brazier', x: 72, y: f - 4 },
     { t: 'light', k: 'brazier', x: 112, y: f - 3 },
     { t: 'light', k: 'forge', x: 140, y: f },
-    { t: 'enemy', k: 'knight', x: 18, y: f, face: -1 },
-    { t: 'enemy', k: 'archer', x: 28, y: f - 3, face: -1 },
+    { t: 'enemy', k: 'rider', x: 18, y: f, face: -1 },
+    { t: 'enemy', k: 'sapper', x: 28, y: f - 3, face: -1 },
     { t: 'enemy', k: 'hound', x: 40, y: f, face: -1 },
     { t: 'enemy', k: 'bulwark', x: 54, y: f, face: -1 },
-    { t: 'enemy', k: 'knight', x: 64, y: f - 4, face: -1 },
+    { t: 'enemy', k: 'standard', x: 64, y: f - 4, face: -1 },
     { t: 'enemy', k: 'archer', x: 94, y: 10, face: -1 },
     { t: 'enemy', k: 'brute', x: 88, y: f, face: -1 },
     { t: 'enemy', k: 'lion', x: 108, y: f - 3, face: -1 },
@@ -380,9 +420,9 @@ function shieldField() {
     { t: 'decor', k: 'host_banner', x: 82, y: f },
     { t: 'decor', k: 'spear_cairn', x: 112, y: f },
     { t: 'enemy', k: 'bulwark', x: 26, y: f, face: -1 },
-    { t: 'enemy', k: 'archer', x: 30, y: 16, face: -1 },
+    { t: 'enemy', k: 'sapper', x: 30, y: 16, face: -1 },
     { t: 'enemy', k: 'bulwark', x: 50, y: f, face: -1 },
-    { t: 'enemy', k: 'knight', x: 58, y: f, face: -1 },
+    { t: 'enemy', k: 'standard', x: 58, y: f, face: -1 },
     { t: 'enemy', k: 'bulwark', x: 74, y: f, face: -1 },
     { t: 'enemy', k: 'archer', x: 78, y: 16, face: -1 },
     { t: 'enemy', k: 'bulwark', x: 98, y: f, face: -1, elite: 'buckler_captain' },
@@ -423,7 +463,7 @@ function fordOfHost() {
     { t: 'enemy', k: 'eel', x: 52, y: f + 2, face: -1 },
     { t: 'enemy', k: 'eel', x: 66, y: f + 3, face: 1 },
     { t: 'enemy', k: 'knight', x: 84, y: f, face: -1 },
-    { t: 'enemy', k: 'lion', x: 100, y: f, face: -1 },
+    { t: 'enemy', k: 'rider', x: 100, y: f, face: -1 },
     { t: 'enemy', k: 'archer', x: 112, y: 13, face: -1 },
     { t: 'enemy', k: 'bulwark', x: 120, y: f, face: -1 },
     { t: 'chest', x: 60, y: f + 3, id: 'ford_wreck', secret: true, loot: HOST_LOOT },
@@ -486,8 +526,8 @@ function siegeLines() {
     { t: 'decor', k: 'broken_wall', x: 130, y: f, w: 10 },
     { t: 'light', k: 'forge', x: 50, y: f - 4 },
     { t: 'light', k: 'brazier', x: 96, y: f - 6 },
-    { t: 'enemy', k: 'knight', x: 16, y: f, face: -1 },
-    { t: 'enemy', k: 'archer', x: 48, y: f - 12, face: -1 },
+    { t: 'enemy', k: 'rider', x: 16, y: f, face: -1 },
+    { t: 'enemy', k: 'sapper', x: 48, y: f - 12, face: -1 },
     { t: 'enemy', k: 'brute', x: 52, y: f - 4, face: -1 },
     { t: 'enemy', k: 'bulwark', x: 64, y: f, face: -1 },
     { t: 'enemy', k: 'golem', x: 88, y: f, face: -1 },
@@ -903,7 +943,7 @@ function healedSea() {
 }
 
 export const ROOMS14 = [
-  bethshalom(), oliveTerraces(), watchHill(), alarmVillage(), vineyardRoad(), refugeCave(),
+  bethshalom(), oliveTerraces(), watchHill(), alarmVillage(), vineyardRoad(), dustRoad(), refugeCave(),
   northPass(), hostCamp(), shieldField(), fordOfHost(), princesTents(), siegeLines(), engineHill(),
   fallenWalls(), steepPlaces(), rentValley(), brothersField(), gogAscent(), gogMountain(),
   hamongog(),

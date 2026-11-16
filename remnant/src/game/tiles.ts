@@ -32,8 +32,8 @@ export type EntDef =
   | { t: 'air'; x: number; y: number; r?: number; cond?: string }
   | { t: 'boss'; k: 'idol' | 'gatekeeper' | 'marshal' | 'locust_king' | 'golden_image' | 'weigher' | 'storm_prince' | 'persia_prince' | 'beast_monarch' | 'plague_monarch' | 'cinder_monarch' | 'grecia_prince' | 'nation_gods' | 'north_king' | 'tyrus_prince' | 'meshech_tubal' | 'siege_colossus' | 'gog_prince'; x: number; y: number };
 
-export type EnemyKind = 'husk' | 'hound' | 'archer' | 'sentinel' | 'wisp' | 'brute' | 'bulwark' | 'knight' | 'drone' | 'soldier' | 'lion' | 'priest' | 'vessel' | 'scribe' | 'undying' | 'gale' | 'stalker' | 'carrier' | 'golem' | 'eel';
-export type NpcKind = 'azriel' | 'mara' | 'tobiah' | 'ilan' | 'dov' | 'regent' | 'marshal' | 'satrap' | 'ezra' | 'talia' | 'barak' | 'hanan' | 'micaiah' | 'shira' | 'keziah' | 'tirzah' | 'uri' | 'gogherald' | 'feastlord' | 'arshan' | 'storm_prince' | 'persia_prince';
+export type EnemyKind = 'husk' | 'hound' | 'archer' | 'sentinel' | 'wisp' | 'brute' | 'bulwark' | 'knight' | 'drone' | 'soldier' | 'lion' | 'priest' | 'vessel' | 'scribe' | 'undying' | 'gale' | 'stalker' | 'carrier' | 'golem' | 'eel' | 'rider' | 'standard' | 'sapper';
+export type NpcKind = 'azriel' | 'mara' | 'tobiah' | 'ilan' | 'dov' | 'regent' | 'marshal' | 'satrap' | 'ezra' | 'talia' | 'barak' | 'hanan' | 'micaiah' | 'shira' | 'keziah' | 'tirzah' | 'uri' | 'gogherald' | 'eliab' | 'naomi' | 'jether' | 'hannah' | 'feastlord' | 'arshan' | 'storm_prince' | 'persia_prince';
 
 export interface Loot {
   item?: string;

@@ -103,14 +103,16 @@ Never ship files from `art/incoming/` directly.
     fairs of Tyrus. A hired host (`tyre()`), a curve row above XII's, and two
     fetters (the Fairs', the Storehouse's) seal the prince's seat. Keziah, who
     kept the market's tally, is rescued from the Holds of Tarshish.
-  - XIV, *The Day of Gog* (Ezekiel 38–39, then 47): its own rooms (`game/rooms14.ts`, 24 rooms in five acts: the
+  - XIV, *The Day of Gog* (Ezekiel 38–39, then 47): its own rooms (`game/rooms14.ts`, 25 rooms in five acts: the
     unwalled villages, the north parts, the great shaking, the valley of Hamongog, the river), story
     (`game/story14.ts`) and art (`render/env14.ts`: four lands, `unwalled`, `host`, `shaking`, `river`, each with
     moods chosen by room seed). Gog's host comes out of the north against villages without walls; the LORD answers
     on the mountains with a shaking and hail, fire and brimstone (38:22), and Elior only withstands. Then the
     waters from under the threshold heal the sea. Its three fights are the bosses below (`FIGHTS` in the story); the set
-    pieces and its music follow. Begun from XIII's end card or Journey on. Verified by
-    `remnant-phaser/scripts/ch14.mjs`.
+    pieces and its music follow. Begun from XIII's end card or Journey on. Set pieces (`game/setpieces14.ts`, wired in
+    `story14.ts`): the Dust Road's riders' wall (a flight to the cave, slower than Elior's run), the Aftershocks after
+    the shaking, the brothers' Feud in Hamongog's approach, and the hill-villagers to send to the cave (`s_villagers`).
+    Verified by `remnant-phaser/scripts/ch14.mjs` and `ch14-setpieces.mjs`.
   - `game/chapters.ts` lists the chapters for chapter select (`ui/chapters.ts`). In
     the Phaser build a finished chapter can be replayed (`chapterReplay`,
     `PhaserSave.replay`): its bosses and commanders stand again, matched to
@@ -195,6 +197,9 @@ Never ship files from `art/incoming/` directly.
     (marked pounce, parryable two-hit rake), Swarm Carrier (drifting swarm
     clouds, spore burst on death) and Slag Golem (armoured front, slam with a
     jumpable fire wave, exposed core). Verified by `scripts/fallen-foes.mjs`.
+  - `game/hostFoes.ts`: Chapter XIV's host: Rider (rears, then charges), Standard-Bearer (rallies the foes near it;
+    its fall unsteadies them) and Sapper (an archer that lobs pots of fire). Verified by
+    `remnant-phaser/scripts/ch14-setpieces.mjs`.
 - **Echoes** (purified allies): `game/echoes.ts` holds the kits, `game/data.ts`
   the species.
   - **Squad control:** the command wheel (`ui/ui.ts`, `openWheel`) has a

@@ -50,6 +50,9 @@ export const ENEMY_STATS: Record<EnemyKind, EnemyStats> = {
   carrier: { hp: 165, dmg: 17, poise: 48, xp: 68, silver: [10, 18], name: 'Swarm Carrier' },
   golem: { hp: 300, dmg: 24, poise: 120, xp: 86, silver: [12, 22], name: 'Slag Golem' },
   eel: { hp: 120, dmg: 18, poise: 24, xp: 60, silver: [8, 16], name: 'Brine Eel' },
+  rider: { hp: 190, dmg: 24, poise: 60, xp: 76, silver: [12, 20], name: 'Horseman of Magog' },
+  standard: { hp: 150, dmg: 16, poise: 50, xp: 82, silver: [12, 20], name: 'Standard-Bearer of the North' },
+  sapper: { hp: 95, dmg: 20, poise: 14, xp: 68, silver: [10, 16], name: 'Sapper of the North' },
 };
 
 export const CORRUPT = { glow: '#b04cff', eye: '#ff3355', outline: '#07050a' };
@@ -273,6 +276,18 @@ export abstract class Enemy extends Entity {
     this.name = elite ? 'Elite ' + this.stats.name : this.stats.name;
     this.layer = 6;
     this.isFoe = true;
+  }
+
+  /** A foe built on another's body takes its own kind, name and numbers (game/hostFoes.ts). */
+  protected retype(kind: EnemyKind) {
+    this.kind = kind;
+    this.stats = ENEMY_STATS[kind];
+    const ng = 1 + (G.save?.ng ?? 0) * 0.6, em = this.elite ? 2.0 : 1;
+    const { foeHp: th, foeDmg: td } = chapterCurve(this.tier), m = might();
+    this.maxHp = this.hp = Math.round(this.stats.hp * ng * em * th * m.hp);
+    this.dmg = this.stats.dmg * ng * (this.elite ? 1.15 : 1) * td * m.dmg;
+    this.maxPoise = this.poise = this.stats.poise * (this.elite ? 1.6 : 1);
+    this.name = this.elite ? 'Elite ' + this.stats.name : this.stats.name;
   }
 
   executable() {
