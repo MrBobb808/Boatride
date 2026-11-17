@@ -192,7 +192,13 @@ try {
   // The rounds hit him while he waits: press until the call lands (a press in a cutscene beat does nothing).
   for (let i = 0; i < 20 && !(await E(tp, () => window.__remnant.world.player.flame.out)); i++) { await tap(tp, 'KeyC'); await tp.waitForTimeout(600); }
   await until(tp, () => window.__remnant.world.player.flame.out && window.__remnant.world.player.flame.shaman.visible, null, 30000).catch(async (e) => { throw Error(e.message + ' ' + await E(tp, () => { const w = window.__remnant.world, pl = w.player; return JSON.stringify({ hero: pl.hero, state: pl.state, cut: window.__remnant.G.inCutscene, paused: window.__remnant.G.paused, out: pl.flame.out, vis: pl.flame.shaman.visible, wheel: w.hud.wheelOpen, flag: w.save.flags.uri_orc, dead: pl.dead, mantle: pl.mantleT }); })); });
-  await until(tp, () => window.__remnant.world.player.flame.tally.chants > 0, null, 40000);
+  // The orc chants at a foe within reach; how soon the rounds' first foes arrive depends on the machine, so one is
+  // brought up beside him and the wait is on the chant itself.
+  for (let i = 0; i < 40 && !(await E(tp, () => window.__remnant.world.player.flame.tally.chants > 0)); i++) {
+    await E(tp, () => { const w = window.__remnant.world, pl = w.player, f = w.classic.ents.find((e) => e.isFoe && !e.remove && !e.dying); if (f) { f.x = pl.x + pl.face * 140; f.y = pl.y; } });
+    await tp.waitForTimeout(1000);
+  }
+  await until(tp, () => window.__remnant.world.player.flame.tally.chants > 0, null, 5000);
   console.log('Trial: Uri calls his orc with the Echo button, and the orc chants in the rounds');
   await tp.context().close();
 
