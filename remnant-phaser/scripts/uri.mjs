@@ -96,7 +96,7 @@ try {
   await E(page, () => { const w = window.__remnant.world, f = window.__uriFoe, e = f.e ?? f; w.player.face = 1; window.__aimed = w.player.flame.tally.aimed; });
   await tap(page, 'KeyJ');
   // The ball needs a moment on a slow runner: wait for it to land rather than for a fixed time.
-  await until(page, () => window.__uriHp - window.__uriFoe.hp > 0, null, 10000).catch(() => {});
+  await until(page, () => window.__uriHp - window.__uriFoe.hp > 0, null, 30000).catch(() => {});
   const aim = await E(page, () => { const w = window.__remnant.world, f = window.__uriFoe; return { hurt: window.__uriHp - f.hp, aimed: w.player.flame.tally.aimed - window.__aimed, balls: w.player.flame.tally.balls, palms: w.player.flame.tally.palms, px: w.player.x, fx: f.x, fy: f.box.centerY, feet: w.player.feet, state: w.player.state }; });
   assert.ok(aim.hurt > 0 && aim.aimed > 0, `a fireball turns to the foe behind him and lands (${JSON.stringify(aim)})`);
   console.log('Aim: his fireball turned to a foe behind him');
@@ -106,7 +106,7 @@ try {
   await E(page, place, 60);
   const x0 = await E(page, () => window.__remnant.world.player.x);
   await page.keyboard.down('KeyD'); await tap(page, 'KeyL'); await page.keyboard.up('KeyD');
-  await until(page, () => window.__remnant.world.player.flame.tally.dashes > 0, null, 10000);
+  await until(page, () => window.__remnant.world.player.flame.tally.dashes > 0, null, 30000);
   await page.waitForTimeout(500);
   const dash = await E(page, () => { const fl = window.__remnant.world.player.flame; return { trail: fl.tally.trail, burning: fl.grounds.filter((g) => g.t > 0).length, x: window.__remnant.world.player.x }; });
   assert.ok(dash.trail >= 3 && dash.burning >= 3 && dash.x - x0 > 80, `the dash carries him and leaves a trail of fire (${JSON.stringify({ ...dash, x0 })})`);
@@ -128,11 +128,16 @@ try {
   console.log(`Abilities: Pillar of Flame, Ring of Fire, Firestorm ${slots.length ? `(${slots.join(', ')})` : ''}`);
 
   // ---- Meteor: Down + Strike in the air
-  await until(page, () => window.__remnant.world.player.state === 'free', null, 20000);
-  await E(page, () => { const p = window.__remnant.world.player; p.body.setVelocityY(-420); });
-  await page.waitForTimeout(220);
-  await page.keyboard.down('KeyS'); await tap(page, 'KeyJ'); await page.keyboard.up('KeyS');
-  await until(page, () => window.__remnant.world.player.flame.tally.meteors > 0 && window.__remnant.world.player.state !== 'flame', null, 10000);
+  // The jump and the press must meet in the air; how long that takes depends on the machine, so try again until
+  // the Meteor lands rather than trust one timing.
+  for (let i = 0; i < 8 && !(await E(page, () => window.__remnant.world.player.flame.tally.meteors > 0)); i++) {
+    await until(page, () => window.__remnant.world.player.state === 'free' && window.__remnant.world.player.onGround, null, 30000);
+    await E(page, () => { const p = window.__remnant.world.player; p.body.setVelocityY(-520); });
+    await page.waitForTimeout(160);
+    await page.keyboard.down('KeyS'); await tap(page, 'KeyJ'); await page.keyboard.up('KeyS');
+    await page.waitForTimeout(1500);
+  }
+  await until(page, () => window.__remnant.world.player.flame.tally.meteors > 0 && window.__remnant.world.player.state !== 'flame', null, 30000);
   console.log('Meteor: he fell in fire and burst where he landed');
 
   // ---- the Fusion: the orc runs into him as the fire gathers, and they are one
@@ -192,7 +197,13 @@ try {
   // The rounds hit him while he waits: press until the call lands (a press in a cutscene beat does nothing).
   for (let i = 0; i < 20 && !(await E(tp, () => window.__remnant.world.player.flame.out)); i++) { await tap(tp, 'KeyC'); await tp.waitForTimeout(600); }
   await until(tp, () => window.__remnant.world.player.flame.out && window.__remnant.world.player.flame.shaman.visible, null, 30000).catch(async (e) => { throw Error(e.message + ' ' + await E(tp, () => { const w = window.__remnant.world, pl = w.player; return JSON.stringify({ hero: pl.hero, state: pl.state, cut: window.__remnant.G.inCutscene, paused: window.__remnant.G.paused, out: pl.flame.out, vis: pl.flame.shaman.visible, wheel: w.hud.wheelOpen, flag: w.save.flags.uri_orc, dead: pl.dead, mantle: pl.mantleT }); })); });
-  await until(tp, () => window.__remnant.world.player.flame.tally.chants > 0, null, 40000);
+  // The orc chants at a foe within reach; how soon the rounds' first foes arrive depends on the machine, so one is
+  // brought up beside him and the wait is on the chant itself.
+  for (let i = 0; i < 40 && !(await E(tp, () => window.__remnant.world.player.flame.tally.chants > 0)); i++) {
+    await E(tp, () => { const w = window.__remnant.world, pl = w.player, f = w.classic.ents.find((e) => e.isFoe && !e.remove && !e.dying); if (f) { f.x = pl.x + pl.face * 140; f.y = pl.y; } });
+    await tp.waitForTimeout(1000);
+  }
+  await until(tp, () => window.__remnant.world.player.flame.tally.chants > 0, null, 5000);
   console.log('Trial: Uri calls his orc with the Echo button, and the orc chants in the rounds');
   await tp.context().close();
 

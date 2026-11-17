@@ -31,7 +31,9 @@ const SHOTS = process.env.CH14_SHOTS === '1';
 const blow = (page, dmg, extra = {}) => E(page, ([dmg, extra]) => { const w = window.__remnant.world, b = w.cboss; return b.takeHit({ dmg, poise: 0, kx: 0, ky: 0, dir: 1, kind: 'melee', src: w.player, ...extra }); }, [dmg, extra]);
 /** Put the boss at a health fraction (and strike once so the movement change fires). */
 const atHealth = async (page, frac) => {
-  await E(page, (frac) => { const b = window.__remnant.world.cboss; b.hp = Math.round(b.maxHp * (frac + 0.004)); }, frac);
+  // Meshech's shield wall turns a blow from the front aside; if it happened to be up the strike would change nothing
+  // and the movement would never fire, so it is lowered first.
+  await E(page, (frac) => { const b = window.__remnant.world.cboss; if ('walled' in b) b.walled = false; b.hp = Math.round(b.maxHp * (frac + 0.004)); }, frac);
   await blow(page, 1e4);
 };
 const godMode = (page) => E(page, () => { const w = window.__remnant.world; window.__god = setInterval(() => { const p = w.player; if (p && !p.dead) p.hp = p.maxHp; }, 30); });
