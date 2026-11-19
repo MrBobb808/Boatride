@@ -521,6 +521,12 @@ Never ship files from `art/incoming/` directly.
   in `FOES` (game/horde/defs.ts); the Horde's lands 7–9 use them. Only add
   art whose licence allows a public repo (CC0 preferred); record it in
   `CREDITS.md` and `art/manifest.json`.
+- **3D-to-sprite pipeline (art tools):** `remnant-phaser/art/tools/model3d/` (README there). ComfyUI workflows
+  (`comfyui/01-pose.json`, `02-mesh.json`, built from Comfy-Org's MIT templates by `make_workflows.py`) turn a reference
+  image into an A/T-pose model with TRELLIS.2 on a GPU machine. Blender 4.5 LTS (`setup-blender.sh`, portable) then
+  makes it watertight, retopologises it with QuadriFlow, rigs it (`rig.py`, automatic weights) and renders the game's
+  clips, and `pack.py` makes the fighter atlas format (192 px cells, feet at 96,120, `clip:i`). `pipeline.sh` runs the
+  Blender half. It is tested here on `standin.py`'s mesh; no atlas from it is loaded by the game yet.
 - **iPhone performance:** the game targets 120 Hz.
   - Do not use `shadowBlur`.
   - Cache gradients and avoid allocating in per-frame paths.
