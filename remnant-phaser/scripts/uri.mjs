@@ -53,6 +53,71 @@ try {
   assert.ok(ball > 0 && wave > 0 && ground > 0 && palm > 0, `each of his fires lands (${JSON.stringify({ ball, wave, ground, palm, tally })})`);
   console.log(`Fire: fireball ${ball}, wave ${wave}, ground ${ground}, open hand ${palm}`);
 
+  // ---- the overhaul: Heat, Scorch and Combustion, the Great Fireball, the Supernova, the Comet Fan, the Updraft
+  const kit = (fn) => E(page, fn);
+  const free = () => until(page, () => window.__remnant.world.player.state === 'free', null, 30000);
+  await free();
+  await kit(() => { const k = window.__remnant.world.player.flame; k.heat = 0; k.tally.combusts = 0; k.tally.tierUps = 0; });
+  // Four fireballs on one foe: Heat builds, and the fourth mark Combusts it.
+  for (let i = 0; i < 6 && !(await kit(() => window.__remnant.world.player.flame.tally.combusts > 0)); i++) await fire('KeyJ', false, 150);
+  const hot = await kit(() => { const k = window.__remnant.world.player.flame; return { heat: k.heat, combusts: k.tally.combusts, explosions: k.tally.explosions }; });
+  assert.ok(hot.heat > 10, `his blows warm him (${JSON.stringify(hot)})`);
+  assert.ok(hot.combusts > 0 && hot.explosions > 0, `the fourth Scorch mark Combusts the foe (${JSON.stringify(hot)})`);
+  // Heat cools when he stops.
+  await kit(() => { window.__remnant.world.player.flame.heat = 60; });
+  await until(page, () => window.__remnant.world.player.flame.heat < 55, null, 40000).catch(() => {});
+  const cooled = await kit(() => window.__remnant.world.player.flame.heat);
+  assert.ok(cooled < 60, `Heat cools when he stops (${cooled})`);
+  // A tier up names itself.
+  await kit(() => { const k = window.__remnant.world.player.flame; k.heat = 69.5; k.heatRest = 0; });
+  await fire('KeyJ', false, 150);
+  assert.ok(await kit(() => window.__remnant.world.player.flame.tally.tierUps > 0 && window.__remnant.world.player.flame.heatTier >= 2), 'a blow past 70 makes him Hot');
+  console.log(`Heat: ${hot.heat.toFixed(0)} after the fireballs; Combust after four marks; it cools (60 → ${cooled.toFixed(0)}); Hot at 70`);
+
+  // Heavy held: the Great Fireball grows in his hands and explodes on the foe.
+  await kit(() => { window.__remnant.world.player.flame.heat = 0; });
+  await free();
+  await E(page, place, 220);
+  await page.keyboard.down('KeyK');
+  await until(page, () => window.__remnant.world.player.flame.charge >= 1, null, 30000);
+  await page.keyboard.up('KeyK');
+  await until(page, () => window.__remnant.world.player.flame.tally.greats > 0, null, 20000);
+  await until(page, () => window.__remnant.world.player.flame.tally.explosions > 1, null, 20000);
+  await page.waitForTimeout(300);
+  const great = await dealt();
+  assert.ok(great > 0, 'the Great Fireball explodes on the foe');
+  console.log(`Great Fireball: held to full, it flew and exploded for ${great}`);
+
+  // Blazing, Heavy is the Supernova: all his Heat at once.
+  await free();
+  await E(page, place, 120);
+  await kit(() => { window.__remnant.world.player.flame.heat = 100; });
+  await tap(page, 'KeyK');
+  await until(page, () => window.__remnant.world.player.flame.tally.novas > 0, null, 20000);
+  await page.waitForTimeout(300);
+  const nova = await dealt();
+  assert.ok(nova > 0 && (await kit(() => window.__remnant.world.player.flame.heat)) < 20, `the Supernova spends his Heat and burns the foe (${nova})`);
+  console.log(`Supernova: Blazing Heavy for ${nova}, and his Heat is spent`);
+
+  // Strike in the Flame Dash: the Comet Fan.
+  await free();
+  await E(page, place, 260);
+  await kit(() => { window.__remnant.world.player.flame.tally.comets = 0; });
+  for (let i = 0; i < 4 && !(await kit(() => window.__remnant.world.player.flame.tally.comets > 0)); i++) {
+    await free();
+    await page.keyboard.down('KeyL'); await page.waitForTimeout(60); await tap(page, 'KeyJ', 60); await page.keyboard.up('KeyL');
+    await page.waitForTimeout(900);
+  }
+  assert.ok(await kit(() => window.__remnant.world.player.flame.tally.comets > 0), 'Strike in the dash throws the Comet Fan');
+  console.log('Comet Fan: Strike in the Flame Dash, three fireballs');
+
+  // Hold Jump: the Updraft slows the fall.
+  await free();
+  await until(page, () => window.__remnant.world.player.onGround, null, 20000);
+  await page.keyboard.down('Space');
+  await until(page, () => window.__remnant.world.player.flame.tally.updraft > 0.25, null, 20000).finally(() => page.keyboard.up('Space'));
+  console.log('Updraft: held Jump on the way down slows the fall on a jet of fire');
+
   // ---- the orc: the Echo button (C) calls him and sends him away; while he is out he chants fire of his own and the
   // Geyser answers Down + Heavy. Uri has no Echoes or shadows, so the wheel does not open.
   await E(page, place, 150);

@@ -220,7 +220,7 @@ export class Player {
     if (L) { const out = s.flags.army_out; if (this.hero === 'uri') { L.dismissEchoes(); s.flags.army_out = out; } else if (out === true) L.summonEchoes(true); }
     this.w.spark(this.x,this.y,this.hero === 'tirzah' ? 0xa6efdc : this.hero === 'uri' ? 0xff8a3a : 0xffd27a,12);
     this.w.toast(this.hero === 'tirzah' ? 'Tirzah · bow and arrow · hold Strike to charge; Up + Strike for spread'
-      : this.hero === 'uri' ? 'Uri and his shaman · Strike: fireball at the nearest foe · Heavy: flame wave · Down + Heavy: Geyser · Dodge: Flame Dash'
+      : this.hero === 'uri' ? 'Uri and his shaman · Strike: fireball · Heavy: wave (hold: Great Fireball; Blazing: Supernova) · Down + Heavy: Geyser · Dodge: Flame Dash (Strike in it: Comet Fan) · Hold Jump falling: Updraft'
       : 'Elior · ' + STYLE_NAMES[this.combatStyle]);
     return true;
   }
