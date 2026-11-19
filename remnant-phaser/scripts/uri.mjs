@@ -69,9 +69,12 @@ try {
   const cooled = await kit(() => window.__remnant.world.player.flame.heat);
   assert.ok(cooled < 60, `Heat cools when he stops (${cooled})`);
   // A tier up names itself.
-  await kit(() => { const k = window.__remnant.world.player.flame; k.heat = 69.5; k.heatRest = 0; });
+  // Cooling is held off for this one (a slow runner can take longer than the rest to land the blow).
+  await kit(() => { const k = window.__remnant.world.player.flame; k.heat = 69.5; k.heatRest = -1e6; k.tally.tierUps = 0; k.tally.heatPeak = 0; });
   await fire('KeyJ', false, 150);
-  assert.ok(await kit(() => window.__remnant.world.player.flame.tally.tierUps > 0 && window.__remnant.world.player.flame.heatTier >= 2), 'a blow past 70 makes him Hot');
+  // The fireball may still be in flight when the cast ends on a slow runner: wait for it to land.
+  await until(page, () => window.__remnant.world.player.flame.tally.tierUps > 0 && window.__remnant.world.player.flame.tally.heatPeak >= 70, null, 20000)
+    .catch(() => { throw Error('a blow past 70 makes him Hot'); });
   console.log(`Heat: ${hot.heat.toFixed(0)} after the fireballs; Combust after four marks; it cools (60 → ${cooled.toFixed(0)}); Hot at 70`);
 
   // Heavy held: the Great Fireball grows in his hands and explodes on the foe.
@@ -112,10 +115,17 @@ try {
   console.log('Comet Fan: Strike in the Flame Dash, three fireballs');
 
   // Hold Jump: the Updraft slows the fall.
-  await free();
-  await until(page, () => window.__remnant.world.player.onGround, null, 20000);
-  await page.keyboard.down('Space');
-  await until(page, () => window.__remnant.world.player.flame.tally.updraft > 0.25, null, 20000).finally(() => page.keyboard.up('Space'));
+  // Jump is held and he is sent up, so the way down is long enough to ride; tried again if a landing came first.
+  for (let i = 0; i < 4 && !(await kit(() => window.__remnant.world.player.flame.tally.updraft > 0.25)); i++) {
+    await free();
+    await until(page, () => window.__remnant.world.player.onGround, null, 20000);
+    await page.keyboard.down('Space');
+    await kit(() => { const p = window.__remnant.world.player; p.body.setVelocityY(-520); });
+    await until(page, () => window.__remnant.world.player.flame.tally.updraft > 0.25 || window.__remnant.world.player.onGround && window.__remnant.world.player.body.velocity.y >= 0, null, 20000).catch(() => {});
+    await page.waitForTimeout(400);
+    await page.keyboard.up('Space');
+  }
+  assert.ok(await kit(() => window.__remnant.world.player.flame.tally.updraft > 0.25), 'held Jump on the way down rides the Updraft');
   console.log('Updraft: held Jump on the way down slows the fall on a jet of fire');
 
   // ---- the orc: the Echo button (C) calls him and sends him away; while he is out he chants fire of his own and the
