@@ -411,7 +411,13 @@ Never ship files from `art/incoming/` directly.
   `remnant-phaser/src/game/uriKit.ts` (state `'flame'`): every cast finds the nearest foe (`UriKit.target`). Strike a
   fireball (the third in a quick chain a piercing bolt; a foe in reach: an open-hand burst; Up: burning ground; Down
   in the air: Meteor), Heavy a flame wave, Down + Heavy the shaman's Geyser under the three nearest foes. Dodge is the
-  Flame Dash (`UriKit.dodge`, from `Player.defence`): through foes, scorching them, leaving a trail of fire. His orc
+  Flame Dash (`UriKit.dodge`, from `Player.defence`): through foes, scorching them, leaving a trail of fire. The fire builds on
+  itself: every blow that lands raises his Heat (`UriKit.heat`; Warm 35, Hot 70, Blazing 100, each tier stronger; Hot
+  fireballs leave burning ground, Blazing makes every second cast a bolt; it cools when he stops, and burning ground
+  alone does not keep him warm). Each blow puts a Scorch mark on a foe, and the fourth Combusts it (a blast that
+  catches its neighbours; the orc chants at once). Heavy held is the Great Fireball (a tap is still the wave); at
+  Blazing, Heavy is the Supernova and spends all his Heat. Strike in or just after the Flame Dash throws the Comet
+  Fan; Jump held while falling is the Updraft, a jet of fire that slows the fall and burns what is below. His orc
   orc shaman is called with the Echo button (C, or the ORC touch button) and stays at his side chanting fire until the
   button sends him away (`UriKit.toggleOrc`, `flags.uri_orc`); the Geyser needs him out. Uri has no Echoes and no
   shadows, so that button never opens the wheel for him. His three abilities are his own (`URI_SKILLS` in `game/abilities.ts`:
