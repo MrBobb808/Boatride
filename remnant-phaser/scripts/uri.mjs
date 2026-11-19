@@ -72,7 +72,9 @@ try {
   // Cooling is held off for this one (a slow runner can take longer than the rest to land the blow).
   await kit(() => { const k = window.__remnant.world.player.flame; k.heat = 69.5; k.heatRest = -1e6; k.tally.tierUps = 0; k.tally.heatPeak = 0; });
   await fire('KeyJ', false, 150);
-  assert.ok(await kit(() => window.__remnant.world.player.flame.tally.tierUps > 0 && window.__remnant.world.player.flame.tally.heatPeak >= 70), 'a blow past 70 makes him Hot');
+  // The fireball may still be in flight when the cast ends on a slow runner: wait for it to land.
+  await until(page, () => window.__remnant.world.player.flame.tally.tierUps > 0 && window.__remnant.world.player.flame.tally.heatPeak >= 70, null, 20000)
+    .catch(() => { throw Error('a blow past 70 makes him Hot'); });
   console.log(`Heat: ${hot.heat.toFixed(0)} after the fireballs; Combust after four marks; it cools (60 → ${cooled.toFixed(0)}); Hot at 70`);
 
   // Heavy held: the Great Fireball grows in his hands and explodes on the foe.
