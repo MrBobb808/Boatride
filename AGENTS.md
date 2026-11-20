@@ -530,7 +530,7 @@ Never ship files from `art/incoming/` directly.
   ambient is full white, so nothing gets darker; lights only add. The distortion map in `visuals.ts` adds heat haze
   over Uri's fire (`UriKit.hazeSources`) and the room's braziers, torches and forges, and shockwaves
   (`WorldApi.shockwave`, from the Supernova and a full Great Fireball) to its water and foundry heat. Verified by
-  `remnant-phaser/scripts/lighting.mjs`.
+  `remnant-phaser/scripts/dyn-lighting.mjs`.
 - **3D-to-sprite pipeline (art tools):** `remnant-phaser/art/tools/model3d/` (README there). ComfyUI workflows
   (`comfyui/01-pose.json`, `02-mesh.json`, built from Comfy-Org's MIT templates by `make_workflows.py`) turn a reference
   image into an A/T-pose model with TRELLIS.2 on a GPU machine. Blender 4.5 LTS (`setup-blender.sh`, portable) then
