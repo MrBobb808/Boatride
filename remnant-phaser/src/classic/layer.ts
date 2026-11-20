@@ -477,6 +477,9 @@ export class ClassicLayer {
     this.bind();
   }
 
+  /** The canvas image foes, bosses and people are painted into: lit by the dynamic lights (game/dynLights.ts). */
+  get image() { return this.img; }
+
   /** Point `G` at this scene: the world, camera, HUD and save the original modules use. */
   bind() {
     const h = this.host, L = this;

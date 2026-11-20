@@ -12,6 +12,7 @@ argv = sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else []
 ap = argparse.ArgumentParser(); ap.add_argument('out')
 ap.add_argument('--height-px', type=float, default=84); ap.add_argument('--clips', default='')
 ap.add_argument('--samples', type=int, default=10)
+ap.add_argument('--no-normals', action='store_true', help='skip the normal-map pass')
 a = ap.parse_args(argv)
 
 rig = bpy.data.objects['rig']; body = bpy.data.objects['body']
@@ -119,8 +120,32 @@ rim.data.energy = 1.3; rim.rotation_euler = (math.radians(75), 0, 0)            
 if not sc.world: sc.world = bpy.data.worlds.new('w')
 sc.world.use_nodes = True; sc.world.node_tree.nodes['Background'].inputs['Strength'].default_value = 0.45
 
+# The normal pass: every surface shows its normal in camera space (x right, y up, z toward the viewer) as a colour,
+# n * 0.5 + 0.5, saved raw (no view transform), which is how the game's lights read a normal map (dynLights.ts).
+nmat = bpy.data.materials.new('normals'); nmat.use_nodes = True
+nt = nmat.node_tree; nt.nodes.clear()
+# The camera is fixed (looking along +X): screen right is world -Y, up is +Z, toward the viewer is -X. The world normal
+# is mapped by hand rather than through Cycles' camera space, whose axes differ from Blender's.
+geo = nt.nodes.new('ShaderNodeNewGeometry'); sep = nt.nodes.new('ShaderNodeSeparateXYZ'); comb = nt.nodes.new('ShaderNodeCombineXYZ')
+negx = nt.nodes.new('ShaderNodeMath'); negx.operation = 'MULTIPLY'; negx.inputs[1].default_value = -1
+negy = nt.nodes.new('ShaderNodeMath'); negy.operation = 'MULTIPLY'; negy.inputs[1].default_value = -1
+mul = nt.nodes.new('ShaderNodeVectorMath'); mul.operation = 'MULTIPLY_ADD'
+mul.inputs[1].default_value = (0.5, 0.5, 0.5); mul.inputs[2].default_value = (0.5, 0.5, 0.5)
+em = nt.nodes.new('ShaderNodeEmission'); out = nt.nodes.new('ShaderNodeOutputMaterial')
+L = nt.links.new
+L(geo.outputs['Normal'], sep.inputs[0])
+L(sep.outputs['Y'], negy.inputs[0]); L(negy.outputs[0], comb.inputs['X'])   # screen x = -world y
+L(sep.outputs['Z'], comb.inputs['Y'])                                      # screen y = world z
+L(sep.outputs['X'], negx.inputs[0]); L(negx.outputs[0], comb.inputs['Z'])   # toward the viewer = -world x
+L(comb.outputs[0], mul.inputs[0]); L(mul.outputs['Vector'], em.inputs['Color']); L(em.outputs['Emission'], out.inputs['Surface'])
+def render_normals(path):
+    vl = bpy.context.view_layer; keep = (sc.view_settings.view_transform, sc.cycles.samples)
+    vl.material_override = nmat; sc.view_settings.view_transform = 'Raw'; sc.cycles.samples = 4
+    sc.render.filepath = path; bpy.ops.render.render(write_still=True)
+    vl.material_override = None; sc.view_settings.view_transform, sc.cycles.samples = keep
+
 os.makedirs(a.out, exist_ok=True)
-meta = {'cell': CELL, 'foot': FOOT, 'steps': STEPS, 'scale': SCALE, 'clips': {}}
+meta = {'cell': CELL, 'foot': FOOT, 'steps': STEPS, 'scale': SCALE, 'normals': not a.no_normals, 'clips': {}}
 for n in names:
     fn, loop = CLIPS[n]
     for i in range(STEPS):
@@ -128,6 +153,7 @@ for n in names:
         pose(fn(u))
         sc.render.filepath = os.path.join(a.out, f'{n}_{i:02d}.png')
         bpy.ops.render.render(write_still=True)
+        if not a.no_normals: render_normals(os.path.join(a.out, f'n_{n}_{i:02d}.png'))
     meta['clips'][n] = {'loop': loop}
     print(f'bake: {n} ({STEPS} frames)')
 pose({})

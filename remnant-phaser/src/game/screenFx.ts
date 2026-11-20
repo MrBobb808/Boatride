@@ -59,7 +59,7 @@ function then(first: Mat, next: Mat): Mat {
 const chain = (...ms: Mat[]) => ms.reduce(then);
 
 /** Software WebGL (SwiftShader, llvmpipe) cannot afford full-screen passes; `?fx` keeps them on for the tests. */
-function softwareGl(w: World) {
+export function softwareGl(w: World) {
   const gl = (w.game.renderer as Phaser.Renderer.WebGL.WebGLRenderer).gl;
   if (!gl || new URLSearchParams(location.search).has('fx')) return false;
   const info = gl.getExtension('WEBGL_debug_renderer_info');
