@@ -10,6 +10,7 @@ import { topLayer } from '../../../remnant/src/ui/dom';
 import { BossCamera } from './bossCamera';
 import { Atmosphere } from './atmosphere';
 import { ScreenFx } from './screenFx';
+import { DynLights } from './dynLights';
 import type { World } from '../scenes/World';
 import type { SkillId } from './abilities';
 
@@ -44,9 +45,20 @@ export class Visuals {
   readonly atmosphere: Atmosphere;
   readonly screen: ScreenFx;
   readonly gpu: boolean;
+  /** The dynamic lights (game/dynLights.ts). */
+  readonly lights: DynLights;
+  /** Heat haze this map (Uri's fire, the room's braziers, torches and forges) and shockwaves spreading from big blasts. */
+  private hazes = Array.from({ length: 24 }, () => ({ x: 0, y: 0, r: 0, k: 0 }));
+  private hazeN = 0;
+  private fires: { x: number; y: number }[] = [];
+  private shocks = Array.from({ length: 4 }, () => ({ x: 0, y: 0, r: 0, t: 0, d: 1 }));
+  private readonly addHaze = (x: number, y: number, r: number, k: number) => {
+    if (this.hazeN >= this.hazes.length) return;
+    const h = this.hazes[this.hazeN++]; h.x = x; h.y = y; h.r = r; h.k = k;
+  };
   readonly budget = new FrameBudget();
   element: Element | null = null;
-  distortion: 'none' | 'water' | 'heat' = 'none';
+  distortion: 'none' | 'water' | 'heat' | 'haze' | 'shock' = 'none';
   tier = 2;
   private map?: Phaser.Textures.CanvasTexture;
   private pixels?: ImageData;
@@ -112,6 +124,8 @@ export class Visuals {
       this.displacement.active = false;
     }
     this.screen = new ScreenFx(w, this.gpu);
+    this.lights = new DynLights(w, this.gpu);
+    this.lights.surface(w.art.backImage); this.lights.surface(w.classic.image);
     w.events.on(Phaser.Scenes.Events.POST_UPDATE, this.update, this);
     w.scale.on('resize', this.resized, this);
   }
@@ -159,6 +173,10 @@ export class Visuals {
     const p = this.w.player;
     this.hot = ['cinders', 'furnace'].includes(this.w.room.biome);
     this.wet = this.w.classic.grid.t.includes(T.Water);
+    // Open flames in the room shimmer the air above them.
+    this.fires = (this.w.room.ents as { t: string; k?: string; x: number; y: number }[])
+      .filter((e) => e.t === 'light' && (e.k === 'brazier' || e.k === 'torch' || e.k === 'forge')).map((e) => ({ x: e.x * TILE, y: e.y * TILE - 22 }));
+    for (const s of this.shocks) s.t = 0;
     if (this.gpu) {
       p.sprite.enableFilters(); p.slash.enableFilters();
       this.heroGlow = p.sprite.filters!.internal.addGlow(0xa34bdf, 2, 0, 1, false, 0.08, 6);
@@ -368,8 +386,17 @@ export class Visuals {
       }
       if (p.water.submerged) this.bubbles.emitParticleAt(p.x + p.face * 4, p.feet - 32, 1);
     }
+    for (const s of this.shocks) if (s.t > 0) s.t = Math.max(0, s.t - dt);
     this.mapT -= dt;
     if (this.mapT <= 0) { this.mapT = this.tier === 2 ? 1 / 20 : 1 / 12; this.updateDistortion(); }
+  }
+
+  /** A shockwave: a ring of bent air spreading to `r` over `d` seconds from a big blast. */
+  shock(x: number, y: number, r: number, d = 0.6) {
+    if (settings.reduceFlashes) return;
+    const s = this.shocks.find((o) => o.t <= 0) ?? this.shocks[0];
+    s.x = x; s.y = y; s.r = r; s.t = d; s.d = d;
+    this.mapT = 0;
   }
 
   private updateDistortion() {
@@ -377,9 +404,15 @@ export class Visuals {
     this.distortion = 'none';
     if (!f || !map || !image) return;
     f.active = false;
-    if (this.tier === 0 || settings.reduceFlashes || !this.hot && !this.wet) return;
+    if (this.tier === 0 || settings.reduceFlashes) return;
     const w = this.w, v = w.cameras.main.worldView, data = image.data;
-    let water = false, heat = false;
+    // This map's haze: Uri's fire and the room's open flames in view.
+    this.hazeN = 0;
+    w.player.flame.hazeSources(this.addHaze);
+    for (const f of this.fires) if (f.x > v.x - 40 && f.x < v.right + 40 && f.y > v.y - 40 && f.y < v.bottom + 40) this.addHaze(f.x, f.y, 26, 0.7);
+    const shocking = this.shocks.some((s) => s.t > 0);
+    if (!this.hot && !this.wet && !this.hazeN && !shocking) return;
+    let water = false, heat = false, live = false;
     for (let y = 0; y < MAP_SIZE; y++) for (let x = 0; x < MAP_SIZE; x++) {
       const wx = v.x + x / (MAP_SIZE - 1) * v.width, wy = v.y + y / (MAP_SIZE - 1) * v.height;
       const tx = Math.floor(wx / TILE), ty = Math.floor(wy / TILE), tile = w.tileAt(tx, ty);
@@ -388,16 +421,31 @@ export class Visuals {
       if (this.hot && tile === T.Empty) for (let n = 1; n <= 5; n++) if (w.tileAt(tx, ty + n) === T.Veil) { hot = true; break; }
       const at = (y * MAP_SIZE + x) * 4;
       const wave = wet ? Math.sin(wy * 0.1 + G.time * 2.6) * 0.65 + Math.sin(wx * 0.065 - G.time * 1.7) * 0.3 : hot ? Math.sin(wy * 0.16 - G.time * 5 + Math.sin(wx * 0.04)) * 0.72 : 0;
-      data[at] = 128 + Math.round(wave * 95); data[at + 1] = 128 + (wet ? Math.round(Math.cos(wx * 0.08 + G.time * 2) * 34) : 0); data[at + 2] = 128; data[at + 3] = 255;
+      let dx = wave * 95, dy = wet ? Math.cos(wx * 0.08 + G.time * 2) * 34 : 0;
+      // Heat haze: the air wavers upward over each flame, most at its heart.
+      for (let i = 0; i < this.hazeN; i++) {
+        const h = this.hazes[i], ex = wx - h.x, ey = wy - h.y, f = 1 - (ex * ex + ey * ey) / (h.r * h.r);
+        if (f <= 0) continue;
+        const k = f * h.k; dx += Math.sin(wy * 0.32 - G.time * 9 + wx * 0.06) * 70 * k; dy += Math.cos(wx * 0.21 + G.time * 7) * 40 * k; live = true;
+      }
+      // Shockwaves: a ring of air thrown outward, thinning as it spreads.
+      for (const s of this.shocks) {
+        if (s.t <= 0) continue;
+        const u = 1 - s.t / s.d, R = s.r * (0.15 + 0.85 * u), ex = wx - s.x, ey = wy - s.y, d = Math.hypot(ex, ey) || 1, band = 1 - Math.abs(d - R) / 22;
+        if (band <= 0) continue;
+        const k = band * (1 - u) * 120; dx += (ex / d) * k; dy += (ey / d) * k; live = true;
+      }
+      data[at] = 128 + Math.max(-127, Math.min(127, Math.round(dx))); data[at + 1] = 128 + Math.max(-127, Math.min(127, Math.round(dy))); data[at + 2] = 128; data[at + 3] = 255;
       water ||= wet; heat ||= hot;
     }
-    if (!water && !heat) return;
+    if (!water && !heat && !live) return;
     map.getContext().putImageData(image, 0, 0); map.refresh(); f.setTexture(this.key);
-    f.x = (this.tier === 2 ? 0.005 : 0.003); f.y = water ? 0.003 : 0;
-    f.active = true; this.distortion = water ? 'water' : 'heat';
+    f.x = (this.tier === 2 ? 0.005 : 0.003); f.y = water || live ? 0.004 : 0;
+    f.active = true; this.distortion = shocking ? 'shock' : water ? 'water' : heat ? 'heat' : 'haze';
   }
 
   destroy() {
+    this.lights.destroy();
     this.w.events.off(Phaser.Scenes.Events.POST_UPDATE, this.update, this);
     this.w.scale.off('resize', this.resized, this);
     for (const e of this.weather) e.destroy(); this.weather.length = 0;
