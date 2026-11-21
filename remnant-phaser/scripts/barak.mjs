@@ -32,6 +32,11 @@ try {
 
   await page.waitForFunction(() => window.__remnant.world.canUseKit && window.__remnant.world.player.onGround);
 
+  const atlasCounts = await page.evaluate(() => {
+    const textures = window.__remnant.world.player.sprite.scene.textures;
+    return ['barak-moves', 'barak-beast-moves', 'barak-shift'].map(key => textures.get(key).getFrameNames().length);
+  });
+  assert.deepEqual(atlasCounts, [32, 32, 4]);
   await mkdir('qa', { recursive: true });
   await page.screenshot({ path: 'qa/barak-chapter.png' });
 
@@ -61,6 +66,43 @@ try {
   assert.ok(arc[0][1] > arc[1][1] && arc[1][1] > arc[2][1]);
   const jab = await hit('KeyJ');
   assert.deepEqual(jab.map(a => a[0]), [28]);
+  // Test Barak's three skill slots, the full Rally, and the transformed sheet.
+  await page.evaluate(() => {
+    const w = window.__remnant.world;
+    w.save.flags.relic_taken = true;
+    w.save.level = 25;
+    w.save.ce = w.player.maxCe;
+    window.barakStart = [w.player.x, w.player.feet];
+  });
+  assert.ok(await page.evaluate(() => {
+    const p = window.__remnant.world.player;
+    p.startParry();
+    const hp = p.hp;
+    p.hurt({ dmg: 20, dir: -p.face });
+    return p.hp === hp && window.barakHits.splice(0).length > 0;
+  }));
+  await page.waitForFunction(() => window.__remnant.world.player.state === 'free');
+  const dash = await hit('KeyL');
+  assert.equal(dash.filter(([x]) => x === 28).length, 1);
+  await page.evaluate(() => window.__remnant.world.player.placeAt(...window.barakStart, 1));
+  for (const [key, id] of [['KeyE', 'thunderclap'], ['KeyR', 'forked_spear'], ['KeyQ', 'piercing_current']]) {
+    await page.evaluate(() => { const w = window.__remnant.world; w.save.ce = w.player.maxCe; });
+    assert.ok((await hit(key)).length);
+    assert.ok(await page.evaluate(id => window.__remnant.world.player.cds[id] > 0, id));
+  }
+  await page.evaluate(() => {
+    const w = window.__remnant.world;
+    w.player.placeAt(...window.barakStart, 1); w.save.rally = 100;
+  });
+  const sky = await hit('KeyT');
+  assert.equal(sky.filter(([x]) => x === 28).length, 3);
+  await page.evaluate(() => { window.__remnant.world.save.mantle = 100; });
+  await page.keyboard.press('KeyG');
+  await page.waitForFunction(() => window.__remnant.world.player.sprite.texture.key === 'barak-shift');
+  await page.waitForFunction(() => window.__remnant.world.player.sprite.texture.key.startsWith('barak-beast'));
+  await page.screenshot({ path: 'qa/barak-beast.png' });
+  await page.waitForFunction(() => window.__remnant.world.player.state === 'free');
+  await page.evaluate(() => { window.__remnant.world.player.mantleT = 0; });
   // Put a solid tile column between the first and second impact.
   await page.evaluate(() => {
     const w = window.__remnant.world;
@@ -75,6 +117,7 @@ try {
   for (const room of ['trial_arena', 'remnant_rest']) {
     await page.evaluate((id) => { const w = window.__remnant.world; delete w.foes; delete w.heroHit; delete w.tileAt; w.loadRoom(id, 'start'); }, room);
     await page.waitForFunction(() => window.__remnant.world.player.state === 'free' && !window.__remnant.world.transitioning);
+    await page.waitForFunction(() => window.__remnant.world.player.sprite.texture.key.startsWith('barak'));
     assert.deepEqual(await page.evaluate(() => {
       const p = window.__remnant.world.player, was = p.hero;
       p.switchCd = 0; p.switchHero('elior'); p.switchCd = 0;

@@ -21,7 +21,7 @@ import { fx, PK } from '../../../remnant/src/render/fx';
 import type { ClassicLayer } from './layer';
 import type { Player } from '../game/player';
 /** Each hero's form from the same gauge. */
-const FORM_NAME = { elior: 'Shadow Mantle', tirzah: 'Wings of the Morning', uri: 'Fusion of Flame', barak: 'Shadow Mantle' } as const;
+const FORM_NAME = { elior: 'Shadow Mantle', tirzah: 'Wings of the Morning', uri: 'Fusion of Flame', barak: 'Tempest Beast' } as const;
 import { heroLevel, trank } from '../game/archer';
 
 const ELEMENT_COLORS = Object.fromEntries(Object.entries(ELEMENTS).map(([id, e]) => [id, parseInt(e.c.slice(1), 16)]));
@@ -43,6 +43,7 @@ export class HeroPowers {
   private clipTime = 0;
   private clipDuration = 1;
   private clipSpeed = 1;
+  get transformProgress() { return this.transformT / 1.15; }
   get clipProgress() { return this.clipTime / this.clipDuration; }
   playClip(id:string,speed=1) {
     this.clip=id;this.clipTime=0;this.clipSpeed=speed;
@@ -120,11 +121,13 @@ export class HeroPowers {
         const dawn = p.hero === 'tirzah';
         if (dawn) { fx.holyBurst(p.x, p.y - 20, 35, 1.8); fx.column(p.x, p.feet, 44, 440, '#ffe6a8', 1); fx.ring(p.x, p.y, 6, 150, '#fff1c4', 0.7, 5); }
         // Uri's Fusion of Flame: the shaman steps into him in a pillar of fire.
+        else if (p.hero === 'barak') { fx.ring(p.x, p.y, 8, 98, '#82deff', 0.45, 3); }
         else if (p.hero === 'uri') { fx.column(p.x, p.feet, 44, 440, '#ff8a3a', 1); fx.ring(p.x, p.y, 6, 150, '#ffd27a', 0.7, 5); }
         else { fx.veilBurst(p.x, p.y, 35, 1.8); fx.column(p.x, p.feet, 44, 440, '#a34bdf', 1); fx.ring(p.x, p.y, 6, 150, '#d5a1ff', 0.7, 5); }
         this.L.hitEnemies({ x: p.x - 140, y: p.feet - 100, w: 280, h: 120 }, { dmg: w.d.atk * 2.2 * this.multiplier, poise: 90, kx: p.face * 340, ky: -240, dir: p.face, kind: 'ability', src: this.actor, guardBreak: true }, new Set());
         w.shake(0.012, 400); this.L.slowmo(0.4, 0.4);
-        if (p.hero === 'uri') w.banner('FUSION OF FLAME', `${Math.round(p.mantleT)} seconds · Uri and the shaman are one fire: twin fireballs, the chant in his own hand, burning ground, a longer dash`);
+        if (p.hero === 'barak') w.banner('TEMPEST BEAST', 'Lightning claws · accelerated run and dash');
+        else if (p.hero === 'uri') w.banner('FUSION OF FLAME', `${Math.round(p.mantleT)} seconds · Uri and the shaman are one fire: twin fireballs, the chant in his own hand, burning ground, a longer dash`);
         else if (!dawn) w.banner('SHADOW MANTLE', `${Math.round(p.mantleT)} seconds · pursuit, throw and free Phantom Steps`);
         else {
           w.banner('WINGS OF THE MORNING', `${Math.round(p.mantleT)} seconds · an arrow lands, then Dodge: Dawnstep behind it`);
@@ -188,6 +191,11 @@ export class HeroPowers {
   trySuper() {
     const s = this.L.host.save;
     if (!s.flags.relic_taken || s.rally < 100 || this.L.duel) { this.L.host.toast('Your super charges through battle after the relic awakens.'); return false; }
+    if (this.p.hero === 'barak') {
+      if (this.p.state !== 'free') return false;
+      s.rally = 0; this.p.grantInvuln(0.92); this.p.startStorm('skybreaker');
+      this.L.host.banner('SKYBREAKER', 'Three thunderbolts'); return true;
+    }
     this.superId = selectedSuper(); this.superFoe = this.superId === 'tempest' ? superTarget() : null;
     if (this.superId === 'tempest' && !this.superFoe) { this.L.host.toast('Umbral Tempest needs a reachable foe.'); return false; }
     s.rally = 0; this.superT = 0; this.p.untouchable = 3; this.p.state = 'scripted'; this.playClip('invoke');
@@ -210,7 +218,7 @@ export class HeroPowers {
     const el = this.p.hero === 'tirzah' ? this.p.bow.element() : weaponElement();
     if (el) elementHit(e, el, damage, this.p.face, heavy, damage);
     // The forms add their own element: shadow under the Mantle, light under the Wings.
-    const formEl = this.p.hero === 'tirzah' ? 'holy' : this.p.hero === 'uri' ? 'fire' : 'shadow';
+    const formEl = this.p.hero === 'tirzah' ? 'holy' : this.p.hero === 'uri' ? 'fire' : this.p.hero === 'barak' ? 'storm' : 'shadow';
     if (this.p.mantleT > 0 && el !== formEl) elementHit(e, formEl, damage * 0.6, this.p.face, heavy, damage);
     this.gain(1.4);
     if (heavy) this.L.echoAssist(e);

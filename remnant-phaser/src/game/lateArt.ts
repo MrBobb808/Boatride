@@ -30,6 +30,10 @@ import uriPartsUrl from '../assets/fighter-parts-uri.png';
 import uriCrownUrl from '../assets/fighter-parts-uri-crown.png';
 import shamanPartsUrl from '../assets/fighter-parts-shaman.png';
 import uriFireUrl from '../assets/vfx-uri-fire.png';
+import movesUrl from '../assets/barak-moves.png';
+import beastMovesUrl from '../assets/barak-beast-moves.png';
+import shiftUrl from '../assets/barak-shift.png';
+import beastUrl from '../assets/barak-beast.png';
 import barakUrl from '../assets/barak-actions.png';
 
 /** Queues every late sheet not yet in; true when any was queued (the caller starts the loader outside preload). */
@@ -71,6 +75,10 @@ export function lateArt(sc: Phaser.Scene): boolean {
   if (!has('fighter-parts-shaman')) sc.load.image('fighter-parts-shaman', shamanPartsUrl);
   if (!has('vfx-uri-fire')) sc.load.spritesheet('vfx-uri-fire', uriFireUrl, { frameWidth: 128, frameHeight: 128 });
   // C17: Barak's eight poses in 192 px cells, feet at (96, 120) like the fighter atlases (game/barak.ts barakFrame).
+  for (const [key, url] of [['barak-moves', movesUrl], ['barak-beast-moves', beastMovesUrl], ['barak-shift', shiftUrl]]) {
+    if (!has(key)) sc.load.spritesheet(key, url, { frameWidth: 192, frameHeight: 192 });
+  }
+  if (!has('barak-beast')) sc.load.spritesheet('barak-beast', beastUrl, { frameWidth: 192, frameHeight: 192 });
   if (!has('barak')) sc.load.spritesheet('barak', barakUrl, { frameWidth: 192, frameHeight: 192 });
   return sc.load.totalToLoad > before;
 }

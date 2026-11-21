@@ -2021,6 +2021,121 @@
         "in_engine": true,
         "by": ""
       }
+    },
+    {
+      "id": "C18",
+      "file": "incoming/characters/C18-barak-beast.png",
+      "request": "Tempest Beast transformation poses",
+      "grid": [
+        4,
+        2
+      ],
+      "actual_size": [
+        1774,
+        887
+      ],
+      "facing": "right",
+      "background": "transparent",
+      "prompt": "Transparent production sprite sheet. 4 columns x 2 rows with EXACTLY eight distinct full-body right-facing poses in regular cells. Dark gothic biblical pixel-art action platformer. Same original transformed hero in all poses: young brown-skinned human runner with a gigantic swept-back white-and-electric-blue wolf mane, pointed luminous spectral wolf ears, long indigo lightning tail and cyan claw gauntlets; human face and two legs, midnight tunic and split mustard sash. Athletic lightning beast-man silhouette. Chunky deliberate pixel clusters dark outline, limited colors, bright cyan edges, no haze. Row 1 idle, running long stride, running passing stride, leaping. Row 2 low charging dash, electrified hand thrust, two-palm thunder cast, crouched guard. Keep same scale, gutters and clear feet; no labels, floor shadows or background.",
+      "status": "integrated",
+      "notes": "Normalized to eight 192px gameplay frames on Barak\u2019s foot line.",
+      "licence": "The project's own: generated with ChatGPT's image tool for Remnant: Ascension",
+      "approval": {
+        "state": "pending",
+        "native_scale": true,
+        "in_engine": true,
+        "by": ""
+      }
+    },
+    {
+      "id": "C19",
+      "file": "incoming/characters/C19-barak-human-combat.png",
+      "request": "Barak human-combat",
+      "grid": [
+        4,
+        4
+      ],
+      "actual_size": [
+        1254,
+        1254
+      ],
+      "facing": "right",
+      "background": "transparent",
+      "status": "integrated",
+      "notes": "Four chronological frames per action.",
+      "licence": "The project\u2019s own: generated for Remnant: Ascension"
+    },
+    {
+      "id": "C20",
+      "file": "incoming/characters/C20-barak-human-skills.png",
+      "request": "Barak human-skills",
+      "grid": [
+        4,
+        4
+      ],
+      "actual_size": [
+        1254,
+        1254
+      ],
+      "facing": "right",
+      "background": "transparent",
+      "status": "integrated",
+      "notes": "Four chronological frames per action.",
+      "licence": "The project\u2019s own: generated for Remnant: Ascension"
+    },
+    {
+      "id": "C21",
+      "file": "incoming/characters/C21-barak-beast-combat.png",
+      "request": "Barak beast-combat",
+      "grid": [
+        4,
+        4
+      ],
+      "actual_size": [
+        1254,
+        1254
+      ],
+      "facing": "right",
+      "background": "transparent",
+      "status": "integrated",
+      "notes": "Four chronological frames per action.",
+      "licence": "The project\u2019s own: generated for Remnant: Ascension"
+    },
+    {
+      "id": "C22",
+      "file": "incoming/characters/C22-barak-beast-skills.png",
+      "request": "Barak beast-skills",
+      "grid": [
+        4,
+        4
+      ],
+      "actual_size": [
+        1254,
+        1254
+      ],
+      "facing": "right",
+      "background": "transparent",
+      "status": "integrated",
+      "notes": "Four chronological frames per action.",
+      "licence": "The project\u2019s own: generated for Remnant: Ascension"
+    },
+    {
+      "id": "C23",
+      "file": "incoming/characters/C23-barak-shift.png",
+      "request": "Barak shift",
+      "grid": [
+        4,
+        1
+      ],
+      "actual_size": [
+        2172,
+        724
+      ],
+      "facing": "right",
+      "background": "transparent",
+      "status": "integrated",
+      "notes": "Four chronological frames per action.",
+      "licence": "The project\u2019s own: generated for Remnant: Ascension"
     }
   ]
 }

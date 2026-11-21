@@ -13,7 +13,10 @@ import { archerLevel } from './archer';
 export type SkillId = AbilityId;
 export type ArcherSkillId = 'deliverance' | 'jonathan' | 'mark' | 'rain' | 'watchman' | 'quiver';
 export type UriSkillId = 'uri_pillar' | 'uri_ring' | 'uri_storm';
-export type AnySkillId = SkillId | ArcherSkillId | UriSkillId;
+export const STORM_IDS = ['piercing_current', 'thunderclap', 'forked_spear'] as const;
+export type StormSkill = typeof STORM_IDS[number];
+export const isStormSkill = (id: unknown): id is StormSkill => STORM_IDS.some(skill => skill === id);
+export type AnySkillId = StormSkill | SkillId | ArcherSkillId | UriSkillId;
 export interface SkillDef { id: AnySkillId; name: string; short: string; cost: number; cd: number; color: number; desc: string; icon: string; verse?: string }
 const STYLE: Record<SkillId, [string, number]> = {
   sword_word: ['WORD', 0xffd27a], trumpet: ['HORN', 0xfff1c4], shield_faith: ['SHIELD', 0x9fd8ff],
@@ -57,6 +60,9 @@ export const SKILLS = {
     out[id] = { ...ABILITIES[id], short: STYLE[id][0], color: STYLE[id][1] };
     return out;
   }, {} as Record<SkillId, SkillDef>),
+  piercing_current: {id:'piercing_current', name:'Piercing Current', short:'THRUST', cost:16, cd:4, color:0x87eaff, icon:'arc', desc:'Gather lightning in one hand and rush through foes.'},
+  thunderclap: {id:'thunderclap', name:'Thunderclap', short:'CLAP', cost:22, cd:7, color:0xf3d79a, icon:'horn', desc:'A concussive ring breaks guards on either side.'},
+  forked_spear: {id:'forked_spear', name:'Forked Spear', short:'SPEAR', cost:26, cd:8, color:0xacbfff, icon:'pillar', desc:'Piercing lightning reaches along a narrow line.'},
   ...ARCHER,
   ...URI_SKILLS,
 } as Record<AnySkillId, SkillDef>;
@@ -64,7 +70,7 @@ export const isArcherSkill = (id: AnySkillId | null | undefined): id is ArcherSk
 export const archerUnlocked = (s: PhaserSave, id: ArcherSkillId) => archerLevel(s) >= ARCHER[id].level;
 /** Button positions are stable; the journey owns the ability in each position. While Tirzah fights, they are hers. */
 export const SLOTS = [0, 1, 2] as const;
-export const skillSlots = (s: PhaserSave): readonly (AnySkillId | null)[] => s.playableHero === 'tirzah' ? (s.archerSkills ?? NONE) : s.playableHero === 'uri' ? URI_SKILL_IDS : s.equippedSkills;
+export const skillSlots = (s: PhaserSave): readonly (AnySkillId | null)[] => s.playableHero === 'barak' ? STORM_IDS : s.playableHero === 'tirzah' ? (s.archerSkills ?? NONE) : s.playableHero === 'uri' ? URI_SKILL_IDS : s.equippedSkills;
 const NONE = [null, null, null] as const;
 /** Fill her empty slots with abilities she has just reached, in order, and add the arrow types her level has
  * opened to the quiver. Returns the arrow types just added, for a notice. */

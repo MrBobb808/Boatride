@@ -7,7 +7,7 @@
 
 import { trank, heroLevel } from './archer';
 import Phaser from 'phaser';
-import { barakFrame, discharge } from './barak';
+import { stormHit, type StormMove, barakFrame, discharge } from './barak';
 import { Bow } from './bow';
 import { UriKit } from './uriKit';
 import { StyleMeter, STYLE_NAMES, RANKS, type CombatStyle, type PlayableHero } from './style';
@@ -21,7 +21,7 @@ import { dayCount } from './day';
 import { CHAINS, ChainFx, hasChains, isChainMove, HOOK_RANGE, HOOK_MIN, HOOK_CD, HOOK_SPEED, PULL_SPEED, HOOK_DMG, chainBurn, hookRange } from './chains';
 import { fx } from '../../../remnant/src/render/fx';
 import { skillRank } from '../../../remnant/src/game/state';
-import { SKILLS, skillSlots, castSkill, isArcherSkill, archerUnlocked, ARCHER, type AnySkillId } from './abilities';
+import { isStormSkill, SKILLS, skillSlots, castSkill, isArcherSkill, archerUnlocked, ARCHER, type AnySkillId } from './abilities';
 import type { WorldApi, Blow, FoeLike } from './types';
 import { makeSwim, DASH_T, DASH_V } from '../../../remnant/src/game/swim';
 import { SWIM_SPEED, SWIM_ACCEL, FLOAT_DEPTH } from '../../../remnant/src/game/water';
@@ -63,7 +63,7 @@ const CHARGE_MULT = [1, 1.35, 1.8, 2.5];
 /** Sheet frames (4×4, 128 px): idle 0–3, run 4–7, rise 8, fall 9, wind-up 10, strike 11, dodge 12–13, hurt 14, cast 15. */
 const FRAME = 128, FOOT = 120, DRAW = 56;
 
-type State = 'free' | 'attack' | 'hook' | 'charge' | 'parry' | 'block' | 'heal' | 'cast' | 'dodge' | 'airdash' | 'phantom' | 'plunge' | 'execute' | 'transform' | 'scripted' | 'swim' | 'bow' | 'flame' | 'lightning' | 'hurt' | 'dead';
+type State = 'free' | 'attack' | 'hook' | 'charge' | 'parry' | 'block' | 'heal' | 'cast' | 'dodge' | 'airdash' | 'phantom' | 'plunge' | 'execute' | 'transform' | 'scripted' | 'swim' | 'bow' | 'flame' | 'storm' | 'lightning' | 'hurt' | 'dead';
 
 export class Player {
   rect: Phaser.GameObjects.Rectangle;
@@ -77,6 +77,9 @@ export class Player {
   readonly bow: Bow;
   readonly dawn: Dawn;
   private switchCd = 0;
+  private stormMove: StormMove = 'thunderclap';
+  private stormPulse = 0;
+  private stormHits = new Set<FoeLike>();
   private arcHeavy = false;
   private arcReleased = false;
   private trail: { sprite:Phaser.GameObjects.Sprite; life:number }[] = [];
@@ -159,6 +162,7 @@ export class Player {
   private impactFrameAt = -1;
   private clones: { sprite: Phaser.GameObjects.Sprite; t: number; foe: FoeLike | null; struck: boolean }[] = [];
   private parryT = 0;
+  private counterFlashUntil = 0;
   private parryCd = 0;
   private healDone = false;
   private castId: AnySkillId | null = null;
@@ -220,7 +224,9 @@ export class Player {
   switchHero(to?: PlayableHero) {
     if (this.switchCd > 0 || G.paused || G.inCutscene || this.dead || !['free', 'swim'].includes(this.state)) { this.w.toast('Switch after the current move.'); return false; }
     // Each hero has her own maximum; the health left carries over (capped), so a switch never heals.
-    this.w.save.playableHero = to ?? this.nextHero;
+    const next = to ?? this.nextHero;
+    if (next !== this.hero && (next === 'barak' || this.hero === 'barak')) this.mantleT = this.formT = 0;
+    this.w.save.playableHero = next;
     this.w.refreshStats();
     this.switchCd = 0.8; this.bow.cancel(); this.flame.cancel(); this.w.controls.flush();
     // Uri fights with his shaman alone: the Echoes step back while he plays and come again for the others.
@@ -384,8 +390,9 @@ export class Player {
     switch (this.state) {
       case 'free': {
         const ax = c.axis;
+        const beastSpeed = this.hero === 'barak' && this.mantleT > 0 ? 1.75 : 1;
         const accel = this.onGround ? 1400 : 900;
-        b.setVelocityX(Phaser.Math.Linear(b.velocity.x, ax * RUN * Math.min(MAX_RUN, this.w.d.speed * (this.hero === 'barak' ? 1.22 : 1) * (this.formT > 0 ? 1.3 : this.mantleT > 0 ? 1.25 : 1)), Math.min(1, (accel * dt) / RUN)));
+        b.setVelocityX(Phaser.Math.Linear(b.velocity.x, ax * RUN * beastSpeed * Math.min(MAX_RUN, this.w.d.speed * (this.hero === 'barak' ? 1.22 : 1) * (this.formT > 0 ? 1.3 : this.mantleT > 0 ? 1.25 : 1)), Math.min(1, (accel * dt) / RUN)));
         if (Math.abs(ax) > 0.2) this.face = Math.sign(ax);
         if (this.jumpBuf > 0 && c.down('down') && this.onGround && this.standingOnOneWay()) {
           this.dropT = 0.25;
@@ -408,6 +415,24 @@ export class Player {
         else if (c.pressed('attack')) this.chooseAttack();
         else if (c.pressed('heal')) this.startHeal();
         else this.trySkill();
+        break;
+      }
+      case 'storm': {
+        const move = this.stormMove;
+        if (move === 'piercing_current') {
+          const rushing = this.st >= 0.12 && this.st < 0.36;
+          b.setVelocityX(rushing ? this.face * (this.mantleT > 0 ? 650 : 470) : 0);
+          if (rushing) stormHit(this.w, this, move, this.stormHits);
+        } else {
+          b.setVelocityX(0);
+          const ultimate = move === 'skybreaker';
+          if (this.stormPulse < (ultimate ? 3 : 1) && this.st >= 0.14 + this.stormPulse * 0.23) {
+            this.stormPulse++;
+            this.stormHits.clear();
+            stormHit(this.w, this, move, this.stormHits);
+          }
+        }
+        if (this.st >= (move === 'skybreaker' ? 0.92 : 0.44)) this.toFree();
         break;
       }
       case 'lightning': {
@@ -475,7 +500,8 @@ export class Player {
         if (this.st >= 0.3) this.toFree();
         break;
       case 'dodge':
-        b.setVelocityX(this.face * DODGE_V * (this.hero === 'barak' ? 1.22 : 1) * (this.combatStyle === 'wraith' ? 1.2 : 1) * (1 - (this.st / DODGE_T) * 0.5));
+        if (this.hero === 'barak') stormHit(this.w, this, 'dash', this.stormHits);
+        b.setVelocityX(this.face * DODGE_V * (this.hero === 'barak' ? (this.mantleT > 0 ? 1.9 : 1.22) : 1) * (this.combatStyle === 'wraith' ? 1.2 : 1) * (1 - (this.st / DODGE_T) * 0.5));
         if (c.pressed('attack') && this.st > 0.08) { if (this.hero === 'barak') this.startArc(false); else this.startMove(this.moves.dash); }
         else if (this.st >= DODGE_T) { this.sinceDodge = 0; this.toFree(); }
         break;
@@ -533,6 +559,15 @@ export class Player {
     const n = c.pressed('skill1') ? 0 : c.pressed('skill2') ? 1 : c.pressed('skill3') ? 2 : -1;
     if (n < 0) return false;
     const id = skillSlots(s)[n];
+    if (isStormSkill(id)) {
+      const def = SKILLS[id];
+      if (this.cds[id] > 0) return false;
+      if (s.ce < def.cost) { this.w.toast('Not enough Covenant Energy'); return false; }
+      s.ce -= def.cost;
+      this.cds[id] = def.cd;
+      this.startStorm(id);
+      return true;
+    }
     if (isArcherSkill(id)) { if (!archerUnlocked(s, id)) { this.w.toast(`${ARCHER[id].name} comes at level ${ARCHER[id].level}.`); return false; } }
     else if (!id || !s.abilities.includes(id as (typeof s.abilities)[number])) { this.w.toast(this.hero === 'tirzah' ? "Choose Tirzah's abilities in the Echo wheel → Heroes." : 'Choose an ability in Menu → Elior → Abilities.'); return false; }
     const def = SKILLS[id];
@@ -599,6 +634,16 @@ export class Player {
       else if (Math.abs(dx) < best) { best = Math.abs(dx); behind = Math.sign(dx); }
     }
     return !ahead && behind ? behind : this.face;
+  }
+
+  startStorm(move: StormMove) {
+    this.stormMove = move;
+    this.stormHits.clear();
+    this.stormPulse = 0;
+    this.st = 0;
+    this.face = this.swingFacing();
+    this.state = 'storm';
+    this.body.setVelocityX(0);
   }
 
   private startArc(heavy: boolean) {
@@ -756,6 +801,7 @@ export class Player {
   }
 
   private startDodge() {
+    this.stormHits.clear();
     this.w.playEffect('dash');
     this.w.legends?.onDodge();
     this.state = 'dodge';
@@ -1191,6 +1237,10 @@ export class Player {
       this.parryT = 0;
       this.counterT = this.combatStyle === 'sentinel' ? 1.05 : 0.75;
       this.noteStyle('perfect_parry');
+      if (this.hero === 'barak') {
+        this.counterFlashUntil = this.clock + 0.16;
+        stormHit(this.w, this, 'guard', new Set());
+      }
       this.w.save.ce = Math.min(this.maxCe, this.w.save.ce + (skillRank(this.w.save, 'g_timing') ? 12 : CE_PARRY));
       h.src?.parried();
       this.w.spark(this.x + this.face * 10, this.y - 6, 0xfff6dc, 16);
@@ -1254,6 +1304,41 @@ export class Player {
     this.hp = this.maxHp;
   }
 
+  private barakPose(clip: string, progress: number) {
+    const base = this.mantleT > 0 ? 'barak-beast' : 'barak';
+    const phase = (u: number) => Math.floor(Phaser.Math.Clamp(u, 0, 0.999) * 4);
+    const action = (row: number, frame: number) => ({ key: base + '-moves', frame: row * 4 + frame });
+    if (!this.dead) {
+      switch (this.state) {
+        case 'transform':
+          return { key: 'barak-shift', frame: phase(this.powers?.transformProgress ?? progress) };
+        case 'lightning': {
+          const impact = this.arcHeavy ? 0.13 : 0.045;
+          const recovery = this.arcHeavy ? 0.52 : 0.21;
+          const u = this.st < impact ? this.st / impact / 2 : 0.5 + (this.st - impact) / (recovery - impact) / 2;
+          return action(this.arcHeavy ? 1 : 0, phase(u));
+        }
+        case 'block':
+        case 'parry':
+          if (this.clock < this.counterFlashUntil) return action(2, this.counterFlashUntil - this.clock > 0.08 ? 2 : 3);
+          return action(2, this.state === 'block' || this.st >= 0.06 ? 1 : 0);
+        case 'airdash':
+        case 'dodge':
+          return action(3, phase(progress));
+        case 'storm': {
+          const row = { piercing_current: 4, thunderclap: 5, forked_spear: 6, skybreaker: 7 }[this.stormMove];
+          if (this.stormMove === 'skybreaker') {
+            if (this.st >= 0.74) return action(row, 3);
+            if (this.st >= 0.14) return action(row, (this.st - 0.14) % 0.23 < 0.12 ? 2 : 1);
+          }
+          const impact = this.stormMove === 'piercing_current' ? 0.12 : 0.14;
+          return action(row, this.st < impact ? phase(this.st / impact / 2) : this.st < 0.34 ? 2 : 3);
+        }
+      }
+    }
+    return { key: base, frame: barakFrame(clip, progress) };
+  }
+
   /** Pick the sheet frame and place the sprite, blade arc and auras on the body. */
   private draw(dt = 0) {
     const b = this.body;
@@ -1275,6 +1360,7 @@ export class Player {
     if(this.dead){clip='death';uArt=this.st/1.2;}
     else if(this.state==='hurt'){clip='hurt';uArt=this.st/.3;}
     else if(this.hero==='tirzah'&&this.bow.stabT>0){clip='dagger2';uArt=.3+(1-this.bow.stabT/STAB_T)*.7;}
+    else if(this.state==='storm') clip=this.stormMove === 'piercing_current' ? (this.st < .12 ? 'parry' : 'jab') : 'arc';
     else if(this.state==='lightning') clip=this.arcReleased ? (this.arcHeavy ? 'arc' : 'jab') : 'idle';
     else if(this.state==='flame'){clip=this.flame.clip;uArt=this.flame.u;}
     else if(this.state==='bow'&&this.bow.dagger){clip=`dagger${this.bow.dagger}`;uArt=this.bow.daggerU;}
@@ -1298,8 +1384,9 @@ export class Player {
     else if(clip==='jump'||clip==='fall')uArt=this.visualTime/(clip==='jump'?.25:.35);
     else if(this.state==='transform'||this.state==='execute'||this.state==='scripted')uArt=this.state==='transform'?this.visualTime/1.15:this.powers?.clipProgress??0;
     const hero = this.hero;
-    const key=hero === 'barak' ? 'barak' : actionAtlas(this.w.sc,hero,form?'fists':this.w.d.family,mantle,this.hero==='tirzah'||!this.powers?.weaponFlight,this.hero==='elior'?this.w.save.valor?.cape??null:null);
-    const frame=hero === 'barak' ? barakFrame(clip, uArt) : actionFrame(this.w.sc,key,clip,Phaser.Math.Clamp(uArt,0,.999));
+    const pose = hero === 'barak' ? this.barakPose(clip, uArt) : undefined;
+    const key=hero === 'barak' ? pose!.key : actionAtlas(this.w.sc,hero,form?'fists':this.w.d.family,mantle,this.hero==='tirzah'||!this.powers?.weaponFlight,this.hero==='elior'?this.w.save.valor?.cape??null:null);
+    const frame=pose?.frame ?? actionFrame(this.w.sc,key,clip,Phaser.Math.Clamp(uArt,0,.999));
     // The spring settles the squash; the lean follows ground speed, and a rise or fall tips her a little.
     if(dt>0){this.sqV+=(-420*this.sq-20*this.sqV)*dt;this.sq=Phaser.Math.Clamp(this.sq+this.sqV*dt,-.16,.16);}
     const run=ground&&(clip==='run'||clip==='land')?Phaser.Math.Clamp(b.velocity.x/200,-1,1)*4.5:0,air=!ground&&!this.water.swimming?Phaser.Math.Clamp(b.velocity.y/600,-1,1)*-2*this.face:0;

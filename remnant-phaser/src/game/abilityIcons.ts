@@ -6,6 +6,24 @@ import type { AnySkillId } from './abilities';
 
 /** '.' is clear and 'o' the dark outline; every other letter is a colour of that icon's palette. */
 const ART: Record<AnySkillId, PixelArt> = {
+  piercing_current: { pal: { b: '#327bc9', w: '#dfffff' }, rows: [
+    '................', '............b...', '..........bbbw..', '.........bbwwbb.',
+    '.......bbwwbwb..', '......bbwbbwbb..', '....bbwwbbwbb...', '.....wwwbbwb....',
+    '....bbwbbwww....', '....bwbbbwwb....', '...bbwbwwb......', '..bbwwwb........',
+    '.bbwwbb.........', '..wbb...........', '..bb............', '................',
+  ] },
+  thunderclap: { pal: { b: '#327bc9', w: '#dfffff' }, rows: [
+    '................', '...b........b...', '..bbw......wbb..', '..bwbb....bbwb..',
+    '.bbwbb....bbwbb.', 'bbwbbbw..wbbbwbb', 'bwbbbwbbbbwbbbwb', 'bwbbwbb..bbwbbwb',
+    'wbbwbb....bbwbbw', 'bwbbwbb..bbwbbwb', 'bwbbbwbbbbwbbbwb', 'bbwbbbw..wbbbwbb',
+    '.bbwbb....bbwbb.', '..bwbb....bbwb..', '..bbw......wbb..', '...b........b...',
+  ] },
+  forked_spear: { pal: { b: '#327bc9', w: '#dfffff' }, rows: [
+    '................', '.......b.....b..', '......bbw..bbbw.', '....bbwwbbbbwwbb',
+    '...bbwbbbbwwbb..', '...bwbbbbwbbb.b.', '...bwbbwwbb..bbw', '....wbwwwwwbbbwb',
+    '....bwwwbbbwwwbb', '...bbwbbb....bb.', '.bbbwbb.........', 'bbwwbb..........',
+    '.wbb............', '..b.............', '................', '................',
+  ] },
   sword_word: { pal: { a: '#ffd27a', b: '#fff6dc', c: '#8a5a2a', g: '#ffe6a8' }, rows: [
     '............obo.',
     '...........obbo.',
