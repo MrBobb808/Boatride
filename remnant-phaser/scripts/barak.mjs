@@ -135,8 +135,9 @@ try {
   const bolt = async (start, kind) => {
     await freeNow(); await home();
     await start();
-    await page.waitForFunction((k) => { const p = window.__remnant.world.player; return p.state === 'bolt' && p.boltKind === k; }, kind, { timeout: 8000 });
-    await page.waitForFunction(() => window.__remnant.world.player.state !== 'bolt', null, { timeout: 8000 });
+    // The Storm Chain slows the world and ends in a finale's slow motion: on a loaded runner that is many seconds.
+    await page.waitForFunction((k) => { const p = window.__remnant.world.player; return p.state === 'bolt' && p.boltKind === k; }, kind, { timeout: 25000 });
+    await page.waitForFunction(() => window.__remnant.world.player.state !== 'bolt', null, { timeout: 25000 });
     return page.evaluate(() => [window.__remnant.world.player.boltHits, window.barakHits.splice(0).length]);
   };
   const string3 = async (then) => { for (let i = 0; i < 3; i++) { await page.keyboard.press('KeyJ'); await page.waitForTimeout(60); } if (then) { await page.waitForFunction(() => window.__remnant.world.player.barakMove === 'burst' && window.__remnant.world.player.arcReleased); await page.keyboard.press('KeyJ'); } };
