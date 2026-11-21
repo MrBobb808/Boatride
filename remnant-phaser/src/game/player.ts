@@ -162,6 +162,7 @@ export class Player {
   private impactFrameAt = -1;
   private clones: { sprite: Phaser.GameObjects.Sprite; t: number; foe: FoeLike | null; struck: boolean }[] = [];
   private parryT = 0;
+  private counterFlashUntil = 0;
   private parryCd = 0;
   private healDone = false;
   private castId: AnySkillId | null = null;
@@ -1236,7 +1237,10 @@ export class Player {
       this.parryT = 0;
       this.counterT = this.combatStyle === 'sentinel' ? 1.05 : 0.75;
       this.noteStyle('perfect_parry');
-      if (this.hero === 'barak') stormHit(this.w, this, 'guard', new Set());
+      if (this.hero === 'barak') {
+        this.counterFlashUntil = this.clock + 0.16;
+        stormHit(this.w, this, 'guard', new Set());
+      }
       this.w.save.ce = Math.min(this.maxCe, this.w.save.ce + (skillRank(this.w.save, 'g_timing') ? 12 : CE_PARRY));
       h.src?.parried();
       this.w.spark(this.x + this.face * 10, this.y - 6, 0xfff6dc, 16);
@@ -1300,6 +1304,41 @@ export class Player {
     this.hp = this.maxHp;
   }
 
+  private barakPose(clip: string, progress: number) {
+    const base = this.mantleT > 0 ? 'barak-beast' : 'barak';
+    const phase = (u: number) => Math.floor(Phaser.Math.Clamp(u, 0, 0.999) * 4);
+    const action = (row: number, frame: number) => ({ key: base + '-moves', frame: row * 4 + frame });
+    if (!this.dead) {
+      switch (this.state) {
+        case 'transform':
+          return { key: 'barak-shift', frame: phase(this.powers?.transformProgress ?? progress) };
+        case 'lightning': {
+          const impact = this.arcHeavy ? 0.13 : 0.045;
+          const recovery = this.arcHeavy ? 0.52 : 0.21;
+          const u = this.st < impact ? this.st / impact / 2 : 0.5 + (this.st - impact) / (recovery - impact) / 2;
+          return action(this.arcHeavy ? 1 : 0, phase(u));
+        }
+        case 'block':
+        case 'parry':
+          if (this.clock < this.counterFlashUntil) return action(2, this.counterFlashUntil - this.clock > 0.08 ? 2 : 3);
+          return action(2, this.state === 'block' || this.st >= 0.06 ? 1 : 0);
+        case 'airdash':
+        case 'dodge':
+          return action(3, phase(progress));
+        case 'storm': {
+          const row = { piercing_current: 4, thunderclap: 5, forked_spear: 6, skybreaker: 7 }[this.stormMove];
+          if (this.stormMove === 'skybreaker') {
+            if (this.st >= 0.74) return action(row, 3);
+            if (this.st >= 0.14) return action(row, (this.st - 0.14) % 0.23 < 0.12 ? 2 : 1);
+          }
+          const impact = this.stormMove === 'piercing_current' ? 0.12 : 0.14;
+          return action(row, this.st < impact ? phase(this.st / impact / 2) : this.st < 0.34 ? 2 : 3);
+        }
+      }
+    }
+    return { key: base, frame: barakFrame(clip, progress) };
+  }
+
   /** Pick the sheet frame and place the sprite, blade arc and auras on the body. */
   private draw(dt = 0) {
     const b = this.body;
@@ -1345,8 +1384,9 @@ export class Player {
     else if(clip==='jump'||clip==='fall')uArt=this.visualTime/(clip==='jump'?.25:.35);
     else if(this.state==='transform'||this.state==='execute'||this.state==='scripted')uArt=this.state==='transform'?this.visualTime/1.15:this.powers?.clipProgress??0;
     const hero = this.hero;
-    const key=hero === 'barak' ? (this.mantleT > 0 ? 'barak-beast' : 'barak') : actionAtlas(this.w.sc,hero,form?'fists':this.w.d.family,mantle,this.hero==='tirzah'||!this.powers?.weaponFlight,this.hero==='elior'?this.w.save.valor?.cape??null:null);
-    const frame=hero === 'barak' ? barakFrame(clip, uArt) : actionFrame(this.w.sc,key,clip,Phaser.Math.Clamp(uArt,0,.999));
+    const pose = hero === 'barak' ? this.barakPose(clip, uArt) : undefined;
+    const key=hero === 'barak' ? pose!.key : actionAtlas(this.w.sc,hero,form?'fists':this.w.d.family,mantle,this.hero==='tirzah'||!this.powers?.weaponFlight,this.hero==='elior'?this.w.save.valor?.cape??null:null);
+    const frame=pose?.frame ?? actionFrame(this.w.sc,key,clip,Phaser.Math.Clamp(uArt,0,.999));
     // The spring settles the squash; the lean follows ground speed, and a rise or fall tips her a little.
     if(dt>0){this.sqV+=(-420*this.sq-20*this.sqV)*dt;this.sq=Phaser.Math.Clamp(this.sq+this.sqV*dt,-.16,.16);}
     const run=ground&&(clip==='run'||clip==='land')?Phaser.Math.Clamp(b.velocity.x/200,-1,1)*4.5:0,air=!ground&&!this.water.swimming?Phaser.Math.Clamp(b.velocity.y/600,-1,1)*-2*this.face:0;

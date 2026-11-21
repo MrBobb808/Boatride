@@ -32,6 +32,11 @@ try {
 
   await page.waitForFunction(() => window.__remnant.world.canUseKit && window.__remnant.world.player.onGround);
 
+  const atlasCounts = await page.evaluate(() => {
+    const textures = window.__remnant.world.player.sprite.scene.textures;
+    return ['barak-moves', 'barak-beast-moves', 'barak-shift'].map(key => textures.get(key).getFrameNames().length);
+  });
+  assert.deepEqual(atlasCounts, [32, 32, 4]);
   await mkdir('qa', { recursive: true });
   await page.screenshot({ path: 'qa/barak-chapter.png' });
 
@@ -93,6 +98,7 @@ try {
   assert.equal(sky.filter(([x]) => x === 28).length, 3);
   await page.evaluate(() => { window.__remnant.world.save.mantle = 100; });
   await page.keyboard.press('KeyG');
+  await page.waitForFunction(() => window.__remnant.world.player.sprite.texture.key === 'barak-shift');
   await page.waitForFunction(() => window.__remnant.world.player.sprite.texture.key.startsWith('barak-beast'));
   await page.screenshot({ path: 'qa/barak-beast.png' });
   await page.waitForFunction(() => window.__remnant.world.player.state === 'free');

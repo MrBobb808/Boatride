@@ -43,6 +43,7 @@ export class HeroPowers {
   private clipTime = 0;
   private clipDuration = 1;
   private clipSpeed = 1;
+  get transformProgress() { return this.transformT / 1.15; }
   get clipProgress() { return this.clipTime / this.clipDuration; }
   playClip(id:string,speed=1) {
     this.clip=id;this.clipTime=0;this.clipSpeed=speed;

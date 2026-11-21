@@ -652,3 +652,5 @@ Piercing Current winds up for a moment before the lightning-hand rush. Thundercl
 side. Forked Spear pierces a narrow line ahead. Perfect parry discharges a countershock, and a ground dash shocks
 each foe it passes once. A full Rally powers Skybreaker (T), three overhead strikes. At level 25, a full transformation
 gauge unlocks Tempest Beast (G), with its own eight-pose sheet, faster ground dash and accelerated running speed.
+
+Barak’s chapter ability art uses C19–C23. Both combat atlases contain four frames per row for Spark Jab, Chain Lightning, guard, Flash Step, Piercing Current, Thunderclap, Forked Spear and Skybreaker, in that order. A separate four-frame strip covers the shift into Tempest Beast.
