@@ -35,7 +35,7 @@ interface Host {
 }
 
 /** The partner is Elior or Tirzah; Uri's own ally is his orc shaman (game/uriKit.ts). */
-type PartnerHero = Exclude<PlayableHero, 'uri'>;
+type PartnerHero = 'elior' | 'tirzah';
 const NAME: Record<PartnerHero, string> = { elior: 'Elior', tirzah: 'Tirzah' };
 const DOWN_T = 20;
 

@@ -1,8 +1,8 @@
 // Variety earns style; repetition, idling and taking damage lose momentum.
 export type CombatStyle = 'vanguard' | 'wraith' | 'sentinel';
-export type PlayableHero = 'elior' | 'tirzah' | 'uri';
+export type PlayableHero = 'elior' | 'tirzah' | 'uri' | 'barak';
 /** Heroes, and the figures drawn from the same rig (Uri's orc shaman). */
-export type RigHero = PlayableHero | 'shaman';
+export type RigHero = Exclude<PlayableHero, 'barak'> | 'shaman';
 export const STYLE_NAMES = { vanguard: 'Vanguard', wraith: 'Wraith', sentinel: 'Sentinel' } as const;
 export const STYLE_HELP = { vanguard: 'Jump-cancel a confirmed hit to extend an aerial combo.', wraith: 'Quicker evasive slides with the same travel and cooldown.', sentinel: 'Stronger guard and a longer perfect-parry riposte window.' };
 export const RANKS = ['D', 'C', 'B', 'A', 'S', 'SS', 'SSS'] as const;

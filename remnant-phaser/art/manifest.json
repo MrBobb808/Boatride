@@ -1994,6 +1994,33 @@
         "exact_requested_size": false,
         "visual_review": "Alternate at 2172x724 with a semi-transparent fringe. Reference only."
       }
+    },
+    {
+      "id": "C17",
+      "file": "incoming/characters/C17-barak-actions.png",
+      "request": "Barak, chapter lightning runner",
+      "grid": [
+        4,
+        2
+      ],
+      "actual_size": [
+        1774,
+        887
+      ],
+      "facing": "right",
+      "background": "transparent",
+      "prompt": "Create one production pixel-art moveset sheet for the dark biblical fantasy side-scroller Remnant: Ascension. EXACT 4 columns x 2 rows of equal square cells on a 2:1 transparent canvas. Eight discrete full body poses of the SAME young human lightning runner, a brown-skinned teenage boy, windswept short chalk-white hair with one forward curl, midnight indigo sleeveless short tunic, ochre sash with two long ends trailing behind, close-cut trousers, copper wrist cuffs and strapped ankle boots. Strict orthographic SIDE VIEW facing RIGHT in every cell. Distinct readable right-facing silhouettes: upper row idle with fists ready, sprint stride reaching forward, sprint opposite stride in passing pose, rising jump with knees curled; lower row low lightning dash with body stretched forward, quick lead-hand jab, double-palm chain lightning release with a short fork of ivory and ice-blue sparks at fingertips, braced low hurt/recovery. Tight deliberate clusters of chunky square pixels, SNES dark fantasy gothic platform game, confident near-black warm outline, 2-3 tones per material, front/top rim light, no gradients. Shapes must read at 48px tall. Same body size across poses, centered in each separate cell with generous blank padding for the dash and lightning, feet on a consistent local baseline. Flat true transparency everywhere else; no floor, no shadows on ground, no panels, no lettering, no diagrams, no labels. Original character, no weapon.",
+      "notes": "Eight full-body poses. The raw frames have different foot lines; shipping frames align the hips and boots in 192px cells, feet on y=120.",
+      "status": "integrated",
+      "validation": "C17 passes art/tools/review.py. Eight normalized poses checked at gameplay size; chapter rendering checked in Hearthward Sanctuary.",
+      "pivot": "hips projected onto foot line",
+      "licence": "The project's own: generated with ChatGPT's image tool for Remnant: Ascension",
+      "approval": {
+        "state": "pending",
+        "native_scale": true,
+        "in_engine": true,
+        "by": ""
+      }
     }
   ]
 }

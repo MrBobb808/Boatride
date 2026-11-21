@@ -70,3 +70,4 @@ ch14-bosses.mjs
 ch14-setpieces.mjs
 ch14-salt.mjs
 dyn-lighting.mjs
+barak.mjs

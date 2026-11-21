@@ -4,10 +4,11 @@
 import Phaser from 'phaser';
 import { fx, PK } from '../../../remnant/src/render/fx';
 import { wornLegends } from '../../../remnant/src/game/legendary';
+import type { PlayableHero } from './style';
 import type { FoeLike, WorldApi } from './types';
 
 /** What the powers need from the hero. */
-interface Hero { x: number; y: number; feet: number; face: number; hero: 'elior' | 'tirzah' | 'uri'; dead: boolean; power(): number }
+interface Hero { x: number; y: number; feet: number; face: number; hero: PlayableHero; dead: boolean; power(): number }
 
 /** A strike queued a moment ahead: a falling star, a pillar, a rain arrow. */
 interface Strike { t: number; on: boolean; kind: 'star' | 'pillar' | 'rain' | 'brim'; x: number; y: number; mult: number }

@@ -59,6 +59,7 @@ import { syncArcher, ARCHER, ARCHER_IDS, type SkillId } from '../game/abilities'
 import { archerStats, archerLevel, heroLevel, archerGainXp, archerDrop, learnArcher, allocateArcher, trank, newArcher, ARCHER_KEEPSAKES } from '../game/archer';
 import { uriOf, uriStats, uriGainXp } from '../game/horde/uri';
 import { addTirzahMenu, useAbilityTextures } from '../game/tirzahMenu';
+import barakUrl from '../assets/barak-actions.png';
 import { Partner } from '../game/partner';
 import { lighting } from '../classic/shim/lighting';
 import { normalsFrom } from '../game/normalMaps';
@@ -178,8 +179,14 @@ export class World extends Phaser.Scene implements WorldApi {
   get hud() { return this.scene.get('hud') as Hud; }
   get canUseKit() { return this.ready && !this.transitioning && !this.hud.paused && !this.hud.wheelOpen && !G.paused && !G.inCutscene && !blockingUI() && !topLayer(); }
 
+  get chapterHeroes() {
+    return this.classic?.storyEnabled && this.room?.id !== 'trial_arena' && this.room?.id !== 'remnant_rest' && this.room?.id !== this.save.flags.day_boss_room;
+  }
   /** The sheets the home screen did not wait for, when this scene comes before they are in (NEXT_PLAN A3). */
-  preload() { lateArt(this); }
+  preload() {
+    lateArt(this);
+    if (!this.textures.exists('barak')) this.load.spritesheet('barak', barakUrl, { frameWidth: 192, frameHeight: 192 });
+  }
 
   create() {
     finishLateArt(this);
@@ -341,6 +348,7 @@ export class World extends Phaser.Scene implements WorldApi {
   }
 
   loadRoom(id: string, spawnName: string) {
+    if (id !== this.save.flags.day_boss_room) delete this.save.flags.day_boss_room;
     this.clearRoom();
     this.refreshStats();
     this.grantChains();
@@ -968,6 +976,7 @@ export class World extends Phaser.Scene implements WorldApi {
           setFires(this.save, [b.cond]);
           this.save.replay = b.chapter;
           this.save.flags.day_boss_run = dayKey(Date.now());
+          this.save.flags.day_boss_room = arena.id;
           this.loadRoom(arena.id, arena.spawns.left ? 'left' : 'start');
           this.toast(`The day's boss: ${b.name}, under ${b.condName}. Fell it for a legendary piece.`);
           this.persist();
