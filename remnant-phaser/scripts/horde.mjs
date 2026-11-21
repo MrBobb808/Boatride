@@ -142,7 +142,7 @@ try {
   await until(page, () => window.__remnant.horde.shaman.active && !window.__remnant.horde.hero.form);
   console.log('Uri: his fireballs fly on their own, the shaman stands at his side, FIRE prays fire down, and the Crown of Flame makes the two one until it fades');
 
-  // ---- Barak: the fourth press; his Chain Lightning leaps on its own; STARS calls lightning down; the Storm Mantle
+  // ---- Barak: the fourth press; his Chain Lightning leaps on its own; STARS calls lightning down; the Tempest Beast
   await drain(page);
   await H(page, (h) => { h.cds.switch = 0; });
   await tap('switch', (h) => h.heroId === 'barak');
@@ -151,7 +151,7 @@ try {
   await H(page, (h) => { for (let i = 0; i < 4; i++) h.spawnFoe(h.hero.x + 60 + i * 30, h.hero.y + (i % 2 ? 14 : -14), 'bulwark'); window.__sparkKills = h.kills; window.__sparkHp = h.swarm.list.filter((f) => f.alive).reduce((n, f) => n + f.hp, 0); });
   // The bolt leaps: more than one foe is struck by a single volley.
   await until(page, () => window.__remnant.horde.swarm.list.filter((f) => f.alive && f.hp < f.maxHp).length >= 2, null, 15000);
-  assert.ok(await H(page, (h) => h.arsenal.level('spark') >= 1 && h.hero.sprite.texture.key === 'barak'), 'Chain Lightning is his own weapon');
+  assert.ok(await H(page, (h) => h.arsenal.level('spark') >= 1 && h.hero.sprite.texture.key.startsWith('barak')), 'Chain Lightning is his own weapon');
   await drain(page);
   await tap('skill', (h) => h.cds.skill > 0);
   assert.ok(await H(page, (h) => h.cds.skill > 0), 'STARS calls lightning down');
@@ -160,11 +160,12 @@ try {
   await drain(page);
   await H(page, (h) => { h.gauge = 1; });
   await tap('form', (h) => h.formT > 0);
-  assert.deepEqual(await H(page, (h) => [h.formT > 0, h.hero.form]), [true, true], 'the Storm Mantle takes Barak');
+  assert.deepEqual(await H(page, (h) => [h.formT > 0, h.hero.form]), [true, true], 'the Tempest Beast takes Barak');
+  await until(page, () => window.__remnant.horde.hero.sprite.texture.key.startsWith('barak-beast'), null, 10000);
   await H(page, (h) => { h.formT = 0.01; });
   await drain(page);
   await until(page, () => !window.__remnant.horde.hero.form);
-  console.log('Barak: Chain Lightning leaps from foe to foe on its own, STARS calls lightning down, and the Storm Mantle comes and fades');
+  console.log('Barak: Chain Lightning leaps from foe to foe on its own, STARS calls lightning down, and he shifts into the Tempest Beast and back');
 
   // ---- a switch in the moment after a big move is a tag combo; three full gauges are the Trinity; a chest evolves
   await drain(page);

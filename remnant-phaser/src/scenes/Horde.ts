@@ -40,7 +40,7 @@ const KIT: Record<HeroId, { name: string; weapon: WeaponId; skillCd: number; ski
   elior: { name: 'Elior', weapon: 'blade', skillCd: 11, skillSfx: 'swordWord', form: [1.7, 0.7, 1.15], formName: 'SHADOW MANTLE', formSub: 'Heavier, faster blows · the fallen burst in shadow', formSfx: 'transform', arrive: 'Elior · the Covenant Blade' },
   tirzah: { name: 'Tirzah', weapon: 'bow', skillCd: 9, skillSfx: 'quiverMight', form: [1.4, 1, 1.2], formName: 'WINGS OF DAWN', formSub: 'Two more arrows · they pierce deeper', formSfx: 'wingsForm', arrive: 'Tirzah · the Dawn Bow' },
   uri: { name: 'Uri', weapon: 'flame', skillCd: 12, skillSfx: 'pillarFire', form: [1.5, 0.85, 1.1], formName: 'FUSION OF FLAME', formSub: 'Uri and the shaman are one · meteors and a ring of fire', formSfx: 'transform', arrive: 'Uri · the Hand of Flame, and his shaman' },
-  barak: { name: 'Barak', weapon: 'spark', skillCd: 10, skillSfx: 'thunder', form: [1.4, 0.75, 1.35], formName: 'STORM MANTLE', formSub: 'Swifter · every bolt leaps twice more', formSfx: 'transform', arrive: 'Barak · Chain Lightning' },
+  barak: { name: 'Barak', weapon: 'spark', skillCd: 10, skillSfx: 'thunder', form: [1.4, 0.75, 1.35], formName: 'TEMPEST BEAST', formSub: 'Lightning claws · swifter · every bolt leaps twice more', formSfx: 'transform', arrive: 'Barak · Chain Lightning' },
 };
 const FORM_TIME = 14;
 
@@ -466,8 +466,9 @@ export class Horde extends Phaser.Scene {
     this.invuln = Math.max(this.invuln, 0.8);
     const kit = KIT[this.heroId];
     this.ui.banners(kit.formName, kit.formSub, 1.8);
-    // The shaman steps into Uri: the two are one for the Crown's length.
+    // The shaman steps into Uri: the two are one for the Crown's length. Barak shifts into the Beast (C23).
     if (this.heroId === 'uri') this.shaman.show(false);
+    if (this.heroId === 'barak') this.hero.play('shift', 0.6);
     sfx(kit.formSfx); this.shake(0.008, 300); haptic('phase');
     this.slowMo(0.4, 0.5);
     this.tagWindow(2);

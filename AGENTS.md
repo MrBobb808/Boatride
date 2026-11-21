@@ -433,12 +433,20 @@ Never ship files from `art/incoming/` directly.
   Rush, the Daily Challenge) runs on the journey's World, so Uri keeps his shaman in all of them. Verified by
   `scripts/uri.mjs`.
 - **Barak (Phaser build):** the fourth playable hero (the switch goes Elior, Tirzah, Uri, Barak; `switchHero(to?)`), a
-  runner of lightning drawn from one eight-pose sheet (art C17 → `src/assets/barak-actions.png`, loaded by `lateArt`;
-  `game/barakArt.ts` picks the pose). On the journey, in every mode, Strike is the Spark Jab, Heavy Chain Lightning
-  (three leaps, each weaker, stopped by walls), Dodge a quicker dash (`game/barak.ts`, `Player.startArc`); he shares
-  Elior's level, gear and abilities. In the Horde he fights with Chain Lightning (`spark`, evolved with Swift Feet into
-  the Lightning of the LORD), STARS (`Arsenal.starfall`), the Flash Step and the Storm Mantle; the Trinity there is any
-  three full gauges with the hero in play's. Verified by `remnant-phaser/scripts/barak.mjs` and `scripts/horde.mjs`.
+  runner of lightning. His art: eight poses (C17 `barak-actions.png`), the Tempest Beast's eight (C18 `barak-beast.png`),
+  eight moves of four frames each for both (C19/C21 `barak-moves.png`, `barak-beast-moves.png`: jab, chain, guard,
+  Flash Step, Piercing Current, Thunderclap, Forked Spear, Skybreaker) and the shift (C23 `barak-shift.png`), all loaded
+  by `lateArt`; `game/barakArt.ts` (`barakPose`) and `Player.barakPose` pick the frame. On the journey, in every mode,
+  his moves are data in `BARAK_MOVES` (`game/barak.ts`), run by `Player.startBarak`/`updateBarak` (state
+  `'lightning'`): Strike ×3 the Spark String (jab, jab, Arc Burst; a press during a jab is kept), Up + Strike the Rising
+  Volt (launches), Dodge then Strike the Flash Jab, in the air the Static Palm (holds him up, three a jump) and Down +
+  Strike or Heavy the Thunder Drop (rings out where he lands); Heavy is Chain Lightning (three foes, each leap weaker,
+  stopped by walls), held `THUNDERHEAD_T` the Thunderhead (five). Q/E/R are his storm abilities, T Skybreaker, G the
+  Tempest Beast (a third harder, longer reach, every jab and chain leaps once more; blue light, no Mantle crown). He
+  shares Elior's level and gear. In the Horde he fights with Chain Lightning (`spark`, evolved with Swift Feet
+  into the Lightning of the LORD), STARS (`Arsenal.starfall`), the Flash Step and the Tempest Beast on the same
+  sheets; the Trinity there is any three full gauges with the hero in play's. Verified by
+  `remnant-phaser/scripts/barak.mjs` and `scripts/horde.mjs`.
 - **The Sundered Chains (Phaser build):** Elior's second weapon (`remnant-phaser/src/game/chains.ts`, POLISH_PLAN
   §20): twin kindled blades on chains, won with Chapter I (the flag `sundered_chains`). The `chain` action (the CHAINS
   touch button, `Y`, or Down + Heavy) lashes foes in reach (lash, lash, slam, cyclone), hooks a far one (a light foe is

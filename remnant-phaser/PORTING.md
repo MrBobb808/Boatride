@@ -653,4 +653,13 @@ side. Forked Spear pierces a narrow line ahead. Perfect parry discharges a count
 each foe it passes once. A full Rally powers Skybreaker (T), three overhead strikes. At level 25, a full transformation
 gauge unlocks Tempest Beast (G), with its own eight-pose sheet, faster ground dash and accelerated running speed.
 
+Barak’s moveset (`BARAK_MOVES` in `game/barak.ts`, run by `Player.startBarak` / `updateBarak` in the `'lightning'`
+state): Strike ×3 is the Spark String (jab, jab, Arc Burst), Up + Strike the Rising Volt (a launcher), Dodge then Strike
+the Flash Jab; in the air Strike is the Static Palm (it holds him aloft, three a jump) and Down + Strike or Heavy the
+Thunder Drop, which rings out on both sides where he lands. Heavy is Chain Lightning; held for `THUNDERHEAD_T` it is the
+Thunderhead, five foes and a longer reach. A lunge never carries him past a foe already at arm's length. In the Tempest
+Beast every move strikes a third harder and reaches further, and every jab and chain leaps once more. Each move is a row
+of the move sheets, wind-up on frames 0–1 and strike and recovery on 2–3; the Thunder Drop dives on the Flash Step's
+pose and lands on the Thunderclap's.
+
 Barak’s chapter ability art uses C19–C23. Both combat atlases contain four frames per row for Spark Jab, Chain Lightning, guard, Flash Step, Piercing Current, Thunderclap, Forked Spear and Skybreaker, in that order. A separate four-frame strip covers the shift into Tempest Beast.

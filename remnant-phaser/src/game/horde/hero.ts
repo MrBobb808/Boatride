@@ -4,7 +4,7 @@ import Phaser from 'phaser';
 import { actionAtlas, actionFrame, ACTION_FOOT, ACTION_CELL } from '../actionArt';
 import type { WeaponFamily } from '../../../../remnant/src/game/data';
 import type { HeroId } from './defs';
-import { barakFrame } from '../barakArt';
+import { barakPose } from '../barakArt';
 
 const LOOP: Record<string, number> = { idle: 1.6, run: 0.62 };
 /** Each hero's afterimage: Elior's violet, Tirzah's dawn gold, Uri's ember, Barak's lightning. */
@@ -41,8 +41,8 @@ export class HordeHero {
     // Uri and his Crown of Flame, cut from their own parts (C08, C09).
     this.keys.uri = actionAtlas(sc, 'uri', 'blade');
     this.keys['uri-form'] = actionAtlas(sc, 'uri', 'blade', true);
-    // Barak's eight poses (C17) are one sheet in and out of his form; the form shows as a charge of light.
-    this.keys.barak = this.keys['barak-form'] = 'barak';
+    // Barak: his poses and moves (C17, C19), and in his form the Tempest Beast's (C18, C21); barakPose picks the sheet.
+    this.keys.barak = 'barak'; this.keys['barak-form'] = 'barak-beast';
     this.shadow = wl(sc.add.image(0, 0, 'hz-shadow').setScale(0.9, 1));
     this.wings = wl(sc.add.image(0, 0, 'vfx-transform', 27).setBlendMode(Phaser.BlendModes.ADD).setVisible(false).setScale(0.62));
     for (let i = 0; i < 16; i++) this.trail.push({ img: wl(sc.add.image(0, 0, this.keys.elior, 'idle:0').setVisible(false).setTint(0xb48cff).setTintMode(Phaser.TintModes.FILL)), life: 0 });
@@ -57,7 +57,8 @@ export class HordeHero {
     if (!g) return;
     g.life = life;
     // Another hero's afterimage (the Trinity) wears that hero's figure mid-strike.
-    const key = who === this.hero ? this.sprite.texture.key : this.keys[who], frame = who === this.hero ? this.sprite.frame.name : this.frameOf(key, who, who === 'tirzah' ? 'bowRelease' : who === 'uri' ? 'invoke' : who === 'barak' ? 'arc' : 'b3', 0.5);
+    const other = who === this.hero ? null : this.poseOf(this.keys[who], who, who === 'tirzah' ? 'bowRelease' : who === 'uri' ? 'invoke' : who === 'barak' ? 'arc' : 'b3', 0.6);
+    const key = other ? other.key : this.sprite.texture.key, frame = other ? other.frame : this.sprite.frame.name;
     g.img.setTexture(key, frame).setOrigin(this.sprite.originX, this.sprite.originY).setScale(0.82).setFlipX(this.face < 0)
       .setPosition(Math.round(x), Math.round(y)).setDepth(y - 1).setTint(TINT[who]).setTintMode(Phaser.TintModes.FILL);
   }
@@ -67,9 +68,9 @@ export class HordeHero {
     others.forEach((who, i) => { for (let k = 0; k < 4; k++) this.sc.time.delayedCall(k * (dur * 250), () => this.ghost(this.x + (i ? 30 : -30), this.y - 4, dur / 4 + 0.15, who)); });
   }
 
-  /** A clip's frame on a sheet: the baked atlases by name, Barak's sheet by pose. */
-  private frameOf(key: string, who: HeroId, clip: string, u: number): string | number {
-    return who === 'barak' ? barakFrame(clip, u) : actionFrame(this.sc, key, clip, u);
+  /** A clip's sheet and frame: the baked atlases by name, Barak's sheets by pose (in his form, the Beast's). */
+  private poseOf(key: string, who: HeroId, clip: string, u: number): { key: string; frame: string | number } {
+    return who === 'barak' ? barakPose(clip, u, this.form && who === this.hero) : { key, frame: actionFrame(this.sc, key, clip, u) };
   }
 
   /** Play a one-shot clip (a swing, a loosed arrow) over the movement loop. */
@@ -89,13 +90,11 @@ export class HordeHero {
       else { clip = this.shot.clip; u = this.shot.t / this.shot.dur; }
     }
     if (dashing) clip = this.hero === 'elior' ? 'dash' : 'roll', u = 0.5;
-    const key = this.key;
-    this.sprite.setTexture(key, this.frameOf(key, this.hero, clip, u)).setScale(0.82).setFlipX(this.face < 0).setPosition(Math.round(this.x), Math.round(this.y)).setDepth(this.y);
+    const pose = this.poseOf(this.key, this.hero, clip, u), key = pose.key;
+    this.sprite.setTexture(key, pose.frame).setScale(0.82).setFlipX(this.face < 0).setPosition(Math.round(this.x), Math.round(this.y)).setDepth(this.y);
     // A hurt flash, then a flicker while the blow's grace lasts.
     this.hurtT = Math.max(0, this.hurtT - dt);
     if (this.hurtT > 0.12) this.sprite.setTint(0xff5a5a).setTintMode(Phaser.TintModes.FILL);
-    // Barak's form: the charge of the storm flickers through him.
-    else if (this.form && this.hero === 'barak') this.sprite.setTint(Math.floor(this.sc.time.now / 60) % 3 ? 0xc8f0ff : 0xffffff).setTintMode(Phaser.TintModes.MULTIPLY);
     else this.sprite.clearTint().setTintMode(Phaser.TintModes.MULTIPLY);
     this.sprite.setAlpha(invuln && !dashing ? (Math.floor(this.sc.time.now / 70) % 2 ? 0.45 : 1) : 1);
     this.shadow.setPosition(Math.round(this.x), Math.round(this.y) + 1).setDepth(-40000 + this.y * 0.001);
