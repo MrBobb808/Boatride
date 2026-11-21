@@ -199,6 +199,8 @@ export class Arsenal {
       h.hero.look((first ? first.x : h.boss!.x) - x);
       h.hero.play('arc', 0.32);
       for (let c = 0; c < bolts; c++) this.later(0.05 + c * 0.08, () => this.lightning(h.hero.x + h.hero.face * 10, h.hero.y - 20, leaps, dmg, stun, evo ? 130 : 100, c > 0));
+      // The Tempest Beast rides his own lightning: once the bolt has leapt, he is where it ended.
+      if (form) this.later(0.12 + (bolts - 1) * 0.08, () => this.ride());
       h.sfx('thunder', 0.28);
     } else if (id === 'chains') {
       const evo = this.evolved.has('chains');
@@ -265,9 +267,27 @@ export class Arsenal {
       px = hit.x; py = hit.y - 12; power *= 0.8;
       f = h.swarm.nearest(px, py, reach, (o) => STRUCK.includes(o));
     }
+    if (STRUCK.length) { const end = STRUCK[STRUCK.length - 1]; this.boltEnd.x = end.x; this.boltEnd.y = end.y; this.boltEnd.ok = true; }
     // The monarch draws the bolt's last leap.
     const b = h.boss;
     if (b && b.alive && (b.x - px) ** 2 + (b.y - 30 - py) ** 2 < (reach + 60) ** 2 && h.bossHit(b.x, b.y - 30, 1, power * 1.4, true)) this.zap(px, py, b.x, b.y - 30);
+  }
+
+  /** Where the last bolt's last leap struck, for the Beast to ride to. */
+  private boltEnd = { x: 0, y: 0, ok: false };
+  /** The Tempest Beast becomes the lightning: afterimages along a trail, and he stands beside the last foe struck. */
+  private ride() {
+    const h = this.h, e = this.boltEnd;
+    if (!e.ok) return;
+    e.ok = false;
+    const x0 = h.hero.x, y0 = h.hero.y, side = e.x >= x0 ? -1 : 1, x1 = e.x + side * 16, y1 = e.y;
+    if (Math.hypot(x1 - x0, y1 - y0) < 24) return;
+    for (let i = 0; i < 4; i++) h.hero.ghost(x0 + (x1 - x0) * (i / 4), y0 + (y1 - y0) * (i / 4), 0.2 + i * 0.05);
+    this.zap(x0, y0 - 14, x1, y1 - 14);
+    h.hero.x = x1; h.hero.y = y1; h.hero.look(-side);
+    h.hero.play('rush', 0.22);
+    h.lockHero(0.1);
+    this.anim('vfx-impacts', 18, 6, x1, y1 - 12, 0.22, 0.4, { tint: 0x9fe6ff });
   }
 
   /** A jagged bolt between two points on the lightning layer (no allocation: the kinks are worked out as it draws). */

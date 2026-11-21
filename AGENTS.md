@@ -442,7 +442,13 @@ Never ship files from `art/incoming/` directly.
   Volt (launches), Dodge then Strike the Flash Jab, in the air the Static Palm (holds him up, three a jump) and Down +
   Strike or Heavy the Thunder Drop (rings out where he lands); Heavy is Chain Lightning (three foes, each leap weaker,
   stopped by walls), held `THUNDERHEAD_T` the Thunderhead (five). Q/E/R are his storm abilities, T Skybreaker, G the
-  Tempest Beast (a third harder, longer reach, every jab and chain leaps once more; blue light, no Mantle crown). He
+  Tempest Beast (a third harder, longer reach, every jab and chain leaps once more; blue light, no Mantle crown).
+  His lightning is drawn live by `game/lightningFx.ts` (`Player.zaps`: pooled jagged arcs that re-strike each frame,
+  with glow and forks), from his hand and foe to foe. He teleports as the bolt (`Player.startBolt`, state `'bolt'`,
+  `gatherBolt` picks the foes, a trail and afterimages behind him): the Beast's dodge is the Lightning Step, its third
+  strike the Storm Chain (every foe near, the world slowed, a bolt from the sky at the end, `finale`), Strike after the
+  Arc Burst the Chain Rush (three), and Strike after the Rising Volt the Sky Pursuit (up to the launched foe, then the
+  Thunder Drop). In the Horde the Beast rides each Chain Lightning volley to its last foe (`Arsenal.ride`). He
   shares Elior's level and gear. In the Horde he fights with Chain Lightning (`spark`, evolved with Swift Feet
   into the Lightning of the LORD), STARS (`Arsenal.starfall`), the Flash Step and the Tempest Beast on the same
   sheets; the Trinity there is any three full gauges with the hero in play's. Verified by
