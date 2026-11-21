@@ -64,14 +64,11 @@ try {
   await enter('salt_start');
   await drain(() => ['idle', 'attack'].includes(window.__remnant.world.cboss?.state));
   assert.ok(await E(() => window.__remnant.world.classic.bossActive), 'the gate shuts behind Elior');
-  // It fights: let it swing a while, then check each attack leaves its mark.
-  const seen = new Set();
-  const end = Date.now() + 40000;
-  while (Date.now() < end && seen.size < 3) {
-    const a = await E(() => window.__remnant.world.cboss.atk);
-    if (a) seen.add(a);
-    await p.waitForTimeout(120);
-  }
+  // It fights: let it swing a while. Its attack is read every frame in the page, so a short one between two of this
+  // script's reads is not missed, and the wait follows the game, not the wall clock (a loaded runner runs it slow).
+  await E(() => { window.__wardenSeen = new Set(); const look = () => { const b = window.__remnant.world.cboss; if (b?.atk) window.__wardenSeen.add(b.atk); if (window.__wardenSeen) requestAnimationFrame(look); }; look(); });
+  await until(() => window.__wardenSeen.size >= 3, null, 90000).catch(() => {});
+  const seen = new Set(await E(() => { const s = [...window.__wardenSeen]; window.__wardenSeen = null; return s; }));
   assert.ok(seen.size >= 2, `the Warden uses its attacks (${[...seen].join(', ')})`);
   // Half health: the brine rises.
   await E(() => { const b = window.__remnant.world.cboss; b.hp = Math.round(b.maxHp * 0.49); b.takeHit({ dmg: 1, poise: 0, kx: 0, ky: 0, dir: 1, kind: 'melee', src: window.__remnant.world.player }); });

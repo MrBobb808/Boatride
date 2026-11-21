@@ -1,5 +1,4 @@
 import { fx } from '../../../remnant/src/render/fx';
-import { bolt } from '../../../remnant/src/game/power';
 import { settings } from '../classic/shim/settings';
 import type { Player } from './player';
 import type { FoeLike, WorldApi } from './types';
@@ -34,6 +33,8 @@ export const BARAK_MOVES: Record<BarakMoveId, BarakMove> = {
   // Strike out of the dash: the Flash Jab, a lightning-hand lunge through the foe ahead.
   flashjab: { row: 4, impact: 0.05, end: 0.26, lunge: 300, kind: 'jab', range: 58, power: 1.15, leaps: 0, poise: 16, style: 'flash-jab' },
 };
+/** The foes the last strike touched, in order (the Rising Volt's foe for the Sky Pursuit). Reused, never kept. */
+export const struck: FoeLike[] = [];
 /** Heavy held this long gathers the Thunderhead. */
 export const THUNDERHEAD_T = 0.45;
 
@@ -53,6 +54,7 @@ export function barakStrike(w: WorldApi, p: Player, id: BarakMoveId, beast: bool
 
 /** The first foe ahead within `range`, then on to the nearest unstruck within `hop`, each leap two thirds as strong. */
 export function discharge(w: WorldApi, p: Player, o: { range: number; power: number; leaps: number; poise: number; hop?: number }) {
+  struck.length = 0;
   const targets = w.foes().slice();
   const hit = new Set<FoeLike>();
   let x = p.x, y = p.feet - 25, power = o.power;
@@ -73,9 +75,11 @@ export function discharge(w: WorldApi, p: Player, o: { range: number; power: num
     const damage = Math.max(1, Math.round(power)), dir = Math.sign(bx - x) || p.face;
     const before = next.hp;
     if (!next.hit(damage, dir, 0.35, false, { poise: o.poise })) break;
-    if (!settings.reduceFlashes) bolt(x, y, bx, by, '#88dfff');
-    else w.spark(bx, by, 0x88dfff, 3);
-    hit.add(next);
+    // The arc leaps from where the last one struck: from his hand, then foe to foe.
+    p.zaps.zap(x, y, bx, by, { width: n ? 1.6 : 2.2, life: 0.24 + n * 0.03, forks: 1 });
+    w.spark(bx, by, 0x88dfff, settings.reduceFlashes ? 3 : 8);
+    w.flashLight?.(bx, by, 70, '#8fdcff', 0.18);
+    hit.add(next); struck.push(next);
     const dealt = before !== undefined && next.hp !== undefined ? Math.max(0, before - next.hp) : damage;
     w.heroHit(next, dealt, o.leaps > 2);
     w.legends?.onHit(next, { heavy: o.leaps > 2, crit: false, ender: false });
@@ -86,6 +90,7 @@ export function discharge(w: WorldApi, p: Player, o: { range: number; power: num
 
 /** Every foe within `range` of him (ahead only, for a forward move), struck once; a launch throws them upward. */
 function zapArea(w: WorldApi, p: Player, m: BarakMove, range: number, power: number) {
+  struck.length = 0;
   const x = p.x, y = p.feet - 25;
   w.playEffect(m.launch && m.forward ? 'swingHeavy' : 'thunder', { vol: 0.5 });
   w.spark(x + (m.forward ? p.face * range * 0.5 : 0), y, 0x81deff, settings.reduceFlashes ? 3 : 10);
@@ -99,8 +104,8 @@ function zapArea(w: WorldApi, p: Player, m: BarakMove, range: number, power: num
     const dir = Math.sign(b.centerX - x) || p.face, damage = Math.max(1, Math.round(power)), before = f.hp;
     const lift = m.launch ? { ky: -m.launch, launch: true } : {};
     if (!f.hit(damage, dir, 1.2, false, { poise: m.poise, ...lift })) continue;
-    n++;
-    if (!settings.reduceFlashes) bolt(x, y, b.centerX, b.centerY, '#a8e6ff');
+    n++; struck.push(f);
+    p.zaps.zap(x, y, b.centerX, b.centerY, { width: 2, life: 0.2, color: 0xa8e6ff });
     w.heroHit(f, before !== undefined && f.hp !== undefined ? Math.max(0, before - f.hp) : damage, true);
     w.legends?.onHit(f, { heavy: true, crit: false, ender: m.style === 'arc-burst' });
   }
@@ -129,7 +134,7 @@ export function stormHit(w: WorldApi, p: Player, move: Impact, hit: Set<FoeLike>
     if (move === 'forked_spear' && !settings.reduceFlashes) {
       let reach = 0;
       while (reach + 6 <= spec.range && p.lineOfSight(x + p.face * (reach + 6), y)) reach += 6;
-      bolt(x, y, x + p.face * reach, y, '#99dcff');
+      p.zaps.zap(x, y, x + p.face * reach, y, { width: 3, life: 0.3, color: 0x99dcff, forks: 3 });
     }
   }
   for (const f of w.foes().slice()) {
@@ -141,7 +146,7 @@ export function stormHit(w: WorldApi, p: Player, move: Impact, hit: Set<FoeLike>
     const before = f.hp;
     if (!f.hit(damage, dir, move === 'thunderclap' ? 2 : 0.6, false, { guardBreak: move === 'thunderclap', poise: sustained ? 14 : 38 })) continue;
     hit.add(f);
-    if (!settings.reduceFlashes) bolt(move === 'skybreaker' ? b.centerX : x, move === 'skybreaker' ? by-110 : y, b.centerX, b.centerY, '#8acfff');
+    p.zaps.zap(move === 'skybreaker' ? b.centerX : x, move === 'skybreaker' ? by - 110 : y, b.centerX, b.centerY, { width: move === 'skybreaker' ? 4 : 2, life: 0.26, forks: move === 'skybreaker' ? 2 : 1 });
     w.heroHit(f, before !== undefined && f.hp !== undefined ? Math.max(0, before-f.hp) : damage, !sustained);
   }
 }

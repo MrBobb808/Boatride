@@ -662,4 +662,13 @@ Beast every move strikes a third harder and reaches further, and every jab and c
 of the move sheets, wind-up on frames 0–1 and strike and recovery on 2–3; the Thunder Drop dives on the Flash Step's
 pose and lands on the Thunderclap's.
 
+Barak's lightning and teleports: `game/lightningFx.ts` draws every arc (pooled, re-jittered each frame, a glow under a
+white core, forks; Reduce flashes stops the flicker), owned by the player as `zaps`. `Player.startBolt` runs a teleport
+chain (state `'bolt'`, `BOLT_HOP` seconds per foe, `gatherBolt` choosing foes he can stand beside, a lightning trail and
+an afterimage per jump): the Lightning Step (the Beast's dodge, one foe ahead), the Chain Rush (Strike after the Arc
+Burst, three), the Storm Chain (the Beast's third Spark String strike, up to six, `slowTime` about him, ending in a
+three-bolt strike from the sky with a ring, a shockwave and `finale`), and the Sky Pursuit (Strike after the Rising
+Volt: up to the launched foe, then the Thunder Drop). Strike presses are buffered two deep, so a fast mash never drops
+a link. In the Horde the Tempest Beast rides each Chain Lightning volley to the last foe it struck (`Arsenal.ride`).
+
 Barak’s chapter ability art uses C19–C23. Both combat atlases contain four frames per row for Spark Jab, Chain Lightning, guard, Flash Step, Piercing Current, Thunderclap, Forked Spear and Skybreaker, in that order. A separate four-frame strip covers the shift into Tempest Beast.

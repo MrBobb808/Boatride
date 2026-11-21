@@ -49,7 +49,7 @@ try {
     p.face = 1;
     window.barakHits = [];
     window.barakFoe = (dx, x = p.x + dx) => ({
-      x, box: { centerX: x, centerY: p.feet - 25, left: x - 2, right: x + 2, top: p.feet - 28, bottom: p.feet - 22 },
+      x, box: { centerX: x, centerY: p.feet - 25, left: x - 2, right: x + 2, top: p.feet - 28, bottom: p.feet, width: 4, height: 28 },
       alive: true, removed: false,
       hit(dmg, dir, force, crit, details) { window.barakHits.push([dx, dmg, !!details?.launch]); return true; },
     });
@@ -127,6 +127,39 @@ try {
   assert.deepEqual(claw.map(a => a[0]), [28, 96], `in the Beast a jab leaps on (${JSON.stringify(claw)})`);
   await page.evaluate(() => { window.__remnant.world.player.mantleT = 0; });
   await home();
+  // Chain Lightning is drawn: arcs crackle from his hand and foe to foe.
+  await page.keyboard.press('KeyK');
+  await page.waitForFunction(() => window.__remnant.world.player.zaps.count >= 3);
+  await freeNow(); await page.evaluate(() => { window.barakHits.length = 0; });
+  // The teleports. Each is read from the move it starts and the blows it lands.
+  const bolt = async (start, kind) => {
+    await freeNow(); await home();
+    await start();
+    // The Storm Chain slows the world and ends in a finale's slow motion: on a loaded runner that is many seconds.
+    await page.waitForFunction((k) => { const p = window.__remnant.world.player; return p.state === 'bolt' && p.boltKind === k; }, kind, { timeout: 25000 });
+    await page.waitForFunction(() => window.__remnant.world.player.state !== 'bolt', null, { timeout: 25000 });
+    return page.evaluate(() => [window.__remnant.world.player.boltHits, window.barakHits.splice(0).length]);
+  };
+  const string3 = async (then) => { for (let i = 0; i < 3; i++) { await page.keyboard.press('KeyJ'); await page.waitForTimeout(60); } if (then) { await page.waitForFunction(() => window.__remnant.world.player.barakMove === 'burst' && window.__remnant.world.player.arcReleased); await page.keyboard.press('KeyJ'); } };
+  // Human: Strike after the Arc Burst is the Chain Rush, three foes.
+  const rush = await bolt(() => string3(true), 'rush');
+  assert.ok(rush[0] >= 2, `the Chain Rush teleports through foes (${rush})`);
+  // Up + Strike, then Strike: the Sky Pursuit follows the launched foe up and comes down in a Thunder Drop.
+  const pursuit = await bolt(async () => { await page.keyboard.down('KeyW'); await page.keyboard.press('KeyJ'); await page.keyboard.up('KeyW'); await page.waitForFunction(() => window.__remnant.world.player.voltFoe); await page.keyboard.press('KeyJ'); }, 'pursuit');
+  assert.ok(pursuit[0] >= 1, `the Sky Pursuit reaches the launched foe (${pursuit})`);
+  await page.waitForFunction(() => window.__remnant.world.player.barakMove === 'drop');
+  // The Tempest Beast: the dodge is the Lightning Step, and the third strike the Storm Chain, the sky at its end.
+  await freeNow(); await home();
+  await page.evaluate(() => { window.__remnant.world.player.mantleT = 30; });
+  const step = await bolt(() => page.keyboard.press('KeyL'), 'step');
+  assert.equal(step[0], 1, `the Lightning Step strikes the foe ahead (${step})`);
+  const storm = await bolt(() => string3(false), 'storm');
+  assert.ok(storm[0] >= 4, `the Storm Chain runs through the pack (${storm})`);
+  assert.ok(storm[1] > storm[0], `and the sky's bolt strikes at its end (${storm})`);
+  await page.screenshot({ path: 'qa/barak-storm-chain.png' });
+  await page.evaluate(() => { window.__remnant.world.player.mantleT = 0; });
+  await freeNow(); await home();
+  console.log(`Teleports: Chain Rush ×${rush[0]}, Sky Pursuit into the Thunder Drop, Lightning Step, Storm Chain ×${storm[0]} with the sky's bolt`);
   console.log('Moveset: the Spark String (jab, jab, Arc Burst), the Rising Volt launches, the Thunderhead leaps to four, the Static Palm and the Thunder Drop, the Beast\'s claws leap on');
   // Test Barak's three skill slots, the full Rally, and the transformed sheet.
   await page.evaluate(() => {
