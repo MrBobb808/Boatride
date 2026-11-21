@@ -42,7 +42,9 @@ try {
     await tap(page, key);
     if (up) await page.keyboard.up('KeyW');
     await until(page, () => window.__remnant.world.player.state !== 'flame', null, 20000);
-    await page.waitForTimeout(500);
+    // The fire is in flight a while on a slow runner's game clock: wait for it to land, not a fixed time.
+    await until(page, () => window.__uriFoe.hp < window.__uriHp, null, 8000).catch(() => {});
+    await page.waitForTimeout(200);
   };
   const dealt = () => E(page, () => window.__uriHp - window.__uriFoe.hp);
   await fire('KeyJ', false, 120); const ball = await dealt();

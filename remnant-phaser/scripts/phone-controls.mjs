@@ -60,7 +60,8 @@ try {
     const at = () => { f.body.x = cam.worldView.x + b.x / cam.zoom; f.body.y = cam.worldView.y + b.y / cam.zoom + f.body.h / 2; };
     // Judge in the same moment: a frame later the foe's physics would have set it back on the floor.
     for (let i = 0; i < 30 && !b.behind; i++) { await new Promise((r) => requestAnimationFrame(r)); at(); h.updateInteractBtn(); }
-    return { behind: b.behind, alpha: +b.g.alpha.toFixed(2), device: w.controls.device, foe: { dying: !!f.dying, remove: !!f.remove } };
+    const z = cam.zoom, v = cam.worldView;
+    return { behind: b.behind, alpha: +b.g.alpha.toFixed(2), device: w.controls.device, foe: { dying: !!f.dying, remove: !!f.remove, listed: w.classic.ents.includes(f), at: [Math.round((f.x - v.x) * z), Math.round((f.y - f.body.h / 2 - v.y) * z)] }, button: [Math.round(b.x), Math.round(b.y), Math.round(b.r)], down: b.down };
   });
   assert.ok(seen.behind && seen.alpha < 0.3, `a foe behind a button turns it see-through (${JSON.stringify(seen)})`);
   await page.screenshot({ path: 'qa/phone-fight.png' });

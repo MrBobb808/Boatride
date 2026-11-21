@@ -9,7 +9,7 @@ import { blockingUI } from '../../../remnant/src/ui/ui';
 import { topLayer } from '../../../remnant/src/ui/dom';
 import { BossCamera } from './bossCamera';
 import { Atmosphere } from './atmosphere';
-import { ScreenFx } from './screenFx';
+import { ScreenFx, softwareGl } from './screenFx';
 import { DynLights } from './dynLights';
 import type { World } from '../scenes/World';
 import type { SkillId } from './abilities';
@@ -50,6 +50,9 @@ export class Visuals {
   /** Heat haze this map (Uri's fire, the room's braziers, torches and forges) and shockwaves spreading from big blasts. */
   private hazes = Array.from({ length: 24 }, () => ({ x: 0, y: 0, r: 0, k: 0 }));
   private hazeN = 0;
+  /** Software WebGL (headless tests, a GPU-less device): no haze or shockwaves, which would turn the full-screen
+   * displacement pass on in nearly every room. */
+  private softGl = false;
   private fires: { x: number; y: number }[] = [];
   private shocks = Array.from({ length: 4 }, () => ({ x: 0, y: 0, r: 0, t: 0, d: 1 }));
   private readonly addHaze = (x: number, y: number, r: number, k: number) => {
@@ -124,6 +127,7 @@ export class Visuals {
       this.displacement.active = false;
     }
     this.screen = new ScreenFx(w, this.gpu);
+    this.softGl = this.gpu && softwareGl(w);
     this.lights = new DynLights(w, this.gpu);
     this.lights.surface(w.art.backImage); this.lights.surface(w.classic.image);
     w.events.on(Phaser.Scenes.Events.POST_UPDATE, this.update, this);
@@ -393,7 +397,7 @@ export class Visuals {
 
   /** A shockwave: a ring of bent air spreading to `r` over `d` seconds from a big blast. */
   shock(x: number, y: number, r: number, d = 0.6) {
-    if (settings.reduceFlashes) return;
+    if (settings.reduceFlashes || this.softGl) return;
     const s = this.shocks.find((o) => o.t <= 0) ?? this.shocks[0];
     s.x = x; s.y = y; s.r = r; s.t = d; s.d = d;
     this.mapT = 0;
@@ -406,10 +410,13 @@ export class Visuals {
     f.active = false;
     if (this.tier === 0 || settings.reduceFlashes) return;
     const w = this.w, v = w.cameras.main.worldView, data = image.data;
-    // This map's haze: Uri's fire and the room's open flames in view.
+    // This map's haze: Uri's fire, and at High the room's open flames in view (a lamp in nearly every room would keep
+    // the full-screen pass on everywhere, so Medium keeps it for the fire that moves).
     this.hazeN = 0;
-    w.player.flame.hazeSources(this.addHaze);
-    for (const f of this.fires) if (f.x > v.x - 40 && f.x < v.right + 40 && f.y > v.y - 40 && f.y < v.bottom + 40) this.addHaze(f.x, f.y, 26, 0.7);
+    if (!this.softGl) {
+      w.player.flame.hazeSources(this.addHaze);
+      if (this.tier === 2) for (const f of this.fires) if (f.x > v.x - 40 && f.x < v.right + 40 && f.y > v.y - 40 && f.y < v.bottom + 40) this.addHaze(f.x, f.y, 26, 0.7);
+    }
     const shocking = this.shocks.some((s) => s.t > 0);
     if (!this.hot && !this.wet && !this.hazeN && !shocking) return;
     let water = false, heat = false, live = false;
