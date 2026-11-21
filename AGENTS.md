@@ -475,11 +475,20 @@ Never ship files from `art/incoming/` directly.
   and the day's first run is the ranked one (`HordeSave.dayRun`, `dayBest`; the Day counts `flags.day_horde_runs`).
   `?nocamp` skips the camp in tests. Verified by `scripts/horde-board.mjs`.
 - **Home screen (Phaser build):** `remnant-phaser/src/scenes/Title.ts` and
-  `src/game/home.ts`: the journey card (Continue / New journey / Begin) and a
+  `src/game/home.ts`: the journey card (Continue / New journey / Begin, with chips for level, silver and chapters) and a
   card per game mode (Chapters, the Watch, the Horde, the Trial, Extreme
   Survival, the Boss Gauntlet, the Boss Rush, the Daily Challenge) that starts
-  it straight away (`World.init`'s `mode`), or says what opens it. Verified by
+  it straight away (`World.init`'s `mode`), or says what opens it. Its parts rise in turn on arrival (`.hm-rise`, none
+  with Reduce motion) and the page fades out as a mode starts (`Home.leave`). Behind it the night of
+  `src/game/homeBackdrop.ts`: sky, stars, the moon and its shafts, a castle with lit windows on the far ridge, two fog
+  banks, ash and embers, distant lightning (not with Reduce flashes), the near ridge at the stage's foot where Elior
+  stands; painted once into textures, layers leaning with the pointer and scrolling with the page. Verified by
   `scripts/home.mjs`.
+- **The Item Crash (Phaser build):** `remnant-phaser/src/game/itemCrash.ts`, from `classic/hero.ts`'s sub-weapon input:
+  Up + Sub with `CRASH_COST` (10) hearts spends them on the carried sub-weapon made great, from the shared
+  `SubProj`s: Dagger Storm, Axe Wheel, Holy Flood (flasks from the top of the view), Grand Cross (a pillar, crosses out
+  at three heights) and the Five Smooth Stones (1 Samuel 17:40, KJV; one stone a foe). Too few hearts: the ordinary
+  throw. Verified by `scripts/item-crash.mjs`.
 - **The Refiner's Fire (Phaser build):** `remnant-phaser/src/game/fire.ts` (NEXT_PLAN C1), `PhaserSave.fire`. Replay on
   the Chapters page first offers conditions worth heat (tougher, fiercer, no Balm); with none it is the ordinary
   replay. They reach foes and bosses through `setFire` in the shared `game/might.ts` (1 and 1 unless a replay burns).

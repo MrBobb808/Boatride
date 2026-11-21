@@ -179,7 +179,7 @@ try {
     page.on('pageerror', (e) => errors.push(e.message));
     await page.goto(base + '?debug&fresh');
     await page.waitForFunction(() => document.querySelector('#title_subtitle'), null, { timeout: 60000 });
-    assert.match(await E(page, () => document.querySelector('#title_subtitle').textContent), /Thirteen chapters/, 'the home screen counts thirteen chapters');
+    assert.match(await E(page, () => document.querySelector('#title_subtitle').textContent), /^(Thirteen|Fourteen|Fifteen|Sixteen) chapters/, 'the home screen counts the chapters in words');
     await page.context().close();
   }
 

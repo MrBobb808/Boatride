@@ -593,6 +593,25 @@ Verified by `scripts/horde.mjs`: upright touch (stick, DASH, buttons on screen),
 
 `src/scenes/Title.ts` with `src/game/home.ts`. The canvas keeps the glow, rising embers and Elior idling behind the wordmark (his action atlas, placed on the DOM's `.hm-stage` box); the rest is DOM (`hm-` classes). The journey card shows the chapter, room, level, silver and chapters complete, with Continue and New journey (a second tap when every slot is full), or Begin, plus any live-game slots to bring over. Under it, **Game modes**: a card each for Chapters, the Watch, the Horde, the Trial of the Remnant, Extreme Survival, the Boss Gauntlet, the Boss Rush and the Daily Challenge, with its record, or, when locked, what opens it (the shared checks run against the save through `withSave`). A card for a journey mode starts the world with `{ mode }`; `World.startMode` waits for the room to settle, then enters the Trial, the Gauntlet, Extreme Survival or the Rush, or opens the Chapters page (Chapters, the Daily Challenge). Upright the cards sit two to a row under the journey; sideways the journey takes a left column and the cards four to a row, without their sentences, so all eight fit. `data-k` hooks: `title_first`, `title_second`, `title_live_<i>`, `title_<mode>`. Verified by `scripts/home.mjs`.
 
+The page is one design system: panels (`.hm-panel`), a stat-chip row on the journey card (`.hm-meta` spans), mode cards
+with an icon badge, a thin accent rule and a quiet NEW pill (a lock mark when locked), the streak as a chip on Today.
+The parts rise in reading order on arrival (`.hm-rise`, `--i` staggers them; off under `prefers-reduced-motion`), the
+wordmark carries a slow sheen, and a mode's start fades the page and the camera before the scene changes
+(`Home.leave`). Behind it, `src/game/homeBackdrop.ts` paints the night once into canvas textures (sky, stars, moon,
+light shafts, far ridge with a castle and lit windows, fog banks, the near ridge where Elior stands, a vignette) and
+only moves them: the layers lean with the pointer and follow the page's scroll by depth, fog drifts, ash falls, and
+lightning strikes far off every 7–16 s (not with Reduce flashes).
+
+## The Item Crash
+
+`src/game/itemCrash.ts`, called from `classic/hero.ts` when Sub is pressed with Up held and `CRASH_COST` hearts are in
+hand (otherwise the ordinary throw; Up + Heavy is still the ordinary throw). It spends the hearts, holds the world a
+breath (`slowTime`), names the Crash in a banner and puts the shared sub-weapons' own projectiles (`SubProj`) into the
+room on the scene clock: the Dagger Storm (six volleys both ways at three heights), the Axe Wheel (ten in a fountain),
+the Holy Flood (seven flasks from the top of the view across its width), the Grand Cross (a pillar of light, then
+crosses out both ways at three heights) and the Five Smooth Stones (1 Samuel 17:40, KJV: one aimed at each of the five
+nearest foes). Verified by `scripts/item-crash.mjs`.
+
 ## The Watch
 
 POLISH_PLAN §18. An idle game of its own (`src/scenes/Watch.ts`, scene key `watch`), entered from the title (`title_watch`) and from Settings → Game modes (`addWatchMode` in `src/game/watch/entry.ts`). A fresh Elior at Watch level 1 keeps a ruined wall: foes walk in from the right, he strikes on his own, every kill pays coins, and coins buy upgrades.

@@ -13,6 +13,7 @@ import { beginFinisher, updateFinisher, killBlow, riseAsShadow, type FinState } 
 import { powerTier, weaponElement, ELEMENTS, elementHit } from '../../../remnant/src/game/power';
 import { mantleDuration, mantleTier, mantleGain } from '../../../remnant/src/game/mantle';
 import { throwSub } from '../../../remnant/src/game/subweapons';
+import { itemCrash, CRASH_COST } from '../game/itemCrash';
 import { ChainBlade } from '../../../remnant/src/game/chain';
 import { alternateSuper, selectedSuper, superTarget } from '../../../remnant/src/game/supers';
 import { SUPER_MOVES } from '../../../remnant/src/game/data';
@@ -157,6 +158,8 @@ export class HeroPowers {
       if (c.pressed('sub') || c.pressed('heavy') && c.down('up')) {
         // Down + Sub nocks Tirzah's next arrow type.
         if (p.hero === 'tirzah' && c.pressed('sub') && c.down('down')) p.bow.cycleArrows();
+        // Up + Sub: the Item Crash, ten hearts at once (game/itemCrash.ts); without them, the ordinary throw.
+        else if (c.pressed('sub') && c.down('up') && (G.save.hearts ?? 0) >= CRASH_COST && G.save.sub && itemCrash(w, p)) { this.actor.throwPose(); }
         else if (p.mantleT > 0 && p.hero !== 'tirzah') this.throwWeapon(); else throwSub(this.actor);
       }
     }

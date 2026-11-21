@@ -20,52 +20,84 @@ import { writeSave } from './save';
 export type HomeMode = 'chapters' | 'trial' | 'extreme' | 'gauntlet' | 'rush' | 'daily' | 'dayboss';
 
 const CSS = `
-.hm{position:fixed;inset:0;bottom:auto;height:var(--app-h,100%);z-index:12;overflow-y:auto;-webkit-overflow-scrolling:touch;font-family:Georgia,serif;color:#ddd4c6;
-  padding:calc(env(safe-area-inset-top) + 14px) calc(env(safe-area-inset-right) + 16px) calc(env(safe-area-inset-bottom) + 14px) calc(env(safe-area-inset-left) + 16px)}
-.hm-wrap{max-width:980px;margin:0 auto;display:flex;flex-direction:column;gap:14px;min-height:100%}
+.hm{--gold:#e2b85a;--gold-hi:#f6dea0;--ink:#ddd4c6;--muted:#9b92a6;--panel:rgba(15,11,21,.80);--line:rgba(226,184,90,.26);
+  position:fixed;inset:0;bottom:auto;height:var(--app-h,100%);z-index:12;overflow-y:auto;-webkit-overflow-scrolling:touch;font-family:Georgia,serif;color:var(--ink);
+  padding:calc(env(safe-area-inset-top) + 14px) calc(env(safe-area-inset-right) + 16px) calc(env(safe-area-inset-bottom) + 14px) calc(env(safe-area-inset-left) + 16px);
+  transition:opacity .28s ease}
+.hm.hm-leave{opacity:0;pointer-events:none}
+.hm-wrap{max-width:1040px;margin:0 auto;display:flex;flex-direction:column;gap:14px;min-height:100%}
+/* Everything rises into place, one after another (none of it with Reduce motion). */
+@keyframes hmRise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@keyframes hmShine{0%,62%{background-position:-160% 0}100%{background-position:260% 0}}
+.hm-rise{animation:hmRise .55s cubic-bezier(.2,.75,.25,1) both;animation-delay:calc(var(--i,0)*45ms)}
+@media (prefers-reduced-motion:reduce){.hm-rise,.hm-word{animation:none!important}.hm{transition:none}}
 .hm-head{text-align:center;padding-top:4px}
-.hm-word{font-family:Cinzel,Georgia,serif;font-weight:bold;color:#f6dea0;font-size:clamp(30px,10vw,56px);letter-spacing:.3em;margin-right:-.3em;line-height:1;text-shadow:0 2px 12px rgba(226,184,90,.35)}
-.hm-asc{font-family:Cinzel,Georgia,serif;color:#e2b85a;font-size:clamp(12px,4vw,22px);letter-spacing:.3em;margin:6px -.3em 0 0}
-.hm-sub{font-style:italic;color:#9b92a6;font-size:calc(13px*var(--fs-k,1));margin-top:6px}
-.hm-stage{height:clamp(84px,17vh,150px)}
+.hm-word{font-family:Cinzel,Georgia,serif;font-weight:bold;font-size:clamp(30px,10vw,54px);letter-spacing:.3em;margin-right:-.3em;line-height:1;
+  color:var(--gold-hi);background:linear-gradient(100deg,#f6dea0 40%,#fffaf0 50%,#f6dea0 60%) 0 0/300% 100%;-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+  filter:drop-shadow(0 2px 10px rgba(226,184,90,.35));animation:hmShine 7s ease-in-out 1.2s infinite}
+.hm-asc{font-family:Cinzel,Georgia,serif;color:var(--gold);font-size:clamp(12px,3.6vw,19px);letter-spacing:.42em;margin:8px -.42em 0 0}
+.hm-orn{display:flex;align-items:center;justify-content:center;gap:10px;margin:8px auto 0;max-width:260px;color:var(--gold)}
+.hm-orn::before,.hm-orn::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,transparent,rgba(226,184,90,.6))}
+.hm-orn::after{transform:scaleX(-1)}
+.hm-orn i{width:6px;height:6px;transform:rotate(45deg);border:1px solid var(--gold);flex:none}
+.hm-sub{font-style:italic;color:var(--muted);font-size:calc(13px*var(--fs-k,1));margin-top:6px}
+.hm-stage{height:clamp(84px,15vh,140px)}
 .hm-side{display:flex;flex-direction:column;gap:14px}
 .hm-modes{display:flex;flex-direction:column;gap:12px}
-.hm-journey{border:1px solid rgba(226,184,90,.55);border-radius:12px;padding:14px;background:linear-gradient(160deg,rgba(43,30,18,.92),rgba(18,13,22,.92));box-shadow:0 6px 24px rgba(0,0,0,.45)}
-.hm-kicker{font-family:Cinzel,Georgia,serif;font-size:calc(11px*var(--fs-k,1));letter-spacing:.18em;color:#e2b85a;text-transform:uppercase}
-.hm-where{font-family:Cinzel,Georgia,serif;font-size:calc(19px*var(--fs-k,1));color:#f6dea0;margin:4px 0 2px}
-.hm-meta{font-size:calc(13px*var(--fs-k,1));color:#b9afc4}
-.hm-prog{height:4px;border-radius:2px;background:rgba(0,0,0,.5);margin:10px 0 12px;overflow:hidden}
-.hm-prog b{display:block;height:100%;background:linear-gradient(90deg,#e2b85a,#fff1c4)}
+.hm-panel{border:1px solid var(--line);border-radius:14px;background:linear-gradient(160deg,rgba(30,22,16,.86),var(--panel) 60%);box-shadow:0 10px 30px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,241,196,.06)}
+.hm-journey{padding:16px;border-color:rgba(226,184,90,.5)}
+.hm-top{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.hm-pct{font-family:Cinzel,Georgia,serif;font-size:calc(11px*var(--fs-k,1));color:var(--gold);letter-spacing:.1em;white-space:nowrap}
+.hm-kicker{font-family:Cinzel,Georgia,serif;font-size:calc(11px*var(--fs-k,1));letter-spacing:.18em;color:var(--gold);text-transform:uppercase}
+.hm-where{font-family:Cinzel,Georgia,serif;font-size:calc(20px*var(--fs-k,1));color:var(--gold-hi);margin:5px 0 8px;line-height:1.2}
+.hm-meta{display:flex;flex-wrap:wrap;gap:6px;font-size:calc(12.5px*var(--fs-k,1));color:#c8bfd2}
+.hm-meta>span{padding:3px 9px;border-radius:999px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);white-space:nowrap}
+.hm-meta>span:only-child{white-space:normal;border-radius:8px}
+.hm-prog{height:4px;border-radius:2px;background:rgba(0,0,0,.5);margin:12px 0 14px;overflow:hidden}
+.hm-prog b{display:block;height:100%;background:linear-gradient(90deg,#b88a34,#fff1c4);box-shadow:0 0 8px rgba(255,220,150,.6)}
 .hm-btns{display:flex;gap:8px;flex-wrap:wrap}
-.hm-btn{flex:1;min-width:120px;min-height:46px;font-family:Cinzel,Georgia,serif;font-size:calc(15px*var(--fs-k,1));letter-spacing:.06em;border-radius:8px;border:1px solid rgba(226,184,90,.55);background:rgba(20,14,24,.9);color:#ddd4c6;cursor:pointer;padding:8px 12px;touch-action:manipulation}
-.hm-btn.primary{flex:2;background:linear-gradient(#8a6424,#4e3511);color:#fff6dc;border-color:#f6dea0;font-size:calc(17px*var(--fs-k,1));box-shadow:0 0 18px rgba(226,184,90,.25)}
+.hm-btn{flex:1;min-width:120px;min-height:46px;font-family:Cinzel,Georgia,serif;font-size:calc(15px*var(--fs-k,1));letter-spacing:.06em;border-radius:10px;border:1px solid rgba(226,184,90,.45);
+  background:rgba(20,14,24,.85);color:var(--ink);cursor:pointer;padding:8px 12px;touch-action:manipulation;transition:transform .12s ease,box-shadow .2s ease,border-color .2s ease,background .2s ease}
+.hm-btn.primary{flex:2;background:linear-gradient(#9a7029,#5a3d13);color:#fff6dc;border-color:#f6dea0;font-size:calc(17px*var(--fs-k,1));box-shadow:0 0 22px rgba(226,184,90,.28),inset 0 1px 0 rgba(255,241,196,.35)}
 .hm-btn.warn{color:#ffb08a;border-color:#ff8a5a}
-.hm-btn:active{transform:translateY(1px)}
+.hm-btn:active{transform:translateY(1px) scale(.99)}
+.hm-btn:disabled{opacity:.55;cursor:default}
 .hm-btn:focus-visible,.hm-card:focus-visible{outline:2px solid #fff1c4;outline-offset:2px}
-.hm-h{font-family:Cinzel,Georgia,serif;font-size:calc(13px*var(--fs-k,1));letter-spacing:.18em;color:#e2b85a;text-transform:uppercase;display:flex;align-items:center;gap:10px;margin:2px 0 -4px}
+@media (hover:hover){.hm-btn:not(:disabled):hover{border-color:#f6dea0;box-shadow:0 0 18px rgba(226,184,90,.22)}.hm-btn.primary:hover{box-shadow:0 0 30px rgba(226,184,90,.45),inset 0 1px 0 rgba(255,241,196,.35)}}
+.hm-h{font-family:Cinzel,Georgia,serif;font-size:calc(12px*var(--fs-k,1));letter-spacing:.22em;color:var(--gold);text-transform:uppercase;display:flex;align-items:center;gap:10px;margin:2px 0 -4px}
 .hm-h::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,rgba(226,184,90,.45),transparent)}
 .hm-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
-.hm-card{position:relative;text-align:left;display:flex;flex-direction:column;gap:3px;min-height:112px;padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,.08);border-left:3px solid var(--a);
-  background:linear-gradient(150deg,color-mix(in srgb,var(--a) 16%,#130f19),#100c15 70%);color:#ddd4c6;font-family:Georgia,serif;cursor:pointer;touch-action:manipulation;overflow:hidden}
-.hm-card svg{width:26px;height:26px;stroke:var(--a);fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;margin-bottom:2px}
-.hm-card b{font-family:Cinzel,Georgia,serif;font-weight:normal;font-size:calc(15px*var(--fs-k,1));color:#f6dea0;letter-spacing:.03em}
+.hm-card{--a:#e2b85a;position:relative;text-align:left;display:flex;flex-direction:column;gap:4px;min-height:118px;padding:12px 12px 11px;border-radius:12px;border:1px solid rgba(255,255,255,.08);
+  background:radial-gradient(120% 90% at 0% 0%,color-mix(in srgb,var(--a) 20%,transparent),transparent 60%),linear-gradient(160deg,rgba(24,18,32,.88),rgba(12,9,17,.9));
+  box-shadow:0 6px 18px rgba(0,0,0,.35),inset 0 1px 0 color-mix(in srgb,var(--a) 30%,transparent);color:var(--ink);font-family:Georgia,serif;cursor:pointer;touch-action:manipulation;overflow:hidden;
+  transition:transform .16s ease,box-shadow .2s ease,border-color .2s ease}
+.hm-card::after{content:'';position:absolute;left:12px;right:12px;top:0;height:2px;border-radius:0 0 2px 2px;background:linear-gradient(90deg,var(--a),transparent)}
+.hm-ico{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;background:color-mix(in srgb,var(--a) 16%,rgba(0,0,0,.4));border:1px solid color-mix(in srgb,var(--a) 45%,transparent);margin-bottom:4px;flex:none}
+.hm-card svg{width:20px;height:20px;stroke:var(--a);fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.hm-card b{font-family:Cinzel,Georgia,serif;font-weight:normal;font-size:calc(14.5px*var(--fs-k,1));color:var(--gold-hi);letter-spacing:.03em;line-height:1.2}
 .hm-card span{font-size:calc(12px*var(--fs-k,1));color:#a79db2;line-height:1.3}
-.hm-card em{font-style:normal;font-size:calc(12px*var(--fs-k,1));color:var(--a);margin-top:auto;padding-top:4px}
-.hm-card.new::before{content:'NEW';position:absolute;top:9px;right:9px;font-family:Cinzel,Georgia,serif;font-size:calc(9px*var(--fs-k,1));letter-spacing:.12em;color:#140e04;background:#f6dea0;border-radius:3px;padding:2px 5px}
-.hm-card.locked{cursor:default;filter:saturate(.25);opacity:.62}
-.hm-card.locked em{color:#9b92a6}
+.hm-card em{font-style:normal;font-size:calc(11.5px*var(--fs-k,1));color:var(--a);margin-top:auto;padding-top:5px;letter-spacing:.02em}
+.hm-card.new::before{content:'NEW';position:absolute;top:12px;right:11px;font-family:Cinzel,Georgia,serif;font-size:calc(9px*var(--fs-k,1));letter-spacing:.14em;color:var(--a);
+  border:1px solid color-mix(in srgb,var(--a) 60%,transparent);background:color-mix(in srgb,var(--a) 12%,transparent);border-radius:999px;padding:2px 7px}
+.hm-card.locked{cursor:default;filter:saturate(.2);opacity:.6}
+.hm-card.locked::before{content:'';position:absolute;top:12px;right:12px;width:12px;height:12px;border-radius:2px;border:1.5px solid #9b92a6;border-top-width:5px;opacity:.8}
+.hm-card.locked em{color:var(--muted)}
 .hm-card:not(.locked):active{transform:scale(.98)}
-.hm-today{border:1px solid rgba(154,200,255,.4);border-radius:12px;padding:12px 14px;background:linear-gradient(160deg,rgba(18,28,44,.92),rgba(14,12,22,.92))}
-.hm-today .hm-kicker{color:#9ac8ff;display:flex;justify-content:space-between;gap:8px}
-.hm-calls{list-style:none;margin:8px 0;padding:0;display:flex;flex-direction:column;gap:5px}
-.hm-calls li{display:flex;gap:8px;align-items:baseline;font-size:calc(13px*var(--fs-k,1));color:#cfd6e4;line-height:1.3}
-.hm-calls li i{font-style:normal;width:1.1em;color:#6f7a8c;flex:none}
-.hm-calls li.done{color:#8f9bb0}.hm-calls li.done i{color:#9be07a}
-.hm-calls li u{text-decoration:none;margin-left:auto;color:#8f9bb0;white-space:nowrap;font-size:calc(12px*var(--fs-k,1))}
+@media (hover:hover){.hm-card:not(.locked):hover{transform:translateY(-2px);border-color:color-mix(in srgb,var(--a) 50%,transparent);box-shadow:0 10px 26px rgba(0,0,0,.45),0 0 22px color-mix(in srgb,var(--a) 22%,transparent)}}
+.hm-today{padding:13px 15px;border-color:rgba(154,200,255,.38);background:linear-gradient(160deg,rgba(18,28,46,.88),rgba(13,11,22,.86) 70%)}
+.hm-today .hm-kicker{color:#9ac8ff;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.hm-streak{display:inline-flex;align-items:center;gap:5px;padding:2px 9px;border-radius:999px;background:rgba(154,200,255,.1);border:1px solid rgba(154,200,255,.3);letter-spacing:.1em}
+.hm-streak::before{content:'';width:7px;height:7px;border-radius:50%;background:#ffb070;box-shadow:0 0 8px #ff9a40}
+.hm-calls{list-style:none;margin:10px 0 8px;padding:0;display:flex;flex-direction:column;gap:2px}
+.hm-calls li{display:flex;gap:10px;align-items:baseline;font-size:calc(13px*var(--fs-k,1));color:#cfd6e4;line-height:1.3;padding:5px 6px;border-radius:7px}
+.hm-calls li:nth-child(odd){background:rgba(255,255,255,.025)}
+.hm-calls li i{font-style:normal;width:1.1em;color:#6f7a8c;flex:none;text-align:center}
+.hm-calls li.done{color:#8f9bb0}.hm-calls li.done i{color:#9be07a}.hm-calls li.done span{text-decoration:line-through;text-decoration-color:rgba(155,224,122,.45)}
+.hm-calls li u{text-decoration:none;margin-left:auto;color:#8f9bb0;white-space:nowrap;font-size:calc(12px*var(--fs-k,1));font-variant-numeric:tabular-nums}
 .hm-chron{font-size:calc(12px*var(--fs-k,1));color:#b9afc4;margin:6px 0 2px}
-.hm-today .hm-prog{margin:4px 0 10px}.hm-today .hm-prog b{background:linear-gradient(90deg,#6fa8e8,#d8ecff)}
-.hm-today .hm-btn.primary{background:linear-gradient(#2c5a8a,#16304e);border-color:#9ac8ff;box-shadow:0 0 18px rgba(120,170,255,.2)}
-.hm-chr{position:fixed;inset:0;z-index:14;background:rgba(6,5,10,.94);overflow-y:auto;font-family:Georgia,serif;color:#ddd4c6;padding:calc(env(safe-area-inset-top) + 16px) 16px calc(env(safe-area-inset-bottom) + 16px)}
+.hm-today .hm-prog{margin:6px 0 12px}.hm-today .hm-prog b{background:linear-gradient(90deg,#4f88c8,#d8ecff);box-shadow:0 0 8px rgba(150,200,255,.5)}
+.hm-today .hm-btn.primary{background:linear-gradient(#2f5f92,#16304e);border-color:#9ac8ff;box-shadow:0 0 18px rgba(120,170,255,.22),inset 0 1px 0 rgba(216,236,255,.25)}
+.hm-chr{position:fixed;inset:0;z-index:14;background:rgba(6,5,10,.94);overflow-y:auto;font-family:Georgia,serif;color:#ddd4c6;padding:calc(env(safe-area-inset-top) + 16px) 16px calc(env(safe-area-inset-bottom) + 16px);animation:hmRise .3s ease both}
 .hm-chr>div{max-width:560px;margin:0 auto;display:flex;flex-direction:column;gap:10px}
 .hm-chr ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px}
 .hm-chr li{display:flex;gap:10px;font-size:calc(13px*var(--fs-k,1));padding:6px 8px;border-radius:6px;background:rgba(255,255,255,.03)}
@@ -73,33 +105,37 @@ const CSS = `
 .hm-chr li.got{color:#8f9bb0}.hm-chr li.got b{color:#9be07a}
 .hm-chr li.next{outline:1px solid rgba(154,200,255,.6)}
 .hm-more{display:flex;flex-direction:column;gap:8px}
-.hm-keep{margin-top:8px;display:flex;flex-direction:column;align-items:flex-start;gap:2px}
-.hm-link{background:none;border:0;padding:6px 2px;font:inherit;font-size:calc(12px*var(--fs-k,1));color:#b9a98a;text-decoration:underline;cursor:pointer;text-align:left}
+.hm-keep{margin-top:10px;display:flex;flex-direction:column;align-items:flex-start;gap:2px}
+.hm-link{background:none;border:0;padding:6px 2px;font:inherit;font-size:calc(12px*var(--fs-k,1));color:#b9a98a;text-decoration:underline;text-decoration-color:rgba(185,169,138,.4);text-underline-offset:3px;cursor:pointer;text-align:left}
 .hm-link.warn{color:#ffb08a}
 .hm-link:focus-visible{outline:2px solid #f6dea0;outline-offset:2px}
-.hm-note{font-size:calc(11.5px*var(--fs-k,1));color:#9b92a6;line-height:1.4}
+.hm-note{font-size:calc(11.5px*var(--fs-k,1));color:var(--muted);line-height:1.45}
 .hm-note:empty{display:none}
 .hm-more .hm-btn{font-size:calc(13px*var(--fs-k,1));min-height:40px;text-align:left}
-.hm-foot{margin-top:auto;text-align:center;font-size:calc(11px*var(--fs-k,1));color:#9b92a6;padding-top:6px}
+.hm-foot{margin-top:auto;text-align:center;font-size:calc(11px*var(--fs-k,1));color:#7f7789;padding-top:6px;letter-spacing:.04em}
 .hm-foot.fresh{color:#f6dea0}
 @media (min-width:720px){
-  .hm-wrap{display:grid;grid-template-columns:minmax(270px,340px) 1fr;grid-template-rows:auto 1fr auto;align-items:start;column-gap:18px}
+  .hm-wrap{display:grid;grid-template-columns:minmax(280px,350px) 1fr;grid-template-rows:auto 1fr auto;align-items:start;column-gap:22px}
   .hm-side{grid-row:1/3}
   .hm-modes{padding-top:6px}
   .hm-grid{grid-template-columns:repeat(4,minmax(0,1fr))}
-  .hm-stage{height:clamp(70px,18vh,150px)}
+  .hm-stage{height:clamp(70px,16vh,140px)}
   .hm-foot{grid-column:1/3}
 }
 /* A phone held sideways: the cards drop their sentence so all eight sit on screen at once. */
 @media (min-width:720px) and (max-height:520px){
-  .hm-side{gap:8px}.hm-stage{height:clamp(48px,14vh,80px)}.hm-sub{display:none}.hm-word{font-size:calc(30px*var(--fs-k,1))}.hm-asc{font-size:calc(13px*var(--fs-k,1))}
-  .hm-card{min-height:0;padding:9px 10px}.hm-card span{display:none}.hm-card svg{width:22px;height:22px}
-  .hm-journey{padding:11px}.hm-where{font-size:calc(16px*var(--fs-k,1))}.hm-prog{margin:7px 0 9px}.hm-btn{min-height:40px}
+  .hm-side{gap:8px}.hm-stage{height:clamp(44px,13vh,76px)}.hm-sub,.hm-orn{display:none}.hm-word{font-size:calc(28px*var(--fs-k,1))}.hm-asc{font-size:calc(12px*var(--fs-k,1));margin-top:5px}
+  .hm-card{min-height:0;padding:9px 10px;gap:2px}.hm-card span{display:none}.hm-ico{width:26px;height:26px;border-radius:8px;margin-bottom:2px}.hm-card svg{width:16px;height:16px}.hm-card em{padding-top:2px}
+  .hm-card.new::before{top:9px;right:8px;padding:1px 5px}
+  .hm-journey{padding:11px 12px}.hm-where{font-size:calc(16px*var(--fs-k,1));margin:3px 0 6px}.hm-prog{margin:8px 0 9px}.hm-btn{min-height:40px}.hm-keep{margin-top:4px}
   /* Today folds to one line: the streak, and the button for the next call. */
-  .hm-modes{min-width:0}.hm-today{padding:6px 10px;display:flex;align-items:center;gap:10px;min-width:0}.hm-today .hm-btns,.hm-today .hm-btn{min-width:0}.hm-today .hm-calls,.hm-today .hm-chron,.hm-today .hm-prog{display:none}
-  .hm-today .hm-kicker{flex:none;flex-direction:column;gap:0}.hm-today .hm-btns{flex:1;flex-wrap:nowrap}.hm-today .hm-btn{min-height:32px;padding:4px 10px;font-size:calc(12px*var(--fs-k,1));white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .hm-modes{min-width:0;gap:9px}.hm-today{padding:6px 10px;display:flex;align-items:center;gap:10px;min-width:0}.hm-today .hm-btns,.hm-today .hm-btn{min-width:0}.hm-today .hm-calls,.hm-today .hm-chron,.hm-today .hm-prog{display:none}
+  .hm-today .hm-kicker{flex:none;flex-direction:column;gap:2px;align-items:flex-start}.hm-today .hm-streak{padding:0;border:0;background:none;letter-spacing:.08em}.hm-today .hm-streak::before{width:5px;height:5px}.hm-today .hm-btns{flex:1;flex-wrap:nowrap}.hm-today .hm-btn{min-height:32px;padding:4px 10px;font-size:calc(12px*var(--fs-k,1));white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 }
 `;
+
+/** The chapters counted in words, as the wordmark's line reads. */
+const COUNT: Record<number, string> = { 13: 'Thirteen', 14: 'Fourteen', 15: 'Fifteen', 16: 'Sixteen', 17: 'Seventeen', 18: 'Eighteen' };
 
 const ICON: Record<string, string> = {
   chapters: 'M4 5c3-1 5-1 8 1 3-2 5-2 8-1v13c-3-1-5-1-8 1-3-2-5-2-8-1zM12 6v14',
@@ -149,14 +185,18 @@ export class Home {
     this.root = el('div', 'hm');
     const wrap = el('div', 'hm-wrap');
     const head = el('div', 'hm-head');
-    head.append(el('div', 'hm-word', 'REMNANT'), el('div', 'hm-asc', 'ASCENSION'), Object.assign(el('div', 'hm-sub', 'Thirteen chapters · One covenant'), { id: 'title_subtitle' }));
+    const orn = el('div', 'hm-orn'); orn.appendChild(el('i'));
+    head.append(el('div', 'hm-word', 'REMNANT'), el('div', 'hm-asc', 'ASCENSION'), orn, Object.assign(el('div', 'hm-sub', `${COUNT[CHAPTERS.length] ?? CHAPTERS.length} chapters · One covenant`), { id: 'title_subtitle' }));
     this.stage = el('div', 'hm-stage');
     const side = el('div', 'hm-side');
-    side.append(head, this.stage, this.journey());
+    const journey = this.journey();
+    side.append(head, this.stage, journey);
     this.foot = el('div', 'hm-foot');
     const right = this.modes(), today = this.today();
     if (today) right.prepend(today);
     wrap.append(side, right, this.foot);
+    // The parts rise in reading order: the wordmark, the journey, today, then each mode's card.
+    [head, journey, today, ...right.querySelectorAll('.hm-h,.hm-card,.hm-note'), this.foot].forEach((e, i) => { if (!e) return; e.classList.add('hm-rise'); (e as HTMLElement).style.setProperty('--i', String(i)); });
     this.root.appendChild(wrap);
     document.body.appendChild(this.root);
     // A controller moves between every button here (✕ presses; the first is focused: Continue or Begin).
@@ -168,10 +208,13 @@ export class Home {
 
   destroy() { popLayer(this.root); this.style.remove(); }
 
+  /** Fade the page out as a mode starts (the scene change follows). */
+  leave() { this.root.classList.add('hm-leave'); }
+
   // ---------------------------------------------------------------- the journey
 
   private journey() {
-    const { save } = this.h, box = el('section', 'hm-journey');
+    const { save } = this.h, box = el('section', 'hm-journey hm-panel');
     const btns = el('div', 'hm-btns');
     const button = (label: string, k: string, cls: string, go: (b: HTMLButtonElement) => void) => {
       const b = el('button', 'hm-btn ' + cls, label) as HTMLButtonElement; b.dataset.k = k;
@@ -179,16 +222,19 @@ export class Home {
     };
     if (save) {
       const ch = this.chapterHere(save), done = withSave(save, () => CHAPTERS.filter((c) => c.done()).length);
-      box.append(el('div', 'hm-kicker', save.room === 'trial_arena' ? 'In the Trial of the Remnant' : ch ? `Chapter ${ch.roman} · ${ch.title}` : 'Your journey'),
-        el('div', 'hm-where', ROOMS[save.room]?.name ?? 'The Sanctuary'),
-        el('div', 'hm-meta', `Level ${save.level} · ${save.silver ?? 0} silver · ${done} of ${CHAPTERS.length} chapters complete`));
-      const prog = el('div', 'hm-prog'), bar = el('b'); bar.style.width = `${Math.round((done / CHAPTERS.length) * 100)}%`; prog.appendChild(bar);
+      const pct = Math.round((done / CHAPTERS.length) * 100), top = el('div', 'hm-top');
+      top.append(el('div', 'hm-kicker', save.room === 'trial_arena' ? 'In the Trial of the Remnant' : ch ? `Chapter ${ch.roman} · ${ch.title}` : 'Your journey'), el('div', 'hm-pct', `${pct}%`));
+      const meta = el('div', 'hm-meta');
+      meta.append(el('span', '', `Level ${save.level}`), el('span', '', `${save.silver ?? 0} silver`), el('span', '', `${done} of ${CHAPTERS.length} chapters complete`));
+      box.append(top, el('div', 'hm-where', ROOMS[save.room]?.name ?? 'The Sanctuary'), meta);
+      const prog = el('div', 'hm-prog'), bar = el('b'); bar.style.width = `${pct}%`; prog.appendChild(bar);
       box.appendChild(prog);
       button('Continue', 'title_first', 'primary', () => this.h.play());
       button('New journey', 'title_second', '', (b) => { if (!this.h.begin()) { b.textContent = 'Tap again: a new journey'; b.classList.add('warn'); } });
     } else {
-      box.append(el('div', 'hm-kicker', 'A new journey'), el('div', 'hm-where', 'The Ashen Village'),
-        el('div', 'hm-meta', 'Elior wakes in the ruins. Thirteen chapters lie ahead.'));
+      const meta = el('div', 'hm-meta');
+      meta.appendChild(el('span', '', `Elior wakes in the ruins. ${COUNT[CHAPTERS.length] ?? CHAPTERS.length} chapters lie ahead.`));
+      box.append(el('div', 'hm-kicker', 'A new journey'), el('div', 'hm-where', 'The Ashen Village'), meta);
       box.appendChild(el('div', 'hm-prog'));
       button('Begin', 'title_first', 'primary', () => this.h.begin());
     }
@@ -229,9 +275,9 @@ export class Home {
     const s = this.h.save as PhaserSave | null;
     if (!s) return null;
     if (settleDay(s).length) writeSave(s);
-    const d = s.day!, box = el('section', 'hm-today');
+    const d = s.day!, box = el('section', 'hm-today hm-panel');
     box.dataset.k = 'title_today';
-    const kick = el('div', 'hm-kicker'), streak = el('span', '', `${d.streak} ${d.streak === 1 ? 'day' : 'days'} in a row`);
+    const kick = el('div', 'hm-kicker'), streak = el('span', 'hm-streak', `${d.streak} ${d.streak === 1 ? 'day' : 'days'} in a row`);
     streak.dataset.k = 'title_streak';
     kick.append(el('span', '', 'Today'), streak);
     const list = el('ul', 'hm-calls');
@@ -320,7 +366,7 @@ export class Home {
       const b = el('button', 'hm-card' + (c.locked ? ' locked' : '') + (c.isNew ? ' new' : '')) as HTMLButtonElement;
       b.dataset.k = `title_${c.id}`;
       b.style.setProperty('--a', c.accent);
-      b.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${ICON[c.id] ?? ''}"/></svg>`;
+      b.innerHTML = `<i class="hm-ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="${ICON[c.id] ?? ''}"/></svg></i>`;
       b.append(el('b', '', c.name), el('span', '', c.line), el('em', '', c.locked ?? c.status));
       if (c.locked) b.setAttribute('aria-disabled', 'true');
       b.addEventListener('click', () => {
