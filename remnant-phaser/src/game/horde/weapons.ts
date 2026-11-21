@@ -621,7 +621,7 @@ export class Arsenal {
     const h = this.h, spots: { x: number; y: number }[] = this.targets(300, 7).map((f) => ({ x: f.x, y: f.y }));
     if (h.boss) spots.unshift({ x: h.boss.x, y: h.boss.y });
     while (spots.length < 7) { const a = Math.random() * Math.PI * 2; spots.push({ x: h.hero.x + Math.cos(a) * 80, y: h.hero.y + Math.sin(a) * 64 }); }
-    h.hero.play('arc', 0.6);
+    h.hero.play('sky', 0.6);
     spots.slice(0, 7).forEach((p, i) => this.later(0.1 + i * 0.09, () => { this.strike(p.x, p.y, 46 * h.areaMult, 24, 'storm', i === 0); if (!i) h.impact(p.x, p.y - 20, 0.7); }));
   }
 

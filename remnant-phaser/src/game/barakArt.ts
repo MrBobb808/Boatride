@@ -13,3 +13,17 @@ export function barakFrame(clip: string, progress: number) {
     default: return 0;
   }
 }
+
+/**
+ * A pose from all of Barak's sheets: his eight (C17) or the Beast's (C18) for moving, and for a move the row of four
+ * frames on his move sheet (C19) or the Beast's (C21): 0 Spark Jab, 1 Chain Lightning, 2 guard, 3 Flash Step,
+ * 4 Piercing Current, 5 Thunderclap, 6 Forked Spear, 7 Skybreaker. `u` runs 0–1 through the move.
+ */
+export const BARAK_ROWS: Record<string, number> = { jab: 0, b1: 0, b2: 0, arc: 1, cast: 1, b3: 1, bowRelease: 1, guard: 2, roll: 3, dash: 3, airdash: 3, rush: 4, clap: 5, spear: 6, sky: 7, invoke: 7, storm: 7 };
+export function barakPose(clip: string, u: number, beast: boolean): { key: string; frame: number } {
+  // The shift into the Beast (C23): four frames, crouch to full height.
+  if (clip === 'shift') return { key: 'barak-shift', frame: Math.min(3, Math.max(0, Math.floor(u * 4))) };
+  const row = BARAK_ROWS[clip];
+  if (row === undefined) return { key: beast ? 'barak-beast' : 'barak', frame: barakFrame(clip, u) };
+  return { key: beast ? 'barak-beast-moves' : 'barak-moves', frame: row * 4 + Math.min(3, Math.max(0, Math.floor(u * 4))) };
+}

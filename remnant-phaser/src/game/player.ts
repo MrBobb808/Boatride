@@ -7,7 +7,7 @@
 
 import { trank, heroLevel } from './archer';
 import Phaser from 'phaser';
-import { stormHit, type StormMove, barakFrame, discharge } from './barak';
+import { stormHit, type StormMove, barakFrame, barakStrike, BARAK_MOVES, THUNDERHEAD_T, type BarakMoveId } from './barak';
 import { Bow } from './bow';
 import { UriKit } from './uriKit';
 import { StyleMeter, STYLE_NAMES, RANKS, type CombatStyle, type PlayableHero } from './style';
@@ -80,8 +80,15 @@ export class Player {
   private stormMove: StormMove = 'thunderclap';
   private stormPulse = 0;
   private stormHits = new Set<FoeLike>();
-  private arcHeavy = false;
+  /** Barak's move in play (game/barak.ts BARAK_MOVES), whether it has struck, how long Heavy has been held into the
+   * Thunderhead, and whether the Thunder Drop has landed. */
+  private barakMove: BarakMoveId = 'jab1';
   private arcReleased = false;
+  private barakCharge = 0;
+  private dropLanded = false;
+  private palms = 0;
+  /** Strike pressed during a jab: the next link of the string, as soon as the jab has struck. */
+  private barakQueued: '' | 'next' | 'drop' = '';
   private trail: { sprite:Phaser.GameObjects.Sprite; life:number }[] = [];
   private trailT = 0;
   state: State = 'free';
@@ -235,7 +242,7 @@ export class Player {
     this.w.spark(this.x,this.y,this.hero === 'barak' ? 0x88dfff : this.hero === 'tirzah' ? 0xa6efdc : this.hero === 'uri' ? 0xff8a3a : 0xffd27a,12);
     this.w.toast(this.hero === 'tirzah' ? 'Tirzah · bow and arrow · hold Strike to charge; Up + Strike for spread'
       : this.hero === 'uri' ? 'Uri and his shaman · Strike: fireball · Heavy: wave (hold: Great Fireball; Blazing: Supernova) · Down + Heavy: Geyser · Dodge: Flame Dash (Strike in it: Comet Fan) · Hold Jump falling: Updraft'
-      : this.hero === 'barak' ? 'Barak · Strike: Spark Jab · Heavy: Chain Lightning · Dodge: Flash Step'
+      : this.hero === 'barak' ? 'Barak · Strike ×3: the Spark String (Up: Rising Volt) · Heavy: Chain Lightning (hold: Thunderhead) · in the air: Static Palm, Down: Thunder Drop · Dodge, then Strike: Flash Jab'
       : 'Elior · ' + STYLE_NAMES[this.combatStyle]);
     return true;
   }
@@ -350,7 +357,7 @@ export class Player {
     if (!this.phantomT && this.state !== 'phantom') { this.phantomN = 0; this.phantomStruck.clear(); }
     this.comboT = Math.max(0, this.comboT - dt);
     if (!this.comboT) this.comboHits = 0;
-    if (this.onGround) { this.airAttacks = 0; this.airChain = false; this.airDash = this.airDashes(); this.airJumps = this.airJumpCount(); }
+    if (this.onGround) { this.airAttacks = 0; this.palms = 0; this.airChain = false; this.airDash = this.airDashes(); this.airJumps = this.airJumpCount(); }
     if (this.state !== 'dead' && (s.flags.relic_taken || !this.powers?.L.storyEnabled)) s.ce = Math.min(this.maxCe, s.ce + CE_REGEN * this.w.d.ceRegen * dt);
     this.coyote = this.onGround ? COYOTE : Math.max(0, this.coyote - dt);
     this.jumpBuf = c.pressed('jump') ? BUFFER : Math.max(0, this.jumpBuf - dt);
@@ -405,7 +412,7 @@ export class Player {
           this.airJumps--; this.jumpBuf = 0; b.setVelocityY(-JUMP_V * 0.9);
         }
         if (this.defence()) break;
-        if (this.hero === 'barak' && c.pressed('heavy') && !c.down('up')) this.startArc(true);
+        if (this.hero === 'barak' && c.pressed('heavy') && !c.down('up')) this.startBarak(this.onGround ? 'chain' : 'drop');
         else if (this.chainPressed()) this.chooseChain(this.linger);
         else if (c.pressed('heavy') && !c.down('up')) {
           if (this.onGround && [this.moves.combo[2].id, this.moves.extra.id].includes(this.linger)) this.startMove(this.moves.storm);
@@ -435,21 +442,7 @@ export class Player {
         if (this.st >= (move === 'skybreaker' ? 0.92 : 0.44)) this.toFree();
         break;
       }
-      case 'lightning': {
-        b.setVelocityX(b.velocity.x * 0.82);
-        if (!this.arcReleased && this.st >= (this.arcHeavy ? 0.13 : 0.045)) {
-          this.arcReleased = true;
-          const landed = discharge(this.w, this, this.arcHeavy);
-          if (landed) {
-            this.comboHits += landed;
-            s.bestCombo = Math.max(s.bestCombo ?? 0, this.comboHits);
-            this.noteStyle(this.arcHeavy ? 'chain-lightning' : 'spark-jab');
-            if (s.flags.relic_taken) s.ce = Math.min(this.maxCe, s.ce + CE_HIT);
-          }
-        }
-        if (this.st >= (this.arcHeavy ? 0.52 : 0.21)) this.toFree();
-        break;
-      }
+      case 'lightning': this.updateBarak(dt); break;
       case 'attack': this.updateAttack(actionDt); break;
       case 'hook': this.updateHook(); break;
       case 'charge': {
@@ -469,7 +462,7 @@ export class Player {
         b.setVelocityX(b.velocity.x * 0.7);
         // A perfect parry opens straight into the riposte.
         if (this.counterT > 0 && c.pressed('attack')) { this.chooseAttack(); break; }
-        if (this.counterT > 0 && c.pressed('heavy')) { if (this.hero === 'barak') this.startArc(true); else this.startCharge('heavy'); break; }
+        if (this.counterT > 0 && c.pressed('heavy')) { if (this.hero === 'barak') this.startBarak('chain'); else this.startCharge('heavy'); break; }
         // Held past the window, the guard stays up as a block.
         if (this.st >= 0.3) this.state = c.down('parry') ? 'block' : 'free';
         break;
@@ -502,7 +495,7 @@ export class Player {
       case 'dodge':
         if (this.hero === 'barak') stormHit(this.w, this, 'dash', this.stormHits);
         b.setVelocityX(this.face * DODGE_V * (this.hero === 'barak' ? (this.mantleT > 0 ? 1.9 : 1.22) : 1) * (this.combatStyle === 'wraith' ? 1.2 : 1) * (1 - (this.st / DODGE_T) * 0.5));
-        if (c.pressed('attack') && this.st > 0.08) { if (this.hero === 'barak') this.startArc(false); else this.startMove(this.moves.dash); }
+        if (c.pressed('attack') && this.st > 0.08) { if (this.hero === 'barak') this.startBarak('flashjab'); else this.startMove(this.moves.dash); }
         else if (this.st >= DODGE_T) { this.sinceDodge = 0; this.toFree(); }
         break;
       case 'airdash':
@@ -646,20 +639,104 @@ export class Player {
     this.body.setVelocityX(0);
   }
 
-  private startArc(heavy: boolean) {
-    this.arcHeavy = heavy;
+  /** Begin one of Barak's moves (game/barak.ts): a lunge to start, the strike at its impact. */
+  private startBarak(id: BarakMoveId) {
+    const m = BARAK_MOVES[id];
+    this.barakMove = id;
     this.arcReleased = false;
+    this.barakQueued = '';
+    this.barakCharge = 0;
+    this.dropLanded = false;
+    this.linger = '';
     this.st = 0;
     this.face = this.swingFacing();
     this.state = 'lightning';
+    // A lunge closes the gap, never past a foe already at arm's length.
+    if (m.lunge && !this.foeAtHand(26)) this.body.setVelocityX(this.face * m.lunge * (this.mantleT > 0 ? 1.2 : 1));
+    if (id === 'drop') { this.body.setVelocityY(Math.max(520, this.body.velocity.y)); this.w.playEffect('dash'); }
+    if (id === 'palm') { this.palms++; this.body.setVelocityY(Math.min(this.body.velocity.y, -60)); }
+  }
+
+  private foeAtHand(reach: number) {
+    for (const f of this.w.foes()) {
+      if (!f.alive || f.removed || Math.abs(f.box.centerY - this.y) > 40) continue;
+      const d = this.face > 0 ? f.box.left - this.x : this.x - f.box.right;
+      if (d > -8 && d < reach) return true;
+    }
+    return false;
+  }
+
+  /** Barak's Strike: the Spark String on the ground (jab, jab, Arc Burst), the Rising Volt with Up, the Flash Jab out
+   * of a dash, the Static Palm in the air (three before he must land) and the Thunder Drop with Down. */
+  private chooseBarak() {
+    const c = this.w.controls;
+    if (this.state === 'free' && this.counterT <= 0 && this.powers?.tryExecution()) return;
+    // A perfect parry opens into the Arc Burst, once.
+    if (this.counterT > 0) { this.counterT = 0; this.startBarak('burst'); return; }
+    if (!this.onGround && !this.water.swimming) { this.startBarak(c.down('down') || this.palms >= 3 ? 'drop' : 'palm'); return; }
+    if (this.linger === 'jab1') this.startBarak('jab2');
+    else if (this.linger === 'jab2') this.startBarak('burst');
+    else if (c.down('up')) this.startBarak('volt');
+    else if (this.sinceDodge < 0.18) this.startBarak('flashjab');
+    else this.startBarak('jab1');
+  }
+
+  private updateBarak(dt: number) {
+    const b = this.body, c = this.w.controls, s = this.w.save, m = BARAK_MOVES[this.barakMove], beast = this.mantleT > 0;
+    const strike = () => {
+      this.arcReleased = true;
+      const landed = barakStrike(this.w, this, this.barakMove, beast);
+      if (this.barakMove === 'volt') b.setVelocityY(-330);
+      if (!landed) return;
+      this.comboHits += landed;
+      s.bestCombo = Math.max(s.bestCombo ?? 0, this.comboHits);
+      this.noteStyle(BARAK_MOVES[this.barakMove].style);
+      this.recentHit = 1.2;
+      if (s.flags.relic_taken) s.ce = Math.min(this.maxCe, s.ce + CE_HIT * Math.min(2, landed));
+    };
+    if (this.barakMove === 'drop') {
+      // Down he goes; where he lands, the ground rings with thunder.
+      if (!this.dropLanded) {
+        b.setVelocityX(b.velocity.x * 0.9);
+        b.setVelocityY(Math.max(560, b.velocity.y));
+        if (this.onGround && this.st > 0.03) { this.dropLanded = true; this.st = 0; b.setVelocityX(0); strike(); this.w.shake(0.006, 140); }
+        else if (this.st > 1.8) this.toFree();
+        return;
+      }
+      if (this.st >= m.end) this.toFree();
+      return;
+    }
+    b.setVelocityX(b.velocity.x * (this.barakMove === 'flashjab' ? 0.9 : 0.82));
+    if (this.barakMove === 'palm' && b.velocity.y > 40) b.setVelocityY(40);
+    // Chain Lightning held: it gathers at his hands until Heavy is let go; long enough, and it is the Thunderhead.
+    if (this.barakMove === 'chain' && !this.arcReleased && this.st >= m.impact && c.down('heavy') && this.onGround && this.barakCharge < THUNDERHEAD_T + 0.3) {
+      this.st = m.impact - 1e-3;
+      this.barakCharge += dt;
+      if (this.barakCharge >= THUNDERHEAD_T && this.barakCharge - dt < THUNDERHEAD_T) { this.w.spark(this.x + this.face * 12, this.y - 4, 0xbff0ff, 12); this.w.playEffect('mantleReady', { vol: 0.4 }); }
+      return;
+    }
+    if (this.barakMove === 'chain' && !this.arcReleased && this.barakCharge >= THUNDERHEAD_T) { this.barakMove = 'thunderhead'; this.st = 0; }
+    const now = BARAK_MOVES[this.barakMove];
+    if (!this.arcReleased && this.st >= now.impact) strike();
+    // The string goes on: Strike during a jab is kept, and the next link starts once the jab has struck.
+    // In the air a palm goes on to the next, or, with Down (or Heavy), into the Thunder Drop.
+    const linked = this.barakMove === 'jab1' || this.barakMove === 'jab2' || this.barakMove === 'palm';
+    if (linked && this.barakMove === 'palm' && (c.pressed('heavy') || (c.pressed('attack') && c.down('down')))) this.barakQueued = 'drop';
+    else if (linked && c.pressed('attack') && !this.barakQueued) this.barakQueued = 'next';
+    if (linked && this.barakQueued && this.arcReleased && this.st >= now.impact + 0.04) {
+      if (this.barakQueued === 'drop' || (this.barakMove === 'palm' && this.onGround)) { if (!this.onGround) this.startBarak('drop'); else this.toFree(); return; }
+      this.linger = this.barakMove; this.chooseBarak(); return;
+    }
+    if (this.st >= now.end) {
+      const was = this.barakMove;
+      this.toFree();
+      if (was === 'jab1' || was === 'jab2') { this.linger = was; this.lingerT = 0.45; }
+    }
   }
 
   /** The same routes for every weapon family, including deliberate pauses. */
   private chooseAttack() {
-    if (this.hero === 'barak') {
-      if (this.state !== 'free' || !this.powers?.tryExecution()) this.startArc(false);
-      return;
-    }
+    if (this.hero === 'barak') { this.chooseBarak(); return; }
     const m = this.moves, c = this.w.controls;
     if (this.phantomN >= 3 && this.phantomT > 0 && this.ce >= 10) { this.startCross(); return; }
     if (this.counterT > 0) { this.startMove({ ...m.counter, dmg: m.counter.dmg * (skillRank(this.w.save, 'g_counter') ? 1.7 : 1) }); return; }
@@ -1001,7 +1078,7 @@ export class Player {
       else if (w.strokeCd <= 0) { b.setVelocityY(-210); w.strokeCd = 0.28; this.w.playEffect('swimStroke'); } }
     if (c.pressed('dodge')) this.swimDash();
     else if (c.pressed('parry')) this.startParry();
-    else if (this.hero === 'barak' && c.pressed('attack')) this.startArc(false);
+    else if (this.hero === 'barak' && c.pressed('attack')) this.startBarak('jab1');
     else if (c.pressed('attack')) this.startMove({ ...this.moves.combo[0], dur: this.moves.combo[0].dur / 0.72, lunge: 0, ky: 0, launch: false });
     else if (['heavy', 'sub', 'heal', 'ultimate', 'transform', 'skill1', 'skill2', 'skill3'].some(a => c.pressed(a as import('./controls').Action)) && w.deniedT <= 0) { w.deniedT = 1.2; this.w.toast('Not under water. Swim, thrust, parry or dash-stroke.'); }
   }
@@ -1313,10 +1390,15 @@ export class Player {
         case 'transform':
           return { key: 'barak-shift', frame: phase(this.powers?.transformProgress ?? progress) };
         case 'lightning': {
-          const impact = this.arcHeavy ? 0.13 : 0.045;
-          const recovery = this.arcHeavy ? 0.52 : 0.21;
-          const u = this.st < impact ? this.st / impact / 2 : 0.5 + (this.st - impact) / (recovery - impact) / 2;
-          return action(this.arcHeavy ? 1 : 0, phase(u));
+          const m = BARAK_MOVES[this.barakMove];
+          // The Thunder Drop: the dash pose diving, the Thunderclap's ring where he lands.
+          if (this.barakMove === 'drop') return this.dropLanded ? action(5, this.st < 0.1 ? 2 : 3) : action(3, 2);
+          // Gathering the Thunderhead: hands drawn back, flickering as it builds.
+          if (this.barakMove === 'chain' && !this.arcReleased && this.barakCharge > 0) return action(1, this.barakCharge >= THUNDERHEAD_T && Math.floor(this.clock * 20) % 2 ? 2 : 1);
+          // Wind-up (frames 0–1) to the impact, then the strike and the recovery (2–3); the second jab starts mid-swing.
+          const start = this.barakMove === 'jab2' ? 0.25 : 0;
+          const u = this.st < m.impact ? start + (0.5 - start) * this.st / Math.max(1e-3, m.impact) : 0.5 + (this.st - m.impact) / Math.max(1e-3, m.end - m.impact) / 2;
+          return action(m.row, phase(u));
         }
         case 'block':
         case 'parry':
@@ -1361,7 +1443,7 @@ export class Player {
     else if(this.state==='hurt'){clip='hurt';uArt=this.st/.3;}
     else if(this.hero==='tirzah'&&this.bow.stabT>0){clip='dagger2';uArt=.3+(1-this.bow.stabT/STAB_T)*.7;}
     else if(this.state==='storm') clip=this.stormMove === 'piercing_current' ? (this.st < .12 ? 'parry' : 'jab') : 'arc';
-    else if(this.state==='lightning') clip=this.arcReleased ? (this.arcHeavy ? 'arc' : 'jab') : 'idle';
+    else if(this.state==='lightning') clip=BARAK_MOVES[this.barakMove].kind === 'chain' ? 'arc' : 'jab';
     else if(this.state==='flame'){clip=this.flame.clip;uArt=this.flame.u;}
     else if(this.state==='bow'&&this.bow.dagger){clip=`dagger${this.bow.dagger}`;uArt=this.bow.daggerU;}
     else if(this.state==='bow'){clip=this.bow.drawing?'bowDraw':'bowRelease';uArt=this.bow.drawing?this.bow.charge/.55:1-this.bow.recovery/.28;}

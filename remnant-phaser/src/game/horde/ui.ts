@@ -16,7 +16,7 @@ const FACES: Record<HeroId, [string, string, string, string, number]> = {
   elior: ['action-ultimate', 'STORM', 'action-transform_elior', 'MANTLE', 0xffffff],
   tirzah: ['ability-rain', 'RAIN', 'action-transform_tirzah', 'WINGS', 0xffffff],
   uri: ['ability-pillar_fire', 'FIRE', 'action-transform_elior', 'CROWN', 0xff9a50],
-  barak: ['action-attack_barak', 'STARS', 'action-transform_elior', 'STORM', 0x9fe6ff],
+  barak: ['action-attack_barak', 'STARS', 'action-transform_elior', 'BEAST', 0x9fe6ff],
 };
 
 /** Elior's violet, Tirzah's dawn gold, Uri's ember, Barak's lightning. */
