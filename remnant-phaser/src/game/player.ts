@@ -206,21 +206,20 @@ export class Player {
     this.trail = Array.from({length:4},()=>({sprite:sc.add.sprite(x,feet,'elior',0).setDepth(9).setVisible(false).setTint(0xa99ad7),life:0}));
   }
 
-  get hero(): PlayableHero { const h = this.w.save.playableHero; return h === 'tirzah' || h === 'uri' || (h === 'barak' && this.w.chapterHeroes) ? h : 'elior'; }
+  get hero(): PlayableHero { const h = this.w.save.playableHero; return h === 'tirzah' || h === 'uri' || h === 'barak' ? h : 'elior'; }
   /** Uri's fire on the journey (game/uriKit.ts). */
   flame: UriKit;
   get combatStyle(): CombatStyle { const s = this.w.save.combatStyle; return s === 'wraith' || s === 'sentinel' ? s : 'vanguard'; }
   get nextHero(): PlayableHero {
     if (this.hero === 'elior') return 'tirzah';
     if (this.hero === 'tirzah') return 'uri';
-    if (this.hero === 'uri' && this.w.chapterHeroes) return 'barak';
+    if (this.hero === 'uri') return 'barak';
     return 'elior';
   }
   /** To the next hero, or to `to` when it is given. */
   switchHero(to?: PlayableHero) {
     if (this.switchCd > 0 || G.paused || G.inCutscene || this.dead || !['free', 'swim'].includes(this.state)) { this.w.toast('Switch after the current move.'); return false; }
     // Each hero has her own maximum; the health left carries over (capped), so a switch never heals.
-    if (to === 'barak' && !this.w.chapterHeroes) return false;
     this.w.save.playableHero = to ?? this.nextHero;
     this.w.refreshStats();
     this.switchCd = 0.8; this.bow.cancel(); this.flame.cancel(); this.w.controls.flush();

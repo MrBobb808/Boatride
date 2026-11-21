@@ -4,8 +4,11 @@ import Phaser from 'phaser';
 import { actionAtlas, actionFrame, ACTION_FOOT, ACTION_CELL } from '../actionArt';
 import type { WeaponFamily } from '../../../../remnant/src/game/data';
 import type { HeroId } from './defs';
+import { barakFrame } from '../barakArt';
 
 const LOOP: Record<string, number> = { idle: 1.6, run: 0.62 };
+/** Each hero's afterimage: Elior's violet, Tirzah's dawn gold, Uri's ember, Barak's lightning. */
+const TINT: Record<HeroId, number> = { elior: 0xb48cff, tirzah: 0xffe6a8, uri: 0xff9a50, barak: 0x9fe6ff };
 
 export class HordeHero {
   x = 0;
@@ -38,6 +41,8 @@ export class HordeHero {
     // Uri and his Crown of Flame, cut from their own parts (C08, C09).
     this.keys.uri = actionAtlas(sc, 'uri', 'blade');
     this.keys['uri-form'] = actionAtlas(sc, 'uri', 'blade', true);
+    // Barak's eight poses (C17) are one sheet in and out of his form; the form shows as a charge of light.
+    this.keys.barak = this.keys['barak-form'] = 'barak';
     this.shadow = wl(sc.add.image(0, 0, 'hz-shadow').setScale(0.9, 1));
     this.wings = wl(sc.add.image(0, 0, 'vfx-transform', 27).setBlendMode(Phaser.BlendModes.ADD).setVisible(false).setScale(0.62));
     for (let i = 0; i < 16; i++) this.trail.push({ img: wl(sc.add.image(0, 0, this.keys.elior, 'idle:0').setVisible(false).setTint(0xb48cff).setTintMode(Phaser.TintModes.FILL)), life: 0 });
@@ -52,14 +57,19 @@ export class HordeHero {
     if (!g) return;
     g.life = life;
     // Another hero's afterimage (the Trinity) wears that hero's figure mid-strike.
-    const key = who === this.hero ? this.sprite.texture.key : this.keys[who], frame = who === this.hero ? this.sprite.frame.name : actionFrame(this.sc, key, who === 'tirzah' ? 'bowRelease' : who === 'uri' ? 'invoke' : 'b3', 0.5);
+    const key = who === this.hero ? this.sprite.texture.key : this.keys[who], frame = who === this.hero ? this.sprite.frame.name : this.frameOf(key, who, who === 'tirzah' ? 'bowRelease' : who === 'uri' ? 'invoke' : who === 'barak' ? 'arc' : 'b3', 0.5);
     g.img.setTexture(key, frame).setOrigin(this.sprite.originX, this.sprite.originY).setScale(0.82).setFlipX(this.face < 0)
-      .setPosition(Math.round(x), Math.round(y)).setDepth(y - 1).setTint(who === 'tirzah' ? 0xffe6a8 : who === 'uri' ? 0xff9a50 : 0xb48cff).setTintMode(Phaser.TintModes.FILL);
+      .setPosition(Math.round(x), Math.round(y)).setDepth(y - 1).setTint(TINT[who]).setTintMode(Phaser.TintModes.FILL);
   }
 
   /** The Trinity: the two heroes not in play stand at either shoulder for a few seconds, mid-strike. */
   trinity(others: HeroId[], dur: number) {
     others.forEach((who, i) => { for (let k = 0; k < 4; k++) this.sc.time.delayedCall(k * (dur * 250), () => this.ghost(this.x + (i ? 30 : -30), this.y - 4, dur / 4 + 0.15, who)); });
+  }
+
+  /** A clip's frame on a sheet: the baked atlases by name, Barak's sheet by pose. */
+  private frameOf(key: string, who: HeroId, clip: string, u: number): string | number {
+    return who === 'barak' ? barakFrame(clip, u) : actionFrame(this.sc, key, clip, u);
   }
 
   /** Play a one-shot clip (a swing, a loosed arrow) over the movement loop. */
@@ -80,10 +90,13 @@ export class HordeHero {
     }
     if (dashing) clip = this.hero === 'elior' ? 'dash' : 'roll', u = 0.5;
     const key = this.key;
-    this.sprite.setTexture(key, actionFrame(this.sc, key, clip, u)).setScale(0.82).setFlipX(this.face < 0).setPosition(Math.round(this.x), Math.round(this.y)).setDepth(this.y);
+    this.sprite.setTexture(key, this.frameOf(key, this.hero, clip, u)).setScale(0.82).setFlipX(this.face < 0).setPosition(Math.round(this.x), Math.round(this.y)).setDepth(this.y);
     // A hurt flash, then a flicker while the blow's grace lasts.
     this.hurtT = Math.max(0, this.hurtT - dt);
-    if (this.hurtT > 0.12) this.sprite.setTint(0xff5a5a).setTintMode(Phaser.TintModes.FILL); else this.sprite.clearTint().setTintMode(Phaser.TintModes.MULTIPLY);
+    if (this.hurtT > 0.12) this.sprite.setTint(0xff5a5a).setTintMode(Phaser.TintModes.FILL);
+    // Barak's form: the charge of the storm flickers through him.
+    else if (this.form && this.hero === 'barak') this.sprite.setTint(Math.floor(this.sc.time.now / 60) % 3 ? 0xc8f0ff : 0xffffff).setTintMode(Phaser.TintModes.MULTIPLY);
+    else this.sprite.clearTint().setTintMode(Phaser.TintModes.MULTIPLY);
     this.sprite.setAlpha(invuln && !dashing ? (Math.floor(this.sc.time.now / 70) % 2 ? 0.45 : 1) : 1);
     this.shadow.setPosition(Math.round(this.x), Math.round(this.y) + 1).setDepth(-40000 + this.y * 0.001);
     this.wings.setVisible(this.form && this.hero === 'tirzah');
@@ -92,7 +105,7 @@ export class HordeHero {
     this.trailT -= dt;
     if (dashing && this.trailT <= 0) {
       const g = this.trail.find((t) => t.life <= 0);
-      if (g) { g.life = 0.22; g.img.setTexture(key, this.sprite.frame.name).setOrigin(this.sprite.originX, this.sprite.originY).setScale(this.sprite.scaleX).setFlipX(this.face < 0).setPosition(this.sprite.x, this.sprite.y).setDepth(this.y - 1).setTint(this.hero === 'tirzah' ? 0xffe6a8 : 0xb48cff).setTintMode(Phaser.TintModes.FILL); }
+      if (g) { g.life = 0.22; g.img.setTexture(key, this.sprite.frame.name).setOrigin(this.sprite.originX, this.sprite.originY).setScale(this.sprite.scaleX).setFlipX(this.face < 0).setPosition(this.sprite.x, this.sprite.y).setDepth(this.y - 1).setTint(TINT[this.hero]).setTintMode(Phaser.TintModes.FILL); }
       this.trailT = 0.04;
     }
     for (const t of this.trail) { t.life -= dt; t.img.setVisible(t.life > 0).setAlpha(Math.min(1, Math.max(0, t.life / 0.22)) * 0.55); }

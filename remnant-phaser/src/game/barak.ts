@@ -2,18 +2,7 @@ import { bolt } from '../../../remnant/src/game/power';
 import { settings } from '../classic/shim/settings';
 import type { Player } from './player';
 import type { FoeLike, WorldApi } from './types';
-
-export function barakFrame(clip: string, progress: number) {
-  switch (clip) {
-    case 'run': case 'swim': return progress < 0.5 ? 1 : 2;
-    case 'jump': case 'fall': return 3;
-    case 'roll': case 'airdash': return 4;
-    case 'jab': return 5;
-    case 'arc': case 'cast': case 'invoke': return 6;
-    case 'death': case 'hurt': case 'land': case 'block': case 'parry': return 7;
-    default: return 0;
-  }
-}
+export { barakFrame } from './barakArt';
 
 /** A jab finds one foe at arm's length. The heavier discharge can leap twice,
  * choosing the nearest visible foe from the last impact on each hop. */

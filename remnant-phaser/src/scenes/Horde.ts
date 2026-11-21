@@ -40,6 +40,7 @@ const KIT: Record<HeroId, { name: string; weapon: WeaponId; skillCd: number; ski
   elior: { name: 'Elior', weapon: 'blade', skillCd: 11, skillSfx: 'swordWord', form: [1.7, 0.7, 1.15], formName: 'SHADOW MANTLE', formSub: 'Heavier, faster blows · the fallen burst in shadow', formSfx: 'transform', arrive: 'Elior · the Covenant Blade' },
   tirzah: { name: 'Tirzah', weapon: 'bow', skillCd: 9, skillSfx: 'quiverMight', form: [1.4, 1, 1.2], formName: 'WINGS OF DAWN', formSub: 'Two more arrows · they pierce deeper', formSfx: 'wingsForm', arrive: 'Tirzah · the Dawn Bow' },
   uri: { name: 'Uri', weapon: 'flame', skillCd: 12, skillSfx: 'pillarFire', form: [1.5, 0.85, 1.1], formName: 'FUSION OF FLAME', formSub: 'Uri and the shaman are one · meteors and a ring of fire', formSfx: 'transform', arrive: 'Uri · the Hand of Flame, and his shaman' },
+  barak: { name: 'Barak', weapon: 'spark', skillCd: 10, skillSfx: 'thunder', form: [1.4, 0.75, 1.35], formName: 'STORM MANTLE', formSub: 'Swifter · every bolt leaps twice more', formSfx: 'transform', arrive: 'Barak · Chain Lightning' },
 };
 const FORM_TIME = 14;
 
@@ -58,6 +59,8 @@ export class Horde extends Phaser.Scene {
   /** Uri's orc shaman, at his side while he fights. */
   shaman!: Shaman;
   private prayed = false;
+  /** Barak's verse, once a run. */
+  private starred = false;
   /** Levels Uri gained when the run was banked, for the last card. */
   private uriLevels = 0;
   hero!: HordeHero;
@@ -83,7 +86,7 @@ export class Horde extends Phaser.Scene {
   loot: Loot[] = [];
   passives: Record<PassiveId, number> = { might: 0, swift: 0, haste: 0, reach: 0, vigor: 0, renewal: 0, magnet: 0, fortune: 0, precision: 0, plenty: 0, armor: 0 };
   /** Each hero's transformation gauge (their own kills fill it); all three full opens the Trinity. */
-  gauges: Record<HeroId, number> = { elior: 0, tirzah: 0, uri: 0 };
+  gauges: Record<HeroId, number> = { elior: 0, tirzah: 0, uri: 0, barak: 0 };
   get gauge() { return this.gauges[this.heroId]; }
   set gauge(v: number) { this.gauges[this.heroId] = v; }
   /** Run aids for the level-up cards: redraws, and choices struck from the run. */
@@ -167,7 +170,7 @@ export class Horde extends Phaser.Scene {
     this.save = (loadSave() as PhaserSave | null) ?? (newSave(false) as PhaserSave);
     if (!this.save.archer) this.save.archer = newArcher(this.save);
     const eliorD = stats(this.save);
-    this.heroD = { elior: eliorD, tirzah: archerStats(this.save, eliorD), uri: uriStats(this.save, eliorD) };
+    this.heroD = { elior: eliorD, tirzah: archerStats(this.save, eliorD), uri: uriStats(this.save, eliorD), barak: eliorD };
     this.runPower = Math.max(this.power('elior'), this.power('tirzah'));
     const hs = hordeOf(this.save);
     this.bb = boardBonus(hs); this.muts = activeMuts(hs); this.night = hs.mode === 'night'; this.daily = false; this.held = false; this.embersWon = 0;
@@ -184,7 +187,7 @@ export class Horde extends Phaser.Scene {
     this.pickups = new Pickups(this);
     this.hero = new HordeHero(this, (o) => this.wl(o), eliorD.family);
     const start = this.save.playableHero;
-    this.hero.hero = start === 'tirzah' || start === 'uri' ? start : 'elior';
+    this.hero.hero = start === 'tirzah' || start === 'uri' || start === 'barak' ? start : 'elior';
     this.arsenal = new Arsenal(this);
     this.shaman = new Shaman(this);
     this.hpBar = this.wl(this.add.graphics());
@@ -209,7 +212,7 @@ export class Horde extends Phaser.Scene {
       this.overlay?.();
       this.overlay = null;
     });
-    this.arsenal.raise('blade'); this.arsenal.raise('bow'); this.arsenal.raise('flame');
+    this.arsenal.raise('blade'); this.arsenal.raise('bow'); this.arsenal.raise('flame'); this.arsenal.raise('spark');
     // A run begun as Uri brings his shaman from the start.
     this.shaman.show(this.heroId === 'uri');
     this.startStage(1);
@@ -221,7 +224,7 @@ export class Horde extends Phaser.Scene {
   private reset() {
     this.stage = 1; this.stageT = 0; this.level = 1; this.xp = 0; this.kills = 0; this.silver = 0; this.gemXp = 0; this.loot = [];
     for (const k of Object.keys(this.passives) as PassiveId[]) this.passives[k] = 0;
-    this.gauges = { elior: 0, tirzah: 0, uri: 0 }; this.rerolls = 3 + this.bb.redraws; this.banishes = 3 + this.bb.banishes; this.banned = new Set(); this.tagUntil = 0; this.tags = this.trinities = this.evolutions = 0; this.formT = 0; this.formUses = 0; this.prayed = false; this.uriLevels = 0; this.dead = false; this.banked = false; this.pendingLevels = 0;
+    this.gauges = { elior: 0, tirzah: 0, uri: 0, barak: 0 }; this.rerolls = 3 + this.bb.redraws; this.banishes = 3 + this.bb.banishes; this.banned = new Set(); this.tagUntil = 0; this.tags = this.trinities = this.evolutions = 0; this.formT = 0; this.formUses = 0; this.prayed = false; this.starred = false; this.uriLevels = 0; this.dead = false; this.banked = false; this.pendingLevels = 0;
     this.maxHp = this.hp = this.baseMaxHp();
     this.cds = { dash: 0, skill: 0, form: 0, switch: 0 };
   }
@@ -392,7 +395,10 @@ export class Horde extends Phaser.Scene {
         this.cds.skill = this.skillCd();
         if (this.heroId === 'elior') this.arsenal.storm(2.4);
         else if (this.heroId === 'tirzah') this.arsenal.rain();
-        else {
+        else if (this.heroId === 'barak') {
+          this.arsenal.starfall();
+          if (!this.starred) { this.starred = true; this.ui.banners('THE STARS FOUGHT', '“the stars in their courses fought” · Judges 5:20 (KJV)', 2.6); }
+        } else {
           this.arsenal.heaven();
           // The prayer's verse, the first time each run.
           if (!this.prayed) { this.prayed = true; this.ui.banners('FIRE FROM HEAVEN', '“Then the fire of the LORD fell” · 1 Kings 18:38 (KJV)', 2.6); }
@@ -418,7 +424,7 @@ export class Horde extends Phaser.Scene {
       const f = this.heroId === 'tirzah' ? this.swarm.nearest(this.hero.x, this.hero.y, 200) : null;
       if (f) { dx = this.hero.x - f.x; dy = this.hero.y - f.y; } else { dx = this.hero.face; dy = 0; }
     }
-    const n = Math.hypot(dx, dy) || 1, dist = this.heroId === 'elior' ? 84 : 72, x0 = this.hero.x, y0 = this.hero.y;
+    const n = Math.hypot(dx, dy) || 1, dist = this.heroId === 'elior' ? 84 : this.heroId === 'barak' ? 96 : 72, x0 = this.hero.x, y0 = this.hero.y;
     const x1 = x0 + (dx / n) * dist, y1 = y0 + (dy / n) * dist;
     // Afterimages along the way, then the hero is simply there.
     for (let i = 0; i < 3; i++) this.hero.ghost(x0 + (x1 - x0) * (i / 3), y0 + (y1 - y0) * (i / 3), 0.18 + i * 0.06);
@@ -428,6 +434,7 @@ export class Horde extends Phaser.Scene {
     this.swarm.clearShots(x0, y0 - 10, 30); this.swarm.clearShots(x1, y1 - 10, 30);
     if (this.heroId === 'elior') this.arsenal.phantomStep(x0, y0, x1, y1);
     else if (this.heroId === 'tirzah') this.arsenal.dawnstep(x0, y0, x1, y1);
+    else if (this.heroId === 'barak') this.arsenal.flashStep(x0, y0, x1, y1);
     else this.arsenal.emberStep(x0, y0, x1, y1);
     sfx('teleport', { vol: 0.5 }); sfx('dash', { vol: 0.4 }); haptic('light');
   }
@@ -499,6 +506,10 @@ export class Horde extends Phaser.Scene {
       name = 'DAWN VOLLEY';
       this.arsenal.rain();
       for (let i = 0; i < 10; i++) { const a = (i / 10) * Math.PI * 2; this.arsenal.launch('arrow', x, y - 14, Math.cos(a), Math.sin(a), 440, 12, 3, 0.6); }
+    } else if (next === 'barak') {
+      name = 'THUNDER ENTRY';
+      for (let i = 0; i < 3; i++) this.arsenal.lightning(x, y - 20, 5, 20, true, 120, i > 0);
+      this.arsenal.strike(x, y, 60 * this.areaMult, 26, 'storm', true);
     } else if (next === 'uri') {
       name = 'EMBER CRASH';
       this.arsenal.strike(x, y, 64 * this.areaMult, 34, 'fire', true);
@@ -514,21 +525,33 @@ export class Horde extends Phaser.Scene {
     this.impact(x, y - 16, 1);
   }
 
-  get trinityReady() { return HEROES.every((id) => this.gauges[id] >= 1); }
+  /** The three a Trinity would bring: the hero in play, full, and the first two others whose gauges are full. */
+  private get trinityThree(): HeroId[] | null {
+    if (this.gauges[this.heroId] < 1) return null;
+    const others = HEROES.filter((id) => id !== this.heroId && this.gauges[id] >= 1).slice(0, 2);
+    return others.length === 2 ? [this.heroId, ...others] : null;
+  }
+  get trinityReady() { return !!this.trinityThree; }
 
   /**
-   * The Trinity: every gauge spent at once. The two heroes not in play stand at either shoulder; Elior's echo cuts
-   * through the nearest foes, Tirzah's volley falls on the thickest knot, and Uri's fire comes down from heaven.
+   * The Trinity: three full gauges spent at once, the hero in play's and two others'. Those two stand at either
+   * shoulder, and each of the three brings their own: Elior's echo cuts through the nearest foes, Tirzah's volley
+   * falls on the thickest knot, Uri's fire comes down from heaven, and Barak's lightning falls from the stars.
    */
   private trinity() {
-    for (const id of HEROES) this.gauges[id] = 0;
+    const three = this.trinityThree!;
+    for (const id of three) this.gauges[id] = 0;
     this.trinities++;
     this.invuln = Math.max(this.invuln, 2);
-    this.hero.trinity(HEROES.filter((id) => id !== this.heroId), 3);
-    this.arsenal.echoCuts(8, 26);
-    this.time.delayedCall(250, () => this.arsenal.rain());
-    this.time.delayedCall(500, () => this.arsenal.heaven());
-    this.ui.banners('TRINITY', 'Elior, Tirzah and Uri as one', 2.2);
+    this.hero.trinity(three.slice(1), 3);
+    three.forEach((id, i) => this.time.delayedCall(i * 250, () => {
+      if (id === 'elior') this.arsenal.echoCuts(8, 26);
+      else if (id === 'tirzah') this.arsenal.rain();
+      else if (id === 'uri') this.arsenal.heaven();
+      else this.arsenal.starfall();
+    }));
+    const names = three.map((id) => KIT[id].name);
+    this.ui.banners('TRINITY', `${names[0]}, ${names[1]} and ${names[2]} as one`, 2.2);
     sfx('transform'); sfx('wingsForm', { vol: 0.6 }); haptic('phase');
     this.impact(this.hero.x, this.hero.y - 16, 1.5);
     this.slowMo(0.35, 0.6);

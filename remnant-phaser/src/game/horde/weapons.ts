@@ -6,7 +6,12 @@ import type { Foe } from './foes';
 import type { Horde } from '../../scenes/Horde';
 
 /** Re-hit slots on Foe.hitBy for the weapons that touch the same foe over and over. */
-const SLOT = { seraphs: 0, hallowed: 1, crescent: 2, fire: 3, storm: 4, blade: 5, ward: 6, crown: 7 };
+const SLOT = { seraphs: 0, hallowed: 1, crescent: 2, fire: 3, storm: 4, blade: 5, ward: 6, crown: 7, spark: 8 };
+
+/** The lightning's two strokes: a wide pale-blue glow, then a white core. */
+const ZAP_PASSES: [number, number, number][] = [[4, 0x5fbfff, 0.55], [1.6, 0xf0ffff, 1]];
+/** The foes one bolt has struck, reused from bolt to bolt. */
+const STRUCK: Foe[] = [];
 
 interface Anim { img: Phaser.GameObjects.Image; t: number; dur: number; f0: number; n: number; follow: boolean; ox: number; oy: number; a0: number }
 /** A bolt from above: its flicker, and the damage it carries when it lands. */
@@ -27,6 +32,9 @@ export class Arsenal {
   private ground: Phaser.GameObjects.Image;
   private chainG: Phaser.GameObjects.Graphics;
   private chainT = 0;
+  /** Barak's lightning: its own layer, so a golden chain in the same moment does not wipe it. */
+  private sparkG: Phaser.GameObjects.Graphics;
+  private sparkT = 0;
   private fires: Fire[] = [];
   private pending: { t: number; fn: () => void }[] = [];
   private bladeFlip = 1;
@@ -44,6 +52,7 @@ export class Arsenal {
     for (let i = 0; i < 8; i++) this.orbs.push(h.wl(h.add.image(0, 0, 'vfx-impacts', 19).setVisible(false).setBlendMode(Phaser.BlendModes.ADD).setScale(0.16)));
     this.ground = h.wl(h.add.image(0, 0, 'hz-ring').setVisible(false).setTint(0xffd27a).setBlendMode(Phaser.BlendModes.ADD));
     this.chainG = h.wl(h.add.graphics().setBlendMode(Phaser.BlendModes.ADD).setDepth(90000));
+    this.sparkG = h.wl(h.add.graphics().setBlendMode(Phaser.BlendModes.ADD).setDepth(90001));
     for (let i = 0; i < 10; i++) this.bolts.push({ img: h.wl(h.add.image(0, 0, 'hz-bolt-0').setOrigin(0.5, 1).setVisible(false).setBlendMode(Phaser.BlendModes.ADD)), glow: h.wl(h.add.image(0, 0, 'glow').setVisible(false).setBlendMode(Phaser.BlendModes.ADD)), t: -1, life: 0, sy: 1 });
     this.crownFire = h.wl(h.add.image(0, 0, 'vfx-status', 0).setVisible(false).setBlendMode(Phaser.BlendModes.ADD).setOrigin(0.5, 0.7));
     for (let i = 0; i < 6; i++) this.fires.push({ x: 0, y: 0, t: -1, r: 0, dmg: 0, img: h.wl(h.add.image(0, 0, 'vfx-status', 0).setVisible(false).setBlendMode(Phaser.BlendModes.ADD).setOrigin(0.5, 0.75)) });
@@ -98,6 +107,9 @@ export class Arsenal {
     this.chainT -= dt;
     if (this.chainT <= 0) this.chainG.clear();
     else this.chainG.setAlpha(Math.min(1, this.chainT / 0.15));
+    this.sparkT -= dt;
+    if (this.sparkT <= 0) this.sparkG.clear();
+    else this.sparkG.setAlpha(Math.min(1, this.sparkT / 0.12) * (0.7 + 0.3 * Math.abs(Math.sin(this.sparkT * 60))));
   }
 
   private fire(id: WeaponId, lv: number, dt: number) {
@@ -176,6 +188,18 @@ export class Arsenal {
       this.burst(x, y, r, dmg, 300);
       if (lv >= 5) { const fire = this.fires.find((f) => f.t < 0); if (fire) { fire.x = x; fire.y = h.hero.y; fire.t = 0; fire.r = r * 0.7; fire.dmg = dmg * 0.25; } }
       h.sfx('lion', 0.6); h.shake(0.004, 120);
+    } else if (id === 'spark') {
+      // Barak's Chain Lightning: a bolt to the nearest foe that leaps on to the next, weaker with each leap.
+      const evo = this.evolved.has('spark'), form = h.hero.form;
+      const first = h.swarm.nearest(x, y, 190);
+      if (!first && !(h.boss && (h.boss.x - x) ** 2 + (h.boss.y - y) ** 2 < 190 * 190)) { this.t.set(id, 0.05); return; }
+      set(evo ? 0.55 : 1.05);
+      const leaps = 2 + (lv >= 2 ? 1 : 0) + (lv >= 5 ? 2 : 0) + h.plenty + (form ? 2 : 0) + (evo ? 2 : 0);
+      const bolts = evo ? 3 : lv >= 4 ? 2 : 1, dmg = 13 * (lv >= 3 ? 1.25 : 1), stun = lv >= 6 || evo;
+      h.hero.look((first ? first.x : h.boss!.x) - x);
+      h.hero.play('arc', 0.32);
+      for (let c = 0; c < bolts; c++) this.later(0.05 + c * 0.08, () => this.lightning(h.hero.x + h.hero.face * 10, h.hero.y - 20, leaps, dmg, stun, evo ? 130 : 100, c > 0));
+      h.sfx('thunder', 0.28);
     } else if (id === 'chains') {
       const evo = this.evolved.has('chains');
       set(evo ? 1.1 : 2.2);
@@ -220,6 +244,43 @@ export class Arsenal {
     }
   }
 
+  /**
+   * One bolt of Barak's lightning from (x, y): to the nearest foe, then leaping to the nearest not yet struck by this
+   * bolt, each leap a fifth weaker. A later bolt of the same volley prefers foes the first passed by.
+   */
+  lightning(x: number, y: number, leaps: number, dmg: number, stun: boolean, reach = 100, other = false) {
+    const h = this.h, now = h.time.now / 1000;
+    STRUCK.length = 0;
+    let px = x, py = y, f = h.swarm.nearest(x, y, 190, (o) => other && o.hitBy[SLOT.spark] > now);
+    if (!f && other) f = h.swarm.nearest(x, y, 190);
+    let left = leaps + 1, power = dmg;
+    while (f && left-- > 0) {
+      const hit: Foe = f;
+      hit.hitBy[SLOT.spark] = now + 0.3;
+      STRUCK.push(hit);
+      this.zap(px, py, hit.x, hit.y - 12);
+      this.anim('vfx-impacts', 0, 6, hit.x, hit.y - 12, 0.2, 0.24, { tint: 0x9fe6ff });
+      h.damage(hit, power, (hit.x - px) / (Math.hypot(hit.x - px, hit.y - py) || 1), 0, 50);
+      if (stun && hit.alive) { hit.slowT = Math.max(hit.slowT, 0.7); hit.slowK = 0.05; }
+      px = hit.x; py = hit.y - 12; power *= 0.8;
+      f = h.swarm.nearest(px, py, reach, (o) => STRUCK.includes(o));
+    }
+    // The monarch draws the bolt's last leap.
+    const b = h.boss;
+    if (b && b.alive && (b.x - px) ** 2 + (b.y - 30 - py) ** 2 < (reach + 60) ** 2 && h.bossHit(b.x, b.y - 30, 1, power * 1.4, true)) this.zap(px, py, b.x, b.y - 30);
+  }
+
+  /** A jagged bolt between two points on the lightning layer (no allocation: the kinks are worked out as it draws). */
+  private zap(x0: number, y0: number, x1: number, y1: number) {
+    const g = this.sparkG, n = 6, dx = x1 - x0, dy = y1 - y0, l = Math.hypot(dx, dy) || 1, nx = -dy / l, ny = dx / l;
+    for (const [w, c, a] of ZAP_PASSES) {
+      g.lineStyle(w, c, a).beginPath().moveTo(x0, y0);
+      for (let i = 1; i < n; i++) { const j = (Math.random() - 0.5) * Math.min(18, l * 0.22); g.lineTo(x0 + dx * (i / n) + nx * j, y0 + dy * (i / n) + ny * j); }
+      g.lineTo(x1, y1).strokePath();
+    }
+    this.sparkT = 0.2;
+  }
+
   /** A cut: every foe within R and within `half` radians of `ang`. */
   arc(x: number, y: number, ang: number, R: number, half: number, dmg: number) {
     const h = this.h, ca = Math.cos(ang), sa = Math.sin(ang);
@@ -229,6 +290,11 @@ export class Arsenal {
       h.damage(f, dmg, ca, sa, 140);
     });
     h.bossHit(x + ca * R * 0.6, y + sa * R * 0.6, R * 0.7, dmg);
+  }
+
+  /** Lightning's landing holds what it strikes still for a moment. */
+  private burstStun(x: number, y: number, r: number) {
+    this.h.swarm.near(x, y, r, (f) => { if (f.alive) { f.slowT = Math.max(f.slowT, 0.6); f.slowK = 0.05; } });
   }
 
   /** Damage around a point, throwing foes outward by `knock`. */
@@ -377,9 +443,9 @@ export class Arsenal {
    * A strike from above: a bolt that flickers down and fades (holy gold, or fire), then, as it lands, the blow, a
    * ring of light, flames or sparks on the ground, and a bloom.
    */
-  strike(x: number, y: number, r: number, dmg: number, kind: 'holy' | 'fire', big = false) {
+  strike(x: number, y: number, r: number, dmg: number, kind: 'holy' | 'fire' | 'storm', big = false) {
     const h = this.h, b = this.bolts.find((o) => o.t < 0);
-    const tint = kind === 'fire' ? 0xffa050 : 0xffe6a0;
+    const tint = kind === 'fire' ? 0xffa050 : kind === 'storm' ? 0x9fe6ff : 0xffe6a0;
     if (b) {
       b.t = 0; b.life = big ? 0.42 : 0.3; b.sy = (big ? 1.3 : 1) * (0.85 + Math.random() * 0.3);
       b.img.setTexture(`hz-bolt-${Math.floor(Math.random() * 3)}`).setPosition(x, y + 2).setTint(tint).setFlipX(Math.random() < 0.5)
@@ -391,6 +457,7 @@ export class Arsenal {
       this.anim('vfx-impacts', 18, 6, x, y - 4, 0.32, (r / 40) * (big ? 1.3 : 1), { tint, alpha: 0.9 });
       if (kind === 'fire') this.anim('vfx-status', 0, 8, x, y + 4, 0.5, r / 36, { originY: 0.75, alpha: 0.85 });
       else this.anim('vfx-impacts', 0, 6, x, y - 6, 0.26, r / 50);
+      if (kind === 'storm') { this.burstStun(x, y, r); }
       h.sfx(kind === 'fire' ? 'pillarFire' : 'thunder', big ? 0.55 : 0.25);
       if (big) h.shake(0.005, 120);
     });
@@ -477,6 +544,16 @@ export class Arsenal {
     if (felled) h.impact(x1, y1 - 14, 0.6);
   }
 
+  /** Barak's Flash Step (his dash): lightning along the way, striking and stunning what it passes. */
+  flashStep(x0: number, y0: number, x1: number, y1: number) {
+    const h = this.h, ang = Math.atan2(y1 - y0, x1 - x0), len = Math.hypot(x1 - x0, y1 - y0);
+    this.zap(x0, y0 - 14, x1, y1 - 14);
+    this.anim('vfx-impacts', 18, 6, x1, y1 - 12, 0.25, 0.5, { tint: 0x9fe6ff });
+    this.along(x0, y0, x1, y1, 22, (f) => { h.damage(f, 15, Math.cos(ang), Math.sin(ang), 90); if (f.alive) { f.slowT = Math.max(f.slowT, 0.5); f.slowK = 0.05; } });
+    h.bossHit((x0 + x1) / 2, (y0 + y1) / 2 - 20, len / 2, 15);
+    h.hero.play('roll', 0.2);
+  }
+
   /** Tirzah's Dawnstep (her dash): feathers where she was and where she lands, and a fan of arrows from there. */
   dawnstep(x0: number, y0: number, x1: number, y1: number) {
     const h = this.h;
@@ -539,6 +616,15 @@ export class Arsenal {
 
   // ---------------------------------------------------------------- the heroes' skills
 
+  /** Barak's skill, the Stars in their Courses: lightning falls on seven of the nearest foes, one after another. */
+  starfall() {
+    const h = this.h, spots: { x: number; y: number }[] = this.targets(300, 7).map((f) => ({ x: f.x, y: f.y }));
+    if (h.boss) spots.unshift({ x: h.boss.x, y: h.boss.y });
+    while (spots.length < 7) { const a = Math.random() * Math.PI * 2; spots.push({ x: h.hero.x + Math.cos(a) * 80, y: h.hero.y + Math.sin(a) * 64 }); }
+    h.hero.play('arc', 0.6);
+    spots.slice(0, 7).forEach((p, i) => this.later(0.1 + i * 0.09, () => { this.strike(p.x, p.y, 46 * h.areaMult, 24, 'storm', i === 0); if (!i) h.impact(p.x, p.y - 20, 0.7); }));
+  }
+
   /** Elior's Covenant Storm: blades whirl around him for a few seconds. */
   storm(dur: number) {
     const h = this.h, ticks = Math.round(dur / 0.15);
@@ -579,8 +665,9 @@ export class Arsenal {
     this.anim('vfx-abilities-2', 24, 8, x, y - 10, 0.4, 0.4);
     this.burst(x, y, 36, 6, 60);
   }
-  forming(hero: 'elior' | 'tirzah' | 'uri') {
+  forming(hero: 'elior' | 'tirzah' | 'uri' | 'barak') {
     const h = this.h;
+    if (hero === 'barak') { this.anim('vfx-transform', 8, 8, h.hero.x, h.hero.y - 24, 0.7, 0.8, { follow: true, tint: 0x9fe6ff }); this.lightning(h.hero.x, h.hero.y - 20, 6, 18, true, 120); return; }
     if (hero === 'uri') { this.anim('vfx-transform', 16, 8, h.hero.x, h.hero.y - 24, 0.7, 0.9, { follow: true, tint: 0xff8a3a }); this.anim('vfx-status', 0, 8, h.hero.x, h.hero.y + 6, 0.7, 2, { follow: true, originY: 0.7 }); return; }
     this.anim('vfx-transform', hero === 'tirzah' ? 24 : 8, 8, h.hero.x, h.hero.y - 24, 0.7, 0.8, { follow: true });
   }
@@ -599,5 +686,6 @@ export class Arsenal {
     for (const b of this.bolts) { b.t = -1; b.img.setVisible(false); b.glow.setVisible(false); }
     this.pending.length = 0;
     this.chainG.clear();
+    this.sparkG.clear(); this.sparkT = 0;
   }
 }

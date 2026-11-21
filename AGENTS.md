@@ -406,7 +406,7 @@ Never ship files from `art/incoming/` directly.
   element bites with a burst, and the Horde's blade only cuts. His run and swing speed are capped (`MAX_RUN`,
   `MAX_ASPD` in `player.ts`). See POLISH_PLAN §16–17.
 - **Uri on the journey (Phaser build):** the third playable hero beside Elior and Tirzah (the switch goes Elior, Tirzah,
-  Uri; `switchHero(to?)`), drawn from his own parts (`art` C08–C10 → `src/assets/fighter-parts-uri*.png`,
+  Uri, Barak; `switchHero(to?)`), drawn from his own parts (`art` C08–C10 → `src/assets/fighter-parts-uri*.png`,
   `fighter-parts-shaman.png`; `FighterRig` / `actionAtlas` with `RigHero` `'uri'`/`'shaman'`). His kit is
   `remnant-phaser/src/game/uriKit.ts` (state `'flame'`): every cast finds the nearest foe (`UriKit.target`). Strike a
   fireball (the third in a quick chain a piercing bolt; a foe in reach: an open-hand burst; Up: burning ground; Down
@@ -432,6 +432,13 @@ Never ship files from `art/incoming/` directly.
   Mantle they are one (larger Uri, twin fireballs). Every journey mode (Chapters, the Trial, Extreme, the Gauntlet, the
   Rush, the Daily Challenge) runs on the journey's World, so Uri keeps his shaman in all of them. Verified by
   `scripts/uri.mjs`.
+- **Barak (Phaser build):** the fourth playable hero (the switch goes Elior, Tirzah, Uri, Barak; `switchHero(to?)`), a
+  runner of lightning drawn from one eight-pose sheet (art C17 → `src/assets/barak-actions.png`, loaded by `lateArt`;
+  `game/barakArt.ts` picks the pose). On the journey, in every mode, Strike is the Spark Jab, Heavy Chain Lightning
+  (three leaps, each weaker, stopped by walls), Dodge a quicker dash (`game/barak.ts`, `Player.startArc`); he shares
+  Elior's level, gear and abilities. In the Horde he fights with Chain Lightning (`spark`, evolved with Swift Feet into
+  the Lightning of the LORD), STARS (`Arsenal.starfall`), the Flash Step and the Storm Mantle; the Trinity there is any
+  three full gauges with the hero in play's. Verified by `remnant-phaser/scripts/barak.mjs` and `scripts/horde.mjs`.
 - **The Sundered Chains (Phaser build):** Elior's second weapon (`remnant-phaser/src/game/chains.ts`, POLISH_PLAN
   §20): twin kindled blades on chains, won with Chapter I (the flag `sundered_chains`). The `chain` action (the CHAINS
   touch button, `Y`, or Down + Heavy) lashes foes in reach (lash, lash, slam, cyclone), hooks a far one (a light foe is
@@ -441,10 +448,10 @@ Never ship files from `art/incoming/` directly.
   (`chains_kindled`: a deeper burn, a longer hook). Verified by `scripts/chains.mjs`.
 - **The Horde (Phaser build):** a top-down survival mode in endless stages
   (`remnant-phaser/src/scenes/Horde.ts`, `src/game/horde/`): auto-weapons, a
-  1-of-3 upgrade per level, a Fallen Crown monarch per stage, Elior, Tirzah and
-  Uri (the flame-caller, with his orc shaman) switchable,
+  1-of-3 upgrade per level, a Fallen Crown monarch per stage, Elior, Tirzah,
+  Uri (the flame-caller, with his orc shaman) and Barak switchable,
   upright or sideways. Maxed weapons evolve with a partner passive; a switch
-  after a big move is a tag combo, three full gauges the Trinity; level-ups
+  after a big move is a tag combo, three full gauges (the hero in play's among them) the Trinity; level-ups
   can be rerolled or banished (§13d). A run banks silver, XP and gear into the
   save (`PhaserSave.horde` keeps the best stage). See POLISH_PLAN §13.
   Between runs (`src/game/horde/board.ts`, NEXT_PLAN D1): a run leaves embers; from the second run it opens at the

@@ -142,6 +142,30 @@ try {
   await until(page, () => window.__remnant.horde.shaman.active && !window.__remnant.horde.hero.form);
   console.log('Uri: his fireballs fly on their own, the shaman stands at his side, FIRE prays fire down, and the Crown of Flame makes the two one until it fades');
 
+  // ---- Barak: the fourth press; his Chain Lightning leaps on its own; STARS calls lightning down; the Storm Mantle
+  await drain(page);
+  await H(page, (h) => { h.cds.switch = 0; });
+  await tap('switch', (h) => h.heroId === 'barak');
+  assert.deepEqual(await H(page, (h) => [h.heroId, h.shaman.active, h.hero.key]), ['barak', false, 'barak'], 'the switch brings Barak, drawn from his own sheet, and the shaman steps back');
+  await drain(page);
+  await H(page, (h) => { for (let i = 0; i < 4; i++) h.spawnFoe(h.hero.x + 60 + i * 30, h.hero.y + (i % 2 ? 14 : -14), 'bulwark'); window.__sparkKills = h.kills; window.__sparkHp = h.swarm.list.filter((f) => f.alive).reduce((n, f) => n + f.hp, 0); });
+  // The bolt leaps: more than one foe is struck by a single volley.
+  await until(page, () => window.__remnant.horde.swarm.list.filter((f) => f.alive && f.hp < f.maxHp).length >= 2, null, 15000);
+  assert.ok(await H(page, (h) => h.arsenal.level('spark') >= 1 && h.hero.sprite.texture.key === 'barak'), 'Chain Lightning is his own weapon');
+  await drain(page);
+  await tap('skill', (h) => h.cds.skill > 0);
+  assert.ok(await H(page, (h) => h.cds.skill > 0), 'STARS calls lightning down');
+  await page.waitForTimeout(500);
+  await page.screenshot({ path: 'qa/horde-barak.png' });
+  await drain(page);
+  await H(page, (h) => { h.gauge = 1; });
+  await tap('form', (h) => h.formT > 0);
+  assert.deepEqual(await H(page, (h) => [h.formT > 0, h.hero.form]), [true, true], 'the Storm Mantle takes Barak');
+  await H(page, (h) => { h.formT = 0.01; });
+  await drain(page);
+  await until(page, () => !window.__remnant.horde.hero.form);
+  console.log('Barak: Chain Lightning leaps from foe to foe on its own, STARS calls lightning down, and the Storm Mantle comes and fades');
+
   // ---- a switch in the moment after a big move is a tag combo; three full gauges are the Trinity; a chest evolves
   await drain(page);
   const tags = await H(page, (h) => h.tags);
@@ -149,9 +173,13 @@ try {
   await tap('switch', (h) => h.heroId === 'elior');
   assert.deepEqual(await H(page, (h) => [h.heroId, h.tags]), ['elior', tags + 1], 'a switch inside the window lands as a tag combo (Elior returns in a Phantom chain)');
   await drain(page);
-  await H(page, (h) => { h.gauges = { elior: 1, tirzah: 1, uri: 1 }; });
+  await H(page, (h) => { h.gauges = { elior: 1, tirzah: 1, uri: 1, barak: 0 }; });
   await tap('form', (h) => h.trinities > 0);
   assert.deepEqual(await H(page, (h) => [h.trinities, h.formT > 0, Object.values(h.gauges).every((v) => v < 0.5)]), [1, false, true], 'three full gauges make the form button the Trinity, and it spends them all');
+  // Any three of the four: the hero in play's gauge and two others; a fourth full gauge is kept.
+  await drain(page);
+  assert.equal(await H(page, (h) => { h.gauges = { elior: 1, tirzah: 0.5, uri: 0.9, barak: 1 }; return h.trinityReady; }), false, 'two full gauges are not a Trinity');
+  assert.deepEqual(await H(page, (h) => { h.gauges = { elior: 1, tirzah: 1, uri: 1, barak: 1 }; h.trinity(); return [h.trinities, h.gauges.elior, h.gauges.tirzah, h.gauges.uri, h.gauges.barak]; }), [2, 0, 0, 0, 1], 'the Trinity spends the hero in play and the next two full gauges, and keeps the fourth');
   await page.waitForTimeout(400);
   await page.screenshot({ path: 'qa/horde-trinity.png' });
   await drain(page);

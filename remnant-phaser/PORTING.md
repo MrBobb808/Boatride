@@ -49,10 +49,15 @@ The first art drop's effects ship. Elior's swing plays the generated slash arcs 
 
 ### Playable fighters and action styles
 
-Barak is a fourth playable fighter in chapter rooms. Tag after Uri with N or the bottom hero button.
+Barak is a fourth playable fighter in every journey mode (Chapters, the Trial, Extreme, the Gauntlet,
+the Rush, the Daily Challenge, the Rest). Tag after Uri with N or the bottom hero button.
 He shares Elior's progression. Strike is a short Spark Jab, Heavy sends Chain Lightning through
 up to three nearby foes with diminishing damage, and Dodge is a quicker ground dash. His eight
-full-body poses come from the C17 action sheet.
+full-body poses come from the C17 action sheet (`game/barakArt.ts` picks the pose for a clip; the
+sheet loads with the late art, `game/lateArt.ts`). In the Horde he is the fourth hero: Chain
+Lightning is his auto-weapon (it evolves with Swift Feet), STARS calls lightning down on seven foes,
+the dash is a Flash Step and his form the Storm Mantle. The Trinity there is any three full gauges,
+the hero in play's among them. Verified by `scripts/barak.mjs` and `scripts/horde.mjs`.
 
 Elior has three selectable styles: Vanguard permits a jump-cancel after a confirmed
 hit (including renewed air routes); Wraith accelerates the dodge and its velocity

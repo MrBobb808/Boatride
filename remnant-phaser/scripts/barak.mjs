@@ -70,13 +70,27 @@ try {
   });
   assert.deepEqual((await hit('KeyK')).map(a => a[0]), [28]);
 
-  await page.evaluate(() => window.__remnant.world.loadRoom('trial_arena', 'start'));
+  // Every journey mode runs on the same World: Barak stays himself in the Trial's arena (the Trial, Extreme, the
+  // Gauntlet, the Rush, the Daily Challenge) and in Remnant's Rest, and the switch reaches him there.
+  for (const room of ['trial_arena', 'remnant_rest']) {
+    await page.evaluate((id) => { const w = window.__remnant.world; delete w.foes; delete w.heroHit; delete w.tileAt; w.loadRoom(id, 'start'); }, room);
+    await page.waitForFunction(() => window.__remnant.world.player.state === 'free' && !window.__remnant.world.transitioning);
+    assert.deepEqual(await page.evaluate(() => {
+      const p = window.__remnant.world.player, was = p.hero;
+      p.switchCd = 0; p.switchHero('elior'); p.switchCd = 0;
+      return [was, p.hero, p.nextHero === 'tirzah', p.switchHero('barak'), p.hero, p.sprite.texture.key.replace('~L', '')];
+    }), ['barak', 'elior', true, true, 'barak', 'barak'], `Barak plays in ${room}`);
+  }
+  // The full cycle: Elior, Tirzah, Uri, Barak, and round again.
   assert.deepEqual(await page.evaluate(() => {
-    const p = window.__remnant.world.player;
-    return [p.hero, p.switchHero('barak')];
-  }), ['elior', false]);
+    const p = window.__remnant.world.player, seen = [];
+    p.switchCd = 0; p.switchHero('elior');
+    for (let i = 0; i < 4; i++) { seen.push(p.hero); p.switchCd = 0; p.switchHero(); }
+    seen.push(p.hero);
+    return seen;
+  }), ['elior', 'tirzah', 'uri', 'barak', 'elior']);
   assert.deepEqual(errors, []);
-  console.log('Chapter tag and save, three diminishing hits, single jab, blocked hop, arena exclusion passed.');
+  console.log('Chapter tag and save, three diminishing hits, single jab, blocked hop, Barak in the Trial arena and the Rest, the four-hero cycle passed.');
 } finally {
   await browser.close();
   close();

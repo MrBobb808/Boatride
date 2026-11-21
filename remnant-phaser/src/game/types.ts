@@ -47,7 +47,6 @@ export interface BossView {
 /** What actors need from the world scene (kept as an interface to avoid import cycles). */
 export interface WorldApi {
   sc: Phaser.Scene;
-  readonly chapterHeroes: boolean;
   controls: Controls;
   save: PhaserSave;
   /** Elior's stats, derived from the save as the original does (game/state.ts derive). */
