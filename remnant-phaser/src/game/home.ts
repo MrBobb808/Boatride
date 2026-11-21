@@ -357,7 +357,7 @@ export class Home {
         status: `${chaptersDone} of ${CHAPTERS.length} complete`, locked: s ? undefined : noJourney, go: () => this.h.play('chapters') },
       { id: 'watch', name: 'The Watch', line: 'An idle game: Elior keeps the wall while you are away.', accent: '#c59bff', isNew: !w,
         status: w ? `Stage ${w.stage} · level ${w.level}` : 'A fresh Elior · level 1', go: () => this.h.watch() },
-      { id: 'horde', name: 'The Horde', line: 'Top-down endless stages with Elior, Tirzah and Uri.', accent: '#ff7a4a',
+      { id: 'horde', name: 'The Horde', line: 'Top-down endless stages with Elior, Tirzah, Uri and Barak.', accent: '#ff7a4a',
         status: horde ? `Best stage ${horde}` : 'Endless stages', go: () => this.h.horde() },
       { id: 'trial', name: 'Trial of the Remnant', line: 'Endless rounds of foes; the way past level 100.', accent: '#7ac8ff',
         status: trialBest > 0 ? `Best round ${trialBest}` : 'Start at round 1', locked: !s ? noJourney : trialOpen ? undefined : relic, go: () => this.h.play('trial') },

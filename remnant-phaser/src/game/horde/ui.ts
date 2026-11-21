@@ -16,10 +16,11 @@ const FACES: Record<HeroId, [string, string, string, string, number]> = {
   elior: ['action-ultimate', 'STORM', 'action-transform_elior', 'MANTLE', 0xffffff],
   tirzah: ['ability-rain', 'RAIN', 'action-transform_tirzah', 'WINGS', 0xffffff],
   uri: ['ability-pillar_fire', 'FIRE', 'action-transform_elior', 'CROWN', 0xff9a50],
+  barak: ['action-attack_barak', 'STARS', 'action-transform_elior', 'STORM', 0x9fe6ff],
 };
 
-/** Elior's violet, Tirzah's dawn gold, Uri's ember. */
-const PIPS = [0xb48cff, 0xffe6a8, 0xff9a50];
+/** Elior's violet, Tirzah's dawn gold, Uri's ember, Barak's lightning. */
+const PIPS = [0xb48cff, 0xffe6a8, 0xff9a50, 0x9fe6ff];
 /** Gild a button's label; only on a change, since recolouring redraws the text. */
 const tint9 = (t: Phaser.GameObjects.Text, gold: boolean) => { const c = gold ? '#f6dea0' : '#ddd4c6'; if (t.style.color !== c) t.setColor(c); };
 export type Act = 'dash' | 'skill' | 'form' | 'switch';
@@ -32,7 +33,7 @@ export interface Readout {
   stage: number; time: number; stageTime: number; kills: number; silver: number;
   hero: string; heroId: HeroId; other: string;
   cd: Record<Act, number>; gauge: number; form: number;
-  /** Elior's, Tirzah's and Uri's gauges; all three full (the Trinity); a switch now lands as a tag combo. */
+  /** Each hero's gauge (Elior, Tirzah, Uri, Barak); three full with the hero in play's (the Trinity); a switch now lands as a tag combo. */
   gauges: number[]; trinity: boolean; tag: boolean;
   boss: { name: string; title: string; hp: number; max: number } | null;
 }
@@ -214,9 +215,9 @@ export class HordeUI {
       const fill = b.a === 'form' ? (s.form > 0 ? s.form : Math.min(1, s.gauge)) : 1 - Math.min(1, cd);
       if (fill < 1 || b.a === 'form') b.g.lineStyle(3 * k, b.a === 'form' ? 0xc59bff : 0xf6dea0, 0.95).beginPath().arc(b.x, b.y, b.r - 3 * k, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * fill).strokePath();
       b.icon.setAlpha(ready ? 1 : 0.4);
-      // Three pips over the form button: each hero's gauge.
+      // A pip over the form button for each hero's gauge.
       if (b.a === 'form') s.gauges.forEach((v, i) => {
-        const px = b.x + (i - 1) * 9 * k, py = b.y - b.r - 6 * k;
+        const px = b.x + (i - (s.gauges.length - 1) / 2) * 9 * k, py = b.y - b.r - 6 * k;
         b.g.fillStyle(0x07060a, 0.7).fillCircle(px, py, 3.4 * k).fillStyle(PIPS[i], v >= 1 ? 1 : 0.35 + 0.4 * v).fillCircle(px, py, (v >= 1 ? 2.8 : 1.2 + 1.4 * v) * k);
       });
     }
