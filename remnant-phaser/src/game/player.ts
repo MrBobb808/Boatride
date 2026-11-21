@@ -7,6 +7,7 @@
 
 import { trank, heroLevel } from './archer';
 import Phaser from 'phaser';
+import { barakFrame, discharge } from './barak';
 import { Bow } from './bow';
 import { UriKit } from './uriKit';
 import { StyleMeter, STYLE_NAMES, RANKS, type CombatStyle, type PlayableHero } from './style';
@@ -62,7 +63,7 @@ const CHARGE_MULT = [1, 1.35, 1.8, 2.5];
 /** Sheet frames (4×4, 128 px): idle 0–3, run 4–7, rise 8, fall 9, wind-up 10, strike 11, dodge 12–13, hurt 14, cast 15. */
 const FRAME = 128, FOOT = 120, DRAW = 56;
 
-type State = 'free' | 'attack' | 'hook' | 'charge' | 'parry' | 'block' | 'heal' | 'cast' | 'dodge' | 'airdash' | 'phantom' | 'plunge' | 'execute' | 'transform' | 'scripted' | 'swim' | 'bow' | 'flame' | 'hurt' | 'dead';
+type State = 'free' | 'attack' | 'hook' | 'charge' | 'parry' | 'block' | 'heal' | 'cast' | 'dodge' | 'airdash' | 'phantom' | 'plunge' | 'execute' | 'transform' | 'scripted' | 'swim' | 'bow' | 'flame' | 'lightning' | 'hurt' | 'dead';
 
 export class Player {
   rect: Phaser.GameObjects.Rectangle;
@@ -76,6 +77,8 @@ export class Player {
   readonly bow: Bow;
   readonly dawn: Dawn;
   private switchCd = 0;
+  private arcHeavy = false;
+  private arcReleased = false;
   private trail: { sprite:Phaser.GameObjects.Sprite; life:number }[] = [];
   private trailT = 0;
   state: State = 'free';
@@ -203,24 +206,31 @@ export class Player {
     this.trail = Array.from({length:4},()=>({sprite:sc.add.sprite(x,feet,'elior',0).setDepth(9).setVisible(false).setTint(0xa99ad7),life:0}));
   }
 
-  get hero(): PlayableHero { const h = this.w.save.playableHero; return h === 'tirzah' || h === 'uri' ? h : 'elior'; }
+  get hero(): PlayableHero { const h = this.w.save.playableHero; return h === 'tirzah' || h === 'uri' || (h === 'barak' && this.w.chapterHeroes) ? h : 'elior'; }
   /** Uri's fire on the journey (game/uriKit.ts). */
   flame: UriKit;
   get combatStyle(): CombatStyle { const s = this.w.save.combatStyle; return s === 'wraith' || s === 'sentinel' ? s : 'vanguard'; }
+  get nextHero(): PlayableHero {
+    if (this.hero === 'elior') return 'tirzah';
+    if (this.hero === 'tirzah') return 'uri';
+    if (this.hero === 'uri' && this.w.chapterHeroes) return 'barak';
+    return 'elior';
+  }
   /** To the next hero, or to `to` when it is given. */
   switchHero(to?: PlayableHero) {
     if (this.switchCd > 0 || G.paused || G.inCutscene || this.dead || !['free', 'swim'].includes(this.state)) { this.w.toast('Switch after the current move.'); return false; }
     // Each hero has her own maximum; the health left carries over (capped), so a switch never heals.
-    // Elior, then Tirzah, then Uri, and round again.
-    this.w.save.playableHero = to ?? (this.hero === 'elior' ? 'tirzah' : this.hero === 'tirzah' ? 'uri' : 'elior');
+    if (to === 'barak' && !this.w.chapterHeroes) return false;
+    this.w.save.playableHero = to ?? this.nextHero;
     this.w.refreshStats();
     this.switchCd = 0.8; this.bow.cancel(); this.flame.cancel(); this.w.controls.flush();
     // Uri fights with his shaman alone: the Echoes step back while he plays and come again for the others.
     const L = this.powers?.L, s = this.w.save;
     if (L) { const out = s.flags.army_out; if (this.hero === 'uri') { L.dismissEchoes(); s.flags.army_out = out; } else if (out === true) L.summonEchoes(true); }
-    this.w.spark(this.x,this.y,this.hero === 'tirzah' ? 0xa6efdc : this.hero === 'uri' ? 0xff8a3a : 0xffd27a,12);
+    this.w.spark(this.x,this.y,this.hero === 'barak' ? 0x88dfff : this.hero === 'tirzah' ? 0xa6efdc : this.hero === 'uri' ? 0xff8a3a : 0xffd27a,12);
     this.w.toast(this.hero === 'tirzah' ? 'Tirzah · bow and arrow · hold Strike to charge; Up + Strike for spread'
       : this.hero === 'uri' ? 'Uri and his shaman · Strike: fireball · Heavy: wave (hold: Great Fireball; Blazing: Supernova) · Down + Heavy: Geyser · Dodge: Flame Dash (Strike in it: Comet Fan) · Hold Jump falling: Updraft'
+      : this.hero === 'barak' ? 'Barak · Strike: Spark Jab · Heavy: Chain Lightning · Dodge: Flash Step'
       : 'Elior · ' + STYLE_NAMES[this.combatStyle]);
     return true;
   }
@@ -376,7 +386,7 @@ export class Player {
       case 'free': {
         const ax = c.axis;
         const accel = this.onGround ? 1400 : 900;
-        b.setVelocityX(Phaser.Math.Linear(b.velocity.x, ax * RUN * Math.min(MAX_RUN, this.w.d.speed * (this.formT > 0 ? 1.3 : this.mantleT > 0 ? 1.25 : 1)), Math.min(1, (accel * dt) / RUN)));
+        b.setVelocityX(Phaser.Math.Linear(b.velocity.x, ax * RUN * Math.min(MAX_RUN, this.w.d.speed * (this.hero === 'barak' ? 1.22 : 1) * (this.formT > 0 ? 1.3 : this.mantleT > 0 ? 1.25 : 1)), Math.min(1, (accel * dt) / RUN)));
         if (Math.abs(ax) > 0.2) this.face = Math.sign(ax);
         if (this.jumpBuf > 0 && c.down('down') && this.onGround && this.standingOnOneWay()) {
           this.dropT = 0.25;
@@ -389,7 +399,8 @@ export class Player {
           this.airJumps--; this.jumpBuf = 0; b.setVelocityY(-JUMP_V * 0.9);
         }
         if (this.defence()) break;
-        if (this.chainPressed()) this.chooseChain(this.linger);
+        if (this.hero === 'barak' && c.pressed('heavy') && !c.down('up')) this.startArc(true);
+        else if (this.chainPressed()) this.chooseChain(this.linger);
         else if (c.pressed('heavy') && !c.down('up')) {
           if (this.onGround && [this.moves.combo[2].id, this.moves.extra.id].includes(this.linger)) this.startMove(this.moves.storm);
           else if (!this.onGround) this.startPlunge();
@@ -398,6 +409,21 @@ export class Player {
         else if (c.pressed('attack')) this.chooseAttack();
         else if (c.pressed('heal')) this.startHeal();
         else this.trySkill();
+        break;
+      }
+      case 'lightning': {
+        b.setVelocityX(b.velocity.x * 0.82);
+        if (!this.arcReleased && this.st >= (this.arcHeavy ? 0.13 : 0.045)) {
+          this.arcReleased = true;
+          const landed = discharge(this.w, this, this.arcHeavy);
+          if (landed) {
+            this.comboHits += landed;
+            s.bestCombo = Math.max(s.bestCombo ?? 0, this.comboHits);
+            this.noteStyle(this.arcHeavy ? 'chain-lightning' : 'spark-jab');
+            if (s.flags.relic_taken) s.ce = Math.min(this.maxCe, s.ce + CE_HIT);
+          }
+        }
+        if (this.st >= (this.arcHeavy ? 0.52 : 0.21)) this.toFree();
         break;
       }
       case 'attack': this.updateAttack(actionDt); break;
@@ -419,7 +445,7 @@ export class Player {
         b.setVelocityX(b.velocity.x * 0.7);
         // A perfect parry opens straight into the riposte.
         if (this.counterT > 0 && c.pressed('attack')) { this.chooseAttack(); break; }
-        if (this.counterT > 0 && c.pressed('heavy')) { this.startCharge('heavy'); break; }
+        if (this.counterT > 0 && c.pressed('heavy')) { if (this.hero === 'barak') this.startArc(true); else this.startCharge('heavy'); break; }
         // Held past the window, the guard stays up as a block.
         if (this.st >= 0.3) this.state = c.down('parry') ? 'block' : 'free';
         break;
@@ -450,8 +476,8 @@ export class Player {
         if (this.st >= 0.3) this.toFree();
         break;
       case 'dodge':
-        b.setVelocityX(this.face * DODGE_V * (this.combatStyle === 'wraith' ? 1.2 : 1) * (1 - (this.st / DODGE_T) * 0.5));
-        if (c.pressed('attack') && this.st > 0.08) this.startMove(this.moves.dash);
+        b.setVelocityX(this.face * DODGE_V * (this.hero === 'barak' ? 1.22 : 1) * (this.combatStyle === 'wraith' ? 1.2 : 1) * (1 - (this.st / DODGE_T) * 0.5));
+        if (c.pressed('attack') && this.st > 0.08) { if (this.hero === 'barak') this.startArc(false); else this.startMove(this.moves.dash); }
         else if (this.st >= DODGE_T) { this.sinceDodge = 0; this.toFree(); }
         break;
       case 'airdash':
@@ -576,8 +602,20 @@ export class Player {
     return !ahead && behind ? behind : this.face;
   }
 
+  private startArc(heavy: boolean) {
+    this.arcHeavy = heavy;
+    this.arcReleased = false;
+    this.st = 0;
+    this.face = this.swingFacing();
+    this.state = 'lightning';
+  }
+
   /** The same routes for every weapon family, including deliberate pauses. */
   private chooseAttack() {
+    if (this.hero === 'barak') {
+      if (this.state !== 'free' || !this.powers?.tryExecution()) this.startArc(false);
+      return;
+    }
     const m = this.moves, c = this.w.controls;
     if (this.phantomN >= 3 && this.phantomT > 0 && this.ce >= 10) { this.startCross(); return; }
     if (this.counterT > 0) { this.startMove({ ...m.counter, dmg: m.counter.dmg * (skillRank(this.w.save, 'g_counter') ? 1.7 : 1) }); return; }
@@ -771,9 +809,9 @@ export class Player {
     if (on) this.body.setVelocityY(Math.min(this.body.velocity.y, 70));
     return on;
   }
-  lineOfSight(x: number, y: number) {
-    const dx = x - this.x, dy = y - this.y, n = Math.max(1, Math.ceil(Math.hypot(dx, dy) / 4));
-    for (let i = 1; i <= n; i++) if (isSolid(this.w.tileAt(Math.floor((this.x + dx * i / n) / TILE), Math.floor((this.y + dy * i / n) / TILE)))) return false;
+  lineOfSight(x: number, y: number, fromX = this.x, fromY = this.y) {
+    const dx = x - fromX, dy = y - fromY, n = Math.max(1, Math.ceil(Math.hypot(dx, dy) / 4));
+    for (let i = 1; i <= n; i++) if (isSolid(this.w.tileAt(Math.floor((fromX + dx * i / n) / TILE), Math.floor((fromY + dy * i / n) / TILE)))) return false;
     return true;
   }
   /**
@@ -854,6 +892,7 @@ export class Player {
     return best;
   }
   canPhantom() {
+    if (this.hero === 'barak') return false;
     if ((!this.w.save.flags.phantom && this.mantleT <= 0) || (this.recentHit <= 0 && this.phantomT <= 0 && this.mantleT <= 0) || (this.ce < 5 && this.w.save.level < 100 && this.mantleT <= 0)) return false;
     const f = this.phantomTargetForStep();
     return !!f && !!this.blinkSpot(f);
@@ -917,6 +956,7 @@ export class Player {
       else if (w.strokeCd <= 0) { b.setVelocityY(-210); w.strokeCd = 0.28; this.w.playEffect('swimStroke'); } }
     if (c.pressed('dodge')) this.swimDash();
     else if (c.pressed('parry')) this.startParry();
+    else if (this.hero === 'barak' && c.pressed('attack')) this.startArc(false);
     else if (c.pressed('attack')) this.startMove({ ...this.moves.combo[0], dur: this.moves.combo[0].dur / 0.72, lunge: 0, ky: 0, launch: false });
     else if (['heavy', 'sub', 'heal', 'ultimate', 'transform', 'skill1', 'skill2', 'skill3'].some(a => c.pressed(a as import('./controls').Action)) && w.deniedT <= 0) { w.deniedT = 1.2; this.w.toast('Not under water. Swim, thrust, parry or dash-stroke.'); }
   }
@@ -1236,6 +1276,7 @@ export class Player {
     if(this.dead){clip='death';uArt=this.st/1.2;}
     else if(this.state==='hurt'){clip='hurt';uArt=this.st/.3;}
     else if(this.hero==='tirzah'&&this.bow.stabT>0){clip='dagger2';uArt=.3+(1-this.bow.stabT/STAB_T)*.7;}
+    else if(this.state==='lightning') clip=this.arcReleased ? (this.arcHeavy ? 'arc' : 'jab') : 'idle';
     else if(this.state==='flame'){clip=this.flame.clip;uArt=this.flame.u;}
     else if(this.state==='bow'&&this.bow.dagger){clip=`dagger${this.bow.dagger}`;uArt=this.bow.daggerU;}
     else if(this.state==='bow'){clip=this.bow.drawing?'bowDraw':'bowRelease';uArt=this.bow.drawing?this.bow.charge/.55:1-this.bow.recovery/.28;}
@@ -1257,8 +1298,9 @@ export class Player {
     else if(clip==='swim')uArt=(this.visualTime/1.1)%1;
     else if(clip==='jump'||clip==='fall')uArt=this.visualTime/(clip==='jump'?.25:.35);
     else if(this.state==='transform'||this.state==='execute'||this.state==='scripted')uArt=this.state==='transform'?this.visualTime/1.15:this.powers?.clipProgress??0;
-    const key=actionAtlas(this.w.sc,this.hero,form?'fists':this.w.d.family,mantle,this.hero==='tirzah'||!this.powers?.weaponFlight,this.hero==='elior'?this.w.save.valor?.cape??null:null);
-    const frame=actionFrame(this.w.sc,key,clip,Phaser.Math.Clamp(uArt,0,.999));
+    const hero = this.hero;
+    const key=hero === 'barak' ? 'barak' : actionAtlas(this.w.sc,hero,form?'fists':this.w.d.family,mantle,this.hero==='tirzah'||!this.powers?.weaponFlight,this.hero==='elior'?this.w.save.valor?.cape??null:null);
+    const frame=hero === 'barak' ? barakFrame(clip, uArt) : actionFrame(this.w.sc,key,clip,Phaser.Math.Clamp(uArt,0,.999));
     // The spring settles the squash; the lean follows ground speed, and a rise or fall tips her a little.
     if(dt>0){this.sqV+=(-420*this.sq-20*this.sqV)*dt;this.sq=Phaser.Math.Clamp(this.sq+this.sqV*dt,-.16,.16);}
     const run=ground&&(clip==='run'||clip==='land')?Phaser.Math.Clamp(b.velocity.x/200,-1,1)*4.5:0,air=!ground&&!this.water.swimming?Phaser.Math.Clamp(b.velocity.y/600,-1,1)*-2*this.face:0;
@@ -1271,7 +1313,7 @@ export class Player {
     this.sprite.setAlpha(this.invuln > 0 && this.state !== 'dead' && Math.floor(this.invuln * 20) % 2 === 0 ? 0.35 : 1);
     this.sprite.setAngle(!this.dead&&this.water.swimming&&vx>25?this.face*Math.min(65,vx*.45):this.dead?0:this.leanA);
     this.trailT-=dt;
-    const streak=!settings.reduceFlashes&&settings.quality!=='low'&&((this.hero==='elior'&&((this.state==='attack'&&(this.atk.air||this.atk.heavy))||(this.state==='dodge'&&this.combatStyle==='wraith')))||(this.hero==='uri'&&this.state==='flame'&&(this.flame.cast==='dash'||this.flame.cast==='meteor')));
+    const streak=!settings.reduceFlashes&&settings.quality!=='low'&&((this.hero==='barak'&&(clip==='roll'||clip==='airdash'))||(this.hero==='elior'&&((this.state==='attack'&&(this.atk.air||this.atk.heavy))||(this.state==='dodge'&&this.combatStyle==='wraith')))||(this.hero==='uri'&&this.state==='flame'&&(this.flame.cast==='dash'||this.flame.cast==='meteor')));
     for(const ghost of this.trail){ghost.life=this.dead||settings.reduceFlashes?0:Math.max(0,ghost.life-dt);ghost.sprite.setVisible(ghost.life>0).setAlpha(ghost.life*1.6);}
     if(streak&&this.trailT<=0){const ghost=this.trail.find(g=>g.life<=0);if(ghost){ghost.life=0.18;ghost.sprite.setTexture(this.sprite.texture.key,this.sprite.frame.name).setPosition(this.sprite.x,this.sprite.y).setOrigin(this.sprite.originX,this.sprite.originY).setScale(this.sprite.scaleX,this.sprite.scaleY).setFlipX(this.sprite.flipX).setAngle(this.sprite.angle);}this.trailT=0.055;}
     // The blade's arc shows from the moment it lands until the swing ends.

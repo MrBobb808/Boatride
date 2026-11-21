@@ -21,7 +21,7 @@ import { fx, PK } from '../../../remnant/src/render/fx';
 import type { ClassicLayer } from './layer';
 import type { Player } from '../game/player';
 /** Each hero's form from the same gauge. */
-const FORM_NAME = { elior: 'Shadow Mantle', tirzah: 'Wings of the Morning', uri: 'Fusion of Flame' } as const;
+const FORM_NAME = { elior: 'Shadow Mantle', tirzah: 'Wings of the Morning', uri: 'Fusion of Flame', barak: 'Shadow Mantle' } as const;
 import { heroLevel, trank } from '../game/archer';
 
 const ELEMENT_COLORS = Object.fromEntries(Object.entries(ELEMENTS).map(([id, e]) => [id, parseInt(e.c.slice(1), 16)]));

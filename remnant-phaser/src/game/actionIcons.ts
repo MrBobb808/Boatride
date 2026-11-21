@@ -7,6 +7,11 @@ import { paintIcon, type PixelArt } from './abilityIcons';
 import type { PlayableHero } from './style';
 
 const ART: Record<string, PixelArt> = {
+  attack_barak: { pal: { b: '#65bdff', w: '#edffff' }, rows: [
+    '.........bbb....','........bwwb....','.......bwwb.....','......bwwb......',
+    '.....bwwb.......','....bwwb........','...bwwwbbbbb....','..bwwwwwwwb.....',
+    '..bbbbwwwb......','.....bwwb.......','....bwwb........','...bwwb.........',
+    '...bwb..........','..bwb...........','.bb.............','................'] },
   // Elior's Strike: a sword cutting down, its trail below the blade.
   attack_elior: { pal: { a: '#ffd27a', b: '#fff6dc', c: '#8a5a2a', w: '#fff1c4' }, rows: [
     '............obo.',
@@ -263,6 +268,7 @@ const ART: Record<string, PixelArt> = {
 
 /** The texture for an action's button, for the hero in play (Strike and the transformation differ by hero). */
 export function actionIconKey(action: string, hero: PlayableHero) {
+  if (hero === 'barak' && action === 'transform') return 'action-transform_elior';
   const name = action === 'attack' || action === 'transform' || (action === 'echo' && hero === 'uri') ? `${action}_${hero}` : action;
   return ART[name] ? 'action-' + name : null;
 }

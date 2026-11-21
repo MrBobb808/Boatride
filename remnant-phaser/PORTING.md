@@ -49,6 +49,11 @@ The first art drop's effects ship. Elior's swing plays the generated slash arcs 
 
 ### Playable fighters and action styles
 
+Barak is a fourth playable fighter in chapter rooms. Tag after Uri with N or the bottom hero button.
+He shares Elior's progression. Strike is a short Spark Jab, Heavy sends Chain Lightning through
+up to three nearby foes with diminishing damage, and Dodge is a quicker ground dash. His eight
+full-body poses come from the C17 action sheet.
+
 Elior has three selectable styles: Vanguard permits a jump-cancel after a confirmed
 hit (including renewed air routes); Wraith accelerates the dodge and its velocity
 together, preserving travel and cooldown; Sentinel improves guarding and extends
