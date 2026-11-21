@@ -150,6 +150,26 @@ export class UriKit {
   /** Is the orc standing with him? (Kept in the save, so he is still there after a room or a reload.) */
   get out() { return !!this.w.save.flags.uri_orc; }
 
+  /** The orc's sprite (hidden while fused), for the dynamic lights. */
+  get shamanSprite() { return this.shaman; }
+
+  /** His fire as lights in the frame's list: it lifts the dark around it and lights what it passes. */
+  lights(list: { add(x: number, y: number, r: number, c: string, a?: number, bloom?: number): void }) {
+    if (!this.here) return;
+    for (const s of this.shots) if (s.life > 0) list.add(s.x, s.y, s.kind === 'great' ? 90 + 70 * s.pow : s.kind === 'wave' ? 84 : s.kind === 'bolt' ? 64 : 54, s.kind === 'bolt' ? '#ffd27a' : '#ff8a3a', 0.9, 0.65);
+    for (const g of this.grounds) if (g.t > 0) list.add(g.x, g.y - 10, g.r * 1.9, '#ff7a2a', Math.min(0.75, g.t), 0.5);
+    if (this.cast === 'charge' && this.charge > 0) list.add(this.p.x + this.p.face * 14, this.p.feet - 34, 40 + this.charge * 70, '#ffb347', 0.95, 0.8);
+    if (this.heatTier === 3) list.add(this.p.x, this.p.feet - 26, 70, '#ffb347', 0.5, 0.45);
+  }
+
+  /** Heat haze: where his fire burns, and how strongly (for the distortion map in visuals.ts). */
+  hazeSources(add: (x: number, y: number, r: number, k: number) => void) {
+    if (!this.here) return;
+    for (const s of this.shots) if (s.life > 0 && s.kind !== 'wave') add(s.x, s.y, s.kind === 'great' ? 40 + 30 * s.pow : 20, s.kind === 'great' ? 1 : 0.6);
+    for (const g of this.grounds) if (g.t > 0) add(g.x, g.y - 14, g.r * 0.9, Math.min(1, g.t));
+    if (this.cast === 'charge' && this.charge > 0) add(this.p.x + this.p.face * 14, this.p.feet - 34, 14 + this.charge * 26, this.charge);
+  }
+
   /** The Echo button for Uri: call the orc, or send him away. */
   toggleOrc(on = !this.out, quiet = false) {
     const p = this.p;
@@ -467,6 +487,7 @@ export class UriKit {
     this.w.playEffect('fireBurst', { x, vol: 1, pitch: 0.7 });
     this.w.playEffect('thunder', { x, vol: 0.5, pitch: 1.3 });
     this.w.floatText(x, p.body.top - 18, 'SUPERNOVA', '#ffd27a', true);
+    this.w.shockwave?.(x, y, 230, 0.7);
     this.burst(x, y, 1.2);
     for (let i = 0; i < 12; i++) { const a = (i / 12) * Math.PI * 2; this.w.sc.time.delayedCall(30 + i * 12, () => this.burst(x + Math.cos(a) * 90, y + Math.sin(a) * 50, 0.6)); }
     for (let i = 0; i < 16; i++) { const a = (i / 16) * Math.PI * 2 + 0.2; this.w.sc.time.delayedCall(140 + i * 10, () => this.burst(x + Math.cos(a) * 160, y + Math.sin(a) * 80, 0.5)); }
@@ -629,7 +650,7 @@ export class UriKit {
       s.x = nx; s.y = ny;
       if (end) {
         s.life = 0; s.img.setVisible(false).stop();
-        if (s.kind === 'great') { this.explode(s.x, s.y, 60 + 60 * s.pow, s.dmg, 0.7 + 0.5 * s.pow); this.ignite(s.x - 24, s.y + 20, 3, 0.3, 30); this.ignite(s.x + 24, s.y + 20, 3, 0.3, 30); }
+        if (s.kind === 'great') { this.explode(s.x, s.y, 60 + 60 * s.pow, s.dmg, 0.7 + 0.5 * s.pow); if (s.pow > 0.5) this.w.shockwave?.(s.x, s.y, 90 + 80 * s.pow, 0.45); this.ignite(s.x - 24, s.y + 20, 3, 0.3, 30); this.ignite(s.x + 24, s.y + 20, 3, 0.3, 30); }
         else if (!wave && !s.hits.size) this.burst(s.x, s.y, 0.32);
         continue;
       }

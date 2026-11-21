@@ -62,6 +62,7 @@ import { addTirzahMenu, useAbilityTextures } from '../game/tirzahMenu';
 import barakUrl from '../assets/barak-actions.png';
 import { Partner } from '../game/partner';
 import { lighting } from '../classic/shim/lighting';
+import { normalsFrom } from '../game/normalMaps';
 import { audio, sfx } from '../classic/shim/audio';
 import { music } from '../classic/shim/music';
 import { songs } from '../../../remnant/src/audio/songs';
@@ -262,6 +263,7 @@ export class World extends Phaser.Scene implements WorldApi {
         hud: hudBoxes, audio, music, songs, settings, offlineReady, Proj,
         archer: { archerStats, archerDrop, archerGainXp, learnArcher, allocateArcher, trank, newArcher, keepReason },
         psalms: { grantForBoss, syncPsalms, wears, ...psalmApi },
+        normalsFrom,
       };
     }
   }
@@ -646,6 +648,8 @@ export class World extends Phaser.Scene implements WorldApi {
     this.classic.update(rawDt);
     this.partner.update(dt, this.room.id);
     this.classic.render();
+    // The frame's lights are all gathered and the heroes posed: the dynamic lights follow them.
+    this.visuals.lights.step(); this.visuals.lights.figure(this.player.sprite); this.visuals.lights.figure(this.player.flame.shamanSprite);
     if (this.boss?.fighting) {
       if (music.name !== this.boss.key) music.play(this.boss.key, 0.6);
       music.bossPhase(Math.max(0, this.boss.phase - 1));
@@ -935,6 +939,7 @@ export class World extends Phaser.Scene implements WorldApi {
     if (her) lighting.add(p.x, p.feet - 22, 100, '#c8f0e4', 0.75, 0.15);
     if (p.mantleT > 0) lighting.add(p.x, p.feet - 30, 180, her ? '#ffe6a8' : '#b98cff', 0.95, 0.7);
     const el = p.bow.element(), arrow = el === 'fire' ? '#ff9a4a' : el === 'frost' ? '#9fd8ff' : el === 'storm' ? '#c9b8ff' : el === 'holy' ? '#fff1c4' : '#ffe6a8';
+    if (p.hero === 'uri') p.flame.lights(lighting);
     for (const a of p.bow.arrows) if (a.life > 0) lighting.add(a.x, a.y, a.perfect || a.dawn || a.scale ? 72 : 44, a.dawn ? '#fff6dc' : a.perfect ? '#ffd27a' : arrow, 0.8, 0.5);
     for (const e of this.classic.squad.echoes) if (!e.remove && e.despawn <= 0) lighting.add(e.x, e.y - 24, e === this.partner?.unit ? 90 : 56, e === this.partner?.unit ? (her ? '#ffd9a0' : '#c8f0e4') : '#ffe6a8', 0.6, 0.15);
     // Foes keep a faint, dull glow: dark rooms stay dramatic but every threat can still be read.
@@ -945,6 +950,7 @@ export class World extends Phaser.Scene implements WorldApi {
     for (const f of this.flashes) if (f.t > 0) { f.t -= dt; if (f.t > 0) lighting.add(f.x, f.y, f.r, f.c, 0.95 * (f.t / f.d), 0.9); }
   }
   strikeLamps(box: { x: number; y: number; w: number; h: number }) { strikeLamps(box); }
+  shockwave(x: number, y: number, r: number, d = 0.6) { this.visuals.shock(x, y, r, d); }
   banner(title: string, sub: string) { this.hud.banner(title, sub); }
   toast(text: string) { this.hud.toast(text); }
 

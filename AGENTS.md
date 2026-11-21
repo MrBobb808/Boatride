@@ -521,11 +521,22 @@ Never ship files from `art/incoming/` directly.
   in `FOES` (game/horde/defs.ts); the Horde's lands 7–9 use them. Only add
   art whose licence allows a public repo (CC0 preferred); record it in
   `CREDITS.md` and `art/manifest.json`.
+- **Dynamic lighting and refraction (Phaser build):** `remnant-phaser/src/game/dynLights.ts` copies the strongest
+  lights of the frame's shared light list (the room's lamps, flashes, arrows, the forms, Uri's fire via
+  `UriKit.lights`) into a pool of eight Phaser lights, WebGL at Medium or High quality only. The heroes and Uri's shaman
+  are lit per pixel through normal maps worked out from their own art (`normalMaps.ts`, once per sheet, about 50 ms);
+  a figure drawn flipped wears a twin texture (`key~L`) whose normals are mirrored, since Phaser does not mirror them.
+  The room's art (`RoomArt.backImage`) and the classic layer (`ClassicLayer.image`) are lit with flat normals. The
+  ambient is full white, so nothing gets darker; lights only add. The distortion map in `visuals.ts` adds heat haze
+  over Uri's fire (`UriKit.hazeSources`) and the room's braziers, torches and forges, and shockwaves
+  (`WorldApi.shockwave`, from the Supernova and a full Great Fireball) to its water and foundry heat. Verified by
+  `remnant-phaser/scripts/dyn-lighting.mjs`.
 - **3D-to-sprite pipeline (art tools):** `remnant-phaser/art/tools/model3d/` (README there). ComfyUI workflows
   (`comfyui/01-pose.json`, `02-mesh.json`, built from Comfy-Org's MIT templates by `make_workflows.py`) turn a reference
   image into an A/T-pose model with TRELLIS.2 on a GPU machine. Blender 4.5 LTS (`setup-blender.sh`, portable) then
   makes it watertight, retopologises it with QuadriFlow, rigs it (`rig.py`, automatic weights) and renders the game's
-  clips, and `pack.py` makes the fighter atlas format (192 px cells, feet at 96,120, `clip:i`). `pipeline.sh` runs the
+  clips, and `pack.py` makes the fighter atlas format (192 px cells, feet at 96,120, `clip:i`) and a matching normal-map
+  atlas (`*_n.png`, from the bake's normal pass) for the dynamic lights. `pipeline.sh` runs the
   Blender half. It is tested here on `standin.py`'s mesh; no atlas from it is loaded by the game yet.
 - **iPhone performance:** the game targets 120 Hz.
   - Do not use `shadowBlur`.

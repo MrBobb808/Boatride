@@ -102,7 +102,8 @@ try {
     if (w.player.sprite.filters.internal.list.length !== 1) throw Error('Trial sectors accumulated hero filters');
     w.loadRoom('sanctuary', 'start');
   });
-  await until(() => window.__remnant.world.visuals.distortion === 'none' && window.__remnant.world.visuals.bossCamera.mode === 'none');
+  // Nothing of the water or the foundry's heat carries over; the sanctuary's own brazier shimmers (dyn-lighting.mjs).
+  await until(() => ['none', 'haze'].includes(window.__remnant.world.visuals.distortion) && window.__remnant.world.visuals.bossCamera.mode === 'none');
   assert.equal(await page.evaluate(() => window.__remnant.world.cameras.main.filters.internal.list.length), 1, 'room changes reuse one world filter');
   assert.ok(await page.evaluate(() => window.previousWeather.every(e => !e.scene) && window.__remnant.world.visuals.weather.every(e => e.texture.key === 'glow')), 'previous weather is destroyed and sanctuary uses its own authored motes');
   console.log('Boss cameras: intro, combat and phase framing; movement stays live; story focus and motion preference take priority; room changes clear the shot');

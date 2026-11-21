@@ -15,8 +15,9 @@ model3d/
   pipeline.sh                 mesh → atlas in one go (the four steps below)
   prepare.py   step 1         import, scale and centre, voxel remesh (watertight), QuadriFlow retopology, colour transfer
   rig.py       step 2         joints found from the A/T pose, 17-bone skeleton, automatic weights, arms lowered to rest
-  bake.py      step 3         the game's clips posed and rendered side-on (Cycles on CPU, transparent)
-  pack.py      step 4         cell size, hard edge, one shared palette, warm near-black outline, trimmed atlas + JSON
+  bake.py      step 3         the game's clips posed and rendered side-on (Cycles on CPU, transparent), with a normal pass
+  pack.py      step 4         cell size, hard edge, one shared palette, warm near-black outline, trimmed atlas + JSON,
+                              and the matching normal-map atlas (name_n.png)
   standin.py                  a rough humanoid mesh standing in for TRELLIS output, to test the Blender half anywhere
 ```
 
@@ -84,6 +85,11 @@ What each step does, and what it expects:
 - **Pack.** Box-filtered to the cell, alpha cut at half, one palette across every frame (no dithering), a one-pixel
   `#080202` outline, trimmed with a gutter, and packed 1024 wide. The JSON is Phaser's JSON-hash atlas, with each
   frame's source size the full cell, so the trim keeps the feet in place.
+- **Normal maps.** The bake also renders a normal pass of every frame (skip it with `--no-normals`): each surface's
+  normal mapped to screen axes (x right, y up, z toward the viewer) and saved raw. The packer writes `name_n.png`, the
+  same frames at the same places, flat outside the figure and under the outline, and names it in the JSON's
+  `meta.normalMap`. These are what the game's dynamic lights (`src/game/dynLights.ts`) read. They are truer than the
+  normals the game works out from flat art, because they come from the model's real shape.
 
 ## Not done yet
 

@@ -88,6 +88,8 @@ export interface WorldApi {
   /** A short-lived light (POLISH_PLAN §11b). */
   flashLight?(x: number, y: number, r: number, c: string, d?: number): void;
   shake(intensity: number, ms: number): void;
+  /** A ring of bent air spreading from a big blast (visuals.ts distortion map). */
+  shockwave?(x: number, y: number, r: number, d?: number): void;
   /** Slow the fight (foes, projectiles, effects) but not the hero, for `sec` seconds. */
   slowTime(sec: number, scale: number): void;
   /** Turn the summoned Echoes onto a foe, as a swap hands one over. */

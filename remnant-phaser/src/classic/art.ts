@@ -22,6 +22,8 @@ export class RoomArt {
     this.front = w.textures.createCanvas(`room-front-${id}`, 64, 64)!;
     this.images = [w.add.image(0, 0, this.back.key).setOrigin(0).setDepth(0), w.add.image(0, 0, this.front.key).setOrigin(0).setDepth(18)];
   }
+  /** The room's own art (sky, tiles, props): lit by the dynamic lights (game/dynLights.ts). */
+  get backImage() { return this.images[0]; }
   load() {
     this.cache?.dispose(); for (const l of this.layers) releaseCanvas(l.c);
     const w = this.w, r = w.room;
