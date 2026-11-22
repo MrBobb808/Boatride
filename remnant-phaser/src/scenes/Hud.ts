@@ -5,6 +5,7 @@
 // left half, attack / jump / dodge on the right, and a context button to talk,
 // rest or open. Everything stays inside the iPhone's safe areas.
 
+import { KIT_PAGES } from '../game/heroKitMenu';
 import Phaser from 'phaser';
 import { STYLE_NAMES, STYLE_HELP, RANKS } from '../game/style';
 import { xpToNext, type RoomDef } from '../shared';
@@ -43,8 +44,12 @@ const box = (b: number[], x: number, y: number, w: number, h: number) => { b[0] 
 interface Btn { a: Action; x: number; y: number; r: number; label: string; i: Phaser.GameObjects.Image; g: Phaser.GameObjects.Arc; t: Phaser.GameObjects.Text; down: boolean; live: boolean; fade: number; behind: boolean }
 
 const pre1 = (s: { summonPreset?: string }) => (s.summonPreset ?? 'all') === 'one';
-const HER_PAGES: Record<string, string> = { character: 'tz_character', equipment: 'tz_equipment', skills: 'tz_skills' };
-const HIS_PAGES: Record<string, string> = Object.fromEntries(Object.entries(HER_PAGES).map(([a, b]) => [b, a]));
+/** Each hero's own character, equipment and skill pages (Elior's are the original's), and back to Elior's. */
+const HERO_PAGES: Record<string, Record<string, string>> = {
+  tirzah: { character: 'tz_character', equipment: 'tz_equipment', skills: 'tz_skills' },
+  uri: KIT_PAGES.uri, barak: KIT_PAGES.barak,
+};
+const ELIOR_PAGE: Record<string, string> = Object.fromEntries(Object.values(HERO_PAGES).flatMap((m) => Object.entries(m).map(([a, b]) => [b, a])));
 
 export class Hud extends Phaser.Scene {
   get paused() { return isMenuOpen(); }
@@ -518,8 +523,9 @@ export class Hud extends Phaser.Scene {
     const w = this.world;
     if (this.paused) { closeMenu(); return; }
     w.persist();
-    // The hero's own pages: while Tirzah fights, Elior's character, equipment and skills open as hers, and back.
-    const t = menuTab(), mine = w.player.hero === 'tirzah' ? HER_PAGES[t] : HIS_PAGES[t];
+    // The hero's own pages: while Tirzah, Uri or Barak fights, Elior's character, equipment and skills open as theirs,
+    // and back.
+    const t = menuTab(), own = HERO_PAGES[w.player.hero], mine = own ? own[ELIOR_PAGE[t] ?? t] ?? ELIOR_PAGE[t] ?? t : ELIOR_PAGE[t];
     openMenu(mine);
   }
 

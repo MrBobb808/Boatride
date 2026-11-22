@@ -24,6 +24,7 @@ import type { Player } from '../game/player';
 /** Each hero's form from the same gauge. */
 const FORM_NAME = { elior: 'Shadow Mantle', tirzah: 'Wings of the Morning', uri: 'Fusion of Flame', barak: 'Tempest Beast' } as const;
 import { heroLevel, trank } from '../game/archer';
+import { krank } from '../game/heroKit';
 
 const ELEMENT_COLORS = Object.fromEntries(Object.entries(ELEMENTS).map(([id, e]) => [id, parseInt(e.c.slice(1), 16)]));
 
@@ -117,7 +118,7 @@ export class HeroPowers {
       if (p.hero === 'uri' && !this.transformed) p.flame.merge(Math.min(1, this.transformT / 0.72));
       if (this.transformT >= 0.72 && !this.transformed && this.ascending) { this.transformed = true; this.ascend(14 + (this.doubled ? mantleDuration() : p.mantleT) * 0.5); this.doubled = false; }
       else if (this.transformT >= 0.72 && !this.transformed) {
-        this.transformed = true; p.mantleT = this.mantleMax = mantleDuration() + (p.hero === 'tirzah' ? trank(this.L.host.save, 't_wings') * 1.5 : 0);
+        this.transformed = true; p.mantleT = this.mantleMax = mantleDuration() + (p.hero === 'tirzah' ? trank(this.L.host.save, 't_wings') * 1.5 : p.hero === 'uri' ? krank(this.L.host.save, 'uri', 'u_bond') * 3 : p.hero === 'barak' ? krank(this.L.host.save, 'barak', 'b_beast') * 1.5 : 0);
         // Tirzah takes the Wings of the Morning from the same gauge: dawn light instead of shadow.
         const dawn = p.hero === 'tirzah';
         if (dawn) { fx.holyBurst(p.x, p.y - 20, 35, 1.8); fx.column(p.x, p.feet, 44, 440, '#ffe6a8', 1); fx.ring(p.x, p.y, 6, 150, '#fff1c4', 0.7, 5); }

@@ -57,8 +57,9 @@ const SHOOTABLE = new Set(['arrow', 'orb', 'drop', 'flame', 'arcbolt', 'star', '
 import type { Player as OriginalPlayer } from '../../../remnant/src/game/player';
 import { syncArcher, ARCHER, ARCHER_IDS, type SkillId } from '../game/abilities';
 import { archerStats, archerLevel, heroLevel, archerGainXp, archerDrop, learnArcher, allocateArcher, trank, newArcher, ARCHER_KEEPSAKES } from '../game/archer';
-import { uriOf, uriStats, uriGainXp } from '../game/horde/uri';
+import { kitOf, kitStats, kitGainXp, KIT_NAME, KIT_COLOR } from '../game/heroKit';
 import { addTirzahMenu, useAbilityTextures } from '../game/tirzahMenu';
+import { addKitMenus } from '../game/heroKitMenu';
 import { Partner } from '../game/partner';
 import { lighting } from '../classic/shim/lighting';
 import { normalsFrom } from '../game/normalMaps';
@@ -104,14 +105,16 @@ export class World extends Phaser.Scene implements WorldApi {
    * his are replaced. */
   get d(): Derived {
     const base = this.eliorD;
-    // Uri's own level against Elior's, in Elior's gear (game/horde/uri.ts).
-    if (this.save?.playableHero === 'uri') { if (this.uriFor !== base) { this.uriD = uriStats(this.save, base); this.uriFor = base; } return this.uriD!; }
+    // Uri and Barak from their own kits: level, stats, gear and tree (game/heroKit.ts).
+    const h = this.save?.playableHero;
+    if (h === 'uri' || h === 'barak') { if (this.uriFor !== base || this.kitHero !== h) { this.uriD = kitStats(this.save, h, base); this.uriFor = base; this.kitHero = h; } return this.uriD!; }
     if (this.save?.playableHero !== 'tirzah' || !this.save.archer) return base;
     if (this.herFor !== base) { this.herD = archerStats(this.save, base); this.herFor = base; }
     return this.herD!;
   }
   private uriD?: Derived;
   private uriFor?: Derived;
+  private kitHero = '';
   /** The other hero fighting beside you, when called (game/partner.ts). */
   partner!: Partner;
   private herD: Derived | null = null;
@@ -188,7 +191,7 @@ export class World extends Phaser.Scene implements WorldApi {
     // Bosses beaten before Psalms existed leave theirs now.
     const late = syncPsalms(this.save);
     this.refreshStats();
-    addTirzahMenu(this); useAbilityTextures(this.textures); addPsalmsMenu(this);
+    addTirzahMenu(this); addKitMenus(this); useAbilityTextures(this.textures); addPsalmsMenu(this);
     addHordeMode(() => this.save, () => this.enterHorde());
     addWatchMode(() => this.save, () => { this.persist(); this.scene.stop('hud'); void startScene(this, 'watch', { from: 'world' }); });
     if (late.length) this.time.delayedCall(2500, () => this.toast(`${late.length === 1 ? 'A Psalm' : `${late.length} Psalms`} from bosses you have beaten · Menu → Psalms`));
@@ -1425,7 +1428,12 @@ export class World extends Phaser.Scene implements WorldApi {
     // arrival level by their own level; the Trial pays by its own rules.
     const her = this.player.hero === 'tirzah', catchUp = (lv: number) => this.room.id !== 'trial_arena' ? catchUpXp(lv, chapterOf(this.room.id)) : 1;
     // Uri, fighting, earns his own share as well (three times over while he is behind Elior).
-    if (this.player.hero === 'uri') { const ups = uriGainXp(s, xp); if (ups) { this.refreshStats(); this.player.hp = s.hp = Math.min(this.d.maxHp, s.hp); this.toast(`Uri reached level ${uriOf(s).level}`); islandNotify(`URI ${uriOf(s).level}`, '#ff9a50', 'stats', 2.8); } }
+    // Uri and Barak, fighting, earn their own share too (three times over while behind Elior).
+    const kh = this.player.hero;
+    if (kh === 'uri' || kh === 'barak') {
+      const ups = kitGainXp(s, kh, xp);
+      if (ups) { const k = kitOf(s, kh); this.refreshStats(); this.player.hp = s.hp = Math.min(this.d.maxHp, s.hp); this.toast(`${KIT_NAME[kh]} reached level ${k.level} · his points wait in Menu → ${KIT_NAME[kh]}`); islandNotify(`${KIT_NAME[kh].toUpperCase()} ${k.level}`, KIT_COLOR[kh], 'stats', 2.8); }
+    }
     const hisXp = Math.round(xp * catchUp(s.level) * (her ? 0.5 : 1)), herXp = Math.round(xp * catchUp(archerLevel(s)) * (her ? 1 : 0.5));
     this.archerXp(herXp);
     xp = hisXp;

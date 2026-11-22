@@ -8,6 +8,7 @@
 import { newGame, migrateSave, derive, gainXp as stateGainXp, absorbEcho, type SaveData, type Derived } from '../../../remnant/src/game/state';
 import { ROOMS } from '../shared';
 import { settleArcher } from './archer';
+import { settleKits } from './heroKit';
 import { guardedRead, guardedWrite } from './saveGuard';
 import { migrateDay } from './day';
 import { settleHorde } from './horde/board';
@@ -40,6 +41,8 @@ export type PhaserSave = SaveData & {
   day?: import('./day').DaySave;
   /** Uri's level and XP, earned in the Horde (game/horde/uri.ts). */
   uri?: import('./horde/uri').UriSave;
+  /** Uri's and Barak's own level, points, tree and gear (game/heroKit.ts). */
+  kits?: Partial<Record<import('./heroKit').KitHero, import('./heroKit').KitSave>>;
 };
 /** The levels at which her arrow types join the quiver. */
 export const ARROW_LEVELS: Record<ArrowType, number> = { standard: 1, fire: 8, frost: 12, storm: 18, holy: 24 };
@@ -77,6 +80,7 @@ function settle(d: SaveData): SaveData {
   d.equippedSkills ??= [null, null, null];
   migrateSave(d);
   settleArcher(d);
+  settleKits(d as PhaserSave);
   migrateDay(d as PhaserSave);
   settleHorde(d as PhaserSave);
   settleFire(d as PhaserSave);

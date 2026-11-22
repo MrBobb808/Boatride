@@ -76,7 +76,11 @@ export function allocateArcher(s: SaveData, key: StatKey, requested = 1) {
 // ---------------------------------------------------------------- level and experience
 
 /** The level of the hero in play: hers while she fights, else Elior's. */
-export const heroLevel = (s: SaveData) => (s as PhaserSave).playableHero === 'tirzah' ? archerLevel(s) : s.level;
+export const heroLevel = (s: SaveData) => {
+  const h = (s as PhaserSave).playableHero;
+  // Uri and Barak have their own levels (game/heroKit.ts), once their kit is made.
+  return h === 'tirzah' ? archerLevel(s) : (h === 'uri' || h === 'barak') && (s as PhaserSave).kits?.[h] ? (s as PhaserSave).kits![h]!.level : s.level;
+};
 export const archerLevel = (s: SaveData) => s.archer?.level ?? s.level;
 
 /** Her experience: +3 stat points and +1 skill point a level, as Elior's. Returns the levels gained. */
