@@ -27,6 +27,7 @@ import { HordeHero } from '../game/horde/hero';
 import { Arsenal } from '../game/horde/weapons';
 import { Shaman } from '../game/horde/shaman';
 import { uriOf, uriStats, uriGainXp } from '../game/horde/uri';
+import { kitOf, kitStats, kitGainXp } from '../game/heroKit';
 import { HordeBoss } from '../game/horde/boss';
 import { Pickups, type DropKind } from '../game/horde/pickups';
 import { HordeUI, overlay, el, type Act } from '../game/horde/ui';
@@ -63,6 +64,7 @@ export class Horde extends Phaser.Scene {
   private starred = false;
   /** Levels Uri gained when the run was banked, for the last card. */
   private uriLevels = 0;
+  private barakLevels = 0;
   hero!: HordeHero;
   pickups!: Pickups;
   ui!: HordeUI;
@@ -170,7 +172,7 @@ export class Horde extends Phaser.Scene {
     this.save = (loadSave() as PhaserSave | null) ?? (newSave(false) as PhaserSave);
     if (!this.save.archer) this.save.archer = newArcher(this.save);
     const eliorD = stats(this.save);
-    this.heroD = { elior: eliorD, tirzah: archerStats(this.save, eliorD), uri: uriStats(this.save, eliorD), barak: eliorD };
+    this.heroD = { elior: eliorD, tirzah: archerStats(this.save, eliorD), uri: uriStats(this.save, eliorD), barak: kitStats(this.save, 'barak', eliorD) };
     this.runPower = Math.max(this.power('elior'), this.power('tirzah'));
     const hs = hordeOf(this.save);
     this.bb = boardBonus(hs); this.muts = activeMuts(hs); this.night = hs.mode === 'night'; this.daily = false; this.held = false; this.embersWon = 0;
@@ -224,7 +226,7 @@ export class Horde extends Phaser.Scene {
   private reset() {
     this.stage = 1; this.stageT = 0; this.level = 1; this.xp = 0; this.kills = 0; this.silver = 0; this.gemXp = 0; this.loot = [];
     for (const k of Object.keys(this.passives) as PassiveId[]) this.passives[k] = 0;
-    this.gauges = { elior: 0, tirzah: 0, uri: 0, barak: 0 }; this.rerolls = 3 + this.bb.redraws; this.banishes = 3 + this.bb.banishes; this.banned = new Set(); this.tagUntil = 0; this.tags = this.trinities = this.evolutions = 0; this.formT = 0; this.formUses = 0; this.prayed = false; this.starred = false; this.uriLevels = 0; this.dead = false; this.banked = false; this.pendingLevels = 0;
+    this.gauges = { elior: 0, tirzah: 0, uri: 0, barak: 0 }; this.rerolls = 3 + this.bb.redraws; this.banishes = 3 + this.bb.banishes; this.banned = new Set(); this.tagUntil = 0; this.tags = this.trinities = this.evolutions = 0; this.formT = 0; this.formUses = 0; this.prayed = false; this.starred = false; this.uriLevels = 0; this.barakLevels = 0; this.dead = false; this.banked = false; this.pendingLevels = 0;
     this.maxHp = this.hp = this.baseMaxHp();
     this.cds = { dash: 0, skill: 0, form: 0, switch: 0 };
   }
@@ -341,6 +343,8 @@ export class Horde extends Phaser.Scene {
     if (!this.dead) {
       // Moving, except for a moment after a blink and while a Phantom chain carries the hero.
       let mx = this.ui.mx, my = this.ui.my;
+      // AUTO steers while the stick rests (a thumb on it takes over at once).
+      if (this.auto && !mx && !my) { this.autoSteer(dt); mx = this.autoMx; my = this.autoMy; }
       this.dashT = Math.max(0, this.dashT - dt); this.lockT = Math.max(0, this.lockT - dt); this.impactCd = Math.max(0, this.impactCd - raw);
       if (this.dashT > 0 || this.lockT > 0) mx = my = 0;
       this.hero.vx = mx * this.speed; this.hero.vy = my * this.speed;
@@ -384,6 +388,61 @@ export class Horde extends Phaser.Scene {
 
   private skillCd() { return KIT[this.heroId].skillCd * this.cdMult; }
   private get nextHero() { return HEROES[(HEROES.indexOf(this.heroId) + 1) % HEROES.length]; }
+
+  /** AUTO: the hero walks and casts alone; the weapons already fire by themselves. Toggled by P or the AUTO chip. */
+  auto = false;
+  private autoMx = 0;
+  private autoMy = 0;
+  private autoT = 0;
+  private readonly autoDrop = { x: 0, y: 0 };
+  toggleAuto() {
+    this.auto = !this.auto; this.autoMx = this.autoMy = 0;
+    this.ui.toast(this.auto ? 'AUTO on · the hero fights alone' : 'AUTO off');
+    sfx(this.auto ? 'uiConfirm' : 'uiBack');
+  }
+
+  /**
+   * Away from what crowds in (each foe pushes by the inverse square of its distance, the monarch harder), toward the
+   * nearest gem, coin, heart or chest when the way is clear, and toward the fight when nothing is near, so the weapons
+   * have work. Abilities, the dash and the form are spent as a player would spend them.
+   */
+  private autoSteer(dt: number) {
+    const hx = this.hero.x, hy = this.hero.y;
+    let px = 0, py = 0, near = 0, close = 0, fx = 0, fy = 0, fd = Infinity;
+    for (const f of this.swarm.list) {
+      if (!f.alive) continue;
+      const dx = hx - f.x, dy = hy - f.y, d2 = dx * dx + dy * dy;
+      if (d2 < fd) { fd = d2; fx = f.x; fy = f.y; }
+      if (d2 > 150 * 150) continue;
+      near++;
+      if (d2 < 40 * 40) close++;
+      const w = 900 / Math.max(64, d2);
+      px += dx * w; py += dy * w;
+    }
+    if (this.boss?.alive) {
+      const dx = hx - this.boss.x, dy = hy - this.boss.y, d2 = dx * dx + dy * dy;
+      if (d2 < 220 * 220) { const w = 4200 / Math.max(64, d2); px += dx * w; py += dy * w; }
+    }
+    const crowd = Math.hypot(px, py);
+    if (this.pickups.nearest(hx, hy, 280, this.autoDrop)) {
+      const dx = this.autoDrop.x - hx, dy = this.autoDrop.y - hy, d = Math.hypot(dx, dy) || 1;
+      const pull = crowd > 3 ? 0.4 : 1.2;
+      px += (dx / d) * pull; py += (dy / d) * pull;
+    } else if (!near && fd < Infinity) {
+      const dx = fx - hx, dy = fy - hy, d = Math.hypot(dx, dy) || 1;
+      px += dx / d; py += dy / d;
+    }
+    const n = Math.hypot(px, py);
+    // Eased, so the walk turns rather than twitches.
+    const tx = n > 0.05 ? px / n : 0, ty = n > 0.05 ? py / n : 0, k = Math.min(1, dt * 8);
+    this.autoMx += (tx - this.autoMx) * k; this.autoMy += (ty - this.autoMy) * k;
+    // The buttons, a few times a second.
+    if ((this.autoT -= dt) > 0) return;
+    this.autoT = 0.25;
+    if (close >= 2 && this.cds.dash <= 0) this.ui.pressed.add('dash');
+    else if (near >= 6 && this.cds.skill <= 0) this.ui.pressed.add('skill');
+    if (this.formT <= 0 && (this.trinityReady || this.gauge >= 1) && (near >= 10 || this.boss?.alive)) this.ui.pressed.add('form');
+  }
 
   private acts() {
     for (const a of this.ui.pressed) {
@@ -740,6 +799,9 @@ export class Horde extends Phaser.Scene {
       panel.append(cards, row);
     };
     this.overlay = overlay((p) => { panel = p; draw(); });
+    // AUTO chooses too, after a breath to read the offer: a weapon or a passive before a boon.
+    // (A real timer: the card holds the scene's own clock.)
+    if (this.auto) { const card = this.overlay; window.setTimeout(() => { if (this.overlay === card && this.auto && !banishing && this.scene.isActive()) pick(opts.find((c) => c.kind !== 'boon') ?? opts[0]); }, 1100); }
     const keys = (e: KeyboardEvent) => {
       const i = ['Digit1', 'Digit2', 'Digit3'].indexOf(e.code);
       if (i >= 0 && opts[i]) { e.preventDefault(); pick(opts[i]); }
@@ -861,6 +923,8 @@ export class Horde extends Phaser.Scene {
       b.append(on, off);
       p.append(b);
     });
+    // AUTO goes on to the next stage once the spoils have been seen.
+    if (this.auto) { const card = this.overlay; window.setTimeout(() => { if (this.overlay === card && this.auto && this.scene.isActive()) (document.querySelector('[data-k=hz_next]') as HTMLButtonElement | null)?.click(); }, 2600); }
   }
 
   private openResults(left: boolean) {
@@ -892,6 +956,7 @@ export class Horde extends Phaser.Scene {
     row('Silver', String(this.silver));
     row('Journey XP', String(this.bankXp()));
     if (this.banked) row('Uri', `level ${uriOf(this.save).level}${this.uriLevels ? ` (+${this.uriLevels})` : ''}`);
+    if (this.banked) row('Barak', `level ${kitOf(this.save, 'barak').level}${this.barakLevels ? ` (+${this.barakLevels})` : ''}`);
     if (spoils || this.loot.length) row('Gear', this.loot.length ? this.loot.map((l) => this.lootName(l)).join(', ') : 'none yet');
     const weapons = [...this.arsenal.lv.entries()].filter(([id]) => !WEAPONS[id].hero || this.arsenal.evolved.has(id)).map(([id, lv]) => this.arsenal.evolved.has(id) ? EVOLUTIONS[id].name : `${WEAPONS[id].name} ${lv}`);
     if (weapons.length) row('Relics', weapons.join(', '));
@@ -911,6 +976,7 @@ export class Horde extends Phaser.Scene {
     gainXp(s, xp);
     archerGainXp(s, xp);
     this.uriLevels = uriGainXp(s, xp);
+    this.barakLevels = kitGainXp(s, 'barak', xp);
     for (const l of this.loot) {
       if (!l.item || !ITEMS[l.item]) { if (l.silver) s.silver += l.silver; continue; }
       const it = makeItem(l.item, (l.rarity ?? ITEMS[l.item].rarity) as Rarity);

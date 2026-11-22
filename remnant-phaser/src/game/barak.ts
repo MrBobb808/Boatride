@@ -1,3 +1,4 @@
+import { krank } from './heroKit';
 import { fx } from '../../../remnant/src/render/fx';
 import { settings } from '../classic/shim/settings';
 import type { Player } from './player';
@@ -42,18 +43,20 @@ const BEAST = { power: 1.3, range: 1.15 };
 
 /** Strike with one of Barak's moves; returns how many foes it touched. */
 export function barakStrike(w: WorldApi, p: Player, id: BarakMoveId, beast: boolean) {
-  const m = BARAK_MOVES[id], k = beast ? BEAST : { power: 1, range: 1 };
-  const range = m.range * k.range, power = p.power() * m.power * k.power;
+  const m = BARAK_MOVES[id], k = beast ? BEAST : { power: 1, range: 1 }, r = (n: string) => krank(w.save, 'barak', n);
+  const wide = (id === 'burst' || id === 'drop') && r('b_burst') ? 1.25 : 1;
+  const range = m.range * k.range * wide, power = p.power() * m.power * k.power;
   w.strikeLamps({ x: p.face > 0 ? p.x : p.x - range, y: p.feet - 40, w: range, h: 32 });
   if (m.kind === 'area') return zapArea(w, p, m, range, power);
   // `leaps` is how many foes in all: a jab finds one (two in the Beast, whose claws arc on); the chains one more.
-  const leaps = (m.kind === 'jab' ? 1 : m.leaps) + (beast ? 1 : 0);
+  const leaps = (m.kind === 'jab' ? 1 : m.leaps + r('b_leap')) + (beast ? 1 : 0);
   w.playEffect(m.kind === 'chain' ? 'thunder' : 'swing', { vol: m.kind === 'chain' ? (id === 'thunderhead' ? 0.6 : 0.45) : 0.65 });
-  return discharge(w, p, { range, power, leaps, poise: m.poise, hop: id === 'thunderhead' ? 120 : 84 });
+  return discharge(w, p, { range, power, leaps, poise: m.poise, hop: (id === 'thunderhead' ? 120 : 84) * (m.kind === 'chain' && r('b_leap') ? 1.2 : 1), keep: r('b_fork') ? 0.8 : 0.65 });
 }
 
-/** The first foe ahead within `range`, then on to the nearest unstruck within `hop`, each leap two thirds as strong. */
-export function discharge(w: WorldApi, p: Player, o: { range: number; power: number; leaps: number; poise: number; hop?: number }) {
+/** The first foe ahead within `range`, then on to the nearest unstruck within `hop`, each leap `keep` (two thirds) as
+ * strong. */
+export function discharge(w: WorldApi, p: Player, o: { range: number; power: number; leaps: number; poise: number; hop?: number; keep?: number }) {
   struck.length = 0;
   const targets = w.foes().slice();
   const hit = new Set<FoeLike>();
@@ -83,7 +86,7 @@ export function discharge(w: WorldApi, p: Player, o: { range: number; power: num
     const dealt = before !== undefined && next.hp !== undefined ? Math.max(0, before - next.hp) : damage;
     w.heroHit(next, dealt, o.leaps > 2);
     w.legends?.onHit(next, { heavy: o.leaps > 2, crit: false, ender: false });
-    x = bx; y = by; power *= 0.65;
+    x = bx; y = by; power *= o.keep ?? 0.65;
   }
   return hit.size;
 }

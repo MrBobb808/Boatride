@@ -61,6 +61,9 @@ export class HordeUI {
   private bannerT = 0;
   private toastT = 0;
   private toastText: Phaser.GameObjects.Text;
+  /** AUTO, beside the pause button. */
+  private autoBtn: Phaser.GameObjects.Text;
+  private autoOn = false;
 
   constructor(private h: Horde) {
     if (!h.textures.exists('action-dodge')) bakeActionIcons(h);
@@ -77,6 +80,7 @@ export class HordeUI {
     this.banner = ul(h.add.text(0, 0, '', { ...font(26, '#f6dea0'), fontStyle: 'bold' }).setOrigin(0.5).setAlpha(0));
     this.bannerSub = ul(h.add.text(0, 0, '', { ...font(13, '#ddd4c6'), fontStyle: 'italic' }).setOrigin(0.5).setAlpha(0));
     this.toastText = ul(h.add.text(0, 0, '', { ...font(12), backgroundColor: 'rgba(14,10,18,0.78)', padding: { x: 10 * this.k, y: 5 * this.k } }).setOrigin(0.5).setAlpha(0));
+    this.autoBtn = ul(h.add.text(0, 0, 'AUTO', { ...font(10, '#ffe9a8'), backgroundColor: 'rgba(48,36,12,0.82)', padding: { x: 8 * this.k, y: 4 * this.k } }).setOrigin(1, 0.5).setName('hz_auto'));
     for (const a of ['dash', 'skill', 'form', 'switch'] as Act[]) {
       const g = ul(h.add.graphics());
       const icon = ul(h.add.image(0, 0, 'action-dodge'));
@@ -91,6 +95,8 @@ export class HordeUI {
     // N switches too (the shared input's Switch is X); every other key and the controller come through the
     // shared input service (remnant/src/core/input.ts), which claims its keys before Phaser sees them.
     h.input.keyboard?.on('keydown-N', () => this.pressed.add('switch'));
+    // P: AUTO.
+    h.input.keyboard?.on('keydown-P', () => { if (!h.overlay) h.toggleAuto(); });
     this.layout();
   }
 
@@ -114,6 +120,8 @@ export class HordeUI {
       b.label.setPosition(b.x, b.y + b.r + 2 * k);
     }
     this.pause = { x: W - Math.max(safe.right * k, 0) - 24 * k, y: this.top + 34 * k, r: 15 * k };
+    // Under the pause button, clear of the kill count beside it.
+    this.autoBtn.setPosition(this.pause.x + this.pause.r, this.pause.y + this.pause.r + 16 * k);
     const left = Math.max(safe.left * k, 10 * k), right = W - Math.max(safe.right * k, 10 * k);
     this.texts.level.setPosition(left, this.top + 12 * k);
     this.texts.stage.setPosition(W / 2, this.top + 12 * k);
@@ -139,6 +147,7 @@ export class HordeUI {
 
   private down(p: Phaser.Input.Pointer) {
     if (this.h.overlay) return;
+    if (this.autoBtn.getBounds().contains(p.x, p.y)) { this.h.toggleAuto(); return; }
     const hit = this.hitButton(p.x, p.y);
     if (hit) { this.pressed.add(hit); return; }
     // The stick starts wherever the thumb lands below the bars, away from the buttons.
@@ -159,6 +168,7 @@ export class HordeUI {
       for (const [a, act] of BINDS) if (input.pressed(a)) this.pressed.add(act);
       input.endStep();
     }
+    if (this.autoOn !== this.h.auto) { this.autoOn = this.h.auto; this.autoBtn.setText(this.autoOn ? 'AUTO ON' : 'AUTO').setColor(this.autoOn ? '#1a1206' : '#ffe9a8').setStroke(this.autoOn ? '#ffd66e' : '#07060a', this.autoOn ? 0 : 3 * this.k).setBackgroundColor(this.autoOn ? 'rgba(255,214,110,0.95)' : 'rgba(48,36,12,0.82)'); }
     let mx = input.axisX, my = input.axisY;
     this.stickG.clear();
     if (this.stick) {

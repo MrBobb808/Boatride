@@ -112,8 +112,10 @@ export interface ArcherSave {
 }
 
 /** Every item worn by Elior or Tirzah. */
+/** A host build's other wearers (the Phaser build's Uri and Barak): each says whether it wears a piece. */
+export const wornHooks: ((s: SaveData, uid: string) => boolean)[] = [];
 export function isWorn(s: SaveData, uid: string) {
-  return Object.values(s.equipment).includes(uid) || (!!s.archer && Object.values(s.archer.equipment).includes(uid));
+  return Object.values(s.equipment).includes(uid) || (!!s.archer && Object.values(s.archer.equipment).includes(uid)) || wornHooks.some((f) => f(s, uid));
 }
 
 export function makeItem(id: string, rarity?: Rarity, plus = 0, rollAffixes = true): ItemInst {

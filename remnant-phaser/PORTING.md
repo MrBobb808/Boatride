@@ -689,5 +689,32 @@ Burst, three), the Storm Chain (the Beast's third Spark String strike, up to six
 three-bolt strike from the sky with a ring, a shockwave and `finale`), and the Sky Pursuit (Strike after the Rising
 Volt: up to the launched foe, then the Thunder Drop). Strike presses are buffered two deep, so a fast mash never drops
 a link. In the Horde the Tempest Beast rides each Chain Lightning volley to the last foe it struck (`Arsenal.ride`).
+Becoming the Tempest Beast is the Thunder Descent (`Player.beastDescent`, called by `HeroPowers` as the change ends):
+bolt kind `'descent'`, up to five foes (seven with Many Hands, twelve and further with Eye of the Storm), the world at
+0.18 speed, the letterbox and a push in (`WorldApi.cinematic`), a blow and a claw back on each, and the sky's bolt on the
+last. In the Beast a Strike with nothing at hand goes as the Lightning Step to the foe ahead.
+
+### Uri's and Barak's own kits
+
+`game/heroKit.ts` (`PhaserSave.kits`, settled by `settleKits`): each keeps a level (begun at the journey's, ×3 XP while
+behind Elior's), stat and skill points, an 18-node tree in three branches (`KIT_TREES`, `KIT_NODES`) and gear of his
+own; `kitStats` derives his numbers from them over Elior's covenant ones. `heroKitMenu.ts` adds an Uri and a Barak
+section (Character, Equipment, Skill tree; keys `ur_*` and `bk_*`), and `Hud.togglePause` opens the hero in play's
+page of the same kind. A piece worn by one hero is never worn by another (`wornHooks` in the shared `state.ts`, so the
+store and salvage keep it). Their nodes reach their kits: `krank` in `uriKit.ts` (Heat, Combust, the Great Fireball,
+the Comet Fan, the Supernova, Fusion length and cost) and in `barak.ts`/`player.ts` (leaps, Thunderhead, burst reach,
+fork strength, Storm Chain, teleport reach, the sky's bolt, palms, the Beast's length, the Descent). `formLevel` lets
+their forms open at the journey's level or their own. The Horde uses the same kits (`kitStats`, `kitGainXp`).
+Verified by `scripts/hero-kits.mjs`.
+
+### AUTO
+
+`game/autoBattle.ts`: in the Trial's arena (the Trial, Extreme, the Gauntlet, the Rush, the Daily Challenge) the AUTO
+chip or P hands the fight to `AutoPilot`, which presses buttons through `Controls.bot` (a real stick or key still
+counts first): it goes to the nearest foe at each hero's reach, turns, strings blows, uses the heavy where it pays,
+casts what is ready and paid for, transforms and spends the super, steps away when struck, drinks Balm when low, and
+takes the blessing between waves. It stands down anywhere else. In the Horde (`Horde.auto`, P or the AUTO chip by the
+pause button) it steers away from the crowd and to the drops, spends the dash, the skill and the form, chooses the
+level-up card (a weapon or passive first) and goes on after a cleared stage. Verified by `scripts/auto-battle.mjs`.
 
 Barak’s chapter ability art uses C19–C23. Both combat atlases contain four frames per row for Spark Jab, Chain Lightning, guard, Flash Step, Piercing Current, Thunderclap, Forked Spear and Skybreaker, in that order. A separate four-frame strip covers the shift into Tempest Beast.

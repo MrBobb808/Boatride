@@ -2,6 +2,7 @@
 // entities), runs Elior and the foes, and moves between rooms through their
 // doorways. The camera shows 300 world pixels of height, as the original does.
 
+import { AutoPilot } from '../game/autoBattle';
 import Phaser from 'phaser';
 import { CHAPTERS } from '../../../remnant/src/game/chapters';
 import { ROOMS, CHAR_TILE, T, TILE, isSolid, FALLEN_CHAPTERS, fallenObjective, chapterCurve, type RoomDef, type EntDef } from '../shared';
@@ -57,8 +58,9 @@ const SHOOTABLE = new Set(['arrow', 'orb', 'drop', 'flame', 'arcbolt', 'star', '
 import type { Player as OriginalPlayer } from '../../../remnant/src/game/player';
 import { syncArcher, ARCHER, ARCHER_IDS, type SkillId } from '../game/abilities';
 import { archerStats, archerLevel, heroLevel, archerGainXp, archerDrop, learnArcher, allocateArcher, trank, newArcher, ARCHER_KEEPSAKES } from '../game/archer';
-import { uriOf, uriStats, uriGainXp } from '../game/horde/uri';
+import { kitOf, kitStats, kitGainXp, KIT_NAME, KIT_COLOR } from '../game/heroKit';
 import { addTirzahMenu, useAbilityTextures } from '../game/tirzahMenu';
+import { addKitMenus } from '../game/heroKitMenu';
 import { Partner } from '../game/partner';
 import { lighting } from '../classic/shim/lighting';
 import { normalsFrom } from '../game/normalMaps';
@@ -104,14 +106,16 @@ export class World extends Phaser.Scene implements WorldApi {
    * his are replaced. */
   get d(): Derived {
     const base = this.eliorD;
-    // Uri's own level against Elior's, in Elior's gear (game/horde/uri.ts).
-    if (this.save?.playableHero === 'uri') { if (this.uriFor !== base) { this.uriD = uriStats(this.save, base); this.uriFor = base; } return this.uriD!; }
+    // Uri and Barak from their own kits: level, stats, gear and tree (game/heroKit.ts).
+    const h = this.save?.playableHero;
+    if (h === 'uri' || h === 'barak') { if (this.uriFor !== base || this.kitHero !== h) { this.uriD = kitStats(this.save, h, base); this.uriFor = base; this.kitHero = h; } return this.uriD!; }
     if (this.save?.playableHero !== 'tirzah' || !this.save.archer) return base;
     if (this.herFor !== base) { this.herD = archerStats(this.save, base); this.herFor = base; }
     return this.herD!;
   }
   private uriD?: Derived;
   private uriFor?: Derived;
+  private kitHero = '';
   /** The other hero fighting beside you, when called (game/partner.ts). */
   partner!: Partner;
   private herD: Derived | null = null;
@@ -188,11 +192,12 @@ export class World extends Phaser.Scene implements WorldApi {
     // Bosses beaten before Psalms existed leave theirs now.
     const late = syncPsalms(this.save);
     this.refreshStats();
-    addTirzahMenu(this); useAbilityTextures(this.textures); addPsalmsMenu(this);
+    addTirzahMenu(this); addKitMenus(this); useAbilityTextures(this.textures); addPsalmsMenu(this);
     addHordeMode(() => this.save, () => this.enterHorde());
     addWatchMode(() => this.save, () => { this.persist(); this.scene.stop('hud'); void startScene(this, 'watch', { from: 'world' }); });
     if (late.length) this.time.delayedCall(2500, () => this.toast(`${late.length === 1 ? 'A Psalm' : `${late.length} Psalms`} from bosses you have beaten · Menu → Psalms`));
     this.controls = new Controls(this);
+    this.controls.bot = this.auto;
     // The follow below (0.14, 0.12) blends the same at 60 and 120 Hz, and a shake rolls and settles instead of
     // jittering; the steady camera's rules in shake() are unchanged (game/feel.ts).
     frameFreeFollow(this, 0.14, 0.12);
@@ -237,6 +242,7 @@ export class World extends Phaser.Scene implements WorldApi {
       if(e.repeat||!this.canUseKit)return;
       if(e.code==='KeyN'){e.preventDefault();if(this.player.switchHero())this.persist();}
       if(e.code==='KeyB'){e.preventDefault();if(this.player.cycleStyle())this.persist();}
+      if(e.code==='KeyP'&&this.autoAllowed){e.preventDefault();this.toggleAuto();}
       // O: what now? The guide's card for the objective and the steps to the boss.
       if(e.code==='KeyO'&&this.classic.storyEnabled){e.preventDefault();showHint();}
     };
@@ -620,6 +626,9 @@ export class World extends Phaser.Scene implements WorldApi {
     if (this.classic.storyEnabled) tickCoach(rawDt);
     // The Echo wheel holds the world while it is up.
     if (this.hud.wheelOpen) { this.hud.wheelInput(dt); return; }
+    // AUTO takes the blessing between waves too (a breath after it is offered, so it can be read): the first that
+    // asks no price in blood.
+    { const r = this.classic.story.ch3.rounds; if (this.auto.on && r.awaitingBlessing && this.auto.bless(rawDt)) r.chooseBlessing(r.pendingBlessings.find((id) => id !== 'bloodprice') ?? r.pendingBlessings[0]); }
     // The pause menu holds the world and takes the keys and pad.
     if (this.hud.paused || G.paused || blockingUI() || topLayer()) { this.physics.pause(); this.hud.sync(this); return; }
     this.feedback.update(dt);
@@ -631,6 +640,9 @@ export class World extends Phaser.Scene implements WorldApi {
     else if (this.controls.pressed('echo') && !G.inCutscene && !this.player.dead) { this.hud.openWheel(); return; }
     if (this.controls.pressed('switch') && !G.inCutscene && !this.player.dead && this.player.hero !== 'uri') this.classic.squad.switchSupport();
     this.controls.locked = G.inCutscene;
+    // AUTO fights only in the survival arena; anywhere else it stands down.
+    if (this.auto.on && !this.autoAllowed) { this.auto.toggle(); this.toast('AUTO off'); }
+    if (this.auto.on && !G.inCutscene) this.auto.think(dt, this.player, this.save, this.foes());
     this.player.update(dt);
     this.legends.update(dt);
     this.awakening.update(rawDt);
@@ -1297,7 +1309,23 @@ export class World extends Phaser.Scene implements WorldApi {
     this.classic.after(0.5, () => { if (G.camera.focus === focus) { G.camera.focus = null; G.camera.focusRate = 8; } G.camera.zoomTarget = 1; });
   }
   private nextFinaleAt = 0;
+  /** AUTO (game/autoBattle.ts): the hero fights on his or her own in the survival modes. */
+  readonly auto = new AutoPilot();
+  /** The survival modes (the Trial, Extreme, the Gauntlet, the Rush, the Daily Challenge) all run in the Trial's arena. */
+  get autoAllowed() { return this.room?.id === 'trial_arena' && !this.player?.dead; }
+  toggleAuto() {
+    if (!this.auto.on && !this.autoAllowed) return false;
+    const on = this.auto.toggle();
+    this.toast(on ? 'AUTO on · the hero fights alone (P or the AUTO chip to take back)' : 'AUTO off');
+    return true;
+  }
   slowTime(sec: number, scale: number) { this.classic.slowmo(sec, scale); }
+  cinematic(on: boolean) {
+    // A boss's own entrance keeps its bars; the combo only lends them.
+    if (G.inCutscene) return;
+    this.hud.cinematicBars(on);
+    G.camera.zoomTarget = on ? 1.14 : 1;
+  }
   echoesFocus(f: FoeLike) { const e = this.classic.entityFor(f); if (e) for (const u of this.classic.squad.echoes) u.takeOver(e); }
 
   shake(intensity: number, ms: number) {
@@ -1424,8 +1452,12 @@ export class World extends Phaser.Scene implements WorldApi {
     // The hero fighting earns it all; the one waiting earns half. Story XP catches each up to the chapter's
     // arrival level by their own level; the Trial pays by its own rules.
     const her = this.player.hero === 'tirzah', catchUp = (lv: number) => this.room.id !== 'trial_arena' ? catchUpXp(lv, chapterOf(this.room.id)) : 1;
-    // Uri, fighting, earns his own share as well (three times over while he is behind Elior).
-    if (this.player.hero === 'uri') { const ups = uriGainXp(s, xp); if (ups) { this.refreshStats(); this.player.hp = s.hp = Math.min(this.d.maxHp, s.hp); this.toast(`Uri reached level ${uriOf(s).level}`); islandNotify(`URI ${uriOf(s).level}`, '#ff9a50', 'stats', 2.8); } }
+    // Uri and Barak, fighting, earn their own share too (three times over while behind Elior).
+    const kh = this.player.hero;
+    if (kh === 'uri' || kh === 'barak') {
+      const ups = kitGainXp(s, kh, xp);
+      if (ups) { const k = kitOf(s, kh); this.refreshStats(); this.player.hp = s.hp = Math.min(this.d.maxHp, s.hp); this.toast(`${KIT_NAME[kh]} reached level ${k.level} · his points wait in Menu → ${KIT_NAME[kh]}`); islandNotify(`${KIT_NAME[kh].toUpperCase()} ${k.level}`, KIT_COLOR[kh], 'stats', 2.8); }
+    }
     const hisXp = Math.round(xp * catchUp(s.level) * (her ? 0.5 : 1)), herXp = Math.round(xp * catchUp(archerLevel(s)) * (her ? 1 : 0.5));
     this.archerXp(herXp);
     xp = hisXp;

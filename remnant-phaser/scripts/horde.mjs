@@ -225,12 +225,12 @@ try {
   console.log('Sideways: the buttons reflow inside the screen');
 
   // ---- a fall banks the run: silver, XP, gear and the record go into the save
-  const saved = await H(page, (h) => ({ silver: h.save.silver, inv: h.save.inventory.length, level: h.save.level, xp: h.save.xp, run: h.silver, uri: { ...(h.save.uri ?? { level: 1, xp: 0 }) } }));
+  const saved = await H(page, (h) => ({ silver: h.save.silver, inv: h.save.inventory.length, level: h.save.level, xp: h.save.xp, run: h.silver, uri: { ...(h.save.kits?.uri ?? { level: 1, xp: 0 }) } }));
   for (let i = 0; i < 10 && await E(page, () => document.querySelectorAll('.hz-card').length); i++) { await page.locator('.hz-card').first().click(); await page.waitForTimeout(250); }
   await H(page, (h) => { delete h.hurtHero; h.invuln = 0; h.hurtHero(1e9); });
   await until(page, () => document.querySelector('[data-k=hz_return]'));
   // The run's silver as banked (coins still flying in after the snapshot above count too).
-  const banked = await H(page, (h) => ({ silver: h.save.silver, inv: h.save.inventory.length, level: h.save.level, xp: h.save.xp, rec: h.save.horde, uri: h.save.uri, run: h.silver }));
+  const banked = await H(page, (h) => ({ silver: h.save.silver, inv: h.save.inventory.length, level: h.save.level, xp: h.save.xp, rec: h.save.horde, uri: h.save.kits?.uri, run: h.silver }));
   assert.equal(banked.silver, saved.silver + banked.run, 'the run\'s silver is banked');
   assert.equal(banked.inv, saved.inv + 1, 'the monarch\'s gear is in the pack');
   assert.ok(banked.level > saved.level || banked.xp > saved.xp, 'the journey earns XP');

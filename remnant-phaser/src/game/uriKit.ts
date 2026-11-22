@@ -23,6 +23,7 @@
 //   Strike during or just after the Flame Dash: the Comet Fan, three fireballs at once.
 //   Hold Jump while falling: the Updraft, a jet of fire under his feet that slows the fall and burns what is below.
 // His numbers are his own (game/horde/uri.ts: his level, measured against Elior's), in Elior's gear.
+import { krank } from './heroKit';
 import Phaser from 'phaser';
 import { TILE, isSolid, T } from '../shared';
 import type { WorldApi, FoeLike } from './types';
@@ -190,9 +191,11 @@ export class UriKit {
     this.mergeU = Math.max(0.001, Math.min(1, u));
   }
   private get here() { return this.w.save.playableHero === 'uri' && !this.p.dead; }
+  /** A rank in his own tree (game/heroKit.ts). */
+  private rank(id: string) { return krank(this.w.save, 'uri', id); }
   private power(mult: number) {
     const d = this.w.d, crit = Math.random() < d.crit;
-    return { dmg: d.atk * mult * (this.fused ? 1.5 : 1) * (1 + 0.15 * this.heatTier) * (crit ? d.critDmg : 1), crit };
+    return { dmg: d.atk * mult * (this.fused ? 1.5 : 1) * (1 + 0.15 * this.heatTier) * (this.heatTier === 3 && this.rank('u_furnace') ? 1.2 : 1) * (crit ? d.critDmg : 1), crit };
   }
 
   // ---------------------------------------------------------------- heat
@@ -201,7 +204,7 @@ export class UriKit {
   /** `rest`: the blow counts as him still fighting (burning ground ticking on its own does not keep him warm). */
   addHeat(n: number, rest = true) {
     const before = this.heatTier, p = this.p;
-    this.heat = Math.min(100, this.heat + n * (this.fused ? 1.5 : 1));
+    this.heat = Math.min(100, this.heat + n * (this.fused ? 1.5 : 1) * (this.rank('u_tinder') ? 4 / 3 : 1));
     if (rest) this.heatRest = 0;
     this.tally.heatPeak = Math.max(this.tally.heatPeak, this.heat);
     const now = this.heatTier;
@@ -341,7 +344,7 @@ export class UriKit {
   private charging(dt: number) {
     const p = this.p, c = this.w.controls;
     this.t += dt;
-    this.charge = Math.max(0, Math.min(1, (this.t - TAP) / (CHARGE_T - TAP)));
+    this.charge = Math.max(0, Math.min(1, (this.t - TAP) / ((CHARGE_T - TAP) * (1 - 0.12 * this.rank('u_gather')))));
     p.body.setVelocityX(c.axis * 46);
     if (Math.abs(c.axis) > 0.2) p.face = Math.sign(c.axis);
     const hx = p.x + p.face * 14, hy = p.feet - 34;
@@ -393,9 +396,10 @@ export class UriKit {
     const p = this.p, s = this.w.save, id = URI_SKILL_IDS[n], def = URI_SKILLS[id];
     if (!uriSkillOpen(s, id)) { this.w.toast(`${def.name} opens at Uri's level ${def.level}.`); return; }
     if (p.cds[id] > 0) return;
-    if (s.ce < def.cost) { this.w.floatText(p.x, p.body.top - 8, 'Not enough Covenant Energy', '#9fc4ff'); return; }
+    const cost = def.cost * (this.rank('u_bond') ? 0.75 : 1);
+    if (s.ce < cost) { this.w.floatText(p.x, p.body.top - 8, 'Not enough Covenant Energy', '#9fc4ff'); return; }
     if (id === 'uri_pillar' && !this.target(SIGHT + 40)) { this.w.toast('No foe in sight for the pillar.'); return; }
-    s.ce -= def.cost; p.cds[id] = def.cd;
+    s.ce -= cost; p.cds[id] = def.cd;
     this.skillId = id;
     this.w.flashLight?.(p.x, p.feet - 30, 160, '#' + def.color.toString(16).padStart(6, '0'), 0.45);
     this.begin('skill');
@@ -455,7 +459,7 @@ export class UriKit {
       const f = this.target(SIGHT + 80, hx, hy), ch = this.charge, speed = 300;
       let vx = p.face * speed, vy = 0;
       if (f) { const dx = f.x - hx, dy = f.box.centerY - hy, d = Math.hypot(dx, dy) || 1; vx = (dx / d) * speed; vy = (dy / d) * speed; }
-      this.shoot(hx, hy, 'great', vx, vy, 1, ch);
+      this.shoot(hx, hy, 'great', vx, vy, 1 + 0.1 * this.rank('u_great'), ch);
       this.w.playEffect('fireball', { x: p.x, vol: 0.9, pitch: 0.6 });
       this.w.shake(0.003 + ch * 0.004, 120);
       this.charge = 0;
@@ -463,8 +467,8 @@ export class UriKit {
     else if (kind === 'comet') {
       // The Comet Fan: three fireballs, each at its own foe (or spread, when fewer are near).
       this.tally.comets++;
-      const marks = this.nearest(3, SIGHT + 40);
-      for (let i = 0; i < 3; i++) {
+      const fan = this.rank('u_comet') ? 5 : 3, marks = this.nearest(fan, SIGHT + 40);
+      for (let i = 0; i < fan; i++) {
         const f = marks[i];
         if (f) this.aimShot(hx, hy - 4 + i * 4, i === 1 ? 'bolt' : 'ball', f, 0.9);
         else { const a = (i - 1) * 0.28; this.shoot(hx, hy, 'ball', Math.cos(a) * 460 * p.face, Math.sin(a) * 460, 0.9); }
@@ -478,7 +482,7 @@ export class UriKit {
   private supernova() {
     const p = this.p, x = p.x, y = p.feet - 26;
     this.tally.novas++;
-    this.heat = 0; this.heatDrawn = -1;
+    this.heat = this.rank('u_sun') ? HEAT_TIERS[1] : 0; this.heatDrawn = -1;
     p.grantInvuln(0.5);
     if (p.onGround) p.body.setVelocityY(-180);
     this.w.hitstop(0.08);
@@ -491,7 +495,7 @@ export class UriKit {
     this.burst(x, y, 1.2);
     for (let i = 0; i < 12; i++) { const a = (i / 12) * Math.PI * 2; this.w.sc.time.delayedCall(30 + i * 12, () => this.burst(x + Math.cos(a) * 90, y + Math.sin(a) * 50, 0.6)); }
     for (let i = 0; i < 16; i++) { const a = (i / 16) * Math.PI * 2 + 0.2; this.w.sc.time.delayedCall(140 + i * 10, () => this.burst(x + Math.cos(a) * 160, y + Math.sin(a) * 80, 0.5)); }
-    for (const f of this.w.foes()) if (f.alive && Math.hypot(f.x - x, (f.box.centerY - y) * 1.4) < 200) this.strike(f, 4, Math.sign(f.x - x) || p.face, 6, true, 380, -260, false);
+    for (const f of this.w.foes()) if (f.alive && Math.hypot(f.x - x, (f.box.centerY - y) * 1.4) < 200) this.strike(f, 4 * (this.rank('u_nova') ? 1.4 : 1), Math.sign(f.x - x) || p.face, 6, true, 380, -260, false);
     for (const dx of [-150, -100, -50, 50, 100, 150]) this.ignite(x + dx, p.feet, 3.5, 0.32, 30);
     // The orc answers with his geysers under the two nearest.
     if (this.out && !this.fused) for (const [i, f] of this.nearest(2, 380).entries()) this.w.sc.time.delayedCall(220 + i * 140, () => { if (this.here && f.alive) this.erupt(f.x, f.box.bottom, 1.6); });
@@ -499,6 +503,7 @@ export class UriKit {
 
   /** A blast of fire at a point: everything within `r` takes `mult` (no Scorch: a blast does not mark). */
   private explode(x: number, y: number, r: number, mult: number, scale: number) {
+    r *= 1 + 0.06 * this.rank('u_wide');
     this.tally.explosions++;
     this.burst(x, y, scale);
     this.burst(x - r * 0.4, y + 6, scale * 0.6); this.burst(x + r * 0.4, y + 6, scale * 0.6);
@@ -605,7 +610,7 @@ export class UriKit {
       if (!sc) { sc = { n: 0, t: 0 }; this.scorch.set(f, sc); }
       sc.n++; sc.t = SCORCH_T;
       this.w.spark(f.x, f.box.top + 4, 0xff6a2a, sc.n + 1);
-      if (sc.n >= SCORCH_MAX) { this.scorch.delete(f); this.combust(f); }
+      if (sc.n >= SCORCH_MAX - (this.rank('u_catch') ? 1 : 0)) { this.scorch.delete(f); this.combust(f); }
     }
     this.w.heroHit(f, hp !== undefined && f.hp !== undefined ? Math.max(0, hp - f.hp) : dmg, heavy, crit);
     this.p.noteStyle(heavy ? 'flame_heavy' : 'flame');
@@ -625,7 +630,8 @@ export class UriKit {
     this.cometT = Math.max(0, this.cometT - dt);
     // Heat cools once he stops landing blows.
     this.heatRest += dt;
-    if (this.heatRest > HEAT_REST && this.heat > 0) this.heat = Math.max(0, this.heat - HEAT_COOL * dt * (this.heatTier === 3 ? 0.5 : 1));
+    const banked = this.rank('u_banked') ? 1 : 0;
+    if (this.heatRest > HEAT_REST * (1 + banked * 0.5) && this.heat > 0) this.heat = Math.max(0, this.heat - HEAT_COOL * dt * (this.heatTier === 3 ? 0.5 : 1) * (banked ? 2 / 3 : 1));
     for (const [f, sc] of this.scorch) { sc.t -= dt; if (sc.t <= 0 || !f.alive) this.scorch.delete(f); }
     this.updateUpdraft(dt);
     this.drawHeat(dt);
