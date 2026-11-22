@@ -72,3 +72,5 @@ ch14-salt.mjs
 dyn-lighting.mjs
 barak.mjs
 item-crash.mjs
+hero-kits.mjs
+auto-battle.mjs

@@ -426,8 +426,7 @@ Never ship files from `art/incoming/` directly.
   `classic/hero.ts`) and he steps out again when the fire fades; the shaman steps into him (`UriKit.dress` draws the shaman's fire-shape inside a larger Uri, C09): twin
   fireballs, the chant from his own hand, burning ground, a longer dash. He calls no Echoes (`Squad.uriAlone`) and
   raises no shadows (`shadowGate` in the shared `game/finishers.ts`). He keeps his
-  own level (`PhaserSave.uri`, `uriStats` in `game/horde/uri.ts`) in Elior's gear; the AI partner stays Elior or
-  Tirzah. The Horde draws him and the shaman from the same parts, and the Watch puts him on the wall from Watch level
+  own kit (below); the AI partner stays Elior or Tirzah. The Horde draws him and the shaman from the same parts, and the Watch puts him on the wall from Watch level
   35 (`src/game/watch/uriWall.ts`, `URI_WALL`) with the shaman behind him chanting his own fire; under the Watch's
   Mantle they are one (larger Uri, twin fireballs). Every journey mode (Chapters, the Trial, Extreme, the Gauntlet, the
   Rush, the Daily Challenge) runs on the journey's World, so Uri keeps his shaman in all of them. Verified by
@@ -448,11 +447,28 @@ Never ship files from `art/incoming/` directly.
   `gatherBolt` picks the foes, a trail and afterimages behind him): the Beast's dodge is the Lightning Step, its third
   strike the Storm Chain (every foe near, the world slowed, a bolt from the sky at the end, `finale`), Strike after the
   Arc Burst the Chain Rush (three), and Strike after the Rising Volt the Sky Pursuit (up to the launched foe, then the
-  Thunder Drop). In the Horde the Beast rides each Chain Lightning volley to its last foe (`Arsenal.ride`). He
-  shares Elior's level and gear. In the Horde he fights with Chain Lightning (`spark`, evolved with Swift Feet
+  Thunder Drop). Becoming the Beast is the Thunder Descent (`Player.beastDescent`, bolt kind `'descent'`): he goes
+  into the bolt and arrives on the foes near him one by one, the world nearly still and letterboxed
+  (`WorldApi.cinematic`), a blow and a claw back on each, the sky's bolt on the last; in the Beast a Strike with nothing
+  at hand goes as the bolt to the foe ahead. In the Horde the Beast rides each Chain Lightning volley to its last foe
+  (`Arsenal.ride`). He keeps his own kit (below). In the Horde he fights with Chain Lightning (`spark`, evolved with Swift Feet
   into the Lightning of the LORD), STARS (`Arsenal.starfall`), the Flash Step and the Tempest Beast on the same
   sheets; the Trinity there is any three full gauges with the hero in play's. Verified by
   `remnant-phaser/scripts/barak.mjs` and `scripts/horde.mjs`.
+- **Uri's and Barak's kits (Phaser build):** `remnant-phaser/src/game/heroKit.ts` (`PhaserSave.kits`, `settleKits`):
+  each keeps his own level (begun at the journey's; ×3 XP while behind Elior), stat and skill points, an 18-node tree in
+  three branches and gear of his own, with Character, Equipment and Skill tree sections in the pause menu
+  (`heroKitMenu.ts`; keys `ur_*`, `bk_*`; the menu opens on the hero in play's page). A piece worn by one hero is never
+  worn by another (`wornHooks` in the shared `state.ts`). Their nodes reach their moves (`krank` in `uriKit.ts`,
+  `barak.ts`, `player.ts`); `formLevel` opens their forms at the journey's level or their own. The Horde uses the same
+  kits. Verified by `remnant-phaser/scripts/hero-kits.mjs`.
+- **AUTO (Phaser build):** `remnant-phaser/src/game/autoBattle.ts`. In the survival modes (the Trial's arena: the
+  Trial, Extreme, the Gauntlet, the Rush, the Daily Challenge) the AUTO chip or P lets the hero in play fight alone:
+  `AutoPilot` presses buttons through `Controls.bot` (real input still counts first), reaches, turns, strings blows,
+  casts, transforms, spends the super, dodges, drinks Balm and takes the blessing between waves; it stands down outside
+  the arena. In the Horde (`Horde.auto`, P or the AUTO chip by pause) it steers from the crowd to the drops, spends the
+  dash, skill and form, chooses level-up cards and goes on after a cleared stage. Verified by
+  `remnant-phaser/scripts/auto-battle.mjs`.
 - **The Sundered Chains (Phaser build):** Elior's second weapon (`remnant-phaser/src/game/chains.ts`, POLISH_PLAN
   §20): twin kindled blades on chains, won with Chapter I (the flag `sundered_chains`). The `chain` action (the CHAINS
   touch button, `Y`, or Down + Heavy) lashes foes in reach (lash, lash, slam, cyclone), hooks a far one (a light foe is

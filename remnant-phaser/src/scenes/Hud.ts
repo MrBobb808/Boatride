@@ -71,6 +71,8 @@ export class Hud extends Phaser.Scene {
   private pausePointer = -1;
   private heroBtn!: Phaser.GameObjects.Text;
   private styleBtn!: Phaser.GameObjects.Text;
+  /** AUTO, in the survival modes only (game/autoBattle.ts). */
+  private autoBtn!: Phaser.GameObjects.Text;
   private styleRank!: Phaser.GameObjects.Text;
   /** The keyboard and pad skill bar along the bottom (touch has its buttons). */
   private skillBar!: Phaser.GameObjects.Container;
@@ -153,6 +155,7 @@ export class Hud extends Phaser.Scene {
     // Small chips under Elior's column: they stay reachable without covering the fight.
     this.heroBtn = this.add.text(0,0,'',font(8,'#a6efdc',true)).setOrigin(0,0.5).setPadding(7*k,5*k).setBackgroundColor('rgba(16,35,41,0.82)').setInteractive({useHandCursor:true}).setName('hero_swap');
     this.styleBtn = this.add.text(0,0,'',font(8,'#f6dea0',true)).setOrigin(0,0.5).setPadding(7*k,5*k).setBackgroundColor('rgba(39,32,48,0.82)').setInteractive({useHandCursor:true}).setName('style_cycle');
+    this.autoBtn = this.add.text(0,0,'',font(8,'#ffe9a8',true)).setOrigin(0,0.5).setPadding(7*k,5*k).setBackgroundColor('rgba(48,36,12,0.82)').setInteractive({useHandCursor:true}).setName('auto_battle').setVisible(false);
     this.styleRank = this.add.text(0,0,'',font(16,'#e7c979',true)).setOrigin(1,0).setName('style_rank');
     // The objective chip: tap it for the guide's card (O on a keyboard).
     const chip = this.guideChip = this.add.text(0, 0, '', font(8.5, GOLD, true)).setOrigin(0, 0.5).setPadding(7 * k, 5 * k).setBackgroundColor('rgba(40,30,12,0.84)').setInteractive({ useHandCursor: true }).setName('guide_hint').setDepth(5);
@@ -160,7 +163,7 @@ export class Hud extends Phaser.Scene {
     chip.on('pointerout', () => chip.setData('pid', -1));
     chip.on('pointerup', (pt: Phaser.Input.Pointer) => { const ok = chip.getData('pid') === pt.id; chip.setData('pid', -1); if (ok && !G.inCutscene) showHint(); });
     this.guideArrow = this.add.graphics().setDepth(5);
-    for (const [button,run] of [[this.heroBtn,()=>{if(this.world.player.switchHero())this.world.persist();}], [this.styleBtn,()=>this.openWheel('heroes')]] as const) {
+    for (const [button,run] of [[this.heroBtn,()=>{if(this.world.player.switchHero())this.world.persist();}], [this.styleBtn,()=>this.openWheel('heroes')], [this.autoBtn,()=>{this.world.toggleAuto();}]] as const) {
       button.on('pointerdown',(p:Phaser.Input.Pointer)=>{if(p.wasTouch)input.setDevice('touch');button.setData('pid',p.id);});
       button.on('pointerout',()=>button.setData('pid',-1));
       button.on('pointerup',(p:Phaser.Input.Pointer)=>{const ok=button.getData('pid')===p.id;button.setData('pid',-1);if(ok&&this.world.canUseKit)run();});
@@ -218,6 +221,9 @@ export class Hud extends Phaser.Scene {
     if (this.styleBtn.text !== styleLabel) this.styleBtn.setText(styleLabel);
     const kitOn = w.canUseKit && !p.dead;
     this.heroBtn.setVisible(kitOn); this.styleBtn.setVisible(kitOn);
+    const autoLabel = `${keys ? 'P  ' : ''}AUTO ${w.auto.on ? 'ON' : 'OFF'}`;
+    if (this.autoBtn.text !== autoLabel) this.autoBtn.setText(autoLabel).setColor(w.auto.on ? '#1a1206' : '#ffe9a8').setBackgroundColor(w.auto.on ? 'rgba(255,214,110,0.95)' : 'rgba(48,36,12,0.82)');
+    this.autoBtn.setVisible(kitOn && w.autoAllowed);
     this.styleRank.setText(p.styleMeter.score > 1 ? `${RANKS[p.styleMeter.rank]}  ·  ${p.comboHits} HITS` : '').setVisible(!G.inCutscene && !this.paused);
     const px = dpr(), cw = this.scale.width / px, ch = this.scale.height / px;
     const side = islandSide();
@@ -293,6 +299,7 @@ export class Hud extends Phaser.Scene {
     const chipY = cy + 22 * k;
     this.heroBtn.setPosition(hx, chipY);
     this.styleBtn.setPosition(hx + this.heroBtn.displayWidth + 6 * k, chipY);
+    this.autoBtn.setPosition(this.styleBtn.x + this.styleBtn.displayWidth + 6 * k, chipY);
     // The objective chip under them, then the toasts, never over the stats.
     const guideY = chipY + (this.heroBtn.visible ? 18 : 0) * k;
     this.guideChip?.setPosition(hx, guideY);
@@ -800,7 +807,7 @@ export class Hud extends Phaser.Scene {
 
   private onDown(p: Phaser.Input.Pointer) {
     if (this.paused || (!p.wasTouch && !this.touchUi.visible)) return;
-    if(this.heroBtn.getBounds().contains(p.x,p.y)||this.styleBtn.getBounds().contains(p.x,p.y))return;
+    if(this.heroBtn.getBounds().contains(p.x,p.y)||this.styleBtn.getBounds().contains(p.x,p.y)||(this.autoBtn.visible&&this.autoBtn.getBounds().contains(p.x,p.y)))return;
     const c = this.world.controls;
     const b = this.btnAt(p.x, p.y);
     if (b) {

@@ -12,7 +12,7 @@ const browser = await chromium.launch({ headless: true, ...(process.env.PLAYWRIG
 const errors = [];
 const E = (page, fn, arg) => page.evaluate(fn, arg);
 const PAGES = ['quests', 'map', 'chapters', 'valor', 'character', 'equipment', 'skills', 'progression', 'moves', 'crafting', 'store',
-  'tz_character', 'tz_equipment', 'tz_skills', 'tz_abilities', 'psalms', 'items', 'gear', 'echoes', 'imprints', 'lore', 'bestiary', 'settings', 'system'];
+  'tz_character', 'tz_equipment', 'tz_skills', 'tz_abilities', 'ur_character', 'ur_equipment', 'ur_skills', 'bk_character', 'bk_equipment', 'bk_skills', 'psalms', 'items', 'gear', 'echoes', 'imprints', 'lore', 'bestiary', 'settings', 'system'];
 
 /** Anything under `sel` that runs past the screen's sides (outside a strip that scrolls sideways), or text cut off. */
 const OVERFLOW = (sel) => {

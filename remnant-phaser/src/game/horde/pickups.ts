@@ -37,6 +37,17 @@ export class Pickups {
     d.img.setTexture(tex).setOrigin(0.5, 1);
   }
 
+  /** The nearest drop on the ground within `r` of (x, y) (AUTO walks to it), or null. Writes into `out`. */
+  nearest(x: number, y: number, r: number, out: { x: number; y: number }) {
+    let bd = r * r, found = false;
+    for (const o of this.list) {
+      if (!o.alive || o.pull) continue;
+      const dd = (o.x - x) ** 2 + (o.y - y) ** 2;
+      if (dd < bd) { bd = dd; out.x = o.x; out.y = o.y; found = true; }
+    }
+    return found;
+  }
+
   /** Every gem on the field flies home (a stage cleared). */
   gather() { for (const d of this.list) if (d.alive && d.kind !== 'chest') d.pull = true; }
 

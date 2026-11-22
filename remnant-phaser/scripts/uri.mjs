@@ -190,7 +190,7 @@ try {
   console.log(`Flame Dash: ${Math.round(dash.x - x0)} px, ${dash.trail} flames behind him`);
 
   // ---- his own abilities: Pillar of Flame, Ring of Fire, Firestorm
-  await E(page, () => { const w = window.__remnant.world; w.save.uri = { ...(w.save.uri ?? {}), level: Math.max(10, w.save.uri?.level ?? 1), xp: 0 }; w.refreshStats(); });
+  await E(page, () => { const w = window.__remnant.world; w.save.uri = { ...(w.save.uri ?? {}), level: Math.max(10, w.save.uri?.level ?? 1), xp: 0 }; const k = w.save.kits?.uri; if (k) { k.level = Math.max(10, k.level); k.xp = 0; } w.refreshStats(); });
   const slots = await E(page, () => [...window.__remnant.skillSlots?.(window.__remnant.world.save) ?? []]);
   await E(page, () => window.__remnant.world.player.grantInvuln(60));
   for (const [key, n] of [['KeyQ', 'pillars'], ['KeyE', 'rings'], ['KeyR', 'storms']]) {
@@ -237,7 +237,7 @@ try {
   await page.screenshot({ path: 'qa/uri-journey.png' });
 
   // ---- his own level: a kill earns him XP while he fights
-  const lv = await E(page, () => { const w = window.__remnant.world, before = w.save.uri?.xp ?? 0, lvl = w.save.uri?.level ?? 1; w.onFoeDied(40, 0, w.player.x, w.player.y); return { before, lvl, after: w.save.uri.xp, lvl2: w.save.uri.level }; });
+  const lv = await E(page, () => { const w = window.__remnant.world, k = w.save.kits.uri, before = k.xp, lvl = k.level; w.onFoeDied(40, 0, w.player.x, w.player.y); return { before, lvl, after: k.xp, lvl2: k.level }; });
   assert.ok(lv.after > lv.before || lv.lvl2 > lv.lvl, `Uri earns his own XP (${JSON.stringify(lv)})`);
   await E(page, () => window.__remnant.world.persist());
 
