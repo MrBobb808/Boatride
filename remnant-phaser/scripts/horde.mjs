@@ -16,6 +16,17 @@ const until = (page, fn, arg, timeout = 30000) => page.waitForFunction(fn, arg, 
 const E = (page, fn, arg) => page.evaluate(fn, arg);
 const H = (page, fn) => page.evaluate(`(${fn})(window.__remnant.horde)`);
 /** Take every level-up card that has come up, so a timed check is not waiting on a paused field. */
+/** Wait for `fn`, taking any level-up card that opens meanwhile (a card pauses the field). */
+async function settled(page, fn, timeout = 30000) {
+  const end = Date.now() + timeout;
+  while (Date.now() < end) {
+    await drain(page);
+    if (await page.evaluate(fn)) return;
+    await page.waitForTimeout(150);
+  }
+  throw Error(`timed out: ${fn} ${await page.evaluate(() => { const h = window.__remnant.horde; return JSON.stringify({ key: h.hero.sprite.texture.key, form: h.hero.form, formT: h.formT, overlay: !!h.overlay, cards: document.querySelectorAll('.hz-card').length }); })}`);
+}
+
 async function drain(page) {
   for (let i = 0; i < 150; i++) {
     if (!await page.evaluate(() => document.querySelectorAll('.hz-card').length)) return;
@@ -161,10 +172,10 @@ try {
   await H(page, (h) => { h.gauge = 1; });
   await tap('form', (h) => h.formT > 0);
   assert.deepEqual(await H(page, (h) => [h.formT > 0, h.hero.form]), [true, true], 'the Tempest Beast takes Barak');
-  await until(page, () => window.__remnant.horde.hero.sprite.texture.key.startsWith('barak-beast'), null, 10000);
+  // A level-up card that opens mid-shift holds the field (and the sprite on the shift's frame): take it while waiting.
+  await settled(page, () => window.__remnant.horde.hero.sprite.texture.key.startsWith('barak-beast'), 20000);
   await H(page, (h) => { h.formT = 0.01; });
-  await drain(page);
-  await until(page, () => !window.__remnant.horde.hero.form);
+  await settled(page, () => !window.__remnant.horde.hero.form, 20000);
   console.log('Barak: Chain Lightning leaps from foe to foe on its own, STARS calls lightning down, and he shifts into the Tempest Beast and back');
 
   // ---- a switch in the moment after a big move is a tag combo; three full gauges are the Trinity; a chest evolves
