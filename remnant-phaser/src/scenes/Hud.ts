@@ -222,7 +222,7 @@ export class Hud extends Phaser.Scene {
     const kitOn = w.canUseKit && !p.dead;
     this.heroBtn.setVisible(kitOn); this.styleBtn.setVisible(kitOn);
     const autoLabel = `${keys ? 'P  ' : ''}AUTO ${w.auto.on ? 'ON' : 'OFF'}`;
-    if (this.autoBtn.text !== autoLabel) this.autoBtn.setText(autoLabel).setColor(w.auto.on ? '#1a1206' : '#ffe9a8').setBackgroundColor(w.auto.on ? 'rgba(255,214,110,0.95)' : 'rgba(48,36,12,0.82)');
+    if (this.autoBtn.text !== autoLabel) this.autoBtn.setText(autoLabel).setColor(w.auto.on ? '#1a1206' : '#ffe9a8').setStroke(w.auto.on ? '#ffd66e' : '#07050a', w.auto.on ? 0 : 3 * k).setBackgroundColor(w.auto.on ? 'rgba(255,214,110,0.95)' : 'rgba(48,36,12,0.82)');
     this.autoBtn.setVisible(kitOn && w.autoAllowed);
     this.styleRank.setText(p.styleMeter.score > 1 ? `${RANKS[p.styleMeter.rank]}  ·  ${p.comboHits} HITS` : '').setVisible(!G.inCutscene && !this.paused);
     const px = dpr(), cw = this.scale.width / px, ch = this.scale.height / px;

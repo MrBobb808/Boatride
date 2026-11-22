@@ -120,7 +120,8 @@ export class HordeUI {
       b.label.setPosition(b.x, b.y + b.r + 2 * k);
     }
     this.pause = { x: W - Math.max(safe.right * k, 0) - 24 * k, y: this.top + 34 * k, r: 15 * k };
-    this.autoBtn.setPosition(this.pause.x - this.pause.r - 10 * k, this.pause.y);
+    // Under the pause button, clear of the kill count beside it.
+    this.autoBtn.setPosition(this.pause.x + this.pause.r, this.pause.y + this.pause.r + 16 * k);
     const left = Math.max(safe.left * k, 10 * k), right = W - Math.max(safe.right * k, 10 * k);
     this.texts.level.setPosition(left, this.top + 12 * k);
     this.texts.stage.setPosition(W / 2, this.top + 12 * k);
@@ -167,7 +168,7 @@ export class HordeUI {
       for (const [a, act] of BINDS) if (input.pressed(a)) this.pressed.add(act);
       input.endStep();
     }
-    if (this.autoOn !== this.h.auto) { this.autoOn = this.h.auto; this.autoBtn.setText(this.autoOn ? 'AUTO ON' : 'AUTO').setColor(this.autoOn ? '#1a1206' : '#ffe9a8').setBackgroundColor(this.autoOn ? 'rgba(255,214,110,0.95)' : 'rgba(48,36,12,0.82)'); }
+    if (this.autoOn !== this.h.auto) { this.autoOn = this.h.auto; this.autoBtn.setText(this.autoOn ? 'AUTO ON' : 'AUTO').setColor(this.autoOn ? '#1a1206' : '#ffe9a8').setStroke(this.autoOn ? '#ffd66e' : '#07060a', this.autoOn ? 0 : 3 * this.k).setBackgroundColor(this.autoOn ? 'rgba(255,214,110,0.95)' : 'rgba(48,36,12,0.82)'); }
     let mx = input.axisX, my = input.axisY;
     this.stickG.clear();
     if (this.stick) {
