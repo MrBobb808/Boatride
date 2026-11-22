@@ -10,7 +10,7 @@ import Phaser from 'phaser';
 import { STYLE_NAMES, STYLE_HELP, RANKS } from '../game/style';
 import { xpToNext, type RoomDef } from '../shared';
 import { SKILLS, SLOTS, skillSlots, ARCHER, ARCHER_IDS } from '../game/abilities';
-import { heroLevel, archerLevel } from '../game/archer';
+import { heroLevel, formLevel, archerLevel } from '../game/archer';
 import { echoName } from '../../../remnant/src/game/state';
 import { bakeAbilityIcons, abilityIconKey } from '../game/abilityIcons';
 import { bakeActionIcons, actionIconKey } from '../game/actionIcons';
@@ -286,7 +286,7 @@ export class Hud extends Phaser.Scene {
     this.echoText.setVisible(total > 0);
     cy += 13 * k;
     const form = p.hero === 'tirzah' ? 'Wings' : p.hero === 'uri' ? 'Fusion' : p.hero === 'barak' ? 'Beast' : 'Mantle';
-    const power = `Super ${Math.floor(s.rally)}%${heroLevel(s) >= 25 ? p.mantleT > 0 ? ` · ${form} ${Math.ceil(p.mantleT)}s` : ` · ${form} ${Math.floor(s.mantle ?? 0)}%` : ''}${s.sub ? ` · ${s.sub.replace('_', ' ')} ${s.hearts ?? 0}♥` : ''}`;
+    const power = `Super ${Math.floor(s.rally)}%${formLevel(s) >= 25 ? p.mantleT > 0 ? ` · ${form} ${Math.ceil(p.mantleT)}s` : ` · ${form} ${Math.floor(s.mantle ?? 0)}%` : ''}${s.sub ? ` · ${s.sub.replace('_', ' ')} ${s.hearts ?? 0}♥` : ''}`;
     this.powerText.setText(power).setPosition(hx, cy);
     const touch = w.controls.device === 'touch';
     box(hudBoxes.column, x0, y0, hx + hw - x0, cy - y0 + 8 * k);
@@ -602,7 +602,7 @@ export class Hud extends Phaser.Scene {
     this.lastHp = p.hp;
     this.fightT = this.fighting(w) ? 3 : Math.max(0, this.fightT - dt);
     const smart = settings.smartButtons !== false, fight = !smart || this.fightT > 0;
-    const echoes = s.echoes.length > 0, form = heroLevel(s) >= 25;
+    const echoes = s.echoes.length > 0, form = formLevel(s) >= 25;
     const want = (a: Action): boolean => {
       switch (a) {
         case 'interact': return !!this.interactLabel;

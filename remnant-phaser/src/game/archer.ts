@@ -81,6 +81,12 @@ export const heroLevel = (s: SaveData) => {
   // Uri and Barak have their own levels (game/heroKit.ts), once their kit is made.
   return h === 'tirzah' ? archerLevel(s) : (h === 'uri' || h === 'barak') && (s as PhaserSave).kits?.[h] ? (s as PhaserSave).kits![h]!.level : s.level;
 };
+/** The level the transformation answers to: Tirzah's own, but Uri's and Barak's forms open with the journey (Elior's
+ * level) or their own, whichever is further on. */
+export const formLevel = (s: SaveData) => {
+  const h = (s as PhaserSave).playableHero;
+  return h === 'uri' || h === 'barak' ? Math.max(s.level, heroLevel(s)) : heroLevel(s);
+};
 export const archerLevel = (s: SaveData) => s.archer?.level ?? s.level;
 
 /** Her experience: +3 stat points and +1 skill point a level, as Elior's. Returns the levels gained. */

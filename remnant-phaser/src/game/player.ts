@@ -8,6 +8,7 @@
 import { trank, heroLevel } from './archer';
 import Phaser from 'phaser';
 import { stormHit, type StormMove, barakFrame, barakStrike, BARAK_MOVES, THUNDERHEAD_T, struck, type BarakMoveId } from './barak';
+import { krank } from './heroKit';
 import { LightningFx } from './lightningFx';
 import { Bow } from './bow';
 import { UriKit } from './uriKit';
@@ -64,7 +65,9 @@ const CHARGE_MULT = [1, 1.35, 1.8, 2.5];
 /** Sheet frames (4×4, 128 px): idle 0–3, run 4–7, rise 8, fall 9, wind-up 10, strike 11, dodge 12–13, hurt 14, cast 15. */
 const FRAME = 128, FOOT = 120, DRAW = 56;
 /** Seconds Barak stays on each foe of a teleport chain before the next (hero time; the Storm Chain slows the world). */
-const BOLT_HOP = { step: 0.12, rush: 0.1, storm: 0.13, pursuit: 0.14 } as const;
+// The Thunder Descent (his arrival as the Tempest Beast) is the slowest: each blow is meant to be seen.
+const BOLT_HOP = { step: 0.12, rush: 0.1, storm: 0.13, pursuit: 0.14, descent: 0.17 } as const;
+type BoltKind = keyof typeof BOLT_HOP;
 
 type State = 'free' | 'attack' | 'hook' | 'charge' | 'parry' | 'block' | 'heal' | 'cast' | 'dodge' | 'airdash' | 'phantom' | 'plunge' | 'execute' | 'transform' | 'scripted' | 'swim' | 'bow' | 'flame' | 'storm' | 'lightning' | 'bolt' | 'hurt' | 'dead';
 
@@ -99,7 +102,9 @@ export class Player {
   /** A teleport chain in play: who he strikes, in order, how far along, and which (game/player.ts startBolt). */
   private boltTargets: FoeLike[] = [];
   private boltI = 0;
-  private boltKind: 'step' | 'rush' | 'storm' | 'pursuit' = 'step';
+  private boltKind: BoltKind = 'step';
+  /** The Descent lent the letterbox; whatever ends it gives it back. */
+  private cineOn = false;
   private boltHits = 0;
   /** The foe the Rising Volt threw up, for the Sky Pursuit. */
   private voltFoe: FoeLike | null = null;
@@ -373,6 +378,7 @@ export class Player {
     if (!this.phantomT && this.state !== 'phantom') { this.phantomN = 0; this.phantomStruck.clear(); }
     this.comboT = Math.max(0, this.comboT - dt);
     if (!this.comboT) this.comboHits = 0;
+    if (this.cineOn && this.state !== 'bolt') { this.cineOn = false; this.w.cinematic?.(false); }
     if (this.onGround) { this.airAttacks = 0; this.palms = 0; this.airChain = false; this.airDash = this.airDashes(); this.airJumps = this.airJumpCount(); }
     if (this.state !== 'dead' && (s.flags.relic_taken || !this.powers?.L.storyEnabled)) s.ce = Math.min(this.maxCe, s.ce + CE_REGEN * this.w.d.ceRegen * dt);
     this.coyote = this.onGround ? COYOTE : Math.max(0, this.coyote - dt);
@@ -677,6 +683,24 @@ export class Player {
     if (id === 'palm') { this.palms++; this.body.setVelocityY(Math.min(this.body.velocity.y, -60)); }
   }
 
+  /** A rank in Barak's own tree (game/heroKit.ts). */
+  private brank(id: string) { return krank(this.w.save, 'barak', id); }
+  private get palmMax() { return this.brank('b_palm') ? 4 : 3; }
+  private get thunderheadT() { return THUNDERHEAD_T * (this.brank('b_head') ? 0.6 : 1); }
+
+  /**
+   * The Thunder Descent: becoming the Tempest Beast, Barak goes into the bolt and arrives on the foes near him one by
+   * one, the world slowed nearly to stillness, a blow and a claw back on each, and the sky's bolt on the last. With
+   * Eye of the Storm it runs through every foe in sight. False when no foe is near (he simply stands in the storm).
+   */
+  beastDescent() {
+    if (this.hero !== 'barak' || this.dead) return false;
+    const eye = this.brank('b_eye') > 0;
+    if (!this.gatherBolt(eye ? 12 : 5 + this.brank('b_more') * 2, eye ? 360 : 280, eye ? 240 : 180)) return false;
+    this.startBolt('descent');
+    return true;
+  }
+
   private foeAtHand(reach: number) {
     for (const f of this.w.foes()) {
       if (!f.alive || f.removed || Math.abs(f.box.centerY - this.y) > 40) continue;
@@ -693,6 +717,7 @@ export class Player {
    */
   private gatherBolt(max: number, firstRange: number, hopRange: number, ahead = false, first?: FoeLike) {
     const out = this.boltTargets;
+    if (this.hero === 'barak' && this.brank('b_reach')) { firstRange *= 1.2; hopRange *= 1.2; }
     out.length = 0;
     const ok = (f: FoeLike) => { const ph = f as FoeLike & { fighting?: boolean; ward?: boolean }; return f.alive && !f.removed && ph.fighting !== false && !ph.ward && !out.includes(f) && !!this.blinkSpot(f); };
     if (first) { if (ok(first)) out.push(first); }
@@ -721,7 +746,7 @@ export class Player {
    * Chain (the Beast's third strike) every foe near, the world slowed about him, and ends in a bolt from the sky; the
    * Sky Pursuit follows the Rising Volt's foe up and drives it down in a Thunder Drop.
    */
-  private startBolt(kind: 'step' | 'rush' | 'storm' | 'pursuit') {
+  private startBolt(kind: BoltKind) {
     const n = this.boltTargets.length;
     this.boltKind = kind; this.boltI = 0; this.boltHits = 0;
     this.state = 'bolt'; this.st = 1; this.linger = ''; this.barakQueued = '';
@@ -733,13 +758,24 @@ export class Player {
       this.w.floatText(this.x, this.body.top - 18, 'STORM CHAIN', '#bff0ff', true);
       this.w.flashLight?.(this.x, this.y, 160, '#9fe6ff', 0.4);
     }
+    if (kind === 'descent') {
+      // The world all but stops, the letterbox closes in, and he is gone into the bolt.
+      this.w.slowTime(BOLT_HOP.descent * n + 0.9, 0.18);
+      this.w.cinematic?.(true); this.cineOn = true;
+      this.w.floatText(this.x, this.body.top - 18, 'THUNDER DESCENT', '#dff7ff', true);
+      this.w.flashLight?.(this.x, this.y, 220, '#bff0ff', 0.6);
+      this.w.shockwave?.(this.x, this.y - 10, 110, 0.5);
+    }
   }
 
   private updateBolt() {
     const b = this.body;
     b.setVelocity(0, 0);
     // The finish: the sky answers the Storm Chain; the others let him go.
-    if (this.boltI < 0) { if (this.st >= (this.boltKind === 'storm' ? 0.4 : 0.16)) this.toFree(); return; }
+    if (this.boltI < 0) {
+      if (this.st >= (this.boltKind === 'descent' ? 0.55 : this.boltKind === 'storm' ? 0.4 : 0.16)) { if (this.boltKind === 'descent') { this.w.cinematic?.(false); this.cineOn = false; } this.toFree(); }
+      return;
+    }
     if (this.st < BOLT_HOP[this.boltKind]) return;
     if (this.boltI >= this.boltTargets.length) { this.finishBolt(); return; }
     const f = this.boltTargets[this.boltI++];
@@ -754,7 +790,8 @@ export class Player {
     this.zaps.zap(x0, y0, this.x, this.y - 6, { width: 4, life: 0.32, forks: 2 });
     this.zaps.zap(x0, y0 + 8, this.x, this.y + 2, { width: 1.4, life: 0.22, forks: 0, color: 0xc8f2ff });
     this.w.spark(x0, y0, 0x9fe6ff, settings.reduceFlashes ? 3 : 10);
-    const mult = this.boltKind === 'storm' ? 1.45 : this.boltKind === 'rush' ? 1.15 : this.boltKind === 'step' ? 1.25 : 1;
+    const mult = (this.boltKind === 'descent' ? 1.7 : this.boltKind === 'storm' ? 1.45 : this.boltKind === 'rush' ? 1.15 : this.boltKind === 'step' ? 1.25 : 1)
+      * (this.boltKind === 'storm' || this.boltKind === 'rush' || this.boltKind === 'descent' ? 1 + 0.1 * this.brank('b_storm') : 1);
     const dir = Math.sign(f.x - this.x) || this.face, dmg = Math.max(1, Math.round(this.power() * mult * (this.mantleT > 0 ? 1.3 : 1))), before = f.hp;
     if (f.hit(dmg, dir, 0.9, false, { poise: 34, ...(this.boltKind === 'pursuit' ? { ky: 380 } : {}) })) {
       this.boltHits++; this.comboHits++;
@@ -762,9 +799,17 @@ export class Player {
       this.zaps.zap(this.x, this.y - 6, f.box.centerX, f.box.centerY, { width: 2.4, life: 0.2, forks: 1 });
       this.w.heroHit(f, before !== undefined && f.hp !== undefined ? Math.max(0, before - f.hp) : dmg, true);
       this.w.burst(f.box.centerX, f.box.centerY, 1, true);
-      this.w.hitstop(0.035);
-      this.w.playEffect('thunder', { vol: 0.35 });
-      this.noteStyle(this.boltKind === 'storm' ? 'storm-chain' : this.boltKind === 'rush' ? 'chain-rush' : this.boltKind === 'pursuit' ? 'sky-pursuit' : 'lightning-step');
+      this.w.hitstop(this.boltKind === 'descent' ? 0.07 : 0.035);
+      this.w.playEffect('thunder', { vol: this.boltKind === 'descent' ? 0.5 : 0.35 });
+      // The Descent strikes each foe twice: the arrival, then a claw back across it as he turns.
+      if (this.boltKind === 'descent' && f.alive) {
+        this.face = -this.face; this.sprite.setFlipX(this.face < 0);
+        const again = Math.max(1, Math.round(dmg * 0.6)), b2 = f.hp;
+        if (f.hit(again, -dir, 0.6, false, { poise: 30, ky: -160 })) this.w.heroHit(f, b2 !== undefined && f.hp !== undefined ? Math.max(0, b2 - f.hp) : again, true);
+        this.zaps.zap(f.box.left, f.box.top + 4, f.box.right, f.box.bottom - 4, { width: 2, life: 0.18, forks: 1, color: 0xdff7ff });
+        this.comboHits++;
+      }
+      this.noteStyle(this.boltKind === 'storm' || this.boltKind === 'descent' ? 'storm-chain' : this.boltKind === 'rush' ? 'chain-rush' : this.boltKind === 'pursuit' ? 'sky-pursuit' : 'lightning-step');
       this.recentHit = 1.2;
     }
   }
@@ -773,19 +818,20 @@ export class Player {
     const last = this.boltTargets[this.boltTargets.length - 1];
     if (this.boltKind === 'pursuit') { this.startBarak('drop'); return; }
     this.boltI = -1; this.st = 0;
-    if (this.boltKind !== 'storm' || !last) return;
+    if ((this.boltKind !== 'storm' && this.boltKind !== 'descent') || !last) return;
+    const sky = (this.brank('b_sky') ? 1.5 : 1) * (this.boltKind === 'descent' ? 1.3 : 1), reach = 96 * (this.brank('b_sky') ? 1.3 : 1);
     // The Storm Chain's end: a bolt from the sky on the last foe, and a ring of thunder about it.
     const x = last.box.centerX, y = last.box.bottom;
     for (const dx of [0, -14, 16]) this.zaps.zap(x + dx * 2, y - 190, x + dx * 0.3, y - 4, { width: dx ? 2 : 6, life: 0.42, forks: dx ? 1 : 3 });
-    fx.ring(x, y - 6, 8, 96, '#bff0ff', 0.4, settings.reduceFlashes ? 1 : 4);
+    fx.ring(x, y - 6, 8, reach, '#bff0ff', 0.4, settings.reduceFlashes ? 1 : 4);
     for (const f of this.w.foes()) {
-      if (!f.alive || f.removed || Math.hypot(f.box.centerX - x, f.box.centerY - (y - 20)) > 96) continue;
-      const dmg = Math.max(1, Math.round(this.power() * 2.4 * (this.mantleT > 0 ? 1.3 : 1))), before = f.hp;
+      if (!f.alive || f.removed || Math.hypot(f.box.centerX - x, f.box.centerY - (y - 20)) > reach) continue;
+      const dmg = Math.max(1, Math.round(this.power() * 2.4 * sky * (this.mantleT > 0 ? 1.3 : 1))), before = f.hp;
       if (f.hit(dmg, Math.sign(f.x - x) || this.face, 2, true, { poise: 90, guardBreak: true, ky: -300, launch: true })) this.w.heroHit(f, before !== undefined && f.hp !== undefined ? Math.max(0, before - f.hp) : dmg, true, true);
     }
     this.w.shockwave?.(x, y - 20, 140, 0.6);
     this.w.finale(x, y - 20, 1.2);
-    this.w.floatText(x, y - 70, `STORM CHAIN ×${this.boltHits}`, '#bff0ff', true);
+    this.w.floatText(x, y - 70, `${this.boltKind === 'descent' ? 'THUNDER DESCENT' : 'STORM CHAIN'} ×${this.boltHits}`, '#bff0ff', true);
   }
 
   /** A fading copy of Barak where he stood, in lightning blue. */
@@ -806,15 +852,17 @@ export class Player {
     if (this.counterT > 0) { this.counterT = 0; this.startBarak('burst'); return; }
     // Strike after the Rising Volt: the Sky Pursuit, up after the foe it threw.
     if (this.linger === 'volt' && this.voltFoe?.alive && this.gatherBolt(1, 260, 0, false, this.voltFoe)) { this.startBolt('pursuit'); return; }
-    if (!this.onGround && !this.water.swimming) { this.startBarak(c.down('down') || this.palms >= 3 ? 'drop' : 'palm'); return; }
+    if (!this.onGround && !this.water.swimming) { this.startBarak(c.down('down') || this.palms >= this.palmMax ? 'drop' : 'palm'); return; }
     if (this.linger === 'jab1') this.startBarak('jab2');
     // The Beast's third strike is the Storm Chain, through every foe near; otherwise the Arc Burst, and Strike after
     // it the Chain Rush.
-    else if (this.linger === 'jab2' && this.mantleT > 0 && this.gatherBolt(6, 200, 170) >= 2) this.startBolt('storm');
+    else if (this.linger === 'jab2' && this.mantleT > 0 && this.gatherBolt(6 + this.brank('b_more') * 2, 200, 170) >= 2) this.startBolt('storm');
     else if (this.linger === 'jab2') this.startBarak('burst');
     else if (this.linger === 'burst' && this.gatherBolt(3, 200, 150)) this.startBolt('rush');
     else if (c.down('up')) this.startBarak('volt');
     else if (this.sinceDodge < 0.18) this.startBarak('flashjab');
+    // In the Beast a Strike with nothing at hand goes as the bolt to the foe ahead, and the string begins there.
+    else if (this.mantleT > 0 && !this.foeAtHand(50) && this.gatherBolt(1, 220, 0, true)) this.startBolt('step');
     else this.startBarak('jab1');
   }
 
@@ -836,7 +884,11 @@ export class Player {
       if (!this.dropLanded) {
         b.setVelocityX(b.velocity.x * 0.9);
         b.setVelocityY(Math.max(560, b.velocity.y));
-        if (this.onGround && this.st > 0.03) { this.dropLanded = true; this.st = 0; b.setVelocityX(0); strike(); this.w.shake(0.006, 140); }
+        if (this.onGround && this.st > 0.03) {
+          this.dropLanded = true; this.st = 0; b.setVelocityX(0); strike(); this.w.shake(0.006, 140);
+          // Hovering Palm: the drop mends him a little for each foe it rang through.
+          if (this.brank('b_palm') && struck.length) this.hp = Math.min(this.maxHp, this.hp + this.maxHp * 0.02 * struck.length);
+        }
         else if (this.st > 1.8) this.toFree();
         return;
       }
@@ -846,13 +898,13 @@ export class Player {
     b.setVelocityX(b.velocity.x * (this.barakMove === 'flashjab' ? 0.9 : 0.82));
     if (this.barakMove === 'palm' && b.velocity.y > 40) b.setVelocityY(40);
     // Chain Lightning held: it gathers at his hands until Heavy is let go; long enough, and it is the Thunderhead.
-    if (this.barakMove === 'chain' && !this.arcReleased && this.st >= m.impact && c.down('heavy') && this.onGround && this.barakCharge < THUNDERHEAD_T + 0.3) {
+    if (this.barakMove === 'chain' && !this.arcReleased && this.st >= m.impact && c.down('heavy') && this.onGround && this.barakCharge < this.thunderheadT + 0.3) {
       this.st = m.impact - 1e-3;
       this.barakCharge += dt;
-      if (this.barakCharge >= THUNDERHEAD_T && this.barakCharge - dt < THUNDERHEAD_T) { this.w.spark(this.x + this.face * 12, this.y - 4, 0xbff0ff, 12); this.w.playEffect('mantleReady', { vol: 0.4 }); }
+      if (this.barakCharge >= this.thunderheadT && this.barakCharge - dt < this.thunderheadT) { this.w.spark(this.x + this.face * 12, this.y - 4, 0xbff0ff, 12); this.w.playEffect('mantleReady', { vol: 0.4 }); }
       return;
     }
-    if (this.barakMove === 'chain' && !this.arcReleased && this.barakCharge >= THUNDERHEAD_T) { this.barakMove = 'thunderhead'; this.st = 0; }
+    if (this.barakMove === 'chain' && !this.arcReleased && this.barakCharge >= this.thunderheadT) { this.barakMove = 'thunderhead'; this.st = 0; }
     const now = BARAK_MOVES[this.barakMove];
     if (!this.arcReleased && this.st >= now.impact) strike();
     // The string goes on: Strike during a jab is kept, and the next link starts once the jab has struck.
@@ -1536,7 +1588,7 @@ export class Player {
         case 'bolt': {
           // On each foe: the rush, the jab, the chain and the spear in turn, struck then recovering; at the Storm
           // Chain's end, the Skybreaker's call.
-          if (this.boltI < 0) return this.boltKind === 'storm' ? action(7, this.st < 0.16 ? 2 : 3) : action(5, this.st < 0.08 ? 2 : 3);
+          if (this.boltI < 0) return this.boltKind === 'storm' || this.boltKind === 'descent' ? action(7, this.st < 0.16 ? 2 : 3) : action(5, this.st < 0.08 ? 2 : 3);
           return action([4, 0, 1, 6][this.boltI % 4], this.st < 0.06 ? 2 : 3);
         }
         case 'lightning': {
@@ -1544,7 +1596,7 @@ export class Player {
           // The Thunder Drop: the dash pose diving, the Thunderclap's ring where he lands.
           if (this.barakMove === 'drop') return this.dropLanded ? action(5, this.st < 0.1 ? 2 : 3) : action(3, 2);
           // Gathering the Thunderhead: hands drawn back, flickering as it builds.
-          if (this.barakMove === 'chain' && !this.arcReleased && this.barakCharge > 0) return action(1, this.barakCharge >= THUNDERHEAD_T && Math.floor(this.clock * 20) % 2 ? 2 : 1);
+          if (this.barakMove === 'chain' && !this.arcReleased && this.barakCharge > 0) return action(1, this.barakCharge >= this.thunderheadT && Math.floor(this.clock * 20) % 2 ? 2 : 1);
           // Wind-up (frames 0–1) to the impact, then the strike and the recovery (2–3); the second jab starts mid-swing.
           const start = this.barakMove === 'jab2' ? 0.25 : 0;
           const u = this.st < m.impact ? start + (0.5 - start) * this.st / Math.max(1e-3, m.impact) : 0.5 + (this.st - m.impact) / Math.max(1e-3, m.end - m.impact) / 2;

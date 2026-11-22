@@ -91,6 +91,8 @@ export interface WorldApi {
   shockwave?(x: number, y: number, r: number, d?: number): void;
   /** Slow the fight (foes, projectiles, effects) but not the hero, for `sec` seconds. */
   slowTime(sec: number, scale: number): void;
+  /** The letterbox and a slight push in, for a hero's cinematic combo (off again after). */
+  cinematic?(on: boolean): void;
   /** Turn the summoned Echoes onto a foe, as a swap hands one over. */
   echoesFocus(f: FoeLike): void;
   floatText(x: number, y: number, text: string, color: string, crit?: boolean): void;

@@ -23,7 +23,7 @@ import type { ClassicLayer } from './layer';
 import type { Player } from '../game/player';
 /** Each hero's form from the same gauge. */
 const FORM_NAME = { elior: 'Shadow Mantle', tirzah: 'Wings of the Morning', uri: 'Fusion of Flame', barak: 'Tempest Beast' } as const;
-import { heroLevel, trank } from '../game/archer';
+import { formLevel, trank } from '../game/archer';
 import { krank } from '../game/heroKit';
 
 const ELEMENT_COLORS = Object.fromEntries(Object.entries(ELEMENTS).map(([id, e]) => [id, parseInt(e.c.slice(1), 16)]));
@@ -84,7 +84,7 @@ export class HeroPowers {
     const p = this.p, w = this.L.host, c = w.controls, s = w.save;
     this.clipTime+=dt*this.clipSpeed;
     this.subCd = Math.max(0, this.subCd - dt); const recharge = dt * runBlessings.recharge * w.d.pursuitRecharge; this.throwCd = Math.max(0, this.throwCd - recharge); this.pursuitCd = Math.max(0, this.pursuitCd - recharge);
-    if (heroLevel(s) >= 25 && !s.flags.mantle_known) { s.flags.mantle_known = true; s.mantle = 100; w.toast(`${FORM_NAME[p.hero]} awakened · G / the MANTLE button`); }
+    if (formLevel(s) >= 25 && !s.flags.mantle_known) { s.flags.mantle_known = true; s.mantle = 100; w.toast(`${FORM_NAME[p.hero]} awakened · G / the MANTLE button`); }
     if (p.mantleT > 0 && p.state !== 'transform' && !G.inCutscene) {
       p.mantleT = Math.max(0, p.mantleT - dt);
       this.shadeT -= dt;
@@ -136,7 +136,11 @@ export class HeroPowers {
           if (!s.flags.wings_seen) { s.flags.wings_seen = true; w.toast('"If I take the wings of the morning, and dwell in the uttermost parts of the sea;" — Psalm 139:9 (KJV)'); }
         }
       }
-      if (this.transformT >= 1.15) { this.clip = ''; this.ascending = false; p.releaseState(); }
+      if (this.transformT >= 1.15) {
+        this.clip = ''; this.ascending = false; p.releaseState();
+        // Barak goes straight out of the change into the bolt: the Thunder Descent on the foes near him.
+        if (p.hero === 'barak' && p.mantleT > 0) p.beastDescent();
+      }
       this.render(); return true;
     }
     if (this.superT >= 0) {
@@ -187,7 +191,7 @@ export class HeroPowers {
     if (this.p.mantleT > 0 && this.p.hero === 'elior' && !s.flags.unshorn) { this.L.host.toast('A third form waits for Elior: it awakens in the King of the North\'s fight (Chapter XII).'); return false; }
     if (this.p.mantleT > 0 && this.p.hero === 'elior' && s.flags.unshorn) { this.ascending = true; this.transformT = 0; this.transformed = false; this.clip = 'charge'; this.p.state = 'transform'; sfx('transform'); return true; }
     const form = FORM_NAME[this.p.hero];
-    if (heroLevel(s) < 25) { this.L.host.toast(`${form} awakens at level 25.`); return false; }
+    if (formLevel(s) < 25) { this.L.host.toast(`${form} awakens at level 25.`); return false; }
     if (this.p.formT > 0) return false;
     if (this.p.mantleT > 0 || (s.mantle ?? 0) < 100) { this.L.host.toast(`Fill the transformation gauge through battle (${form}).`); return false; }
     s.mantle = 0; this.transformT = 0; this.transformed = false; this.clip = 'charge'; this.p.state = 'transform'; sfx(this.p.hero === 'tirzah' ? 'wingsForm' : this.p.hero === 'uri' ? 'pillarFire' : 'transform'); return true;

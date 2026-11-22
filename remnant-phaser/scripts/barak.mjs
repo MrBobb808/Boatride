@@ -193,11 +193,23 @@ try {
   assert.equal(sky.filter(([x]) => x === 28).length, 3);
   await page.evaluate(() => { window.__remnant.world.save.mantle = 100; });
   await page.keyboard.press('KeyG');
-  await page.waitForFunction(() => window.__remnant.world.player.sprite.texture.key === 'barak-shift');
+  await page.waitForFunction(() => window.__remnant.world.player.sprite.texture.key === 'barak-shift', null, { timeout: 8000 }).catch(async (e) => { throw Error(e.message + ' ' + await page.evaluate(() => { const w = window.__remnant.world, p = w.player; return JSON.stringify({ st: p.state, key: p.sprite.texture.key, m: w.save.mantle, mt: p.mantleT, lvl: w.save.level, known: w.save.flags.mantle_known, ce: w.save.ce }); })); });
   await page.waitForFunction(() => window.__remnant.world.player.sprite.texture.key.startsWith('barak-beast'));
   await page.screenshot({ path: 'qa/barak-beast.png' });
-  await page.waitForFunction(() => window.__remnant.world.player.state === 'free');
-  await page.evaluate(() => { window.__remnant.world.player.mantleT = 0; });
+  // Out of the change he goes straight into the bolt: the Thunder Descent, slowed, letterboxed, a claw back on each.
+  await page.evaluate(() => { window.barakHits.length = 0; });
+  await page.waitForFunction(() => { const p = window.__remnant.world.player; return p.state === 'bolt' && p.boltKind === 'descent'; }, null, { timeout: 25000 });
+  await page.waitForFunction(() => window.__remnant.world.hud.barsOn, null, { timeout: 5000 });
+  await page.screenshot({ path: 'qa/barak-descent.png' });
+  await page.waitForFunction(() => window.__remnant.world.player.state === 'free', null, { timeout: 30000 });
+  const descent = await page.evaluate(() => [window.__remnant.world.player.boltHits, window.barakHits.splice(0).length, window.__remnant.world.hud.barsOn]);
+  assert.ok(descent[0] >= 4, `the Thunder Descent arrives on the pack (${descent})`);
+  assert.ok(descent[1] >= descent[0] * 2, `a blow and a claw back on each, then the sky (${descent})`);
+  assert.equal(descent[2], false, 'the letterbox opens again');
+  console.log(`The Thunder Descent: ${descent[0]} foes, ${descent[1]} blows`);
+  // The Descent left him by the last foe: back to where the wall is measured from.
+  await page.evaluate(() => { const p = window.__remnant.world.player; p.mantleT = 0; p.placeAt(...window.barakStart, 1); p.body.setVelocity(0, 0); window.barakHits.length = 0; });
+  await page.waitForFunction(() => window.__remnant.world.player.onGround);
   // Put a solid tile column between the first and second impact.
   await page.evaluate(() => {
     const w = window.__remnant.world;

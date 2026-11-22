@@ -1301,6 +1301,12 @@ export class World extends Phaser.Scene implements WorldApi {
   }
   private nextFinaleAt = 0;
   slowTime(sec: number, scale: number) { this.classic.slowmo(sec, scale); }
+  cinematic(on: boolean) {
+    // A boss's own entrance keeps its bars; the combo only lends them.
+    if (G.inCutscene) return;
+    this.hud.cinematicBars(on);
+    G.camera.zoomTarget = on ? 1.14 : 1;
+  }
   echoesFocus(f: FoeLike) { const e = this.classic.entityFor(f); if (e) for (const u of this.classic.squad.echoes) u.takeOver(e); }
 
   shake(intensity: number, ms: number) {

@@ -64,7 +64,7 @@ export const KIT_NODES: KitNode[] = [
   N('barak', 'tempest', 'b_more', 'Many Hands', 'The Storm Chain runs through two more foes.', 1, 2, ['b_storm'], 1, 2, 'heart'),
   N('barak', 'tempest', 'b_beast', 'Long Tempest', 'The Tempest Beast lasts 1.5 s longer per rank. Up to 4 ranks.', 4, 1, ['b_reach'], 2, 0, 'mantle'),
   N('barak', 'tempest', 'b_sky', 'Open Sky', 'The sky\'s bolt at the end of the Storm Chain strikes 50% harder and wider.', 1, 2, ['b_more'], 2, 2, 'crown'),
-  N('barak', 'tempest', 'b_eye', 'Eye of the Storm', 'Becoming the Tempest Beast is itself a Storm Chain through every foe near.', 1, 3, ['b_beast', 'b_sky'], 3, 1, 'sigil'),
+  N('barak', 'tempest', 'b_eye', 'Eye of the Storm', 'The Thunder Descent (his arrival as the Tempest Beast) runs through every foe in sight, up to twelve, from further away.', 1, 3, ['b_beast', 'b_sky'], 3, 1, 'sigil'),
   N('barak', 'ground', 'b_vigor', 'Iron Nerve', '+4% maximum health per rank. Up to 10 ranks.', 10, 1, [], 0, 0, 'heal'),
   N('barak', 'ground', 'b_hide', 'Grounded', 'Each rank reduces remaining incoming damage by 5%. Up to 15 ranks.', 15, 1, [], 0, 1, 'armor'),
   N('barak', 'ground', 'b_swift', 'Quicksilver', '+4% move speed per rank. Up to 5 ranks.', 5, 1, ['b_vigor'], 1, 0, 'boot'),
