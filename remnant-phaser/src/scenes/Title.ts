@@ -7,6 +7,7 @@ import { actionAtlas, actionFrame, ACTION_FOOT, ACTION_CELL } from '../game/acti
 import { Home, type HomeMode } from '../game/home';
 import { startScene, preloadScenes } from '../game/scenes';
 import { lateArt } from '../game/lateArt';
+import { HomeBackdrop } from '../game/homeBackdrop';
 
 /** The home screen: the journey (continue, begin again, or bring one over from the live game) and every game mode,
  * as DOM cards (game/home.ts) over a canvas that keeps the glow, drifting embers and Elior standing at his watch. */
@@ -16,17 +17,19 @@ export class Title extends Phaser.Scene {
   private hero: Phaser.GameObjects.Image | null = null;
   private heroKey = '';
   private heroT = 0;
+  private night: HomeBackdrop | null = null;
 
   create() {
     music.play('title');
     const { width: W, height: H } = this.scale;
     const save = loadSave(), live = liveSlots();
     this.cameras.main.setBackgroundColor('#07060a');
-    const glow = this.add.image(W / 2, H * 0.3, 'glow').setTint(0xe2b85a).setAlpha(0.22).setBlendMode(Phaser.BlendModes.ADD);
-    this.tweens.add({ targets: glow, alpha: 0.36, yoyo: true, repeat: -1, duration: 2400, ease: 'Sine.inOut' });
-    // Embers rising behind everything, pooled: a dozen glows recycled by their tweens.
+    // A warm glow behind the wordmark, over the night (game/homeBackdrop.ts, made once the page is laid out).
+    const glow = this.add.image(W / 2, H * 0.16, 'glow').setTint(0xe2b85a).setAlpha(0.16).setScale(1.6, 1).setBlendMode(Phaser.BlendModes.ADD).setDepth(-20);
+    this.tweens.add({ targets: glow, alpha: 0.26, yoyo: true, repeat: -1, duration: 2400, ease: 'Sine.inOut' });
+    // Embers rising through it, pooled: a dozen glows recycled by their tweens.
     for (let i = 0; i < 14; i++) {
-      const e = this.add.image(0, 0, 'glow').setTint(i % 3 ? 0xffa040 : 0xfff1c4).setBlendMode(Phaser.BlendModes.ADD);
+      const e = this.add.image(0, 0, 'glow').setTint(i % 3 ? 0xffa040 : 0xfff1c4).setBlendMode(Phaser.BlendModes.ADD).setDepth(-45);
       const rise = () => {
         e.setPosition(Phaser.Math.Between(0, W), H + 10).setScale(0.06 + Math.random() * 0.08).setAlpha(0.5 + Math.random() * 0.4);
         this.tweens.add({ targets: e, y: H * (0.1 + Math.random() * 0.4), x: e.x + Phaser.Math.Between(-40, 40), alpha: 0, duration: 5000 + Math.random() * 5000, delay: Math.random() * 3000, onComplete: rise });
@@ -40,7 +43,9 @@ export class Title extends Phaser.Scene {
     const go = (fn: () => void | Promise<void>) => {
       if (starting) return;
       starting = true;
-      void Promise.resolve().then(fn).catch(() => { starting = false; this.home?.version('That could not load. Check the connection and try again.', false); });
+      // The page fades as the night does, then the mode begins.
+      this.home?.leave(); this.cameras.main.fadeOut(260, 5, 4, 8);
+      void Promise.resolve().then(fn).catch(() => { starting = false; this.cameras.main.resetFX(); this.cameras.main.fadeIn(1); this.home?.root.classList.remove('hm-leave'); this.home?.version('That could not load. Check the connection and try again.', false); });
     };
     this.home = new Home({
       save, live,
@@ -60,6 +65,9 @@ export class Title extends Phaser.Scene {
       watch: () => go(() => startScene(this, 'watch', { from: 'title' })),
       horde: () => go(() => startScene(this, 'horde')),
     });
+    // The night behind it all, its near ridge where Elior stands.
+    { const r = this.home.stage.getBoundingClientRect(), k = W / window.innerWidth; this.night = new HomeBackdrop(this, W, H, r.bottom * k); }
+    this.cameras.main.fadeIn(500, 5, 4, 8);
     // The modes' chunks and the sheets the home screen does not draw load while it idles (NEXT_PLAN A3).
     preloadScenes(this.game);
     if (lateArt(this)) this.load.start();
@@ -94,7 +102,7 @@ export class Title extends Phaser.Scene {
     this.events.once('shutdown', () => {
       off(); this.scale.off('resize', refit);
       this.home?.root.removeEventListener('scroll', this.placeHero);
-      this.home?.destroy(); this.home = null; this.hero = null;
+      this.home?.destroy(); this.home = null; this.hero = null; this.night = null;
     });
   }
 
@@ -104,10 +112,12 @@ export class Title extends Phaser.Scene {
     const r = this.home.stage.getBoundingClientRect(), k = this.scale.width / window.innerWidth;
     const h = Math.max(40, r.height) * k;
     this.hero.setPosition((r.left + r.width / 2) * k, r.bottom * k).setScale(h / 64).setVisible(r.bottom > 0);
+    if (this.night) this.night.scroll = this.home.root.scrollTop * k;
   };
 
   update(_t: number, delta: number) {
     input.poll(); input.flush();
+    this.night?.update(delta / 1000);
     if (this.hero) { this.heroT += delta / 1000; this.hero.setFrame(actionFrame(this, this.heroKey, 'idle', (this.heroT / 1.6) % 1)); }
   }
 }

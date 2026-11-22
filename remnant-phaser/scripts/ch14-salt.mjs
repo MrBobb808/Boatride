@@ -66,7 +66,7 @@ try {
   assert.ok(await E(() => window.__remnant.world.classic.bossActive), 'the gate shuts behind Elior');
   // It fights: let it swing a while. Its attack is read every frame in the page, so a short one between two of this
   // script's reads is not missed, and the wait follows the game, not the wall clock (a loaded runner runs it slow).
-  await E(() => { window.__wardenSeen = new Set(); const look = () => { const b = window.__remnant.world.cboss; if (b?.atk) window.__wardenSeen.add(b.atk); if (window.__wardenSeen) requestAnimationFrame(look); }; look(); });
+  await E(() => { window.__wardenSeen = new Set(); const look = () => { const seen = window.__wardenSeen; if (!seen) return; const b = window.__remnant.world.cboss; if (b?.atk) seen.add(b.atk); requestAnimationFrame(look); }; look(); });
   await until(() => window.__wardenSeen.size >= 3, null, 90000).catch(() => {});
   const seen = new Set(await E(() => { const s = [...window.__wardenSeen]; window.__wardenSeen = null; return s; }));
   assert.ok(seen.size >= 2, `the Warden uses its attacks (${[...seen].join(', ')})`);
