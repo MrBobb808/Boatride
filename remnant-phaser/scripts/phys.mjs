@@ -95,7 +95,18 @@ try {
     return { eased: ph.stats.eased - before, inside };
   });
   assert.ok(eased.eased > 0 && !eased.inside, `a body set inside stone is eased out (${JSON.stringify(eased)})`);
-  console.log('Hero: a wall stops him flush; 6000 px/s stops at a one-tile wall; up through a one-way ledge, onto it, and Down + Jump through it; eased out of stone');
+  // Set down overlapping the edge of a one-tile step (as the relic's cutscene does at the dais), he stands on it.
+  const step = await E(async () => {
+    const w = window.__remnant.world, { px, fr, T } = window.geo, pl = w.player;
+    for (let x = 2; x <= 5; x++) window.put(x, -1, T.Stone);
+    pl.placeAt((px + 2) * 16, fr * 16, 1);
+    await new Promise((r) => setTimeout(r, 300));
+    const out = { feet: pl.feet, top: (fr - 1) * 16, x: pl.x, edge: (px + 2) * 16 };
+    for (let x = 2; x <= 5; x++) window.put(x, -1, T.Empty);
+    return out;
+  });
+  assert.ok(Math.abs(step.feet - step.top) < 0.01 && step.x === step.edge, `set down at a step's edge, he stands on the step (${JSON.stringify(step)})`);
+  console.log('Hero: a wall stops him flush; 6000 px/s stops at a one-tile wall; up through a one-way ledge, onto it, and Down + Jump through it; eased out of stone, and onto a step he was set down in');
   await p.screenshot({ path: 'qa/phys-hero.png' });
 
   // ---- a Trial round: the shared foes move, look and fit through the core
