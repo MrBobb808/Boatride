@@ -2,6 +2,7 @@
 // entities), runs Elior and the foes, and moves between rooms through their
 // doorways. The camera shows 300 world pixels of height, as the original does.
 
+import { phys } from '../game/phys';
 import { AutoPilot } from '../game/autoBattle';
 import Phaser from 'phaser';
 import { CHAPTERS } from '../../../remnant/src/game/chapters';
@@ -186,6 +187,12 @@ export class World extends Phaser.Scene implements WorldApi {
   preload() { lateArt(this); }
 
   create() {
+    // The physics core (WebAssembly): the classic world's grid in play is the one it moves the shared bodies through,
+    // and after each Arcade step it takes the hero's and the native bosses' steps through the World's grid.
+    phys.activeGrid = () => this.classic?.grid ?? null;
+    this.physics.world.on(Phaser.Physics.Arcade.Events.WORLD_STEP, this.stepPhys, this);
+    this.events.once('shutdown', () => this.physics.world.off(Phaser.Physics.Arcade.Events.WORLD_STEP, this.stepPhys, this));
+    void phys.ready.then((ok) => { if (ok && this.layer && !phys.stepping && this.sys.isActive()) this.adoptPhys(); });
     finishLateArt(this);
     this.save = (!this.fresh && loadSave()) || newSave(!new URLSearchParams(location.search).has("nostory"));
     const away = Date.now() - this.save.updated;
@@ -262,7 +269,7 @@ export class World extends Phaser.Scene implements WorldApi {
         hud: hudBoxes, audio, music, songs, settings, offlineReady, Proj,
         archer: { archerStats, archerDrop, archerGainXp, learnArcher, allocateArcher, trank, newArcher, keepReason },
         psalms: { grantForBoss, syncPsalms, wears, ...psalmApi },
-        normalsFrom,
+        normalsFrom, phys,
       };
     }
   }
@@ -373,6 +380,8 @@ export class World extends Phaser.Scene implements WorldApi {
     this.classic.load();
     barTiles(this);
     for (let y = 0; y < r.h; y++) for (let x = 0; x < r.w; x++) this.grid[y * r.w + x] = this.classic.grid.get(x, y) === T.Gate ? T.Empty : this.classic.grid.get(x, y);
+    // The World's grid lives in the physics core's memory, where the hero steps (game/phys.ts).
+    this.grid = phys.bindHero(this.grid, r.w, r.h);
     this.buildBackdrop(r);
     this.buildTiles(r);
     this.layer.setVisible(false);
@@ -381,7 +390,8 @@ export class World extends Phaser.Scene implements WorldApi {
     const sp = r.spawns[this.entrySpawn];
     this.player = new Player(this, sp.x * TILE + 8, sp.y * TILE, sp.face ?? 1);
     this.classic.attachPlayer();
-    this.colliders.push(this.physics.add.collider(this.player.rect, this.layer, undefined, (_o, t) => this.passable(t as Phaser.Tilemaps.Tile, this.player.dropT > 0), this));
+    // Arcade's tile collider only while the physics core has not loaded (game/phys.ts steps the bodies otherwise).
+    if (!phys.stepping) this.colliders.push(this.physics.add.collider(this.player.rect, this.layer, undefined, (_o, t) => this.passable(t as Phaser.Tilemaps.Tile, this.player.dropT > 0), this));
     for (const e of r.ents) this.spawnEnt(e);
     barProps(this, (o) => this.roomObjs.push(o), (i) => this.interactables.push(i), (label) => { this.interactables = this.interactables.filter((i) => i.label !== label); });
     if (this.classic.storyEnabled && id === 'covenant_chamber' && !this.save.flags.relic_taken) this.classic.addRelic();
@@ -403,6 +413,24 @@ export class World extends Phaser.Scene implements WorldApi {
   }
 
   /** One-way platforms only catch from above, and let go while dropping through. */
+  /** After each Arcade step: the hero's and the native bosses' steps through the grid (game/phys.ts). */
+  private stepPhys() {
+    if (!phys.stepping || !this.player?.body) return;
+    phys.stepBody(this.player.body, this.player.dropT > 0);
+    for (const f of this.foeList) {
+      const b = f.rect?.body as Phaser.Physics.Arcade.Body | undefined;
+      if (b && !f.removed) phys.stepBody(b, false);
+    }
+  }
+
+  /** The core loaded after this room did: hand it the room's grid and retire Arcade's tile colliders. */
+  private adoptPhys() {
+    this.grid = phys.bindHero(this.grid, this.gw, this.gh);
+    if (!phys.stepping) return;
+    for (const c of this.colliders) c.destroy();
+    this.colliders = [];
+  }
+
   private passable(tile: Phaser.Tilemaps.Tile, dropping: boolean) {
     return !(tile.index === TI.oneway && dropping);
   }
@@ -909,7 +937,7 @@ export class World extends Phaser.Scene implements WorldApi {
   addFoe(f: FoeLike) {
     this.foeList.push(f);
     this.classic.addNative(f);
-    if (f.rect) this.colliders.push(this.physics.add.collider(f.rect, this.layer));
+    if (f.rect && !phys.stepping) this.colliders.push(this.physics.add.collider(f.rect, this.layer));
   }
 
   roomW() { return this.gw * TILE; }

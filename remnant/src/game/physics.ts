@@ -27,7 +27,27 @@ export function makeBody(x: number, y: number, w: number, h: number): Body {
 
 const EPS = 0.001;
 
+/**
+ * Another implementation of these rules a host build can install (the Phaser build's WebAssembly core,
+ * remnant-phaser/src/game/phys.ts). Each method takes the call and returns true (or its answer), or returns
+ * false/undefined for a call it cannot take (a grid it does not hold), and the JS here runs instead. The original
+ * edition installs none.
+ */
+export interface PhysicsBackend {
+  moveBody(b: Body, dt: number, g: Grid, solid: SolidFn, collide: boolean): boolean;
+  bodyFits(b: Pick<Body, 'w' | 'h'>, g: Grid, blocked: SolidFn, x: number, y: number): boolean | undefined;
+  los(g: Grid, solid: SolidFn, x0: number, y0: number, x1: number, y1: number): boolean | undefined;
+}
+let backend: PhysicsBackend | null = null;
+export function setPhysicsBackend(b: PhysicsBackend | null) { backend = b; }
+
 export function moveBody(b: Body, dt: number, g: Grid, solid: SolidFn, collide = true) {
+  if (backend?.moveBody(b, dt, g, solid, collide)) return;
+  moveBodyJS(b, dt, g, solid, collide);
+}
+
+/** The rules in JS: what every backend must reproduce exactly. */
+export function moveBodyJS(b: Body, dt: number, g: Grid, solid: SolidFn, collide = true) {
   b.wallDir = 0;
   b.hitCeil = false;
   if (b.dropT > 0) b.dropT -= dt;
@@ -131,6 +151,10 @@ export function moveBody(b: Body, dt: number, g: Grid, solid: SolidFn, collide =
 /** Exact full-body tile test for teleports and scripted placement. Touching edges is safe. */
 export function bodyFits(b: Pick<Body, 'w' | 'h'>, g: Grid, blocked: SolidFn, x: number, y: number) {
   if (!Number.isFinite(x) || !Number.isFinite(y)) return false;
+  return backend?.bodyFits(b, g, blocked, x, y) ?? bodyFitsJS(b, g, blocked, x, y);
+}
+export function bodyFitsJS(b: Pick<Body, 'w' | 'h'>, g: Grid, blocked: SolidFn, x: number, y: number) {
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return false;
   const l = Math.floor((x - b.w / 2 + EPS) / TILE);
   const r = Math.floor((x + b.w / 2 - EPS) / TILE);
   const top = Math.floor((y - b.h + EPS) / TILE);
@@ -174,6 +198,9 @@ export function hazardAhead(b: Body, dir: number, g: Grid, dist = 8) {
 
 /** Line of sight between two points through the tile grid. */
 export function los(g: Grid, solid: SolidFn, x0: number, y0: number, x1: number, y1: number) {
+  return backend?.los(g, solid, x0, y0, x1, y1) ?? losJS(g, solid, x0, y0, x1, y1);
+}
+export function losJS(g: Grid, solid: SolidFn, x0: number, y0: number, x1: number, y1: number) {
   const d = Math.hypot(x1 - x0, y1 - y0);
   const n = Math.ceil(d / 8);
   for (let i = 1; i < n; i++) {
