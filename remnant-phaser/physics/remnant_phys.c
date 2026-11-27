@@ -142,17 +142,20 @@ __attribute__((export_name("los"))) int los(int k, unsigned mask, double x0, dou
 /**
  * An Arcade body's step through grid k (open at its edges): io holds where it stood (x, y bottom-centre), its size,
  * the step (vx, vy as the displacement) and whether it drops through one-way platforms (dropT > 0). A body found
- * inside a wall is first eased out to the nearest free place within a tile (up first, then the sides, then down),
- * as Arcade's separation did. Returns how far it was eased.
+ * inside a wall is first eased out: up onto it if it is a tile high or less, else to the nearest free place to the
+ * side or below within a tile. Returns how far it was eased.
  */
 __attribute__((export_name("step_body"))) int step_body(int k, unsigned mask) {
   k &= 1;
   double x = io[IO_X], y = io[IO_Y], w = io[IO_W], h = io[IO_H];
   int eased = 0;
   if (!fits(k, mask, 1, w, h, x, y)) {
-    for (int d = 1; d <= 16 && !eased; d++) {
+    // Up onto what it stands in first, a step or a dais up to a tile high (set down at a ledge's edge, it stands on
+    // the ledge rather than being pushed off beside it), then the sides, then down.
+    for (int d = 1; d <= 16 && !eased; d++)
       if (fits(k, mask, 1, w, h, x, y - d)) { y -= d; eased = d; }
-      else if (fits(k, mask, 1, w, h, x - d, y)) { x -= d; eased = d; }
+    for (int d = 1; d <= 16 && !eased; d++) {
+      if (fits(k, mask, 1, w, h, x - d, y)) { x -= d; eased = d; }
       else if (fits(k, mask, 1, w, h, x + d, y)) { x += d; eased = d; }
       else if (fits(k, mask, 1, w, h, x, y + d)) { y += d; eased = d; }
     }

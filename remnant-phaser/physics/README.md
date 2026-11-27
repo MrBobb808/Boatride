@@ -18,8 +18,9 @@ no libc and no allocator.
   edition installs none and runs the JS.
 - **Arcade bodies.** `step_body` takes the hero's and the Arcade-bodied bosses' steps after Arcade has integrated
   them (World's `WORLD_STEP`): from `prev` by the displacement, through grid 1, with the map's edges open (the world's
-  own bounds take over there). This replaces Arcade's tilemap collider. A body found inside a wall is first eased out
-  to the nearest free place within a tile, as Arcade's separation did.
+  own bounds take over there). This replaces Arcade's tilemap collider. A body found inside a wall is first eased out:
+  up onto it when it is a tile high or less (set down at a step's edge, it stands on the step), else to the nearest
+  free place to the side or below within a tile.
 
 Tile solidity is passed as a bitmask over the tile kinds, worked out from the caller's predicate on each call, since
 the classic world's `solid` follows the arena gate.
