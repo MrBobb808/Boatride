@@ -584,6 +584,15 @@ Never ship files from `art/incoming/` directly.
   clips, and `pack.py` makes the fighter atlas format (192 px cells, feet at 96,120, `clip:i`) and a matching normal-map
   atlas (`*_n.png`, from the bake's normal pass) for the dynamic lights. `pipeline.sh` runs the
   Blender half. It is tested here on `standin.py`'s mesh; no atlas from it is loaded by the game yet.
+- **Physics in WebAssembly (Phaser build):** `remnant-phaser/physics/remnant_phys.c` (README there), built by
+  `node scripts/build-phys.mjs` into `src/game/physWasm.ts` (base64, committed; rebuild after changing the C, which
+  needs clang's wasm32 target). `src/game/phys.ts` loads it and holds the classic world's grid and the World's grid in
+  its own memory (the game's grid arrays are views into it). It is the backend of the shared `game/physics.ts`
+  (`setPhysicsBackend`: `moveBody`, `bodyFits`, `los` reproduced exactly, so every shared foe, Echo, prop and classic
+  boss moves through it), and the World steps the hero and the native bosses through it on Arcade's `WORLD_STEP`
+  (`phys.stepBody`) in place of Arcade's tile collider, which remains only as the fallback if WebAssembly fails to
+  load. The original edition installs no backend. Verified by `remnant-phaser/scripts/phys.mjs` (parity on 60 000
+  random cases, walls, a 6000 px/s body, one-way ledges, easing out of stone, a Trial round).
 - **iPhone performance:** the game targets 120 Hz.
   - Do not use `shadowBlur`.
   - Cache gradients and avoid allocating in per-frame paths.

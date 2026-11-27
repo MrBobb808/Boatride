@@ -718,3 +718,20 @@ pause button) it steers away from the crowd and to the drops, spends the dash, t
 level-up card (a weapon or passive first) and goes on after a cleared stage. Verified by `scripts/auto-battle.mjs`.
 
 Barak’s chapter ability art uses C19–C23. Both combat atlases contain four frames per row for Spark Jab, Chain Lightning, guard, Flash Step, Piercing Current, Thunderclap, Forked Spear and Skybreaker, in that order. A separate four-frame strip covers the shift into Tempest Beast.
+
+## Physics in WebAssembly
+
+The journey's tile collision is the game's own library, `physics/remnant_phys.c`, compiled to WebAssembly (README
+there; `node scripts/build-phys.mjs` writes `src/game/physWasm.ts`).
+- **Loading.** `src/game/phys.ts` loads it at the World's import.
+- **Shared rules.** It installs it as the backend of the shared `remnant/src/game/physics.ts` (`setPhysicsBackend`).
+  The classic layer's `moveBody`, `bodyFits` and `los` run in it, bit for bit the same as the JS (`phys.parity`).
+- **The World's grid.** `World` binds its grid into the module's memory (`phys.bindHero`) and points
+  `phys.activeGrid` at the classic grid.
+- **Arcade bodies.** On each Arcade `WORLD_STEP` the World steps the hero (`dropT` for one-way platforms) and every
+  native foe's body through it (`stepPhys`). The Arcade tile colliders are made only while the module has not
+  loaded, and `adoptPhys` retires them if it loads after the room did.
+- **Debugging.** `window.__remnant.phys` (debug) exposes `backend`, `stepping`, `stats` and `parity(n)`.
+
+Verified by `scripts/phys.mjs`.
+

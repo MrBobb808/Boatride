@@ -8,7 +8,7 @@ import { spawnSync } from 'node:child_process';
 const [shard = 0, of = 1] = process.argv.slice(2).map(Number);
 const list = readFileSync(new URL('./ci-tests.txt', import.meta.url), 'utf8').split('\n').map((l) => l.trim()).filter((l) => l && !l.startsWith('#'));
 // A check that exists but is not listed would never run: say so in every shard.
-const skip = new Set(['ci-shard.mjs', 'serve.mjs', 'postbuild.mjs', 'assemble-pages.mjs', 'cutover.mjs', 'balance-report.mjs', 'perf.mjs', ...list]);
+const skip = new Set(['ci-shard.mjs', 'serve.mjs', 'postbuild.mjs', 'assemble-pages.mjs', 'cutover.mjs', 'balance-report.mjs', 'perf.mjs', 'build-phys.mjs', ...list]);
 const unlisted = readdirSync(new URL('.', import.meta.url)).filter((f) => f.endsWith('.mjs') && !skip.has(f));
 if (unlisted.length) console.log(`Not in ci-tests.txt (not run by CI): ${unlisted.join(', ')}`);
 
