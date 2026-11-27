@@ -190,8 +190,10 @@ export class World extends Phaser.Scene implements WorldApi {
     // The physics core (WebAssembly): the classic world's grid in play is the one it moves the shared bodies through,
     // and after each Arcade step it takes the hero's and the native bosses' steps through the World's grid.
     phys.activeGrid = () => this.classic?.grid ?? null;
-    this.physics.world.on(Phaser.Physics.Arcade.Events.WORLD_STEP, this.stepPhys, this);
-    this.events.once('shutdown', () => this.physics.world.off(Phaser.Physics.Arcade.Events.WORLD_STEP, this.stepPhys, this));
+    // The world itself is gone by the time the scene's own shutdown handlers run: let go of the one this listened to.
+    const pw = this.physics.world;
+    pw.on(Phaser.Physics.Arcade.Events.WORLD_STEP, this.stepPhys, this);
+    this.events.once('shutdown', () => pw.off(Phaser.Physics.Arcade.Events.WORLD_STEP, this.stepPhys, this));
     void phys.ready.then((ok) => { if (ok && this.layer && !phys.stepping && this.sys.isActive()) this.adoptPhys(); });
     finishLateArt(this);
     this.save = (!this.fresh && loadSave()) || newSave(!new URLSearchParams(location.search).has("nostory"));
