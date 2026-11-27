@@ -74,3 +74,4 @@ barak.mjs
 item-crash.mjs
 hero-kits.mjs
 auto-battle.mjs
+phys.mjs
